@@ -35,3 +35,17 @@ The accepted concepts and final screenshots were inspected side by side with the
 7. **Privacy cues:** final copy makes the concept's implied boundary explicit: `The original remains private. Public links serve sanitized JPEG tiles only.`
 
 Copy differences are deliberate: `Upload OME-TIFF` became `Add a slide`, `Slides` became `Your slides`, and `Ready to publish` became the state-machine label `Ready — private`. The final viewer omits the concept's fake magnification readout and onboarding overlay because neither can be truthful without calibrated objective metadata or first-run state.
+
+## Administrator password recovery acceptance — 2026-07-19
+
+The complete local candidate passed these checks:
+
+- Backend: 196 pytest tests passed.
+- Python quality: Ruff passed and mypy reported no issues in 13 source files.
+- Frontend: 21 Vitest tests passed, ESLint passed, and the production Vite build completed.
+- Deployment configuration: `docker compose -f deploy/compose.yaml config --quiet` passed with disposable interpolation values.
+- Repository hygiene: `git diff --check` passed.
+
+The production backend image was then built and run in an isolated container with two API workers, a disposable SQLite database, and generated in-process credentials. Alembic upgraded the empty database, the API readiness check returned HTTP 200, the first recovery returned HTTP 204, reuse of the consumed code returned HTTP 400, and sign-in with the replacement password returned HTTP 201. The generated recovery code, passwords, and application secret were not printed or recorded, and the disposable container and data directory were removed after the check.
+
+Live production recovery is intentionally unconsumed. The deployed administrator password must not be rotated until the owner separately authorizes that action.

@@ -20,3 +20,11 @@ This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, an
 - Upgrade: fetch a reviewed commit and run `sudo systemctl reload pathlab-viewer`.
 
 The US$1 monthly budget alert is a warning, not a spending cap. OCI public IPv4 policy and charges can change; verify the cost estimator and tenancy billing page at each deployment.
+
+## Administrator password recovery
+
+Generate a single-use recovery code on the server with `docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin`.
+
+The code expires after 15 minutes and invalidates earlier unused codes. Enter it only at the HTTPS Forgot password form. The command prints the code once; do not place it in shell arguments, logs, screenshots, or tickets.
+
+For console-only emergency reset, run `docker compose -f deploy/compose.yaml exec api pathlab-admin reset-password --username admin`. A password change or reset revokes every existing session and unused recovery code.
