@@ -398,6 +398,43 @@ def test_recovery_throttle_is_shared_across_api_workers(tmp_path: Path) -> None:
             pytest.fail("Recovery throttle did not use the stable throttle error")
 
 
+def test_recovery_fields_are_bounded_without_distinguishing_credentials(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        too_long_username = client.post(
+            "/api/v1/auth/password/recover",
+            json={
+                "username": "u" * 101,
+                "recoveryCode": "wrong",
+                "newPassword": "valid replacement password",
+            },
+        )
+        too_long_code = client.post(
+            "/api/v1/auth/password/recover",
+            json={
+                "username": "admin",
+                "recoveryCode": "c" * 257,
+                "newPassword": "valid replacement password",
+            },
+        )
+        if not _has_error(too_long_username, 400, "INVALID_RECOVERY_CODE"):
+            pytest.fail("Oversized recovery username leaked validation detail")
+        if not _has_error(too_long_code, 400, "INVALID_RECOVERY_CODE"):
+            pytest.fail("Oversized recovery code leaked validation detail")
+
+
+def test_password_routes_reject_bodies_over_four_kibibytes(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        response = client.post(
+            "/api/v1/auth/password/recover",
+            content=b"{" + b" " * 4096 + b"}",
+            headers={"Content-Type": "application/json"},
+        )
+        if not _has_error(response, 413, "REQUEST_TOO_LARGE"):
+            pytest.fail("Oversized recovery body was not rejected before JSON validation")
+
+
 def test_slide_lifecycle_and_public_metadata(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         csrf = _login(client)

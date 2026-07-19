@@ -3,15 +3,17 @@ import hmac
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from threading import Barrier
+from threading import Barrier, Event
 
 import pytest
 from sqlalchemy import select
 from wsi_viewer.auth import (
+    CredentialConflict,
     InvalidCurrentPassword,
     InvalidRecoveryCode,
     PasswordReuse,
     RecoveryThrottled,
+    authenticate_and_create_session,
     change_password,
     issue_recovery_code,
     recover_password,
@@ -381,3 +383,225 @@ def test_concurrent_failures_are_all_counted_before_throttling(tmp_path: Path) -
                 "10.0.0.9",
                 now,
             )
+
+
+def test_login_cannot_create_session_after_concurrent_recovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, "login-recovery.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        user = _create_user(database)
+        code = issue_recovery_code(database, user, now)
+        database.commit()
+
+    verified = Barrier(2)
+    release = Event()
+    original_verify = verify_password
+
+    def paused_verify(encoded: str, password: str) -> bool:
+        result = original_verify(encoded, password)
+        verified.wait()
+        release.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr("wsi_viewer.auth.verify_password", paused_verify)
+
+    def login() -> bool:
+        with session_factory(settings)() as database:
+            return authenticate_and_create_session(
+                database,
+                "admin",
+                "correct horse battery",
+                "l" * 64,
+                "csrf",
+                now + timedelta(hours=1),
+                now,
+            )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(login)
+        verified.wait()
+        with session_factory(settings)() as database:
+            recover_password(
+                database,
+                "admin",
+                code,
+                "recovered secure password",
+                "10.0.0.1",
+                now,
+            )
+        release.set()
+        assert pending.result(timeout=5) is False
+
+    with session_factory(settings)() as database:
+        assert database.get(Session, "l" * 64) is None
+
+
+def test_login_cannot_create_session_after_concurrent_cli_reset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, "login-cli.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        _create_user(database)
+        database.commit()
+
+    verified = Barrier(2)
+    release = Event()
+    original_verify = verify_password
+
+    def paused_verify(encoded: str, password: str) -> bool:
+        result = original_verify(encoded, password)
+        verified.wait()
+        release.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr("wsi_viewer.auth.verify_password", paused_verify)
+
+    def login() -> bool:
+        with session_factory(settings)() as database:
+            return authenticate_and_create_session(
+                database,
+                "admin",
+                "correct horse battery",
+                "c" * 64,
+                "csrf",
+                now + timedelta(hours=1),
+                now,
+            )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(login)
+        verified.wait()
+        with session_factory(settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            reset_password_by_cli(database, user, "CLI replacement password", now)
+        release.set()
+        assert pending.result(timeout=5) is False
+
+    with session_factory(settings)() as database:
+        assert database.get(Session, "c" * 64) is None
+
+
+def test_authenticated_change_cannot_overwrite_concurrent_cli_reset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, "change-cli.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        _create_user(database)
+        database.commit()
+
+    verified = Barrier(2)
+    release = Event()
+    original_verify = verify_password
+    first_call = True
+
+    def paused_verify(encoded: str, password: str) -> bool:
+        nonlocal first_call
+        result = original_verify(encoded, password)
+        if first_call:
+            first_call = False
+            verified.wait()
+            release.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr("wsi_viewer.auth.verify_password", paused_verify)
+
+    def change() -> type[Exception] | None:
+        with session_factory(settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            try:
+                change_password(
+                    database,
+                    user,
+                    "correct horse battery",
+                    "authenticated replacement password",
+                    now,
+                )
+            except CredentialConflict:
+                return CredentialConflict
+        return None
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(change)
+        verified.wait()
+        with session_factory(settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            reset_password_by_cli(database, user, "CLI replacement password", now)
+        release.set()
+        assert pending.result(timeout=5) is CredentialConflict
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User).where(User.username == "admin"))
+        assert user is not None
+        assert verify_password(user.password_hash, "CLI replacement password")
+
+
+def test_varied_usernames_share_a_persistent_ip_abuse_ceiling(tmp_path: Path) -> None:
+    settings = _settings(tmp_path, "ip-abuse.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        _create_user(database)
+        database.commit()
+        for index in range(20):
+            with pytest.raises(InvalidRecoveryCode):
+                recover_password(
+                    database,
+                    f"unknown-{index}",
+                    "wrong",
+                    "valid replacement password",
+                    "10.0.0.99",
+                    now,
+                )
+        with pytest.raises(RecoveryThrottled):
+            recover_password(
+                database,
+                "another-name",
+                "wrong",
+                "valid replacement password",
+                "10.0.0.99",
+                now,
+            )
+
+
+def test_old_recovery_failure_audits_are_pruned_opportunistically(tmp_path: Path) -> None:
+    settings = _settings(tmp_path, "audit-retention.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        _create_user(database)
+        database.add(
+            AuditEvent(
+                action="auth.password_recovery_failed",
+                detail={"reason": "invalid_or_expired"},
+                created_at=now.replace(tzinfo=None) - timedelta(days=2),
+            )
+        )
+        database.commit()
+        with pytest.raises(InvalidRecoveryCode):
+            recover_password(
+                database,
+                "admin",
+                "wrong",
+                "valid replacement password",
+                "10.0.0.1",
+                now,
+            )
+        failures = list(
+            database.scalars(
+                select(AuditEvent).where(
+                    AuditEvent.action == "auth.password_recovery_failed"
+                )
+            )
+        )
+        assert len(failures) == 1
+        assert failures[0].created_at == now.replace(tzinfo=None)

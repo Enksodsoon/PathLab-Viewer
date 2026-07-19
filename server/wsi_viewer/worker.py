@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .config import Settings
 from .conversion import generate_dzi
-from .database import create_schema, session_factory
+from .database import session_factory
 from .domain import SlideState
 from .models import Job
 from .ome import OmeError, validate_ome_tiff
@@ -128,7 +128,6 @@ def remove_slide(layout: StorageLayout, slide_id: str, public_id: str) -> None:
 
 def main() -> None:
     settings = Settings()
-    create_schema(settings)
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
     while True:

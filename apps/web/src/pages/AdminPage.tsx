@@ -27,6 +27,7 @@ export function AdminPage() {
   const [securityOpen, setSecurityOpen] = useState(false)
   const [authNotice, setAuthNotice] = useState('')
   const [signingOut, setSigningOut] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
   const authEpoch = useRef(0)
   const refresh = useCallback(async () => {
@@ -89,16 +90,24 @@ export function AdminPage() {
     setAuthorized(false)
   }
 
-  function signOut() {
+  async function signOut() {
     if (signingOut) return
-    endSession()
+    setLogoutError('')
     setSigningOut(true)
-    void logout().catch(() => undefined).finally(() => setSigningOut(false))
+    try {
+      await logout()
+      endSession()
+    } catch {
+      setLogoutError('Sign-out failed. Try again.')
+    } finally {
+      setSigningOut(false)
+    }
   }
 
   return <div className="admin-shell">
-    <header className="topbar"><Brand /><div className="topbar-actions"><span className="secure-dot"><Check size={13} /> Secure admin</span><button type="button" className="icon-button" aria-label="Account security" onClick={() => setSecurityOpen(true)}><KeyRound size={18} /></button><button type="button" className="icon-button" aria-label="Sign out" onClick={signOut}><LogOut size={18} /></button></div></header>
+    <header className="topbar"><Brand /><div className="topbar-actions"><span className="secure-dot"><Check size={13} /> Secure admin</span><button type="button" className="icon-button" aria-label="Account security" onClick={() => setSecurityOpen(true)}><KeyRound size={18} /></button><button type="button" className="icon-button" aria-label="Sign out" onClick={() => void signOut()}><LogOut size={18} /></button></div></header>
     <main className="admin-main">
+      {logoutError ? <p className="form-error" role="alert">{logoutError}</p> : null}
       <section className="page-heading"><div><p className="eyebrow">Slide operations</p><h1>Whole-slide workspace</h1><p>Upload private OME-TIFF originals, review the derivative, then publish an unlisted link.</p></div><div className="storage-summary"><span>{formatBytes(used)} stored</span><strong>{Math.max(0, 120 - used / 1024 ** 3).toFixed(1)} GB available</strong><div><i style={{ width: `${Math.min(100, used / (120 * 1024 ** 3) * 100)}%` }} /></div></div></section>
       <div className="admin-grid">
         <section className="panel upload-panel"><div className="panel-heading"><span className="panel-icon"><CloudUpload size={20} /></span><div><h2>Add a slide</h2><p>Private until you publish it</p></div></div>
@@ -120,6 +129,9 @@ export function AdminPage() {
       onClose={() => setSecurityOpen(false)}
       onChanged={() => {
         endSession('Password changed. Sign in again.')
+      }}
+      onAuthenticationRequired={() => {
+        endSession('Session expired. Sign in again.')
       }}
     />
   </div>

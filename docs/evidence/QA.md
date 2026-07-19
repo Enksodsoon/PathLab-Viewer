@@ -38,7 +38,7 @@ Copy differences are deliberate: `Upload OME-TIFF` became `Add a slide`, `Slides
 
 ## Administrator password recovery acceptance — 2026-07-19
 
-The complete local candidate passed these checks:
+The password-recovery candidate at `13e6397` passed these checks before final review:
 
 - Backend: 196 pytest tests passed.
 - Python quality: Ruff passed and mypy reported no issues in 13 source files.
@@ -49,3 +49,16 @@ The complete local candidate passed these checks:
 The production backend image was then built and run in an isolated container with two API workers, a disposable SQLite database, and generated in-process credentials. Alembic upgraded the empty database, the API readiness check returned HTTP 200, the first recovery returned HTTP 204, reuse of the consumed code returned HTTP 400, and sign-in with the replacement password returned HTTP 201. The generated recovery code, passwords, and application secret were not printed or recorded, and the disposable container and data directory were removed after the check.
 
 Live production recovery is intentionally unconsumed. The deployed administrator password must not be rotated until the owner separately authorizes that action.
+
+## Password recovery final-review verification — 2026-07-19
+
+The final-review fix candidate passed:
+
+- Backend: 205 pytest tests, including deterministic login-versus-recovery, login-versus-console-reset, and authenticated-change-versus-console-reset barriers.
+- Migration: a real `20260719_0001` database retained its user and session while upgrading to head; runtime API startup was also verified not to create or stamp schema.
+- Abuse controls: bounded recovery fields and a 4 KiB route-body cap, persistent username-plus-IP, per-IP, and global ceilings, and 24-hour failed-audit retention.
+- Frontend: 24 Vitest tests, including rejected and non-204 logout behavior, neutral recovery-throttle copy, and immediate session-expiry handling.
+- Quality and packaging: Ruff, mypy, ESLint, the Vite production build, and `docker compose -f deploy/compose.yaml config --quiet` passed.
+- Repository hygiene: both the working diff and the complete `main...HEAD` range passed `git diff --check` after the historical blank-at-EOF findings were removed.
+
+The isolated two-worker container recovery check described above was collected at `13e6397`; it was not relabeled as evidence for the later final-review fix commit. No live OCI credential was changed or recovery code consumed during this fix wave.

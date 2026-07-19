@@ -12,20 +12,22 @@ from typing import Annotated, Any
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session as OrmSession
 
 from .auth import (
+    CredentialConflict,
     InvalidCurrentPassword,
     InvalidRecoveryCode,
     PasswordReuse,
     RecoveryThrottled,
+    authenticate_and_create_session,
     change_password,
     recover_password,
 )
 from .config import Settings
-from .database import create_schema, session_factory
+from .database import session_factory
 from .domain import InvalidTransition, SlideState, transition
 from .models import AuditEvent, Job, Session, Slide, User
 from .security import (
@@ -33,7 +35,6 @@ from .security import (
     UploadGrant,
     issue_upload_token,
     random_token,
-    verify_password,
     verify_upload_token,
 )
 from .storage import (
@@ -44,26 +45,27 @@ from .storage import (
 )
 
 COOKIE_NAME = "pathlab_session"
+MAX_AUTH_BODY_BYTES = 4096
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class PasswordChangeRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    current_password: str = Field(alias="currentPassword")
-    new_password: str = Field(alias="newPassword")
+    current_password: str = Field(alias="currentPassword", min_length=1, max_length=128)
+    new_password: str = Field(alias="newPassword", min_length=1, max_length=128)
 
 
 class PasswordRecoveryRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    username: str
-    recovery_code: str = Field(alias="recoveryCode")
-    new_password: str = Field(alias="newPassword")
+    username: str = Field(min_length=1, max_length=100)
+    recovery_code: str = Field(alias="recoveryCode", min_length=1, max_length=256)
+    new_password: str = Field(alias="newPassword", min_length=1, max_length=128)
 
 
 class SlideRequest(BaseModel):
@@ -127,7 +129,6 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
 def create_app(settings: Settings | None = None) -> FastAPI:
     current = settings or Settings()
     current.data_root.mkdir(parents=True, exist_ok=True)
-    create_schema(current)
     factory = session_factory(current)
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
@@ -153,6 +154,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         stored = db.get(Session, _token_hash(pathlab_session))
         if stored is None or stored.expires_at < datetime.now(UTC).replace(tzinfo=None):
             raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
+        user = db.get(User, stored.user_id)
+        if user is None or stored.credential_generation != user.credential_generation:
+            raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
         return stored
 
     AdminSession = Annotated[Session, Depends(admin_session)]
@@ -167,11 +171,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     CsrfSession = Annotated[Session, Depends(csrf)]
 
+    async def bounded_json(request: Request) -> Any:
+        body = await request.body()
+        if len(body) > MAX_AUTH_BODY_BYTES:
+            raise HTTPException(status_code=413, detail={"code": "REQUEST_TOO_LARGE"})
+        return await request.json()
+
     async def password_change_payload(
         request: Request, _: CsrfSession
     ) -> PasswordChangeRequest:
         try:
-            return PasswordChangeRequest.model_validate(await request.json())
+            return PasswordChangeRequest.model_validate(await bounded_json(request))
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
 
@@ -181,7 +191,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     async def password_recovery_payload(request: Request) -> PasswordRecoveryRequest:
         try:
-            return PasswordRecoveryRequest.model_validate(await request.json())
+            return PasswordRecoveryRequest.model_validate(await bounded_json(request))
+        except HTTPException:
+            raise
+        except ValidationError as error:
+            if error.errors() and all(
+                item.get("loc", ())[-1:] == ("newPassword",) for item in error.errors()
+            ):
+                raise HTTPException(
+                    status_code=400, detail={"code": "INVALID_PASSWORD"}
+                ) from error
+            raise HTTPException(
+                status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
+            ) from error
         except ValueError as error:
             raise HTTPException(
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
@@ -208,20 +230,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         key = request.client.host if request.client else "unknown"
         now = datetime.now(UTC)
         throttle.check(key, now)
-        user = db.scalar(select(User).where(User.username == payload.username))
-        if user is None or not verify_password(user.password_hash, payload.password):
-            raise HTTPException(status_code=401, detail={"code": "INVALID_CREDENTIALS"})
-        throttle.clear(key)
         token = random_token()
         csrf_token = random_token()
         expires = now + timedelta(hours=current.session_hours)
-        db.add(
-            Session(
-                id=_token_hash(token), user_id=user.id, csrf_token=csrf_token, expires_at=expires
-            )
+        authenticated = authenticate_and_create_session(
+            db,
+            payload.username,
+            payload.password,
+            _token_hash(token),
+            csrf_token,
+            expires,
+            now,
         )
-        db.add(AuditEvent(actor_user_id=user.id, action="auth.login"))
-        db.commit()
+        if not authenticated:
+            raise HTTPException(status_code=401, detail={"code": "INVALID_CREDENTIALS"})
+        throttle.clear(key)
         response.set_cookie(
             COOKIE_NAME,
             token,
@@ -267,6 +290,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         throttle.check(key, datetime.now(UTC))
         try:
             change_password(db, user, payload.current_password, payload.new_password)
+        except CredentialConflict as error:
+            raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"}) from error
         except PasswordReuse as error:
             raise HTTPException(status_code=400, detail={"code": "PASSWORD_REUSE"}) from error
         except (InvalidCurrentPassword, ValueError) as error:
@@ -304,7 +329,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         except RecoveryThrottled as error:
             raise HTTPException(status_code=429, detail={"code": "AUTH_THROTTLED"}) from error
-        except InvalidRecoveryCode as error:
+        except (InvalidRecoveryCode, CredentialConflict) as error:
             raise HTTPException(
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error

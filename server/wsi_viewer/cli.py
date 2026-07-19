@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
-from .database import create_schema, session_factory
+from .database import session_factory
 from .models import User
 from .security import hash_password
 
@@ -42,7 +42,6 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _build_parser().parse_args()
     settings = Settings()
-    create_schema(settings)
     with session_factory(settings)() as database:
         user = database.scalar(select(User).where(User.username == args.username))
         if args.command == "issue-recovery-code":

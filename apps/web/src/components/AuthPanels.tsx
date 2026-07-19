@@ -59,9 +59,13 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
       setMode('login')
       setMessage('Password reset. Sign in with your new password.')
     } catch (caught) {
-      setError(caught instanceof ApiError && caught.code === 'INVALID_PASSWORD'
-        ? 'Use a password between 12 and 128 characters.'
-        : 'Invalid or expired recovery code.')
+      if (caught instanceof ApiError && caught.status === 429) {
+        setError('Too many attempts. Try again later.')
+      } else {
+        setError(caught instanceof ApiError && caught.code === 'INVALID_PASSWORD'
+          ? 'Use a password between 12 and 128 characters.'
+          : 'Invalid or expired recovery code.')
+      }
     } finally {
       setRecoveryCode('')
       setNewPassword('')
@@ -149,9 +153,15 @@ interface AccountSecurityDialogProps {
   open: boolean
   onClose: () => void
   onChanged: () => void
+  onAuthenticationRequired: () => void
 }
 
-export function AccountSecurityDialog({ open, onClose, onChanged }: AccountSecurityDialogProps) {
+export function AccountSecurityDialog({
+  open,
+  onClose,
+  onChanged,
+  onAuthenticationRequired,
+}: AccountSecurityDialogProps) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -209,9 +219,13 @@ export function AccountSecurityDialog({ open, onClose, onChanged }: AccountSecur
       await changePassword(currentPassword, newPassword)
       onChanged()
     } catch (caught) {
-      setError(caught instanceof ApiError && caught.code === 'PASSWORD_REUSE'
-        ? 'Choose a password different from the current password.'
-        : 'Password change failed. Check the current password and requirements.')
+      if (caught instanceof ApiError && caught.status === 401) {
+        onAuthenticationRequired()
+      } else {
+        setError(caught instanceof ApiError && caught.code === 'PASSWORD_REUSE'
+          ? 'Choose a password different from the current password.'
+          : 'Password change failed. Check the current password and requirements.')
+      }
     } finally {
       clearSecrets()
       busyRef.current = false

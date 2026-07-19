@@ -31,6 +31,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    credential_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -40,6 +41,7 @@ class Session(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    credential_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     user: Mapped[User] = relationship()
@@ -66,6 +68,7 @@ class PasswordRecoveryAttempt(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     client_key_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    ip_key_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     attempted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )

@@ -42,15 +42,13 @@ export async function login(username: string, password: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-  try {
-    await fetch('/api/v1/auth/session', {
-      method: 'DELETE',
-      credentials: 'same-origin',
-      headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
-    })
-  } finally {
-    sessionStorage.removeItem(CSRF_KEY)
-  }
+  const response = await fetch('/api/v1/auth/session', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
+  })
+  if (response.status !== 204) throw new ApiError(response.status, 'LOGOUT_FAILED')
+  sessionStorage.removeItem(CSRF_KEY)
 }
 
 export async function recoverPassword(
@@ -68,15 +66,20 @@ export async function recoverPassword(
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await expectOk(await fetch('/api/v1/auth/password', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
-    },
-    body: JSON.stringify({ currentPassword, newPassword }),
-  }))
+  try {
+    await expectOk(await fetch('/api/v1/auth/password', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }))
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 401) sessionStorage.removeItem(CSRF_KEY)
+    throw caught
+  }
   sessionStorage.removeItem(CSRF_KEY)
 }
 

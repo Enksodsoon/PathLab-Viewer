@@ -26,10 +26,10 @@ function requestBody(init: RequestInit | undefined, failureMessage: string): Rec
   }
 }
 
-function errorResponse(code: string): Response {
+function errorResponse(code: string, status = 400): Response {
   return new Response(
     JSON.stringify({ detail: { code } }),
-    { status: 400, headers: { 'Content-Type': 'application/json' } },
+    { status, headers: { 'Content-Type': 'application/json' } },
   )
 }
 
@@ -220,6 +220,25 @@ describe('admin workflow', () => {
     assertCleared(/confirm new password/i, 'Password confirmation was retained after rejection')
   })
 
+  it('maps recovery throttling to neutral retry-later guidance', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return new Response('', { status: 401 })
+      return errorResponse('AUTH_THROTTLED', 429)
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /forgot password/i }))
+    const controls = recoveryControls()
+    await userEvent.type(controls.recoveryCode, RECOVERY_CODE)
+    await userEvent.type(controls.newPassword, NEW_PASSWORD)
+    await userEvent.type(controls.confirmation, NEW_PASSWORD)
+    await userEvent.click(controls.submit)
+    expect(await screen.findByText('Too many attempts. Try again later.')).toBeVisible()
+    if (screen.queryByText('Invalid or expired recovery code.')) {
+      throw new Error('Throttle response was presented as a credential failure')
+    }
+  })
+
   it('prevents duplicate recovery submissions while credentials are in flight', async () => {
     let finishRecovery!: (response: Response) => void
     let recoveryRequests = 0
@@ -407,6 +426,27 @@ describe('admin workflow', () => {
     assertCleared(/confirm new password/i, 'Password confirmation was retained after rejection')
   })
 
+  it('returns immediately to sign-in when password change authentication expires', async () => {
+    sessionStorage.setItem('pathlab-csrf', 'csrf-token')
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      if (url === '/api/v1/auth/password') return errorResponse('SESSION_EXPIRED', 401)
+      throw new Error('Expired password change made an unexpected request')
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
+    const controls = changeControls()
+    await userEvent.type(controls.currentPassword, CURRENT_PASSWORD)
+    await userEvent.type(controls.newPassword, NEW_PASSWORD)
+    await userEvent.type(controls.confirmation, NEW_PASSWORD)
+    await userEvent.click(controls.submit)
+    expect(await screen.findByText('Session expired. Sign in again.')).toBeVisible()
+    if (sessionStorage.getItem('pathlab-csrf') !== null) {
+      throw new Error('Expired password change retained the CSRF token')
+    }
+  })
+
   it('prevents duplicate authenticated password changes while a request is in flight', async () => {
     let finishChange!: (response: Response) => void
     let changeRequests = 0
@@ -500,7 +540,7 @@ describe('admin workflow', () => {
     await screen.findByRole('button', { name: /^sign in$/i })
   })
 
-  it('settles a failed logout safely before exposing sign-in', async () => {
+  it('retains the authenticated UI and CSRF token when logout is rejected', async () => {
     let failLogout!: (reason?: unknown) => void
     sessionStorage.setItem('pathlab-csrf', 'csrf-token')
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -519,8 +559,30 @@ describe('admin workflow', () => {
       failLogout(new Error('network unavailable'))
       await Promise.resolve()
     })
-    await screen.findByRole('button', { name: /^sign in$/i })
-    if (sessionStorage.getItem('pathlab-csrf') !== null) throw new Error('CSRF remained after failed logout')
+    await screen.findByRole('button', { name: /account security/i })
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign-out failed. Try again.')
+    if (sessionStorage.getItem('pathlab-csrf') !== 'csrf-token') {
+      throw new Error('Failed logout cleared the authenticated CSRF token')
+    }
+  })
+
+  it('retains the authenticated UI when logout returns a non-204 response', async () => {
+    sessionStorage.setItem('pathlab-csrf', 'csrf-token')
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      if (url === '/api/v1/auth/session' && init?.method === 'DELETE') {
+        return errorResponse('SERVER_ERROR', 500)
+      }
+      throw new Error('Non-204 logout made an unexpected request')
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /sign out/i }))
+    await screen.findByRole('button', { name: /account security/i })
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign-out failed. Try again.')
+    if (sessionStorage.getItem('pathlab-csrf') !== 'csrf-token') {
+      throw new Error('Non-204 logout cleared the authenticated CSRF token')
+    }
   })
 
   it('keeps sign-in visible when an old refresh resolves after sign-out', async () => {
