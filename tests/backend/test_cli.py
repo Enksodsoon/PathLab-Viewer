@@ -1,3 +1,4 @@
+import hmac
 from io import StringIO
 from pathlib import Path
 
@@ -13,7 +14,9 @@ from wsi_viewer.security import hash_password, recovery_code_hash
 def test_read_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin", StringIO("generated-password\n"))
 
-    assert _read_password(True) == "generated-password"
+    password = _read_password(True)
+    if not hmac.compare_digest(password, "generated-password"):
+        pytest.fail("Password read from stdin did not match")
 
 
 def test_reject_empty_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -53,13 +56,18 @@ def test_issue_recovery_code_prints_code_once_without_password_prompt(
 
     output = capsys.readouterr()
     stdout_lines = output.out.splitlines()
-    assert len(stdout_lines) == 1
+    if len(stdout_lines) != 1:
+        pytest.fail("CLI did not emit exactly one recovery-code line")
     code = stdout_lines[0]
-    assert code
-    assert output.err == (
+    if not code:
+        pytest.fail("Recovery-code output was empty")
+    expected_warning = (
         "Expires in 15 minutes. Enter only on the PathLab HTTPS recovery form.\n"
     )
+    if not hmac.compare_digest(output.err, expected_warning):
+        pytest.fail("CLI recovery-code warning did not match")
     with session_factory(settings)() as database:
         stored = database.scalar(select(PasswordRecoveryCode))
         assert stored is not None
-        assert stored.code_hash == recovery_code_hash(code)
+        if not hmac.compare_digest(stored.code_hash, recovery_code_hash(code)):
+            pytest.fail("Stored recovery-code digest did not match CLI output")

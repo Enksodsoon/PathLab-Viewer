@@ -1,4 +1,5 @@
 import base64
+import hmac
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -57,8 +58,10 @@ def test_recovery_code_is_hashed_single_use_and_revokes_sessions(tmp_path: Path)
         database.commit()
         stored = database.scalar(select(PasswordRecoveryCode))
         assert stored is not None
-        assert stored.code_hash == recovery_code_hash(code)
-        assert code not in stored.code_hash
+        if not hmac.compare_digest(stored.code_hash, recovery_code_hash(code)):
+            pytest.fail("Stored recovery-code digest did not match")
+        if hmac.compare_digest(code, stored.code_hash):
+            pytest.fail("Recovery code was stored in plaintext")
 
         recover_password(
             database,
@@ -68,7 +71,8 @@ def test_recovery_code_is_hashed_single_use_and_revokes_sessions(tmp_path: Path)
             "127.0.0.1",
             now,
         )
-        assert verify_password(user.password_hash, "new correct horse battery")
+        if not verify_password(user.password_hash, "new correct horse battery"):
+            pytest.fail("Recovered password did not verify")
         assert database.get(Session, "s" * 64) is None
         with pytest.raises(InvalidRecoveryCode):
             recover_password(
@@ -91,7 +95,8 @@ def test_recovery_code_has_256_bits_and_expires_after_15_minutes(tmp_path: Path)
         database.commit()
 
         decoded = base64.urlsafe_b64decode(code + "=" * (-len(code) % 4))
-        assert len(decoded) >= 32
+        if len(decoded) < 32:
+            pytest.fail("Recovery code contained less than 256 bits")
         stored = database.scalar(select(PasswordRecoveryCode))
         assert stored is not None
         assert stored.expires_at == now.replace(tzinfo=None) + timedelta(minutes=15)
@@ -239,9 +244,12 @@ def test_recovery_audit_never_contains_code_or_password(tmp_path: Path) -> None:
             f"{event.action} {event.target_id} {event.detail}"
             for event in database.scalars(select(AuditEvent))
         )
-        assert valid_code not in serialized_audit
-        assert "wrong" not in serialized_audit
-        assert "valid replacement password" not in serialized_audit
+        if valid_code in serialized_audit:
+            pytest.fail("Audit data contained a recovery code")
+        if "wrong" in serialized_audit:
+            pytest.fail("Audit data contained a submitted code")
+        if "valid replacement password" in serialized_audit:
+            pytest.fail("Audit data contained a submitted password")
 
 
 def test_password_changes_validate_current_password_and_revoke_access(tmp_path: Path) -> None:
@@ -267,7 +275,8 @@ def test_password_changes_validate_current_password_and_revoke_access(tmp_path: 
             change_password(database, user, "correct horse battery", "correct horse battery", now)
         change_password(database, user, "correct horse battery", "new secure password", now)
 
-        assert verify_password(user.password_hash, "new secure password")
+        if not verify_password(user.password_hash, "new secure password"):
+            pytest.fail("Changed password did not verify")
         assert database.get(Session, "s" * 64) is None
         codes = list(database.scalars(select(PasswordRecoveryCode)))
         assert all(item.invalidated_at == now.replace(tzinfo=None) for item in codes)
@@ -291,7 +300,8 @@ def test_cli_password_reset_revokes_sessions_and_codes(tmp_path: Path) -> None:
         database.commit()
         reset_password_by_cli(database, user, "replacement password", now)
 
-        assert verify_password(user.password_hash, "replacement password")
+        if not verify_password(user.password_hash, "replacement password"):
+            pytest.fail("CLI-reset password did not verify")
         assert database.get(Session, "s" * 64) is None
         codes = list(database.scalars(select(PasswordRecoveryCode)))
         assert all(item.invalidated_at == now.replace(tzinfo=None) for item in codes)
