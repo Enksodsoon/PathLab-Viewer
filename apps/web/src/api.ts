@@ -42,12 +42,15 @@ export async function login(username: string, password: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-  await fetch('/api/v1/auth/session', {
-    method: 'DELETE',
-    credentials: 'same-origin',
-    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
-  })
-  sessionStorage.removeItem(CSRF_KEY)
+  try {
+    await fetch('/api/v1/auth/session', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
+    })
+  } finally {
+    sessionStorage.removeItem(CSRF_KEY)
+  }
 }
 
 export async function recoverPassword(

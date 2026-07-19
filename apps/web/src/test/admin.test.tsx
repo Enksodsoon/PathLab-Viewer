@@ -470,6 +470,59 @@ describe('admin workflow', () => {
     if (screen.queryByRole('button', { name: /account security/i })) throw new Error('Stale refresh restored the admin after password change')
   })
 
+  it('does not expose sign-in until a deferred logout request settles', async () => {
+    let finishLogout!: (response: Response) => void
+    let logoutSettled = false
+    let loginRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return Promise.resolve(new Response('[]', { status: 200 }))
+      if (url !== '/api/v1/auth/session') return Promise.reject(new Error('Logout serialization URL mismatch'))
+      if (init?.method === 'DELETE') return new Promise<Response>((resolve) => { finishLogout = resolve })
+      loginRequests += 1
+      if (!logoutSettled) return Promise.reject(new Error('Login started before logout settled'))
+      return Promise.resolve(new Response(JSON.stringify({ csrfToken: 'csrf-token' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /sign out/i }))
+    expect(await screen.findByText('Signing out…')).toBeVisible()
+    if (screen.queryByRole('button', { name: /^sign in$/i })) throw new Error('Sign-in was interactive before logout settled')
+    if (screen.queryByRole('button', { name: /forgot password/i })) throw new Error('Recovery was interactive before logout settled')
+    if (loginRequests !== 0) throw new Error('Login request started before logout settled')
+    await act(async () => {
+      logoutSettled = true
+      finishLogout(new Response(null, { status: 204 }))
+      await Promise.resolve()
+    })
+    await screen.findByRole('button', { name: /^sign in$/i })
+  })
+
+  it('settles a failed logout safely before exposing sign-in', async () => {
+    let failLogout!: (reason?: unknown) => void
+    sessionStorage.setItem('pathlab-csrf', 'csrf-token')
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return Promise.resolve(new Response('[]', { status: 200 }))
+      if (url === '/api/v1/auth/session' && init?.method === 'DELETE') {
+        return new Promise<Response>((_resolve, reject) => { failLogout = reject })
+      }
+      return Promise.reject(new Error('Failed logout made an unexpected request'))
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /sign out/i }))
+    expect(await screen.findByText('Signing out…')).toBeVisible()
+    if (screen.queryByRole('button', { name: /^sign in$/i })) throw new Error('Sign-in was interactive during failed logout')
+    await act(async () => {
+      failLogout(new Error('network unavailable'))
+      await Promise.resolve()
+    })
+    await screen.findByRole('button', { name: /^sign in$/i })
+    if (sessionStorage.getItem('pathlab-csrf') !== null) throw new Error('CSRF remained after failed logout')
+  })
+
   it('keeps sign-in visible when an old refresh resolves after sign-out', async () => {
     let adminRequests = 0
     let finishStaleRefresh!: (response: Response) => void
