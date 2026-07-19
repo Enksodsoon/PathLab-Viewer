@@ -1,0 +1,40 @@
+{
+	email {$ACME_EMAIL}
+	metrics
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	@uploads path /api/v1/uploads/*
+	handle @uploads {
+		reverse_proxy tusd:8080
+	}
+
+	@backend path /api/* /livez /readyz
+	handle @backend {
+		reverse_proxy api:8000
+	}
+
+	handle_path /tiles/* {
+		root * /pathlab-data/public
+		header Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options "nosniff"
+		file_server
+	}
+
+	header /s/* X-Robots-Tag "noindex, nofollow, noarchive"
+	header {
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

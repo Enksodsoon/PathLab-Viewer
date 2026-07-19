@@ -1,0 +1,8 @@
+region              = "ap-singapore-1"
+tenancy_ocid        = "ocid1.tenancy..."
+compartment_ocid    = "ocid1.compartment..."
+availability_domain = "example:AP-SINGAPORE-1-AD-1"
+image_ocid          = "ocid1.image...current-ubuntu-aarch64..."
+ssh_public_key      = "ssh-ed25519 AAAA..."
+admin_cidr          = "203.0.113.10/32"
+budget_email        = "you@example.com"
