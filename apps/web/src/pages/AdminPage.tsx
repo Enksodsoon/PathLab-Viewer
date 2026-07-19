@@ -27,9 +27,22 @@ export function AdminPage() {
   const [securityOpen, setSecurityOpen] = useState(false)
   const [authNotice, setAuthNotice] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
+  const authEpoch = useRef(0)
   const refresh = useCallback(async () => {
-    try { setSlides(await listSlides()); setAuthorized(true) }
-    catch (error) { if (error instanceof ApiError && error.status === 401) setAuthorized(false) }
+    const epoch = authEpoch.current
+    try {
+      const nextSlides = await listSlides()
+      if (epoch !== authEpoch.current) return
+      setSlides(nextSlides)
+      setAuthorized(true)
+    } catch (error) {
+      if (epoch !== authEpoch.current) return
+      if (error instanceof ApiError && error.status === 401) {
+        authEpoch.current += 1
+        setSlides([])
+        setAuthorized(false)
+      }
+    }
   }, [])
   useEffect(() => { void refresh() }, [refresh])
   useEffect(() => {
@@ -66,8 +79,16 @@ export function AdminPage() {
     await refresh()
   }
 
+  function endSession(message = '') {
+    authEpoch.current += 1
+    setSecurityOpen(false)
+    setAuthNotice(message)
+    setSlides([])
+    setAuthorized(false)
+  }
+
   return <div className="admin-shell">
-    <header className="topbar"><Brand /><div className="topbar-actions"><span className="secure-dot"><Check size={13} /> Secure admin</span><button type="button" className="icon-button" aria-label="Account security" onClick={() => setSecurityOpen(true)}><KeyRound size={18} /></button><button type="button" className="icon-button" aria-label="Sign out" onClick={() => void logout().then(() => setAuthorized(false))}><LogOut size={18} /></button></div></header>
+    <header className="topbar"><Brand /><div className="topbar-actions"><span className="secure-dot"><Check size={13} /> Secure admin</span><button type="button" className="icon-button" aria-label="Account security" onClick={() => setSecurityOpen(true)}><KeyRound size={18} /></button><button type="button" className="icon-button" aria-label="Sign out" onClick={() => { endSession(); void logout() }}><LogOut size={18} /></button></div></header>
     <main className="admin-main">
       <section className="page-heading"><div><p className="eyebrow">Slide operations</p><h1>Whole-slide workspace</h1><p>Upload private OME-TIFF originals, review the derivative, then publish an unlisted link.</p></div><div className="storage-summary"><span>{formatBytes(used)} stored</span><strong>{Math.max(0, 120 - used / 1024 ** 3).toFixed(1)} GB available</strong><div><i style={{ width: `${Math.min(100, used / (120 * 1024 ** 3) * 100)}%` }} /></div></div></section>
       <div className="admin-grid">
@@ -89,9 +110,7 @@ export function AdminPage() {
       open={securityOpen}
       onClose={() => setSecurityOpen(false)}
       onChanged={() => {
-        setSecurityOpen(false)
-        setAuthNotice('Password changed. Sign in again.')
-        setAuthorized(false)
+        endSession('Password changed. Sign in again.')
       }}
     />
   </div>

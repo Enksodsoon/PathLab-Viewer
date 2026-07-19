@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent, KeyboardEvent } from 'react'
+import type { FormEvent, SyntheticEvent } from 'react'
 import { X } from 'lucide-react'
 
 import { ApiError, changePassword, login, recoverPassword } from '../api'
@@ -20,9 +20,12 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   const [message, setMessage] = useState(notice)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     setError('')
     try {
@@ -32,12 +35,14 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
       setError('Sign-in failed. Check your credentials.')
     } finally {
       setPassword('')
+      busyRef.current = false
       setBusy(false)
     }
   }
 
   async function submitRecovery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busyRef.current) return
     setError('')
     setMessage('')
     if (newPassword !== confirmation) {
@@ -47,6 +52,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
       setConfirmation('')
       return
     }
+    busyRef.current = true
     setBusy(true)
     try {
       await recoverPassword(username, recoveryCode, newPassword)
@@ -60,11 +66,13 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
       setRecoveryCode('')
       setNewPassword('')
       setConfirmation('')
+      busyRef.current = false
       setBusy(false)
     }
   }
 
   function returnToLogin() {
+    if (busyRef.current) return
     setMode('login')
     setError('')
     setMessage('')
@@ -98,11 +106,13 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
               className="auth-link"
               type="button"
               onClick={() => {
+                if (busyRef.current) return
                 setMode('recover')
                 setPassword('')
                 setError('')
                 setMessage('')
               }}
+              disabled={busy}
             >
               Forgot password?
             </button>
@@ -147,13 +157,23 @@ export function AccountSecurityDialog({ open, onClose, onChanged }: AccountSecur
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const dialog = useRef<HTMLDialogElement>(null)
   const currentPasswordInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (open) currentPasswordInput.current?.focus()
+    const element = dialog.current
+    if (!element) return
+    if (open) {
+      if (!element.open) element.showModal()
+      currentPasswordInput.current?.focus()
+    } else if (element.open) {
+      element.close()
+    }
+    return () => {
+      if (element.open) element.close()
+    }
   }, [open])
-
-  if (!open) return null
 
   function clearSecrets() {
     setCurrentPassword('')
@@ -162,23 +182,28 @@ export function AccountSecurityDialog({ open, onClose, onChanged }: AccountSecur
   }
 
   function close() {
+    if (busyRef.current) return
     clearSecrets()
     setError('')
+    dialog.current?.close()
     onClose()
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
-    if (event.key === 'Escape' && !busy) close()
+  function cancel(event: SyntheticEvent<HTMLDialogElement>) {
+    event.preventDefault()
+    close()
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busyRef.current) return
     setError('')
     if (newPassword !== confirmation) {
       setError('New passwords do not match.')
       clearSecrets()
       return
     }
+    busyRef.current = true
     setBusy(true)
     try {
       await changePassword(currentPassword, newPassword)
@@ -189,19 +214,16 @@ export function AccountSecurityDialog({ open, onClose, onChanged }: AccountSecur
         : 'Password change failed. Check the current password and requirements.')
     } finally {
       clearSecrets()
+      busyRef.current = false
       setBusy(false)
     }
   }
 
   return (
-    <div className="dialog-backdrop">
+    <dialog ref={dialog} className="security-dialog" aria-labelledby="security-title" onCancel={cancel}>
       <form
-        className="security-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="security-title"
+        className="security-form"
         onSubmit={submit}
-        onKeyDown={handleKeyDown}
       >
         <button className="dialog-close" type="button" aria-label="Close account security" onClick={close} disabled={busy}>
           <X size={18} />
@@ -226,6 +248,6 @@ export function AccountSecurityDialog({ open, onClose, onChanged }: AccountSecur
           <button className="button primary" type="submit" disabled={busy}>Change password</button>
         </div>
       </form>
-    </div>
+    </dialog>
   )
 }

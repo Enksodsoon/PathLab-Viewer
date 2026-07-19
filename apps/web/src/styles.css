@@ -74,8 +74,9 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .form-notice { color:#267269; background:#edf8f6; border-radius:8px; padding:10px 12px; font-size:12px; }
 .recovery-help { color:var(--muted); font-size:12px; line-height:1.5; }
 .recovery-command { overflow-wrap:anywhere; color:#42576b; background:#f1f4f6; padding:10px; border-radius:8px; font-size:11px; }
-.dialog-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:16px; background:rgba(16,36,61,.48); }
-.security-dialog { position:relative; width:min(440px,calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto; display:grid; gap:18px; padding:28px; border:1px solid var(--line); border-radius:16px; background:white; box-shadow:0 22px 60px rgba(16,36,61,.24); }
+.security-dialog { position:relative; width:min(440px,calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto; margin:auto; padding:28px; border:1px solid var(--line); border-radius:16px; background:white; color:inherit; box-shadow:0 22px 60px rgba(16,36,61,.24); }
+.security-dialog::backdrop { background:rgba(16,36,61,.48); }
+.security-form { display:grid; gap:18px; }
 .security-dialog label { display:grid; gap:7px; color:#536577; font-size:12px; font-weight:600; }
 .security-dialog input { width:100%; border:1px solid #cad4dc; border-radius:8px; padding:11px 12px; }
 .dialog-close { position:absolute; right:14px; top:14px; border:0; background:transparent; padding:7px; cursor:pointer; }
