@@ -342,7 +342,7 @@ import hashlib
 import hmac
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session as OrmSession
 
 from .models import AuditEvent, PasswordRecoveryAttempt, PasswordRecoveryCode, Session, User
@@ -432,9 +432,11 @@ def recover_password(database: OrmSession, username: str, code: str, new_passwor
     attempted_at = _now(now)
     key = _client_key(username, client_address)
     database.execute(delete(PasswordRecoveryAttempt).where(PasswordRecoveryAttempt.attempted_at < attempted_at - ATTEMPT_RETENTION))
-    recent = database.scalar(select(func.count()).select_from(PasswordRecoveryAttempt).where(PasswordRecoveryAttempt.client_key_hash == key, PasswordRecoveryAttempt.attempted_at >= attempted_at - ATTEMPT_WINDOW)) or 0
-    if recent >= MAX_RECOVERY_FAILURES:
-        raise RecoveryThrottled
+    recent = list(database.scalars(select(PasswordRecoveryAttempt.attempted_at).where(PasswordRecoveryAttempt.client_key_hash == key).order_by(PasswordRecoveryAttempt.attempted_at.desc()).limit(MAX_RECOVERY_FAILURES)))
+    if len(recent) == MAX_RECOVERY_FAILURES and recent[0] - recent[-1] <= ATTEMPT_WINDOW:
+        if attempted_at < recent[0] + ATTEMPT_WINDOW:
+            raise RecoveryThrottled
+        database.execute(delete(PasswordRecoveryAttempt).where(PasswordRecoveryAttempt.client_key_hash == key))
     user = next((item for item in database.scalars(select(User)) if normalize_username(item.username) == normalize_username(username)), None)
     submitted_hash = recovery_code_hash(code)
     stored = None if user is None else database.scalar(select(PasswordRecoveryCode).where(PasswordRecoveryCode.user_id == user.id, PasswordRecoveryCode.consumed_at.is_(None), PasswordRecoveryCode.invalidated_at.is_(None)).order_by(PasswordRecoveryCode.created_at.desc()))
@@ -1078,7 +1080,7 @@ git commit -m "docs: add password recovery operations"
 
 ```powershell
 git status --short
-git push origin codex/ome-tiff-wsi-viewer
+git push origin codex/admin-password-recovery
 ```
 
 Expected: worktree is clean and the branch push succeeds.
@@ -1088,7 +1090,7 @@ Expected: worktree is clean and the branch push succeeds.
 Use SSH alias `pathlab-oci`. On the host, verify the checkout is clean, fetch the reviewed branch, fast-forward without discarding host changes, verify the exact commit SHA, and reload the existing systemd-managed Compose deployment:
 
 ```powershell
-ssh pathlab-oci 'cd /opt/pathlab-viewer && test -z "$(git status --porcelain)" && git fetch origin codex/ome-tiff-wsi-viewer && git switch codex/ome-tiff-wsi-viewer && git merge --ff-only origin/codex/ome-tiff-wsi-viewer && git rev-parse HEAD && sudo systemctl reload pathlab-viewer'
+ssh pathlab-oci 'cd /opt/pathlab-viewer && test -z "$(git status --porcelain)" && git fetch origin codex/admin-password-recovery && git switch codex/admin-password-recovery && git merge --ff-only origin/codex/admin-password-recovery && git rev-parse HEAD && sudo systemctl reload pathlab-viewer'
 ```
 
 Before updating, verify `/opt/pathlab-viewer` is the intended deployment checkout. If it contains host-only changes or cannot fast-forward, stop and preserve them.
