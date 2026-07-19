@@ -167,6 +167,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     CsrfSession = Annotated[Session, Depends(csrf)]
 
+    async def password_change_payload(
+        request: Request, _: CsrfSession
+    ) -> PasswordChangeRequest:
+        try:
+            return PasswordChangeRequest.model_validate(await request.json())
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
+
+    PasswordChangePayload = Annotated[
+        PasswordChangeRequest, Depends(password_change_payload)
+    ]
+
+    async def password_recovery_payload(request: Request) -> PasswordRecoveryRequest:
+        try:
+            return PasswordRecoveryRequest.model_validate(await request.json())
+        except ValueError as error:
+            raise HTTPException(
+                status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
+            ) from error
+
+    PasswordRecoveryPayload = Annotated[
+        PasswordRecoveryRequest, Depends(password_recovery_payload)
+    ]
+
     @app.get("/livez")
     def livez() -> dict[str, str]:
         return {"status": "live"}
@@ -215,17 +239,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db.commit()
         response.delete_cookie(COOKIE_NAME, path="/")
 
-    @app.post("/api/v1/auth/password", status_code=status.HTTP_204_NO_CONTENT)
-    async def update_password(
+    @app.post(
+        "/api/v1/auth/password",
+        status_code=status.HTTP_204_NO_CONTENT,
+        openapi_extra={
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/json": {
+                        "schema": PasswordChangeRequest.model_json_schema(by_alias=True)
+                    }
+                },
+            }
+        },
+    )
+    def update_password(
+        payload: PasswordChangePayload,
         authenticated: CsrfSession,
         request: Request,
         response: Response,
         db: Database,
     ) -> None:
-        try:
-            payload = PasswordChangeRequest.model_validate(await request.json())
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         user = db.get(User, authenticated.user_id)
         if user is None:
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
@@ -240,18 +274,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         throttle.clear(key)
         response.delete_cookie(COOKIE_NAME, path="/")
 
-    @app.post("/api/v1/auth/password/recover", status_code=status.HTTP_204_NO_CONTENT)
-    async def recover_admin_password(
+    @app.post(
+        "/api/v1/auth/password/recover",
+        status_code=status.HTTP_204_NO_CONTENT,
+        openapi_extra={
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/json": {
+                        "schema": PasswordRecoveryRequest.model_json_schema(by_alias=True)
+                    }
+                },
+            }
+        },
+    )
+    def recover_admin_password(
+        payload: PasswordRecoveryPayload,
         request: Request,
         response: Response,
         db: Database,
     ) -> None:
-        try:
-            payload = PasswordRecoveryRequest.model_validate(await request.json())
-        except ValueError as error:
-            raise HTTPException(
-                status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
-            ) from error
         try:
             recover_password(
                 db,

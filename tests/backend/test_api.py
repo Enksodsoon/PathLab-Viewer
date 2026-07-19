@@ -1,3 +1,4 @@
+import inspect
 from pathlib import Path
 
 import pytest
@@ -55,6 +56,41 @@ def test_admin_session_requires_valid_password(tmp_path: Path) -> None:
             "/api/v1/auth/session", json={"username": "admin", "password": "incorrect"}
         )
         assert response.status_code == 401
+
+
+def test_password_route_handlers_are_synchronous(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        for path in ("/api/v1/auth/password", "/api/v1/auth/password/recover"):
+            endpoints = [
+                route.endpoint
+                for route in client.app.routes
+                if getattr(route, "path", None) == path
+                and "POST" in getattr(route, "methods", set())
+            ]
+            if len(endpoints) != 1:
+                pytest.fail("Password route endpoint was not registered exactly once")
+            if inspect.iscoroutinefunction(endpoints[0]):
+                pytest.fail("Password route handler performs blocking work on the event loop")
+
+
+def test_password_openapi_documents_camel_case_request_bodies(tmp_path: Path) -> None:
+    expected_properties = {
+        "/api/v1/auth/password": {"currentPassword", "newPassword"},
+        "/api/v1/auth/password/recover": {"username", "recoveryCode", "newPassword"},
+    }
+    with _client(tmp_path) as client:
+        document = client.get("/openapi.json").json()
+        for path, expected in expected_properties.items():
+            request_body = document["paths"][path]["post"].get("requestBody")
+            if request_body is None:
+                pytest.fail("Password route OpenAPI omitted its request body")
+            schema = request_body["content"]["application/json"]["schema"]
+            if request_body.get("required") is not True:
+                pytest.fail("Password route OpenAPI did not require its request body")
+            if set(schema.get("properties", {})) != expected:
+                pytest.fail("Password route OpenAPI exposed the wrong request properties")
+            if set(schema.get("required", [])) != expected:
+                pytest.fail("Password route OpenAPI exposed the wrong required properties")
 
 
 def test_password_change_requires_csrf_and_revokes_sessions(tmp_path: Path) -> None:
