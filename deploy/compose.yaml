@@ -50,6 +50,7 @@ services:
 
   tusd:
     image: tusproject/tusd:v2.9.2
+    user: "10001:10001"
     restart: unless-stopped
     command:
       - -host=0.0.0.0
