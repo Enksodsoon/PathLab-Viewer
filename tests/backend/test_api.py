@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 from sqlalchemy import select
 from wsi_viewer.auth import issue_recovery_code
 from wsi_viewer.config import Settings
@@ -34,6 +35,12 @@ def _login(client: TestClient) -> str:
     )
     assert response.status_code == 201
     return str(response.json()["csrfToken"])
+
+
+def _has_error(response: Response, status_code: int, code: str) -> bool:
+    return response.status_code == status_code and response.json() == {
+        "detail": {"code": code}
+    }
 
 
 def test_health_and_readiness(tmp_path: Path) -> None:
@@ -129,14 +136,119 @@ def test_password_change_returns_exact_errors_for_invalid_inputs(tmp_path: Path)
             json={"currentPassword": "correct horse battery", "newPassword": "x" * 129},
         )
 
-        assert wrong_current.status_code == 400
-        assert wrong_current.json() == {"detail": {"code": "INVALID_PASSWORD"}}
-        assert reused_password.status_code == 400
-        assert reused_password.json() == {"detail": {"code": "PASSWORD_REUSE"}}
-        assert weak_password.status_code == 400
-        assert weak_password.json() == {"detail": {"code": "INVALID_PASSWORD"}}
-        assert oversized_password.status_code == 400
-        assert oversized_password.json() == {"detail": {"code": "INVALID_PASSWORD"}}
+        if not _has_error(wrong_current, 400, "INVALID_PASSWORD"):
+            pytest.fail("Wrong current password did not use the stable password error")
+        if not _has_error(reused_password, 400, "PASSWORD_REUSE"):
+            pytest.fail("Reused password did not use the stable reuse error")
+        if not _has_error(weak_password, 400, "INVALID_PASSWORD"):
+            pytest.fail("Weak password change did not use the stable password error")
+        if not _has_error(oversized_password, 400, "INVALID_PASSWORD"):
+            pytest.fail("Oversized password change did not use the stable password error")
+
+
+def test_password_change_checks_session_and_csrf_before_parsing_json(tmp_path: Path) -> None:
+    invalid_json = b'{"currentPassword":'
+    headers = {"Content-Type": "application/json"}
+    with _client(tmp_path) as client:
+        unauthenticated = client.post(
+            "/api/v1/auth/password", headers=headers, content=invalid_json
+        )
+        if not _has_error(unauthenticated, 401, "AUTH_REQUIRED"):
+            pytest.fail("Malformed password change did not require authentication first")
+
+        csrf = _login(client)
+        missing_csrf = client.post(
+            "/api/v1/auth/password", headers=headers, content=invalid_json
+        )
+        if not _has_error(missing_csrf, 403, "CSRF_INVALID"):
+            pytest.fail("Malformed password change did not require CSRF first")
+
+        authenticated_headers = {**headers, "X-CSRF-Token": csrf}
+        malformed = client.post(
+            "/api/v1/auth/password", headers=authenticated_headers, content=invalid_json
+        )
+        if not _has_error(malformed, 400, "INVALID_PASSWORD"):
+            pytest.fail("Malformed password change did not use the stable password error")
+
+
+def test_password_change_invalid_shapes_use_stable_error(tmp_path: Path) -> None:
+    invalid_payloads = [
+        {},
+        {"currentPassword": None, "newPassword": None},
+        {"currentPassword": [], "newPassword": {}},
+    ]
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        headers = {"X-CSRF-Token": csrf}
+        for payload in invalid_payloads:
+            response = client.post("/api/v1/auth/password", headers=headers, json=payload)
+            if not _has_error(response, 400, "INVALID_PASSWORD"):
+                pytest.fail("Invalid password-change shape did not use the stable password error")
+
+
+def test_password_change_accepts_unicode_policy_boundaries(tmp_path: Path) -> None:
+    minimum_password = "pässwörd安全12"
+    maximum_password = "密" * 128
+    if len(minimum_password) != 12 or len(maximum_password) != 128:
+        pytest.fail("Password boundary fixture has the wrong character length")
+
+    with _client(tmp_path / "minimum") as minimum_client:
+        csrf = _login(minimum_client)
+        changed = minimum_client.post(
+            "/api/v1/auth/password",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "currentPassword": "correct horse battery",
+                "newPassword": minimum_password,
+            },
+        )
+        assert changed.status_code == 204
+        accepted = minimum_client.post(
+            "/api/v1/auth/session",
+            json={"username": "admin", "password": minimum_password},
+        )
+        assert accepted.status_code == 201
+
+    with _client(tmp_path / "maximum") as maximum_client:
+        csrf = _login(maximum_client)
+        changed = maximum_client.post(
+            "/api/v1/auth/password",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "currentPassword": "correct horse battery",
+                "newPassword": maximum_password,
+            },
+        )
+        assert changed.status_code == 204
+        accepted = maximum_client.post(
+            "/api/v1/auth/session",
+            json={"username": "admin", "password": maximum_password},
+        )
+        assert accepted.status_code == 201
+
+
+def test_password_recovery_malformed_json_uses_generic_error(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        response = client.post(
+            "/api/v1/auth/password/recover",
+            headers={"Content-Type": "application/json"},
+            content=b'{"username":',
+        )
+        if not _has_error(response, 400, "INVALID_RECOVERY_CODE"):
+            pytest.fail("Malformed recovery JSON did not use the generic recovery error")
+
+
+def test_password_recovery_invalid_shapes_use_generic_error(tmp_path: Path) -> None:
+    invalid_payloads = [
+        {},
+        {"username": None, "recoveryCode": None, "newPassword": None},
+        {"username": [], "recoveryCode": {}, "newPassword": 1},
+    ]
+    with _client(tmp_path) as client:
+        for payload in invalid_payloads:
+            response = client.post("/api/v1/auth/password/recover", json=payload)
+            if not _has_error(response, 400, "INVALID_RECOVERY_CODE"):
+                pytest.fail("Invalid recovery shape did not use the generic recovery error")
 
 
 def test_forgot_password_uses_generic_single_use_error_and_expires_cookie(
@@ -181,10 +293,10 @@ def test_forgot_password_uses_generic_single_use_error_and_expires_cookie(
                 "newPassword": "another correct password",
             },
         )
-        assert reused.status_code == unknown.status_code == 400
-        assert reused.json() == unknown.json() == {
-            "detail": {"code": "INVALID_RECOVERY_CODE"}
-        }
+        if not _has_error(reused, 400, "INVALID_RECOVERY_CODE"):
+            pytest.fail("Reused recovery code did not use the generic recovery error")
+        if not _has_error(unknown, 400, "INVALID_RECOVERY_CODE"):
+            pytest.fail("Unknown recovery user did not use the generic recovery error")
 
 
 def test_recovery_rejects_invalid_password_without_consuming_code(tmp_path: Path) -> None:
@@ -204,10 +316,10 @@ def test_recovery_rejects_invalid_password_without_consuming_code(tmp_path: Path
             "/api/v1/auth/password/recover",
             json={"username": "admin", "recoveryCode": code, "newPassword": "x" * 129},
         )
-        assert weak_password.status_code == oversized_password.status_code == 400
-        assert weak_password.json() == oversized_password.json() == {
-            "detail": {"code": "INVALID_PASSWORD"}
-        }
+        if not _has_error(weak_password, 400, "INVALID_PASSWORD"):
+            pytest.fail("Weak recovery password did not use the stable password error")
+        if not _has_error(oversized_password, 400, "INVALID_PASSWORD"):
+            pytest.fail("Oversized recovery password did not use the stable password error")
 
         recovered = client.post(
             "/api/v1/auth/password/recover",
@@ -243,11 +355,11 @@ def test_recovery_throttle_is_shared_across_api_workers(tmp_path: Path) -> None:
         for index in range(5):
             worker = worker_one if index % 2 == 0 else worker_two
             response = worker.post("/api/v1/auth/password/recover", json=payload)
-            assert response.status_code == 400
-            assert response.json() == {"detail": {"code": "INVALID_RECOVERY_CODE"}}
+            if not _has_error(response, 400, "INVALID_RECOVERY_CODE"):
+                pytest.fail("Invalid recovery attempt did not use the generic recovery error")
         throttled = worker_two.post("/api/v1/auth/password/recover", json=payload)
-        assert throttled.status_code == 429
-        assert throttled.json() == {"detail": {"code": "AUTH_THROTTLED"}}
+        if not _has_error(throttled, 429, "AUTH_THROTTLED"):
+            pytest.fail("Recovery throttle did not use the stable throttle error")
 
 
 def test_slide_lifecycle_and_public_metadata(tmp_path: Path) -> None:

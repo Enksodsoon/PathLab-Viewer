@@ -216,13 +216,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.delete_cookie(COOKIE_NAME, path="/")
 
     @app.post("/api/v1/auth/password", status_code=status.HTTP_204_NO_CONTENT)
-    def update_password(
-        payload: PasswordChangeRequest,
+    async def update_password(
         authenticated: CsrfSession,
         request: Request,
         response: Response,
         db: Database,
     ) -> None:
+        try:
+            payload = PasswordChangeRequest.model_validate(await request.json())
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         user = db.get(User, authenticated.user_id)
         if user is None:
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
@@ -238,12 +241,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.delete_cookie(COOKIE_NAME, path="/")
 
     @app.post("/api/v1/auth/password/recover", status_code=status.HTTP_204_NO_CONTENT)
-    def recover_admin_password(
-        payload: PasswordRecoveryRequest,
+    async def recover_admin_password(
         request: Request,
         response: Response,
         db: Database,
     ) -> None:
+        try:
+            payload = PasswordRecoveryRequest.model_validate(await request.json())
+        except ValueError as error:
+            raise HTTPException(
+                status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
+            ) from error
         try:
             recover_password(
                 db,
