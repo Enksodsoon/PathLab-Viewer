@@ -26,6 +26,9 @@ def test_api_creates_runtime_directories_before_migrations() -> None:
 def test_caddy_spa_fallback_does_not_rewrite_api_paths() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
 
-    fallback = "\n\thandle {\n\t\troot * /srv\n\t\ttry_files {path} /index.html\n\t\tfile_server\n\t}\n"
+    fallback = (
+        "\n\thandle {\n\t\troot * /srv\n\t\ttry_files {path} /index.html"
+        "\n\t\tfile_server\n\t}\n"
+    )
     assert fallback in caddyfile
     assert caddyfile.index("handle @backend") < caddyfile.index(fallback)
