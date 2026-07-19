@@ -2,7 +2,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.main import create_app
@@ -116,3 +116,17 @@ def test_alembic_upgrade_from_0001_preserves_users_and_sessions(
         assert database.execute(
             text("SELECT credential_generation FROM sessions")
         ).scalar_one() == 1
+
+
+def test_current_migration_indexes_recovery_audit_retention_queries(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "audit-index.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    command.upgrade(Config("alembic.ini"), "head")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        indexes = inspect(database.connection()).get_indexes("audit_events")
+
+    assert any(index["column_names"] == ["action", "created_at"] for index in indexes)

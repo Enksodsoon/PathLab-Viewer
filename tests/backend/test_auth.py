@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Barrier, Event
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 from wsi_viewer.auth import (
     CredentialConflict,
     InvalidCurrentPassword,
@@ -605,3 +605,54 @@ def test_old_recovery_failure_audits_are_pruned_opportunistically(tmp_path: Path
         )
         assert len(failures) == 1
         assert failures[0].created_at == now.replace(tzinfo=None)
+
+
+def test_permanently_throttled_recovery_fast_path_does_not_attempt_a_write(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path, "read-only-throttle.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        _create_user(database)
+        for _ in range(5):
+            with pytest.raises(InvalidRecoveryCode):
+                recover_password(
+                    database,
+                    "admin",
+                    "wrong",
+                    "valid replacement password",
+                    "10.0.0.1",
+                    now,
+                )
+
+    statements: list[str] = []
+
+    def capture_statement(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        statements.append(statement.strip().upper())
+
+    factory = session_factory(settings)
+    assert factory.kw["bind"] is not None
+    event.listen(factory.kw["bind"], "before_cursor_execute", capture_statement)
+    try:
+        with factory() as database, pytest.raises(RecoveryThrottled):
+            recover_password(
+                database,
+                "admin",
+                "wrong",
+                "valid replacement password",
+                "10.0.0.1",
+                now,
+            )
+    finally:
+        event.remove(factory.kw["bind"], "before_cursor_execute", capture_statement)
+
+    assert statements
+    assert all(statement.startswith("SELECT") for statement in statements)

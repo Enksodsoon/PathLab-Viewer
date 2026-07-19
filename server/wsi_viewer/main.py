@@ -13,7 +13,7 @@ from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Re
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
 from .auth import (
@@ -30,7 +30,10 @@ from .config import Settings
 from .database import session_factory
 from .domain import InvalidTransition, SlideState, transition
 from .models import AuditEvent, Job, Session, Slide, User
+from .readiness import schema_is_current
+from .request_limits import AuthBodyLimitMiddleware
 from .security import (
+    MAX_VERIFICATION_PASSWORD_LENGTH,
     InvalidToken,
     UploadGrant,
     issue_upload_token,
@@ -50,13 +53,15 @@ MAX_AUTH_BODY_BYTES = 4096
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=MAX_VERIFICATION_PASSWORD_LENGTH)
 
 
 class PasswordChangeRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    current_password: str = Field(alias="currentPassword", min_length=1, max_length=128)
+    current_password: str = Field(
+        alias="currentPassword", min_length=1, max_length=MAX_VERIFICATION_PASSWORD_LENGTH
+    )
     new_password: str = Field(alias="newPassword", min_length=1, max_length=128)
 
 
@@ -133,6 +138,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
     app = FastAPI(title="PathLab Viewer API", version="0.1.0")
+    app.add_middleware(AuthBodyLimitMiddleware, max_bytes=MAX_AUTH_BODY_BYTES)
     app.state.settings = current
     if current.serve_public_tiles:
         mimetypes.add_type("application/xml", ".dzi")
@@ -219,8 +225,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/readyz")
     def readyz(db: Database) -> dict[str, str]:
-        db.execute(text("SELECT 1"))
-        current.data_root.mkdir(parents=True, exist_ok=True)
+        if not schema_is_current(db):
+            raise HTTPException(
+                status_code=503, detail={"code": "DATABASE_NOT_READY"}
+            )
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)

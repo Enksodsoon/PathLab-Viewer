@@ -11,6 +11,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 _PASSWORD_HASHER = PasswordHasher(type=Type.ID)
 MIN_PASSWORD_LENGTH = 12
 MAX_PASSWORD_LENGTH = 128
+MAX_VERIFICATION_PASSWORD_LENGTH = 1024
 
 
 class InvalidToken(ValueError):
@@ -44,6 +45,8 @@ def normalize_username(username: str) -> str:
 
 
 def verify_password(encoded: str, password: str) -> bool:
+    if len(password) > MAX_VERIFICATION_PASSWORD_LENGTH:
+        return False
     try:
         return _PASSWORD_HASHER.verify(encoded, password)
     except VerifyMismatchError:

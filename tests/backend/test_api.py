@@ -1,16 +1,21 @@
+import asyncio
 import inspect
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
+from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from httpx import Response
-from sqlalchemy import select
+from sqlalchemy import select, text
 from wsi_viewer.auth import issue_recovery_code
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
 from wsi_viewer.models import Job, Slide, User
+from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 
 
@@ -24,6 +29,11 @@ def _client(tmp_path: Path) -> TestClient:
     )
     create_schema(settings)
     with session_factory(settings)() as database:
+        database.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        database.execute(
+            text("INSERT INTO alembic_version (version_num) VALUES (:head)"),
+            {"head": ALEMBIC_HEAD},
+        )
         database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
         database.commit()
     return TestClient(create_app(settings))
@@ -433,6 +443,133 @@ def test_password_routes_reject_bodies_over_four_kibibytes(tmp_path: Path) -> No
         )
         if not _has_error(response, 413, "REQUEST_TOO_LARGE"):
             pytest.fail("Oversized recovery body was not rejected before JSON validation")
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/api/v1/auth/session"),
+        ("DELETE", "/api/v1/auth/session"),
+        ("POST", "/api/v1/auth/password"),
+        ("POST", "/api/v1/auth/password/recover"),
+    ],
+)
+def test_auth_body_limit_rejects_oversized_content_length_without_receiving(
+    tmp_path: Path, method: str, path: str
+) -> None:
+    app = create_app(
+        Settings(
+            database_url=f"sqlite:///{tmp_path / 'content-length.sqlite3'}",
+            data_root=tmp_path / "data",
+        )
+    )
+    receive_calls = 0
+    sent: list[dict[str, Any]] = []
+
+    async def receive() -> dict[str, Any]:
+        nonlocal receive_calls
+        receive_calls += 1
+        return {"type": "http.request", "body": b"never-read", "more_body": False}
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [(b"content-length", b"4097"), (b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+        "root_path": "",
+    }
+    asyncio.run(app(scope, receive, send))
+
+    assert receive_calls == 0
+    assert sent[0]["status"] == 413
+    assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
+
+
+def test_chunked_auth_body_limit_stops_receiving_after_cap_is_crossed(tmp_path: Path) -> None:
+    app = create_app(
+        Settings(
+            database_url=f"sqlite:///{tmp_path / 'chunked.sqlite3'}",
+            data_root=tmp_path / "data",
+        )
+    )
+    chunks = iter(
+        [
+            {"type": "http.request", "body": b"{" + b" " * 4095, "more_body": True},
+            {"type": "http.request", "body": b"x", "more_body": True},
+            {"type": "http.request", "body": b"must-not-be-consumed", "more_body": False},
+        ]
+    )
+    receive_calls = 0
+    sent: list[dict[str, Any]] = []
+
+    async def receive() -> dict[str, Any]:
+        nonlocal receive_calls
+        receive_calls += 1
+        return next(chunks)
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    path = "/api/v1/auth/session"
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+        "root_path": "",
+    }
+    asyncio.run(app(scope, receive, send))
+
+    assert receive_calls == 2
+    assert sent[0]["status"] == 413
+    assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
+
+
+def test_legacy_long_password_can_login_and_migrate_via_password_change(tmp_path: Path) -> None:
+    legacy_password = "legacy-" + "x" * 193
+    replacement = "new correct horse battery"
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'legacy.sqlite3'}",
+        data_root=tmp_path / "data",
+        secret_key="test-secret-that-is-long-enough",
+        secure_cookies=False,
+    )
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.add(User(username="admin", password_hash=PasswordHasher().hash(legacy_password)))
+        database.commit()
+
+    with TestClient(create_app(settings)) as client:
+        logged_in = client.post(
+            "/api/v1/auth/session", json={"username": "admin", "password": legacy_password}
+        )
+        assert logged_in.status_code == 201
+        changed = client.post(
+            "/api/v1/auth/password",
+            headers={"X-CSRF-Token": logged_in.json()["csrfToken"]},
+            json={"currentPassword": legacy_password, "newPassword": replacement},
+        )
+        assert changed.status_code == 204
+        assert client.post(
+            "/api/v1/auth/session", json={"username": "admin", "password": replacement}
+        ).status_code == 201
 
 
 def test_slide_lifecycle_and_public_metadata(tmp_path: Path) -> None:

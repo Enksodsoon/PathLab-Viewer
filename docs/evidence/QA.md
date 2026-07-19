@@ -62,3 +62,15 @@ The final-review fix candidate passed:
 - Repository hygiene: both the working diff and the complete `main...HEAD` range passed `git diff --check` after the historical blank-at-EOF findings were removed.
 
 The isolated two-worker container recovery check described above was collected at `13e6397`; it was not relabeled as evidence for the later final-review fix commit. No live OCI credential was changed or recovery code consumed during this fix wave.
+
+## Password recovery residual-review verification — 2026-07-19
+
+The second focused fix wave passed:
+
+- Backend: 218 pytest tests. New proofs cover zero body reads for oversized declared auth requests, no reads after a chunked body crosses 4 KiB, a SELECT-only already-throttled recovery fast path, migration of an existing password longer than the new-password policy, and readiness rejection for empty, `20260719_0001`, `20260719_0003`, and incomplete schemas.
+- Migration/readiness: Alembic head `20260719_0004` adds the recovery-audit retention index. `/readyz` checks the recorded head, required tables and columns, and that index without creating or stamping schema.
+- Abuse controls: already-throttled recovery requests return after read-only counts; requests below the threshold take SQLite's write lock, recheck, and only then perform retention cleanup or credential work.
+- Compatibility: newly selected passwords remain limited to 128 characters; login and current-password verification accept bounded legacy values up to 1024 characters so the administrator can migrate safely.
+- Quality and packaging: Ruff, strict mypy, 24 Vitest tests, ESLint, the Vite production build, Compose configuration validation, and repository diff checks passed.
+
+This is local, secret-free verification. No OCI deployment was performed, no live recovery code was issued or consumed, and no production credential was read or changed in this fix wave.

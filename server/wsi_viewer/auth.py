@@ -3,7 +3,7 @@ import hmac
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session as OrmSession
 
@@ -58,6 +58,48 @@ def _client_key(username: str, client_address: str) -> str:
 
 def _scope_key(scope: str, value: str = "") -> str:
     return hashlib.sha256(f"{scope}\0{value}".encode()).hexdigest()
+
+
+def _recent_client_failures(
+    database: OrmSession, key: str
+) -> list[datetime]:
+    return list(
+        database.scalars(
+            select(PasswordRecoveryAttempt.attempted_at)
+            .where(PasswordRecoveryAttempt.client_key_hash == key)
+            .order_by(PasswordRecoveryAttempt.attempted_at.desc())
+            .limit(MAX_RECOVERY_FAILURES)
+        )
+    )
+
+
+def _recovery_is_throttled(
+    database: OrmSession,
+    key: str,
+    ip_key: str,
+    attempted_at: datetime,
+) -> bool:
+    cutoff = attempted_at - ATTEMPT_WINDOW
+
+    def failure_count(*conditions: Any) -> int:
+        statement = select(func.count()).select_from(PasswordRecoveryAttempt).where(
+            PasswordRecoveryAttempt.attempted_at >= cutoff,
+            *conditions,
+        )
+        return int(database.scalar(statement) or 0)
+
+    if (
+        failure_count(PasswordRecoveryAttempt.ip_key_hash == ip_key)
+        >= MAX_IP_RECOVERY_FAILURES
+        or failure_count() >= MAX_GLOBAL_RECOVERY_FAILURES
+    ):
+        return True
+    recent = _recent_client_failures(database, key)
+    return (
+        len(recent) == MAX_RECOVERY_FAILURES
+        and recent[0] - recent[-1] <= ATTEMPT_WINDOW
+        and attempted_at < recent[0] + ATTEMPT_WINDOW
+    )
 
 
 def _replace_credential(
@@ -231,6 +273,28 @@ def recover_password(
     attempted_at = _now(now)
     key = _client_key(username, client_address)
     ip_key = _scope_key("ip", client_address)
+    if _recovery_is_throttled(database, key, ip_key, attempted_at):
+        database.rollback()
+        raise RecoveryThrottled
+
+    # End the read-only fast-path transaction before taking SQLite's write lock.
+    database.rollback()
+    database.execute(text("BEGIN IMMEDIATE"))
+    if _recovery_is_throttled(database, key, ip_key, attempted_at):
+        database.rollback()
+        raise RecoveryThrottled
+
+    recent = _recent_client_failures(database, key)
+    if (
+        len(recent) == MAX_RECOVERY_FAILURES
+        and recent[0] - recent[-1] <= ATTEMPT_WINDOW
+        and attempted_at >= recent[0] + ATTEMPT_WINDOW
+    ):
+        database.execute(
+            delete(PasswordRecoveryAttempt).where(
+                PasswordRecoveryAttempt.client_key_hash == key
+            )
+        )
     database.execute(
         delete(PasswordRecoveryAttempt).where(
             PasswordRecoveryAttempt.attempted_at < attempted_at - ATTEMPT_RETENTION
@@ -243,37 +307,6 @@ def recover_password(
         )
     )
 
-    def failure_count(*conditions: Any) -> int:
-        statement = select(func.count()).select_from(PasswordRecoveryAttempt).where(
-            PasswordRecoveryAttempt.attempted_at >= attempted_at - ATTEMPT_WINDOW,
-            *conditions,
-        )
-        return int(database.scalar(statement) or 0)
-
-    if (
-        failure_count(PasswordRecoveryAttempt.ip_key_hash == ip_key)
-        >= MAX_IP_RECOVERY_FAILURES
-        or failure_count() >= MAX_GLOBAL_RECOVERY_FAILURES
-    ):
-        database.commit()
-        raise RecoveryThrottled
-    recent = list(
-        database.scalars(
-            select(PasswordRecoveryAttempt.attempted_at)
-            .where(PasswordRecoveryAttempt.client_key_hash == key)
-            .order_by(PasswordRecoveryAttempt.attempted_at.desc())
-            .limit(MAX_RECOVERY_FAILURES)
-        )
-    )
-    if len(recent) == MAX_RECOVERY_FAILURES and recent[0] - recent[-1] <= ATTEMPT_WINDOW:
-        if attempted_at < recent[0] + ATTEMPT_WINDOW:
-            database.commit()
-            raise RecoveryThrottled
-        database.execute(
-            delete(PasswordRecoveryAttempt).where(
-                PasswordRecoveryAttempt.client_key_hash == key
-            )
-        )
     normalized_username = normalize_username(username)
     user = next(
         (
