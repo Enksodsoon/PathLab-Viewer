@@ -16,6 +16,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session as OrmSession
 
+from .auth import (
+    InvalidCurrentPassword,
+    InvalidRecoveryCode,
+    PasswordReuse,
+    RecoveryThrottled,
+    change_password,
+    recover_password,
+)
 from .config import Settings
 from .database import create_schema, session_factory
 from .domain import InvalidTransition, SlideState, transition
@@ -41,6 +49,21 @@ COOKIE_NAME = "pathlab_session"
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    current_password: str = Field(alias="currentPassword")
+    new_password: str = Field(alias="newPassword")
+
+
+class PasswordRecoveryRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    username: str
+    recovery_code: str = Field(alias="recoveryCode")
+    new_password: str = Field(alias="newPassword")
 
 
 class SlideRequest(BaseModel):
@@ -190,6 +213,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def logout(authenticated: CsrfSession, response: Response, db: Database) -> None:
         db.delete(authenticated)
         db.commit()
+        response.delete_cookie(COOKIE_NAME, path="/")
+
+    @app.post("/api/v1/auth/password", status_code=status.HTTP_204_NO_CONTENT)
+    def update_password(
+        payload: PasswordChangeRequest,
+        authenticated: CsrfSession,
+        request: Request,
+        response: Response,
+        db: Database,
+    ) -> None:
+        user = db.get(User, authenticated.user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
+        key = f"password:{user.id}:{request.client.host if request.client else 'unknown'}"
+        throttle.check(key, datetime.now(UTC))
+        try:
+            change_password(db, user, payload.current_password, payload.new_password)
+        except PasswordReuse as error:
+            raise HTTPException(status_code=400, detail={"code": "PASSWORD_REUSE"}) from error
+        except (InvalidCurrentPassword, ValueError) as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
+        throttle.clear(key)
+        response.delete_cookie(COOKIE_NAME, path="/")
+
+    @app.post("/api/v1/auth/password/recover", status_code=status.HTTP_204_NO_CONTENT)
+    def recover_admin_password(
+        payload: PasswordRecoveryRequest,
+        request: Request,
+        response: Response,
+        db: Database,
+    ) -> None:
+        try:
+            recover_password(
+                db,
+                payload.username,
+                payload.recovery_code,
+                payload.new_password,
+                request.client.host if request.client else "unknown",
+            )
+        except RecoveryThrottled as error:
+            raise HTTPException(status_code=429, detail={"code": "AUTH_THROTTLED"}) from error
+        except InvalidRecoveryCode as error:
+            raise HTTPException(
+                status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
+            ) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         response.delete_cookie(COOKIE_NAME, path="/")
 
     @app.get("/api/v1/admin/slides")
