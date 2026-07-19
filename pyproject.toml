@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pathlab-viewer"
+version = "0.1.0"
+description = "Public OME-TIFF whole-slide image viewer"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.16,<2",
+  "argon2-cffi>=23.1,<26",
+  "fastapi==0.139.2",
+  "httpx>=0.28,<1",
+  "itsdangerous>=2.2,<3",
+  "ome-types>=0.6,<1",
+  "pydantic-settings>=2.10,<3",
+  "pyvips>=3.0,<4",
+  "sqlalchemy>=2.0,<3",
+  "tifffile==2026.7.14",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+pathlab-api = "wsi_viewer.main:run"
+pathlab-admin = "wsi_viewer.cli:main"
+pathlab-worker = "wsi_viewer.worker:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["server/wsi_viewer"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests/backend"]
+pythonpath = ["server"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["wsi_viewer"]
+mypy_path = "server"
+

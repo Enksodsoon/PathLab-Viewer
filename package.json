@@ -1,0 +1,12 @@
+{
+  "name": "pathlab-viewer-workspace",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "build": "pnpm --dir apps/web build",
+    "dev": "pnpm --dir apps/web dev",
+    "lint": "pnpm --dir apps/web lint",
+    "test": "pnpm --dir apps/web test",
+    "test:e2e": "pnpm --dir apps/web test:e2e"
+  }
+}
