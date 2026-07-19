@@ -34,6 +34,22 @@ def recover_stale_jobs(
         return len(jobs)
 
 
+def expire_incomplete_uploads(upload_root: Path, *, older_than: timedelta) -> int:
+    if not upload_root.exists():
+        return 0
+    cutoff = datetime.now(UTC).timestamp() - older_than.total_seconds()
+    expired = 0
+    for info in upload_root.glob("*.info"):
+        if info.stat().st_mtime >= cutoff:
+            continue
+        upload_id = info.name.removesuffix(".info")
+        for artifact in (info, upload_root / upload_id, upload_root / f"{upload_id}.lock"):
+            if artifact.is_file():
+                artifact.unlink()
+        expired += 1
+    return expired
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -53,6 +69,11 @@ def process_next(factory: sessionmaker[OrmSession], layout: StorageLayout) -> bo
         job.attempts += 1
         job.heartbeat_at = datetime.now(UTC)
         slide = job.slide
+        if job.kind == "delete":
+            remove_slide(layout, slide.id, slide.public_id)
+            database.delete(slide)
+            database.commit()
+            return True
         slide.state = SlideState.VALIDATING
         database.commit()
         paths = layout.for_slide(slide.id)
@@ -93,13 +114,13 @@ def process_next(factory: sessionmaker[OrmSession], layout: StorageLayout) -> bo
         return True
 
 
-def remove_slide(layout: StorageLayout, slide_id: str) -> None:
+def remove_slide(layout: StorageLayout, slide_id: str, public_id: str) -> None:
     paths = layout.for_slide(slide_id)
     for target in {
         paths.original.parent,
         paths.derivative_staging,
         paths.private_derivative,
-        paths.public_derivative,
+        layout.public_for(public_id),
     }:
         if target.exists():
             shutil.rmtree(target)
@@ -112,5 +133,6 @@ def main() -> None:
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
     while True:
         recover_stale_jobs(factory, stale_after=timedelta(seconds=settings.worker_stale_seconds))
+        expire_incomplete_uploads(settings.tus_internal_upload_dir, older_than=timedelta(hours=24))
         if not process_next(factory, layout):
             time.sleep(1)

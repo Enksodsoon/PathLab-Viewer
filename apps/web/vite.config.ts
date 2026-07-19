@@ -9,9 +9,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/api/v1/uploads': 'http://127.0.0.1:8080',
       '/api': 'http://127.0.0.1:8000',
       '/livez': 'http://127.0.0.1:8000',
       '/readyz': 'http://127.0.0.1:8000',
+      '/tiles': 'http://127.0.0.1:8000',
     },
   },
 })

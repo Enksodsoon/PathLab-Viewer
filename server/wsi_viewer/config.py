@@ -16,3 +16,4 @@ class Settings(BaseSettings):
     tus_public_url: str = "/api/v1/uploads/"
     tus_internal_upload_dir: Path = Path("./var/tus")
     worker_stale_seconds: int = 300
+    serve_public_tiles: bool = False

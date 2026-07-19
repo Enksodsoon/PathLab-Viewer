@@ -49,13 +49,19 @@ def issue_upload_token(
     return URLSafeSerializer(secret, salt="pathlab-upload-v1").dumps(payload)
 
 
-def verify_upload_token(token: str, secret: str, *, now: datetime | None = None) -> UploadGrant:
+def verify_upload_token(
+    token: str,
+    secret: str,
+    *,
+    now: datetime | None = None,
+    allow_expired: bool = False,
+) -> UploadGrant:
     try:
         payload = URLSafeSerializer(secret, salt="pathlab-upload-v1").loads(token)
         if not isinstance(payload, dict):
             raise InvalidToken("Malformed upload token")
         current = now or datetime.now(UTC)
-        if int(payload["expires_at"]) < int(current.timestamp()):
+        if not allow_expired and int(payload["expires_at"]) < int(current.timestamp()):
             raise InvalidToken("Upload token expired")
         return UploadGrant(slide_id=str(payload["slide_id"]), length=int(payload["length"]))
     except (BadSignature, KeyError, TypeError, ValueError) as error:

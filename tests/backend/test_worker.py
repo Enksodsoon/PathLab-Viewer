@@ -5,7 +5,7 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Job, Slide
-from wsi_viewer.worker import recover_stale_jobs
+from wsi_viewer.worker import expire_incomplete_uploads, recover_stale_jobs
 
 
 def test_stale_worker_job_is_requeued(tmp_path: Path) -> None:
@@ -33,3 +33,17 @@ def test_stale_worker_job_is_requeued(tmp_path: Path) -> None:
     with factory() as database:
         job = database.query(Job).one()
         assert job.status == "queued"
+
+
+def test_incomplete_tus_uploads_expire_after_24_hours(tmp_path: Path) -> None:
+    info = tmp_path / "upload-1.info"
+    data = tmp_path / "upload-1"
+    info.write_text("{}", encoding="utf-8")
+    data.write_bytes(b"partial")
+    stale = (datetime.now(UTC) - timedelta(hours=25)).timestamp()
+    import os
+
+    os.utime(info, (stale, stale))
+    assert expire_incomplete_uploads(tmp_path, older_than=timedelta(hours=24)) == 1
+    assert not info.exists()
+    assert not data.exists()

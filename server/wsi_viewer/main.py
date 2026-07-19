@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import mimetypes
 import os
 import shutil
 from collections import defaultdict, deque
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session as OrmSession
@@ -107,6 +110,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     throttle = LoginThrottle()
     app = FastAPI(title="PathLab Viewer API", version="0.1.0")
     app.state.settings = current
+    if current.serve_public_tiles:
+        mimetypes.add_type("application/xml", ".dzi")
+        public_tiles = current.data_root / "public"
+        public_tiles.mkdir(parents=True, exist_ok=True)
+        app.mount("/tiles", StaticFiles(directory=public_tiles), name="development-tiles")
 
     def database() -> Iterator[OrmSession]:
         with factory() as session:
@@ -189,6 +197,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         slides = db.scalars(select(Slide).order_by(Slide.created_at.desc())).all()
         return [_slide_json(slide) for slide in slides]
 
+    @app.get("/api/v1/admin/slides/{slide_id}")
+    def get_admin_slide(slide_id: str, _: AdminSession, db: Database) -> dict[str, Any]:
+        slide = db.get(Slide, slide_id)
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        result = _slide_json(slide)
+        if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
+            result["tileSource"] = f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
+        return result
+
+    @app.get("/api/v1/admin/slides/{slide_id}/preview/{tile_path:path}")
+    def private_tile(slide_id: str, tile_path: str, _: AdminSession, db: Database) -> FileResponse:
+        slide = db.get(Slide, slide_id)
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        root = storage.for_slide(slide.id).private_derivative.resolve()
+        target = (root / tile_path).resolve()
+        if not target.is_relative_to(root) or target.suffix.lower() not in {
+            ".dzi",
+            ".jpg",
+            ".jpeg",
+        }:
+            raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+        if not target.is_file():
+            raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+        media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
+        return FileResponse(target, media_type=media_type)
+
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
     def create_slide(
         payload: SlideRequest, authenticated: CsrfSession, db: Database
@@ -225,21 +261,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "expiresIn": 3600,
         }
 
-    @app.post("/api/v1/internal/uploads/complete", status_code=status.HTTP_202_ACCEPTED)
-    def upload_complete(payload: UploadCompleteRequest, db: Database) -> dict[str, str]:
-        try:
-            grant = verify_upload_token(payload.token, current.secret_key)
-        except InvalidToken as error:
-            raise HTTPException(status_code=401, detail={"code": "INVALID_UPLOAD_TOKEN"}) from error
-        source = payload.path.resolve()
+    def finalize_upload(
+        grant: UploadGrant, upload_path: Path, reported_length: int, db: OrmSession
+    ) -> dict[str, str]:
+        source = upload_path.resolve()
         upload_root = current.tus_internal_upload_dir.resolve()
+        if not source.is_relative_to(upload_root) and upload_path.as_posix().startswith(
+            "/data/tus/"
+        ):
+            source = (upload_root / upload_path.name).resolve()
         if not source.is_relative_to(upload_root) or not source.is_file():
             raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
         slide = db.get(Slide, grant.slide_id)
         if slide is None or slide.state is not SlideState.UPLOADING:
             raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
         actual_length = source.stat().st_size
-        if payload.length != grant.length or actual_length != grant.length:
+        if reported_length != grant.length or actual_length != grant.length:
             raise HTTPException(status_code=400, detail={"code": "UPLOAD_LENGTH_MISMATCH"})
         with source.open("rb") as uploaded:
             signature = uploaded.read(4)
@@ -259,6 +296,51 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db.add(AuditEvent(action="upload.complete", target_id=slide.id))
         db.commit()
         return {"slideId": slide.id, "state": slide.state.value}
+
+    @app.post("/api/v1/internal/uploads/complete", status_code=status.HTTP_202_ACCEPTED)
+    def upload_complete(payload: UploadCompleteRequest, db: Database) -> dict[str, str]:
+        try:
+            grant = verify_upload_token(payload.token, current.secret_key)
+        except InvalidToken as error:
+            raise HTTPException(status_code=401, detail={"code": "INVALID_UPLOAD_TOKEN"}) from error
+        return finalize_upload(grant, payload.path, payload.length, db)
+
+    @app.post("/api/v1/internal/tus/hooks")
+    def tus_hook(payload: dict[str, Any], db: Database) -> dict[str, Any]:
+        try:
+            hook_type = str(payload["Type"])
+            upload = payload["Event"]["Upload"]
+            metadata = upload["MetaData"]
+            token = str(metadata["uploadToken"])
+            size = int(upload["Size"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_TUS_HOOK"}) from error
+        if hook_type == "pre-create":
+            try:
+                grant = verify_upload_token(token, current.secret_key)
+                slide = db.get(Slide, grant.slide_id)
+                if slide is None or slide.state is not SlideState.UPLOADING or size != grant.length:
+                    raise InvalidToken("Upload reservation does not match")
+            except InvalidToken:
+                return {
+                    "RejectUpload": True,
+                    "HTTPResponse": {
+                        "StatusCode": 401,
+                        "Body": '{"code":"INVALID_UPLOAD_TOKEN"}',
+                        "Header": {"Content-Type": "application/json"},
+                    },
+                }
+            return {"RejectUpload": False, "ChangeFileInfo": {"ID": grant.slide_id}}
+        if hook_type == "post-finish":
+            try:
+                grant = verify_upload_token(token, current.secret_key, allow_expired=True)
+                storage_path = Path(str(upload["Storage"]["Path"]))
+                finalize_upload(grant, storage_path, size, db)
+            except (InvalidToken, KeyError, HTTPException) as error:
+                raise HTTPException(
+                    status_code=500, detail={"code": "TUS_FINALIZE_FAILED"}
+                ) from error
+        return {}
 
     def mutate(slide_id: str, target: SlideState, authenticated: Session, db: OrmSession) -> Slide:
         slide = db.get(Slide, slide_id)
@@ -312,7 +394,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)
     def delete(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
-        return _slide_json(mutate(slide_id, SlideState.DELETING, authenticated, db))
+        slide = db.get(Slide, slide_id)
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        unpublish_derivative(storage, slide.public_id)
+        slide = mutate(slide_id, SlideState.DELETING, authenticated, db)
+        db.add(Job(slide_id=slide.id, kind="delete"))
+        db.commit()
+        return _slide_json(slide)
 
     @app.get("/api/v1/public/slides/{public_id}")
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:

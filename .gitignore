@@ -1,4 +1,7 @@
 .env
+.terraform/
+*.tfstate
+*.tfstate.*
 .env.*
 !.env.example
 .venv/
@@ -14,9 +17,12 @@ dist/
 coverage/
 playwright-report/
 test-results/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+var/
 data/
 *.sqlite3
 *.sqlite3-*
 .DS_Store
 Thumbs.db
-
