@@ -30,7 +30,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.backend
     restart: unless-stopped
-    command: ["sh", "-c", "alembic upgrade head && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips=*"]
+    command: ["sh", "-c", "mkdir -p /data/database /data/tus && alembic upgrade head && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips=*"]
     environment: &pathlab-environment
       PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3
       PATHLAB_DATA_ROOT: /data
