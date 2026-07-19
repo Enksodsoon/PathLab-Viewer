@@ -21,12 +21,62 @@ def test_valid_flat_rgb_ome_tiff_is_accepted(tmp_path: Path) -> None:
     assert (result.width, result.height, result.bits_per_sample) == (48, 32, 8)
 
 
-def test_non_ome_imagej_tiff_is_rejected_with_stable_code(tmp_path: Path) -> None:
+def test_legacy_imagej_rgb_tiff_is_accepted_without_physical_scale(tmp_path: Path) -> None:
     source = tmp_path / "imagej.tif"
-    tifffile.imwrite(source, np.zeros((32, 48, 3), dtype="uint8"), imagej=True)
+    description = "\n".join(
+        [
+            "ImageJ=",
+            "hyperstack=true",
+            "images=3",
+            "channels=3",
+            "slices=1",
+            "frames=1",
+        ]
+    )
+    with tifffile.TiffWriter(source, bigtiff=True, byteorder=">") as writer:
+        writer.write(
+            np.zeros((32, 48, 3), dtype="uint8"),
+            description=description,
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(16, 16),
+        )
+    # Match the converter defect in Slide no.7: the first IFD is valid, but its
+    # next-page pointer targets EOF instead of another IFD.
+    with source.open("r+b") as binary:
+        binary.seek(8)
+        first_ifd = int.from_bytes(binary.read(8), "big")
+        binary.seek(first_ifd)
+        tag_count = int.from_bytes(binary.read(8), "big")
+        binary.seek(first_ifd + 8 + tag_count * 20)
+        binary.write(source.stat().st_size.to_bytes(8, "big"))
+    result = validate_ome_tiff(source)
+    assert (result.width, result.height, result.bits_per_sample) == (48, 32, 8)
+    assert result.series_index == 0
+    assert result.physical_size_x is None
+    assert result.physical_size_y is None
+
+
+def test_plain_non_ome_tiff_is_still_rejected_with_stable_code(tmp_path: Path) -> None:
+    source = tmp_path / "plain.tif"
+    tifffile.imwrite(source, np.zeros((32, 48, 3), dtype="uint8"), photometric="rgb")
     with pytest.raises(OmeError) as error:
         validate_ome_tiff(source)
     assert error.value.code == "INVALID_OME_XML"
+
+
+def test_legacy_imagej_z_stack_is_rejected(tmp_path: Path) -> None:
+    source = tmp_path / "imagej-z-stack.tif"
+    tifffile.imwrite(
+        source,
+        np.zeros((2, 32, 48, 3), dtype="uint8"),
+        imagej=True,
+        metadata={"axes": "ZYXS"},
+        photometric="rgb",
+    )
+    with pytest.raises(OmeError) as error:
+        validate_ome_tiff(source)
+    assert error.value.code == "UNSUPPORTED_DIMENSIONS"
 
 
 def test_z_stack_is_rejected(tmp_path: Path) -> None:

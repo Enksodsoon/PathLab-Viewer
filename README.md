@@ -12,7 +12,7 @@ Compact, public OME-TIFF whole-slide image viewer for small laboratories and pat
 
 ## What is accepted
 
-The worker requires valid OME-XML and one interleaved RGB primary image with `SizeZ=1` and `SizeT=1`. Classic TIFF/BigTIFF, both byte orders, flat/SubIFD pyramids, tiles/strips, uint8/uint16, RGB/YCbCr, and JPEG/LZW/Deflate/uncompressed payloads are covered by the parameterized test matrix. Missing physical scale is allowed. Non-OME ImageJ TIFF is rejected as `INVALID_OME_XML`.
+The worker normally requires valid OME-XML and one interleaved RGB primary image with `SizeZ=1` and `SizeT=1`. Classic TIFF/BigTIFF, both byte orders, flat/SubIFD pyramids, tiles/strips, uint8/uint16, RGB/YCbCr, and JPEG/LZW/Deflate/uncompressed payloads are covered by the parameterized test matrix. Missing physical scale is allowed. A bounded legacy compatibility path also accepts ImageJ converter output when its first IFD is a valid, decodable 2D RGB image and its metadata declares one Z plane and one timepoint; malformed trailing page-chain entries are ignored. Plain non-OME TIFFs and ImageJ Z-stacks remain rejected.
 
 The original is stored under a generated ID and is never routed publicly. Publication copies only one `.dzi` descriptor and JPEG tiles into the Caddy-served public tree. `vips-properties.xml` is deleted and every other derivative file type is rejected.
 
