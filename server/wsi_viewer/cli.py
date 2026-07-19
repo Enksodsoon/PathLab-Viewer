@@ -4,6 +4,7 @@ import sys
 
 from sqlalchemy import select
 
+from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import create_schema, session_factory
 from .models import User
@@ -24,27 +25,44 @@ def _read_password(password_stdin: bool) -> str:
     return password
 
 
-def main() -> None:
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage the single PathLab administrator")
-    parser.add_argument("command", choices=["create-admin", "reset-password"])
+    parser.add_argument(
+        "command", choices=["create-admin", "reset-password", "issue-recovery-code"]
+    )
     parser.add_argument("--username", default="admin")
     parser.add_argument(
         "--password-stdin",
         action="store_true",
         help="Read one password line from standard input for unattended deployment",
     )
-    args = parser.parse_args()
-    password = _read_password(args.password_stdin)
+    return parser
+
+
+def main() -> None:
+    args = _build_parser().parse_args()
     settings = Settings()
     create_schema(settings)
     with session_factory(settings)() as database:
         user = database.scalar(select(User).where(User.username == args.username))
+        if args.command == "issue-recovery-code":
+            if user is None:
+                raise SystemExit("Administrator does not exist")
+            code = issue_recovery_code(database, user)
+            database.commit()
+            print(code)
+            print(
+                "Expires in 15 minutes. Enter only on the PathLab HTTPS recovery form.",
+                file=sys.stderr,
+            )
+            return
+        password = _read_password(args.password_stdin)
         if args.command == "create-admin":
             if user is not None:
                 raise SystemExit("Administrator already exists")
             database.add(User(username=args.username, password_hash=hash_password(password)))
-        else:
-            if user is None:
-                raise SystemExit("Administrator does not exist")
-            user.password_hash = hash_password(password)
-        database.commit()
+            database.commit()
+            return
+        if user is None:
+            raise SystemExit("Administrator does not exist")
+        reset_password_by_cli(database, user, password)
