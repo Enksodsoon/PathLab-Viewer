@@ -1,0 +1,90 @@
+name: pathlab-viewer
+
+services:
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in deploy/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/pathlab-data:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      tusd:
+        condition: service_started
+    mem_limit: 256m
+    cpus: 0.50
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    command: ["sh", "-c", "alembic upgrade head && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips=*"]
+    environment: &pathlab-environment
+      PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3
+      PATHLAB_DATA_ROOT: /data
+      PATHLAB_SECRET_KEY: ${PATHLAB_SECRET_KEY:?Set PATHLAB_SECRET_KEY in deploy/.env}
+      PATHLAB_SECURE_COOKIES: "true"
+      PATHLAB_TUS_PUBLIC_URL: /api/v1/uploads/
+      PATHLAB_TUS_INTERNAL_UPLOAD_DIR: /data/tus
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8000/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 768m
+    cpus: 0.75
+
+  tusd:
+    image: tusproject/tusd:v2.9.2
+    restart: unless-stopped
+    command:
+      - -host=0.0.0.0
+      - -port=8080
+      - -base-path=/api/v1/uploads/
+      - -behind-proxy
+      - -upload-dir=/data/tus
+      - -max-size=5368709120
+      - -disable-download
+      - -hooks-http=http://api:8000/api/v1/internal/tus/hooks
+      - -hooks-enabled-events=pre-create,post-finish
+      - -hooks-http-forward-headers=Authorization
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 256m
+    cpus: 0.35
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    command: ["pathlab-worker"]
+    environment: *pathlab-environment
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 6g
+    cpus: 1.50
+
+volumes:
+  caddy_data:
+  caddy_config:

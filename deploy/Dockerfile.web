@@ -1,0 +1,11 @@
+FROM node:24.14.0-alpine3.23 AS build
+WORKDIR /src
+RUN corepack enable
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web ./apps/web
+RUN pnpm install --frozen-lockfile
+RUN pnpm --dir apps/web build
+
+FROM caddy:2.11.4-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /src/apps/web/dist /srv

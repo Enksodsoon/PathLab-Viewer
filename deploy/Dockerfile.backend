@@ -1,0 +1,15 @@
+FROM python:3.12.13-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl libvips42 libvips-tools \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY pyproject.toml README.md alembic.ini ./
+COPY migrations ./migrations
+COPY server ./server
+RUN pip install --no-cache-dir .
+RUN useradd --system --uid 10001 --create-home pathlab
+USER pathlab
+EXPOSE 8000
+CMD ["uvicorn", "wsi_viewer.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=*"]
