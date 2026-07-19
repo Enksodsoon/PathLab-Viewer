@@ -302,7 +302,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"}) from error
         except PasswordReuse as error:
             raise HTTPException(status_code=400, detail={"code": "PASSWORD_REUSE"}) from error
-        except (InvalidCurrentPassword, ValueError) as error:
+        except InvalidCurrentPassword as error:
+            raise HTTPException(
+                status_code=400, detail={"code": "CURRENT_PASSWORD_INVALID"}
+            ) from error
+        except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         throttle.clear(key)
         response.delete_cookie(COOKIE_NAME, path="/")

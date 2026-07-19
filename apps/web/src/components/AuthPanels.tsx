@@ -7,10 +7,20 @@ import { Brand } from './Brand'
 
 const MIN_NEW_PASSWORD_LENGTH = 12
 const MAX_NEW_PASSWORD_LENGTH = 128
-const PASSWORD_REQUIREMENTS = '12–128 characters. Must differ from your current password.'
+const RECOVERY_PASSWORD_REQUIREMENTS = '12–128 characters.'
+const CHANGE_PASSWORD_REQUIREMENTS = '12–128 characters. Must differ from your current password.'
 
 function hasValidNewPasswordLength(password: string) {
-  return password.length >= MIN_NEW_PASSWORD_LENGTH && password.length <= MAX_NEW_PASSWORD_LENGTH
+  const codePointLength = Array.from(password).length
+  return codePointLength >= MIN_NEW_PASSWORD_LENGTH && codePointLength <= MAX_NEW_PASSWORD_LENGTH
+}
+
+function passwordChangeErrorMessage(caught: unknown) {
+  if (!(caught instanceof ApiError)) return 'Unable to change the password. Try again.'
+  if (caught.code === 'PASSWORD_REUSE') return 'Choose a password different from the current password.'
+  if (caught.code === 'CURRENT_PASSWORD_INVALID') return 'Current password is incorrect.'
+  if (caught.code === 'INVALID_PASSWORD') return 'New password must contain 12–128 characters.'
+  return 'Unable to change the password. Try again.'
 }
 
 interface AuthPanelProps {
@@ -148,7 +158,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
               New password
               <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="recovery-password-requirements" />
             </label>
-            <p id="recovery-password-requirements" className="password-requirements">{PASSWORD_REQUIREMENTS}</p>
+            <p id="recovery-password-requirements" className="password-requirements">{RECOVERY_PASSWORD_REQUIREMENTS}</p>
             <label>
               Confirm new password
               <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
@@ -243,11 +253,7 @@ export function AccountSecurityDialog({
       if (caught instanceof ApiError && caught.status === 401) {
         onAuthenticationRequired()
       } else {
-        setError(caught instanceof ApiError && caught.code === 'PASSWORD_REUSE'
-          ? 'Choose a password different from the current password.'
-          : caught instanceof ApiError && caught.code === 'INVALID_PASSWORD'
-            ? 'Current password is incorrect.'
-            : 'Unable to change the password. Try again.')
+        setError(passwordChangeErrorMessage(caught))
       }
     } finally {
       clearSecrets()
@@ -275,7 +281,7 @@ export function AccountSecurityDialog({
           New password
           <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="security-password-requirements" />
         </label>
-        <p id="security-password-requirements" className="password-requirements">{PASSWORD_REQUIREMENTS}</p>
+        <p id="security-password-requirements" className="password-requirements">{CHANGE_PASSWORD_REQUIREMENTS}</p>
         <label>
           Confirm new password
           <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />

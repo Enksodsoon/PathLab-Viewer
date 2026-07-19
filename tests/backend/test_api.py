@@ -182,8 +182,8 @@ def test_password_change_returns_exact_errors_for_invalid_inputs(tmp_path: Path)
             json={"currentPassword": "correct horse battery", "newPassword": "x" * 129},
         )
 
-        if not _has_error(wrong_current, 400, "INVALID_PASSWORD"):
-            pytest.fail("Wrong current password did not use the stable password error")
+        if not _has_error(wrong_current, 400, "CURRENT_PASSWORD_INVALID"):
+            pytest.fail("Wrong current password did not use the stable current-password error")
         if not _has_error(reused_password, 400, "PASSWORD_REUSE"):
             pytest.fail("Reused password did not use the stable reuse error")
         if not _has_error(weak_password, 400, "INVALID_PASSWORD"):

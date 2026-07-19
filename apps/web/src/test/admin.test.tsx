@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -166,7 +166,7 @@ describe('admin workflow', () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
     await userEvent.click(await screen.findByRole('button', { name: /forgot password/i }))
     const controls = recoveryControls()
-    const requirements = screen.getByText('12–128 characters. Must differ from your current password.')
+    const requirements = screen.getByText('12–128 characters.')
     expect(requirements).toBeVisible()
     if (controls.newPassword.getAttribute('aria-describedby') !== requirements.id) {
       throw new Error('Recovery password requirements were not associated with the field')
@@ -379,7 +379,7 @@ describe('admin workflow', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = requestUrl(input)
       if (url === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
-      if (url === '/api/v1/auth/password') return errorResponse('INVALID_PASSWORD')
+      if (url === '/api/v1/auth/password') return errorResponse('CURRENT_PASSWORD_INVALID')
       throw new Error('Incorrect-current-password test made an unexpected request')
     })
     render(<AdminPage />, { wrapper: MemoryRouter })
@@ -390,6 +390,47 @@ describe('admin workflow', () => {
     await userEvent.type(controls.confirmation, NEW_PASSWORD)
     await userEvent.click(controls.submit)
     expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.')
+  })
+
+  it('counts Unicode code points when validating a new password', async () => {
+    let changeRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (requestUrl(input) === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      changeRequests += 1
+      return new Response(null, { status: 204 })
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
+    const controls = changeControls()
+    const sixEmoji = '🔬🔬🔬🔬🔬🔬'
+    await userEvent.type(controls.currentPassword, CURRENT_PASSWORD)
+    fireEvent.change(controls.newPassword, { target: { value: sixEmoji } })
+    fireEvent.change(controls.confirmation, { target: { value: sixEmoji } })
+    await userEvent.click(controls.submit)
+    expect(screen.getByRole('alert')).toHaveTextContent('New password must contain 12–128 characters.')
+    if (changeRequests !== 0) throw new Error('Six Unicode code points bypassed local length validation')
+  })
+
+  it('allows a Unicode password within the backend code-point limit', async () => {
+    let submittedPassword = ''
+    sessionStorage.setItem('pathlab-csrf', 'csrf-token')
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      if (url !== '/api/v1/auth/password') throw new Error('Unicode password used an unexpected URL')
+      submittedPassword = (JSON.parse(String(init?.body)) as { newPassword: string }).newPassword
+      return new Response(null, { status: 204 })
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
+    const controls = changeControls()
+    const sixtyFiveEmoji = '🔬'.repeat(65)
+    await userEvent.type(controls.currentPassword, CURRENT_PASSWORD)
+    fireEvent.change(controls.newPassword, { target: { value: sixtyFiveEmoji } })
+    fireEvent.change(controls.confirmation, { target: { value: sixtyFiveEmoji } })
+    await userEvent.click(controls.submit)
+    expect(await screen.findByText(/sign in again/i)).toBeVisible()
+    if (submittedPassword !== sixtyFiveEmoji) throw new Error('Valid Unicode password was not submitted intact')
   })
 
   it('uses native modal semantics, focuses the password, and restores focus after cancel', async () => {
