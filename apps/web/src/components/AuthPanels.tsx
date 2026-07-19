@@ -234,6 +234,11 @@ export function AccountSecurityDialog({
     event.preventDefault()
     if (busyRef.current) return
     setError('')
+    if (!currentPassword) {
+      setError('Enter your current password.')
+      clearSecrets()
+      return
+    }
     if (!hasValidNewPasswordLength(newPassword)) {
       setError('New password must contain 12–128 characters.')
       clearSecrets()

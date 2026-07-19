@@ -375,6 +375,25 @@ describe('admin workflow', () => {
     assertCleared(/confirm new password/i, 'Password confirmation was retained after length validation')
   })
 
+  it('requires the current password locally with an accurate message', async () => {
+    let changeRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (requestUrl(input) === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      changeRequests += 1
+      return new Response(null, { status: 204 })
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
+    const controls = changeControls()
+    await userEvent.type(controls.newPassword, NEW_PASSWORD)
+    await userEvent.type(controls.confirmation, NEW_PASSWORD)
+    await userEvent.click(controls.submit)
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter your current password.')
+    if (changeRequests !== 0) throw new Error('Empty current password reached the API')
+    assertCleared(/^new password$/i, 'New password was retained after current-password validation')
+    assertCleared(/confirm new password/i, 'Password confirmation was retained after current-password validation')
+  })
+
   it('identifies an incorrect current password after local requirements pass', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = requestUrl(input)

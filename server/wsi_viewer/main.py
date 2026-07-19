@@ -188,6 +188,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> PasswordChangeRequest:
         try:
             return PasswordChangeRequest.model_validate(await bounded_json(request))
+        except ValidationError as error:
+            if error.errors() and all(
+                item.get("loc", ())[-1:] == ("currentPassword",)
+                for item in error.errors()
+            ):
+                raise HTTPException(
+                    status_code=400, detail={"code": "CURRENT_PASSWORD_INVALID"}
+                ) from error
+            raise HTTPException(
+                status_code=400, detail={"code": "INVALID_PASSWORD"}
+            ) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
 

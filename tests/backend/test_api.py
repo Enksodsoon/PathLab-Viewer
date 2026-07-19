@@ -181,6 +181,11 @@ def test_password_change_returns_exact_errors_for_invalid_inputs(tmp_path: Path)
             headers=headers,
             json={"currentPassword": "correct horse battery", "newPassword": "x" * 129},
         )
+        empty_current = client.post(
+            "/api/v1/auth/password",
+            headers=headers,
+            json={"currentPassword": "", "newPassword": "new correct horse battery"},
+        )
 
         if not _has_error(wrong_current, 400, "CURRENT_PASSWORD_INVALID"):
             pytest.fail("Wrong current password did not use the stable current-password error")
@@ -190,6 +195,8 @@ def test_password_change_returns_exact_errors_for_invalid_inputs(tmp_path: Path)
             pytest.fail("Weak password change did not use the stable password error")
         if not _has_error(oversized_password, 400, "INVALID_PASSWORD"):
             pytest.fail("Oversized password change did not use the stable password error")
+        if not _has_error(empty_current, 400, "CURRENT_PASSWORD_INVALID"):
+            pytest.fail("Empty current password did not use the stable current-password error")
 
 
 def test_password_change_checks_session_and_csrf_before_parsing_json(tmp_path: Path) -> None:

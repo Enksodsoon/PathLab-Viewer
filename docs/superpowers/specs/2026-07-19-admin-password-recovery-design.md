@@ -114,7 +114,8 @@ Responses:
 
 - `204`: password changed and all sessions revoked;
 - `400 PASSWORD_REUSE`: new password matches current password;
-- `400 INVALID_PASSWORD`: current password is incorrect or the new password violates policy;
+- `400 CURRENT_PASSWORD_INVALID`: current password is missing or incorrect;
+- `400 INVALID_PASSWORD`: new password violates policy;
 - `401`: session is absent or expired;
 - `403`: CSRF validation failed;
 - `429`: throttled.
