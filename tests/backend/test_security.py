@@ -6,6 +6,8 @@ from wsi_viewer.security import (
     UploadGrant,
     hash_password,
     issue_upload_token,
+    normalize_username,
+    recovery_code_hash,
     verify_password,
     verify_upload_token,
 )
@@ -25,3 +27,17 @@ def test_upload_token_is_scoped_and_expires() -> None:
     assert verify_upload_token(token, "secret", now=now).slide_id == "slide-1"
     with pytest.raises(InvalidToken):
         verify_upload_token(token, "secret", now=now + timedelta(hours=2))
+
+
+def test_password_policy_has_minimum_and_maximum() -> None:
+    with pytest.raises(ValueError, match="at least 12"):
+        hash_password("short")
+    with pytest.raises(ValueError, match="at most 128"):
+        hash_password("x" * 129)
+
+
+def test_recovery_hash_and_username_normalization_are_deterministic() -> None:
+    assert recovery_code_hash("one-time-code") == recovery_code_hash("one-time-code")
+    assert recovery_code_hash("one-time-code") != "one-time-code"
+    assert len(recovery_code_hash("one-time-code")) == 64
+    assert normalize_username("  AdMiN  ") == "admin"

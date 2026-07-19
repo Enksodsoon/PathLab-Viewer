@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
@@ -8,6 +9,8 @@ from argon2.low_level import Type
 from itsdangerous import BadSignature, URLSafeSerializer
 
 _PASSWORD_HASHER = PasswordHasher(type=Type.ID)
+MIN_PASSWORD_LENGTH = 12
+MAX_PASSWORD_LENGTH = 128
 
 
 class InvalidToken(ValueError):
@@ -20,10 +23,24 @@ class UploadGrant:
     length: int
 
 
-def hash_password(password: str) -> str:
-    if len(password) < 12:
+def validate_password(password: str) -> None:
+    if len(password) < MIN_PASSWORD_LENGTH:
         raise ValueError("Admin password must contain at least 12 characters")
+    if len(password) > MAX_PASSWORD_LENGTH:
+        raise ValueError("Admin password must contain at most 128 characters")
+
+
+def hash_password(password: str) -> str:
+    validate_password(password)
     return _PASSWORD_HASHER.hash(password)
+
+
+def recovery_code_hash(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def normalize_username(username: str) -> str:
+    return username.strip().casefold()
 
 
 def verify_password(encoded: str, password: str) -> bool:
