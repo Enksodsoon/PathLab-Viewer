@@ -69,6 +69,16 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .login-card h1 { color:var(--navy); font-size:26px; }
 .login-card label { display:grid; gap:7px; color:#536577; font-size:12px; font-weight:600; }
 .form-error { color:var(--coral); font-size:12px; }
+.auth-link { border:0; background:transparent; color:var(--teal); font-weight:700; cursor:pointer; }
+.auth-actions { display:flex; justify-content:flex-end; gap:10px; }
+.form-notice { color:#267269; background:#edf8f6; border-radius:8px; padding:10px 12px; font-size:12px; }
+.recovery-help { color:var(--muted); font-size:12px; line-height:1.5; }
+.recovery-command { overflow-wrap:anywhere; color:#42576b; background:#f1f4f6; padding:10px; border-radius:8px; font-size:11px; }
+.dialog-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:16px; background:rgba(16,36,61,.48); }
+.security-dialog { position:relative; width:min(440px,calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto; display:grid; gap:18px; padding:28px; border:1px solid var(--line); border-radius:16px; background:white; box-shadow:0 22px 60px rgba(16,36,61,.24); }
+.security-dialog label { display:grid; gap:7px; color:#536577; font-size:12px; font-weight:600; }
+.security-dialog input { width:100%; border:1px solid #cad4dc; border-radius:8px; padding:11px 12px; }
+.dialog-close { position:absolute; right:14px; top:14px; border:0; background:transparent; padding:7px; cursor:pointer; }
 .center-state { min-height:100vh; display:grid; place-items:center; color:var(--muted); }
 .center-state.dark { color:#d7dee4; background:#11171e; }
 .viewer-shell { height:100vh; display:grid; grid-template-rows:68px minmax(0,1fr); overflow:hidden; }
@@ -107,4 +117,7 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   .viewer-tools { top:auto; left:50%; bottom:18px; transform:translateX(-50%); flex-direction:row; }
   .viewer-tools span { width:1px; height:30px; margin:5px 4px; }
   .scale-bar { left:16px; bottom:82px; }
+  .login-card,.security-dialog { padding:24px 20px; }
+  .auth-actions { flex-direction:column-reverse; }
+  .auth-actions .button { width:100%; }
 }

@@ -25,6 +25,10 @@ async function json<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
+async function expectOk(response: Response): Promise<void> {
+  if (!response.ok) await json<never>(response)
+}
+
 export async function login(username: string, password: string): Promise<void> {
   const body = await json<{ csrfToken: string }>(
     await fetch('/api/v1/auth/session', {
@@ -43,6 +47,33 @@ export async function logout(): Promise<void> {
     credentials: 'same-origin',
     headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
   })
+  sessionStorage.removeItem(CSRF_KEY)
+}
+
+export async function recoverPassword(
+  username: string,
+  recoveryCode: string,
+  newPassword: string,
+): Promise<void> {
+  await expectOk(await fetch('/api/v1/auth/password/recover', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, recoveryCode, newPassword }),
+  }))
+  sessionStorage.removeItem(CSRF_KEY)
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await expectOk(await fetch('/api/v1/auth/password', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  }))
   sessionStorage.removeItem(CSRF_KEY)
 }
 

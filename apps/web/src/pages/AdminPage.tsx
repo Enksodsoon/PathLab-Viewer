@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, CircleAlert, CloudUpload, Copy, Eye, LogOut, RefreshCw, Trash2 } from 'lucide-react'
+import { Check, CircleAlert, CloudUpload, Copy, Eye, KeyRound, LogOut, RefreshCw, Trash2 } from 'lucide-react'
 
-import { ApiError, deleteSlide, listSlides, login, logout, mutateSlide, reserveUpload } from '../api'
+import { ApiError, deleteSlide, listSlides, logout, mutateSlide, reserveUpload } from '../api'
+import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
 import { Brand } from '../components/Brand'
 import type { AdminSlide, SlideState } from '../types'
 import { startTusUpload } from '../upload'
@@ -16,27 +17,6 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`
 }
 
-function LoginPanel({ onSuccess }: { onSuccess: () => void }) {
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  return (
-    <main className="login-page">
-      <form className="login-card" onSubmit={async (event) => {
-        event.preventDefault(); setError('')
-        try { await login(username, password); onSuccess() } catch { setError('Sign-in failed. Check your credentials.') }
-      }}>
-        <Brand />
-        <div><p className="eyebrow">Administrator access</p><h1>Manage whole-slide images</h1></div>
-        <label>Username<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
-        <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
-        {error && <p className="form-error">{error}</p>}
-        <button className="button primary" type="submit">Sign in</button>
-      </form>
-    </main>
-  )
-}
-
 export function AdminPage() {
   const [slides, setSlides] = useState<AdminSlide[]>([])
   const [authorized, setAuthorized] = useState<boolean | null>(null)
@@ -44,6 +24,8 @@ export function AdminPage() {
   const [displayName, setDisplayName] = useState('')
   const [progress, setProgress] = useState<number | null>(null)
   const [notice, setNotice] = useState('')
+  const [securityOpen, setSecurityOpen] = useState(false)
+  const [authNotice, setAuthNotice] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
   const refresh = useCallback(async () => {
     try { setSlides(await listSlides()); setAuthorized(true) }
@@ -56,7 +38,9 @@ export function AdminPage() {
     return () => window.clearInterval(timer)
   }, [authorized, refresh])
   const used = useMemo(() => slides.reduce((total, slide) => total + slide.sourceBytes, 0), [slides])
-  if (authorized === false) return <LoginPanel onSuccess={() => void refresh()} />
+  if (authorized === false) {
+    return <AuthPanel notice={authNotice} onSuccess={() => { setAuthNotice(''); void refresh() }} />
+  }
   if (authorized === null) return <div className="center-state">Loading secure workspace…</div>
 
   async function upload() {
@@ -83,7 +67,7 @@ export function AdminPage() {
   }
 
   return <div className="admin-shell">
-    <header className="topbar"><Brand /><div className="topbar-actions"><span className="secure-dot"><Check size={13} /> Secure admin</span><button className="icon-button" aria-label="Sign out" onClick={() => void logout().then(() => setAuthorized(false))}><LogOut size={18} /></button></div></header>
+    <header className="topbar"><Brand /><div className="topbar-actions"><span className="secure-dot"><Check size={13} /> Secure admin</span><button type="button" className="icon-button" aria-label="Account security" onClick={() => setSecurityOpen(true)}><KeyRound size={18} /></button><button type="button" className="icon-button" aria-label="Sign out" onClick={() => void logout().then(() => setAuthorized(false))}><LogOut size={18} /></button></div></header>
     <main className="admin-main">
       <section className="page-heading"><div><p className="eyebrow">Slide operations</p><h1>Whole-slide workspace</h1><p>Upload private OME-TIFF originals, review the derivative, then publish an unlisted link.</p></div><div className="storage-summary"><span>{formatBytes(used)} stored</span><strong>{Math.max(0, 120 - used / 1024 ** 3).toFixed(1)} GB available</strong><div><i style={{ width: `${Math.min(100, used / (120 * 1024 ** 3) * 100)}%` }} /></div></div></section>
       <div className="admin-grid">
@@ -101,5 +85,14 @@ export function AdminPage() {
         </section>
       </div>
     </main>
+    <AccountSecurityDialog
+      open={securityOpen}
+      onClose={() => setSecurityOpen(false)}
+      onChanged={() => {
+        setSecurityOpen(false)
+        setAuthNotice('Password changed. Sign in again.')
+        setAuthorized(false)
+      }}
+    />
   </div>
 }
