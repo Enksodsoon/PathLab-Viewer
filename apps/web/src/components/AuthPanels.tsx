@@ -5,6 +5,14 @@ import { X } from 'lucide-react'
 import { ApiError, changePassword, login, recoverPassword } from '../api'
 import { Brand } from './Brand'
 
+const MIN_NEW_PASSWORD_LENGTH = 12
+const MAX_NEW_PASSWORD_LENGTH = 128
+const PASSWORD_REQUIREMENTS = '12–128 characters. Must differ from your current password.'
+
+function hasValidNewPasswordLength(password: string) {
+  return password.length >= MIN_NEW_PASSWORD_LENGTH && password.length <= MAX_NEW_PASSWORD_LENGTH
+}
+
 interface AuthPanelProps {
   onSuccess: () => void
   notice?: string
@@ -45,6 +53,13 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
     if (busyRef.current) return
     setError('')
     setMessage('')
+    if (!hasValidNewPasswordLength(newPassword)) {
+      setError('New password must contain 12–128 characters.')
+      setRecoveryCode('')
+      setNewPassword('')
+      setConfirmation('')
+      return
+    }
     if (newPassword !== confirmation) {
       setError('New passwords do not match.')
       setRecoveryCode('')
@@ -131,8 +146,9 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
             </label>
             <label>
               New password
-              <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" />
+              <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="recovery-password-requirements" />
             </label>
+            <p id="recovery-password-requirements" className="password-requirements">{PASSWORD_REQUIREMENTS}</p>
             <label>
               Confirm new password
               <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
@@ -208,6 +224,11 @@ export function AccountSecurityDialog({
     event.preventDefault()
     if (busyRef.current) return
     setError('')
+    if (!hasValidNewPasswordLength(newPassword)) {
+      setError('New password must contain 12–128 characters.')
+      clearSecrets()
+      return
+    }
     if (newPassword !== confirmation) {
       setError('New passwords do not match.')
       clearSecrets()
@@ -224,7 +245,9 @@ export function AccountSecurityDialog({
       } else {
         setError(caught instanceof ApiError && caught.code === 'PASSWORD_REUSE'
           ? 'Choose a password different from the current password.'
-          : 'Password change failed. Check the current password and requirements.')
+          : caught instanceof ApiError && caught.code === 'INVALID_PASSWORD'
+            ? 'Current password is incorrect.'
+            : 'Unable to change the password. Try again.')
       }
     } finally {
       clearSecrets()
@@ -250,8 +273,9 @@ export function AccountSecurityDialog({
         </label>
         <label>
           New password
-          <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" />
+          <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="security-password-requirements" />
         </label>
+        <p id="security-password-requirements" className="password-requirements">{PASSWORD_REQUIREMENTS}</p>
         <label>
           Confirm new password
           <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />

@@ -166,6 +166,11 @@ describe('admin workflow', () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
     await userEvent.click(await screen.findByRole('button', { name: /forgot password/i }))
     const controls = recoveryControls()
+    const requirements = screen.getByText('12–128 characters. Must differ from your current password.')
+    expect(requirements).toBeVisible()
+    if (controls.newPassword.getAttribute('aria-describedby') !== requirements.id) {
+      throw new Error('Recovery password requirements were not associated with the field')
+    }
     await userEvent.type(controls.recoveryCode, RECOVERY_CODE)
     await userEvent.type(controls.newPassword, NEW_PASSWORD)
     await userEvent.type(controls.confirmation, NEW_PASSWORD)
@@ -329,6 +334,11 @@ describe('admin workflow', () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
     await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
     const controls = changeControls()
+    const requirements = screen.getByText('12–128 characters. Must differ from your current password.')
+    expect(requirements).toBeVisible()
+    if (controls.newPassword.getAttribute('aria-describedby') !== requirements.id) {
+      throw new Error('New password requirements were not associated with the field')
+    }
     if (controls.currentPassword.getAttribute('autocomplete') !== 'current-password') {
       throw new Error('Current password autocomplete mismatch')
     }
@@ -342,6 +352,44 @@ describe('admin workflow', () => {
     expect(await screen.findByText(/sign in again/i)).toBeVisible()
     if (changeRequests !== 1) throw new Error('Password change request count mismatch')
     if (sessionStorage.getItem('pathlab-csrf') !== null) throw new Error('CSRF remained after password change')
+  })
+
+  it('explains password requirements before submitting and rejects invalid lengths locally', async () => {
+    let changeRequests = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (requestUrl(input) === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      changeRequests += 1
+      return new Response(null, { status: 204 })
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
+    const controls = changeControls()
+    await userEvent.type(controls.currentPassword, CURRENT_PASSWORD)
+    await userEvent.type(controls.newPassword, 'too short')
+    await userEvent.type(controls.confirmation, 'too short')
+    await userEvent.click(controls.submit)
+    expect(screen.getByRole('alert')).toHaveTextContent('New password must contain 12–128 characters.')
+    if (changeRequests !== 0) throw new Error('Invalid password length reached the API')
+    assertCleared(/current password/i, 'Current password was retained after length validation')
+    assertCleared(/^new password$/i, 'New password was retained after length validation')
+    assertCleared(/confirm new password/i, 'Password confirmation was retained after length validation')
+  })
+
+  it('identifies an incorrect current password after local requirements pass', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = requestUrl(input)
+      if (url === '/api/v1/admin/slides') return new Response('[]', { status: 200 })
+      if (url === '/api/v1/auth/password') return errorResponse('INVALID_PASSWORD')
+      throw new Error('Incorrect-current-password test made an unexpected request')
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await userEvent.click(await screen.findByRole('button', { name: /account security/i }))
+    const controls = changeControls()
+    await userEvent.type(controls.currentPassword, 'incorrect current password')
+    await userEvent.type(controls.newPassword, NEW_PASSWORD)
+    await userEvent.type(controls.confirmation, NEW_PASSWORD)
+    await userEvent.click(controls.submit)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect.')
   })
 
   it('uses native modal semantics, focuses the password, and restores focus after cancel', async () => {
