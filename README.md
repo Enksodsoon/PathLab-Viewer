@@ -1,6 +1,13 @@
 # PathLab Viewer
 
-Compact, public OME-TIFF whole-slide image viewer for small laboratories and pathology teaching.
+PathLab Viewer is a private-first OME-TIFF whole-slide image (WSI) web viewer for small laboratories and pathology teaching. It keeps the original slide private, converts it to compact Deep Zoom JPEG tiles, and publishes only an unlisted read-only viewer link.
+
+## Start here
+
+- Read the [full project guide](docs/PROJECT_GUIDE.md) for the product history, architecture, OME-TIFF contract, security model, deployment, and merge status.
+- Use the [repository map](docs/REPOSITORY_MAP.md) to find the right code or operational file.
+- Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the test-first workflow and pull-request rules.
+- For OCI operations, read [deploy/README.md](deploy/README.md).
 
 ## Product contract
 

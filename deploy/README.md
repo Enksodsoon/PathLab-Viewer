@@ -1,5 +1,7 @@
 # OCI Always Free deployment
 
+For the plain-language architecture and project history, start with [`docs/PROJECT_GUIDE.md`](../docs/PROJECT_GUIDE.md). This file is the operator runbook for the OCI host.
+
 This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, and a 150 GB attached data volume. Together they consume the documented 200 GB Always Free block-volume allowance. Capacity is tenancy- and home-region-dependent; Terraform output is not proof of zero charge. Confirm every resource is marked **Always Free eligible** before applying.
 
 ## Bring-up
@@ -20,6 +22,8 @@ This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, an
 - Upgrade: fetch a reviewed commit and run `sudo systemctl reload pathlab-viewer`.
 
 The US$1 monthly budget alert is a warning, not a spending cap. OCI public IPv4 policy and charges can change; verify the cost estimator and tenancy billing page at each deployment.
+
+The currently reviewed live candidate is commit `0d94cc3`. Confirm the active release and readiness endpoints before upgrading or declaring production readiness.
 
 ## Administrator password recovery
 
