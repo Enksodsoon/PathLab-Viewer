@@ -34,7 +34,8 @@ Do not read every future plan before starting a focused task.
 
 - Work on exactly one task from the active plan.
 - Do not implement later tasks or unrelated improvements.
-- Use a `codex/` branch created from current `main`.
+- Start from the branch specified in the current handoff. Do not reset to `main` if that would discard the active plan or bootstrap documents.
+- Keep work on a `codex/` branch. Create a child task branch only when the execution environment requires it.
 - Use test-driven development for behavior changes: failing test, minimal implementation, passing test.
 - Preserve the legacy OME-TIFF path until the prepared-package workflow is validated end to end.
 - Treat all uploaded archives and metadata as hostile.
