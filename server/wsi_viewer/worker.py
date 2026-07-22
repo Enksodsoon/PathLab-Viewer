@@ -1,6 +1,7 @@
 import hashlib
 import shutil
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -15,6 +16,49 @@ from .domain import SlideState
 from .models import Job
 from .ome import OmeError, validate_ome_tiff
 from .storage import StorageLayout
+
+JOB_POLL_INTERVAL_SECONDS = 2.0
+STALE_RECOVERY_INTERVAL_SECONDS = 60.0
+TUS_CLEANUP_INTERVAL_SECONDS = 30.0 * 60.0
+
+
+class WorkerScheduler:
+    def __init__(
+        self,
+        *,
+        recover_stale: Callable[[], object],
+        cleanup_uploads: Callable[[], object],
+        process_job: Callable[[], bool],
+        monotonic: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._recover_stale = recover_stale
+        self._cleanup_uploads = cleanup_uploads
+        self._process_job = process_job
+        self._monotonic = monotonic
+        self._next_job_poll = float("-inf")
+        self._next_stale_recovery = float("-inf")
+        self._next_tus_cleanup = float("-inf")
+
+    def run_due(self) -> float:
+        now = self._monotonic()
+        if now >= self._next_stale_recovery:
+            self._recover_stale()
+            self._next_stale_recovery = now + STALE_RECOVERY_INTERVAL_SECONDS
+        if now >= self._next_tus_cleanup:
+            self._cleanup_uploads()
+            self._next_tus_cleanup = now + TUS_CLEANUP_INTERVAL_SECONDS
+        if now >= self._next_job_poll:
+            processed = self._process_job()
+            self._next_job_poll = now if processed else now + JOB_POLL_INTERVAL_SECONDS
+        return max(
+            0.0,
+            min(
+                self._next_job_poll,
+                self._next_stale_recovery,
+                self._next_tus_cleanup,
+            )
+            - now,
+        )
 
 
 def recover_stale_jobs(
@@ -130,8 +174,16 @@ def main() -> None:
     settings = Settings()
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
+    scheduler = WorkerScheduler(
+        recover_stale=lambda: recover_stale_jobs(
+            factory, stale_after=timedelta(seconds=settings.worker_stale_seconds)
+        ),
+        cleanup_uploads=lambda: expire_incomplete_uploads(
+            settings.tus_internal_upload_dir, older_than=timedelta(hours=24)
+        ),
+        process_job=lambda: process_next(factory, layout),
+    )
     while True:
-        recover_stale_jobs(factory, stale_after=timedelta(seconds=settings.worker_stale_seconds))
-        expire_incomplete_uploads(settings.tus_internal_upload_dir, older_than=timedelta(hours=24))
-        if not process_next(factory, layout):
-            time.sleep(1)
+        delay = scheduler.run_due()
+        if delay > 0:
+            time.sleep(delay)

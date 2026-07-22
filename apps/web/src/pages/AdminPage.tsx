@@ -12,6 +12,10 @@ const LABELS: Record<SlideState, string> = {
   ready_private: 'Ready — private', published: 'Published', failed: 'Failed', deleting: 'Deleting',
 }
 
+const ACTIVE_STATES = new Set<SlideState>([
+  'uploading', 'queued', 'validating', 'converting', 'deleting',
+])
+
 function formatBytes(bytes: number) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`
@@ -28,6 +32,7 @@ export function AdminPage() {
   const [authNotice, setAuthNotice] = useState('')
   const [signingOut, setSigningOut] = useState(false)
   const [logoutError, setLogoutError] = useState('')
+  const [isVisible, setIsVisible] = useState(() => document.visibilityState !== 'hidden')
   const fileInput = useRef<HTMLInputElement>(null)
   const authEpoch = useRef(0)
   const refresh = useCallback(async () => {
@@ -49,9 +54,23 @@ export function AdminPage() {
   useEffect(() => { void refresh() }, [refresh])
   useEffect(() => {
     if (!authorized) return
+    const handleVisibilityChange = () => {
+      const nextVisible = document.visibilityState !== 'hidden'
+      setIsVisible(nextVisible)
+      if (nextVisible) void refresh()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [authorized, refresh])
+  const hasActiveSlides = useMemo(
+    () => slides.some((slide) => ACTIVE_STATES.has(slide.state)),
+    [slides],
+  )
+  useEffect(() => {
+    if (!authorized || !hasActiveSlides || !isVisible) return
     const timer = window.setInterval(() => void refresh(), 4000)
     return () => window.clearInterval(timer)
-  }, [authorized, refresh])
+  }, [authorized, hasActiveSlides, isVisible, refresh])
   const used = useMemo(() => slides.reduce((total, slide) => total + slide.sourceBytes, 0), [slides])
   if (signingOut) return <div className="center-state" role="status">Signing out…</div>
   if (authorized === false) {
