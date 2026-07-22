@@ -20,7 +20,28 @@ This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, an
 - Log rotation: every service uses Docker's `json-file` driver with at most three 10 MB files per container. To roll back, revert this configuration change and run `sudo systemctl reload pathlab-viewer`; Compose recreates affected containers with the previous or daemon-default logging configuration.
 - Backup: `PATHLAB_BACKUP_DIR=/mnt/backup deploy/scripts/backup.sh`
 - Restore drill: use a disposable VM and run `restore.sh --confirm /absolute/backup`, then compare slide rows, SHA-256 values, manifests, and representative tiles.
-- Upgrade: fetch a reviewed commit and run `sudo systemctl reload pathlab-viewer`.
+- Upgrade: open **Actions → Deploy production → Run workflow** on `main`. The
+  protected `production` environment requires approval, deploys only the current
+  reviewed `main` SHA, verifies readiness, and automatically restores the prior
+  release if verification fails. The previous release remains under
+  `/opt/pathlab-viewer.rollback-*` for manual rollback.
+
+### One-click deployment setup
+
+The repository workflow uses a dedicated SSH key that can run only the root-owned
+`/usr/local/sbin/pathlab-viewer-deploy` command. Install
+`deploy/scripts/deploy-release.sh` at that path with root ownership and mode 755.
+Add the public key to the OCI user's `authorized_keys` with this forced command:
+
+```text
+restrict,command="sudo -n /usr/local/sbin/pathlab-viewer-deploy \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 PUBLIC_KEY github-production-deploy
+```
+
+Configure the GitHub `production` environment with required reviewers, variables
+`OCI_HOST` and `OCI_USER`, and secrets `OCI_DEPLOY_KEY` and `OCI_KNOWN_HOSTS`.
+The private key belongs only in the environment secret. Keep manual SSH access as
+the break-glass rollback path; the deployment workflow never reads or modifies
+`/srv/pathlab/data`.
 
 The US$1 monthly budget alert is a warning, not a spending cap. OCI public IPv4 policy and charges can change; verify the cost estimator and tenancy billing page at each deployment.
 
