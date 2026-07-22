@@ -121,3 +121,21 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
     assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
+
+
+def test_ci_avoids_duplicate_feature_branch_runs() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "push:\n    branches: [main]" in workflow
+    assert "pull_request:" in workflow
+    assert "group: ci-${{ github.workflow }}-${{" in workflow
+    assert "github.event.pull_request.number || github.ref" in workflow
+    assert "cancel-in-progress: true" in workflow
+
+
+def test_arm64_container_builds_use_separate_github_caches() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    for scope in ("backend", "web"):
+        assert f"--cache-from type=gha,scope={scope}" in workflow
+        assert f"--cache-to type=gha,mode=max,scope={scope}" in workflow
