@@ -1,0 +1,69 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+  deployments: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://pathlab-viewer.140-245-126-212.sslip.io
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Require successful CI checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for check in backend web containers; do
+            conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
+              --jq ".check_runs[] | select(.name == \"${check}\") | .conclusion" | head -n 1)"
+            test "${conclusion}" = success || {
+              echo "Required check ${check} is ${conclusion:-missing}, not successful."
+              exit 1
+            }
+          done
+
+      - name: Configure restricted deploy key
+        env:
+          OCI_DEPLOY_KEY: ${{ secrets.OCI_DEPLOY_KEY }}
+          OCI_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "${OCI_DEPLOY_KEY}" > ~/.ssh/deploy_key
+          printf '%s\n' "${OCI_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy reviewed main commit
+        env:
+          OCI_HOST: ${{ vars.OCI_HOST }}
+          OCI_USER: ${{ vars.OCI_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            "${OCI_USER}@${OCI_HOST}" "deploy $GITHUB_SHA"
+
+      - name: Record deployment result
+        run: |
+          {
+            echo "## Production deployment"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Readiness: https://pathlab-viewer.140-245-126-212.sslip.io/readyz"
+            echo "- Result: deployed and health-checked"
+          } >> "${GITHUB_STEP_SUMMARY}"

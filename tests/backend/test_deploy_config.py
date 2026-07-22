@@ -72,3 +72,52 @@ def test_caddy_spa_fallback_does_not_rewrite_api_paths() -> None:
     )
     assert fallback in caddyfile
     assert caddyfile.index("handle @backend") < caddyfile.index(fallback)
+
+
+def test_production_deploy_is_manual_serial_and_main_only() -> None:
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert "name: production" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+
+
+def test_production_deploy_uses_restricted_ssh_credentials() -> None:
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "secrets.OCI_DEPLOY_KEY" in workflow
+    assert "secrets.OCI_KNOWN_HOSTS" in workflow
+    assert "vars.OCI_HOST" in workflow
+    assert "vars.OCI_USER" in workflow
+    assert '"deploy $GITHUB_SHA"' in workflow
+    assert "appleboy/ssh-action" not in workflow
+
+
+def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
+    script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+
+    assert "git ls-remote" in script
+    assert "refs/heads/main" in script
+    assert "docker compose config --quiet" in script
+    assert "docker compose build" in script
+    assert "systemctl reload pathlab-viewer" in script
+    assert "mv \"${LIVE_DIR}\" \"${ROLLBACK_DIR}\"" in script
+    assert "mv \"${STAGE_DIR}\" \"${LIVE_DIR}\"" in script
+    assert "curl --fail" in script
+    assert "rollback_release" in script
+    assert "flock" in script
+
+
+def test_release_script_preserves_environment_and_never_touches_data() -> None:
+    script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+
+    assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
+    assert "/srv/pathlab/data" not in script
+    assert "docker compose down" not in script
