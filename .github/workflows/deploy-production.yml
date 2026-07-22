@@ -24,6 +24,10 @@ jobs:
         with:
           ref: main
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Require successful CI checks
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,26 +41,33 @@ jobs:
             }
           done
 
-      - name: Configure restricted deploy key
+      - name: Install OCI CLI
+        run: pip install oci-cli==3.89.2
+
+      - name: Configure OCI and pinned SSH identities
         env:
-          OCI_DEPLOY_KEY: ${{ secrets.OCI_DEPLOY_KEY }}
-          OCI_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+          OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
+          OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
+          OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
         run: |
+          install -d -m 700 ~/.oci
+          install -m 600 /dev/null ~/.oci/config
+          install -m 600 /dev/null ~/.oci/oci_api_key.pem
+          printf '%s\n' "${OCI_CONFIG}" > ~/.oci/config
+          printf '%s\n' "${OCI_API_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
           install -d -m 700 ~/.ssh
-          install -m 600 /dev/null ~/.ssh/deploy_key
-          printf '%s\n' "${OCI_DEPLOY_KEY}" > ~/.ssh/deploy_key
-          printf '%s\n' "${OCI_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          printf '%s\n' "${OCI_BASTION_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy reviewed main commit
+      - name: Deploy through temporary OCI Bastion session
         env:
-          OCI_HOST: ${{ vars.OCI_HOST }}
-          OCI_USER: ${{ vars.OCI_USER }}
+          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+          OCI_TARGET_USER: pathlab-deploy
+          OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
         run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o BatchMode=yes \
-            -o IdentitiesOnly=yes \
-            "${OCI_USER}@${OCI_HOST}" "deploy $GITHUB_SHA"
+          deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA"
 
       - name: Record deployment result
         run: |

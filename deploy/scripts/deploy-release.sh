@@ -52,7 +52,11 @@ REMOTE_MAIN_SHA="$(git ls-remote "${REPOSITORY_URL}" refs/heads/main | awk '{pri
 
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 STAGE_DIR="/opt/pathlab-viewer.stage-${TARGET_SHA}-${TIMESTAMP}"
-CURRENT_SHA="$(git -C "${LIVE_DIR}" rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
+CURRENT_SHA="$(
+  cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null | cut -c1-12 || \
+    git -c safe.directory="${LIVE_DIR}" -C "${LIVE_DIR}" rev-parse --short=12 HEAD 2>/dev/null || \
+    echo unknown
+)"
 ROLLBACK_DIR="/opt/pathlab-viewer.rollback-${CURRENT_SHA}-${TIMESTAMP}"
 trap cleanup_stage EXIT
 
@@ -93,7 +97,7 @@ RUNNING_SERVICES="$(
 EXPECTED_SERVICES=$'api\ncaddy\ntusd\nworker'
 [[ "${RUNNING_SERVICES}" == "${EXPECTED_SERVICES}" ]] || \
   fail "not all production services are running"
-[[ "$(git -C "${LIVE_DIR}" rev-parse HEAD)" == "${TARGET_SHA}" ]] || \
+[[ "$(cat "${LIVE_DIR}/.pathlab-release")" == "${TARGET_SHA}" ]] || \
   fail "live checkout does not match the requested commit"
 
 trap - ERR
