@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminPage } from '../pages/AdminPage'
 
-vi.mock('../upload', () => ({ startTusUpload: vi.fn().mockResolvedValue({}) }))
+const startTusUploadMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../upload', () => ({ startTusUpload: startTusUploadMock }))
 
 const RECOVERY_CODE = 'one-time-secret'
 const CURRENT_PASSWORD = 'correct horse battery'
@@ -31,6 +33,31 @@ function errorResponse(code: string, status = 400): Response {
     JSON.stringify({ detail: { code } }),
     { status, headers: { 'Content-Type': 'application/json' } },
   )
+}
+
+function slideResponse(state: string): Response {
+  return new Response(
+    JSON.stringify([{
+      id: 'slide-polling',
+      publicId: 'public-polling',
+      displayName: 'Polling slide',
+      filename: 'polling.ome.tif',
+      sourceBytes: 1024,
+      state,
+      errorCode: null,
+      errorMessage: null,
+      metadata: null,
+      createdAt: '2026-07-19T10:00:00Z',
+    }]),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  )
+}
+
+async function flushReactWork() {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
 }
 
 function assertCleared(label: RegExp, failureMessage: string) {
@@ -100,11 +127,111 @@ function assertChangeContract(init: RequestInit | undefined) {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.useRealTimers()
+  startTusUploadMock.mockReset()
   sessionStorage.clear()
   localStorage.clear()
 })
 
 describe('admin workflow', () => {
+  it('polls while at least one slide is active', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () => slideResponse('converting'),
+    )
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await flushReactWork()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(3999)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops polling after all slides become stable', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(slideResponse('converting'))
+      .mockResolvedValue(slideResponse('ready_private'))
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await flushReactWork()
+
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await flushReactWork()
+    await vi.advanceTimersByTimeAsync(12000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops polling while the document is hidden', async () => {
+    vi.useFakeTimers()
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () => slideResponse('queued'),
+    )
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await flushReactWork()
+
+    visibility = 'hidden'
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushReactWork()
+    await vi.advanceTimersByTimeAsync(8000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes exactly once when the document becomes visible', async () => {
+    vi.useFakeTimers()
+    let visibility: DocumentVisibilityState = 'hidden'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () => slideResponse('converting'),
+    )
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await flushReactWork()
+
+    visibility = 'visible'
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushReactWork()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('cleans polling timers and visibility listeners on unmount', async () => {
+    vi.useFakeTimers()
+    const clearInterval = vi.spyOn(window, 'clearInterval')
+    const removeEventListener = vi.spyOn(document, 'removeEventListener')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(slideResponse('validating'))
+    const view = render(<AdminPage />, { wrapper: MemoryRouter })
+    await flushReactWork()
+
+    view.unmount()
+    expect(clearInterval).toHaveBeenCalled()
+    expect(removeEventListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
+  })
+
+  it('refreshes immediately when upload completion is reported', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('[]', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        slide: { id: 'slide-1', state: 'uploading' },
+        uploadUrl: '/api/v1/uploads/',
+        uploadToken: 'signed-token',
+      }), { status: 201, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response('[]', { status: 200 }))
+    startTusUploadMock.mockImplementationOnce(async (...args: unknown[]) => {
+      const handlers = args[3] as { success: () => void }
+      handlers.success()
+      return {}
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    const chooser = await screen.findByLabelText(/choose ome-tiff/i)
+    fireEvent.change(chooser, { target: { files: [new File(['pixels'], 'case.ome.tif')] } })
+    await userEvent.click(screen.getByRole('button', { name: /upload slide/i }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+  })
+
   it('renders real lifecycle states from the API', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

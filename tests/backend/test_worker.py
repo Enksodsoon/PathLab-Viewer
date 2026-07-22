@@ -1,11 +1,83 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import Mock
 
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Job, Slide
-from wsi_viewer.worker import expire_incomplete_uploads, recover_stale_jobs
+from wsi_viewer.worker import WorkerScheduler, expire_incomplete_uploads, recover_stale_jobs
+
+
+def scheduler_with(
+    clock: Mock,
+    recover: Mock,
+    cleanup: Mock,
+    process: Mock,
+) -> WorkerScheduler:
+    return WorkerScheduler(
+        recover_stale=recover,
+        cleanup_uploads=cleanup,
+        process_job=process,
+        monotonic=clock,
+    )
+
+
+def test_worker_maintenance_runs_at_startup_with_monotonic_clock() -> None:
+    clock = Mock(return_value=100.0)
+    recover = Mock()
+    cleanup = Mock()
+    process = Mock(return_value=False)
+
+    delay = scheduler_with(clock, recover, cleanup, process).run_due()
+
+    clock.assert_called_once_with()
+    recover.assert_called_once_with()
+    cleanup.assert_called_once_with()
+    process.assert_called_once_with()
+    assert delay == 2.0
+
+
+def test_worker_maintenance_is_not_repeated_on_job_poll_cycles() -> None:
+    clock = Mock(side_effect=[0.0, 2.0, 4.0])
+    recover = Mock()
+    cleanup = Mock()
+    process = Mock(return_value=False)
+    scheduler = scheduler_with(clock, recover, cleanup, process)
+
+    scheduler.run_due()
+    scheduler.run_due()
+    scheduler.run_due()
+
+    assert process.call_count == 3
+    recover.assert_called_once_with()
+    cleanup.assert_called_once_with()
+
+
+def test_worker_maintenance_runs_again_after_each_interval() -> None:
+    clock = Mock(side_effect=[0.0, 60.0, 1800.0])
+    recover = Mock()
+    cleanup = Mock()
+    process = Mock(return_value=False)
+    scheduler = scheduler_with(clock, recover, cleanup, process)
+
+    scheduler.run_due()
+    scheduler.run_due()
+    scheduler.run_due()
+
+    assert recover.call_count == 3
+    assert cleanup.call_count == 2
+
+
+def test_worker_processes_queued_jobs_without_an_extra_delay() -> None:
+    clock = Mock(side_effect=[0.0, 0.0, 0.0])
+    process = Mock(side_effect=[True, True, False])
+    scheduler = scheduler_with(clock, Mock(), Mock(), process)
+
+    assert scheduler.run_due() == 0.0
+    assert scheduler.run_due() == 0.0
+    assert scheduler.run_due() == 2.0
+    assert process.call_count == 3
 
 
 def test_stale_worker_job_is_requeued(tmp_path: Path) -> None:
