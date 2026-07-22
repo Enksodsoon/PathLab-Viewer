@@ -17,6 +17,7 @@ This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, an
 
 - Readiness: `curl --fail https://$DOMAIN/readyz`
 - Logs: `docker compose logs --since 30m api worker tusd caddy`
+- Log rotation: every service uses Docker's `json-file` driver with at most three 10 MB files per container. To roll back, revert this configuration change and run `sudo systemctl reload pathlab-viewer`; Compose recreates affected containers with the previous or daemon-default logging configuration.
 - Backup: `PATHLAB_BACKUP_DIR=/mnt/backup deploy/scripts/backup.sh`
 - Restore drill: use a disposable VM and run `restore.sh --confirm /absolute/backup`, then compare slide rows, SHA-256 values, manifests, and representative tiles.
 - Upgrade: fetch a reviewed commit and run `sudo systemctl reload pathlab-viewer`.
