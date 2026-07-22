@@ -1,6 +1,47 @@
 from pathlib import Path
 
 
+EXPECTED_COMPOSE_SERVICES = ("caddy", "api", "tusd", "worker")
+EXPECTED_LOGGING_LINES = [
+    "      driver: json-file",
+    "      options:",
+    '        max-size: "10m"',
+    '        max-file: "3"',
+]
+
+
+def test_all_services_use_bounded_json_file_logging() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    lines = compose.splitlines()
+    services_start = lines.index("services:") + 1
+    services_end = lines.index("volumes:")
+    service_starts = [
+        (index, line.removeprefix("  ").removesuffix(":"))
+        for index, line in enumerate(lines[services_start:services_end], services_start)
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":")
+    ]
+
+    assert tuple(name for _, name in service_starts) == EXPECTED_COMPOSE_SERVICES
+
+    for position, (start, service_name) in enumerate(service_starts):
+        end = (
+            service_starts[position + 1][0]
+            if position + 1 < len(service_starts)
+            else services_end
+        )
+        service_lines = lines[start + 1 : end]
+        assert "    logging:" in service_lines, f"{service_name} missing logging config"
+
+        logging_start = service_lines.index("    logging:") + 1
+        logging_lines: list[str] = []
+        for line in service_lines[logging_start:]:
+            if not line or len(line) - len(line.lstrip()) <= 4:
+                break
+            logging_lines.append(line)
+
+        assert logging_lines == EXPECTED_LOGGING_LINES, service_name
+
+
 def test_tusd_uses_pathlab_data_owner() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
