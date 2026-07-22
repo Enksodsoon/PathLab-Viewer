@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 EXPECTED_COMPOSE_SERVICES = ("caddy", "api", "tusd", "worker")
 EXPECTED_LOGGING_LINES = [
     "      driver: json-file",
