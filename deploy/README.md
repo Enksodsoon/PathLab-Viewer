@@ -28,20 +28,35 @@ This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, an
 
 ### One-click deployment setup
 
-The repository workflow uses a dedicated SSH key that can run only the root-owned
-`/usr/local/sbin/pathlab-viewer-deploy` command. Install
-`deploy/scripts/deploy-release.sh` at that path with root ownership and mode 755.
-Add the public key to the OCI user's `authorized_keys` with this forced command:
+The workflow creates a temporary OCI Bastion managed SSH session for every
+approved deployment and deletes it when the job exits. Administrator SSH remains
+restricted to `admin_cidr`; the VM does not expose a deployment port to the
+internet.
 
-```text
-restrict,command="sudo -n /usr/local/sbin/pathlab-viewer-deploy \"$SSH_ORIGINAL_COMMAND\"" ssh-ed25519 PUBLIC_KEY github-production-deploy
-```
+1. Enable the OCI Bastion agent plugin and create a Standard Bastion in the VM's
+   VCN. Permit the Bastion private endpoint to reach target port 22.
+2. Install `deploy/scripts/deploy-release.sh` as the root-owned executable
+   `/usr/local/sbin/pathlab-viewer-deploy`.
+3. Run `sudo deploy/scripts/configure-bastion-target.sh`. This creates the
+   password-locked `pathlab-deploy` user, disables TTY and forwarding, and forces
+   every session through the validated deployment script.
+4. Give a dedicated OCI API user only the permissions required to create, read,
+   and delete sessions for this Bastion. Do not use an administrator API key.
+5. Configure the GitHub `production` environment with variables
+   `OCI_BASTION_ID`, `OCI_INSTANCE_ID`, and `OCI_TARGET_PRIVATE_IP`, plus secrets
+   `OCI_CONFIG`, `OCI_API_PRIVATE_KEY`, and `OCI_BASTION_KNOWN_HOSTS`.
 
-Configure the GitHub `production` environment with required reviewers, variables
-`OCI_HOST` and `OCI_USER`, and secrets `OCI_DEPLOY_KEY` and `OCI_KNOWN_HOSTS`.
-The private key belongs only in the environment secret. Keep manual SSH access as
-the break-glass rollback path; the deployment workflow never reads or modifies
-`/srv/pathlab/data`.
+`OCI_CONFIG` points `key_file` to `/home/runner/.oci/oci_api_key.pem`.
+`OCI_BASTION_KNOWN_HOSTS` pins both the Bastion endpoint and target host keys.
+Keep manual administrator SSH as the break-glass rollback path. The workflow
+never reads or modifies `/srv/pathlab/data`.
+
+Scope the API user's policy to the deployment Bastion, instance, and operating
+system user. The session-management statement should constrain both the target
+instance OCID and `target.bastion-session.username='pathlab-deploy'`; grant only
+read access to instance, virtual-network, agent-plugin, and Bastion-session
+metadata. The workflow does not need work-request permissions or permission to
+manage the Bastion itself.
 
 The US$1 monthly budget alert is a warning, not a spending cap. OCI public IPv4 policy and charges can change; verify the cost estimator and tenancy billing page at each deployment.
 

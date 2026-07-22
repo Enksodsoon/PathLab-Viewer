@@ -87,17 +87,51 @@ def test_production_deploy_is_manual_serial_and_main_only() -> None:
     assert "push:" not in workflow
 
 
-def test_production_deploy_uses_restricted_ssh_credentials() -> None:
+def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     workflow = Path(".github/workflows/deploy-production.yml").read_text(
         encoding="utf-8"
     )
 
-    assert "secrets.OCI_DEPLOY_KEY" in workflow
-    assert "secrets.OCI_KNOWN_HOSTS" in workflow
-    assert "vars.OCI_HOST" in workflow
-    assert "vars.OCI_USER" in workflow
-    assert '"deploy $GITHUB_SHA"' in workflow
-    assert "appleboy/ssh-action" not in workflow
+    assert "secrets.OCI_CONFIG" in workflow
+    assert "secrets.OCI_API_PRIVATE_KEY" in workflow
+    assert "secrets.OCI_BASTION_KNOWN_HOSTS" in workflow
+    assert "deploy/scripts/deploy-via-bastion.sh" in workflow
+    assert "secrets.OCI_DEPLOY_KEY" not in workflow
+    assert "vars.OCI_HOST" not in workflow
+
+
+def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
+    script = Path("deploy/scripts/deploy-via-bastion.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "ssh-keygen" in script
+    assert "oci bastion session create-managed-ssh" in script
+    assert "oci bastion session list" in script
+    assert "--wait-for-state" not in script
+    assert "trap cleanup_bastion_session EXIT" in script
+    assert "oci bastion session delete" in script
+    assert "StrictHostKeyChecking=yes" in script
+    assert "deploy ${TARGET_SHA}" in script
+
+
+def test_bastion_target_has_no_interactive_deployment_access() -> None:
+    script = Path("deploy/scripts/configure-bastion-target.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "pathlab-deploy" in script
+    assert "DisableForwarding yes" in script
+    assert "PermitTTY no" in script
+    assert "PasswordAuthentication no" in script
+    assert "ForceCommand /usr/local/sbin/pathlab-viewer-deploy-entrypoint" in script
+    assert "NOPASSWD: /usr/local/sbin/pathlab-viewer-deploy" in script
+
+
+def test_shell_scripts_are_checked_out_with_unix_line_endings() -> None:
+    attributes = Path(".gitattributes").read_text(encoding="utf-8")
+
+    assert "*.sh text eol=lf" in attributes
 
 
 def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
@@ -113,6 +147,8 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert "curl --fail" in script
     assert "rollback_release" in script
     assert "flock" in script
+    assert 'cat "${LIVE_DIR}/.pathlab-release"' in script
+    assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
 
 
 def test_release_script_preserves_environment_and_never_touches_data() -> None:
