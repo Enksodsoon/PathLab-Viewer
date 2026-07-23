@@ -21,7 +21,17 @@ jobs:
         with:
           python-version: '3.12'
       - name: Apply reviewed transformations
-        run: python scripts/apply_public_hardening.py
+        run: |
+          if python scripts/apply_public_hardening.py > /tmp/apply.log 2>&1; then
+            exit 0
+          fi
+          tail -n 80 /tmp/apply.log > apply-hardening-error.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apply-hardening-error.txt
+          git commit -m 'chore: capture hardening automation error'
+          git push origin HEAD:security/public-hardening
+          exit 1
       - name: Commit hardened tree
         run: |
           git config user.name 'github-actions[bot]'
