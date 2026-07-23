@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from scripts import check_public_repository
+
 
 def test_caddy_blocks_internal_api_routes_before_general_backend_proxy() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
@@ -117,3 +119,21 @@ def test_security_automation_is_configured() -> None:
     assert Path(".github/workflows/dependency-review.yml").is_file()
     assert Path(".github/workflows/codeql.yml").is_file()
     assert Path("scripts/check_public_repository.py").is_file()
+
+
+def test_public_repository_guard_does_not_echo_sensitive_findings(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    secret = "ghp_" + ("A" * 24)
+    (tmp_path / "sensitive.txt").write_text(secret, encoding="utf-8")
+    monkeypatch.setattr(check_public_repository, "ROOT", tmp_path)
+    monkeypatch.setattr(check_public_repository, "SELF", tmp_path / "guard.py")
+
+    assert check_public_repository.main() == 1
+
+    captured = capsys.readouterr()
+    assert secret not in captured.err
+    assert "sensitive.txt" not in captured.err
+    assert "1 finding" in captured.err

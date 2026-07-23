@@ -241,12 +241,12 @@ def main() -> int:
         check_text(path, text, findings)
 
     if findings:
+        finding_count = len(set(findings))
         print(
-            "Public repository guard found unsafe or traceable content:",
+            "Public repository guard found "
+            f"{finding_count} finding(s); sensitive details suppressed.",
             file=sys.stderr,
         )
-        for finding in sorted(set(findings)):
-            print(f"- {finding}", file=sys.stderr)
         return 1
     print(f"Public repository guard passed ({scanned} text files scanned).")
     return 0
