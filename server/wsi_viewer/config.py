@@ -1,3 +1,4 @@
+import secrets
 from pathlib import Path
 
 from pydantic import PositiveInt
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./var/pathlab.sqlite3"
     data_root: Path = Path("./var/data")
-    secret_key: str = "change-this-before-deployment"
+    secret_key: str = secrets.token_urlsafe(48)
     secure_cookies: bool = True
     session_hours: int = 12
     max_upload_bytes: int = 5 * 1024**3
