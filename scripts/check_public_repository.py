@@ -74,29 +74,53 @@ ALLOWED_HOME_USERS = {
 }
 MAX_TEXT_BYTES = 10 * 1024 * 1024
 
-EMAIL_PATTERN = re.compile(r"(?<![\w.+-])([\w.+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,}))(?![\w.-])")
+EMAIL_PATTERN = re.compile(
+    r"(?<![\w.+-])([\w.+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,}))(?![\w.-])"
+)
 IPV4_PATTERN = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
-HOME_PATTERN = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)([^/\\\s'\"]+)")
+HOME_PATTERN = re.compile(
+    r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)([^/\\\s'\"]+)"
+)
 DYNAMIC_HOST_PATTERN = re.compile(
-    r"(?i)\b(?:[A-Za-z0-9-]+\.)+(?:sslip\.io|nip\.io|ngrok\.io|trycloudflare\.com|localhost\.run)\b"
+    r"(?i)\b(?:[A-Za-z0-9-]+\.)+"
+    r"(?:sslip\.io|nip\.io|ngrok\.io|trycloudflare\.com|localhost\.run)\b"
 )
 DUCKDNS_HOST_PATTERN = re.compile(r"(?i)\b([A-Za-z0-9-]+\.duckdns\.org)\b")
 GENERIC_SECRET_PATTERN = re.compile(
-    r"(?i)\b(?:password|secret|token|api[_-]?key)\b\s*[:=]\s*['\"]?([A-Za-z0-9+/=_-]{16,})"
+    r"(?i)\b(?:password|secret|token|api[_-]?key)\b"
+    r"\s*[:=]\s*['\"]?([A-Za-z0-9+/=_-]{16,})"
 )
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("private key material", re.compile(r"-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----")),
+    (
+        "private key material",
+        re.compile(r"-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----"),
+    ),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b")),
-    ("GitHub fine-grained token", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b")),
+    (
+        "GitHub fine-grained token",
+        re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    ),
     ("AWS access key", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
     ("Slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b")),
     ("OpenAI-style token", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
 )
 INTERNAL_ARTIFACT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("agent execution instruction", re.compile(r"For " + r"agentic workers", re.IGNORECASE)),
-    ("agent workflow artifact", re.compile(r"subagent" + r"-driven-development", re.IGNORECASE)),
-    ("internal planning directory", re.compile(r"docs/" + r"superpowers", re.IGNORECASE)),
-    ("internal automation branch convention", re.compile(r"\bcodex/", re.IGNORECASE)),
+    (
+        "agent execution instruction",
+        re.compile(r"For " + r"agentic workers", re.IGNORECASE),
+    ),
+    (
+        "agent workflow artifact",
+        re.compile(r"subagent" + r"-driven-development", re.IGNORECASE),
+    ),
+    (
+        "internal planning directory",
+        re.compile(r"docs/" + r"superpowers", re.IGNORECASE),
+    ),
+    (
+        "internal automation branch convention",
+        re.compile(r"\bcodex/", re.IGNORECASE),
+    ),
 )
 
 
@@ -104,11 +128,23 @@ def is_example_secret(value: str) -> bool:
     lowered = value.casefold()
     return any(
         marker in lowered
-        for marker in ("example", "placeholder", "replace", "generate", "ci-only", "not-used")
+        for marker in (
+            "example",
+            "placeholder",
+            "replace",
+            "generate",
+            "ci-only",
+            "not-used",
+        )
     )
 
 
-def report(findings: list[str], path: Path, reason: str, line_number: int | None = None) -> None:
+def report(
+    findings: list[str],
+    path: Path,
+    reason: str,
+    line_number: int | None = None,
+) -> None:
     relative = path.relative_to(ROOT).as_posix()
     location = f"{relative}:{line_number}" if line_number is not None else relative
     findings.append(f"{location}: {reason}")
@@ -132,7 +168,11 @@ def check_path(path: Path, findings: list[str]) -> bool:
     if relative.name in PRIVATE_FILENAMES and relative.name != ".env.example":
         report(findings, path, "private or internal-purpose filename is not allowed")
     if relative.suffix.casefold() in PRIVATE_DATA_SUFFIXES:
-        report(findings, path, "private data, credential, database, or generated-slide file is not allowed")
+        report(
+            findings,
+            path,
+            "private data, credential, database, or generated-slide file is not allowed",
+        )
     if relative.name.endswith(".prompt.md"):
         report(findings, path, "prompt artifact filename is not allowed")
     return relative.suffix.casefold() not in BINARY_SUFFIXES
@@ -146,9 +186,9 @@ def check_text(path: Path, text: str, findings: list[str]) -> None:
         generic_secret = GENERIC_SECRET_PATTERN.search(line)
         if generic_secret and not is_example_secret(generic_secret.group(1)):
             report(findings, path, "possible committed credential", line_number)
-        for address, domain in EMAIL_PATTERN.findall(line):
+        for _, domain in EMAIL_PATTERN.findall(line):
             if domain.casefold() not in ALLOWED_EMAIL_DOMAINS:
-                report(findings, path, f"non-example email address ({address})", line_number)
+                report(findings, path, "non-example email address", line_number)
         for candidate in IPV4_PATTERN.findall(line):
             try:
                 address = ipaddress.ip_address(candidate)
@@ -162,7 +202,8 @@ def check_text(path: Path, text: str, findings: list[str]) -> None:
             if hostname.casefold() != "your-subdomain.duckdns.org":
                 report(findings, path, "traceable DuckDNS hostname", line_number)
         for username in HOME_PATTERN.findall(line):
-            if username.casefold() not in ALLOWED_HOME_USERS and not username.startswith("${"):
+            allowed_user = username.casefold() in ALLOWED_HOME_USERS
+            if not allowed_user and not username.startswith("${"):
                 report(findings, path, "personal workstation path", line_number)
         for reason, pattern in INTERNAL_ARTIFACT_PATTERNS:
             if pattern.search(line):
@@ -178,7 +219,11 @@ def main() -> int:
             continue
         size = path.stat().st_size
         if size > MAX_TEXT_BYTES:
-            report(findings, path, "large unreviewed file exceeds the public-text scan limit")
+            report(
+                findings,
+                path,
+                "large unreviewed file exceeds the public-text scan limit",
+            )
             continue
         data = path.read_bytes()
         if b"\0" in data:
@@ -192,7 +237,10 @@ def main() -> int:
         check_text(path, text, findings)
 
     if findings:
-        print("Public repository guard found unsafe or traceable content:", file=sys.stderr)
+        print(
+            "Public repository guard found unsafe or traceable content:",
+            file=sys.stderr,
+        )
         for finding in sorted(set(findings)):
             print(f"- {finding}", file=sys.stderr)
         return 1
