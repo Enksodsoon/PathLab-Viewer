@@ -1,0 +1,53 @@
+import pytest
+from pydantic import ValidationError
+from wsi_viewer.config import Settings
+
+LIMIT_ENVIRONMENT = {
+    "PATHLAB_LIBVIPS_CONCURRENCY": "3",
+    "PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES": "536870912",
+    "PATHLAB_LIBVIPS_CACHE_MAX_FILES": "64",
+    "PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS": "50",
+}
+
+
+def test_libvips_limits_have_conservative_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in LIMIT_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.libvips_concurrency == 1
+    assert settings.libvips_cache_max_mem_bytes == 256 * 1024**2
+    assert settings.libvips_cache_max_files == 128
+    assert settings.libvips_cache_max_operations == 100
+
+
+def test_libvips_limits_accept_environment_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name, value in LIMIT_ENVIRONMENT.items():
+        monkeypatch.setenv(name, value)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.libvips_concurrency == 3
+    assert settings.libvips_cache_max_mem_bytes == 536870912
+    assert settings.libvips_cache_max_files == 64
+    assert settings.libvips_cache_max_operations == 50
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "libvips_concurrency",
+        "libvips_cache_max_mem_bytes",
+        "libvips_cache_max_files",
+        "libvips_cache_max_operations",
+    ),
+)
+@pytest.mark.parametrize("value", (0, -1))
+def test_libvips_limits_reject_non_positive_values(field: str, value: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field: value})
