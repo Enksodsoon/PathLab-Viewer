@@ -571,7 +571,7 @@ export function AdminPage() {
         setSelected(new Set())
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
-          : action === 'publish' ? 'Slide published.' : 'Slide unpublished.')
+          : 'Slide unpublished.')
       } else if (action === 'trash' || action === 'restore') {
         await mutateLibrarySlide(slide.id, action)
         setPage((current) => ({

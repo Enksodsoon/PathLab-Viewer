@@ -149,14 +149,10 @@ def test_folders_enforce_normalized_sibling_names_depth_and_cycles(tmp_path: Pat
 
         subtree = _create_folder(client, headers, "Subtree")
         subtree_child = _create_folder(client, headers, "Subtree child", subtree["id"])
-        _create_folder(
-            client, headers, "Subtree grandchild", subtree_child["id"]
-        )
+        _create_folder(client, headers, "Subtree grandchild", subtree_child["id"])
         destination = _create_folder(client, headers, "Destination")
         for level in range(2, 8):
-            destination = _create_folder(
-                client, headers, f"Destination {level}", destination["id"]
-            )
+            destination = _create_folder(client, headers, f"Destination {level}", destination["id"])
         too_tall = client.patch(
             f"/api/v2/admin/folders/{subtree['id']}",
             headers=headers,
@@ -178,17 +174,16 @@ def test_folder_children_are_lazy_and_trash_restore_preserves_subtree(tmp_path: 
         children = client.get(f"/api/v2/admin/folders/{root['id']}/children").json()
         assert [folder["id"] for folder in children] == [child["id"]]
 
-        trashed = client.post(
-            f"/api/v2/admin/folders/{root['id']}/trash", headers=headers
-        )
+        trashed = client.post(f"/api/v2/admin/folders/{root['id']}/trash", headers=headers)
         assert trashed.status_code == 200
-        assert client.get(
-            "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
-        ).json()["items"] == []
-
-        restored = client.post(
-            f"/api/v2/admin/folders/{root['id']}/restore", headers=headers
+        assert (
+            client.get(
+                "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
+            ).json()["items"]
+            == []
         )
+
+        restored = client.post(f"/api/v2/admin/folders/{root['id']}/restore", headers=headers)
         assert restored.status_code == 200
         items = client.get(
             "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
@@ -209,21 +204,15 @@ def test_permanent_folder_delete_never_flattens_or_orphans_content(
             display_name="Occupied",
             folder_id=child["id"],
         )
-        client.post(
-            f"/api/v2/admin/folders/{occupied['id']}/trash", headers=headers
-        )
-        blocked = client.delete(
-            f"/api/v2/admin/folders/{occupied['id']}", headers=headers
-        )
+        client.post(f"/api/v2/admin/folders/{occupied['id']}/trash", headers=headers)
+        blocked = client.delete(f"/api/v2/admin/folders/{occupied['id']}", headers=headers)
         assert blocked.status_code == 409
         assert blocked.json()["detail"]["code"] == "FOLDER_NOT_EMPTY"
 
         empty = _create_folder(client, headers, "Empty")
         empty_child = _create_folder(client, headers, "Nested empty", empty["id"])
         client.post(f"/api/v2/admin/folders/{empty['id']}/trash", headers=headers)
-        deleted = client.delete(
-            f"/api/v2/admin/folders/{empty['id']}", headers=headers
-        )
+        deleted = client.delete(f"/api/v2/admin/folders/{empty['id']}", headers=headers)
         assert deleted.status_code == 204
         with session_factory(client.app.state.settings)() as database:
             assert database.get(Folder, empty["id"]) is None
@@ -307,8 +296,7 @@ def test_items_search_filters_cursor_and_payload_are_bounded(tmp_path: Path) -> 
         assert first.json()["nextCursor"]
         assert len(first.content) <= 512 * 1024
         assert all(
-            "filename" not in item and "adminNotes" not in item
-            for item in first.json()["items"]
+            "filename" not in item and "adminNotes" not in item for item in first.json()["items"]
         )
 
         second = client.get(
@@ -317,9 +305,9 @@ def test_items_search_filters_cursor_and_payload_are_bounded(tmp_path: Path) -> 
         )
         assert second.status_code == 200
         assert len(second.json()["items"]) == 12
-        assert {
-            item["id"] for item in first.json()["items"]
-        }.isdisjoint(item["id"] for item in second.json()["items"])
+        assert {item["id"] for item in first.json()["items"]}.isdisjoint(
+            item["id"] for item in second.json()["items"]
+        )
 
         invalid_limit = client.get("/api/v2/admin/library/items", params={"limit": 101})
         assert invalid_limit.status_code == 422
@@ -358,20 +346,14 @@ def test_slide_trash_restore_and_targeted_status(tmp_path: Path) -> None:
             folder_id=folder["id"],
             state=SlideState.CONVERTING,
         )
-        trashed = client.post(
-            "/api/v2/admin/slides/slide-processing/trash", headers=headers
-        )
+        trashed = client.post("/api/v2/admin/slides/slide-processing/trash", headers=headers)
         assert trashed.status_code == 200
         assert trashed.json()["trashedAt"]
-        restored = client.post(
-            "/api/v2/admin/slides/slide-processing/restore", headers=headers
-        )
+        restored = client.post("/api/v2/admin/slides/slide-processing/restore", headers=headers)
         assert restored.status_code == 200
         assert restored.json()["folderId"] == folder["id"]
 
-        statuses = client.get(
-            "/api/v2/admin/slides/status", params={"ids": "slide-processing"}
-        )
+        statuses = client.get("/api/v2/admin/slides/status", params={"ids": "slide-processing"})
         assert statuses.status_code == 200
         assert statuses.json() == {
             "items": [{"id": "slide-processing", "state": "converting", "errorCode": None}]
@@ -392,20 +374,16 @@ def test_permanent_delete_is_explicit_and_uses_existing_worker(tmp_path: Path) -
             display_name="Delete",
             state=SlideState.READY_PRIVATE,
         )
-        trashed = client.post(
-            "/api/v2/admin/slides/slide-delete/trash", headers=headers
-        )
+        trashed = client.post("/api/v2/admin/slides/slide-delete/trash", headers=headers)
         assert trashed.status_code == 200
-        deleted = client.delete(
-            "/api/v2/admin/slides/slide-delete", headers=headers
-        )
+        deleted = client.delete("/api/v2/admin/slides/slide-delete", headers=headers)
         assert deleted.status_code == 202
         assert deleted.json()["state"] == "deleting"
         with session_factory(client.app.state.settings)() as database:
             assert database.scalar(
-                database.query(Job).filter(
-                    Job.slide_id == "slide-delete", Job.kind == "delete"
-                ).statement
+                database.query(Job)
+                .filter(Job.slide_id == "slide-delete", Job.kind == "delete")
+                .statement
             )
 
 
@@ -591,18 +569,17 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         assert rotated.status_code == 200
         assert rotated.json()["publicId"] != old_public_id
         assert client.get(f"/api/v2/public/collections/{old_public_id}").status_code == 404
-        assert client.get(
-            f"/api/v2/public/collections/{rotated.json()['publicId']}"
-        ).status_code == 200
+        assert (
+            client.get(f"/api/v2/public/collections/{rotated.json()['publicId']}").status_code
+            == 200
+        )
 
         revoked = client.delete(
             f"/api/v2/admin/shares/{share_id}",
             headers=headers,
         )
         assert revoked.status_code == 204
-        missing = client.get(
-            f"/api/v2/public/collections/{rotated.json()['publicId']}"
-        )
+        missing = client.get(f"/api/v2/public/collections/{rotated.json()['publicId']}")
         assert missing.status_code == 404
         assert missing.json()["detail"]["code"] == "SHARE_NOT_FOUND"
         assert client.get("/api/v2/public/collections/not-a-share").json() == missing.json()
@@ -621,9 +598,7 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
             database.add(expired)
             database.commit()
             expired_public_id = expired.public_id
-        assert client.get(
-            f"/api/v2/public/collections/{expired_public_id}"
-        ).status_code == 404
+        assert client.get(f"/api/v2/public/collections/{expired_public_id}").status_code == 404
 
 
 def test_routine_move_never_auto_publishes_into_shared_folder(tmp_path: Path) -> None:
@@ -664,9 +639,7 @@ def test_routine_move_never_auto_publishes_into_shared_folder(tmp_path: Path) ->
             memberships = database.scalars(
                 select(ShareSlide).where(ShareSlide.share_id == share.id)
             ).all()
-            assert [membership.slide_id for membership in memberships] == [
-                "already-reviewed"
-            ]
+            assert [membership.slide_id for membership in memberships] == ["already-reviewed"]
 
 
 def test_publication_alias_and_thumbnail_remain_until_final_grant_is_removed(
@@ -727,10 +700,7 @@ def test_authenticated_thumbnail_uses_private_cache_and_etag(tmp_path: Path) -> 
         thumbnail.parent.mkdir(parents=True)
         thumbnail.write_bytes(b"thumbnail")
 
-        assert (
-            client.get("/api/v2/admin/slides/slide-thumb/thumbnail").status_code
-            == 401
-        )
+        assert client.get("/api/v2/admin/slides/slide-thumb/thumbnail").status_code == 401
         _login(client)
         response = client.get("/api/v2/admin/slides/slide-thumb/thumbnail")
 

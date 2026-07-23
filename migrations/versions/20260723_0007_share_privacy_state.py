@@ -21,9 +21,7 @@ def upgrade() -> None:
                 server_default="pending",
             )
         )
-        batch.add_column(
-            sa.Column("privacy_scanned_at", sa.DateTime(timezone=True), nullable=True)
-        )
+        batch.add_column(sa.Column("privacy_scanned_at", sa.DateTime(timezone=True), nullable=True))
         batch.create_index("ix_slides_privacy_status", ["privacy_status"])
 
 

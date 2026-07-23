@@ -73,10 +73,7 @@ def _measure_derivative(root: Path) -> tuple[int, int, int]:
             continue
         derivative_bytes += item.stat().st_size
         file_count += 1
-        if (
-            item.suffix.lower() in {".jpg", ".jpeg"}
-            and item.name != "thumbnail.jpg"
-        ):
+        if item.suffix.lower() in {".jpg", ".jpeg"} and item.name != "thumbnail.jpg":
             tile_count += 1
     return derivative_bytes, file_count, tile_count
 
@@ -115,9 +112,7 @@ def _remove_stale_conversion_workspaces(destination: Path) -> None:
             except FileNotFoundError:
                 continue
     except Exception as error:
-        _log_event(
-            "conversion_stale_cleanup_failure", error_type=type(error).__name__
-        )
+        _log_event("conversion_stale_cleanup_failure", error_type=type(error).__name__)
         raise ConversionWorkspaceCleanupError(
             "Unable to remove stale conversion workspace; conversion aborted"
         ) from error
@@ -151,9 +146,7 @@ def generate_dzi(
 
         import pyvips  # Native library lives in worker image.
 
-        image = pyvips.Image.new_from_file(
-            str(source), access="sequential", page=series_index
-        )
+        image = pyvips.Image.new_from_file(str(source), access="sequential", page=series_index)
         if bits == 16:
             image = (image / 257.0).round().cast("uchar")
         if image.get_typeof("icc-profile-data"):

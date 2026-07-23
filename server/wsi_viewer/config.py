@@ -4,7 +4,6 @@ from typing import Literal, Self
 from pydantic import PositiveInt, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 PRODUCTION_SECRET_PLACEHOLDERS = {
     "change-this-before-deployment",
     "replace-with-at-least-32-random-bytes",
@@ -42,10 +41,7 @@ class Settings(BaseSettings):
         if self.environment != "production":
             return self
         secret = self.secret_key.strip()
-        if (
-            len(secret.encode("utf-8")) < 32
-            or secret.casefold() in PRODUCTION_SECRET_PLACEHOLDERS
-        ):
+        if len(secret.encode("utf-8")) < 32 or secret.casefold() in PRODUCTION_SECRET_PLACEHOLDERS:
             raise ValueError("Production requires a unique secret key of at least 32 bytes")
         if not self.secure_cookies:
             raise ValueError("Production requires secure cookies")

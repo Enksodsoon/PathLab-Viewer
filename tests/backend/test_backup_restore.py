@@ -68,9 +68,10 @@ def test_backup_archive_and_restore_preserve_public_private_hardlinks(
     restored_private = restored / "private" / "slide-1" / "0_0.jpeg"
     restored_public = restored / "public" / "public-1" / "0_0.jpeg"
     assert restored_private.stat().st_ino == restored_public.stat().st_ino
-    assert hashlib.sha256(restored_private.read_bytes()).digest() == hashlib.sha256(
-        private_tile.read_bytes()
-    ).digest()
+    assert (
+        hashlib.sha256(restored_private.read_bytes()).digest()
+        == hashlib.sha256(private_tile.read_bytes()).digest()
+    )
     assert (restored / "originals" / "slide-1" / "source.ome.tif").read_bytes() == (
         b"private-original"
     )
@@ -80,7 +81,7 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     backup = Path("deploy/scripts/backup.sh").read_text(encoding="utf-8")
     restore = Path("deploy/scripts/restore.sh").read_text(encoding="utf-8")
 
-    assert "--directory \"$data_dir\" originals private public" in backup
+    assert '--directory "$data_dir" originals private public' in backup
     assert "sha256sum" in backup
     assert "sha256sum --check SHA256SUMS" in restore
     assert ".before-restore-" in restore

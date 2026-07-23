@@ -29,9 +29,9 @@ def ensure_grant(
         return existing
     grant_count = int(
         database.scalar(
-            select(func.count()).select_from(PublicationGrant).where(
-                PublicationGrant.slide_id == slide.id
-            )
+            select(func.count())
+            .select_from(PublicationGrant)
+            .where(PublicationGrant.slide_id == slide.id)
         )
         or 0
     )
@@ -71,9 +71,9 @@ def remove_grant(
     database.flush()
     remaining = int(
         database.scalar(
-            select(func.count()).select_from(PublicationGrant).where(
-                PublicationGrant.slide_id == slide.id
-            )
+            select(func.count())
+            .select_from(PublicationGrant)
+            .where(PublicationGrant.slide_id == slide.id)
         )
         or 0
     )

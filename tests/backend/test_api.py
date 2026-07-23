@@ -49,9 +49,7 @@ def _login(client: TestClient) -> str:
 
 
 def _has_error(response: Response, status_code: int, code: str) -> bool:
-    return response.status_code == status_code and response.json() == {
-        "detail": {"code": code}
-    }
+    return response.status_code == status_code and response.json() == {"detail": {"code": code}}
 
 
 def test_health_and_readiness(tmp_path: Path) -> None:
@@ -210,9 +208,7 @@ def test_password_change_checks_session_and_csrf_before_parsing_json(tmp_path: P
             pytest.fail("Malformed password change did not require authentication first")
 
         csrf = _login(client)
-        missing_csrf = client.post(
-            "/api/v1/auth/password", headers=headers, content=invalid_json
-        )
+        missing_csrf = client.post("/api/v1/auth/password", headers=headers, content=invalid_json)
         if not _has_error(missing_csrf, 403, "CSRF_INVALID"):
             pytest.fail("Malformed password change did not require CSRF first")
 
@@ -397,9 +393,10 @@ def test_recovery_throttle_is_shared_across_api_workers(tmp_path: Path) -> None:
         database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
         database.commit()
 
-    with TestClient(create_app(settings)) as worker_one, TestClient(
-        create_app(settings)
-    ) as worker_two:
+    with (
+        TestClient(create_app(settings)) as worker_one,
+        TestClient(create_app(settings)) as worker_two,
+    ):
         payload = {
             "username": "admin",
             "recoveryCode": "wrong",
@@ -574,9 +571,12 @@ def test_legacy_long_password_can_login_and_migrate_via_password_change(tmp_path
             json={"currentPassword": legacy_password, "newPassword": replacement},
         )
         assert changed.status_code == 204
-        assert client.post(
-            "/api/v1/auth/session", json={"username": "admin", "password": replacement}
-        ).status_code == 201
+        assert (
+            client.post(
+                "/api/v1/auth/session", json={"username": "admin", "password": replacement}
+            ).status_code
+            == 201
+        )
 
 
 def test_slide_lifecycle_and_public_metadata(tmp_path: Path) -> None:

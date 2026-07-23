@@ -60,9 +60,7 @@ def _scope_key(scope: str, value: str = "") -> str:
     return hashlib.sha256(f"{scope}\0{value}".encode()).hexdigest()
 
 
-def _recent_client_failures(
-    database: OrmSession, key: str
-) -> list[datetime]:
+def _recent_client_failures(database: OrmSession, key: str) -> list[datetime]:
     return list(
         database.scalars(
             select(PasswordRecoveryAttempt.attempted_at)
@@ -82,15 +80,18 @@ def _recovery_is_throttled(
     cutoff = attempted_at - ATTEMPT_WINDOW
 
     def failure_count(*conditions: Any) -> int:
-        statement = select(func.count()).select_from(PasswordRecoveryAttempt).where(
-            PasswordRecoveryAttempt.attempted_at >= cutoff,
-            *conditions,
+        statement = (
+            select(func.count())
+            .select_from(PasswordRecoveryAttempt)
+            .where(
+                PasswordRecoveryAttempt.attempted_at >= cutoff,
+                *conditions,
+            )
         )
         return int(database.scalar(statement) or 0)
 
     if (
-        failure_count(PasswordRecoveryAttempt.ip_key_hash == ip_key)
-        >= MAX_IP_RECOVERY_FAILURES
+        failure_count(PasswordRecoveryAttempt.ip_key_hash == ip_key) >= MAX_IP_RECOVERY_FAILURES
         or failure_count() >= MAX_GLOBAL_RECOVERY_FAILURES
     ):
         return True
@@ -200,9 +201,7 @@ def revoke_sessions(database: OrmSession, user_id: str) -> None:
     database.execute(delete(Session).where(Session.user_id == user_id))
 
 
-def issue_recovery_code(
-    database: OrmSession, user: User, now: datetime | None = None
-) -> str:
+def issue_recovery_code(database: OrmSession, user: User, now: datetime | None = None) -> str:
     issued_at = _now(now)
     database.execute(
         delete(PasswordRecoveryAttempt).where(
@@ -291,9 +290,7 @@ def recover_password(
         and attempted_at >= recent[0] + ATTEMPT_WINDOW
     ):
         database.execute(
-            delete(PasswordRecoveryAttempt).where(
-                PasswordRecoveryAttempt.client_key_hash == key
-            )
+            delete(PasswordRecoveryAttempt).where(PasswordRecoveryAttempt.client_key_hash == key)
         )
     database.execute(
         delete(PasswordRecoveryAttempt).where(

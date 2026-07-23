@@ -29,9 +29,7 @@ class AuthBodyLimitMiddleware:
         return False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not scope.get("path", "").startswith(
-            self.path_prefixes
-        ):
+        if scope["type"] != "http" or not scope.get("path", "").startswith(self.path_prefixes):
             await self.app(scope, receive, send)
             return
         if self._declared_too_large(scope):

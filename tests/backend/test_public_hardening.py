@@ -4,7 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import select, text
-
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -12,7 +11,6 @@ from wsi_viewer.main import create_app
 from wsi_viewer.models import Slide, User
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
-
 
 STRONG_SECRET = "test-only-strong-secret-material-1234567890"
 
@@ -111,9 +109,7 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
 
         missing = client.post(f"/api/v1/admin/slides/{slide_id}/publish", headers=headers)
         assert missing.status_code == 422
-        assert missing.json() == {
-            "detail": {"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"}
-        }
+        assert missing.json() == {"detail": {"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"}}
 
         denied = client.post(
             f"/api/v1/admin/slides/{slide_id}/publish",
@@ -121,9 +117,7 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
             json={"deidentifiedConfirmed": False},
         )
         assert denied.status_code == 422
-        assert denied.json() == {
-            "detail": {"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"}
-        }
+        assert denied.json() == {"detail": {"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"}}
 
         published = client.post(
             f"/api/v1/admin/slides/{slide_id}/publish",
@@ -157,11 +151,14 @@ def test_public_fields_cannot_change_while_shared_and_private_edits_reset_review
         csrf = _login(client)
         slide_id, _ = _ready_slide(client)
         headers = {"X-CSRF-Token": csrf}
-        assert client.post(
-            f"/api/v1/admin/slides/{slide_id}/publish",
-            headers=headers,
-            json={"deidentifiedConfirmed": True},
-        ).status_code == 200
+        assert (
+            client.post(
+                f"/api/v1/admin/slides/{slide_id}/publish",
+                headers=headers,
+                json={"deidentifiedConfirmed": True},
+            ).status_code
+            == 200
+        )
 
         blocked = client.post(
             "/api/v2/admin/slides/batch-metadata",
@@ -178,9 +175,10 @@ def test_public_fields_cannot_change_while_shared_and_private_edits_reset_review
         )
         assert private_note.status_code == 200
 
-        assert client.post(
-            f"/api/v1/admin/slides/{slide_id}/unpublish", headers=headers
-        ).status_code == 200
+        assert (
+            client.post(f"/api/v1/admin/slides/{slide_id}/unpublish", headers=headers).status_code
+            == 200
+        )
         changed = client.post(
             "/api/v2/admin/slides/batch-metadata",
             headers=headers,

@@ -211,28 +211,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=413, detail={"code": "REQUEST_TOO_LARGE"})
         return await request.json()
 
-    async def password_change_payload(
-        request: Request, _: CsrfSession
-    ) -> PasswordChangeRequest:
+    async def password_change_payload(request: Request, _: CsrfSession) -> PasswordChangeRequest:
         try:
             return PasswordChangeRequest.model_validate(await bounded_json(request))
         except ValidationError as error:
             if error.errors() and all(
-                item.get("loc", ())[-1:] == ("currentPassword",)
-                for item in error.errors()
+                item.get("loc", ())[-1:] == ("currentPassword",) for item in error.errors()
             ):
                 raise HTTPException(
                     status_code=400, detail={"code": "CURRENT_PASSWORD_INVALID"}
                 ) from error
-            raise HTTPException(
-                status_code=400, detail={"code": "INVALID_PASSWORD"}
-            ) from error
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
 
-    PasswordChangePayload = Annotated[
-        PasswordChangeRequest, Depends(password_change_payload)
-    ]
+    PasswordChangePayload = Annotated[PasswordChangeRequest, Depends(password_change_payload)]
 
     async def password_recovery_payload(request: Request) -> PasswordRecoveryRequest:
         try:
@@ -243,9 +236,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if error.errors() and all(
                 item.get("loc", ())[-1:] == ("newPassword",) for item in error.errors()
             ):
-                raise HTTPException(
-                    status_code=400, detail={"code": "INVALID_PASSWORD"}
-                ) from error
+                raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
             raise HTTPException(
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error
@@ -254,9 +245,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error
 
-    PasswordRecoveryPayload = Annotated[
-        PasswordRecoveryRequest, Depends(password_recovery_payload)
-    ]
+    PasswordRecoveryPayload = Annotated[PasswordRecoveryRequest, Depends(password_recovery_payload)]
 
     register_library_routes(
         app,
@@ -274,9 +263,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/readyz")
     def readyz(db: Database) -> dict[str, str]:
         if not schema_is_current(db):
-            raise HTTPException(
-                status_code=503, detail={"code": "DATABASE_NOT_READY"}
-            )
+            raise HTTPException(status_code=503, detail={"code": "DATABASE_NOT_READY"})
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)
@@ -431,9 +418,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(target, media_type=media_type)
 
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
-    def create_slide(
-        payload: SlideRequest, authenticated: CsrfSession
-    ) -> dict[str, Any]:
+    def create_slide(payload: SlideRequest, authenticated: CsrfSession) -> dict[str, Any]:
         if payload.length > current.max_upload_bytes:
             raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         try:
@@ -644,10 +629,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:
         slide = db.scalar(
             select(Slide).where(
-            Slide.public_id == public_id,
-            Slide.state == SlideState.PUBLISHED,
-            Slide.privacy_status == "passed",
-        )
+                Slide.public_id == public_id,
+                Slide.state == SlideState.PUBLISHED,
+                Slide.privacy_status == "passed",
+            )
         )
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})

@@ -75,16 +75,10 @@ def upgrade() -> None:
                 server_default=sa.text("'[]'"),
             )
         )
-        batch.add_column(
-            sa.Column("teaching_note", sa.Text(), nullable=False, server_default="")
-        )
-        batch.add_column(
-            sa.Column("admin_notes", sa.Text(), nullable=False, server_default="")
-        )
+        batch.add_column(sa.Column("teaching_note", sa.Text(), nullable=False, server_default=""))
+        batch.add_column(sa.Column("admin_notes", sa.Text(), nullable=False, server_default=""))
         batch.add_column(sa.Column("thumbnail_filename", sa.String(length=120), nullable=True))
-        batch.add_column(
-            sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0")
-        )
+        batch.add_column(sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"))
         batch.add_column(sa.Column("trashed_at", sa.DateTime(timezone=True), nullable=True))
         batch.create_foreign_key(
             "fk_slides_folder_id_folders",

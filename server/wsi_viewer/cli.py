@@ -66,9 +66,7 @@ def main() -> None:
         return
     with factory() as database:
         if args.command == "deployment-check":
-            running_job = database.scalar(
-                select(Job.id).where(Job.status == "running").limit(1)
-            )
+            running_job = database.scalar(select(Job.id).where(Job.status == "running").limit(1))
             if running_job is not None:
                 raise SystemExit("Deployment blocked: worker job is active")
             return

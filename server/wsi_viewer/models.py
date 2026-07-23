@@ -264,9 +264,7 @@ class LibraryShare(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     include_descendants: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     auto_include_new: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    privacy_status: Mapped[str] = mapped_column(
-        String(30), nullable=False, default="pending"
-    )
+    privacy_status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending")
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -336,9 +334,7 @@ class Job(Base):
 
 class AuditEvent(Base):
     __tablename__ = "audit_events"
-    __table_args__ = (
-        Index("ix_audit_events_action_created_at", "action", "created_at"),
-    )
+    __table_args__ = (Index("ix_audit_events_action_created_at", "action", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     actor_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

@@ -36,11 +36,7 @@ def target_slides(
         folder = database.get(Folder, target_id)
         if folder is None or folder.trashed_at is not None:
             raise ShareConflict("SHARE_TARGET_NOT_FOUND")
-        folder_ids = (
-            folder_subtree_ids(database, folder.id)
-            if include_descendants
-            else [folder.id]
-        )
+        folder_ids = folder_subtree_ids(database, folder.id) if include_descendants else [folder.id]
         slides = list(
             database.scalars(
                 select(Slide)
@@ -95,9 +91,7 @@ def preview_share(
             "id": slide.id,
             "displayName": slide.display_name,
             "reason": (
-                "PRIVACY_REVIEW_REQUIRED"
-                if slide.privacy_status != "passed"
-                else "SLIDE_NOT_READY"
+                "PRIVACY_REVIEW_REQUIRED" if slide.privacy_status != "passed" else "SLIDE_NOT_READY"
             ),
         }
         for slide in slides
@@ -122,9 +116,7 @@ def share_json(
     count = included_count
     if count is None:
         count = len(
-            database.scalars(
-                select(ShareSlide.id).where(ShareSlide.share_id == share.id)
-            ).all()
+            database.scalars(select(ShareSlide.id).where(ShareSlide.share_id == share.id)).all()
         )
     state = "revoked" if not share.is_active else "active"
     if share.expires_at is not None and share.expires_at <= utcnow():
@@ -190,9 +182,7 @@ def activate_share(
     }
     for order, slide_id in enumerate(selected_ids):
         slide = slides[slide_id]
-        database.add(
-            ShareSlide(share_id=share.id, slide_id=slide.id, sort_order=order)
-        )
+        database.add(ShareSlide(share_id=share.id, slide_id=slide.id, sort_order=order))
         ensure_grant(database, storage, slide, SHARE, share.id)
     database.commit()
     return share
@@ -253,8 +243,7 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
                 "tags": slide.tags,
                 "teachingNote": slide.teaching_note,
                 "thumbnailUrl": (
-                    f"/api/v2/public/{route}/{share.public_id}/slides/"
-                    f"{position}/thumbnail"
+                    f"/api/v2/public/{route}/{share.public_id}/slides/{position}/thumbnail"
                 ),
                 "tileSource": f"/tiles/{slide.public_id}/slide.dzi",
                 "scale": (slide.slide_metadata or {}).get("physicalSizeX"),
