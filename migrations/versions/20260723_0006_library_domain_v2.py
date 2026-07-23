@@ -67,7 +67,14 @@ def upgrade() -> None:
         batch.add_column(
             sa.Column("course", sa.String(length=160), nullable=False, server_default="")
         )
-        batch.add_column(sa.Column("tags", sa.JSON(), nullable=False, server_default="'[]'"))
+        batch.add_column(
+            sa.Column(
+                "tags",
+                sa.JSON(),
+                nullable=False,
+                server_default=sa.text("'[]'"),
+            )
+        )
         batch.add_column(
             sa.Column("teaching_note", sa.Text(), nullable=False, server_default="")
         )
