@@ -28,7 +28,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 | Slide state transitions and publication | domain and API modules plus `server/wsi_viewer/storage.py` |
 | Library folders, collections, saved views, bounded queries, and serializers | `server/wsi_viewer/library.py`, `library_routes.py`, `models.py`, migration `20260723_0006` |
 | Publication grant retention | `server/wsi_viewer/publication.py`, `storage.py` |
-| Admin layout, uploads, and slide actions | `apps/web/src/pages/AdminPage.tsx`, components, tests, and `styles.css` |
+| Dark library explorer shell, navigator, grid/table, details, bulk actions, and dialogs | `apps/web/src/pages/AdminPage.tsx`, `apps/web/src/components/library/`, `apps/web/src/library.css`, and `apps/web/src/test/library-explorer.test.tsx` |
 | Public OpenSeadragon viewer | `apps/web/src/pages/ViewerPage.tsx`, `components/OpenSeadragonViewer.tsx` |
 | OCI service topology | `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/terraform` |
 | Backups and recovery | `deploy/scripts`, `deploy/README.md` |
