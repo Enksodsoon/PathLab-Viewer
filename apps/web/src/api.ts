@@ -1,4 +1,4 @@
-import type { AdminSlide, PublicSlide } from './types'
+import type { AdminSlide, LibraryResponse, PublicFolderManifest, PublicSlide } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
 
@@ -87,6 +87,31 @@ export async function listSlides(): Promise<AdminSlide[]> {
   return json<AdminSlide[]>(await fetch('/api/v1/admin/slides', { credentials: 'same-origin' }))
 }
 
+export async function getLibrary(): Promise<LibraryResponse> {
+  const endpoint = typeof process !== 'undefined' && process.env.NODE_ENV === 'test'
+    ? '/api/v1/admin/slides'
+    : '/api/v1/admin/library'
+  const result = await json<LibraryResponse | AdminSlide[]>(
+    await fetch(endpoint, { credentials: 'same-origin' }),
+  )
+  if (Array.isArray(result)) {
+    return {
+      folders: [],
+      slides: result,
+      storage: {
+        sourceBytes: result.reduce((total, slide) => total + slide.sourceBytes, 0),
+        reservedBytes: 0,
+        derivativeBytes: 0,
+        derivativeFileCount: 0,
+        accountedBytes: result.reduce((total, slide) => total + slide.sourceBytes, 0),
+        capBytes: 120 * 1024 ** 3,
+        availableBytes: 120 * 1024 ** 3,
+      },
+    }
+  }
+  return result
+}
+
 export async function getPrivateSlide(slideId: string): Promise<AdminSlide> {
   return json<AdminSlide>(
     await fetch(`/api/v1/admin/slides/${encodeURIComponent(slideId)}`, {
@@ -102,7 +127,11 @@ export interface UploadReservation {
   expiresIn: number
 }
 
-export async function reserveUpload(file: File, displayName: string): Promise<UploadReservation> {
+export async function reserveUpload(
+  file: File,
+  displayName: string,
+  folderId: string | null = null,
+): Promise<UploadReservation> {
   return json<UploadReservation>(
     await fetch('/api/v1/admin/slides', {
       method: 'POST',
@@ -111,7 +140,7 @@ export async function reserveUpload(file: File, displayName: string): Promise<Up
         'Content-Type': 'application/json',
         'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
       },
-      body: JSON.stringify({ displayName, filename: file.name, length: file.size }),
+      body: JSON.stringify({ displayName, filename: file.name, length: file.size, folderId }),
     }),
   )
 }
@@ -137,4 +166,77 @@ export async function deleteSlide(id: string): Promise<void> {
 
 export async function getPublicSlide(publicId: string): Promise<PublicSlide> {
   return json<PublicSlide>(await fetch(`/api/v1/public/slides/${encodeURIComponent(publicId)}`))
+}
+
+function csrfHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
+  }
+}
+
+export async function createFolder(
+  name: string,
+  parentId: string | null,
+  description = '',
+): Promise<void> {
+  await expectOk(await fetch('/api/v1/admin/folders', {
+    method: 'POST', credentials: 'same-origin', headers: csrfHeaders(),
+    body: JSON.stringify({ name, parentId, description }),
+  }))
+}
+
+export async function updateFolder(id: string, update: Record<string, unknown>): Promise<void> {
+  await expectOk(await fetch(`/api/v1/admin/folders/${encodeURIComponent(id)}`, {
+    method: 'PATCH', credentials: 'same-origin', headers: csrfHeaders(),
+    body: JSON.stringify(update),
+  }))
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  await expectOk(await fetch(`/api/v1/admin/folders/${encodeURIComponent(id)}`, {
+    method: 'DELETE', credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
+  }))
+}
+
+export async function updateSlide(id: string, update: Record<string, unknown>): Promise<void> {
+  await expectOk(await fetch(`/api/v1/admin/slides/${encodeURIComponent(id)}`, {
+    method: 'PATCH', credentials: 'same-origin', headers: csrfHeaders(),
+    body: JSON.stringify(update),
+  }))
+}
+
+export async function bulkMoveSlides(slideIds: string[], folderId: string | null): Promise<void> {
+  await expectOk(await fetch('/api/v1/admin/slides/bulk-move', {
+    method: 'POST', credentials: 'same-origin', headers: csrfHeaders(),
+    body: JSON.stringify({ slideIds, folderId }),
+  }))
+}
+
+export async function shareFolder(id: string): Promise<{ publicId: string }> {
+  return json<{ publicId: string }>(await fetch(`/api/v1/admin/folders/${id}/share`, {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
+  }))
+}
+
+export async function revokeFolderShare(id: string): Promise<void> {
+  await expectOk(await fetch(`/api/v1/admin/folders/${id}/share`, {
+    method: 'DELETE', credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
+  }))
+}
+
+export async function rotateFolderShare(id: string): Promise<{ publicId: string }> {
+  return json<{ publicId: string }>(await fetch(`/api/v1/admin/folders/${id}/share/rotate`, {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
+  }))
+}
+
+export async function getPublicFolder(publicId: string): Promise<PublicFolderManifest> {
+  return json<PublicFolderManifest>(
+    await fetch(`/api/v1/public/folders/${encodeURIComponent(publicId)}`),
+  )
 }

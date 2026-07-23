@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, CircleAlert, CloudUpload, Copy, Eye, KeyRound, LogOut, RefreshCw, Trash2 } from 'lucide-react'
 
-import { ApiError, deleteSlide, listSlides, logout, mutateSlide, reserveUpload } from '../api'
+import {
+  ApiError, bulkMoveSlides, createFolder, deleteFolder, deleteSlide, getLibrary, logout,
+  mutateSlide, reserveUpload, revokeFolderShare, rotateFolderShare, shareFolder, updateFolder,
+  updateSlide,
+} from '../api'
 import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
 import { Brand } from '../components/Brand'
 import { DeleteSlideDialog } from '../components/DeleteSlideDialog'
-import type { AdminSlide, SlideState } from '../types'
+import { FolderDialog } from '../components/FolderDialog'
+import { FolderShareDialog } from '../components/FolderShareDialog'
+import { LibrarySidebar } from '../components/LibrarySidebar'
+import { MoveSlidesDialog } from '../components/MoveSlidesDialog'
+import { SlideEditDialog } from '../components/SlideEditDialog'
+import type { AdminSlide, LibraryFolder, SlideState, StorageSummary } from '../types'
 import { startTusUpload } from '../upload'
 
 const LABELS: Record<SlideState, string> = {
@@ -41,6 +50,15 @@ function uploadStartErrorMessage(error: unknown) {
 
 export function AdminPage() {
   const [slides, setSlides] = useState<AdminSlide[]>([])
+  const [folders, setFolders] = useState<LibraryFolder[]>([])
+  const [storageSummary, setStorageSummary] = useState<StorageSummary | null>(null)
+  const [selected, setSelected] = useState('all')
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
+  const [editingFolder, setEditingFolder] = useState<LibraryFolder | null>(null)
+  const [deletingFolder, setDeletingFolder] = useState<LibraryFolder | null>(null)
+  const [editingSlide, setEditingSlide] = useState<AdminSlide | null>(null)
+  const [movingSlide, setMovingSlide] = useState<AdminSlide | null>(null)
+  const [sharingFolder, setSharingFolder] = useState<LibraryFolder | null>(null)
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [displayName, setDisplayName] = useState('')
@@ -58,9 +76,11 @@ export function AdminPage() {
   const refresh = useCallback(async () => {
     const epoch = authEpoch.current
     try {
-      const nextSlides = await listSlides()
+      const library = await getLibrary()
       if (epoch !== authEpoch.current) return
-      setSlides(nextSlides)
+      setSlides(library.slides)
+      setFolders(library.folders)
+      setStorageSummary(library.storage)
       setAuthorized(true)
     } catch (error) {
       if (epoch !== authEpoch.current) return
@@ -99,9 +119,26 @@ export function AdminPage() {
   }, [authorized, hasActiveSlides, isVisible, refresh])
 
   const used = useMemo(
-    () => slides.reduce((total, slide) => total + slide.sourceBytes, 0),
-    [slides],
+    () => storageSummary?.accountedBytes ?? slides.reduce((total, slide) => total + slide.sourceBytes, 0),
+    [slides, storageSummary],
   )
+
+  const selectedFolder = folders.find((folder) => folder.id === selected) ?? null
+  const visibleSlides = useMemo(() => slides.filter((slide) => {
+    if (selected === 'all') return true
+    if (selected === 'unfiled') return !slide.folderId
+    if (selected === 'shared') return Boolean(slide.publication?.isPublic || slide.state === 'published')
+    if (selected === 'processing') return ACTIVE_STATES.has(slide.state)
+    if (selected === 'failed') return slide.state === 'failed'
+    return slide.folderId === selected
+  }), [selected, slides])
+  const counts = useMemo(() => ({
+    all: slides.length,
+    unfiled: slides.filter((slide) => !slide.folderId).length,
+    shared: slides.filter((slide) => slide.publication?.isPublic || slide.state === 'published').length,
+    processing: slides.filter((slide) => ACTIVE_STATES.has(slide.state)).length,
+    failed: slides.filter((slide) => slide.state === 'failed').length,
+  }), [slides])
 
   async function upload() {
     if (!file) return
@@ -114,6 +151,7 @@ export function AdminPage() {
       const reservation = await reserveUpload(
         file,
         displayName.trim() || file.name.replace(/\.ome\.tiff?$/i, ''),
+        selectedFolder?.id ?? null,
       )
       setNotice('Upload prepared — it will resume automatically if interrupted.')
       setProgress(0)
@@ -215,18 +253,20 @@ export function AdminPage() {
           </div>
           <div className="storage-summary">
             <span>{formatBytes(used)} stored</span>
-            <strong>{Math.max(0, 120 - used / 1024 ** 3).toFixed(1)} GB available</strong>
+            <strong>{((storageSummary?.availableBytes ?? Math.max(0, 120 * 1024 ** 3 - used)) / 1024 ** 3).toFixed(1)} GB available</strong>
             <div><i style={{ width: `${Math.min(100, used / (120 * 1024 ** 3) * 100)}%` }} /></div>
           </div>
         </section>
 
-        <div className="admin-grid">
+        <div className="library-workspace">
+          <LibrarySidebar folders={folders} selected={selected} counts={counts} onSelect={setSelected} onCreate={() => setFolderDialogOpen(true)} />
+          <div className="admin-grid">
           <section className="panel upload-panel">
             <div className="panel-heading">
               <span className="panel-icon"><CloudUpload size={20} /></span>
               <div>
                 <h2>Add a slide</h2>
-                <p>Private until you publish it</p>
+                <p>{selectedFolder ? `Upload into ${selectedFolder.name}` : 'Private until you publish it'}</p>
               </div>
             </div>
             <button type="button" className="drop-zone" onClick={() => fileInput.current?.click()}>
@@ -270,17 +310,22 @@ export function AdminPage() {
           <section className="panel slide-panel">
             <div className="panel-heading list-heading">
               <div>
-                <h2>Your slides</h2>
-                <p>{slides.length} {slides.length === 1 ? 'slide' : 'slides'}</p>
+                <h2>{selectedFolder?.name ?? (selected === 'all' ? 'All slides' : selected[0].toUpperCase() + selected.slice(1))}</h2>
+                <p>{visibleSlides.length} {visibleSlides.length === 1 ? 'slide' : 'slides'}</p>
               </div>
+              {selectedFolder ? <div className="row-actions">
+                <button onClick={() => setEditingFolder(selectedFolder)}>Rename</button>
+                <button onClick={() => setSharingFolder(selectedFolder)}>{selectedFolder.share ? 'Share settings' : 'Share'}</button>
+                <button className="danger-action" onClick={() => setDeletingFolder(selectedFolder)}>Delete folder</button>
+              </div> : null}
               <button className="icon-button" aria-label="Refresh slides" onClick={() => void refresh()}>
                 <RefreshCw size={17} />
               </button>
             </div>
             <div className="slide-list">
-              {slides.length === 0 ? (
+              {visibleSlides.length === 0 ? (
                 <div className="empty-state">No slides yet. Your first upload will appear here.</div>
-              ) : slides.map((slide) => (
+              ) : visibleSlides.map((slide) => (
                 <article className="slide-row" key={slide.id}>
                   <div className="slide-thumb">
                     <span>{slide.metadata ? `${Math.round(slide.metadata.width / 1000)}k` : 'WSI'}</span>
@@ -296,6 +341,8 @@ export function AdminPage() {
                     <p>{slide.filename} · {formatBytes(slide.sourceBytes)}</p>
                     {slide.errorMessage ? <p className="row-error">{slide.errorMessage}</p> : null}
                     <div className="row-actions">
+                      <button onClick={() => setEditingSlide(slide)}>Edit details</button>
+                      <button onClick={() => setMovingSlide(slide)}>Move</button>
                       {slide.state === 'ready_private' ? (
                         <>
                           <a className="text-action" href={`/admin/preview/${slide.id}`}>
@@ -315,6 +362,7 @@ export function AdminPage() {
                             <Copy size={14} /> Copy link
                           </button>
                           <button onClick={() => void runSlideAction(slide, 'unpublish')}>Unpublish</button>
+                          {!slide.publication?.individual && (slide.publication?.folderGrantCount ?? 0) > 0 ? <span>Still shared through folder</span> : null}
                         </>
                       ) : null}
                       {slide.state === 'failed' ? (
@@ -335,6 +383,7 @@ export function AdminPage() {
               ))}
             </div>
           </section>
+          </div>
         </div>
       </main>
 
@@ -349,6 +398,12 @@ export function AdminPage() {
         onChanged={() => endSession('Password changed. Sign in again.')}
         onAuthenticationRequired={() => endSession('Session expired. Sign in again.')}
       />
+      <FolderDialog open={folderDialogOpen} title={selectedFolder ? `Create subfolder in ${selectedFolder.name}` : 'Create folder'} onClose={() => setFolderDialogOpen(false)} onSave={async (name, description) => { await createFolder(name, selectedFolder?.id ?? null, description); await refresh() }} />
+      <FolderDialog open={editingFolder !== null} title="Rename folder" initialName={editingFolder?.name} initialDescription={editingFolder?.description} onClose={() => setEditingFolder(null)} onSave={async (name, description) => { if (editingFolder) await updateFolder(editingFolder.id, { name, description }); await refresh() }} />
+      <SlideEditDialog slide={editingSlide} onClose={() => setEditingSlide(null)} onSave={async (update) => { if (editingSlide) await updateSlide(editingSlide.id, update); await refresh() }} />
+      <MoveSlidesDialog open={movingSlide !== null} folders={folders} onClose={() => setMovingSlide(null)} onMove={async (folderId) => { if (movingSlide) await bulkMoveSlides([movingSlide.id], folderId); await refresh() }} />
+      <FolderShareDialog folder={sharingFolder} onClose={() => setSharingFolder(null)} onShare={async () => { if (sharingFolder) await shareFolder(sharingFolder.id); await refresh() }} onRevoke={async () => { if (sharingFolder) await revokeFolderShare(sharingFolder.id); setSharingFolder(null); await refresh() }} onRotate={async () => { if (sharingFolder) await rotateFolderShare(sharingFolder.id); await refresh() }} />
+      {deletingFolder ? <div className="modal-backdrop"><section role="dialog" aria-modal="true" aria-labelledby="delete-folder-title" className="library-dialog"><h2 id="delete-folder-title">Delete folder?</h2><p>Slides move to Unfiled. Child folders move up one level. Image files stay intact.</p><div className="dialog-actions"><button onClick={() => setDeletingFolder(null)}>Cancel</button><button className="danger-action" onClick={() => void deleteFolder(deletingFolder.id).then(async () => { setDeletingFolder(null); setSelected('all'); await refresh() })}>Delete folder</button></div></section></div> : null}
     </div>
   )
 }
