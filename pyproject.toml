@@ -35,6 +35,7 @@ dev = [
 [project.scripts]
 pathlab-api = "wsi_viewer.main:run"
 pathlab-admin = "wsi_viewer.cli:main"
+pathlab-preflight = "wsi_viewer.preflight:main"
 pathlab-worker = "wsi_viewer.worker:main"
 
 [tool.hatch.build.targets.wheel]
