@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from wsi_viewer.config import Settings
+from wsi_viewer.config import Settings, validate_runtime_security
 
 LIMIT_ENVIRONMENT = {
     "PATHLAB_LIBVIPS_CONCURRENCY": "3",
@@ -51,3 +51,26 @@ def test_libvips_limits_accept_environment_overrides(
 def test_libvips_limits_reject_non_positive_values(field: str, value: int) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **{field: value})
+
+
+@pytest.mark.parametrize(
+    "secret_key",
+    (
+        "",
+        "short-secret",
+        "change-this-before-deployment",
+        "replace-with-at-least-32-random-bytes",
+        "generate-with-openssl-rand-hex-32",
+    ),
+)
+def test_runtime_rejects_missing_short_or_placeholder_secret_keys(secret_key: str) -> None:
+    settings = Settings(_env_file=None, secret_key=secret_key)
+
+    with pytest.raises(RuntimeError, match="PATHLAB_SECRET_KEY"):
+        validate_runtime_security(settings)
+
+
+def test_runtime_accepts_a_long_non_placeholder_secret_key() -> None:
+    settings = Settings(_env_file=None, secret_key="a" * 64)
+
+    validate_runtime_security(settings)
