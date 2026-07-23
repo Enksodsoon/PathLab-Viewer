@@ -1,6 +1,8 @@
 import hashlib
 import logging
 import shutil
+import signal
+import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -17,6 +19,7 @@ from .domain import SlideState
 from .models import Job
 from .ome import OmeError, validate_ome_tiff
 from .storage import StorageLayout
+from .worker_health import HeartbeatWriter
 
 JOB_POLL_INTERVAL_SECONDS = 2.0
 STALE_RECOVERY_INTERVAL_SECONDS = 60.0
@@ -30,11 +33,13 @@ class WorkerScheduler:
         recover_stale: Callable[[], object],
         cleanup_uploads: Callable[[], object],
         process_job: Callable[[], bool],
+        shutdown_requested: Callable[[], bool] = lambda: False,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._recover_stale = recover_stale
         self._cleanup_uploads = cleanup_uploads
         self._process_job = process_job
+        self._shutdown_requested = shutdown_requested
         self._monotonic = monotonic
         self._next_job_poll = float("-inf")
         self._next_stale_recovery = float("-inf")
@@ -49,6 +54,8 @@ class WorkerScheduler:
             self._cleanup_uploads()
             self._next_tus_cleanup = now + TUS_CLEANUP_INTERVAL_SECONDS
         if now >= self._next_job_poll:
+            if self._shutdown_requested():
+                return 0.0
             processed = self._process_job()
             self._next_job_poll = now if processed else now + JOB_POLL_INTERVAL_SECONDS
         return max(
@@ -103,8 +110,17 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def process_next(factory: sessionmaker[OrmSession], layout: StorageLayout) -> bool:
+def process_next(
+    factory: sessionmaker[OrmSession],
+    layout: StorageLayout,
+    *,
+    shutdown_requested: Callable[[], bool] = lambda: False,
+) -> bool:
+    if shutdown_requested():
+        return False
     with factory() as database:
+        if shutdown_requested():
+            return False
         job = database.scalar(
             select(Job).where(Job.status == "queued").order_by(Job.created_at).limit(1)
         )
@@ -171,6 +187,13 @@ def remove_slide(layout: StorageLayout, slide_id: str, public_id: str) -> None:
             shutil.rmtree(target)
 
 
+def run_worker_loop(scheduler: WorkerScheduler, shutdown: threading.Event) -> None:
+    while not shutdown.is_set():
+        delay = scheduler.run_due()
+        if delay > 0:
+            shutdown.wait(delay)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     settings = Settings()
@@ -182,6 +205,13 @@ def main() -> None:
     )
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
+    shutdown = threading.Event()
+
+    def request_shutdown(_: int, __: object) -> None:
+        shutdown.set()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
     scheduler = WorkerScheduler(
         recover_stale=lambda: recover_stale_jobs(
             factory, stale_after=timedelta(seconds=settings.worker_stale_seconds)
@@ -189,9 +219,19 @@ def main() -> None:
         cleanup_uploads=lambda: expire_incomplete_uploads(
             settings.tus_internal_upload_dir, older_than=timedelta(hours=24)
         ),
-        process_job=lambda: process_next(factory, layout),
+        process_job=lambda: process_next(
+            factory,
+            layout,
+            shutdown_requested=shutdown.is_set,
+        ),
+        shutdown_requested=shutdown.is_set,
     )
-    while True:
-        delay = scheduler.run_due()
-        if delay > 0:
-            time.sleep(delay)
+    heartbeat = HeartbeatWriter(
+        settings.worker_heartbeat_path,
+        interval_seconds=settings.worker_heartbeat_interval_seconds,
+    )
+    heartbeat.start()
+    try:
+        run_worker_loop(scheduler, shutdown)
+    finally:
+        heartbeat.stop()

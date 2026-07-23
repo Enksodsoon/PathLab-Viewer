@@ -85,6 +85,20 @@ def test_conversion_resource_limits_are_worker_only() -> None:
     assert "cpus: 1.50" in worker_service
 
 
+def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
+        "\nvolumes:\n", maxsplit=1
+    )[0]
+
+    assert 'test: ["CMD", "pathlab-worker-healthcheck"]' in worker_service
+    assert "interval: 15s" in worker_service
+    assert "timeout: 5s" in worker_service
+    assert "retries: 3" in worker_service
+    assert "start_period: 30s" in worker_service
+    assert "stop_grace_period: 30m" in worker_service
+
+
 def test_example_environment_documents_libvips_overrides() -> None:
     example = Path("deploy/.env.example").read_text(encoding="utf-8")
 
@@ -201,6 +215,29 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
     assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
+
+
+def test_release_script_interlocks_before_worker_disruption() -> None:
+    script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+
+    helper_call = 'deployment_check "${STAGE_DIR}"'
+    first_check = script.index(helper_call)
+    stop_worker = script.index("docker compose stop worker")
+    second_check = script.index(helper_call, first_check + 1)
+    swap = script.index('mv "${LIVE_DIR}" "${ROLLBACK_DIR}"')
+
+    assert first_check < stop_worker < second_check < swap
+    assert "docker compose start worker" in script
+    assert "OLD_WORKER_STOPPED" in script
+    assert "restart_old_worker" in script
+    assert "/srv/pathlab/data" not in script
+    assert "docker compose down" not in script
+
+
+def test_worker_healthcheck_console_command_is_registered() -> None:
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert 'pathlab-worker-healthcheck = "wsi_viewer.worker_health:main"' in pyproject
 
 
 def test_ci_avoids_duplicate_feature_branch_runs() -> None:

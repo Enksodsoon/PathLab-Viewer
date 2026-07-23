@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     tus_public_url: str = "/api/v1/uploads/"
     tus_internal_upload_dir: Path = Path("./var/tus")
     worker_stale_seconds: int = 300
+    worker_heartbeat_path: Path = Path("/tmp/pathlab-worker-heartbeat")
+    worker_heartbeat_interval_seconds: PositiveInt = 10
+    worker_heartbeat_stale_seconds: PositiveInt = 45
     serve_public_tiles: bool = False
     libvips_concurrency: PositiveInt = 1
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
