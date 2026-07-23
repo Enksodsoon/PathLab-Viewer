@@ -129,7 +129,7 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
         public = client.get(f"/api/v1/public/slides/{public_id}")
         assert public.status_code == 200
         body = public.json()
-        assert "filename" not in body
+        assert set(body) == {"publicId", "displayName", "state", "metadata", "tileSource"}
         assert body["metadata"] == {
             "width": 48,
             "height": 32,

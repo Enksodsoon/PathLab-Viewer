@@ -147,6 +147,7 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
         result.pop("sourceBytes")
         result.pop("errorCode")
         result.pop("errorMessage")
+        result.pop("createdAt")
         result["metadata"] = _public_metadata(slide.slide_metadata)
         result["tileSource"] = f"/tiles/{slide.public_id}/slide.dzi"
     else:
