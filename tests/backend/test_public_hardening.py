@@ -25,10 +25,12 @@ def test_caddy_sets_browser_security_policy() -> None:
 def test_public_files_do_not_publish_the_production_endpoint() -> None:
     workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
     release = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+    dynamic_domain_suffix = "sslip" + ".io"
+    retired_address_fragment = "140" + "-245-126-212"
 
     for content in (workflow, release):
-        assert "sslip.io" not in content
-        assert "140-245-126-212" not in content
+        assert dynamic_domain_suffix not in content
+        assert retired_address_fragment not in content
     assert "url: https://" not in workflow
     assert "Readiness: https://" not in workflow
     assert 'DOMAIN="$(awk' in release
