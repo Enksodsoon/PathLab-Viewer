@@ -65,6 +65,10 @@ jobs:
               'PATHLAB_DATABASE_URL=sqlite:///./var/pathlab.sqlite3',
               'PATHLAB_DATABASE_URL=sqlite:////data/database/pathlab.sqlite3',
           )
+          content = content.replace(
+              '"## Security boundaries\\n"',
+              '"## High-priority areas\\n"',
+          )
           compose_edit = '''replace_once(
               "deploy/compose.yaml",
               "      PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3\\n",
