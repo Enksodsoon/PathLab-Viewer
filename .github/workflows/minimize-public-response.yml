@@ -1,0 +1,59 @@
+name: Minimize public response
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  minimize:
+    if: github.head_ref == 'security/public-hardening' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/public-hardening
+          persist-credentials: true
+      - name: Remove unused public timestamp and tighten contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          main = Path('server/wsi_viewer/main.py')
+          content = main.read_text(encoding='utf-8')
+          old = '''        result.pop("errorMessage")
+                  result["metadata"] = _public_metadata(slide.slide_metadata)
+          '''
+          new = '''        result.pop("errorMessage")
+                  result.pop("createdAt")
+                  result["metadata"] = _public_metadata(slide.slide_metadata)
+          '''
+          if content.count(old) != 1:
+              raise SystemExit('public response snippet changed')
+          main.write_text(content.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('tests/backend/test_public_hardening.py')
+          content = test.read_text(encoding='utf-8')
+          old = '''        body = public.json()
+                  assert "filename" not in body
+                  assert body["metadata"] == {
+          '''
+          new = '''        body = public.json()
+                  assert set(body) == {"publicId", "displayName", "state", "metadata", "tileSource"}
+                  assert body["metadata"] == {
+          '''
+          if content.count(old) != 1:
+              raise SystemExit('public response test snippet changed')
+          test.write_text(content.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Commit minimization
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/wsi_viewer/main.py tests/backend/test_public_hardening.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'privacy: minimize anonymous slide response'
+          git push origin HEAD:security/public-hardening
