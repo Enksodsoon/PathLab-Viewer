@@ -73,7 +73,10 @@ def _measure_derivative(root: Path) -> tuple[int, int, int]:
             continue
         derivative_bytes += item.stat().st_size
         file_count += 1
-        if item.suffix.lower() in {".jpg", ".jpeg"}:
+        if (
+            item.suffix.lower() in {".jpg", ".jpeg"}
+            and item.name != "thumbnail.jpg"
+        ):
             tile_count += 1
     return derivative_bytes, file_count, tile_count
 
@@ -163,6 +166,12 @@ def generate_dzi(
             suffix=".jpg[Q=85,strip]",
             skip_blanks=-1,
             depth="onepixel",
+        )
+        image.thumbnail_image(384).jpegsave(
+            str(staging / "thumbnail.jpg"),
+            Q=80,
+            strip=True,
+            optimize_coding=True,
         )
         sanitize_and_validate_derivative(staging)
         derivative_bytes, file_count, tile_count = _measure_derivative(staging)

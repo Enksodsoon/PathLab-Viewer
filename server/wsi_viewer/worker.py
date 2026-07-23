@@ -215,6 +215,7 @@ def process_next(
             )
             slide.derivative_bytes = result.derivative_bytes
             slide.derivative_file_count = result.derivative_file_count
+            slide.thumbnail_filename = "thumbnail.jpg"
             slide.reserved_bytes = 0
             slide.state = SlideState.READY_PRIVATE
             job.status = "complete"

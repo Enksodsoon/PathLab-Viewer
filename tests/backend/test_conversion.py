@@ -21,6 +21,8 @@ class FakeImage:
     def __init__(self, *, error: Exception | None = None) -> None:
         self.error = error
         self.dzsave_options: dict[str, object] | None = None
+        self.thumbnail_edge: int | None = None
+        self.thumbnail_options: dict[str, object] | None = None
 
     def get_typeof(self, _name: str) -> int:
         return 0
@@ -34,6 +36,14 @@ class FakeImage:
         tiles = output_path.with_name(f"{output_path.name}_files") / "0"
         tiles.mkdir(parents=True)
         (tiles / "0_0.jpg").write_bytes(b"jpeg")
+
+    def thumbnail_image(self, edge: int) -> "FakeImage":
+        self.thumbnail_edge = edge
+        return self
+
+    def jpegsave(self, output: str, **options: object) -> None:
+        self.thumbnail_options = options
+        Path(output).write_bytes(b"thumbnail")
 
 
 def install_fake_pyvips(
@@ -80,6 +90,23 @@ def test_vips_metadata_is_deleted_and_only_dzi_jpegs_remain(tmp_path: Path) -> N
     (tmp_path / "slide_files" / "vips-properties.xml").write_text("private", encoding="utf-8")
     sanitize_and_validate_derivative(tmp_path)
     assert not (tmp_path / "slide_files" / "vips-properties.xml").exists()
+
+
+def test_conversion_generates_one_bounded_cached_thumbnail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    image = FakeImage()
+    install_fake_pyvips(monkeypatch, image)
+
+    result = generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert (tmp_path / "private" / "thumbnail.jpg").read_bytes() == b"thumbnail"
+    assert image.thumbnail_edge == 384
+    assert image.thumbnail_options == {"Q": 80, "strip": True, "optimize_coding": True}
+    assert result.derivative_file_count == 3
+    assert result.tile_count == 1
 
 
 def test_unexpected_derivative_file_is_rejected(tmp_path: Path) -> None:
@@ -380,8 +407,8 @@ def test_successful_conversion_atomically_replaces_completed_derivative(
 
     assert result.descriptor == destination / "slide.dzi"
     assert result.descriptor.read_bytes() == b"<Image />"
-    assert result.derivative_bytes == 13
-    assert result.derivative_file_count == 2
+    assert result.derivative_bytes == 22
+    assert result.derivative_file_count == 3
     assert result.tile_count == 1
     assert not (destination / "completed.marker").exists()
     assert not destination.with_name("private.previous").exists()
@@ -431,8 +458,8 @@ def test_success_logging_records_measurements_once(
     ]
     assert events[0] == {"event": "conversion_start", "source_bytes": 6}
     assert events[1]["source_bytes"] == 6
-    assert events[1]["derivative_bytes"] == 13
-    assert events[1]["file_count"] == 2
+    assert events[1]["derivative_bytes"] == 22
+    assert events[1]["file_count"] == 3
     assert events[1]["tile_count"] == 1
     assert isinstance(events[1]["elapsed_seconds"], float)
 
