@@ -1,0 +1,34 @@
+name: Apply public hardening
+
+on:
+  push:
+    branches: [security/public-hardening]
+    paths:
+      - scripts/apply_public_hardening.py
+      - .github/workflows/apply-public-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/public-hardening
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply reviewed transformations
+        run: python scripts/apply_public_hardening.py
+      - name: Commit hardened tree
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git diff --cached --quiet && exit 0
+          git commit -m 'security: harden public repository and deployment'
+          git push origin HEAD:security/public-hardening
