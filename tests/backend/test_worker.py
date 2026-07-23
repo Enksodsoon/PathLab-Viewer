@@ -1,3 +1,5 @@
+import threading
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
@@ -8,7 +10,12 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Job, Slide
-from wsi_viewer.worker import WorkerScheduler, expire_incomplete_uploads, recover_stale_jobs
+from wsi_viewer.worker import (
+    WorkerScheduler,
+    expire_incomplete_uploads,
+    recover_stale_jobs,
+    run_worker_loop,
+)
 
 
 def scheduler_with(
@@ -80,6 +87,60 @@ def test_worker_processes_queued_jobs_without_an_extra_delay() -> None:
     assert scheduler.run_due() == 0.0
     assert scheduler.run_due() == 2.0
     assert process.call_count == 3
+
+
+def test_shutdown_requested_during_maintenance_prevents_job_claim() -> None:
+    shutdown = threading.Event()
+    recover = Mock(side_effect=shutdown.set)
+    process = Mock(return_value=True)
+    scheduler = WorkerScheduler(
+        recover_stale=recover,
+        cleanup_uploads=Mock(),
+        process_job=process,
+        shutdown_requested=shutdown.is_set,
+        monotonic=Mock(return_value=0.0),
+    )
+
+    scheduler.run_due()
+
+    process.assert_not_called()
+
+
+def test_shutdown_after_active_job_prevents_second_claim() -> None:
+    shutdown = threading.Event()
+    process = Mock(side_effect=lambda: shutdown.set() or True)
+    scheduler = WorkerScheduler(
+        recover_stale=Mock(),
+        cleanup_uploads=Mock(),
+        process_job=process,
+        shutdown_requested=shutdown.is_set,
+        monotonic=Mock(return_value=0.0),
+    )
+
+    run_worker_loop(scheduler, shutdown)
+
+    process.assert_called_once_with()
+
+
+def test_idle_worker_shutdown_is_prompt() -> None:
+    shutdown = threading.Event()
+    entered = threading.Event()
+
+    class IdleScheduler:
+        def run_due(self) -> float:
+            entered.set()
+            return 60.0
+
+    thread = threading.Thread(target=run_worker_loop, args=(IdleScheduler(), shutdown))
+    thread.start()
+    assert entered.wait(timeout=1)
+
+    started = time.monotonic()
+    shutdown.set()
+    thread.join(timeout=1)
+
+    assert not thread.is_alive()
+    assert time.monotonic() - started < 0.5
 
 
 def test_stale_worker_job_is_requeued(tmp_path: Path) -> None:

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
-from .models import User
+from .models import Job, User
 from .security import hash_password
 
 
@@ -28,7 +28,13 @@ def _read_password(password_stdin: bool) -> str:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage the single PathLab administrator")
     parser.add_argument(
-        "command", choices=["create-admin", "reset-password", "issue-recovery-code"]
+        "command",
+        choices=[
+            "create-admin",
+            "reset-password",
+            "issue-recovery-code",
+            "deployment-check",
+        ],
     )
     parser.add_argument("--username", default="admin")
     parser.add_argument(
@@ -43,6 +49,13 @@ def main() -> None:
     args = _build_parser().parse_args()
     settings = Settings()
     with session_factory(settings)() as database:
+        if args.command == "deployment-check":
+            running_job = database.scalar(
+                select(Job.id).where(Job.status == "running").limit(1)
+            )
+            if running_job is not None:
+                raise SystemExit("Deployment blocked: worker job is active")
+            return
         user = database.scalar(select(User).where(User.username == args.username))
         if args.command == "issue-recovery-code":
             if user is None:

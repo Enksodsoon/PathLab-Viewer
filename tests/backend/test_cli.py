@@ -7,7 +7,8 @@ from sqlalchemy import select
 from wsi_viewer.cli import _build_parser, _read_password, main
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
-from wsi_viewer.models import PasswordRecoveryCode, User
+from wsi_viewer.domain import SlideState
+from wsi_viewer.models import Job, PasswordRecoveryCode, Slide, User
 from wsi_viewer.security import hash_password, recovery_code_hash
 
 
@@ -71,3 +72,57 @@ def test_issue_recovery_code_prints_code_once_without_password_prompt(
         assert stored is not None
         if not hmac.compare_digest(stored.code_hash, recovery_code_hash(code)):
             pytest.fail("Stored recovery-code digest did not match CLI output")
+
+
+def test_deployment_check_does_not_require_credentials() -> None:
+    args = _build_parser().parse_args(["deployment-check"])
+    assert args.command == "deployment-check"
+
+
+def test_deployment_check_allows_no_running_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    database_path = tmp_path / "deployment-check.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    main()
+
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == ""
+
+
+def test_deployment_check_blocks_running_job_without_private_details(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_path = tmp_path / "deployment-check-running.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        slide = Slide(
+            display_name="Private patient name",
+            original_filename="private-patient-file.ome.tif",
+            source_bytes=1,
+            state=SlideState.CONVERTING,
+        )
+        database.add(slide)
+        database.flush()
+        database.add(Job(slide_id=slide.id, status="running"))
+        database.commit()
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    with pytest.raises(SystemExit) as captured:
+        main()
+
+    assert captured.value.code == "Deployment blocked: worker job is active"
+    output = capsys.readouterr()
+    assert "Private patient name" not in output.err
+    assert "private-patient-file.ome.tif" not in output.err
