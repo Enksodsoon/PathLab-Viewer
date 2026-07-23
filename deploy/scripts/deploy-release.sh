@@ -4,7 +4,6 @@ set -Eeuo pipefail
 REPOSITORY_URL="https://github.com/Enksodsoon/PathLab-Viewer.git"
 LIVE_DIR="/opt/pathlab-viewer"
 LOCK_FILE="/var/lock/pathlab-viewer-deploy.lock"
-HEALTH_URL="https://pathlab-viewer.140-245-126-212.sslip.io/readyz"
 REQUEST="${1:-${SSH_ORIGINAL_COMMAND:-}}"
 SWAPPED=0
 OLD_WORKER_STOPPED=0
@@ -78,6 +77,13 @@ REMOTE_MAIN_SHA="$(git ls-remote "${REPOSITORY_URL}" refs/heads/main | awk '{pri
 [[ "${REMOTE_MAIN_SHA}" == "${TARGET_SHA}" ]] || \
   fail "requested commit is not the current main commit"
 [[ -f "${LIVE_DIR}/deploy/.env" ]] || fail "live deploy/.env is missing"
+DOMAIN="$(sed -n 's/^DOMAIN=//p' "${LIVE_DIR}/deploy/.env" | tail -n 1)"
+DOMAIN="${DOMAIN%\"}"
+DOMAIN="${DOMAIN#\"}"
+DOMAIN="${DOMAIN%\'}"
+DOMAIN="${DOMAIN#\'}"
+[[ "${DOMAIN}" =~ ^[A-Za-z0-9.-]+$ ]] || fail "DOMAIN is missing or invalid"
+HEALTH_URL="https://${DOMAIN}/readyz"
 
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 STAGE_DIR="/opt/pathlab-viewer.stage-${TARGET_SHA}-${TIMESTAMP}"

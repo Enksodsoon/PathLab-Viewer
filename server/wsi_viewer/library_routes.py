@@ -194,6 +194,24 @@ def _get_collection(database: OrmSession, collection_id: str) -> Collection:
     return collection
 
 
+def _has_active_share(
+    database: OrmSession,
+    *,
+    target_type: str,
+    target_id: str,
+) -> bool:
+    return database.scalar(
+        select(LibraryShare.id)
+        .where(
+            LibraryShare.target_type == target_type,
+            LibraryShare.target_id == target_id,
+            LibraryShare.is_active.is_(True),
+            LibraryShare.revoked_at.is_(None),
+        )
+        .limit(1)
+    ) is not None
+
+
 def _unique_ids(slide_ids: list[str]) -> list[str]:
     return list(dict.fromkeys(slide_ids))
 
@@ -521,6 +539,14 @@ def register_library_routes(
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is not None:
             raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
+        if (
+            payload.name is not None or payload.description is not None
+        ) and _has_active_share(
+            database,
+            target_type="folder",
+            target_id=folder.id,
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SHARE_ACTIVE"})
         try:
             if "parent_id" in payload.model_fields_set:
                 validate_folder_parent(
@@ -694,6 +720,14 @@ def register_library_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         collection = _get_collection(database, collection_id)
+        if (
+            payload.name is not None or payload.description is not None
+        ) and _has_active_share(
+            database,
+            target_type="collection",
+            target_id=collection.id,
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SHARE_ACTIVE"})
         try:
             if payload.name is not None:
                 collection.name, collection.normalized_name = normalize_name(
@@ -938,7 +972,7 @@ def register_library_routes(
         ).all()
         if len(slides) != len(slide_ids):
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        fields = {
+        public_fields = {
             "display_name": payload.display_name,
             "description": payload.description,
             "case_id": payload.case_id,
@@ -948,12 +982,26 @@ def register_library_routes(
             "course": payload.course,
             "tags": payload.tags,
             "teaching_note": payload.teaching_note,
-            "admin_notes": payload.admin_notes,
         }
+        public_changes = {
+            field: value for field, value in public_fields.items() if value is not None
+        }
+        if public_changes:
+            shared = database.scalar(
+                select(PublicationGrant.id)
+                .where(PublicationGrant.slide_id.in_(slide_ids))
+                .limit(1)
+            )
+            if shared is not None:
+                raise HTTPException(status_code=409, detail={"code": "SLIDE_PUBLIC"})
+        fields = {**public_fields, "admin_notes": payload.admin_notes}
         for slide in slides:
             for field, value in fields.items():
                 if value is not None:
                     setattr(slide, field, value)
+            if public_changes:
+                slide.privacy_status = "pending"
+                slide.privacy_scanned_at = None
         database.commit()
         return {"items": [slide_json(slide) for slide in slides]}
 

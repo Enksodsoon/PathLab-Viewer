@@ -90,6 +90,12 @@ class SlideRequest(BaseModel):
     folder_id: str | None = Field(default=None, alias="folderId")
 
 
+class PublishRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    deidentified_confirmed: bool = Field(alias="deidentifiedConfirmed")
+
+
 class UploadCompleteRequest(BaseModel):
     token: str
     path: Path
@@ -117,6 +123,13 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not metadata:
+        return None
+    allowed = ("width", "height", "physicalSizeX")
+    return {key: metadata[key] for key in allowed if metadata.get(key) is not None}
+
+
 def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
     result: dict[str, Any] = {
         "id": slide.id,
@@ -134,6 +147,7 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
         result.pop("sourceBytes")
         result.pop("errorCode")
         result.pop("errorMessage")
+        result["metadata"] = _public_metadata(slide.slide_metadata)
         result["tileSource"] = f"/tiles/{slide.public_id}/slide.dzi"
     else:
         result["filename"] = slide.original_filename
@@ -567,10 +581,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _slide_json(slide)
 
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
-    def publish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
+    def publish(
+        slide_id: str,
+        authenticated: CsrfSession,
+        db: Database,
+        payload: PublishRequest | None = None,
+    ) -> dict[str, Any]:
+        if payload is None or not payload.deidentified_confirmed:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"},
+            )
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        slide.privacy_status = "passed"
+        slide.privacy_scanned_at = datetime.now(UTC).replace(tzinfo=None)
         try:
             ensure_grant(db, storage, slide, INDIVIDUAL, slide.id)
         except FileNotFoundError as error:
@@ -617,7 +643,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/v1/public/slides/{public_id}")
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:
         slide = db.scalar(
-            select(Slide).where(Slide.public_id == public_id, Slide.state == SlideState.PUBLISHED)
+            select(Slide).where(
+            Slide.public_id == public_id,
+            Slide.state == SlideState.PUBLISHED,
+            Slide.privacy_status == "passed",
+        )
         )
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})

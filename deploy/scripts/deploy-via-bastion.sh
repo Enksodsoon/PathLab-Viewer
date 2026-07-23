@@ -18,7 +18,7 @@ cleanup_bastion_session() {
   trap - EXIT
   if [[ -n "${SESSION_ID}" ]]; then
     oci bastion session delete --session-id "${SESSION_ID}" --force >/dev/null 2>&1 || \
-      echo "Warning: Bastion session cleanup must be checked manually: ${SESSION_ID}" >&2
+      echo "Warning: Bastion session cleanup must be checked manually." >&2
   fi
   rm -rf -- "${WORK_DIR}"
   exit "${exit_code}"

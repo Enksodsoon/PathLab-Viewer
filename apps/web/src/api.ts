@@ -150,6 +150,17 @@ export async function mutateSlide(id: string, action: string): Promise<AdminSlid
   )
 }
 
+export async function publishSlide(id: string): Promise<AdminSlide> {
+  return json<AdminSlide>(
+    await fetch(`/api/v1/admin/slides/${encodeURIComponent(id)}/publish`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: csrfHeaders(true),
+      body: JSON.stringify({ deidentifiedConfirmed: true }),
+    }),
+  )
+}
+
 export async function deleteSlide(id: string): Promise<void> {
   const response = await fetch(`/api/v1/admin/slides/${id}`, {
     method: 'DELETE',

@@ -709,7 +709,9 @@ def test_private_preview_publish_and_delete_lifecycle(tmp_path: Path) -> None:
         assert tile.content == b"jpeg"
 
         published = client.post(
-            f"/api/v1/admin/slides/{slide_id}/publish", headers={"X-CSRF-Token": csrf}
+            f"/api/v1/admin/slides/{slide_id}/publish",
+            headers={"X-CSRF-Token": csrf},
+            json={"deidentifiedConfirmed": True},
         )
         assert published.status_code == 200
         assert client.get(f"/api/v1/public/slides/{public_id}").status_code == 200

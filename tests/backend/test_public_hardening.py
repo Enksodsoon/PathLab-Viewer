@@ -215,7 +215,7 @@ def test_public_proxy_and_deployment_configuration_disclose_no_live_target() -> 
     assert "sslip.io" not in public_text
     assert "140-245-126-212" not in public_text
     assert 'HEALTH_URL="https://${DOMAIN}/readyz"' in release
-    assert "deployments: write" not in workflow
+    assert "url: https://" not in workflow
     assert "Readiness: http" not in workflow
     assert "PATHLAB_ENVIRONMENT: production" in compose
 
