@@ -5,6 +5,7 @@ import { ApiError, deleteSlide, listSlides, logout, mutateSlide, reserveUpload }
 import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
 import { Brand } from '../components/Brand'
 import { DeleteSlideDialog } from '../components/DeleteSlideDialog'
+import { PublishSlideDialog } from '../components/PublishSlideDialog'
 import type { AdminSlide, SlideState } from '../types'
 import { startTusUpload } from '../upload'
 
@@ -47,6 +48,7 @@ export function AdminPage() {
   const [progress, setProgress] = useState<number | null>(null)
   const [notice, setNotice] = useState('')
   const [securityOpen, setSecurityOpen] = useState(false)
+  const [slidePendingPublication, setSlidePendingPublication] = useState<AdminSlide | null>(null)
   const [slidePendingDeletion, setSlidePendingDeletion] = useState<AdminSlide | null>(null)
   const [authNotice, setAuthNotice] = useState('')
   const [signingOut, setSigningOut] = useState(false)
@@ -138,6 +140,11 @@ export function AdminPage() {
     await refresh()
   }
 
+  async function confirmPublish() {
+    if (!slidePendingPublication) return
+    await runSlideAction(slidePendingPublication, 'publish')
+  }
+
   async function confirmDelete() {
     if (!slidePendingDeletion) return
     await runSlideAction(slidePendingDeletion, 'delete')
@@ -146,6 +153,7 @@ export function AdminPage() {
   function endSession(message = '') {
     authEpoch.current += 1
     setSecurityOpen(false)
+    setSlidePendingPublication(null)
     setSlidePendingDeletion(null)
     setAuthNotice(message)
     setSlides([])
@@ -248,13 +256,16 @@ export function AdminPage() {
               }}
             />
             <label className="field-label">
-              Display name
+              Public title
               <input
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 placeholder="e.g. HER2 control"
               />
             </label>
+            <p className="privacy-note">
+              This title is shown to public viewers after publication. Do not include patient names, record numbers, dates of birth, or contact details.
+            </p>
             {progress !== null ? (
               <div className="upload-progress"><span style={{ width: `${progress}%` }} /></div>
             ) : null}
@@ -301,7 +312,7 @@ export function AdminPage() {
                           <a className="text-action" href={`/admin/preview/${slide.id}`}>
                             <Eye size={15} /> Preview
                           </a>
-                          <button onClick={() => void runSlideAction(slide, 'publish')}>Publish</button>
+                          <button onClick={() => setSlidePendingPublication(slide)}>Publish</button>
                         </>
                       ) : null}
                       {slide.state === 'published' ? (
@@ -338,6 +349,11 @@ export function AdminPage() {
         </div>
       </main>
 
+      <PublishSlideDialog
+        slideName={slidePendingPublication?.displayName ?? null}
+        onClose={() => setSlidePendingPublication(null)}
+        onConfirm={confirmPublish}
+      />
       <DeleteSlideDialog
         slideName={slidePendingDeletion?.displayName ?? null}
         onClose={() => setSlidePendingDeletion(null)}
