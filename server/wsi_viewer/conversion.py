@@ -4,6 +4,7 @@ import os
 import shutil
 import stat
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,14 @@ class InvalidDerivative(RuntimeError):
 
 class ConversionWorkspaceCleanupError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class ConversionResult:
+    descriptor: Path
+    derivative_bytes: int
+    derivative_file_count: int
+    tile_count: int
 
 
 def _log_event(event: str, **measurements: object) -> None:
@@ -120,7 +129,13 @@ def _recover_previous_derivative(destination: Path, previous: Path) -> None:
         previous.replace(destination)
 
 
-def generate_dzi(source: Path, destination: Path, *, series_index: int, bits: int) -> Path:
+def generate_dzi(
+    source: Path,
+    destination: Path,
+    *,
+    series_index: int,
+    bits: int,
+) -> ConversionResult:
     staging = destination.with_name(f"{destination.name}.tmp-{os.getpid()}")
     previous = destination.with_name(f"{destination.name}.previous")
     source_bytes = source.stat().st_size
@@ -178,7 +193,12 @@ def generate_dzi(source: Path, destination: Path, *, series_index: int, bits: in
             source_bytes=source_bytes,
             tile_count=tile_count,
         )
-        return destination / "slide.dzi"
+        return ConversionResult(
+            descriptor=destination / "slide.dzi",
+            derivative_bytes=derivative_bytes,
+            derivative_file_count=file_count,
+            tile_count=tile_count,
+        )
     except Exception as error:
         _log_event(
             "conversion_failure",

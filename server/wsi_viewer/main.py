@@ -42,10 +42,12 @@ from .security import (
 )
 from .storage import (
     InsufficientStorage,
+    PublicationError,
     StorageLayout,
     publish_derivative,
     unpublish_derivative,
 )
+from .storage_accounting import reserve_new_slide, reserve_retry
 
 COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
@@ -395,33 +397,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
     def create_slide(
-        payload: SlideRequest, authenticated: CsrfSession, db: Database
+        payload: SlideRequest, authenticated: CsrfSession
     ) -> dict[str, Any]:
         if payload.length > current.max_upload_bytes:
             raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         try:
-            storage.require_admission(payload.length)
+            slide = reserve_new_slide(
+                factory,
+                storage,
+                display_name=payload.display_name,
+                original_filename=Path(payload.filename).name,
+                source_bytes=payload.length,
+                actor_user_id=authenticated.user_id,
+            )
         except InsufficientStorage as error:
             raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"}) from error
-        slide = Slide(
-            display_name=payload.display_name,
-            original_filename=Path(payload.filename).name,
-            source_bytes=payload.length,
-        )
-        db.add(slide)
-        db.flush()
         token = issue_upload_token(
             UploadGrant(slide.id, payload.length), current.secret_key, ttl=timedelta(hours=1)
         )
-        db.add(
-            AuditEvent(
-                actor_user_id=authenticated.user_id,
-                action="slide.create",
-                target_id=slide.id,
-                detail={"bytes": payload.length},
-            )
-        )
-        db.commit()
         return {
             "slide": _slide_json(slide),
             "uploadUrl": current.tus_public_url,
@@ -533,12 +526,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return slide
 
     @app.post("/api/v1/admin/slides/{slide_id}/retry")
-    def retry(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
-        slide = mutate(slide_id, SlideState.QUEUED, authenticated, db)
-        slide.error_code = None
-        slide.error_message = None
-        db.add(Job(slide_id=slide.id))
-        db.commit()
+    def retry(slide_id: str, authenticated: CsrfSession) -> dict[str, Any]:
+        try:
+            slide = reserve_retry(
+                factory,
+                storage,
+                slide_id=slide_id,
+                actor_user_id=authenticated.user_id,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"}) from error
+        except InvalidTransition as error:
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
+        except InsufficientStorage as error:
+            raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"}) from error
         return _slide_json(slide)
 
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
@@ -550,6 +551,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             publish_derivative(storage, slide.id, slide.public_id)
         except FileNotFoundError as error:
             raise HTTPException(status_code=409, detail={"code": "DERIVATIVE_NOT_READY"}) from error
+        except PublicationError as error:
+            raise HTTPException(status_code=409, detail={"code": "PUBLICATION_FAILED"}) from error
         return _slide_json(mutate(slide_id, SlideState.PUBLISHED, authenticated, db))
 
     @app.post("/api/v1/admin/slides/{slide_id}/unpublish")
