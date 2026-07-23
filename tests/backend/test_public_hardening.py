@@ -75,11 +75,22 @@ def test_backups_are_owner_only_and_restore_validates_archive_paths() -> None:
     assert "--no-same-permissions" in restore
 
 
-def test_ci_runs_public_repository_guard() -> None:
+def test_ci_runs_public_repository_and_history_guards() -> None:
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
     assert "python scripts/check_public_repository.py" in workflow
+    assert "gitleaks git --redact --no-banner" in workflow
     assert "PATHLAB_SECRET_KEY:" in workflow
+
+
+def test_ci_scans_and_validates_built_images() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "pathlab-backend:ci" in workflow
+    assert "pathlab-web:ci" in workflow
+    assert "aquasecurity/trivy-action@" in workflow
+    assert "caddy validate" in workflow
+    assert "Weak deployment signing key was accepted" in workflow
 
 
 def test_security_automation_is_configured() -> None:
