@@ -4,12 +4,15 @@ import {
   Clock3,
   FolderInput,
   Grid2X2,
+  Edit3,
+  MoreHorizontal,
   Plus,
   Share2,
   Trash2,
 } from 'lucide-react'
 
 import type { LibraryFolder, LibraryNavigation } from '../../types'
+import { ContextMenu } from './ContextMenu'
 import { FolderTree } from './FolderTree'
 
 interface LibraryNavigatorProps {
@@ -27,6 +30,8 @@ interface LibraryNavigatorProps {
     folder: LibraryFolder,
     action: 'rename' | 'move' | 'trash',
   ) => void
+  onCollectionAction: (id: string, action: 'rename' | 'delete') => void
+  onSavedViewAction: (id: string, action: 'rename' | 'delete') => void
 }
 
 const SPECIAL = [
@@ -67,6 +72,8 @@ export function LibraryNavigator({
   onNewSavedView,
   onDropSlides,
   onFolderAction,
+  onCollectionAction,
+  onSavedViewAction,
 }: LibraryNavigatorProps) {
   const selectedFolderId = location.startsWith('folder:')
     ? location.slice('folder:'.length)
@@ -105,31 +112,58 @@ export function LibraryNavigator({
       <SectionTitle label="New collection" onAdd={onNewCollection}>Collections</SectionTitle>
       <nav className="navigator-list">
         {navigation.collections.map((collection) => (
-          <button
-            key={collection.id}
-            type="button"
-            className={location === `collection:${collection.id}` ? 'active' : ''}
-            onClick={() => onLocation(`collection:${collection.id}`)}
-          >
-            <Grid2X2 />
-            <span>{collection.name}</span>
-            <strong>{collection.itemCount}</strong>
-          </button>
+          <div className="navigator-list-row" key={collection.id}>
+            <button
+              type="button"
+              className={location === `collection:${collection.id}` ? 'active' : ''}
+              onClick={() => onLocation(`collection:${collection.id}`)}
+            >
+              <Grid2X2 /><span>{collection.name}</span><strong>{collection.itemCount}</strong>
+            </button>
+            <ContextMenu
+              label={`More actions for ${collection.name}`}
+              buttonClassName="navigator-more"
+              buttonContent={<MoreHorizontal />}
+            >
+              {(close) => (<>
+                <button type="button" role="menuitem" onClick={() => {
+                  close(); onCollectionAction(collection.id, 'rename')
+                }}><Edit3 /> Rename</button>
+                <button type="button" role="menuitem" className="danger" onClick={() => {
+                  close(); onCollectionAction(collection.id, 'delete')
+                }}><Trash2 /> Delete collection</button>
+              </>)}
+            </ContextMenu>
+          </div>
         ))}
       </nav>
 
       <SectionTitle label="New saved view" onAdd={onNewSavedView}>Saved views</SectionTitle>
       <nav className="navigator-list">
         {navigation.savedViews.map((view) => (
-          <button
-            key={view.id}
-            type="button"
-            className={location === `saved:${view.id}` ? 'active' : ''}
-            onClick={() => onLocation(`saved:${view.id}`)}
-          >
-            <Clock3 />
-            <span>{view.name}</span>
-          </button>
+          <div className="navigator-list-row" key={view.id}>
+            <button
+              type="button"
+              className={location === `saved:${view.id}` ? 'active' : ''}
+              onClick={() => onLocation(`saved:${view.id}`)}
+            >
+              <Clock3 /><span>{view.name}</span>
+            </button>
+            <ContextMenu
+              label={`More actions for ${view.name}`}
+              buttonClassName="navigator-more"
+              buttonContent={<MoreHorizontal />}
+            >
+              {(close) => (<>
+                <button type="button" role="menuitem" onClick={() => {
+                  close(); onSavedViewAction(view.id, 'rename')
+                }}><Edit3 /> Rename</button>
+                <button type="button" role="menuitem" className="danger" onClick={() => {
+                  close(); onSavedViewAction(view.id, 'delete')
+                }}><Trash2 /> Delete saved view</button>
+              </>)}
+            </ContextMenu>
+          </div>
         ))}
       </nav>
     </aside>

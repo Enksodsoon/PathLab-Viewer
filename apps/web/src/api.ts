@@ -190,6 +190,10 @@ export interface LibraryItemsQuery {
   course?: string
   tags?: string[]
   state?: string
+  createdFrom?: string
+  createdTo?: string
+  updatedFrom?: string
+  updatedTo?: string
   sort?: string
   cursor?: string
   limit?: number
@@ -300,6 +304,27 @@ export async function createCollection(payload: {
   )
 }
 
+export async function updateCollection(
+  collectionId: string,
+  payload: Partial<Pick<LibraryCollection, 'name' | 'description' | 'sortOrder'>>,
+): Promise<LibraryCollection> {
+  return json<LibraryCollection>(
+    await fetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: csrfHeaders(true),
+      body: JSON.stringify(payload),
+    }),
+  )
+}
+
+export async function deleteCollection(collectionId: string): Promise<void> {
+  await expectOk(await fetch(
+    `/api/v2/admin/collections/${encodeURIComponent(collectionId)}`,
+    { method: 'DELETE', credentials: 'same-origin', headers: csrfHeaders() },
+  ))
+}
+
 export async function addCollectionSlides(
   collectionId: string,
   slideIds: string[],
@@ -328,6 +353,42 @@ export async function createSavedView(payload: {
       body: JSON.stringify(payload),
     }),
   )
+}
+
+export async function removeCollectionSlides(
+  collectionId: string,
+  slideIds: string[],
+): Promise<string[]> {
+  const body = await json<{ removedSlideIds: string[] }>(
+    await fetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}/items`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: csrfHeaders(true),
+      body: JSON.stringify({ slideIds }),
+    }),
+  )
+  return body.removedSlideIds
+}
+
+export async function updateSavedView(
+  viewId: string,
+  payload: Partial<Pick<SavedView, 'name' | 'definition' | 'sort'>>,
+): Promise<SavedView> {
+  return json<SavedView>(
+    await fetch(`/api/v2/admin/saved-views/${encodeURIComponent(viewId)}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: csrfHeaders(true),
+      body: JSON.stringify(payload),
+    }),
+  )
+}
+
+export async function deleteSavedView(viewId: string): Promise<void> {
+  await expectOk(await fetch(
+    `/api/v2/admin/saved-views/${encodeURIComponent(viewId)}`,
+    { method: 'DELETE', credentials: 'same-origin', headers: csrfHeaders() },
+  ))
 }
 
 export async function batchMoveSlides(

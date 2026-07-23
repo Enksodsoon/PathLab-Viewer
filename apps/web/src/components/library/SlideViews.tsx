@@ -2,17 +2,21 @@ import {
   Check,
   CircleAlert,
   CircleDashed,
+  Clipboard,
   Edit3,
+  ExternalLink,
   Eye,
   FolderInput,
   MoreVertical,
+  RefreshCw,
   RotateCcw,
   Share2,
   Trash2,
+  Undo2,
 } from 'lucide-react'
-import { useState } from 'react'
 
 import type { LibrarySlide } from '../../types'
+import { ContextMenu } from './ContextMenu'
 import { formatBytes } from './format'
 import type { LibraryViewMode } from './LibraryToolbar'
 
@@ -27,15 +31,24 @@ const STATUS: Record<LibrarySlide['state'], string> = {
   deleting: 'Deleting',
 }
 
+export type SlideAction =
+  | 'edit'
+  | 'move'
+  | 'collection'
+  | 'publish'
+  | 'unpublish'
+  | 'retry'
+  | 'copy-public'
+  | 'trash'
+  | 'restore'
+  | 'delete'
+
 interface CommonProps {
   slides: LibrarySlide[]
   selected: Set<string>
   onSelect: (slideId: string, index: number, shift: boolean) => void
   onOpen: (slide: LibrarySlide) => void
-  onAction: (
-    slide: LibrarySlide,
-    action: 'edit' | 'move' | 'collection' | 'publish' | 'trash' | 'restore' | 'delete',
-  ) => void
+  onAction: (slide: LibrarySlide, action: SlideAction) => void
 }
 
 function Thumbnail({ slide }: { slide: LibrarySlide }) {
@@ -62,10 +75,98 @@ function Status({ slide }: { slide: LibrarySlide }) {
   )
 }
 
+function SlideActions({
+  slide,
+  onOpen,
+  onAction,
+}: {
+  slide: LibrarySlide
+  onOpen: CommonProps['onOpen']
+  onAction: CommonProps['onAction']
+}) {
+  const ready = slide.state === 'ready_private'
+  const published = slide.state === 'published'
+  const failed = slide.state === 'failed'
+  return (
+    <ContextMenu
+      label={`More actions for ${slide.displayName}`}
+      buttonContent={<MoreVertical />}
+    >
+      {(close) => {
+        const act = (action: SlideAction) => {
+          close()
+          onAction(slide, action)
+        }
+        return (
+          <>
+            <button type="button" role="menuitem" onClick={() => { close(); onOpen(slide) }}>
+              <Eye /> Details
+            </button>
+            {(ready || published) ? (
+              <a role="menuitem" href={`/admin/preview/${slide.id}`} onClick={close}>
+                <Eye /> Preview
+              </a>
+            ) : null}
+            {published ? (
+              <>
+                <a role="menuitem" href={`/s/${slide.publicId}`} target="_blank" rel="noreferrer" onClick={close}>
+                  <ExternalLink /> Open public slide
+                </a>
+                <button type="button" role="menuitem" onClick={() => act('copy-public')}>
+                  <Clipboard /> Copy public link
+                </button>
+                <button type="button" role="menuitem" onClick={() => act('unpublish')}>
+                  <Undo2 /> Unpublish
+                </button>
+              </>
+            ) : null}
+            {!slide.trashedAt ? (
+              <>
+                <button type="button" role="menuitem" onClick={() => act('edit')}>
+                  <Edit3 /> Edit details
+                </button>
+                <button type="button" role="menuitem" onClick={() => act('move')}>
+                  <FolderInput /> Move
+                </button>
+                <button type="button" role="menuitem" onClick={() => act('collection')}>
+                  <FolderInput /> Add to collection
+                </button>
+                {ready ? (
+                  <button type="button" role="menuitem" onClick={() => act('publish')}>
+                    <Share2 /> Publish
+                  </button>
+                ) : null}
+                {failed ? (
+                  <button type="button" role="menuitem" onClick={() => act('retry')}>
+                    <RefreshCw /> Retry conversion
+                  </button>
+                ) : null}
+                <button type="button" role="menuitem" className="danger" onClick={() => act('trash')}>
+                  <Trash2 /> Move to Trash
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" role="menuitem" onClick={() => act('restore')}>
+                  <RotateCcw /> Restore
+                </button>
+                <button type="button" role="menuitem" className="danger" onClick={() => act('delete')}>
+                  <Trash2 /> Delete permanently
+                </button>
+              </>
+            )}
+          </>
+        )
+      }}
+    </ContextMenu>
+  )
+}
+
 function SlideCard({
   slide,
   index,
   selected,
+  selectedIds,
   onSelect,
   onOpen,
   onAction,
@@ -73,26 +174,18 @@ function SlideCard({
   slide: LibrarySlide
   index: number
   selected: boolean
+  selectedIds: Set<string>
   onSelect: CommonProps['onSelect']
   onOpen: CommonProps['onOpen']
   onAction: CommonProps['onAction']
 }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  function action(name: Parameters<CommonProps['onAction']>[1]) {
-    setMenuOpen(false)
-    onAction(slide, name)
-  }
-
   return (
     <article
       className={`library-slide-card ${selected ? 'selected' : ''}`}
       draggable
       onDragStart={(event) => {
-        event.dataTransfer.setData(
-          'application/x-pathlab-slide-ids',
-          selected ? slide.id : slide.id,
-        )
+        const ids = selected ? Array.from(selectedIds) : [slide.id]
+        event.dataTransfer.setData('application/x-pathlab-slide-ids', ids.join(','))
       }}
       onDoubleClick={() => onOpen(slide)}
     >
@@ -102,60 +195,16 @@ function SlideCard({
             type="checkbox"
             checked={selected}
             aria-label={`Select ${slide.displayName}`}
-            onChange={(event) => onSelect(slide.id, index, 'shiftKey' in event.nativeEvent
-              && Boolean((event.nativeEvent as MouseEvent).shiftKey))}
+            onChange={(event) => onSelect(
+              slide.id,
+              index,
+              'shiftKey' in event.nativeEvent
+                && Boolean((event.nativeEvent as MouseEvent).shiftKey),
+            )}
           />
           <span><Check /></span>
         </label>
-        <button
-          type="button"
-          aria-label={`More actions for ${slide.displayName}`}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          onClick={() => setMenuOpen((current) => !current)}
-        >
-          <MoreVertical />
-        </button>
-        {menuOpen ? (
-          <div className="library-menu card-action-menu" role="menu">
-            <button type="button" role="menuitem" onClick={() => onOpen(slide)}>
-              <Eye /> Details
-            </button>
-            <a role="menuitem" href={`/admin/preview/${slide.id}`}>
-              <Eye /> Preview
-            </a>
-            <button type="button" role="menuitem" onClick={() => action('edit')}>
-              <Edit3 /> Edit details
-            </button>
-            {slide.trashedAt ? (
-              <>
-                <button type="button" role="menuitem" onClick={() => action('restore')}>
-                  <RotateCcw /> Restore
-                </button>
-                <button type="button" role="menuitem" className="danger" onClick={() => action('delete')}>
-                  <Trash2 /> Delete permanently
-                </button>
-              </>
-            ) : (
-              <>
-                <button type="button" role="menuitem" onClick={() => action('move')}>
-                  <FolderInput /> Move
-                </button>
-                <button type="button" role="menuitem" onClick={() => action('collection')}>
-                  <FolderInput /> Add to collection
-                </button>
-                {slide.state === 'ready_private' ? (
-                  <button type="button" role="menuitem" onClick={() => action('publish')}>
-                    <Share2 /> Publish
-                  </button>
-                ) : null}
-                <button type="button" role="menuitem" className="danger" onClick={() => action('trash')}>
-                  <Trash2 /> Move to Trash
-                </button>
-              </>
-            )}
-          </div>
-        ) : null}
+        <SlideActions slide={slide} onOpen={onOpen} onAction={onAction} />
       </div>
       <button
         type="button"
@@ -181,30 +230,22 @@ function SlideCard({
   )
 }
 
-function SlideTable({ slides, selected, onSelect, onOpen }: CommonProps) {
+function SlideTable(props: CommonProps) {
+  const { slides, selected, onSelect, onOpen, onAction } = props
   return (
     <div className="library-table-wrap">
       <table className="library-table">
         <thead>
           <tr>
             <th><span className="visually-hidden">Select</span></th>
-            <th>Name</th>
-            <th>Organ</th>
-            <th>Stain</th>
-            <th>Diagnosis</th>
-            <th>Case</th>
-            <th>Size</th>
-            <th>Status</th>
-            <th>Updated</th>
+            <th>Name</th><th>Organ</th><th>Stain</th><th>Diagnosis</th>
+            <th>Case</th><th>Size</th><th>Status</th><th>Updated</th>
+            <th><span className="visually-hidden">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           {slides.map((slide, index) => (
-            <tr
-              key={slide.id}
-              className={selected.has(slide.id) ? 'selected' : ''}
-              onDoubleClick={() => onOpen(slide)}
-            >
+            <tr key={slide.id} className={selected.has(slide.id) ? 'selected' : ''}>
               <td>
                 <input
                   type="checkbox"
@@ -224,13 +265,11 @@ function SlideTable({ slides, selected, onSelect, onOpen }: CommonProps) {
                   {slide.displayName}
                 </button>
               </td>
-              <td>{slide.organSite || '—'}</td>
-              <td>{slide.stain || '—'}</td>
-              <td>{slide.diagnosis || '—'}</td>
-              <td>{slide.caseId || '—'}</td>
-              <td>{formatBytes(slide.sourceBytes)}</td>
-              <td><Status slide={slide} /></td>
+              <td>{slide.organSite || '—'}</td><td>{slide.stain || '—'}</td>
+              <td>{slide.diagnosis || '—'}</td><td>{slide.caseId || '—'}</td>
+              <td>{formatBytes(slide.sourceBytes)}</td><td><Status slide={slide} /></td>
               <td>{new Date(slide.updatedAt).toLocaleDateString()}</td>
+              <td><SlideActions slide={slide} onOpen={onOpen} onAction={onAction} /></td>
             </tr>
           ))}
         </tbody>
@@ -248,15 +287,7 @@ export function SlideViews({
   onAction,
 }: CommonProps & { view: LibraryViewMode }) {
   if (view === 'table') {
-    return (
-      <SlideTable
-        slides={slides}
-        selected={selected}
-        onSelect={onSelect}
-        onOpen={onOpen}
-        onAction={onAction}
-      />
-    )
+    return <SlideTable {...{ slides, selected, onSelect, onOpen, onAction }} />
   }
   return (
     <div className={`library-slide-grid ${view === 'list' ? 'list-view' : ''}`}>
@@ -266,6 +297,7 @@ export function SlideViews({
           slide={slide}
           index={index}
           selected={selected.has(slide.id)}
+          selectedIds={selected}
           onSelect={onSelect}
           onOpen={onOpen}
           onAction={onAction}

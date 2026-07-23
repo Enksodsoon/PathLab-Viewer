@@ -11,6 +11,7 @@ import {
 import { useMemo, useRef, useState } from 'react'
 
 import type { LibraryFolder } from '../../types'
+import { ContextMenu } from './ContextMenu'
 
 interface FolderTreeProps {
   roots: LibraryFolder[]
@@ -57,7 +58,6 @@ export function FolderTree({
     [children, expanded, roots],
   )
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [menuId, setMenuId] = useState<string | null>(null)
   const refs = useRef(new Map<string, HTMLDivElement>())
 
   function focusAt(index: number) {
@@ -143,37 +143,30 @@ export function FolderTree({
             {isExpanded ? <FolderOpen /> : <Folder />}
             <span className="folder-name">{folder.name}</span>
             <span className="navigator-count">{folder.itemCount}</span>
-            <button
-              type="button"
-              className="navigator-more"
-              aria-label={`More actions for ${folder.name}`}
-              aria-haspopup="menu"
-              aria-expanded={menuId === folder.id}
-              onClick={(event) => {
-                event.stopPropagation()
-                setMenuId((current) => current === folder.id ? null : folder.id)
-              }}
-            ><MoreHorizontal /></button>
-            {menuId === folder.id ? (
-              <div
-                className="library-menu navigator-action-menu"
-                role="menu"
-                onClick={(event) => event.stopPropagation()}
+            <div onClick={(event) => event.stopPropagation()}>
+              <ContextMenu
+                label={`More actions for ${folder.name}`}
+                buttonClassName="navigator-more"
+                buttonContent={<MoreHorizontal />}
               >
-                <button type="button" role="menuitem" onClick={() => {
-                  setMenuId(null)
-                  onAction(folder, 'rename')
-                }}><Edit3 /> Rename</button>
-                <button type="button" role="menuitem" onClick={() => {
-                  setMenuId(null)
-                  onAction(folder, 'move')
-                }}><FolderInput /> Move</button>
-                <button type="button" role="menuitem" className="danger" onClick={() => {
-                  setMenuId(null)
-                  onAction(folder, 'trash')
-                }}><Trash2 /> Move to Trash</button>
-              </div>
-            ) : null}
+                {(close) => (
+                  <>
+                    <button type="button" role="menuitem" onClick={() => {
+                      close()
+                      onAction(folder, 'rename')
+                    }}><Edit3 /> Rename</button>
+                    <button type="button" role="menuitem" onClick={() => {
+                      close()
+                      onAction(folder, 'move')
+                    }}><FolderInput /> Move</button>
+                    <button type="button" role="menuitem" className="danger" onClick={() => {
+                      close()
+                      onAction(folder, 'trash')
+                    }}><Trash2 /> Move to Trash</button>
+                  </>
+                )}
+              </ContextMenu>
+            </div>
           </div>
         )
       })}

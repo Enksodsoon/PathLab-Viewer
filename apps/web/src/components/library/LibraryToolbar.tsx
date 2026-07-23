@@ -14,12 +14,16 @@ import {
   Table2,
   Upload,
 } from 'lucide-react'
-import { useState } from 'react'
+import { ContextMenu } from './ContextMenu'
 
 export type LibraryViewMode = 'grid' | 'list' | 'table'
+export interface BreadcrumbItem {
+  label: string
+  location: string
+}
 
 interface LibraryToolbarProps {
-  breadcrumbs: string[]
+  breadcrumbs: BreadcrumbItem[]
   search: string
   sort: string
   view: LibraryViewMode
@@ -27,6 +31,7 @@ interface LibraryToolbarProps {
   onBack: () => void
   onForward: () => void
   onUp: () => void
+  onBreadcrumb: (location: string) => void
   onSearch: (value: string) => void
   onSort: (value: string) => void
   onView: (view: LibraryViewMode) => void
@@ -46,6 +51,7 @@ export function LibraryToolbar({
   onBack,
   onForward,
   onUp,
+  onBreadcrumb,
   onSearch,
   onSort,
   onView,
@@ -55,13 +61,6 @@ export function LibraryToolbar({
   onNewSavedView,
   onUpload,
 }: LibraryToolbarProps) {
-  const [createOpen, setCreateOpen] = useState(false)
-
-  function create(action: () => void) {
-    setCreateOpen(false)
-    action()
-  }
-
   return (
     <header className="library-toolbar">
       <div className="library-breadcrumb-row">
@@ -70,9 +69,15 @@ export function LibraryToolbar({
         <button type="button" aria-label="Up one level" onClick={onUp}><ArrowUp /></button>
         <nav aria-label="Breadcrumb">
           {breadcrumbs.map((crumb, index) => (
-            <span key={`${crumb}-${index}`}>
+            <span key={`${crumb.location}-${index}`}>
               {index ? <ChevronRight aria-hidden="true" /> : null}
-              {crumb}
+              {index === breadcrumbs.length - 1 ? (
+                <span aria-current="page">{crumb.label}</span>
+              ) : (
+                <button type="button" onClick={() => onBreadcrumb(crumb.location)}>
+                  {crumb.label}
+                </button>
+              )}
             </span>
           ))}
         </nav>
@@ -102,7 +107,9 @@ export function LibraryToolbar({
             <span className="visually-hidden">Sort slides</span>
             <select value={sort} onChange={(event) => onSort(event.target.value)}>
               <option value="updated_desc">Sort: Updated</option>
+              <option value="updated_asc">Sort: Oldest update</option>
               <option value="created_desc">Sort: Newest</option>
+              <option value="created_asc">Sort: Oldest created</option>
               <option value="name_asc">Sort: Name A–Z</option>
               <option value="name_desc">Sort: Name Z–A</option>
             </select>
@@ -136,26 +143,21 @@ export function LibraryToolbar({
             ><Table2 /></button>
           </div>
           <div className="toolbar-create">
-            <button
-              type="button"
-              aria-label="Create"
-              aria-expanded={createOpen}
-              aria-haspopup="menu"
-              onClick={() => setCreateOpen((current) => !current)}
-            ><Plus /> <span>Create</span></button>
-            {createOpen ? (
-              <div className="library-menu toolbar-create-menu" role="menu">
-                <button type="button" role="menuitem" onClick={() => create(onNewFolder)}>
+            <ContextMenu label="Create" buttonContent={<><Plus /> <span>Create</span></>}>
+              {(close) => (
+                <>
+                <button type="button" role="menuitem" onClick={() => { close(); onNewFolder() }}>
                   <FolderPlus /> New folder
                 </button>
-                <button type="button" role="menuitem" onClick={() => create(onNewCollection)}>
+                <button type="button" role="menuitem" onClick={() => { close(); onNewCollection() }}>
                   <Grid2X2Plus /> New collection
                 </button>
-                <button type="button" role="menuitem" onClick={() => create(onNewSavedView)}>
+                <button type="button" role="menuitem" onClick={() => { close(); onNewSavedView() }}>
                   <BookmarkPlus /> New saved view
                 </button>
-              </div>
-            ) : null}
+                </>
+              )}
+            </ContextMenu>
           </div>
           <button
             type="button"

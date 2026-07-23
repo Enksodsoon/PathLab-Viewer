@@ -323,8 +323,51 @@
   background: var(--ls);
 }
 
+.filter-grid input {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  background: var(--lp);
+  color: var(--iv);
+  color-scheme: dark;
+}
+
 .library-menu .danger {
   color: var(--bad);
+}
+
+.library-breadcrumb-row nav button {
+  min-height: 32px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--mu);
+  font: inherit;
+  cursor: pointer;
+}
+
+.library-breadcrumb-row nav button:hover,
+.library-breadcrumb-row nav button:focus-visible {
+  background: var(--ls);
+  color: var(--iv);
+}
+
+.library-menu-portal {
+  position: fixed;
+  z-index: 1000;
+  max-width: calc(100vw - 16px);
+}
+
+.navigator-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+}
+
+.navigator-list-row > button:first-child {
+  min-width: 0;
 }
 
 .toolbar-create-menu {
@@ -558,7 +601,8 @@
   }
 
   .library-app-rail nav button span {
-    font-size: 8px;
+    font-size: 11px;
+    line-height: 1.1;
   }
 
   .account-start {
@@ -600,6 +644,8 @@
 
   .library-command-actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 76px 44px 44px;
     overflow: visible;
   }
 
@@ -648,8 +694,15 @@
   }
 
   .toolbar-select {
-    width: 112px;
-    min-width: 112px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .toolbar-select select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .toolbar-create > button,

@@ -21,7 +21,9 @@ import {
   createCollection,
   createFolder,
   createSavedView,
+  deleteCollection,
   deleteLibrarySlide,
+  deleteSavedView,
   getFolderChildren,
   getLibraryFacets,
   getLibraryItems,
@@ -33,7 +35,10 @@ import {
   mutateFolder,
   mutateSlide,
   reserveUpload,
+  removeCollectionSlides,
+  updateCollection,
   updateFolder,
+  updateSavedView,
 } from '../api'
 import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
 import { AppRail } from '../components/library/AppRail'
@@ -50,15 +55,17 @@ import {
 import { SelectionActionBar } from '../components/library/SelectionActionBar'
 import { QuickViewRail } from '../components/library/QuickViewRail'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
-import { SlideViews } from '../components/library/SlideViews'
+import { SlideViews, type SlideAction } from '../components/library/SlideViews'
 import type {
   AdminSlide,
   LibraryFacets,
+  LibraryCollection,
   LibraryFolder,
   LibraryItemsPage,
   LibraryNavigation,
   LibrarySlide,
   LibrarySlideDetails,
+  SavedView,
   SlideState,
 } from '../types'
 import { startTusUpload } from '../upload'
@@ -76,6 +83,12 @@ const EMPTY_FILTERS: LibraryFilters = {
   stain: '',
   diagnosis: '',
   course: '',
+  tag: '',
+  state: '',
+  createdFrom: '',
+  createdTo: '',
+  updatedFrom: '',
+  updatedTo: '',
 }
 const ACTIVE_STATES = new Set<SlideState>([
   'uploading',
@@ -97,6 +110,11 @@ type DialogName =
   | 'delete'
   | 'edit-folder'
   | 'move-folder'
+  | 'trash-folder'
+  | 'edit-collection'
+  | 'delete-collection'
+  | 'edit-saved'
+  | 'delete-saved'
   | null
 
 interface SlideEditForm {
@@ -179,6 +197,12 @@ export function AdminPage() {
     stain: url.get('stain') || '',
     diagnosis: url.get('diagnosis') || '',
     course: url.get('course') || '',
+    tag: url.get('tag') || '',
+    state: url.get('state') || '',
+    createdFrom: url.get('createdFrom') || '',
+    createdTo: url.get('createdTo') || '',
+    updatedFrom: url.get('updatedFrom') || '',
+    updatedTo: url.get('updatedTo') || '',
   })
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [facets, setFacets] = useState<LibraryFacets | null>(null)
@@ -201,6 +225,8 @@ export function AdminPage() {
   const [moveTarget, setMoveTarget] = useState('')
   const [folderTarget, setFolderTarget] = useState<LibraryFolder | null>(null)
   const [collectionTarget, setCollectionTarget] = useState('')
+  const [collectionEditTarget, setCollectionEditTarget] = useState<LibraryCollection | null>(null)
+  const [savedEditTarget, setSavedEditTarget] = useState<SavedView | null>(null)
   const [tagValue, setTagValue] = useState('')
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM)
   const [file, setFile] = useState<File | null>(null)
@@ -209,7 +235,10 @@ export function AdminPage() {
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
 
-  const setUrlValues = useCallback((values: Record<string, string | null>) => {
+  const setUrlValues = useCallback((
+    values: Record<string, string | null>,
+    replace = true,
+  ) => {
     setUrl((current) => {
       const next = new URLSearchParams(current)
       for (const [key, value] of Object.entries(values)) {
@@ -217,7 +246,7 @@ export function AdminPage() {
         else next.set(key, value)
       }
       return next
-    }, { replace: true })
+    }, { replace })
   }, [setUrl])
 
   const loadNavigation = useCallback(async () => {
@@ -258,6 +287,12 @@ export function AdminPage() {
     stain: filters.stain,
     diagnosis: filters.diagnosis,
     course: filters.course,
+    tags: filters.tag ? [filters.tag] : undefined,
+    state: filters.state,
+    createdFrom: filters.createdFrom ? `${filters.createdFrom}T00:00:00Z` : undefined,
+    createdTo: filters.createdTo ? `${filters.createdTo}T23:59:59Z` : undefined,
+    updatedFrom: filters.updatedFrom ? `${filters.updatedFrom}T00:00:00Z` : undefined,
+    updatedTo: filters.updatedTo ? `${filters.updatedTo}T23:59:59Z` : undefined,
     sort,
     limit: 48,
   }), [filters, location, search, sort])
@@ -325,6 +360,8 @@ export function AdminPage() {
               : slide
           }),
         }))
+      } catch {
+        if (!cancelled) setError('Processing status could not refresh. Retrying automatically.')
       } finally {
         cycles += 1
         if (!cancelled) timer = window.setTimeout(poll, cycles < 3 ? 4000 : 15_000)
@@ -343,6 +380,11 @@ export function AdminPage() {
     setFacetsLoading(true)
     void getLibraryFacets(location, search, controller.signal)
       .then(setFacets)
+      .catch((caught) => {
+        if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+          setError('Filters could not load. Close and try again.')
+        }
+      })
       .finally(() => {
         if (!controller.signal.aborted) setFacetsLoading(false)
       })
@@ -360,19 +402,22 @@ export function AdminPage() {
 
   const breadcrumbs = useMemo(() => {
     if (location.startsWith('folder:')) {
-      const names: string[] = []
+      const names: Array<{ label: string; location: string }> = []
       let current = foldersById.get(location.slice('folder:'.length))
       while (current) {
-        names.unshift(current.name)
+        names.unshift({ label: current.name, location: `folder:${current.id}` })
         current = current.parentId ? foldersById.get(current.parentId) : undefined
       }
-      return ['All slides', ...names]
+      return [{ label: 'All slides', location: 'all' }, ...names]
     }
     if (location.startsWith('collection:')) {
       const collection = navigation.collections.find(
         (item) => item.id === location.slice('collection:'.length),
       )
-      return ['Collections', collection?.name ?? 'Collection']
+      return [
+        { label: 'Collections', location: 'all' },
+        { label: collection?.name ?? 'Collection', location },
+      ]
     }
     const labels: Record<string, string> = {
       all: 'All slides',
@@ -382,16 +427,21 @@ export function AdminPage() {
       failed: 'Failed',
       trash: 'Trash',
     }
-    return [labels[location] ?? 'Slides']
+    return [{ label: labels[location] ?? 'Slides', location }]
   }, [foldersById, location, navigation.collections])
 
-  const currentTitle = breadcrumbs.at(-1) ?? 'Slides'
+  const currentTitle = breadcrumbs.at(-1)?.label ?? 'Slides'
   const selectedSlides = page.items.filter((slide) => selected.has(slide.id))
   const selectedIds = selectedSlides.map((slide) => slide.id)
 
   function chooseLocation(nextLocation: string) {
-    setUrlValues({ location: nextLocation === 'all' ? null : nextLocation })
+    setUrlValues({ location: nextLocation === 'all' ? null : nextLocation }, false)
     setNavigatorOpen(false)
+  }
+
+  function runAction(task: () => Promise<unknown>, failure: string) {
+    setError('')
+    void task().catch(() => setError(`${failure} failed. Try again.`))
   }
 
   async function expandFolder(folder: LibraryFolder) {
@@ -465,43 +515,50 @@ export function AdminPage() {
 
   async function actOnSlide(
     slide: LibrarySlide,
-    action: 'edit' | 'move' | 'collection' | 'publish' | 'trash' | 'restore' | 'delete',
+    action: SlideAction,
   ) {
-    if (action === 'edit') {
-      await openEditor(slide)
-      return
-    }
-    setSelected(new Set([slide.id]))
-    if (action === 'move') setDialog('move')
-    else if (action === 'collection') setDialog('add-collection')
-    else if (action === 'delete') setDialog('delete')
-    else if (action === 'publish') {
-      const changed = await mutateSlide(slide.id, 'publish')
-      setPage((current) => ({
-        ...current,
-        items: current.items.map((item) => (
-          item.id === slide.id ? { ...item, state: changed.state } : item
-        )),
-      }))
-      setSelected(new Set())
-    } else if (action === 'trash') {
-      await mutateLibrarySlide(slide.id, 'trash')
-      setPage((current) => ({
-        ...current,
-        items: current.items.filter((item) => item.id !== slide.id),
-        total: Math.max(0, current.total - 1),
-      }))
-      setSelected(new Set())
-      await refreshNavigation()
-    } else if (action === 'restore') {
-      await mutateLibrarySlide(slide.id, 'restore')
-      setPage((current) => ({
-        ...current,
-        items: current.items.filter((item) => item.id !== slide.id),
-        total: Math.max(0, current.total - 1),
-      }))
-      setSelected(new Set())
-      await refreshNavigation()
+    setError('')
+    try {
+      if (action === 'edit') {
+        await openEditor(slide)
+        return
+      }
+      if (action === 'copy-public') {
+        await navigator.clipboard.writeText(
+          new URL(`/s/${slide.publicId}`, window.location.origin).toString(),
+        )
+        setNotice('Public link copied.')
+        return
+      }
+      setSelected(new Set([slide.id]))
+      if (action === 'move') setDialog('move')
+      else if (action === 'collection') setDialog('add-collection')
+      else if (action === 'delete') setDialog('delete')
+      else if (action === 'publish' || action === 'unpublish' || action === 'retry') {
+        const changed = await mutateSlide(slide.id, action)
+        setPage((current) => ({
+          ...current,
+          items: current.items.map((item) => (
+            item.id === slide.id ? { ...item, state: changed.state } : item
+          )),
+        }))
+        setSelected(new Set())
+        setNotice(action === 'retry'
+          ? 'Conversion queued again.'
+          : action === 'publish' ? 'Slide published.' : 'Slide unpublished.')
+      } else if (action === 'trash' || action === 'restore') {
+        await mutateLibrarySlide(slide.id, action)
+        setPage((current) => ({
+          ...current,
+          items: current.items.filter((item) => item.id !== slide.id),
+          total: Math.max(0, current.total - 1),
+        }))
+        setSelected(new Set())
+        await refreshNavigation()
+      }
+    } catch {
+      const label = action === 'retry' ? 'Retry' : `${action[0]?.toUpperCase()}${action.slice(1)}`
+      setError(`${label} failed. Try again.`)
     }
   }
 
@@ -514,9 +571,8 @@ export function AdminPage() {
     action: 'rename' | 'move' | 'trash',
   ) {
     if (action === 'trash') {
-      await mutateFolder(folder.id, 'trash')
-      if (location === `folder:${folder.id}`) chooseLocation('all')
-      await refreshNavigation()
+      setFolderTarget(folder)
+      setDialog('trash-folder')
       return
     }
     setFolderTarget(folder)
@@ -584,11 +640,13 @@ export function AdminPage() {
     await refreshNavigation()
   }
 
-  async function publishSelected() {
+  async function changeSelectedState(
+    action: 'publish' | 'unpublish' | 'retry',
+    eligibleState: SlideState,
+  ) {
+    const eligible = selectedSlides.filter((slide) => slide.state === eligibleState)
     const changed = await Promise.all(
-      selectedSlides
-        .filter((slide) => slide.state === 'ready_private')
-        .map((slide) => mutateSlide(slide.id, 'publish')),
+      eligible.map((slide) => mutateSlide(slide.id, action)),
     )
     const changedById = new Map(changed.map((slide) => [slide.id, slide]))
     setPage((current) => ({
@@ -599,7 +657,33 @@ export function AdminPage() {
       }),
     }))
     setSelected(new Set())
+    const skipped = selectedSlides.length - eligible.length
+    const verb = action === 'retry' ? 'queued' : action === 'publish' ? 'published' : 'unpublished'
+    setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${verb}${
+      skipped ? `; ${skipped} skipped because their state was not eligible.` : '.'
+    }`)
   }
+
+  async function removeSelectedFromCollection() {
+    if (!location.startsWith('collection:') || !selectedIds.length) return
+    const removed = await removeCollectionSlides(
+      location.slice('collection:'.length),
+      selectedIds,
+    )
+    const removedIds = new Set(removed)
+    setPage((current) => ({
+      ...current,
+      items: current.items.filter((slide) => !removedIds.has(slide.id)),
+      total: Math.max(0, current.total - removedIds.size),
+    }))
+    setSelected(new Set())
+    setNotice(`${removed.length} slide${removed.length === 1 ? '' : 's'} removed from collection.`)
+    await refreshNavigation()
+  }
+
+  const publishSelected = () => changeSelectedState('publish', 'ready_private')
+  const unpublishSelected = () => changeSelectedState('unpublish', 'published')
+  const retrySelected = () => changeSelectedState('retry', 'failed')
 
   async function loadMore() {
     if (!page.nextCursor || loadingMore) return
@@ -651,6 +735,12 @@ export function AdminPage() {
             ...(filters.stain ? { stain: [filters.stain] } : {}),
             ...(filters.diagnosis ? { diagnosis: [filters.diagnosis] } : {}),
             ...(filters.course ? { course: [filters.course] } : {}),
+            ...(filters.tag ? { tags: [filters.tag] } : {}),
+            ...(filters.state ? { state: filters.state } : {}),
+            ...(filters.createdFrom ? { createdFrom: filters.createdFrom } : {}),
+            ...(filters.createdTo ? { createdTo: filters.createdTo } : {}),
+            ...(filters.updatedFrom ? { updatedFrom: filters.updatedFrom } : {}),
+            ...(filters.updatedTo ? { updatedTo: filters.updatedTo } : {}),
           },
         },
         sort,
@@ -697,6 +787,15 @@ export function AdminPage() {
       await refreshNavigation()
     } else if (dialog === 'move-folder' && folderTarget) {
       await updateFolder(folderTarget.id, { parentId: moveTarget || null })
+      await refreshNavigation()
+    } else if (dialog === 'edit-collection' && collectionEditTarget) {
+      await updateCollection(collectionEditTarget.id, {
+        name: formName.trim(),
+        description: formDescription.trim(),
+      })
+      await refreshNavigation()
+    } else if (dialog === 'edit-saved' && savedEditTarget) {
+      await updateSavedView(savedEditTarget.id, { name: formName.trim() })
       await refreshNavigation()
     }
     setDialog(null)
@@ -767,7 +866,50 @@ export function AdminPage() {
     setFormName('')
     setFormDescription('')
     setNotice('')
+    setMoveTarget('')
+    setCollectionTarget('')
+    setTagValue('')
     setDialog(name)
+  }
+
+  async function trashFolder() {
+    if (!folderTarget) return
+    await mutateFolder(folderTarget.id, 'trash')
+    if (location === `folder:${folderTarget.id}`) chooseLocation('all')
+    setDialog(null)
+    setFolderTarget(null)
+    await refreshNavigation()
+  }
+
+  function handleCollectionAction(id: string, action: 'rename' | 'delete') {
+    const target = navigation.collections.find((collection) => collection.id === id)
+    if (!target) return
+    setCollectionEditTarget(target)
+    setFormName(target.name)
+    setFormDescription(target.description)
+    setDialog(action === 'rename' ? 'edit-collection' : 'delete-collection')
+  }
+
+  function handleSavedViewAction(id: string, action: 'rename' | 'delete') {
+    const target = navigation.savedViews.find((viewItem) => viewItem.id === id)
+    if (!target) return
+    setSavedEditTarget(target)
+    setFormName(target.name)
+    setDialog(action === 'rename' ? 'edit-saved' : 'delete-saved')
+  }
+
+  async function deleteOrganizationTarget() {
+    if (dialog === 'delete-collection' && collectionEditTarget) {
+      await deleteCollection(collectionEditTarget.id)
+      if (location === `collection:${collectionEditTarget.id}`) chooseLocation('all')
+      setCollectionEditTarget(null)
+    } else if (dialog === 'delete-saved' && savedEditTarget) {
+      await deleteSavedView(savedEditTarget.id)
+      if (location === `saved:${savedEditTarget.id}`) chooseLocation('all')
+      setSavedEditTarget(null)
+    }
+    setDialog(null)
+    await refreshNavigation()
   }
 
   if (signingOut) return <div className="center-state dark">Signing out…</div>
@@ -813,13 +955,24 @@ export function AdminPage() {
           location={location}
           folderChildren={folderChildren}
           expandedFolders={expandedFolders}
-          onExpandFolder={(folder) => void expandFolder(folder)}
+          onExpandFolder={(folder) => runAction(
+            () => expandFolder(folder),
+            'Folder expansion',
+          )}
           onLocation={chooseLocation}
           onNewFolder={() => openNamedDialog('folder')}
           onNewCollection={() => openNamedDialog('collection')}
           onNewSavedView={() => openNamedDialog('saved')}
-          onDropSlides={(folderId, ids) => void moveSlides(ids, folderId)}
-          onFolderAction={(folder, action) => void handleFolderAction(folder, action)}
+          onDropSlides={(folderId, ids) => runAction(
+            () => moveSlides(ids, folderId),
+            'Move',
+          )}
+          onFolderAction={(folder, action) => runAction(
+            () => handleFolderAction(folder, action),
+            'Folder action',
+          )}
+          onCollectionAction={handleCollectionAction}
+          onSavedViewAction={handleSavedViewAction}
         />
       </div>
       <main className="library-main">
@@ -836,6 +989,7 @@ export function AdminPage() {
             const current = foldersById.get(location.slice('folder:'.length))
             chooseLocation(current?.parentId ? `folder:${current.parentId}` : 'all')
           }}
+          onBreadcrumb={chooseLocation}
           onSearch={setSearchDraft}
           onSort={(value) => setUrlValues({ sort: value === 'updated_desc' ? null : value })}
           onView={(value) => setUrlValues({ view: value === 'grid' ? null : value })}
@@ -857,11 +1011,28 @@ export function AdminPage() {
                 stain: next.stain || null,
                 diagnosis: next.diagnosis || null,
                 course: next.course || null,
+                tag: next.tag || null,
+                state: next.state || null,
+                createdFrom: next.createdFrom || null,
+                createdTo: next.createdTo || null,
+                updatedFrom: next.updatedFrom || null,
+                updatedTo: next.updatedTo || null,
               })
             }}
             onClear={() => {
               setFilters(EMPTY_FILTERS)
-              setUrlValues({ organ: null, stain: null, diagnosis: null, course: null })
+              setUrlValues({
+                organ: null,
+                stain: null,
+                diagnosis: null,
+                course: null,
+                tag: null,
+                state: null,
+                createdFrom: null,
+                createdTo: null,
+                updatedFrom: null,
+                updatedTo: null,
+              })
             }}
             onClose={() => setFiltersOpen(false)}
           />
@@ -886,6 +1057,9 @@ export function AdminPage() {
             </label>
           </div>
           {error ? <div className="library-error" role="alert">{error}</div> : null}
+          {notice && dialog === null ? (
+            <div className="library-notice" role="status">{notice}</div>
+          ) : null}
           {loading ? <div className="library-loading" role="status">Loading slides…</div> : null}
           {!loading && page.items.length === 0 ? (
             <div className="library-empty">
@@ -912,7 +1086,7 @@ export function AdminPage() {
               type="button"
               className="load-more"
               disabled={loadingMore}
-              onClick={() => void loadMore()}
+              onClick={() => runAction(loadMore, 'Load more')}
             >
               {loadingMore ? 'Loading…' : 'Load more slides'}
             </button>
@@ -925,15 +1099,33 @@ export function AdminPage() {
           onMove={() => openNamedDialog('move')}
           onCollection={() => openNamedDialog('add-collection')}
           onTags={() => openNamedDialog('tags')}
-          onPublish={() => void publishSelected()}
-          onTrash={() => void trashSelected()}
-          onRestore={() => void restoreSelected()}
+          onPublish={() => runAction(publishSelected, 'Publish')}
+          onUnpublish={() => runAction(unpublishSelected, 'Unpublish')}
+          onRetry={() => runAction(retrySelected, 'Retry')}
+          onRemoveCollection={() => runAction(
+            removeSelectedFromCollection,
+            'Remove from collection',
+          )}
+          onTrash={() => runAction(trashSelected, 'Move to Trash')}
+          onRestore={() => runAction(restoreSelected, 'Restore')}
           onDelete={() => openNamedDialog('delete')}
+          canPublish={selectedSlides.some((slide) => slide.state === 'ready_private')}
+          canUnpublish={selectedSlides.some((slide) => slide.state === 'published')}
+          canRetry={selectedSlides.some((slide) => slide.state === 'failed')}
+          inCollection={location.startsWith('collection:')}
         />
       </main>
       {details ? (
         <SlideDetailsPanel
           slide={details}
+          folderName={details.folderId
+            ? foldersById.get(details.folderId)?.name
+            : undefined}
+          collectionNames={location.startsWith('collection:')
+            ? [navigation.collections.find(
+              (collection) => collection.id === location.slice('collection:'.length),
+            )?.name].filter((name): name is string => Boolean(name))
+            : []}
           onClose={() => setDetails(null)}
           onEdit={() => {
             void openEditor(details)
@@ -988,7 +1180,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Create')
         }}>
           <label>Name<input autoFocus required value={formName} onChange={(event) => setFormName(event.target.value)} /></label>
           {dialog !== 'saved' ? (
@@ -1007,7 +1199,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form metadata-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Save details')
         }}>
           <label>Display name
             <input
@@ -1077,7 +1269,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Save folder')
         }}>
           <label>Name
             <input required value={formName} onChange={(event) => setFormName(event.target.value)} />
@@ -1096,7 +1288,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Move folder')
         }}>
           <label>Parent folder
             <select value={moveTarget} onChange={(event) => setMoveTarget(event.target.value)}>
@@ -1111,6 +1303,65 @@ export function AdminPage() {
       </LibraryDialog>
 
       <LibraryDialog
+        open={dialog === 'edit-collection' || dialog === 'edit-saved'}
+        title={dialog === 'edit-collection' ? 'Rename collection' : 'Rename saved view'}
+        onClose={() => setDialog(null)}
+      >
+        <form className="library-dialog-form" onSubmit={(event) => {
+          event.preventDefault()
+          runAction(submitSimpleDialog, 'Rename')
+        }}>
+          <label>Name
+            <input required value={formName} onChange={(event) => setFormName(event.target.value)} />
+          </label>
+          {dialog === 'edit-collection' ? (
+            <label>Description
+              <textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} />
+            </label>
+          ) : null}
+          <button type="submit" className="primary">Save name</button>
+        </form>
+      </LibraryDialog>
+
+      <LibraryDialog
+        open={dialog === 'delete-collection' || dialog === 'delete-saved'}
+        title={dialog === 'delete-collection' ? 'Delete collection' : 'Delete saved view'}
+        description="Slides and stored files are not deleted."
+        onClose={() => setDialog(null)}
+      >
+        <div className="library-dialog-form">
+          <p>Delete “{dialog === 'delete-collection'
+            ? collectionEditTarget?.name
+            : savedEditTarget?.name}”?</p>
+          <button
+            type="button"
+            className="primary danger"
+            onClick={() => runAction(deleteOrganizationTarget, 'Delete')}
+          >
+            Delete
+          </button>
+        </div>
+      </LibraryDialog>
+
+      <LibraryDialog
+        open={dialog === 'trash-folder'}
+        title="Move folder to Trash"
+        description="The complete folder subtree stays together and can be restored."
+        onClose={() => setDialog(null)}
+      >
+        <div className="library-dialog-form">
+          <p>Move “{folderTarget?.name}” and its contents to Trash?</p>
+          <button
+            type="button"
+            className="primary danger"
+            onClick={() => runAction(trashFolder, 'Move folder to Trash')}
+          >
+            Move folder to Trash
+          </button>
+        </div>
+      </LibraryDialog>
+
+      <LibraryDialog
         open={dialog === 'delete'}
         title="Delete permanently"
         description="This removes the selected slides and their stored files. This cannot be undone."
@@ -1121,7 +1372,7 @@ export function AdminPage() {
           <button
             type="button"
             className="primary danger"
-            onClick={() => void permanentlyDeleteSelected()}
+            onClick={() => runAction(permanentlyDeleteSelected, 'Permanent deletion')}
           >
             Delete permanently
           </button>
@@ -1136,7 +1387,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Move')
         }}>
           <label>Destination
             <select value={moveTarget} onChange={(event) => setMoveTarget(event.target.value)}>
@@ -1156,7 +1407,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Add to collection')
         }}>
           <label>Collection
             <select required value={collectionTarget} onChange={(event) => setCollectionTarget(event.target.value)}>
@@ -1176,7 +1427,7 @@ export function AdminPage() {
       >
         <form className="library-dialog-form" onSubmit={(event) => {
           event.preventDefault()
-          void submitSimpleDialog()
+          runAction(submitSimpleDialog, 'Save tags')
         }}>
           <label>Tags<input value={tagValue} onChange={(event) => setTagValue(event.target.value)} placeholder="Teaching, Adenocarcinoma" /></label>
           <button type="submit" className="primary">Save tags</button>

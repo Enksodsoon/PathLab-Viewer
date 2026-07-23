@@ -1,4 +1,14 @@
-import { FolderInput, RotateCcw, Share, Tags, Trash2, X } from 'lucide-react'
+import {
+  FolderInput,
+  RefreshCw,
+  RotateCcw,
+  Share,
+  Tags,
+  Trash2,
+  Undo2,
+  Unlink,
+  X,
+} from 'lucide-react'
 
 interface SelectionActionBarProps {
   count: number
@@ -8,9 +18,16 @@ interface SelectionActionBarProps {
   onCollection: () => void
   onTags: () => void
   onPublish: () => void
+  onUnpublish: () => void
+  onRetry: () => void
   onTrash: () => void
   onRestore: () => void
   onDelete: () => void
+  canPublish?: boolean
+  canUnpublish?: boolean
+  canRetry?: boolean
+  inCollection?: boolean
+  onRemoveCollection: () => void
 }
 
 export function SelectionActionBar({
@@ -21,9 +38,16 @@ export function SelectionActionBar({
   onCollection,
   onTags,
   onPublish,
+  onUnpublish,
+  onRetry,
   onTrash,
   onRestore,
   onDelete,
+  canPublish = false,
+  canUnpublish = false,
+  canRetry = false,
+  inCollection = false,
+  onRemoveCollection,
 }: SelectionActionBarProps) {
   if (count === 0) return null
   return (
@@ -42,8 +66,15 @@ export function SelectionActionBar({
         <>
           <button type="button" onClick={onMove}><FolderInput /> Move</button>
           <button type="button" onClick={onCollection}><FolderInput /> Add to collection</button>
+          {inCollection ? (
+            <button type="button" onClick={onRemoveCollection}>
+              <Unlink /> Remove from collection
+            </button>
+          ) : null}
           <button type="button" onClick={onTags}><Tags /> Edit tags</button>
-          <button type="button" onClick={onPublish}><Share /> Publish</button>
+          {canPublish ? <button type="button" onClick={onPublish}><Share /> Publish</button> : null}
+          {canUnpublish ? <button type="button" onClick={onUnpublish}><Undo2 /> Unpublish</button> : null}
+          {canRetry ? <button type="button" onClick={onRetry}><RefreshCw /> Retry</button> : null}
           <button type="button" className="danger" onClick={onTrash}><Trash2 /> Trash</button>
         </>
       )}

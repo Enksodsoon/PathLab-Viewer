@@ -7,6 +7,12 @@ export interface LibraryFilters {
   stain: string
   diagnosis: string
   course: string
+  tag: string
+  state: string
+  createdFrom: string
+  createdTo: string
+  updatedFrom: string
+  updatedTo: string
 }
 
 interface FilterPanelProps {
@@ -54,6 +60,45 @@ export function FilterPanel({
                 </option>
               ))}
             </select>
+          </label>
+        ))}
+        <label>
+          <span>Tag</span>
+          <input
+            value={filters.tag}
+            placeholder="Exact tag"
+            onChange={(event) => onChange({ ...filters, tag: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>Processing state</span>
+          <select
+            value={filters.state}
+            onChange={(event) => onChange({ ...filters, state: event.target.value })}
+          >
+            <option value="">All</option>
+            <option value="uploading">Uploading</option>
+            <option value="queued">Queued</option>
+            <option value="validating">Validating</option>
+            <option value="converting">Processing</option>
+            <option value="ready_private">Ready private</option>
+            <option value="published">Published</option>
+            <option value="failed">Failed</option>
+          </select>
+        </label>
+        {([
+          ['createdFrom', 'Created from'],
+          ['createdTo', 'Created to'],
+          ['updatedFrom', 'Updated from'],
+          ['updatedTo', 'Updated to'],
+        ] as const).map(([key, label]) => (
+          <label key={key}>
+            <span>{label}</span>
+            <input
+              type="date"
+              value={filters[key]}
+              onChange={(event) => onChange({ ...filters, [key]: event.target.value })}
+            />
           </label>
         ))}
       </div>

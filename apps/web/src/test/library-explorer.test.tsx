@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   batchMoveSlides: vi.fn(),
   batchUpdateSlides: vi.fn(),
   mutateLibrarySlide: vi.fn(),
+  mutateSlide: vi.fn(),
   deleteLibrarySlide: vi.fn(),
   mutateFolder: vi.fn(),
   listSlides: vi.fn(),
@@ -127,6 +128,10 @@ beforeEach(() => {
   api.mutateLibrarySlide.mockImplementation(async (_id, action) => ({
     ...items.items[0],
     trashedAt: action === 'trash' ? '2026-07-23T00:00:00Z' : null,
+  }))
+  api.mutateSlide.mockImplementation(async (id, action) => ({
+    ...items.items.find((slide) => slide.id === id),
+    state: action === 'unpublish' ? 'ready_private' : action === 'retry' ? 'queued' : 'published',
   }))
   api.deleteLibrarySlide.mockResolvedValue(undefined)
   api.mutateFolder.mockResolvedValue(undefined)
@@ -274,10 +279,69 @@ describe('dark library explorer', () => {
     expect(screen.getByRole('menuitem', { name: /^rename$/i })).toBeVisible()
     expect(screen.getByRole('menuitem', { name: /^move$/i })).toBeVisible()
     await userEvent.click(screen.getByRole('menuitem', { name: /move to trash/i }))
+    expect(screen.getByRole('heading', { name: /move folder to trash/i })).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: /^move folder to trash$/i }))
 
     await waitFor(() => expect(api.mutateFolder).toHaveBeenCalledWith(
       'folder-organs',
       'trash',
     ))
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /more actions for week 5 teaching set/i,
+    }))
+    await userEvent.click(screen.getByRole('menuitem', { name: /^rename$/i }))
+    expect(screen.getByRole('heading', { name: /rename collection/i })).toBeVisible()
+    expect(screen.getByRole('textbox', { name: /^name$/i })).toHaveValue(
+      'Week 5 Teaching Set',
+    )
+  })
+
+  it('offers state-safe actions and the same overflow menu in table view', async () => {
+    api.getLibraryItems.mockResolvedValue({
+      ...items,
+      items: [
+        { ...items.items[0], state: 'published' },
+        { ...items.items[1], state: 'failed', displayName: 'Failed conversion' },
+      ],
+    })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /more actions for colon adenocarcinoma/i,
+    }))
+    expect(screen.getByRole('menuitem', { name: /open public slide/i })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: /copy public link/i })).toBeVisible()
+    await userEvent.click(screen.getByRole('menuitem', { name: /^unpublish$/i }))
+    await waitFor(() => expect(api.mutateSlide).toHaveBeenCalledWith('slide-1', 'unpublish'))
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /more actions for failed conversion/i,
+    }))
+    expect(screen.queryByRole('menuitem', { name: /^preview$/i })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: /retry conversion/i }))
+    await waitFor(() => expect(api.mutateSlide).toHaveBeenCalledWith('slide-2', 'retry'))
+
+    await userEvent.click(screen.getByRole('button', { name: /table view/i }))
+    expect(screen.getByRole('button', {
+      name: /more actions for colon adenocarcinoma/i,
+    })).toBeVisible()
+  })
+
+  it('keeps failed mutations visible instead of leaving a dead control', async () => {
+    api.mutateSlide.mockRejectedValueOnce(new Error('offline'))
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /more actions for colon adenocarcinoma/i,
+    }))
+    await userEvent.click(screen.getByRole('menuitem', { name: /^publish$/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/publish.*failed/i)
+    expect(screen.getByRole('button', {
+      name: /more actions for colon adenocarcinoma/i,
+    })).toBeEnabled()
   })
 })

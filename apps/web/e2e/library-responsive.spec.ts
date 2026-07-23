@@ -74,13 +74,34 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible()
 })
 
-test('keeps the library contained across representative window widths', async ({ page }) => {
-  for (const width of [320, 360, 390, 600, 768, 900, 1024, 1280, 1584, 1920]) {
+test('keeps controls readable and non-overlapping across every layout boundary', async ({ page }) => {
+  for (const width of [320, 360, 390, 600, 601, 768, 900, 901, 1100, 1101, 1250, 1251, 1439, 1440, 1584, 1920]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 900 })
     await expect.poll(() => page.evaluate(() => (
       document.documentElement.scrollWidth <= document.documentElement.clientWidth
     ))).toBe(true)
     await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible()
+    if (width <= 600) {
+      const selects = page.locator('.library-command-actions select')
+      const boxes = await selects.evaluateAll((elements) => elements.map((element) => {
+        const box = element.getBoundingClientRect()
+        return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }
+      }))
+      for (let index = 0; index < boxes.length; index += 1) {
+        for (let other = index + 1; other < boxes.length; other += 1) {
+          const a = boxes[index]
+          const b = boxes[other]
+          expect(
+            a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top,
+            `controls ${index} and ${other} overlap at ${width}px: ${JSON.stringify({ a, b })}`,
+          ).toBe(true)
+        }
+      }
+      const libraryLabel = page.getByRole('button', { name: /^library$/i })
+      await expect.poll(() => libraryLabel.evaluate((element) => (
+        Number.parseFloat(getComputedStyle(element).fontSize)
+      ))).toBeGreaterThanOrEqual(11)
+    }
   }
 })
 
