@@ -47,12 +47,15 @@ jobs:
               prefixes = ("", "  ", "    ", "      ", "        ", "          ", "            ", "              ", "                ", "\\t")
               for prefix in prefixes:
                   candidate_old = _prefixed(old, prefix)
+                  candidate_new = _prefixed(new, prefix)
                   count = content.count(candidate_old)
                   if count == 1:
-                      write(path, content.replace(candidate_old, _prefixed(new, prefix), 1))
+                      write(path, content.replace(candidate_old, candidate_new, 1))
                       return
                   if path == "deploy/compose.yaml" and count == 2:
-                      write(path, content.replace(candidate_old, _prefixed(new, prefix), 1))
+                      write(path, content.replace(candidate_old, candidate_new, 1))
+                      return
+                  if path == "deploy/compose.yaml" and count == 0 and candidate_new in content:
                       return
               raise RuntimeError(f"Expected one match in {path}, found 0 or multiple")
           '''
