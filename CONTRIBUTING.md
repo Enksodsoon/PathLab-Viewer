@@ -1,23 +1,36 @@
 # Contributing to PathLab Viewer
 
-PathLab Viewer handles private pathology data, so changes must be small, reviewable, and evidence-based.
+PathLab Viewer handles private pathology data. Changes must be focused, reviewable, tested, and explicit about privacy or deployment impact.
 
-## Before coding
+## Before making a change
 
-Read [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md) for the product contract and [`docs/REPOSITORY_MAP.md`](docs/REPOSITORY_MAP.md) for file ownership. Confirm that the change is inside scope; annotations, teams, gallery, raw downloads, fluorescence controls, Z-stacks, and timepoints are not part of this project.
+1. Read [`docs/PROJECT_GUIDE.md`](docs/PROJECT_GUIDE.md) for the product and architecture contract.
+2. Use [`docs/REPOSITORY_MAP.md`](docs/REPOSITORY_MAP.md) to identify the responsible files.
+3. Confirm that the proposed change is within scope.
+4. Check for an existing issue or pull request covering the same work.
+
+Annotations, teams, galleries, raw public downloads, fluorescence controls, Z-stacks, and timepoints are outside the current product scope unless a reviewed proposal changes that contract.
 
 ## Branches and commits
 
-- Start from the current reviewed branch and use a `codex/` branch for new work.
-- Do not rewrite shared history or force-push.
-- Keep commits focused and describe the user-visible or operational reason.
-- Never commit credentials, source OME-TIFF files, generated tiles, databases, recovery codes, or `.env` files.
+Create a focused branch from the current default branch. Use a descriptive prefix such as:
 
-## Test-first workflow
+- `feature/` for new behavior;
+- `fix/` for defects;
+- `docs/` for documentation;
+- `chore/` or `cleanup/` for maintenance.
 
-For behavior changes, follow red → minimal implementation → green → focused commit. Add a regression test for validation, security, state transitions, or file handling before changing the implementation. For documentation-only changes, run at least `git diff --check`.
+Do not rewrite shared history or force-push a branch after review has started. Keep commits narrow and explain the user-visible, operational, or security reason for each change.
 
-Run the relevant checks before requesting review:
+Never commit credentials, recovery codes, source OME-TIFF files, generated tiles, databases, private screenshots, `.env` files, or patient information.
+
+## Development workflow
+
+Behavior changes require a regression test that fails before the implementation and passes afterward. Cover validation, security boundaries, state transitions, and file handling at the appropriate layer.
+
+Documentation-only changes should still be checked for broken links, stale claims, formatting errors, and unintended disclosure of infrastructure details.
+
+Run the checks relevant to the change:
 
 ```bash
 pytest tests/backend
@@ -31,8 +44,24 @@ docker compose -f deploy/compose.yaml config
 
 ## Pull requests
 
-Explain the problem, the implementation, tests run, deployment impact, and any remaining acceptance gap. Link the relevant evidence in `docs/evidence/QA.md`. Keep the PR draft until the owner has reviewed the live behavior. A green CI run is necessary but does not replace real-file, browser, load, backup-restore, or OCI cost evidence.
+A pull request should describe:
 
-## Security and privacy
+- the problem and its user or operational impact;
+- the implementation approach;
+- tests and manual verification performed;
+- deployment, migration, storage, or rollback considerations;
+- any remaining acceptance gap.
 
-Original slides are private by design. Verify that a change cannot route originals, temporary uploads, logs, or credentials through public Caddy paths. Use generated IDs, atomic publication, and existing CSRF/session/throttling controls. Report suspected security issues privately rather than opening a public issue with patient data.
+Keep a pull request in draft while behavior is incomplete or CI is failing. A green CI run is required, but it does not replace real-file, browser, load, backup-and-restore, or infrastructure verification when those areas are affected.
+
+## Documentation standards
+
+Public repository documentation should be durable and product-focused. Do not commit private prompts, conversation transcripts, agent instructions, implementation scratchpads, hard-coded production addresses, temporary commit hashes, current pull-request status, or test counts that will quickly become stale.
+
+Place durable system decisions in `docs/architecture`, operational procedures in `deploy/README.md`, and current verification evidence in `docs/evidence/QA.md`.
+
+## Security and privacy review
+
+Before requesting review, confirm that the change cannot expose originals, temporary uploads, private derivatives, databases, logs, credentials, recovery codes, or patient data through the public web path.
+
+Preserve generated identifiers, atomic publication, CSRF and session protections, throttling, storage admission controls, and audit redaction. Report suspected security issues privately rather than opening a public issue containing sensitive details.
