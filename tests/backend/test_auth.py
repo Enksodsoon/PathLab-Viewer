@@ -598,7 +598,9 @@ def test_old_recovery_failure_audits_are_pruned_opportunistically(tmp_path: Path
             )
         failures = list(
             database.scalars(
-                select(AuditEvent).where(AuditEvent.action == "auth.password_recovery_failed")
+                select(AuditEvent).where(
+                    AuditEvent.action == "auth.password_recovery_failed"
+                )
             )
         )
         assert len(failures) == 1

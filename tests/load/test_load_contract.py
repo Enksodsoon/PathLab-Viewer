@@ -30,8 +30,8 @@ def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:
     script = Path("deploy/scripts/run-viewer-load-test.sh").read_text(encoding="utf-8")
 
     assert "set -euo pipefail" in script
-    assert "BASE_URL:?BASE_URL is required" in script
-    assert "MANIFEST_PATH:?MANIFEST_PATH is required" in script
+    assert 'BASE_URL:?BASE_URL is required' in script
+    assert 'MANIFEST_PATH:?MANIFEST_PATH is required' in script
     assert '[[ "${MANIFEST_PATH}" = /* ]]' in script
     assert "command -v k6" in script
     assert "smoke|acceptance" in script

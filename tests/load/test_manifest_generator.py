@@ -39,7 +39,10 @@ def test_manifest_generation_is_deterministic_bounded_and_multilevel(
     assert slide["dziPath"] == "slide.dzi"
     assert len(slide["commonTiles"]) <= 12
     assert len(slide["randomTiles"]) <= 256
-    levels = {path.split("/")[1] for path in slide["commonTiles"] + slide["randomTiles"]}
+    levels = {
+        path.split("/")[1]
+        for path in slide["commonTiles"] + slide["randomTiles"]
+    }
     assert len(levels) == 3
 
 

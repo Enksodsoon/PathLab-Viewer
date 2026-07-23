@@ -163,7 +163,12 @@ def generate_manifest(
     _require_directory(public_root, label="Public root")
     if not public_ids:
         raise ManifestError("At least one public ID is required")
-    return {"slides": [_slide_manifest(public_root, public_id, seed) for public_id in public_ids]}
+    return {
+        "slides": [
+            _slide_manifest(public_root, public_id, seed)
+            for public_id in public_ids
+        ]
+    }
 
 
 def write_manifest(output: Path, manifest: dict[str, Any]) -> None:

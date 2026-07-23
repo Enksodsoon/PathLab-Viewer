@@ -112,10 +112,12 @@ def test_alembic_upgrade_from_0001_preserves_users_and_sessions(
     with session_factory(settings)() as database:
         assert database.execute(text("SELECT username FROM users")).scalar_one() == "admin"
         assert database.execute(text("SELECT user_id FROM sessions")).scalar_one() == "user-1"
-        assert database.execute(text("SELECT credential_generation FROM users")).scalar_one() == 1
-        assert (
-            database.execute(text("SELECT credential_generation FROM sessions")).scalar_one() == 1
-        )
+        assert database.execute(
+            text("SELECT credential_generation FROM users")
+        ).scalar_one() == 1
+        assert database.execute(
+            text("SELECT credential_generation FROM sessions")
+        ).scalar_one() == 1
 
 
 def test_current_migration_indexes_recovery_audit_retention_queries(
@@ -132,7 +134,9 @@ def test_current_migration_indexes_recovery_audit_retention_queries(
     assert any(index["column_names"] == ["action", "created_at"] for index in indexes)
 
 
-def test_storage_accounting_migration_upgrades_and_downgrades(tmp_path: Path, monkeypatch) -> None:
+def test_storage_accounting_migration_upgrades_and_downgrades(
+    tmp_path: Path, monkeypatch
+) -> None:
     database_path = tmp_path / "storage-accounting.sqlite3"
     monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
     monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
@@ -142,7 +146,8 @@ def test_storage_accounting_migration_upgrades_and_downgrades(tmp_path: Path, mo
     settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
     with session_factory(settings)() as database:
         columns = {
-            column["name"] for column in inspect(database.connection()).get_columns("slides")
+            column["name"]
+            for column in inspect(database.connection()).get_columns("slides")
         }
     assert {"reserved_bytes", "derivative_bytes", "derivative_file_count"} <= columns
 
@@ -151,14 +156,11 @@ def test_storage_accounting_migration_upgrades_and_downgrades(tmp_path: Path, mo
         downgraded = {
             column["name"] for column in inspect(database.connection()).get_columns("slides")
         }
-    assert (
-        not {
-            "reserved_bytes",
-            "derivative_bytes",
-            "derivative_file_count",
-        }
-        & downgraded
-    )
+    assert not {
+        "reserved_bytes",
+        "derivative_bytes",
+        "derivative_file_count",
+    } & downgraded
 
 
 def test_library_v2_migration_preserves_public_ids_and_round_trips(
@@ -201,19 +203,15 @@ def test_library_v2_migration_preserves_public_ids_and_round_trips(
             "share_slides",
             "publication_grants",
         } <= tables
-        assert (
-            database.execute(text("SELECT public_id FROM slides WHERE id = 'slide-1'")).scalar_one()
-            == "stable-public-id"
-        )
-        assert (
-            database.execute(
-                text(
-                    "SELECT source_type || ':' || source_id FROM publication_grants "
-                    "WHERE slide_id = 'slide-1'"
-                )
-            ).scalar_one()
-            == "individual:slide-1"
-        )
+        assert database.execute(
+            text("SELECT public_id FROM slides WHERE id = 'slide-1'")
+        ).scalar_one() == "stable-public-id"
+        assert database.execute(
+            text(
+                "SELECT source_type || ':' || source_id FROM publication_grants "
+                "WHERE slide_id = 'slide-1'"
+            )
+        ).scalar_one() == "individual:slide-1"
         migrated_slide = database.get(Slide, "slide-1")
         assert migrated_slide is not None
         assert migrated_slide.tags == []
@@ -221,16 +219,17 @@ def test_library_v2_migration_preserves_public_ids_and_round_trips(
     command.downgrade(config, "20260723_0005")
     command.upgrade(config, "head")
     with session_factory(settings)() as database:
-        assert (
-            database.execute(text("SELECT public_id FROM slides WHERE id = 'slide-1'")).scalar_one()
-            == "stable-public-id"
-        )
+        assert database.execute(
+            text("SELECT public_id FROM slides WHERE id = 'slide-1'")
+        ).scalar_one() == "stable-public-id"
         migrated_slide = database.get(Slide, "slide-1")
         assert migrated_slide is not None
         assert migrated_slide.tags == []
 
 
-def test_storage_accounting_columns_reject_negative_values(tmp_path: Path, monkeypatch) -> None:
+def test_storage_accounting_columns_reject_negative_values(
+    tmp_path: Path, monkeypatch
+) -> None:
     database_path = tmp_path / "storage-accounting-negative.sqlite3"
     monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
     monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))

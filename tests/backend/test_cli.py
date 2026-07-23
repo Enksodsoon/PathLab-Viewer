@@ -62,7 +62,9 @@ def test_issue_recovery_code_prints_code_once_without_password_prompt(
     code = stdout_lines[0]
     if not code:
         pytest.fail("Recovery-code output was empty")
-    expected_warning = "Expires in 15 minutes. Enter only on the PathLab HTTPS recovery form.\n"
+    expected_warning = (
+        "Expires in 15 minutes. Enter only on the PathLab HTTPS recovery form.\n"
+    )
     if not hmac.compare_digest(output.err, expected_warning):
         pytest.fail("CLI recovery-code warning did not match")
     with session_factory(settings)() as database:

@@ -46,7 +46,9 @@ class FakeImage:
         Path(output).write_bytes(b"thumbnail")
 
 
-def install_fake_pyvips(monkeypatch: pytest.MonkeyPatch, image: FakeImage) -> SimpleNamespace:
+def install_fake_pyvips(
+    monkeypatch: pytest.MonkeyPatch, image: FakeImage
+) -> SimpleNamespace:
     fake = SimpleNamespace(
         Image=SimpleNamespace(new_from_file=Mock(return_value=image)),
         cache_set_max_mem=Mock(),
@@ -70,7 +72,9 @@ def fail_cleanup_for(
 ) -> None:
     real_rmtree = shutil.rmtree
 
-    def fail_target_cleanup(path: str | Path, *args: object, **kwargs: object) -> None:
+    def fail_target_cleanup(
+        path: str | Path, *args: object, **kwargs: object
+    ) -> None:
         if Path(path) == target:
             raise OSError(detail)
         real_rmtree(path, *args, **kwargs)
@@ -277,7 +281,9 @@ def test_stale_cleanup_failure_prevents_conversion_and_logs_bounded_event(
         for event in conversion_events(caplog)
         if event["event"] == "conversion_stale_cleanup_failure"
     ]
-    assert stale_events == [{"event": "conversion_stale_cleanup_failure", "error_type": "OSError"}]
+    assert stale_events == [
+        {"event": "conversion_stale_cleanup_failure", "error_type": "OSError"}
+    ]
     assert "private cleanup detail" not in caplog.text
     assert "private.tmp-12345" not in caplog.text
 

@@ -24,7 +24,9 @@ def test_all_services_use_bounded_json_file_logging() -> None:
 
     for position, (start, service_name) in enumerate(service_starts):
         end = (
-            service_starts[position + 1][0] if position + 1 < len(service_starts) else services_end
+            service_starts[position + 1][0]
+            if position + 1 < len(service_starts)
+            else services_end
         )
         service_lines = lines[start + 1 : end]
         assert "    logging:" in service_lines, f"{service_name} missing logging config"
@@ -41,16 +43,24 @@ def test_all_services_use_bounded_json_file_logging() -> None:
 
 def test_tusd_uses_pathlab_data_owner() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split("\n  worker:\n", maxsplit=1)[0]
+    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
+        "\n  worker:\n", maxsplit=1
+    )[0]
 
     assert 'user: "10001:10001"' in tusd_service
 
 
 def test_conversion_resource_limits_are_worker_only() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  tusd:\n", maxsplit=1)[0]
-    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split("\n  worker:\n", maxsplit=1)[0]
+    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
+        "\n  api:\n", maxsplit=1
+    )[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
+        "\n  worker:\n", maxsplit=1
+    )[0]
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
         "\nvolumes:\n", maxsplit=1
     )[0]
@@ -100,20 +110,30 @@ def test_example_environment_documents_libvips_overrides() -> None:
 
 def test_api_creates_runtime_directories_before_migrations() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  tusd:\n", maxsplit=1)[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
 
-    command = api_service.split("command:", maxsplit=1)[1].split("environment:", maxsplit=1)[0]
+    command = api_service.split("command:", maxsplit=1)[1].split(
+        "environment:", maxsplit=1
+    )[0]
     assert "mkdir -p /data/database /data/tus" in command
     assert command.index("mkdir -p") < command.index("alembic upgrade head")
 
 
 def test_api_reconciles_storage_after_migration_before_startup() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  tusd:\n", maxsplit=1)[0]
-    command = api_service.split("command:", maxsplit=1)[1].split("environment:", maxsplit=1)[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    command = api_service.split("command:", maxsplit=1)[1].split(
+        "environment:", maxsplit=1
+    )[0]
 
     assert "pathlab-admin reconcile-storage" in command
-    assert command.index("alembic upgrade head") < command.index("pathlab-admin reconcile-storage")
+    assert command.index("alembic upgrade head") < command.index(
+        "pathlab-admin reconcile-storage"
+    )
     assert command.index("pathlab-admin reconcile-storage") < command.index("uvicorn")
 
 
@@ -133,8 +153,12 @@ def test_caddy_cache_policy_separates_tiles_assets_html_and_api() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
     uploads = caddyfile.split("handle @uploads {", maxsplit=1)[1].split("}", maxsplit=1)[0]
     backend = caddyfile.split("handle @backend {", maxsplit=1)[1].split("}", maxsplit=1)[0]
-    tiles = caddyfile.split("handle_path /tiles/* {", maxsplit=1)[1].split("}", maxsplit=1)[0]
-    assets = caddyfile.split("handle /assets/* {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    tiles = caddyfile.split("handle_path /tiles/* {", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
+    assets = caddyfile.split("handle /assets/* {", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
     spa = caddyfile.split("\thandle {\n", maxsplit=1)[1].split("\n\t}", maxsplit=1)[0]
 
     assert 'header Cache-Control "no-store"' in uploads
@@ -149,7 +173,9 @@ def test_caddy_cache_policy_separates_tiles_assets_html_and_api() -> None:
 
 
 def test_production_deploy_is_manual_serial_and_main_only() -> None:
-    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(
+        encoding="utf-8"
+    )
 
     assert "workflow_dispatch:" in workflow
     assert "name: production" in workflow
@@ -160,7 +186,9 @@ def test_production_deploy_is_manual_serial_and_main_only() -> None:
 
 
 def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
-    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(
+        encoding="utf-8"
+    )
 
     assert "secrets.OCI_CONFIG" in workflow
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
@@ -171,7 +199,9 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
 
 
 def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
-    script = Path("deploy/scripts/deploy-via-bastion.sh").read_text(encoding="utf-8")
+    script = Path("deploy/scripts/deploy-via-bastion.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert "ssh-keygen" in script
     assert "oci bastion session create-managed-ssh" in script
@@ -184,7 +214,9 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
 
 
 def test_bastion_target_has_no_interactive_deployment_access() -> None:
-    script = Path("deploy/scripts/configure-bastion-target.sh").read_text(encoding="utf-8")
+    script = Path("deploy/scripts/configure-bastion-target.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert "pathlab-deploy" in script
     assert "DisableForwarding yes" in script
@@ -208,8 +240,8 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert "docker compose config --quiet" in script
     assert "docker compose build" in script
     assert "systemctl reload pathlab-viewer" in script
-    assert 'mv "${LIVE_DIR}" "${ROLLBACK_DIR}"' in script
-    assert 'mv "${STAGE_DIR}" "${LIVE_DIR}"' in script
+    assert "mv \"${LIVE_DIR}\" \"${ROLLBACK_DIR}\"" in script
+    assert "mv \"${STAGE_DIR}\" \"${LIVE_DIR}\"" in script
     assert "curl --fail" in script
     assert "rollback_release" in script
     assert "flock" in script

@@ -56,9 +56,10 @@ def test_publish_and_unpublish_are_directory_atomic(tmp_path: Path) -> None:
     public = publish_derivative(layout, "slide-1", "public-1")
     assert (public / "slide.dzi").is_file()
     assert (public / "slide.dzi").stat().st_ino == (private / "slide.dzi").stat().st_ino
-    assert (public / "slide_files" / "0" / "0_0.jpeg").stat().st_ino == (
-        private / "slide_files" / "0" / "0_0.jpeg"
-    ).stat().st_ino
+    assert (
+        (public / "slide_files" / "0" / "0_0.jpeg").stat().st_ino
+        == (private / "slide_files" / "0" / "0_0.jpeg").stat().st_ino
+    )
     unpublish_derivative(layout, "public-1")
     assert not public.exists()
     assert (private / "slide.dzi").is_file()

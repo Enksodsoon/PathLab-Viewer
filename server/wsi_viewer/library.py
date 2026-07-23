@@ -95,14 +95,10 @@ def validate_folder_parent(
     depth = folder_depth(database, parent_id)
     subtree_height = 1
     if folder_id is not None:
-        seed = (
-            select(
-                Folder.id,
-                literal(1).label("level"),
-            )
-            .where(Folder.id == folder_id)
-            .cte(name="folder_height", recursive=True)
-        )
+        seed = select(
+            Folder.id,
+            literal(1).label("level"),
+        ).where(Folder.id == folder_id).cte(name="folder_height", recursive=True)
         tree = seed.union_all(
             select(Folder.id, (seed.c.level + 1).label("level")).join(
                 seed, Folder.parent_id == seed.c.id
@@ -114,13 +110,9 @@ def validate_folder_parent(
 
 
 def folder_subtree_ids(database: OrmSession, folder_id: str) -> list[str]:
-    seed = (
-        select(Folder.id)
-        .where(Folder.id == folder_id)
-        .cte(
-            name="folder_tree",
-            recursive=True,
-        )
+    seed = select(Folder.id).where(Folder.id == folder_id).cte(
+        name="folder_tree",
+        recursive=True,
     )
     tree = seed.union_all(select(Folder.id).join(seed, Folder.parent_id == seed.c.id))
     return list(database.scalars(select(tree.c.id)))
@@ -145,7 +137,10 @@ def validate_saved_view(definition: dict[str, Any], sort: str) -> None:
 
 def _search_ids(database: OrmSession, query: str) -> list[str] | None:
     has_fts = database.scalar(
-        text("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'slide_search' LIMIT 1")
+        text(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'slide_search' LIMIT 1"
+        )
     )
     if not has_fts:
         return None
@@ -215,7 +210,9 @@ def _apply_filters(
             statement = statement.where(func.lower(column) == value.casefold())
     for tag in tags:
         statement = statement.where(
-            func.lower(func.cast(Slide.tags, String)).like(f'%"{tag.casefold()}"%')
+            func.lower(func.cast(Slide.tags, String)).like(
+                f'%"{tag.casefold()}"%'
+            )
         )
     if state:
         statement = statement.where(Slide.state == state)
@@ -254,13 +251,17 @@ def build_items_statement(
             Slide.trashed_at.is_(None),
             or_(
                 Slide.folder_id.is_(None),
-                Slide.folder_id.not_in(select(Folder.id).where(Folder.trashed_at.is_not(None))),
+                Slide.folder_id.not_in(
+                    select(Folder.id).where(Folder.trashed_at.is_not(None))
+                ),
             ),
         )
         if location == "unfiled":
             statement = statement.where(Slide.folder_id.is_(None))
         elif location == "shared":
-            statement = statement.where(Slide.id.in_(select(PublicationGrant.slide_id).distinct()))
+            statement = statement.where(
+                Slide.id.in_(select(PublicationGrant.slide_id).distinct())
+            )
         elif location == "processing":
             statement = statement.where(Slide.state.in_(PROCESSING_STATES))
         elif location == "failed":
@@ -403,7 +404,9 @@ def slide_json(slide: Slide, *, include_details: bool = False) -> dict[str, Any]
         "updatedAt": slide.updated_at.isoformat(),
         "trashedAt": slide.trashed_at.isoformat() if slide.trashed_at else None,
         "thumbnailUrl": (
-            f"/api/v2/admin/slides/{slide.id}/thumbnail" if slide.thumbnail_filename else None
+            f"/api/v2/admin/slides/{slide.id}/thumbnail"
+            if slide.thumbnail_filename
+            else None
         ),
     }
     if include_details:
