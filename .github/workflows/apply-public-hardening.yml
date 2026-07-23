@@ -1,18 +1,15 @@
 name: Apply public hardening
 
 on:
-  push:
-    branches: [security/public-hardening]
-    paths:
-      - scripts/apply_public_hardening.py
-      - .github/workflows/apply-public-hardening.yml
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.head_ref == 'security/public-hardening' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
