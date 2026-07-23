@@ -1,71 +1,97 @@
-# OCI Always Free deployment
+# OCI Deployment Runbook
 
-For the plain-language architecture and project history, start with [`docs/PROJECT_GUIDE.md`](../docs/PROJECT_GUIDE.md). This file is the operator runbook for the OCI host.
+This runbook covers the repository's single-host OCI deployment. Read [`docs/PROJECT_GUIDE.md`](../docs/PROJECT_GUIDE.md) for the application architecture and privacy boundaries.
 
-This deployment uses one `VM.Standard.A1.Flex` instance, a 50 GB boot volume, and a 150 GB attached data volume. Together they consume the documented 200 GB Always Free block-volume allowance. Capacity is tenancy- and home-region-dependent; Terraform output is not proof of zero charge. Confirm every resource is marked **Always Free eligible** before applying.
+The checked-in Terraform configuration targets one Arm-based compute instance, a boot volume, and a separate application-data volume. Cloud pricing, public IPv4 charges, quotas, and promotional eligibility can change. Review the current Terraform plan, OCI cost estimator, tenancy limits, and billing page before creating or updating resources.
 
-## Bring-up
+## Initial deployment
 
-1. Create `deploy/terraform/terraform.tfvars` from the example and run `terraform plan`. Reject any plan that is not A1 Flex, 2 OCPUs, 12 GB RAM, 50+150 GB storage, or that adds non-free services.
-2. Point the DuckDNS subdomain at the instance public IP. Put the deployment values in `deploy/.env`; generate `PATHLAB_SECRET_KEY` with `openssl rand -hex 32`.
-3. Clone the repository to `/opt/pathlab-viewer`, mount the data volume at `/srv/pathlab/data`, and run `sudo chown -R 10001:10001 /srv/pathlab/data`.
-4. Install `pathlab-viewer.service`, then run `sudo systemctl enable --now pathlab-viewer`.
-5. Create the single administrator with `docker compose exec api pathlab-admin create-admin`.
-6. Install `duckdns.sh` every five minutes and `backup.sh` daily with root-owned systemd timers or cron. Keep at least one encrypted backup outside the VM.
+1. Copy `deploy/terraform/terraform.tfvars.example` to `deploy/terraform/terraform.tfvars` and fill in the tenancy-specific values.
+2. Run `terraform plan` and review every resource, size, network rule, and estimated cost before applying.
+3. Point the configured DNS name at the instance public address.
+4. Copy `deploy/.env.example` to `deploy/.env` and generate `PATHLAB_SECRET_KEY` with `openssl rand -hex 32`.
+5. Clone the repository to `/opt/pathlab-viewer`.
+6. Mount the application data volume at `/srv/pathlab/data` and set ownership with `sudo chown -R 10001:10001 /srv/pathlab/data`.
+7. Install `deploy/pathlab-viewer.service`, then run `sudo systemctl enable --now pathlab-viewer`.
+8. Create the administrator with `docker compose -f deploy/compose.yaml exec api pathlab-admin create-admin`.
+9. Schedule `deploy/scripts/duckdns.sh` if DuckDNS is used and schedule `deploy/scripts/backup.sh` daily.
+10. Store at least one encrypted backup outside the application VM.
 
-## Operations
+Do not apply a plan that introduces unexpected paid services, open management ports, unreviewed storage changes, or resources outside the intended tenancy and region.
+
+## Routine operations
 
 - Readiness: `curl --fail https://$DOMAIN/readyz`
-- Logs: `docker compose logs --since 30m api worker tusd caddy`
-- Log rotation: every service uses Docker's `json-file` driver with at most three 10 MB files per container. To roll back, revert this configuration change and run `sudo systemctl reload pathlab-viewer`; Compose recreates affected containers with the previous or daemon-default logging configuration.
+- Liveness: `curl --fail https://$DOMAIN/livez`
+- Logs: `docker compose -f deploy/compose.yaml logs --since 30m api worker tusd caddy`
 - Backup: `PATHLAB_BACKUP_DIR=/mnt/backup deploy/scripts/backup.sh`
-- Restore drill: use a disposable VM and run `restore.sh --confirm /absolute/backup`, then compare slide rows, SHA-256 values, manifests, and representative tiles.
-- Upgrade: open **Actions → Deploy production → Run workflow** on `main`. The
-  protected `production` environment requires approval, deploys only the current
-  reviewed `main` SHA, verifies readiness, and automatically restores the prior
-  release if verification fails. The previous release remains under
-  `/opt/pathlab-viewer.rollback-*` for manual rollback.
+- Compose validation: `docker compose -f deploy/compose.yaml config`
 
-### One-click deployment setup
+Each service uses bounded Docker `json-file` log rotation. Review container health, disk usage, database readiness, backup age, and public tile delivery after every deployment.
 
-The workflow creates a temporary OCI Bastion managed SSH session for every
-approved deployment and deletes it when the job exits. Administrator SSH remains
-restricted to `admin_cidr`; the VM does not expose a deployment port to the
-internet.
+## Production deployment workflow
 
-1. Enable the OCI Bastion agent plugin and create a Standard Bastion in the VM's
-   VCN. Permit the Bastion private endpoint to reach target port 22.
-2. Install `deploy/scripts/deploy-release.sh` as the root-owned executable
-   `/usr/local/sbin/pathlab-viewer-deploy`.
-3. Run `sudo deploy/scripts/configure-bastion-target.sh`. This creates the
-   password-locked `pathlab-deploy` user, disables TTY and forwarding, and forces
-   every session through the validated deployment script.
-4. Give a dedicated OCI API user only the permissions required to create, read,
-   and delete sessions for this Bastion. Do not use an administrator API key.
-5. Configure the GitHub `production` environment with variables
-   `OCI_BASTION_ID`, `OCI_INSTANCE_ID`, and `OCI_TARGET_PRIVATE_IP`, plus secrets
-   `OCI_CONFIG`, `OCI_API_PRIVATE_KEY`, and `OCI_BASTION_KNOWN_HOSTS`.
+Use **Actions → Deploy production → Run workflow** from the current reviewed default branch. The protected `production` environment requires approval, deploys the selected reviewed commit, verifies readiness, and restores the prior release when verification fails.
 
-`OCI_CONFIG` points `key_file` to `/home/runner/.oci/oci_api_key.pem`.
-`OCI_BASTION_KNOWN_HOSTS` pins both the Bastion endpoint and target host keys.
-Keep manual administrator SSH as the break-glass rollback path. The workflow
-never reads or modifies `/srv/pathlab/data`.
+The previous release is retained under `/opt/pathlab-viewer.rollback-*` for manual rollback. Confirm the active release from the host or workflow output; do not record a temporary commit hash in this runbook.
 
-Scope the API user's policy to the deployment Bastion, instance, and operating
-system user. The session-management statement should constrain both the target
-instance OCID and `target.bastion-session.username='pathlab-deploy'`; grant only
-read access to instance, virtual-network, agent-plugin, and Bastion-session
-metadata. The workflow does not need work-request permissions or permission to
-manage the Bastion itself.
+## OCI Bastion setup
 
-The US$1 monthly budget alert is a warning, not a spending cap. OCI public IPv4 policy and charges can change; verify the cost estimator and tenancy billing page at each deployment.
+The deployment workflow creates a temporary OCI Bastion managed SSH session for each approved deployment and deletes it when the job exits. Administrator SSH remains the break-glass path.
 
-The currently reviewed live candidate is commit `0d94cc3`. Confirm the active release and readiness endpoints before upgrading or declaring production readiness.
+1. Enable the OCI Bastion agent plugin and create a Standard Bastion in the instance VCN.
+2. Permit the Bastion private endpoint to reach target port 22.
+3. Install `deploy/scripts/deploy-release.sh` as the root-owned executable `/usr/local/sbin/pathlab-viewer-deploy`.
+4. Run `sudo deploy/scripts/configure-bastion-target.sh` to create the password-locked `pathlab-deploy` user and force deployment sessions through the validated script.
+5. Create a dedicated OCI API user with only the permissions needed to create, read, and delete sessions for the deployment Bastion.
+6. Configure the GitHub `production` environment with variables `OCI_BASTION_ID`, `OCI_INSTANCE_ID`, and `OCI_TARGET_PRIVATE_IP`.
+7. Configure secrets `OCI_CONFIG`, `OCI_API_PRIVATE_KEY`, and `OCI_BASTION_KNOWN_HOSTS`.
+
+`OCI_CONFIG` should reference `/home/runner/.oci/oci_api_key.pem`. `OCI_BASTION_KNOWN_HOSTS` must pin both the Bastion endpoint and target host keys.
+
+Scope the OCI policy to the deployment Bastion, target instance, and `pathlab-deploy` operating-system user. Restrict session creation to the target instance and username, grant only required read access to instance, network, agent-plugin, and Bastion-session metadata, and do not use an administrator API key.
+
+The deployment workflow must never read or modify `/srv/pathlab/data` except through the deployed application services and approved backup or restore procedures.
+
+## Backup and restore
+
+Run backups on a fixed schedule and monitor their age and size. A backup is not considered verified until it has been restored successfully.
+
+Perform restore drills on a disposable host:
+
+```bash
+deploy/scripts/restore.sh --confirm /absolute/path/to/backup
+```
+
+After restoration, compare slide records, SHA-256 values, manifests, representative DZI descriptors, representative JPEG tiles, authentication behavior, and readiness endpoints. Never test restoration directly over the only production data copy.
 
 ## Administrator password recovery
 
-Generate a single-use recovery code on the server with `docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin`.
+Generate a single-use recovery code on the server:
 
-The code expires after 15 minutes and invalidates earlier unused codes. Enter it only at the HTTPS Forgot password form. The command prints the code once; do not place it in shell arguments, logs, screenshots, or tickets.
+```bash
+docker compose -f deploy/compose.yaml exec api \
+  pathlab-admin issue-recovery-code --username admin
+```
 
-For console-only emergency reset, run `docker compose -f deploy/compose.yaml exec api pathlab-admin reset-password --username admin`. A password change or reset revokes every existing session and unused recovery code.
+The code expires after 15 minutes and invalidates earlier unused codes. Enter it only in the HTTPS **Forgot password** form. The command prints the code once; do not place it in shell arguments, logs, screenshots, tickets, or documentation.
+
+For a console-only emergency reset:
+
+```bash
+docker compose -f deploy/compose.yaml exec api \
+  pathlab-admin reset-password --username admin
+```
+
+Password change, recovery, and emergency reset revoke existing sessions and unused recovery codes. See [`docs/architecture/PASSWORD_RECOVERY.md`](../docs/architecture/PASSWORD_RECOVERY.md) for the security contract.
+
+## Post-deployment checks
+
+1. Confirm `/livez` and `/readyz` return success.
+2. Confirm the administrator can sign in without exposing credentials in logs.
+3. Confirm an existing private slide remains private.
+4. Confirm a published slide's metadata, DZI descriptor, and representative JPEG tile load over HTTPS.
+5. Confirm upload admission and available storage reporting are accurate.
+6. Confirm backup scheduling and off-host backup availability.
+7. Review the current billing page and resource inventory.
+8. Record environment-specific evidence outside general product documentation.

@@ -1,88 +1,109 @@
-# PathLab Viewer: project guide
+# PathLab Viewer Project Guide
 
-## What this project is
+## Product overview
 
-PathLab Viewer is a small, private-first web application for viewing very large pathology slides (whole-slide images, or WSIs). An administrator uploads an OME-TIFF, the server validates and converts it into web-friendly Deep Zoom tiles, and the administrator can publish an unlisted link for read-only viewing. The original TIFF remains private.
+PathLab Viewer is a private-first web application for whole-slide image review and teaching. One authenticated administrator uploads an OME-TIFF file, the server validates and converts it into browser-friendly Deep Zoom tiles, and the administrator can publish an unlisted read-only link. Original slide files remain private.
 
-This guide explains the product, the implementation, the tools used, how a slide moves through the system, how to run it, and what the current pull request and OCI deployment mean.
+## Current product scope
 
-## The original objective
+### Included
 
-The project started from a compact WSI viewer requirement:
+- OME-TIFF uploads up to 5 GiB
+- One administrator account
+- Resumable uploads
+- Background validation and conversion
+- Private preview
+- Publish, unpublish, retry, and delete actions
+- Unlisted anonymous public viewing
+- Responsive desktop, tablet, and phone interfaces
+- Password change and server-assisted account recovery
+- Docker Compose deployment with HTTPS
 
-- accept OME-TIFF files up to 5 GiB;
-- keep originals for future use, but never expose them through the public viewer;
-- allow one authenticated administrator to upload, review, publish, unpublish, retry, and delete slides;
-- let anonymous users view published slides through unlisted links;
-- stay responsive on desktop, tablet, and phone;
-- use small, cacheable JPEG tiles so many viewers can read the same slide efficiently;
-- deploy on OCI Always Free with HTTPS.
+### Excluded
 
-The intentionally excluded scope is annotations, teams, a gallery, raw downloads, fluorescence controls, Z-stacks, and timepoints. A slide may contain only one Z plane and one timepoint (`SizeZ=1`, `SizeT=1`).
+- public raw-file downloads;
+- self-registration or multiple administrator accounts;
+- teams, roles, and shared workspaces;
+- slide galleries or public indexing;
+- annotations and assessments;
+- fluorescence controls;
+- Z-stacks and time series.
 
-## What we built, from beginning to now
+Changes to these boundaries require an explicit product and security review.
 
-1. We created a test-first OME-TIFF contract and parameterized fixtures for classic TIFF and BigTIFF, both byte orders, flat and pyramidal layouts, tiled and striped storage, 8- and 16-bit RGB, and the supported compression formats.
-2. We built the service around four runtime containers: Caddy, FastAPI, tusd, and a background worker.
-3. We added SQLite in WAL mode, migrations, generated storage IDs, atomic file operations, a 120 GB application cap, upload headroom checks, SHA-256 recording, audit events, and a slide/job state machine.
-4. We added resumable tus 1.0 uploads with signed short-lived upload tokens, size/signature checks, incomplete-upload expiry, and finalization checks.
-5. We implemented OME validation, the 16-bit to 8-bit conversion rule, ICC-to-sRGB handling, libvips Deep Zoom generation, derivative cleanup, and private-to-public publication.
-6. We added a bounded compatibility path for the supplied ImageJ-converter OME-TIFF example. It accepts that file when its first IFD is a valid decodable 2D RGB image with one Z plane and one timepoint, while still rejecting plain non-OME TIFFs and ImageJ Z-stacks.
-7. We built the React/OpenSeadragon admin and public viewer experiences, including upload progress/resume, processing errors, preview, publish controls, copy-link, responsive controls, fullscreen, navigator, scale information, 404 handling, and `noindex` for unlisted slides.
-8. We added administrator password change and recovery. Recovery codes are one-time, expire after 15 minutes, revoke sessions, and are never stored in the repository.
-9. We ran backend, frontend, container, real-file, browser, and responsive checks. The latest local backend result is 218 passing tests; the required PR CI run is green.
-10. We deployed the reviewed candidate to OCI and verified the live health endpoints, admin page, existing published slide metadata, DZI descriptor, representative JPEG tile, migration head, and backup creation.
+## System architecture
 
-## Technology choices
-
-| Area | Technology | Why it is used |
+| Area | Technology | Responsibility |
 |---|---|---|
-| API | Python, FastAPI, Pydantic | Typed HTTP APIs and clear validation errors |
-| Persistence | SQLite WAL, SQLAlchemy, Alembic | Durable single-node metadata with safe migrations and concurrent reads |
-| Authentication | Argon2id, signed sessions, CSRF, throttling | Password protection and browser-session safety |
-| Uploads | tusd and `tus-js-client` | Resume-friendly uploads for multi-gigabyte files |
-| TIFF inspection | `tifffile`, OME-XML parsing | TIFF/BigTIFF structure and metadata validation |
-| Conversion | libvips/pyvips | Low-memory, fast pyramid and JPEG tile generation |
-| Frontend | React, TypeScript, Vite | Maintainable admin and public SPA |
-| Viewer | OpenSeadragon | Smooth pan/zoom for Deep Zoom images |
-| Serving | Caddy, Docker Compose | HTTPS, static tile caching, and simple deployment |
-| Operations | systemd, Terraform, DuckDNS | Repeatable OCI setup, service recovery, and DNS |
-| Performance proof | k6 | Reproducible 100-viewer load scenario |
+| Web application | React, TypeScript, Vite | Administration interface and public viewer |
+| Viewer | OpenSeadragon | Deep Zoom pan, zoom, navigator, and scale display |
+| API | Python, FastAPI, Pydantic | Authentication, slide lifecycle, upload admission, metadata, and publication |
+| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, audit events, and recovery state |
+| Upload transport | tusd and `tus-js-client` | Resumable multi-gigabyte uploads |
+| TIFF inspection | `tifffile` and OME-XML parsing | Structural and metadata validation |
+| Conversion | libvips and pyvips | Resource-bounded JPEG Deep Zoom generation |
+| Edge and static delivery | Caddy | HTTPS, SPA delivery, immutable tiles, and API proxying |
+| Deployment | Docker Compose, systemd, Terraform | Repeatable single-node OCI deployment |
+| Load verification | k6 | Reproducible public-viewer concurrency scenario |
 
-## A slide's lifecycle
+The runtime is separated into Caddy, FastAPI, tusd, and a conversion worker. SQLite and filesystem storage are shared through private application volumes.
 
-`uploading → queued → validating → converting → ready_private → published`
+## Slide lifecycle
 
-`failed` is used for recoverable processing failures and `deleting` for explicit removal.
+```text
+uploading → queued → validating → converting → ready_private → published
+```
 
-1. The browser asks the API for an upload admission and signed tus token.
-2. tusd stores chunks in a temporary upload area; the browser can resume after interruption.
-3. Finalization checks the declared size, TIFF signature, and SHA-256, then creates a queued job.
-4. The worker claims the job, heartbeats while working, and can recover stale work.
-5. Validation selects the highest-resolution primary OME series and rejects unsupported dimensions, channels, compression, truncation, or malformed metadata.
-6. libvips writes a complete `.dzi` descriptor and 512-pixel JPEG tiles (quality 85, overlap 1). `vips-properties.xml` is explicitly removed and only `.dzi` plus JPEG tiles are allowed to remain.
-7. The derivative is previewed privately. Publication atomically copies only sanitized derivatives to Caddy's immutable public tree.
-8. The public route `/s/{publicId}` loads metadata and tiles without exposing the original file.
+`failed` represents a recoverable processing failure. `deleting` represents explicit removal.
+
+1. The browser requests upload admission and a signed, short-lived tus token.
+2. tusd writes resumable chunks to a private temporary directory.
+3. Finalization verifies declared length, TIFF signature, and SHA-256 before creating a queued job.
+4. The worker claims the job, heartbeats while processing, and can recover stale work.
+5. Validation selects the highest-resolution primary OME series and enforces the supported input contract.
+6. libvips creates one DZI descriptor and 512-pixel JPEG tiles.
+7. Generator metadata and unexpected derivative files are removed or rejected.
+8. The complete derivative becomes available for private preview.
+9. Publishing atomically copies only sanitized derivative files into the public tree.
+10. The public route `/s/{publicId}` loads the metadata and tiles without exposing the original.
 
 ## OME-TIFF contract
 
-Accepted inputs are classic TIFF or BigTIFF, big- or little-endian, flat or SubIFD pyramidal, tiled or striped, interleaved RGB/YCbCr, unsigned 8- or 16-bit, and JPEG, LZW, Deflate, or uncompressed payloads. Missing physical pixel scale is allowed. Auxiliary thumbnails, labels, macros, and non-primary series are ignored.
+The primary image must be an interleaved two-dimensional RGB image with `SizeZ=1` and `SizeT=1`. The validator supports classic TIFF and BigTIFF, either byte order, flat or SubIFD pyramids, tiled or striped images, unsigned 8-bit or 16-bit samples, RGB or YCbCr, and JPEG, LZW, Deflate, or uncompressed payloads.
 
-For uint16 RGB, conversion is deterministic: `round(value / 257)` to 8-bit. Embedded ICC profiles are converted to sRGB; without a profile, values are treated as sRGB.
+For 16-bit RGB, the conversion rule is `round(value / 257)`. Embedded ICC profiles are transformed to sRGB; values without a profile are treated as sRGB.
 
-Stable failure codes include `INVALID_OME_XML`, unsupported dimensions/data, truncation, invalid offsets, unsupported compression, and decompression failure. No failed derivative is published.
+Missing physical scale is accepted. Auxiliary labels, thumbnails, macros, and non-primary series are ignored. Plain non-OME TIFF files, unsupported dimensions or pixel formats, malformed metadata, truncation, invalid offsets, and decompression failures are rejected with stable failure codes. Failed or incomplete derivatives are never published.
 
-## Privacy and security model
+See [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md) for the full durable contract.
 
-Originals live under generated IDs and a private storage root. Public URLs expose only an unlisted public ID and sanitized tiles. The app uses one admin account, Argon2id password hashes, signed sessions, CSRF protection, rate limiting, audit events, upload size/headroom limits, and atomic publication. Secrets belong in deployment environment files or secret managers, never in Git. Do not put passwords or recovery codes in commits, screenshots, logs, or tickets.
+## Privacy and security boundaries
 
-## Password management
+Original files are stored under generated identifiers in a private storage root. Public links expose only an unlisted public identifier, display metadata required by the viewer, one DZI descriptor, and sanitized JPEG tiles.
 
-The Account Security dialog allows a logged-in administrator to change the password. Passwords are 12–128 Unicode code points; a changed password must differ from the current one. Forgot password uses a server-generated one-time recovery code, valid for 15 minutes. The CLI command is documented in [`deploy/README.md`](../deploy/README.md). A successful change or reset revokes all existing sessions and unused recovery codes.
+The application uses:
 
-## Running and verifying locally
+- Argon2id password hashes;
+- signed browser sessions;
+- CSRF protection for authenticated mutations;
+- login and recovery throttling;
+- generated storage and publication identifiers;
+- storage capacity and upload headroom checks;
+- atomic file replacement and publication;
+- audit events that exclude secrets;
+- explicit public-path restrictions in Caddy.
 
-See the root README for the short path. The normal development dependencies are Python 3.12, Node 24, pnpm 11, and native libvips. Useful checks are:
+Credentials, recovery codes, patient information, source slides, temporary uploads, private derivatives, databases, and logs must never be committed or routed through the public tile path.
+
+## Administrator password management
+
+A signed-in administrator can change the password through the Account Security dialog. A forgotten password is recovered with a server-generated one-time code that expires after 15 minutes. Successful password change, recovery, or emergency CLI reset revokes all active sessions and unused recovery codes.
+
+The code-issuance command and operational procedure are documented in [`../deploy/README.md`](../deploy/README.md). The security design is documented in [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md).
+
+## Development and verification
+
+The standard local toolchain is Python 3.12, Node.js 24, pnpm 11, and native libvips for complete conversion runs.
 
 ```bash
 pytest tests/backend
@@ -94,23 +115,16 @@ pnpm --dir apps/web build
 docker compose -f deploy/compose.yaml config
 ```
 
-The detailed evidence ledger, screenshots, real-file checks, and known gaps are in [`docs/evidence/QA.md`](evidence/QA.md).
+Behavior changes require regression coverage. Security, validation, state-transition, and file-handling changes should be tested at the responsible layer and reviewed for privacy impact.
 
-## OCI and current merge status
+## Deployment model
 
-The live test deployment is at [pathlab-viewer.140-245-126-212.sslip.io](https://pathlab-viewer.140-245-126-212.sslip.io/admin). It is an OCI Always Free A1 deployment using Caddy HTTPS, Docker Compose, a 50 GB boot volume, and a 150 GB data volume. The active reviewed commit is `0d94cc3`.
+The supported production topology is a single Linux host running the Docker Compose stack behind Caddy HTTPS. Originals, temporary uploads, private derivatives, public derivatives, and SQLite data use explicit persistent storage paths. Deployment updates must preserve backups, database migrations, secret handling, and rollback options.
 
-Pull request [#1](https://github.com/Enksodsoon/PathLab-Viewer/pull/1) targets `main` and remains a draft until the owner decides to merge. It contains the OME-TIFF viewer, authentication, upload/worker pipeline, UI, tests, deployment files, password recovery, and this documentation. The latest required PR CI run passed backend, web, and container checks. Do not merge `main` automatically.
+Use [`../deploy/README.md`](../deploy/README.md) for provisioning, updates, password recovery, backup, and restore procedures. Do not copy temporary hostnames, IP addresses, credentials, or environment-specific identifiers into general project documentation.
 
-## What remains before calling the product fully ready
+## Readiness and evidence
 
-The implementation is usable, but the original acceptance contract is evidence-driven. The remaining gates are the measured external 100-viewer/10-minute k6 run, shaped 10 Mbps/50 ms interaction evidence, physical desktop/tablet/phone evidence, a clean backup-restore drill, and OCI billing/Always-Free proof. Until those artifacts are attached, label production readiness `BLOCKED`, not `READY`.
+Automated CI verifies code quality, tests, builds, and Compose validity. It does not alone establish real-file compatibility, external concurrency, shaped-network performance, physical-device usability, backup recovery, infrastructure cost, or production security.
 
-## Glossary
-
-- **OME-TIFF**: TIFF plus OME-XML metadata describing image dimensions and channels.
-- **WSI**: Whole-slide image, commonly many gigabytes and too large for a normal `<img>` element.
-- **DZI**: Deep Zoom Image descriptor used by OpenSeadragon to request only visible tiles.
-- **IFD**: TIFF image-file directory; a TIFF page/series entry.
-- **tusd**: Reference tus resumable-upload server.
-- **Primary series**: The highest-resolution image selected for viewing, excluding labels and thumbnails.
+The current result of each operational gate belongs in [`evidence/QA.md`](evidence/QA.md). Product and architecture documentation should state the target and method, while the evidence ledger records whether the latest candidate has actually met it.
