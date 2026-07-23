@@ -14,6 +14,8 @@ PathLab Viewer is a private-first web application for whole-slide image review a
 - Background validation and conversion
 - Private preview
 - Publish, unpublish, retry, and delete actions
+- Nested canonical folders, curated collections, saved views, and Trash
+- Server-side search, filters, facets, deterministic cursor pagination, and cached thumbnails
 - Unlisted anonymous public viewing
 - Responsive desktop, tablet, and phone interfaces
 - Password change and server-assisted account recovery
@@ -38,7 +40,7 @@ Changes to these boundaries require an explicit product and security review.
 | Web application | React, TypeScript, Vite | Administration interface and public viewer |
 | Viewer | OpenSeadragon | Deep Zoom pan, zoom, navigator, and scale display |
 | API | Python, FastAPI, Pydantic | Authentication, slide lifecycle, upload admission, metadata, and publication |
-| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, audit events, and recovery state |
+| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, folders, collections, saved views, grants, audit events, and recovery state |
 | Upload transport | tusd and `tus-js-client` | Resumable multi-gigabyte uploads |
 | TIFF inspection | `tifffile` and OME-XML parsing | Structural and metadata validation |
 | Conversion | libvips and pyvips | Resource-bounded JPEG Deep Zoom generation |
@@ -61,10 +63,10 @@ uploading → queued → validating → converting → ready_private → publish
 3. Finalization verifies declared length, TIFF signature, and SHA-256 before creating a queued job.
 4. The worker claims the job, heartbeats while processing, and can recover stale work.
 5. Validation selects the highest-resolution primary OME series and enforces the supported input contract.
-6. libvips creates one DZI descriptor and 512-pixel JPEG tiles.
+6. libvips creates one DZI descriptor, 512-pixel JPEG tiles, and one 384-pixel cached JPEG thumbnail in the same bounded conversion.
 7. Generator metadata and unexpected derivative files are removed or rejected.
 8. The complete derivative becomes available for private preview.
-9. Publishing atomically copies only sanitized derivative files into the public tree.
+9. Publishing atomically hardlinks only sanitized derivative files into the public tree and retains the alias until its final publication grant is removed.
 10. The public route `/s/{publicId}` loads the metadata and tiles without exposing the original.
 
 ## OME-TIFF contract
@@ -77,9 +79,30 @@ Missing physical scale is accepted. Auxiliary labels, thumbnails, macros, and no
 
 See [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md) for the full durable contract.
 
+## Library organization and query contract
+
+A slide has zero or one canonical folder and may belong to many independently
+ordered collections. Saved views store versioned, validated filter JSON rather
+than SQL. Folder and slide Trash operations preserve restoration metadata.
+Folder Trash keeps the complete subtree; permanent folder deletion is explicit
+and refuses to orphan slides.
+
+`/api/v2/admin/library/items` returns at most 100 slides (48 by default) with a
+deterministic opaque cursor. Navigation, item, facet, and targeted status
+requests use database metadata only. They never walk storage, decode a WSI, or
+move/copy a tile tree. SQLite FTS5 accelerates search when available; a bounded
+portable adapter supplies the same contract otherwise.
+
+See [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md).
+
 ## Privacy and security boundaries
 
 Original files are stored under generated identifiers in a private storage root. Public links expose only an unlisted public identifier, display metadata required by the viewer, one DZI descriptor, and sanitized JPEG tiles.
+
+Multi-slide sharing schema is present for forward compatibility but activation
+is fail-closed. `PATHLAB_MULTI_SHARE_ENABLED` defaults to `false`, and share
+creation returns `PRIVACY_SCANNER_REQUIRED` until a later automated scanner
+phase. Individual `/s/{publicId}` publication remains compatible.
 
 The application uses:
 

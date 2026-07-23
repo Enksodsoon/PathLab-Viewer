@@ -26,6 +26,8 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 | DZI and JPEG conversion | `server/wsi_viewer/conversion.py`, conversion tests |
 | Authentication, sessions, CSRF, password change, and recovery | `server/wsi_viewer/auth.py`, `security.py`, API routes, `apps/web/src/components/AuthPanels.tsx` |
 | Slide state transitions and publication | domain and API modules plus `server/wsi_viewer/storage.py` |
+| Library folders, collections, saved views, bounded queries, and serializers | `server/wsi_viewer/library.py`, `library_routes.py`, `models.py`, migration `20260723_0006` |
+| Publication grant retention | `server/wsi_viewer/publication.py`, `storage.py` |
 | Admin layout, uploads, and slide actions | `apps/web/src/pages/AdminPage.tsx`, components, tests, and `styles.css` |
 | Public OpenSeadragon viewer | `apps/web/src/pages/ViewerPage.tsx`, `components/OpenSeadragonViewer.tsx` |
 | OCI service topology | `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/terraform` |
@@ -37,6 +39,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 - [`../README.md`](../README.md): project overview, supported contract, setup, and verification commands.
 - [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md): product scope, architecture, lifecycle, and operational boundaries.
 - [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): input validation, processing, publication, and privacy architecture.
+- [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md): folder, collection, saved-view, Trash, search, pagination, thumbnail, and grant contracts.
 - [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): administrator credential lifecycle and abuse controls.
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): branch, testing, review, documentation, and privacy standards.
 - [`evidence/QA.md`](evidence/QA.md): current verification results and unresolved evidence gates.

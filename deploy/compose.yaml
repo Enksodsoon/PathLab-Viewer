@@ -48,6 +48,7 @@ services:
       PATHLAB_SECURE_COOKIES: "true"
       PATHLAB_TUS_PUBLIC_URL: /api/v1/uploads/
       PATHLAB_TUS_INTERNAL_UPLOAD_DIR: /data/tus
+      PATHLAB_MULTI_SHARE_ENABLED: "${PATHLAB_MULTI_SHARE_ENABLED:-false}"
     volumes:
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
     healthcheck:

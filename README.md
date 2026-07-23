@@ -11,6 +11,9 @@ PathLab Viewer is a private-first web application for reviewing and publishing O
 - Responsive OpenSeadragon viewing on desktop, tablet, and phone
 - Single-administrator authentication with password recovery
 - Storage admission controls, audit records, and atomic publication
+- Nested folders, many-to-many collections, saved views, and restorable Trash
+- Bounded server-side library search, filters, facets, and cursor pagination
+- Conversion-time cached thumbnails for library browsing
 - Docker Compose deployment with Caddy HTTPS termination
 
 ## Repository structure
@@ -35,6 +38,10 @@ The primary image must be an interleaved two-dimensional RGB OME-TIFF with one Z
 A bounded compatibility path supports specific legacy ImageJ converter output when the first IFD is independently valid and the metadata still declares one Z plane and one timepoint. Plain non-OME TIFF files, Z-stacks, time series, unsupported pixel formats, malformed metadata, and truncated files are rejected.
 
 The complete processing contract is documented in [`docs/architecture/OME_TIFF_PIPELINE.md`](docs/architecture/OME_TIFF_PIPELINE.md).
+
+Library organization is metadata-only: folders and collections never move,
+scan, decode, or duplicate a slide or its tile tree. See
+[`docs/architecture/LIBRARY_DOMAIN.md`](docs/architecture/LIBRARY_DOMAIN.md).
 
 ## Local development
 
@@ -87,6 +94,7 @@ Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serv
 
 - Original slides, temporary uploads, private derivatives, databases, and secrets are never served from the public tile path.
 - Public links expose only an unlisted identifier, display metadata, a DZI descriptor, and sanitized JPEG tiles.
+- Multi-slide folder and collection sharing remains disabled until an automated privacy scanner is evidenced; existing individual `/s/{publicId}` links are unchanged.
 - Credentials, recovery codes, source slides, generated tiles, databases, and `.env` files must not be committed.
 - Suspected vulnerabilities or patient-data exposure should be reported privately rather than through a public issue.
 
