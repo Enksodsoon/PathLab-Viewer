@@ -221,6 +221,7 @@ def test_public_proxy_and_deployment_configuration_disclose_no_live_target() -> 
 def test_ci_contains_public_repository_security_gates() -> None:
     ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
     security = Path(".github/workflows/security.yml").read_text(encoding="utf-8")
+    deploy = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
     dependabot = Path(".github/dependabot.yml").read_text(encoding="utf-8")
 
     assert ci.count("persist-credentials: false") >= 3
@@ -228,6 +229,13 @@ def test_ci_contains_public_repository_security_gates() -> None:
     assert "pip-audit" in security
     assert "pnpm audit --audit-level high" in security
     assert "github/codeql-action" in security
+    for workflow in (ci, security, deploy):
+        uses_lines = [line.strip() for line in workflow.splitlines() if line.lstrip().startswith("- uses:")]
+        assert uses_lines
+        for line in uses_lines:
+            revision = line.split("@", 1)[1].split()[0]
+            assert len(revision) == 40
+            assert all(character in "0123456789abcdef" for character in revision)
     assert "package-ecosystem: pip" in dependabot
     assert "package-ecosystem: npm" in dependabot
     assert "package-ecosystem: github-actions" in dependabot
