@@ -19,7 +19,7 @@ services:
       DOMAIN: ${DOMAIN:?Set DOMAIN in deploy/.env}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
     volumes:
-      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/pathlab-data:ro
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -83,7 +83,7 @@ services:
       - -hooks-enabled-events=pre-create,post-finish
       - -hooks-http-forward-headers=Authorization
     volumes:
-      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/tus:/data/tus
     depends_on:
       api:
         condition: service_healthy
