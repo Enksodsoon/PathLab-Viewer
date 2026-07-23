@@ -22,6 +22,43 @@ jobs:
           python-version: '3.12'
       - name: Apply reviewed transformations
         run: |
+          rm -f apply-hardening-error.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/apply_public_hardening.py')
+          content = path.read_text(encoding='utf-8')
+          old = '''def replace_once(path: str, old: str, new: str) -> None:
+              content = read(path)
+              count = content.count(old)
+              if count != 1:
+                  raise RuntimeError(f"Expected one match in {path}, found {count}")
+              write(path, content.replace(old, new, 1))
+          '''
+          new = '''def _prefixed(value: str, prefix: str) -> str:
+              return "".join(
+                  prefix + line if line.strip() else line
+                  for line in value.splitlines(keepends=True)
+              )
+
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              content = read(path)
+              for prefix in ("", "    ", "        ", "            ", "\\t"):
+                  candidate_old = _prefixed(old, prefix)
+                  count = content.count(candidate_old)
+                  if count == 1:
+                      write(path, content.replace(candidate_old, _prefixed(new, prefix), 1))
+                      return
+                  if path == "deploy/compose.yaml" and count == 2:
+                      write(path, content.replace(candidate_old, _prefixed(new, prefix), 1))
+                      return
+              raise RuntimeError(f"Expected one match in {path}, found 0 or multiple")
+          '''
+          if old not in content:
+              raise SystemExit('transformer helper shape changed')
+          path.write_text(content.replace(old, new, 1), encoding='utf-8')
+          PY
           if python scripts/apply_public_hardening.py > /tmp/apply.log 2>&1; then
             exit 0
           fi
