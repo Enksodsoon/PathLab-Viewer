@@ -1,0 +1,38 @@
+.share-message {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: #090807;
+  color: #f2eadc;
+  text-align: center;
+}
+
+.share-message h1 {
+  margin: 0;
+  font: 500 clamp(28px, 5vw, 44px)/1.1 Georgia, serif;
+}
+
+.share-message p {
+  max-width: 520px;
+  margin: 0;
+  color: #a99e91;
+}
+
+.share-message button {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 18px;
+  border: 1px solid #f06f5b;
+  border-radius: 8px;
+  background: #3a201b;
+  color: #f2eadc;
+  cursor: pointer;
+}
+
+.share-message button:hover,
+.share-message button:focus-visible {
+  background: #5a2d25;
+}

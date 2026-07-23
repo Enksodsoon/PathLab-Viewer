@@ -29,11 +29,27 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   const [share, setShare] = useState<LibraryShare | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageIsError, setMessageIsError] = useState(false)
+  const [confirmRevoke, setConfirmRevoke] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setIncludeDescendants(false)
+    setAutoIncludeNew(false)
+    setExpiresAt('')
+    setConfirmed(false)
+    setConfirmRevoke(false)
+  }, [open, targetId, targetType])
 
   useEffect(() => {
     if (!open) return
     let active = true
     setMessage('')
+    setMessageIsError(false)
+    setConfirmed(false)
+    setConfirmRevoke(false)
+    setPreview(null)
+    setShare(null)
     void Promise.all([
       previewLibraryShare(targetType, targetId, includeDescendants),
       listLibraryShares(),
@@ -42,7 +58,12 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
       setPreview(nextPreview)
       setShare(shares.find((item) => item.targetType === targetType
         && item.targetId === targetId && item.state === 'active') ?? null)
-    }).catch(() => { if (active) setMessage('Unable to load the share preview.') })
+    }).catch(() => {
+      if (active) {
+        setMessageIsError(true)
+        setMessage('Unable to load the share preview.')
+      }
+    })
     return () => { active = false }
   }, [includeDescendants, open, targetId, targetType])
 
@@ -54,6 +75,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
     if (!preview || !confirmed) return
     setBusy(true)
     setMessage('')
+    setMessageIsError(false)
     try {
       setShare(await createLibraryShare({
         targetType,
@@ -66,6 +88,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
       }))
       setMessage('Shared link created.')
     } catch (caught) {
+      setMessageIsError(true)
       setMessage(caught instanceof ApiError && caught.code === 'PRIVACY_SCANNER_REQUIRED'
         ? 'Multi-slide sharing stays disabled until the automated privacy scanner is available.'
         : 'Unable to create the shared link.')
@@ -75,10 +98,12 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   }
 
   async function copyLink() {
+    setMessageIsError(false)
     try {
       await navigator.clipboard.writeText(`${window.location.origin}${publicPath}`)
       setMessage('Link copied.')
     } catch {
+      setMessageIsError(true)
       setMessage('Copy failed. Select and copy the link manually.')
     }
   }
@@ -86,19 +111,30 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   async function rotate() {
     if (!share) return
     setBusy(true)
+    setMessage('')
+    setMessageIsError(false)
     try {
       setShare(await rotateLibraryShare(share.id))
       setMessage('Link rotated. The previous link no longer works.')
+    } catch {
+      setMessageIsError(true)
+      setMessage('Rotate failed. The current link is unchanged.')
     } finally { setBusy(false) }
   }
 
   async function revoke() {
     if (!share) return
     setBusy(true)
+    setMessage('')
+    setMessageIsError(false)
     try {
       await revokeLibraryShare(share.id)
       setShare(null)
+      setConfirmRevoke(false)
       setMessage('Shared link revoked.')
+    } catch {
+      setMessageIsError(true)
+      setMessage('Revoke failed. The current link remains active.')
     } finally { setBusy(false) }
   }
 
@@ -111,11 +147,26 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
           <div className="share-dialog-actions">
             <button type="button" onClick={() => void copyLink()}><Copy /> Copy link</button>
             <button type="button" disabled={busy} onClick={() => void rotate()}><RefreshCw /> Rotate</button>
-            <button type="button" className="danger" disabled={busy} onClick={() => void revoke()}><Trash2 /> Revoke</button>
+            <button
+              type="button"
+              className="danger"
+              disabled={busy}
+              onClick={() => {
+                if (confirmRevoke) void revoke()
+                else setConfirmRevoke(true)
+              }}
+            >
+              <Trash2 /> {confirmRevoke ? 'Confirm revoke' : 'Revoke'}
+            </button>
           </div>
         </> : <>
           {targetType === 'folder' ? <label className="share-check"><input type="checkbox" checked={includeDescendants} onChange={(event) => setIncludeDescendants(event.target.checked)} /><span>Include slides in descendant folders</span></label> : null}
           <label className="share-check"><input type="checkbox" checked={autoIncludeNew} onChange={(event) => setAutoIncludeNew(event.target.checked)} /><span>Automatically include future additions</span><small>Off by default. Routine moves never publish silently.</small></label>
+          {autoIncludeNew ? (
+            <p className="share-auto-warning" role="status">
+              Future additions can only publish after an explicit shared-destination warning.
+            </p>
+          ) : null}
           <label>Expiration (optional)<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
           <div className="share-preview-list">
             <strong>{preview?.included.length ?? 0} slides ready</strong>
@@ -125,7 +176,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
           <label className="share-check privacy"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><ShieldCheck /><span>I confirm public names, teaching metadata, and visible pixels are de-identified.</span></label>
           <button type="button" className="primary" disabled={busy || !confirmed || !preview?.included.length} onClick={() => void create()}>Create shared link</button>
         </>}
-        {message ? <p role="status">{message}</p> : null}
+        {message ? <p role={messageIsError ? 'alert' : 'status'}>{message}</p> : null}
       </div>
     </LibraryDialog>
   )

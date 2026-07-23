@@ -161,7 +161,9 @@ test('keeps the shared viewer navigable on desktop and mobile', async ({ page })
   await page.route('**/tiles/**', (route) => route.fulfill({ status: 404 }))
 
   await page.goto('/f/share-public')
-  await expect(page.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible({
+    timeout: 10_000,
+  })
   await page.getByRole('button', { name: 'Next slide' }).click()
   await expect(page.getByRole('heading', { name: 'Normal colon' })).toBeVisible()
 

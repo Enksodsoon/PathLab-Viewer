@@ -646,8 +646,8 @@
   .library-command-actions {
     width: 100%;
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 65px 44px 44px 44px;
-    gap: 3px;
+    grid-template-columns: 44px minmax(0, 1fr) 60px 44px 44px 44px;
+    gap: 8px;
     overflow: visible;
   }
 
@@ -779,4 +779,30 @@
   .library-slide-grid {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 360px) {
+  .library-command-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .library-command-actions > button,
+  .toolbar-create,
+  .toolbar-create > button,
+  .toolbar-select,
+  .mobile-view-select,
+  .library-upload-button {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+.share-auto-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #715046;
+  border-radius: 8px;
+  background: var(--cs);
+  color: var(--iv);
+  font-size: 12px;
 }

@@ -6,12 +6,14 @@ import { getSharedManifest } from '../api'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import type { SharedManifest } from '../types'
 import '../shared-viewer.css'
+import '../shared-message.css'
 
 export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'collection' }) {
   const { publicId = '' } = useParams()
   const [manifest, setManifest] = useState<SharedManifest | null>(null)
   const [position, setPosition] = useState(0)
   const [missing, setMissing] = useState(false)
+  const [retry, setRetry] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [scaleBar, setScaleBar] = useState<{ microns: number; width: number } | null>(null)
@@ -21,6 +23,8 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
 
   useEffect(() => {
     let active = true
+    setMissing(false)
+    setManifest(null)
     void getSharedManifest(targetType, publicId)
       .then((result) => {
         if (!active) return
@@ -30,7 +34,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       })
       .catch(() => { if (active) setMissing(true) })
     return () => { active = false }
-  }, [publicId, storageKey, targetType])
+  }, [publicId, retry, storageKey, targetType])
 
   const select = useCallback((next: number) => {
     if (!manifest?.slides.length) return
@@ -71,7 +75,15 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
   }, [])
 
   if (missing) {
-    return <main className="share-message"><h1>This shared library is unavailable</h1><p>The link may be incorrect, expired, or revoked.</p></main>
+    return (
+      <main className="share-message">
+        <h1>This shared library is unavailable</h1>
+        <p>The link may be incorrect, expired, or revoked.</p>
+        <button type="button" onClick={() => setRetry((current) => current + 1)}>
+          Try again
+        </button>
+      </main>
+    )
   }
   if (!manifest) return <div className="center-state dark">Opening shared library…</div>
   if (!manifest.slides.length) {

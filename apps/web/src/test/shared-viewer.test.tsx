@@ -124,4 +124,17 @@ describe('shared library viewer', () => {
     expect(await screen.findByText(/shared library is unavailable/i)).toBeVisible()
     await waitFor(() => expect(screen.getByText(/incorrect, expired, or revoked/i)).toBeVisible())
   })
+
+  it('offers a retry without disclosing why a shared link failed', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('{}', { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MANIFEST), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    renderShare()
+    await screen.findByText(/shared library is unavailable/i)
+    await userEvent.click(screen.getByRole('button', { name: /try again/i }))
+    expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+  })
 })

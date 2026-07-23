@@ -66,4 +66,28 @@ describe('share activation dialog', () => {
     }))
     expect(await screen.findByDisplayValue(/\/f\/share-public$/)).toBeVisible()
   })
+
+  it('reports link-management failures and confirms revocation', async () => {
+    api.listLibraryShares.mockResolvedValue([{
+      id: 'share-1',
+      publicId: 'share-public',
+      targetType: 'folder',
+      targetId: 'folder-1',
+      state: 'active',
+      includeDescendants: false,
+      autoIncludeNew: false,
+      expiresAt: null,
+      includedCount: 1,
+      updatedAt: '2026-07-23T00:00:00Z',
+    }])
+    api.rotateLibraryShare.mockRejectedValue(new Error('offline'))
+    render(<ShareDialog open targetType="folder" targetId="folder-1" targetName="GI teaching set" onClose={vi.fn()} />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Rotate' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/rotate.*failed/i)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revoke' }))
+    expect(screen.getByRole('button', { name: /confirm revoke/i })).toBeVisible()
+    expect(api.revokeLibraryShare).not.toHaveBeenCalled()
+  })
 })
