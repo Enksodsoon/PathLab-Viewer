@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 interface LibraryDialogProps {
   open: boolean
@@ -19,6 +19,7 @@ export function LibraryDialog({
   wide = false,
 }: LibraryDialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
@@ -29,7 +30,7 @@ export function LibraryDialog({
     <dialog
       ref={ref}
       className={`library-dialog ${wide ? 'library-dialog-wide' : ''}`}
-      aria-labelledby="library-dialog-title"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
         onClose()
@@ -38,7 +39,7 @@ export function LibraryDialog({
     >
       <div className="library-dialog-heading">
         <div>
-          <h2 id="library-dialog-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
         <button type="button" aria-label={`Close ${title}`} onClick={onClose}><X /></button>

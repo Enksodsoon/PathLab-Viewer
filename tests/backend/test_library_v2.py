@@ -1,8 +1,9 @@
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
-from sqlalchemy import event, insert, text
+from sqlalchemy import event, insert, select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
@@ -11,7 +12,9 @@ from wsi_viewer.models import (
     Collection,
     Folder,
     Job,
+    LibraryShare,
     PublicationGrant,
+    ShareSlide,
     Slide,
     User,
 )
@@ -417,6 +420,253 @@ def test_multi_share_activation_is_blocked_without_privacy_scanner(tmp_path: Pat
         )
         assert response.status_code == 409
         assert response.json()["detail"]["code"] == "PRIVACY_SCANNER_REQUIRED"
+
+
+def _seed_share_ready_slide(
+    client: TestClient,
+    *,
+    slide_id: str,
+    folder_id: str | None = None,
+) -> None:
+    settings = client.app.state.settings
+    with session_factory(settings)() as database:
+        slide = Slide(
+            id=slide_id,
+            public_id=f"public-{slide_id}",
+            display_name=f"Safe {slide_id}",
+            original_filename=f"private-{slide_id}.ome.tiff",
+            source_bytes=1024,
+            folder_id=folder_id,
+            state=SlideState.READY_PRIVATE,
+            organ_site="Colon",
+            stain="H&E",
+            diagnosis="Adenocarcinoma",
+            teaching_note="Safe teaching note",
+            admin_notes="must stay private",
+            privacy_status="passed",
+            privacy_scanned_at=datetime.now(UTC).replace(tzinfo=None),
+            thumbnail_filename="thumbnail.jpg",
+        )
+        database.add(slide)
+        database.commit()
+        derivative = StorageLayout(settings.data_root).for_slide(slide.id).private_derivative
+        (derivative / "slide_files" / "0").mkdir(parents=True)
+        (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
+        (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"tile")
+        (derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
+
+
+def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        root = _create_folder(client, headers, "GI")
+        child = _create_folder(client, headers, "Colon", root["id"])
+        _seed_share_ready_slide(client, slide_id="direct", folder_id=root["id"])
+        _seed_share_ready_slide(client, slide_id="descendant", folder_id=child["id"])
+
+        direct = client.get(
+            "/api/v2/admin/shares/preview",
+            params={
+                "targetType": "folder",
+                "targetId": root["id"],
+                "includeDescendants": False,
+            },
+        )
+        assert direct.status_code == 200
+        assert [item["displayName"] for item in direct.json()["included"]] == ["Safe direct"]
+
+        descendant = client.get(
+            "/api/v2/admin/shares/preview",
+            params={
+                "targetType": "folder",
+                "targetId": root["id"],
+                "includeDescendants": True,
+            },
+        )
+        assert {item["displayName"] for item in descendant.json()["included"]} == {
+            "Safe direct",
+            "Safe descendant",
+        }
+
+        unconfirmed = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "folder",
+                "targetId": root["id"],
+                "includeDescendants": True,
+                "deidentifiedConfirmed": False,
+            },
+        )
+        assert unconfirmed.status_code == 422
+
+        created = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "folder",
+                "targetId": root["id"],
+                "includeDescendants": True,
+                "autoIncludeNew": False,
+                "deidentifiedConfirmed": True,
+                "slideIds": ["descendant", "direct"],
+            },
+        )
+        assert created.status_code == 201, created.text
+        assert created.json()["autoIncludeNew"] is False
+        assert created.json()["includedCount"] == 2
+
+        manifest = client.get(f"/api/v2/public/folders/{created.json()['publicId']}")
+        assert manifest.status_code == 200
+        payload = manifest.json()
+        assert [item["displayName"] for item in payload["slides"]] == [
+            "Safe descendant",
+            "Safe direct",
+        ]
+        assert all(
+            set(item)
+            == {
+                "position",
+                "displayName",
+                "organSite",
+                "stain",
+                "diagnosis",
+                "tags",
+                "teachingNote",
+                "thumbnailUrl",
+                "tileSource",
+                "scale",
+            }
+            for item in payload["slides"]
+        )
+        public_thumbnail = client.get(payload["slides"][0]["thumbnailUrl"])
+        assert public_thumbnail.status_code == 200
+        assert public_thumbnail.content == b"thumbnail"
+        assert public_thumbnail.headers["cache-control"] == "public, max-age=300"
+        serialized = manifest.text
+        for private_value in [
+            "private-descendant.ome.tiff",
+            "must stay private",
+            "sourceBytes",
+            "adminNotes",
+        ]:
+            assert private_value not in serialized
+
+
+def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        _seed_share_ready_slide(client, slide_id="collection-slide")
+        created_collection = client.post(
+            "/api/v2/admin/collections",
+            headers=headers,
+            json={"name": "Core set"},
+        ).json()
+        client.post(
+            f"/api/v2/admin/collections/{created_collection['id']}/items",
+            headers=headers,
+            json={"slideIds": ["collection-slide"]},
+        )
+        created = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "collection",
+                "targetId": created_collection["id"],
+                "deidentifiedConfirmed": True,
+            },
+        )
+        assert created.status_code == 201
+        share_id = created.json()["id"]
+        old_public_id = created.json()["publicId"]
+
+        rotated = client.post(
+            f"/api/v2/admin/shares/{share_id}/rotate",
+            headers=headers,
+        )
+        assert rotated.status_code == 200
+        assert rotated.json()["publicId"] != old_public_id
+        assert client.get(f"/api/v2/public/collections/{old_public_id}").status_code == 404
+        assert client.get(
+            f"/api/v2/public/collections/{rotated.json()['publicId']}"
+        ).status_code == 200
+
+        revoked = client.delete(
+            f"/api/v2/admin/shares/{share_id}",
+            headers=headers,
+        )
+        assert revoked.status_code == 204
+        missing = client.get(
+            f"/api/v2/public/collections/{rotated.json()['publicId']}"
+        )
+        assert missing.status_code == 404
+        assert missing.json()["detail"]["code"] == "SHARE_NOT_FOUND"
+        assert client.get("/api/v2/public/collections/not-a-share").json() == missing.json()
+
+        settings = client.app.state.settings
+        with session_factory(settings)() as database:
+            assert database.query(ShareSlide).count() == 1
+            assert database.query(PublicationGrant).count() == 0
+            expired = LibraryShare(
+                target_type="collection",
+                target_id=created_collection["id"],
+                privacy_status="passed",
+                confirmed_at=datetime.now(UTC).replace(tzinfo=None),
+                expires_at=(datetime.now(UTC) - timedelta(minutes=1)).replace(tzinfo=None),
+            )
+            database.add(expired)
+            database.commit()
+            expired_public_id = expired.public_id
+        assert client.get(
+            f"/api/v2/public/collections/{expired_public_id}"
+        ).status_code == 404
+
+
+def test_routine_move_never_auto_publishes_into_shared_folder(tmp_path: Path) -> None:
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        folder = _create_folder(client, headers, "Auto scope")
+        _seed_share_ready_slide(client, slide_id="already-reviewed", folder_id=folder["id"])
+        created = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "folder",
+                "targetId": folder["id"],
+                "autoIncludeNew": True,
+                "deidentifiedConfirmed": True,
+            },
+        )
+        assert created.status_code == 201
+        _seed_share_ready_slide(client, slide_id="routine-move")
+
+        moved = client.post(
+            "/api/v2/admin/slides/batch-move",
+            headers=headers,
+            json={"slideIds": ["routine-move"], "folderId": folder["id"]},
+        )
+        assert moved.status_code == 200
+
+        with session_factory(client.app.state.settings)() as database:
+            grants = database.scalars(
+                select(PublicationGrant).where(
+                    PublicationGrant.slide_id == "routine-move",
+                    PublicationGrant.source_type == SHARE,
+                )
+            ).all()
+            assert grants == []
+            share = database.get(LibraryShare, created.json()["id"])
+            assert share is not None
+            memberships = database.scalars(
+                select(ShareSlide).where(ShareSlide.share_id == share.id)
+            ).all()
+            assert [membership.slide_id for membership in memberships] == [
+                "already-reviewed"
+            ]
 
 
 def test_publication_alias_and_thumbnail_remain_until_final_grant_is_removed(

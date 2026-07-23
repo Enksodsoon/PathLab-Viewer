@@ -119,3 +119,76 @@ test('exposes functional creation, card, and mobile account controls', async ({ 
   await expect(page.getByRole('button', { name: 'Account' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
+
+test('keeps the shared viewer navigable on desktop and mobile', async ({ page }) => {
+  await page.route('**/api/v2/public/folders/share-public', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      publicId: 'share-public',
+      targetType: 'folder',
+      name: 'GI teaching set',
+      description: 'Safe teaching slides',
+      expiresAt: null,
+      slides: [
+        {
+          position: 0,
+          displayName: 'Colon adenocarcinoma',
+          organSite: 'Colon',
+          stain: 'H&E',
+          diagnosis: 'Adenocarcinoma',
+          tags: ['Teaching'],
+          teachingNote: 'Safe note',
+          thumbnailUrl: '/thumb/0',
+          tileSource: '/tiles/public-1/slide.dzi',
+          scale: 0.5,
+        },
+        {
+          position: 1,
+          displayName: 'Normal colon',
+          organSite: 'Colon',
+          stain: 'H&E',
+          diagnosis: 'Normal',
+          tags: [],
+          teachingNote: '',
+          thumbnailUrl: '/thumb/1',
+          tileSource: '/tiles/public-2/slide.dzi',
+          scale: 0.5,
+        },
+      ],
+    }),
+  }))
+  await page.route('**/thumb/**', (route) => route.fulfill({ status: 404 }))
+  await page.route('**/tiles/**', (route) => route.fulfill({ status: 404 }))
+
+  await page.goto('/f/share-public')
+  await expect(page.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible({
+    timeout: 10_000,
+  })
+  await page.getByRole('button', { name: 'Next slide' }).click()
+  await expect(page.getByRole('heading', { name: 'Normal colon' })).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByRole('button', { name: 'Open slide navigator' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open slide navigator' }).click()
+  await expect(page.getByRole('searchbox', { name: 'Search shared slides' })).toBeVisible()
+  expect(await page.evaluate(() => (
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth
+  ))).toBe(true)
+})
+
+test('keeps folder sharing controls contained on mobile', async ({ page }) => {
+  await page.goto('/admin?location=folder:folder-organs')
+  await page.setViewportSize({ width: 390, height: 844 })
+  const share = page.getByRole('button', { name: 'Share', exact: true })
+  await expect(share).toBeVisible()
+  for (const control of [share, page.getByRole('button', { name: 'Upload', exact: true })]) {
+    const box = await control.boundingBox()
+    expect(box).not.toBeNull()
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
+  }
+  expect(await page.evaluate(() => (
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth
+  ))).toBe(true)
+  await share.click()
+  await expect(page.getByRole('dialog', { name: 'Share Organ systems' })).toBeVisible()
+})
