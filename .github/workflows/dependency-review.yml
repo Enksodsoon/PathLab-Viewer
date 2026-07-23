@@ -16,6 +16,35 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: moderate
+          fetch-depth: 0
+          persist-credentials: false
+          show-progress: false
+
+      - name: Require a lockfile update for JavaScript manifest changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only "${BASE_SHA}" HEAD > /tmp/pathlab-changed-files
+          if grep -Eq '^(package.json|apps/web/package.json)$' /tmp/pathlab-changed-files; then
+            grep -qx 'pnpm-lock.yaml' /tmp/pathlab-changed-files || {
+              echo "pnpm-lock.yaml must change with a JavaScript package manifest."
+              exit 1
+            }
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --disable-pip-version-check pip-audit==2.10.1
+      - run: pip-audit . --progress-spinner off
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.9.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.14.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level high
