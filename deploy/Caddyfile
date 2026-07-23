@@ -6,6 +6,12 @@
 {$DOMAIN} {
 	encode zstd gzip
 
+	@internal path /api/v1/internal/*
+	respond @internal 404
+
+	@apiDocs path /docs* /redoc* /openapi.json
+	respond @apiDocs 404
+
 	@uploads path /api/v1/uploads/*
 	handle @uploads {
 		reverse_proxy tusd:8080
@@ -23,12 +29,18 @@
 		file_server
 	}
 
+	header /api/* Cache-Control "no-store"
+	header /admin* Cache-Control "no-store"
 	header /s/* X-Robots-Tag "noindex, nofollow, noarchive"
 	header {
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; img-src 'self' data: blob:; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; worker-src 'self' blob:"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		Referrer-Policy "no-referrer"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-Server
 	}
 
