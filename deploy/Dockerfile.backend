@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir .
 RUN useradd --system --uid 10001 --create-home pathlab
 USER pathlab
 EXPOSE 8000
-CMD ["uvicorn", "wsi_viewer.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["sh", "-c", "pathlab-preflight && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 2"]
