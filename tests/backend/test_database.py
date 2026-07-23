@@ -151,7 +151,7 @@ def test_storage_accounting_migration_upgrades_and_downgrades(
         }
     assert {"reserved_bytes", "derivative_bytes", "derivative_file_count"} <= columns
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, "20260719_0004")
     with session_factory(settings)() as database:
         downgraded = {
             column["name"] for column in inspect(database.connection()).get_columns("slides")
@@ -161,6 +161,64 @@ def test_storage_accounting_migration_upgrades_and_downgrades(
         "derivative_bytes",
         "derivative_file_count",
     } & downgraded
+
+
+def test_library_v2_migration_preserves_public_ids_and_round_trips(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "library-v2.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260723_0005")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        database.execute(
+            text(
+                "INSERT INTO slides "
+                "(id, public_id, display_name, original_filename, source_bytes, state, "
+                "reserved_bytes, derivative_bytes, derivative_file_count, created_at, "
+                "updated_at, published_at) VALUES "
+                "('slide-1', 'stable-public-id', 'Published', 'source.ome.tiff', 10, "
+                "'published', 0, 20, 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "
+                "CURRENT_TIMESTAMP)"
+            )
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        tables = {
+            row[0]
+            for row in database.execute(
+                text("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')")
+            )
+        }
+        assert {
+            "folders",
+            "collections",
+            "collection_slides",
+            "saved_views",
+            "library_shares",
+            "share_slides",
+            "publication_grants",
+        } <= tables
+        assert database.execute(
+            text("SELECT public_id FROM slides WHERE id = 'slide-1'")
+        ).scalar_one() == "stable-public-id"
+        assert database.execute(
+            text(
+                "SELECT source_type || ':' || source_id FROM publication_grants "
+                "WHERE slide_id = 'slide-1'"
+            )
+        ).scalar_one() == "individual:slide-1"
+
+    command.downgrade(config, "20260723_0005")
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text("SELECT public_id FROM slides WHERE id = 'slide-1'")
+        ).scalar_one() == "stable-public-id"
 
 
 def test_storage_accounting_columns_reject_negative_values(

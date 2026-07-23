@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     worker_heartbeat_interval_seconds: PositiveInt = 10
     worker_heartbeat_stale_seconds: PositiveInt = 45
     serve_public_tiles: bool = False
+    multi_share_enabled: bool = False
     libvips_concurrency: PositiveInt = 1
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
     libvips_cache_max_files: PositiveInt = 128
