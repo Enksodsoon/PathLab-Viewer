@@ -22,6 +22,24 @@ def test_caddy_sets_browser_security_policy() -> None:
     assert "Strict-Transport-Security" in caddyfile
 
 
+def test_public_services_receive_only_the_storage_they_need() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    caddy = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
+        "\n  api:\n", maxsplit=1
+    )[0]
+    tusd = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
+        "\n  worker:\n", maxsplit=1
+    )[0]
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro" in caddy
+    assert ":/pathlab-data:ro" not in caddy
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/tus:/data/tus" in tusd
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data" not in tusd
+    assert "root * /pathlab-public" in caddyfile
+    assert "root * /pathlab-data/public" not in caddyfile
+
+
 def test_public_files_do_not_publish_the_production_endpoint() -> None:
     workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
     release = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
