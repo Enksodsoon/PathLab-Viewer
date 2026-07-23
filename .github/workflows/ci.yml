@@ -12,7 +12,18 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PATHLAB_SECRET_KEY: ci-only-secret-not-used-in-production-0000000000000000
+
 jobs:
+  public-repository:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python scripts/check_public_repository.py
+
   backend:
     runs-on: ubuntu-24.04
     steps:
@@ -20,7 +31,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -e .[dev]
-      - run: ruff check server tests migrations
+      - run: ruff check server tests migrations scripts
       - run: mypy server/wsi_viewer
       - run: pytest --cov=wsi_viewer --cov-report=term-missing
 
@@ -37,12 +48,26 @@ jobs:
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
 
+  dependencies:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install --disable-pip-version-check pip-audit==2.10.1
+      - run: pip-audit . --progress-spinner off
+      - uses: pnpm/action-setup@v4
+        with: { version: "11.9.0" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24.14.0", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level high
+
   containers:
     runs-on: ubuntu-24.04
     env:
       DOMAIN: viewer.example.test
       ACME_EMAIL: ci@example.test
-      PATHLAB_SECRET_KEY: ci-only-secret-not-used-in-production
       PATHLAB_DATA_DIR: /tmp/pathlab-data
     steps:
       - uses: actions/checkout@v4
