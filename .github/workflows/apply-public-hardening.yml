@@ -61,6 +61,10 @@ jobs:
               'sqlite:////data/db/pathlab.sqlite3',
               'sqlite:////data/database/pathlab.sqlite3',
           )
+          content = content.replace(
+              'PATHLAB_DATABASE_URL=sqlite:///./var/pathlab.sqlite3',
+              'PATHLAB_DATABASE_URL=sqlite:////data/database/pathlab.sqlite3',
+          )
           compose_edit = '''replace_once(
               "deploy/compose.yaml",
               "      PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3\\n",
