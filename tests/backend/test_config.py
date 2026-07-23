@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from wsi_viewer.config import Settings, validate_runtime_security
+from wsi_viewer.preflight import main as run_preflight
 
 LIMIT_ENVIRONMENT = {
     "PATHLAB_LIBVIPS_CONCURRENCY": "3",
@@ -74,3 +75,20 @@ def test_runtime_accepts_a_long_non_placeholder_secret_key() -> None:
     settings = Settings(_env_file=None, secret_key="a" * 64)
 
     validate_runtime_security(settings)
+
+
+def test_deployment_preflight_requires_explicit_secret_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_SECRET_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="must be set explicitly"):
+        run_preflight()
+
+
+def test_deployment_preflight_accepts_explicit_strong_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PATHLAB_SECRET_KEY", "b" * 64)
+
+    run_preflight()
