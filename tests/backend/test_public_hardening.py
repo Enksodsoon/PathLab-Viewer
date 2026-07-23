@@ -75,6 +75,25 @@ def test_backups_are_owner_only_and_restore_validates_archive_paths() -> None:
     assert "--no-same-permissions" in restore
 
 
+def test_docker_context_excludes_private_data_and_credentials() -> None:
+    dockerignore = Path(".dockerignore").read_text(encoding="utf-8")
+
+    for pattern in (
+        ".env",
+        "data",
+        "*.sqlite3",
+        "*.pem",
+        "*.key",
+        "*.svs",
+        "*.vsi",
+        "*.tif",
+        "*.tiff",
+        "*.tar.gz",
+    ):
+        assert pattern in dockerignore
+    assert "!.env.example" in dockerignore
+
+
 def test_ci_runs_public_repository_and_history_guards() -> None:
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
