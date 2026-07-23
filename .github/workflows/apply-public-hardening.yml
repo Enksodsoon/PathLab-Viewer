@@ -44,7 +44,8 @@ jobs:
 
           def replace_once(path: str, old: str, new: str) -> None:
               content = read(path)
-              for prefix in ("", "    ", "        ", "            ", "\\t"):
+              prefixes = ("", "  ", "    ", "      ", "        ", "          ", "            ", "              ", "                ", "\\t")
+              for prefix in prefixes:
                   candidate_old = _prefixed(old, prefix)
                   count = content.count(candidate_old)
                   if count == 1:
