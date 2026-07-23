@@ -27,16 +27,10 @@ jobs:
 
           path = Path('apps/web/src/pages/AdminPage.tsx')
           content = path.read_text(encoding='utf-8')
-          old = """        setNotice(action === 'retry'
-            ? 'Conversion queued again.'
-            : action === 'publish' ? 'Slide published.' : 'Slide unpublished.')
-          """
-          new = """        setNotice(action === 'retry'
-            ? 'Conversion queued again.'
-            : 'Slide unpublished.')
-          """
+          old = ": action === 'publish' ? 'Slide published.' : 'Slide unpublished.')"
+          new = ": 'Slide unpublished.')"
           if content.count(old) != 1:
-              raise SystemExit('publication state snippet changed')
+              raise SystemExit('publication state expression changed')
           path.write_text(content.replace(old, new, 1), encoding='utf-8')
           PY
       - name: Apply Ruff safe fixes and formatting
