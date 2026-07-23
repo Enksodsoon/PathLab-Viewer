@@ -54,6 +54,7 @@ import {
 } from '../components/library/LibraryToolbar'
 import { SelectionActionBar } from '../components/library/SelectionActionBar'
 import { QuickViewRail } from '../components/library/QuickViewRail'
+import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
 import type {
@@ -115,6 +116,7 @@ type DialogName =
   | 'delete-collection'
   | 'edit-saved'
   | 'delete-saved'
+  | 'share'
   | null
 
 interface SlideEditForm {
@@ -431,6 +433,23 @@ export function AdminPage() {
   }, [foldersById, location, navigation.collections])
 
   const currentTitle = breadcrumbs.at(-1)?.label ?? 'Slides'
+  const shareTarget = useMemo(() => {
+    if (location.startsWith('folder:')) {
+      return {
+        type: 'folder' as const,
+        id: location.slice('folder:'.length),
+        name: currentTitle,
+      }
+    }
+    if (location.startsWith('collection:')) {
+      return {
+        type: 'collection' as const,
+        id: location.slice('collection:'.length),
+        name: currentTitle,
+      }
+    }
+    return null
+  }, [currentTitle, location])
   const selectedSlides = page.items.filter((slide) => selected.has(slide.id))
   const selectedIds = selectedSlides.map((slide) => slide.id)
 
@@ -998,6 +1017,7 @@ export function AdminPage() {
           onNewCollection={() => openNamedDialog('collection')}
           onNewSavedView={() => openNamedDialog('saved')}
           onUpload={() => openNamedDialog('upload')}
+          onShare={shareTarget ? () => openNamedDialog('share') : undefined}
         />
         {filtersOpen ? (
           <FilterPanel
@@ -1433,6 +1453,16 @@ export function AdminPage() {
           <button type="submit" className="primary">Save tags</button>
         </form>
       </LibraryDialog>
+
+      {shareTarget ? (
+        <ShareDialog
+          open={dialog === 'share'}
+          targetType={shareTarget.type}
+          targetId={shareTarget.id}
+          targetName={shareTarget.name}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
 
       <AccountSecurityDialog
         open={securityOpen}

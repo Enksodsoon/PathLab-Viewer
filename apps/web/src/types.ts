@@ -138,3 +138,53 @@ export interface SlideStatusItem {
   state: SlideState
   errorCode: string | null
 }
+
+export interface SharedSlide {
+  position: number
+  displayName: string
+  organSite: string
+  stain: string
+  diagnosis: string
+  tags: string[]
+  teachingNote: string
+  thumbnailUrl: string
+  tileSource: string
+  scale: number | null
+}
+
+export interface SharedManifest {
+  publicId: string
+  targetType: 'folder' | 'collection'
+  name: string
+  description: string
+  expiresAt: string | null
+  slides: SharedSlide[]
+}
+
+export interface SharePreviewItem {
+  id: string
+  displayName: string
+  reason?: string
+}
+
+export interface SharePreview {
+  targetType: 'folder' | 'collection'
+  targetId: string
+  name: string
+  description: string
+  included: SharePreviewItem[]
+  excluded: SharePreviewItem[]
+}
+
+export interface LibraryShare {
+  id: string
+  publicId: string
+  targetType: 'folder' | 'collection'
+  targetId: string
+  state: 'active' | 'expired' | 'revoked'
+  includeDescendants: boolean
+  autoIncludeNew: boolean
+  expiresAt: string | null
+  includedCount: number
+  updatedAt: string
+}

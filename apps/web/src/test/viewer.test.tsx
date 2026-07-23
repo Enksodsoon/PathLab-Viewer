@@ -100,6 +100,18 @@ it('sets bounded tile retry and request timeout options', () => {
   })
 })
 
+it('keeps one viewer instance and opens the next slide in place', () => {
+  const view = render(
+    <OpenSeadragonViewer tileSource="/tiles/first/slide.dzi" onReady={vi.fn()} />,
+  )
+  view.rerender(
+    <OpenSeadragonViewer tileSource="/tiles/second/slide.dzi" onReady={vi.fn()} />,
+  )
+  expect(osdMock.factory).toHaveBeenCalledOnce()
+  expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
+  expect(osdMock.viewer.open).toHaveBeenCalledWith('/tiles/second/slide.dzi')
+})
+
 it('shows an asynchronous loading error when opening fails', async () => {
   vi.useFakeTimers()
   renderViewer()

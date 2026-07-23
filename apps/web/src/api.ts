@@ -10,6 +10,9 @@ import type {
   PublicSlide,
   SavedView,
   SlideStatusItem,
+  SharedManifest,
+  SharePreview,
+  LibraryShare,
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
@@ -443,4 +446,79 @@ export async function deleteLibrarySlide(slideId: string): Promise<void> {
       headers: csrfHeaders(),
     },
   ))
+}
+
+export async function getSharedManifest(
+  targetType: 'folder' | 'collection',
+  publicId: string,
+): Promise<SharedManifest> {
+  const route = targetType === 'folder' ? 'folders' : 'collections'
+  return json<SharedManifest>(
+    await fetch(`/api/v2/public/${route}/${encodeURIComponent(publicId)}`, {
+      credentials: 'omit',
+    }),
+  )
+}
+
+export async function previewLibraryShare(
+  targetType: 'folder' | 'collection',
+  targetId: string,
+  includeDescendants: boolean,
+): Promise<SharePreview> {
+  const params = new URLSearchParams({
+    targetType,
+    targetId,
+    includeDescendants: String(includeDescendants),
+  })
+  return json<SharePreview>(
+    await fetch(`/api/v2/admin/shares/preview?${params.toString()}`, {
+      credentials: 'same-origin',
+    }),
+  )
+}
+
+export async function listLibraryShares(): Promise<LibraryShare[]> {
+  const result = await json<{ items: LibraryShare[] }>(
+    await fetch('/api/v2/admin/shares', { credentials: 'same-origin' }),
+  )
+  return result.items
+}
+
+export async function createLibraryShare(payload: {
+  targetType: 'folder' | 'collection'
+  targetId: string
+  includeDescendants: boolean
+  autoIncludeNew: boolean
+  expiresAt: string | null
+  slideIds: string[]
+  deidentifiedConfirmed: boolean
+}): Promise<LibraryShare> {
+  return json<LibraryShare>(
+    await fetch('/api/v2/admin/shares', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: csrfHeaders(true),
+      body: JSON.stringify(payload),
+    }),
+  )
+}
+
+export async function rotateLibraryShare(shareId: string): Promise<LibraryShare> {
+  return json<LibraryShare>(
+    await fetch(`/api/v2/admin/shares/${encodeURIComponent(shareId)}/rotate`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: csrfHeaders(),
+    }),
+  )
+}
+
+export async function revokeLibraryShare(shareId: string): Promise<void> {
+  await expectOk(
+    await fetch(`/api/v2/admin/shares/${encodeURIComponent(shareId)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: csrfHeaders(),
+    }),
+  )
 }

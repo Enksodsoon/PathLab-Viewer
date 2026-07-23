@@ -11,6 +11,8 @@ import {
   List,
   Plus,
   Search,
+  Share2,
+  Share2,
   Table2,
   Upload,
 } from 'lucide-react'
@@ -40,6 +42,7 @@ interface LibraryToolbarProps {
   onNewCollection: () => void
   onNewSavedView: () => void
   onUpload: () => void
+  onShare?: () => void
 }
 
 export function LibraryToolbar({
@@ -60,6 +63,7 @@ export function LibraryToolbar({
   onNewCollection,
   onNewSavedView,
   onUpload,
+  onShare,
 }: LibraryToolbarProps) {
   return (
     <header className="library-toolbar">
@@ -159,6 +163,11 @@ export function LibraryToolbar({
               )}
             </ContextMenu>
           </div>
+          {onShare ? (
+            <button type="button" aria-label="Share" onClick={onShare}>
+              <Share2 /> <span>Share</span>
+            </button>
+          ) : null}
           <button
             type="button"
             className="library-upload-button"
