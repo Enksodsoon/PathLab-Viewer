@@ -3,7 +3,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
@@ -149,6 +149,16 @@ def reconcile_storage(
     active_reservation_count = 0
     with factory() as database:
         _begin_immediate(database)
+        database.execute(
+            text(
+                """
+                UPDATE slides
+                SET tags = :valid_tags
+                WHERE tags = :legacy_tags
+                """
+            ),
+            {"valid_tags": "[]", "legacy_tags": "'[]'"},
+        )
         slides = database.scalars(select(Slide).order_by(Slide.id)).all()
         for slide in slides:
             derivative = layout.for_slide(slide.id).private_derivative

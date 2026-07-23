@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -263,6 +263,39 @@ def test_reconciliation_backfills_derivative_and_active_reservation(
         assert ready.derivative_file_count == 2
         assert active is not None
         assert active.reserved_bytes == admission_required(7)
+
+
+def test_reconciliation_repairs_legacy_invalid_slide_tags(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'legacy-tags.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        slide = Slide(
+            display_name="Legacy tags",
+            original_filename="legacy-tags.ome.tif",
+            source_bytes=7,
+            state=SlideState.QUEUED,
+        )
+        database.add(slide)
+        database.commit()
+        slide_id = slide.id
+        database.execute(
+            text("UPDATE slides SET tags = :legacy_tags WHERE id = :slide_id"),
+            {"legacy_tags": "'[]'", "slide_id": slide_id},
+        )
+        database.commit()
+
+    summary = reconcile_storage(factory, layout)
+
+    assert summary.slide_count == 1
+    with factory() as database:
+        repaired = database.get(Slide, slide_id)
+        assert repaired is not None
+        assert repaired.tags == []
 
 
 def test_reconciliation_rejects_unsafe_derivative_symlink(tmp_path: Path) -> None:

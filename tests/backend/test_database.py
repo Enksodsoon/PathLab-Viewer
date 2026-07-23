@@ -212,6 +212,9 @@ def test_library_v2_migration_preserves_public_ids_and_round_trips(
                 "WHERE slide_id = 'slide-1'"
             )
         ).scalar_one() == "individual:slide-1"
+        migrated_slide = database.get(Slide, "slide-1")
+        assert migrated_slide is not None
+        assert migrated_slide.tags == []
 
     command.downgrade(config, "20260723_0005")
     command.upgrade(config, "head")
@@ -219,6 +222,9 @@ def test_library_v2_migration_preserves_public_ids_and_round_trips(
         assert database.execute(
             text("SELECT public_id FROM slides WHERE id = 'slide-1'")
         ).scalar_one() == "stable-public-id"
+        migrated_slide = database.get(Slide, "slide-1")
+        assert migrated_slide is not None
+        assert migrated_slide.tags == []
 
 
 def test_storage_accounting_columns_reject_negative_values(
