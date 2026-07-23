@@ -38,3 +38,103 @@ export interface PublicSlide {
   tileSource: string
   metadata: SlideMetadata | null
 }
+
+export interface LibrarySlide {
+  id: string
+  publicId: string
+  displayName: string
+  description: string
+  folderId: string | null
+  caseId: string
+  organSite: string
+  stain: string
+  diagnosis: string
+  course: string
+  tags: string[]
+  teachingNote: string
+  sourceBytes: number
+  derivativeBytes: number
+  state: SlideState
+  errorCode: string | null
+  createdAt: string
+  updatedAt: string
+  trashedAt: string | null
+  thumbnailUrl: string | null
+}
+
+export interface LibrarySlideDetails extends LibrarySlide {
+  filename: string
+  adminNotes: string
+  metadata: SlideMetadata | null
+}
+
+export interface LibraryFolder {
+  id: string
+  parentId: string | null
+  name: string
+  description: string
+  sortOrder: number
+  itemCount: number
+  childCount: number
+  hasChildren: boolean
+  trashedAt: string | null
+  updatedAt: string
+}
+
+export interface LibraryCollection {
+  id: string
+  name: string
+  description: string
+  sortOrder: number
+  itemCount: number
+  updatedAt: string
+}
+
+export interface SavedView {
+  id: string
+  name: string
+  definition: {
+    version: 1
+    filters: Record<string, string | string[]>
+  }
+  sort: string
+  updatedAt: string
+}
+
+export interface LibraryNavigation {
+  counts: {
+    all: number
+    unfiled: number
+    shared: number
+    processing: number
+    failed: number
+    trash: number
+  }
+  folders: LibraryFolder[]
+  collections: LibraryCollection[]
+  savedViews: SavedView[]
+}
+
+export interface LibraryItemsPage {
+  items: LibrarySlide[]
+  nextCursor: string | null
+  total: number
+}
+
+export interface LibraryFacetValue {
+  value: string
+  count: number
+}
+
+export interface LibraryFacets {
+  organ: LibraryFacetValue[]
+  stain: LibraryFacetValue[]
+  diagnosis: LibraryFacetValue[]
+  course: LibraryFacetValue[]
+}
+
+export interface SlideStatusItem {
+  id: string
+  state: SlideState
+  errorCode: string | null
+}

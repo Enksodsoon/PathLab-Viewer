@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .domain import InvalidTransition, SlideState, transition
-from .models import AuditEvent, Job, Slide
+from .models import AuditEvent, Folder, Job, Slide
 from .storage import (
     InsufficientStorage,
     PublicationError,
@@ -71,17 +71,23 @@ def reserve_new_slide(
     original_filename: str,
     source_bytes: int,
     actor_user_id: str | None,
+    folder_id: str | None = None,
 ) -> Slide:
     required = admission_required(source_bytes)
     _require_physical_space(layout.root, required)
     with factory() as database:
         _begin_immediate(database)
         _require_application_capacity(database, layout, required)
+        if folder_id is not None:
+            folder = database.get(Folder, folder_id)
+            if folder is None or folder.trashed_at is not None:
+                raise LookupError("Folder not found")
         slide = Slide(
             display_name=display_name,
             original_filename=original_filename,
             source_bytes=source_bytes,
             reserved_bytes=required,
+            folder_id=folder_id,
         )
         database.add(slide)
         database.flush()

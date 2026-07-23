@@ -7,9 +7,15 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 class AuthBodyLimitMiddleware:
     """Bound every auth request without buffering an unbounded body."""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        max_bytes: int,
+        path_prefixes: tuple[str, ...] = ("/api/v1/auth/",),
+    ) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.path_prefixes = path_prefixes
 
     def _declared_too_large(self, scope: Scope) -> bool:
         for name, raw_value in scope.get("headers", []):
@@ -24,7 +30,7 @@ class AuthBodyLimitMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or not scope.get("path", "").startswith(
-            "/api/v1/auth/"
+            self.path_prefixes
         ):
             await self.app(scope, receive, send)
             return
