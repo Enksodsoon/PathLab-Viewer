@@ -102,7 +102,10 @@ Original files are stored under generated identifiers in a private storage root.
 Multi-slide sharing schema is present for forward compatibility but activation
 is fail-closed. `PATHLAB_MULTI_SHARE_ENABLED` defaults to `false`, and share
 creation returns `PRIVACY_SCANNER_REQUIRED` until a later automated scanner
-phase. Individual `/s/{publicId}` publication remains compatible.
+phase. The dormant `/f/{publicId}` and `/c/{publicId}` viewer routes expose only
+explicitly safe teaching fields and reuse one OpenSeadragon instance while
+switching slides. Routine folder and collection mutations never publish.
+Individual `/s/{publicId}` publication remains compatible.
 
 The application uses:
 
