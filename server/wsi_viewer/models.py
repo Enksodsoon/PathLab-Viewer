@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -13,6 +14,8 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -84,6 +87,40 @@ class PasswordRecoveryAttempt(Base):
     )
 
 
+class Folder(Base):
+    __tablename__ = "folders"
+    __table_args__ = (
+        CheckConstraint("sort_order >= 0", name="ck_folders_sort_order_nonnegative"),
+        Index(
+            "uq_folders_root_normalized_name",
+            "normalized_name",
+            unique=True,
+            sqlite_where=text("parent_id IS NULL"),
+        ),
+        Index(
+            "uq_folders_child_normalized_name",
+            "parent_id",
+            "normalized_name",
+            unique=True,
+            sqlite_where=text("parent_id IS NOT NULL"),
+        ),
+        Index("ix_folders_parent_order", "parent_id", "sort_order", "normalized_name"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="RESTRICT"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
 class Slide(Base):
     __tablename__ = "slides"
     __table_args__ = (
@@ -93,6 +130,7 @@ class Slide(Base):
             "derivative_file_count >= 0",
             name="ck_slides_derivative_file_count_nonnegative",
         ),
+        CheckConstraint("sort_order >= 0", name="ck_slides_sort_order_nonnegative"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
@@ -103,6 +141,16 @@ class Slide(Base):
     reserved_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     derivative_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     derivative_file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    folder_id: Mapped[str | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"), index=True
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    stain: Mapped[str] = mapped_column(String(80), nullable=False, default="")
+    organ_site: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    teaching_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    admin_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sha256: Mapped[str | None] = mapped_column(String(64))
     state: Mapped[SlideState] = mapped_column(
         Enum(
@@ -121,6 +169,56 @@ class Slide(Base):
         DateTime(timezone=True), default=_now, onupdate=_now
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class FolderShare(Base):
+    __tablename__ = "folder_shares"
+    __table_args__ = (
+        Index(
+            "uq_folder_shares_active_folder",
+            "folder_id",
+            unique=True,
+            sqlite_where=text("is_active = 1"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    folder_id: Mapped[str] = mapped_column(
+        ForeignKey("folders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    public_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, default=lambda: secrets.token_urlsafe(32)
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PublicationGrant(Base):
+    __tablename__ = "publication_grants"
+    __table_args__ = (
+        CheckConstraint(
+            "source_type IN ('individual', 'folder')",
+            name="ck_publication_grants_source_type",
+        ),
+        UniqueConstraint(
+            "slide_id",
+            "source_type",
+            "source_id",
+            name="uq_publication_grants_source",
+        ),
+        Index("ix_publication_grants_slide", "slide_id"),
+        Index("ix_publication_grants_source", "source_type", "source_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    source_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Job(Base):

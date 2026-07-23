@@ -151,7 +151,7 @@ def test_storage_accounting_migration_upgrades_and_downgrades(
         }
     assert {"reserved_bytes", "derivative_bytes", "derivative_file_count"} <= columns
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, "20260719_0004")
     with session_factory(settings)() as database:
         downgraded = {
             column["name"] for column in inspect(database.connection()).get_columns("slides")

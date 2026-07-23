@@ -29,7 +29,14 @@ from .auth import (
 from .config import Settings
 from .database import session_factory
 from .domain import InvalidTransition, SlideState, transition
+from .library_routes import register_library_routes
 from .models import AuditEvent, Job, Session, Slide, User
+from .publication import (
+    INDIVIDUAL,
+    delete_all_slide_grants,
+    ensure_grant,
+    remove_grant,
+)
 from .readiness import schema_is_current
 from .request_limits import AuthBodyLimitMiddleware
 from .security import (
@@ -44,8 +51,6 @@ from .storage import (
     InsufficientStorage,
     PublicationError,
     StorageLayout,
-    publish_derivative,
-    unpublish_derivative,
 )
 from .storage_accounting import reserve_new_slide, reserve_retry
 
@@ -81,6 +86,7 @@ class SlideRequest(BaseModel):
     display_name: str = Field(alias="displayName", min_length=1, max_length=200)
     filename: str = Field(min_length=1, max_length=500)
     length: int = Field(gt=0)
+    folder_id: str | None = Field(default=None, alias="folderId")
 
 
 class UploadCompleteRequest(BaseModel):
@@ -231,6 +237,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     PasswordRecoveryPayload = Annotated[
         PasswordRecoveryRequest, Depends(password_recovery_payload)
     ]
+
+    register_library_routes(
+        app,
+        factory=factory,
+        storage=storage,
+        database_dependency=database,
+        admin_dependency=admin_session,
+        csrf_dependency=csrf,
+    )
 
     @app.get("/livez")
     def livez() -> dict[str, str]:
@@ -409,9 +424,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 original_filename=Path(payload.filename).name,
                 source_bytes=payload.length,
                 actor_user_id=authenticated.user_id,
+                folder_id=payload.folder_id,
             )
         except InsufficientStorage as error:
             raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"}) from error
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"}) from error
         token = issue_upload_token(
             UploadGrant(slide.id, payload.length), current.secret_key, ttl=timedelta(hours=1)
         )
@@ -548,27 +566,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         try:
-            publish_derivative(storage, slide.id, slide.public_id)
+            ensure_grant(db, storage, slide, INDIVIDUAL, slide.id)
         except FileNotFoundError as error:
             raise HTTPException(status_code=409, detail={"code": "DERIVATIVE_NOT_READY"}) from error
         except PublicationError as error:
             raise HTTPException(status_code=409, detail={"code": "PUBLICATION_FAILED"}) from error
-        return _slide_json(mutate(slide_id, SlideState.PUBLISHED, authenticated, db))
+        db.add(
+            AuditEvent(
+                actor_user_id=authenticated.user_id,
+                action="slide.published",
+                target_id=slide.id,
+            )
+        )
+        db.commit()
+        return _slide_json(slide)
 
     @app.post("/api/v1/admin/slides/{slide_id}/unpublish")
     def unpublish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        unpublish_derivative(storage, slide.public_id)
-        return _slide_json(mutate(slide_id, SlideState.READY_PRIVATE, authenticated, db))
+        remove_grant(db, storage, slide, INDIVIDUAL, slide.id)
+        db.add(
+            AuditEvent(
+                actor_user_id=authenticated.user_id,
+                action="slide.unpublished",
+                target_id=slide.id,
+            )
+        )
+        db.commit()
+        return _slide_json(slide)
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)
     def delete(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        unpublish_derivative(storage, slide.public_id)
+        delete_all_slide_grants(db, storage, slide)
         slide = mutate(slide_id, SlideState.DELETING, authenticated, db)
         db.add(Job(slide_id=slide.id, kind="delete"))
         db.commit()

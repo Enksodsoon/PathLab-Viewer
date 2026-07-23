@@ -19,7 +19,8 @@ from .database import session_factory
 from .domain import SlideState
 from .models import AuditEvent, Job, Slide
 from .ome import OmeError, validate_ome_tiff
-from .storage import StorageLayout
+from .publication import FOLDER, active_folder_share, ensure_grant
+from .storage import PublicationError, StorageLayout
 from .worker_health import HeartbeatWriter
 
 JOB_POLL_INTERVAL_SECONDS = 2.0
@@ -219,6 +220,15 @@ def process_next(
             slide.state = SlideState.READY_PRIVATE
             job.status = "complete"
             job.heartbeat_at = datetime.now(UTC)
+            if (
+                slide.folder_id is not None
+                and active_folder_share(database, slide.folder_id) is not None
+            ):
+                try:
+                    ensure_grant(database, layout, slide, FOLDER, slide.folder_id)
+                except (PublicationError, ValueError) as publication_error:
+                    slide.error_code = "PUBLICATION_FAILED"
+                    slide.error_message = str(publication_error)
             database.commit()
         except Exception as error:
             slide.reserved_bytes = 0
