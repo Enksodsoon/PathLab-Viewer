@@ -114,7 +114,11 @@ export interface UploadReservation {
   expiresIn: number
 }
 
-export async function reserveUpload(file: File, displayName: string): Promise<UploadReservation> {
+export async function reserveUpload(
+  file: File,
+  displayName: string,
+  folderId?: string | null,
+): Promise<UploadReservation> {
   return json<UploadReservation>(
     await fetch('/api/v1/admin/slides', {
       method: 'POST',
@@ -123,7 +127,12 @@ export async function reserveUpload(file: File, displayName: string): Promise<Up
         'Content-Type': 'application/json',
         'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
       },
-      body: JSON.stringify({ displayName, filename: file.name, length: file.size }),
+      body: JSON.stringify({
+        displayName,
+        filename: file.name,
+        length: file.size,
+        folderId: folderId ?? null,
+      }),
     }),
   )
 }
