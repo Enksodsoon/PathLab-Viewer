@@ -121,6 +121,22 @@ def test_api_creates_runtime_directories_before_migrations() -> None:
     assert command.index("mkdir -p") < command.index("alembic upgrade head")
 
 
+def test_api_reconciles_storage_after_migration_before_startup() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    command = api_service.split("command:", maxsplit=1)[1].split(
+        "environment:", maxsplit=1
+    )[0]
+
+    assert "pathlab-admin reconcile-storage" in command
+    assert command.index("alembic upgrade head") < command.index(
+        "pathlab-admin reconcile-storage"
+    )
+    assert command.index("pathlab-admin reconcile-storage") < command.index("uvicorn")
+
+
 def test_caddy_spa_fallback_does_not_rewrite_api_paths() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
 

@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import IntegrityError
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.main import create_app
@@ -130,3 +132,57 @@ def test_current_migration_indexes_recovery_audit_retention_queries(
         indexes = inspect(database.connection()).get_indexes("audit_events")
 
     assert any(index["column_names"] == ["action", "created_at"] for index in indexes)
+
+
+def test_storage_accounting_migration_upgrades_and_downgrades(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "storage-accounting.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+
+    command.upgrade(config, "head")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        columns = {
+            column["name"]
+            for column in inspect(database.connection()).get_columns("slides")
+        }
+    assert {"reserved_bytes", "derivative_bytes", "derivative_file_count"} <= columns
+
+    command.downgrade(config, "-1")
+    with session_factory(settings)() as database:
+        downgraded = {
+            column["name"] for column in inspect(database.connection()).get_columns("slides")
+        }
+    assert not {
+        "reserved_bytes",
+        "derivative_bytes",
+        "derivative_file_count",
+    } & downgraded
+
+
+def test_storage_accounting_columns_reject_negative_values(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "storage-accounting-negative.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    command.upgrade(Config("alembic.ini"), "head")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+
+    with (
+        session_factory(settings)() as database,
+        pytest.raises(IntegrityError),
+    ):
+        database.execute(
+            text(
+                "INSERT INTO slides "
+                "(id, public_id, display_name, original_filename, source_bytes, state, "
+                "reserved_bytes, derivative_bytes, derivative_file_count, created_at, "
+                "updated_at) VALUES ('slide-1', 'public-1', 'Test', 'test.ome.tif', 1, "
+                "'uploading', -1, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.commit()

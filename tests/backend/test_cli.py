@@ -126,3 +126,39 @@ def test_deployment_check_blocks_running_job_without_private_details(
     output = capsys.readouterr()
     assert "Private patient name" not in output.err
     assert "private-patient-file.ome.tif" not in output.err
+
+
+def test_reconcile_storage_is_noninteractive_and_prints_aggregate_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_path = tmp_path / "reconcile-storage.sqlite3"
+    data_root = tmp_path / "data"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(data_root))
+    settings = Settings()
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.add(
+            Slide(
+                display_name="Private patient name",
+                original_filename="private-patient-file.ome.tif",
+                source_bytes=1,
+                state=SlideState.QUEUED,
+            )
+        )
+        database.commit()
+
+    def fail_prompt(_: str) -> str:
+        raise AssertionError("reconciliation must not prompt")
+
+    monkeypatch.setattr("getpass.getpass", fail_prompt)
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "reconcile-storage"])
+    main()
+
+    output = capsys.readouterr()
+    assert output.out == "Storage reconciled: slides=1 derivatives=0 active=1\n"
+    assert output.err == ""
+    assert "Private patient name" not in output.out
+    assert "private-patient-file.ome.tif" not in output.out

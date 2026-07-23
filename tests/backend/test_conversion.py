@@ -378,8 +378,11 @@ def test_successful_conversion_atomically_replaces_completed_derivative(
 
     result = generate_dzi(source, destination, series_index=0, bits=8)
 
-    assert result == destination / "slide.dzi"
-    assert result.read_bytes() == b"<Image />"
+    assert result.descriptor == destination / "slide.dzi"
+    assert result.descriptor.read_bytes() == b"<Image />"
+    assert result.derivative_bytes == 13
+    assert result.derivative_file_count == 2
+    assert result.tile_count == 1
     assert not (destination / "completed.marker").exists()
     assert not destination.with_name("private.previous").exists()
     assert not list(tmp_path.glob("private.tmp-*"))

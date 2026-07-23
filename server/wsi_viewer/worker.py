@@ -2,6 +2,7 @@ import hashlib
 import logging
 import shutil
 import signal
+import stat
 import threading
 import time
 from collections.abc import Callable
@@ -16,7 +17,7 @@ from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
 from .domain import SlideState
-from .models import Job
+from .models import AuditEvent, Job, Slide
 from .ome import OmeError, validate_ome_tiff
 from .storage import StorageLayout
 from .worker_health import HeartbeatWriter
@@ -86,18 +87,69 @@ def recover_stale_jobs(
         return len(jobs)
 
 
-def expire_incomplete_uploads(upload_root: Path, *, older_than: timedelta) -> int:
+def _unlink_upload_artifact(path: Path) -> None:
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return
+    if stat.S_ISREG(mode) or stat.S_ISLNK(mode):
+        path.unlink()
+
+
+def expire_incomplete_uploads(
+    upload_root: Path,
+    *,
+    older_than: timedelta,
+    factory: sessionmaker[OrmSession] | None = None,
+) -> int:
     if not upload_root.exists():
         return 0
     cutoff = datetime.now(UTC).timestamp() - older_than.total_seconds()
     expired = 0
     for info in upload_root.glob("*.info"):
-        if info.stat().st_mtime >= cutoff:
+        before = info.stat()
+        if before.st_mtime >= cutoff:
             continue
         upload_id = info.name.removesuffix(".info")
-        for artifact in (info, upload_root / upload_id, upload_root / f"{upload_id}.lock"):
-            if artifact.is_file():
-                artifact.unlink()
+        allowed = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+        if not upload_id or any(character not in allowed for character in upload_id):
+            continue
+        artifacts = (upload_root / upload_id, upload_root / f"{upload_id}.lock", info)
+        if factory is None:
+            for artifact in artifacts:
+                _unlink_upload_artifact(artifact)
+            expired += 1
+            continue
+        with factory() as database:
+            database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            slide = database.get(Slide, upload_id)
+            if slide is None:
+                for artifact in artifacts:
+                    _unlink_upload_artifact(artifact)
+                database.commit()
+                expired += 1
+                continue
+            if slide.state is not SlideState.UPLOADING:
+                database.rollback()
+                continue
+            try:
+                current = info.stat()
+            except FileNotFoundError:
+                database.rollback()
+                continue
+            unchanged = (
+                current.st_mtime_ns == before.st_mtime_ns
+                and current.st_size == before.st_size
+                and current.st_ino == before.st_ino
+            )
+            if not unchanged:
+                database.rollback()
+                continue
+            for artifact in artifacts:
+                _unlink_upload_artifact(artifact)
+            database.add(AuditEvent(action="upload.expired", target_id=slide.id))
+            database.delete(slide)
+            database.commit()
         expired += 1
     return expired
 
@@ -155,17 +207,21 @@ def process_next(
             slide.state = SlideState.CONVERTING
             job.heartbeat_at = datetime.now(UTC)
             database.commit()
-            generate_dzi(
+            result = generate_dzi(
                 paths.original,
                 paths.private_derivative,
                 series_index=metadata.series_index,
                 bits=metadata.bits_per_sample,
             )
+            slide.derivative_bytes = result.derivative_bytes
+            slide.derivative_file_count = result.derivative_file_count
+            slide.reserved_bytes = 0
             slide.state = SlideState.READY_PRIVATE
             job.status = "complete"
             job.heartbeat_at = datetime.now(UTC)
             database.commit()
         except Exception as error:
+            slide.reserved_bytes = 0
             slide.state = SlideState.FAILED
             slide.error_code = error.code if isinstance(error, OmeError) else "CONVERSION_FAILED"
             slide.error_message = str(error)
@@ -217,7 +273,9 @@ def main() -> None:
             factory, stale_after=timedelta(seconds=settings.worker_stale_seconds)
         ),
         cleanup_uploads=lambda: expire_incomplete_uploads(
-            settings.tus_internal_upload_dir, older_than=timedelta(hours=24)
+            settings.tus_internal_upload_dir,
+            older_than=timedelta(hours=24),
+            factory=factory,
         ),
         process_job=lambda: process_next(
             factory,

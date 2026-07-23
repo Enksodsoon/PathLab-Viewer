@@ -3,7 +3,17 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from .domain import SlideState
@@ -76,12 +86,23 @@ class PasswordRecoveryAttempt(Base):
 
 class Slide(Base):
     __tablename__ = "slides"
+    __table_args__ = (
+        CheckConstraint("reserved_bytes >= 0", name="ck_slides_reserved_bytes_nonnegative"),
+        CheckConstraint("derivative_bytes >= 0", name="ck_slides_derivative_bytes_nonnegative"),
+        CheckConstraint(
+            "derivative_file_count >= 0",
+            name="ck_slides_derivative_file_count_nonnegative",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     public_id: Mapped[str] = mapped_column(String(64), unique=True, default=_public_id, index=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(500), nullable=False)
     source_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    reserved_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    derivative_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    derivative_file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sha256: Mapped[str | None] = mapped_column(String(64))
     state: Mapped[SlideState] = mapped_column(
         Enum(
