@@ -1,6 +1,5 @@
+import runpy
 from pathlib import Path
-
-from scripts import check_public_repository
 
 
 def test_caddy_blocks_internal_api_routes_before_general_backend_proxy() -> None:
@@ -126,12 +125,17 @@ def test_public_repository_guard_does_not_echo_sensitive_findings(
     monkeypatch,
     capsys,
 ) -> None:
+    guard = runpy.run_path(
+        "scripts/check_public_repository.py",
+        run_name="pathlab_repository_guard",
+    )
+    main = guard["main"]
     secret = "ghp_" + ("A" * 24)
     (tmp_path / "sensitive.txt").write_text(secret, encoding="utf-8")
-    monkeypatch.setattr(check_public_repository, "ROOT", tmp_path)
-    monkeypatch.setattr(check_public_repository, "SELF", tmp_path / "guard.py")
+    monkeypatch.setitem(main.__globals__, "ROOT", tmp_path)
+    monkeypatch.setitem(main.__globals__, "SELF", tmp_path / "guard.py")
 
-    assert check_public_repository.main() == 1
+    assert main() == 1
 
     captured = capsys.readouterr()
     assert secret not in captured.err
