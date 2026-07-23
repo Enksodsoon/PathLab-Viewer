@@ -72,6 +72,10 @@ ALLOWED_HOME_USERS = {
     "ubuntu",
     "user",
 }
+ALLOWED_DUCKDNS_HOSTS = {
+    "www.duckdns.org",
+    "your-subdomain.duckdns.org",
+}
 MAX_TEXT_BYTES = 10 * 1024 * 1024
 
 EMAIL_PATTERN = re.compile(
@@ -88,7 +92,7 @@ DYNAMIC_HOST_PATTERN = re.compile(
 DUCKDNS_HOST_PATTERN = re.compile(r"(?i)\b([A-Za-z0-9-]+\.duckdns\.org)\b")
 GENERIC_SECRET_PATTERN = re.compile(
     r"(?i)\b(?:password|secret|token|api[_-]?key)\b"
-    r"\s*[:=]\s*['\"]?([A-Za-z0-9+/=_-]{16,})"
+    r"\s*[:=]\s*(['\"])([A-Za-z0-9+/=_-]{16,})\1"
 )
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
@@ -184,7 +188,7 @@ def check_text(path: Path, text: str, findings: list[str]) -> None:
             if pattern.search(line):
                 report(findings, path, reason, line_number)
         generic_secret = GENERIC_SECRET_PATTERN.search(line)
-        if generic_secret and not is_example_secret(generic_secret.group(1)):
+        if generic_secret and not is_example_secret(generic_secret.group(2)):
             report(findings, path, "possible committed credential", line_number)
         for _, domain in EMAIL_PATTERN.findall(line):
             if domain.casefold() not in ALLOWED_EMAIL_DOMAINS:
@@ -199,7 +203,7 @@ def check_text(path: Path, text: str, findings: list[str]) -> None:
         if DYNAMIC_HOST_PATTERN.search(line):
             report(findings, path, "temporary or IP-derived public hostname", line_number)
         for hostname in DUCKDNS_HOST_PATTERN.findall(line):
-            if hostname.casefold() != "your-subdomain.duckdns.org":
+            if hostname.casefold() not in ALLOWED_DUCKDNS_HOSTS:
                 report(findings, path, "traceable DuckDNS hostname", line_number)
         for username in HOME_PATTERN.findall(line):
             allowed_user = username.casefold() in ALLOWED_HOME_USERS
