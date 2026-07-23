@@ -7,6 +7,7 @@ PathLab Viewer is a private-first web application for reviewing and publishing O
 - Resumable OME-TIFF uploads up to 5 GiB
 - Background validation and Deep Zoom conversion
 - Private preview before publication
+- Publish-time de-identification confirmation
 - Unlisted, read-only public slide links
 - Responsive OpenSeadragon viewing on desktop, tablet, and phone
 - Single-administrator authentication with password recovery
@@ -25,6 +26,7 @@ PathLab Viewer is a private-first web application for reviewing and publishing O
 | `tests/load` | Reproducible viewer load scenario |
 | `docs/architecture` | Durable technical design and security references |
 | `docs/evidence` | Verification ledger and evidence status |
+| `scripts` | Repository privacy and maintenance checks |
 
 See [`docs/REPOSITORY_MAP.md`](docs/REPOSITORY_MAP.md) for file ownership and common change locations.
 
@@ -68,14 +70,17 @@ Open `http://127.0.0.1:5173/admin`. Published local slides use `/s/{publicId}`.
 ## Verification
 
 ```bash
+python scripts/check_public_repository.py
 pytest tests/backend
-ruff check server tests migrations
+ruff check server tests migrations scripts
 mypy server/wsi_viewer
 pnpm --dir apps/web lint
 pnpm --dir apps/web test
 pnpm --dir apps/web build
 docker compose -f deploy/compose.yaml config
 ```
+
+CI additionally scans complete Git history for committed secrets, audits Python and JavaScript dependencies, runs CodeQL for Python and TypeScript, validates the Caddy configuration, verifies deployment signing-key rejection, builds both ARM64 images, and scans the images for high or critical known vulnerabilities.
 
 Current verification results belong in CI and [`docs/evidence/QA.md`](docs/evidence/QA.md). Static documentation intentionally avoids hard-coded test counts, deployment addresses, commit hashes, or pull-request status because those values become stale.
 
@@ -86,8 +91,12 @@ Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serv
 ## Security and privacy
 
 - Original slides, temporary uploads, private derivatives, databases, and secrets are never served from the public tile path.
-- Public links expose only an unlisted identifier, display metadata, a DZI descriptor, and sanitized JPEG tiles.
-- Credentials, recovery codes, source slides, generated tiles, databases, and `.env` files must not be committed.
+- The public edge container mounts only published tiles; the upload service mounts only its temporary upload directory.
+- Public links expose only an unlisted identifier, public title, display metadata, a DZI descriptor, and sanitized JPEG tiles.
+- An unlisted link is not authentication or access control. Anyone with the link can view and redistribute it.
+- Before publication, the administrator must confirm that the public title and visible slide pixels contain no patient names, record numbers, dates of birth, contact details, or other identifying information.
+- Credentials, recovery codes, source slides, generated tiles, databases, private backups, and `.env` files must not be committed.
+- The current repository tree and full Git history are scanned for private identifiers and recognized secrets in CI.
 - Suspected vulnerabilities or patient-data exposure should be reported privately rather than through a public issue.
 
 Administrator recovery architecture is documented in [`docs/architecture/PASSWORD_RECOVERY.md`](docs/architecture/PASSWORD_RECOVERY.md).
@@ -98,4 +107,4 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing code. Keep changes foc
 
 ## Project status
 
-PathLab Viewer is under active development. A green CI run verifies automated checks but does not by itself establish production readiness, external load capacity, backup recovery, network performance, or device compatibility. Use the evidence ledger for the current acceptance status of those operational gates.
+PathLab Viewer is under active development. Automated security checks reduce known risks but cannot prove that software is impossible to compromise. A green CI run also does not by itself establish production readiness, external load capacity, backup recovery, network performance, or device compatibility. Use the evidence ledger for the current acceptance status of those operational gates.
