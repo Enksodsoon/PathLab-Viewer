@@ -1,0 +1,54 @@
+name: Fix security quality
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'security/public-hardening' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/public-hardening
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Correct narrowed publication state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/pages/AdminPage.tsx')
+          content = path.read_text(encoding='utf-8')
+          old = """        setNotice(action === 'retry'
+            ? 'Conversion queued again.'
+            : action === 'publish' ? 'Slide published.' : 'Slide unpublished.')
+          """
+          new = """        setNotice(action === 'retry'
+            ? 'Conversion queued again.'
+            : 'Slide unpublished.')
+          """
+          if content.count(old) != 1:
+              raise SystemExit('publication state snippet changed')
+          path.write_text(content.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Apply Ruff safe fixes and formatting
+        run: |
+          python -m pip install "ruff>=0.12,<1"
+          ruff check --fix server tests migrations
+          ruff format server tests migrations
+      - name: Commit quality fixes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/web/src/pages/AdminPage.tsx server tests migrations
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: satisfy security quality checks'
+          git push origin HEAD:security/public-hardening
