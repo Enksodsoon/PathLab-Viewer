@@ -17,7 +17,42 @@ This ledger separates reproducible evidence from product or architecture claims.
 | Shaped-network interaction | Measure at the target bandwidth and latency | Not recorded |
 | Physical desktop, tablet, and phone use | Test real devices and browsers | Not recorded |
 | Clean backup and restore | Restore into a disposable host and compare records, hashes, manifests, and representative tiles | Not recorded |
+| Real 300–500 MB conversion | Measure a representative synthetic or authorized slide through validation and conversion | Not recorded |
 | Infrastructure cost and eligibility | Review the active tenancy billing page and deployed resources | Not recorded |
+
+## Reproducible viewer load checks
+
+Generate a public-only manifest:
+
+```bash
+python tests/load/generate_manifest.py \
+  --public-root /srv/pathlab/data/public \
+  --public-id '<public-id>' \
+  --output /absolute/path/to/viewer-load-manifest.json \
+  --seed 1
+```
+
+Run a small routing and manifest smoke check:
+
+```bash
+BASE_URL="$BASE_URL" \
+MANIFEST_PATH=/absolute/path/to/viewer-load-manifest.json \
+deploy/scripts/run-viewer-load-test.sh smoke
+```
+
+The smoke profile proves only that the selected public metadata and sampled tile routes remain valid under a small local k6 workload. It does not establish production capacity.
+
+The external acceptance profile must run 100 virtual users for 10 minutes while recording tile latency and failure thresholds plus host CPU, RAM, disk I/O, and network behavior. Observe viewing while one conversion is active.
+
+Remaining manual evidence:
+
+- real external 100-viewer acceptance run;
+- CPU, RAM, disk I/O, and network observation;
+- viewing while one conversion is active;
+- shaped 10 Mbps / 50 ms network verification;
+- physical desktop, tablet, and phone testing;
+- clean backup-and-restore drill;
+- real 300–500 MB conversion benchmark.
 
 ## Local browser workflow evidence
 

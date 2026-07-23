@@ -141,11 +141,35 @@ def test_caddy_spa_fallback_does_not_rewrite_api_paths() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
 
     fallback = (
-        "\n\thandle {\n\t\troot * /srv\n\t\ttry_files {path} /index.html"
+        '\n\thandle {\n\t\troot * /srv\n\t\theader Cache-Control "no-cache"'
+        "\n\t\ttry_files {path} /index.html"
         "\n\t\tfile_server\n\t}\n"
     )
     assert fallback in caddyfile
     assert caddyfile.index("handle @backend") < caddyfile.index(fallback)
+
+
+def test_caddy_cache_policy_separates_tiles_assets_html_and_api() -> None:
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    uploads = caddyfile.split("handle @uploads {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    backend = caddyfile.split("handle @backend {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    tiles = caddyfile.split("handle_path /tiles/* {", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
+    assets = caddyfile.split("handle /assets/* {", maxsplit=1)[1].split(
+        "}", maxsplit=1
+    )[0]
+    spa = caddyfile.split("\thandle {\n", maxsplit=1)[1].split("\n\t}", maxsplit=1)[0]
+
+    assert 'header Cache-Control "no-store"' in uploads
+    assert 'header Cache-Control "no-store"' in backend
+    assert 'header Cache-Control "public, max-age=31536000, s-maxage=60, immutable"' in tiles
+    assert 'header X-Content-Type-Options "nosniff"' in tiles
+    assert 'header Cache-Control "public, max-age=31536000, immutable"' in assets
+    assert "root * /srv" in assets
+    assert "reverse_proxy" not in assets
+    assert 'header Cache-Control "no-cache"' in spa
+    assert caddyfile.index("handle /assets/*") < caddyfile.index("\thandle {\n")
 
 
 def test_production_deploy_is_manual_serial_and_main_only() -> None:
