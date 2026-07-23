@@ -372,3 +372,14 @@ export async function mutateLibrarySlide(
     }),
   )
 }
+
+export async function deleteLibrarySlide(slideId: string): Promise<void> {
+  await expectOk(await fetch(
+    `/api/v2/admin/slides/${encodeURIComponent(slideId)}`,
+    {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: csrfHeaders(),
+    },
+  ))
+}

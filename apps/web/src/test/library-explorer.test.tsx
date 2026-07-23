@@ -13,7 +13,10 @@ const api = vi.hoisted(() => ({
   getLibrarySlide: vi.fn(),
   getSlideStatuses: vi.fn(),
   batchMoveSlides: vi.fn(),
+  batchUpdateSlides: vi.fn(),
   mutateLibrarySlide: vi.fn(),
+  deleteLibrarySlide: vi.fn(),
+  mutateFolder: vi.fn(),
   listSlides: vi.fn(),
 }))
 
@@ -111,6 +114,22 @@ beforeEach(() => {
     itemCount: 2,
   }])
   api.getSlideStatuses.mockResolvedValue([])
+  api.getLibrarySlide.mockResolvedValue({
+    ...items.items[0],
+    filename: 'colon.ome.tiff',
+    adminNotes: 'Private teaching preparation',
+    metadata: null,
+  })
+  api.batchUpdateSlides.mockImplementation(async (_ids, metadata) => ([{
+    ...items.items[0],
+    ...metadata,
+  }]))
+  api.mutateLibrarySlide.mockImplementation(async (_id, action) => ({
+    ...items.items[0],
+    trashedAt: action === 'trash' ? '2026-07-23T00:00:00Z' : null,
+  }))
+  api.deleteLibrarySlide.mockResolvedValue(undefined)
+  api.mutateFolder.mockResolvedValue(undefined)
   api.listSlides.mockResolvedValue([])
 })
 
@@ -175,5 +194,90 @@ describe('dark library explorer', () => {
     const callsWhileVisible = api.getSlideStatuses.mock.calls.length
     await act(async () => vi.advanceTimersByTime(15_000))
     expect(api.getSlideStatuses).toHaveBeenCalledTimes(callsWhileVisible)
+  })
+
+  it('provides forward navigation and all creation actions from the toolbar', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    expect(screen.getByRole('button', { name: /^forward$/i })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: /^create$/i }))
+    expect(screen.getByRole('menuitem', { name: /new folder/i })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: /new collection/i })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: /new saved view/i })).toBeVisible()
+  })
+
+  it('turns the card overflow control into a complete metadata workflow', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /more actions for colon adenocarcinoma/i,
+    }))
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit details/i }))
+
+    expect(await screen.findByRole('heading', { name: /edit slide details/i })).toBeVisible()
+    expect(screen.getByRole('textbox', { name: /^display name$/i })).toHaveValue(
+      'Colon adenocarcinoma',
+    )
+    expect(screen.getByRole('textbox', { name: /administrator note/i })).toHaveValue(
+      'Private teaching preparation',
+    )
+
+    await userEvent.clear(screen.getByRole('textbox', { name: /^diagnosis$/i }))
+    await userEvent.type(
+      screen.getByRole('textbox', { name: /^diagnosis$/i }),
+      'Updated diagnosis',
+    )
+    await userEvent.click(screen.getByRole('button', { name: /save details/i }))
+
+    await waitFor(() => expect(api.batchUpdateSlides).toHaveBeenCalledWith(
+      ['slide-1'],
+      expect.objectContaining({ diagnosis: 'Updated diagnosis' }),
+    ))
+  })
+
+  it('replaces publish and trash with restore and permanent delete inside Trash', async () => {
+    const trashedPage: LibraryItemsPage = {
+      ...items,
+      items: items.items.map((slide) => ({
+        ...slide,
+        trashedAt: '2026-07-23T00:00:00Z',
+      })),
+    }
+    api.getLibraryItems.mockResolvedValue(trashedPage)
+
+    render(
+      <MemoryRouter initialEntries={['/admin?location=trash']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('checkbox', {
+      name: /select colon adenocarcinoma/i,
+    }))
+    const actions = screen.getByRole('toolbar', { name: /selection actions/i })
+    expect(actions).toHaveTextContent('Restore')
+    expect(actions).toHaveTextContent('Delete permanently')
+    expect(actions).not.toHaveTextContent('Publish')
+    expect(actions).not.toHaveTextContent(/^Trash$/)
+  })
+
+  it('exposes working organization actions from the navigator', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /more actions for organ systems/i,
+    }))
+    expect(screen.getByRole('menuitem', { name: /^rename$/i })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: /^move$/i })).toBeVisible()
+    await userEvent.click(screen.getByRole('menuitem', { name: /move to trash/i }))
+
+    await waitFor(() => expect(api.mutateFolder).toHaveBeenCalledWith(
+      'folder-organs',
+      'trash',
+    ))
   })
 })

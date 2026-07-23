@@ -67,17 +67,15 @@ export function AppRail({
           <Trash2 />
           <span>Trash</span>
         </button>
-      </nav>
-      <div className="library-app-account">
-        <button type="button" onClick={onSecurity}>
+        <button type="button" className="account-action account-start" onClick={onSecurity}>
           <KeyRound />
           <span>Account</span>
         </button>
-        <button type="button" onClick={onSignOut}>
+        <button type="button" className="account-action" onClick={onSignOut}>
           <LogOut />
           <span>Sign out</span>
         </button>
-      </div>
+      </nav>
     </aside>
   )
 }

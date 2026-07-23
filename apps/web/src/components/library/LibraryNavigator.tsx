@@ -23,6 +23,10 @@ interface LibraryNavigatorProps {
   onNewCollection: () => void
   onNewSavedView: () => void
   onDropSlides: (folderId: string, slideIds: string[]) => void
+  onFolderAction: (
+    folder: LibraryFolder,
+    action: 'rename' | 'move' | 'trash',
+  ) => void
 }
 
 const SPECIAL = [
@@ -62,6 +66,7 @@ export function LibraryNavigator({
   onNewCollection,
   onNewSavedView,
   onDropSlides,
+  onFolderAction,
 }: LibraryNavigatorProps) {
   const selectedFolderId = location.startsWith('folder:')
     ? location.slice('folder:'.length)
@@ -94,6 +99,7 @@ export function LibraryNavigator({
         onExpand={onExpandFolder}
         onSelect={(folder) => onLocation(`folder:${folder.id}`)}
         onDropSlides={onDropSlides}
+        onAction={onFolderAction}
       />
 
       <SectionTitle label="New collection" onAdd={onNewCollection}>Collections</SectionTitle>

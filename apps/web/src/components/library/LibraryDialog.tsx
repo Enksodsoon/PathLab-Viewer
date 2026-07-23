@@ -7,6 +7,7 @@ interface LibraryDialogProps {
   description?: string
   children: ReactNode
   onClose: () => void
+  wide?: boolean
 }
 
 export function LibraryDialog({
@@ -15,6 +16,7 @@ export function LibraryDialog({
   description,
   children,
   onClose,
+  wide = false,
 }: LibraryDialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -26,7 +28,7 @@ export function LibraryDialog({
   return (
     <dialog
       ref={ref}
-      className="library-dialog"
+      className={`library-dialog ${wide ? 'library-dialog-wide' : ''}`}
       aria-labelledby="library-dialog-title"
       onCancel={(event) => {
         event.preventDefault()

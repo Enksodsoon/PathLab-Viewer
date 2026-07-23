@@ -126,3 +126,116 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   .auth-actions { flex-direction:column-reverse; }
   .auth-actions .button { width:100%; }
 }
+
+/* Shared PathLab dark treatment for authentication, account, and single-slide viewer. */
+.login-page,
+.viewer-message {
+  color:#f2eadc;
+  background:
+    radial-gradient(circle at 65% 0,#f06f5b16,transparent 34%),
+    #0c0b0a;
+}
+
+.login-card,
+.security-dialog {
+  border-color:#4d3b33;
+  border-radius:12px;
+  background:#171411;
+  color:#f2eadc;
+  box-shadow:0 24px 70px #0009;
+}
+
+.login-card h1,
+.security-dialog h2,
+.viewer-message h1 {
+  color:#f2eadc;
+  font-family:Georgia,serif;
+  font-weight:500;
+}
+
+.login-card label,
+.security-dialog label,
+.recovery-help,
+.password-requirements,
+.delete-dialog-copy,
+.viewer-message p {
+  color:#a99e91;
+}
+
+.login-card input,
+.security-dialog input {
+  border-color:#3b3029;
+  background:#0f0d0c;
+  color:#f2eadc;
+}
+
+.login-card input:focus,
+.security-dialog input:focus {
+  border-color:#f06f5b;
+  box-shadow:0 0 0 3px #f06f5b1f;
+}
+
+.auth-link,
+.eyebrow {
+  color:#f06f5b;
+}
+
+.button.primary {
+  background:#f06f5b;
+  color:#190d09;
+  box-shadow:none;
+}
+
+.security-dialog::backdrop {
+  background:#050403cc;
+  backdrop-filter:blur(5px);
+}
+
+.dialog-close {
+  color:#f2eadc;
+}
+
+.viewer-shell {
+  color:#f2eadc;
+  background:#090807;
+}
+
+.viewer-header {
+  border-color:#3b3029;
+  background:#11100e;
+}
+
+.viewer-header .brand,
+.viewer-title strong {
+  color:#f2eadc;
+}
+
+.viewer-header .brand-product,
+.viewer-title span,
+.viewer-help {
+  color:#a99e91;
+}
+
+.viewer-stage,
+.osd-surface {
+  background:#090807;
+}
+
+.viewer-tools {
+  border:1px solid #3b3029;
+  background:#171411ee;
+  box-shadow:0 12px 34px #0008;
+}
+
+.viewer-tools button {
+  color:#f2eadc;
+}
+
+.viewer-tools button:hover {
+  background:#2a211d;
+  color:#f06f5b;
+}
+
+.viewer-tools span {
+  background:#3b3029;
+}

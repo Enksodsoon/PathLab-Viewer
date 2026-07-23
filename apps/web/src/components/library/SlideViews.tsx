@@ -2,8 +2,15 @@ import {
   Check,
   CircleAlert,
   CircleDashed,
+  Edit3,
+  Eye,
+  FolderInput,
   MoreVertical,
+  RotateCcw,
+  Share2,
+  Trash2,
 } from 'lucide-react'
+import { useState } from 'react'
 
 import type { LibrarySlide } from '../../types'
 import { formatBytes } from './format'
@@ -25,6 +32,10 @@ interface CommonProps {
   selected: Set<string>
   onSelect: (slideId: string, index: number, shift: boolean) => void
   onOpen: (slide: LibrarySlide) => void
+  onAction: (
+    slide: LibrarySlide,
+    action: 'edit' | 'move' | 'collection' | 'publish' | 'trash' | 'restore' | 'delete',
+  ) => void
 }
 
 function Thumbnail({ slide }: { slide: LibrarySlide }) {
@@ -57,13 +68,22 @@ function SlideCard({
   selected,
   onSelect,
   onOpen,
+  onAction,
 }: {
   slide: LibrarySlide
   index: number
   selected: boolean
   onSelect: CommonProps['onSelect']
   onOpen: CommonProps['onOpen']
+  onAction: CommonProps['onAction']
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  function action(name: Parameters<CommonProps['onAction']>[1]) {
+    setMenuOpen(false)
+    onAction(slide, name)
+  }
+
   return (
     <article
       className={`library-slide-card ${selected ? 'selected' : ''}`}
@@ -87,9 +107,55 @@ function SlideCard({
           />
           <span><Check /></span>
         </label>
-        <button type="button" aria-label={`More actions for ${slide.displayName}`}>
+        <button
+          type="button"
+          aria-label={`More actions for ${slide.displayName}`}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => setMenuOpen((current) => !current)}
+        >
           <MoreVertical />
         </button>
+        {menuOpen ? (
+          <div className="library-menu card-action-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => onOpen(slide)}>
+              <Eye /> Details
+            </button>
+            <a role="menuitem" href={`/admin/preview/${slide.id}`}>
+              <Eye /> Preview
+            </a>
+            <button type="button" role="menuitem" onClick={() => action('edit')}>
+              <Edit3 /> Edit details
+            </button>
+            {slide.trashedAt ? (
+              <>
+                <button type="button" role="menuitem" onClick={() => action('restore')}>
+                  <RotateCcw /> Restore
+                </button>
+                <button type="button" role="menuitem" className="danger" onClick={() => action('delete')}>
+                  <Trash2 /> Delete permanently
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" role="menuitem" onClick={() => action('move')}>
+                  <FolderInput /> Move
+                </button>
+                <button type="button" role="menuitem" onClick={() => action('collection')}>
+                  <FolderInput /> Add to collection
+                </button>
+                {slide.state === 'ready_private' ? (
+                  <button type="button" role="menuitem" onClick={() => action('publish')}>
+                    <Share2 /> Publish
+                  </button>
+                ) : null}
+                <button type="button" role="menuitem" className="danger" onClick={() => action('trash')}>
+                  <Trash2 /> Move to Trash
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
       </div>
       <button
         type="button"
@@ -179,6 +245,7 @@ export function SlideViews({
   selected,
   onSelect,
   onOpen,
+  onAction,
 }: CommonProps & { view: LibraryViewMode }) {
   if (view === 'table') {
     return (
@@ -187,6 +254,7 @@ export function SlideViews({
         selected={selected}
         onSelect={onSelect}
         onOpen={onOpen}
+        onAction={onAction}
       />
     )
   }
@@ -200,6 +268,7 @@ export function SlideViews({
           selected={selected.has(slide.id)}
           onSelect={onSelect}
           onOpen={onOpen}
+          onAction={onAction}
         />
       ))}
     </div>
