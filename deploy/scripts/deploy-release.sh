@@ -4,7 +4,7 @@ set -Eeuo pipefail
 REPOSITORY_URL="https://github.com/Enksodsoon/PathLab-Viewer.git"
 LIVE_DIR="/opt/pathlab-viewer"
 LOCK_FILE="/var/lock/pathlab-viewer-deploy.lock"
-HEALTH_URL="https://pathlab-viewer.140-245-126-212.sslip.io/readyz"
+HEALTH_URL=""
 REQUEST="${1:-${SSH_ORIGINAL_COMMAND:-}}"
 SWAPPED=0
 STAGE_DIR=""
@@ -48,7 +48,26 @@ flock -n 9 || fail "another production deployment is already running"
 REMOTE_MAIN_SHA="$(git ls-remote "${REPOSITORY_URL}" refs/heads/main | awk '{print $1}')"
 [[ "${REMOTE_MAIN_SHA}" == "${TARGET_SHA}" ]] || \
   fail "requested commit is not the current main commit"
-[[ -f "${LIVE_DIR}/deploy/.env" ]] || fail "live deploy/.env is missing"
+ENV_FILE="${LIVE_DIR}/deploy/.env"
+[[ -f "${ENV_FILE}" ]] || fail "live deploy/.env is missing"
+ENV_PERMISSIONS="$(stat -c '%a' "${ENV_FILE}")"
+[[ "${ENV_PERMISSIONS: -2}" == "00" ]] || fail "live deploy/.env must not be group- or world-readable"
+DOMAIN="$(awk -F= '
+  /^[[:space:]]*DOMAIN[[:space:]]*=/ {
+    value = substr($0, index($0, "=") + 1)
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+    print value
+  }
+' "${ENV_FILE}" | tail -n 1 | tr -d '\r')"
+if [[ "${DOMAIN}" == \"*\" && "${DOMAIN}" == *\" ]]; then
+  DOMAIN="${DOMAIN:1:${#DOMAIN}-2}"
+elif [[ "${DOMAIN}" == \'*\' && "${DOMAIN}" == *\' ]]; then
+  DOMAIN="${DOMAIN:1:${#DOMAIN}-2}"
+fi
+[[ "${DOMAIN}" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || \
+  fail "live DOMAIN is missing or invalid"
+[[ "${DOMAIN}" != *..* ]] || fail "live DOMAIN is invalid"
+HEALTH_URL="https://${DOMAIN}/readyz"
 
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 STAGE_DIR="/opt/pathlab-viewer.stage-${TARGET_SHA}-${TIMESTAMP}"
@@ -63,7 +82,7 @@ trap cleanup_stage EXIT
 git clone --quiet --branch main --single-branch "${REPOSITORY_URL}" "${STAGE_DIR}"
 [[ "$(git -C "${STAGE_DIR}" rev-parse HEAD)" == "${TARGET_SHA}" ]] || \
   fail "staged checkout does not match the requested commit"
-install -m 600 "${LIVE_DIR}/deploy/.env" "${STAGE_DIR}/deploy/.env"
+install -m 600 "${ENV_FILE}" "${STAGE_DIR}/deploy/.env"
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"
 chown -R ubuntu:ubuntu "${STAGE_DIR}"
 
@@ -83,12 +102,13 @@ systemctl reload pathlab-viewer
 systemctl is-active --quiet pathlab-viewer
 
 for _ in $(seq 1 30); do
-  if curl --fail --silent --show-error --max-time 5 "${HEALTH_URL}" >/dev/null; then
+  if curl --fail --silent --max-time 5 "${HEALTH_URL}" >/dev/null 2>&1; then
     break
   fi
   sleep 2
 done
-curl --fail --silent --show-error --max-time 5 "${HEALTH_URL}" >/dev/null
+curl --fail --silent --max-time 5 "${HEALTH_URL}" >/dev/null 2>&1 || \
+  fail "readiness verification failed"
 
 RUNNING_SERVICES="$(
   cd "${LIVE_DIR}/deploy"
