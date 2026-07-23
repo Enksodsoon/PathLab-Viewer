@@ -230,7 +230,11 @@ def test_ci_contains_public_repository_security_gates() -> None:
     assert "pnpm audit --audit-level high" in security
     assert "github/codeql-action" in security
     for workflow in (ci, security, deploy):
-        uses_lines = [line.strip() for line in workflow.splitlines() if line.lstrip().startswith("- uses:")]
+        uses_lines = [
+            line.strip()
+            for line in workflow.splitlines()
+            if line.lstrip().startswith("- uses:")
+        ]
         assert uses_lines
         for line in uses_lines:
             revision = line.split("@", 1)[1].split()[0]
