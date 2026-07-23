@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 EXPECTED_COMPOSE_SERVICES = ("caddy", "api", "tusd", "worker")
@@ -103,7 +104,9 @@ def test_api_creates_runtime_directories_before_migrations() -> None:
     command = api_service.split("command:", maxsplit=1)[1].split(
         "environment:", maxsplit=1
     )[0]
+    assert "pathlab-preflight" in command
     assert "mkdir -p /data/database /data/tus" in command
+    assert command.index("pathlab-preflight") < command.index("mkdir -p")
     assert command.index("mkdir -p") < command.index("alembic upgrade head")
 
 
@@ -178,6 +181,14 @@ def test_shell_scripts_are_checked_out_with_unix_line_endings() -> None:
     assert "*.sh text eol=lf" in attributes
 
 
+def test_all_deployment_shell_scripts_parse() -> None:
+    scripts = sorted(Path("deploy/scripts").glob("*.sh"))
+    assert scripts
+
+    for script in scripts:
+        subprocess.run(["bash", "-n", str(script)], check=True)
+
+
 def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
 
@@ -195,10 +206,13 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
 
 
-def test_release_script_preserves_environment_and_never_touches_data() -> None:
+def test_release_script_uses_private_environment_and_never_touches_data() -> None:
     script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
 
-    assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
+    assert 'ENV_FILE="${LIVE_DIR}/deploy/.env"' in script
+    assert 'stat -c' in script
+    assert 'install -m 600 "${ENV_FILE}"' in script
+    assert 'HEALTH_URL="https://${DOMAIN}/readyz"' in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
 
