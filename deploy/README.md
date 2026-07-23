@@ -65,6 +65,39 @@ deploy/scripts/restore.sh --confirm /absolute/path/to/backup
 
 After restoration, compare slide records, SHA-256 values, manifests, representative DZI descriptors, representative JPEG tiles, authentication behavior, and readiness endpoints. Never test restoration directly over the only production data copy.
 
+## Viewer load testing
+
+Create a manifest from sanitized public derivatives on the host. Supply public identifiers explicitly; the tooling never discovers or selects them:
+
+```bash
+python tests/load/generate_manifest.py \
+  --public-root /srv/pathlab/data/public \
+  --public-id '<public-id>' \
+  --output /absolute/path/to/viewer-load-manifest.json \
+  --seed 1
+```
+
+Run the local smoke profile:
+
+```bash
+BASE_URL="$BASE_URL" \
+MANIFEST_PATH=/absolute/path/to/viewer-load-manifest.json \
+deploy/scripts/run-viewer-load-test.sh smoke
+```
+
+Run `acceptance` only in an authorized external test window. It uses 100 virtual users for 10 minutes. The wrapper is never invoked by deployment or CI and requires an operator-provided URL and manifest.
+
+## Optional CDN policy
+
+A CDN is optional and is not required for PathLab Viewer.
+
+- Cache only `/tiles/*` and `/assets/*`, respecting the origin `s-maxage`.
+- Bypass `/api/*`, `/api/v1/uploads/*`, `/admin`, `/s/*`, `/livez`, and `/readyz`.
+- Keep credentials, provider tokens, zone identifiers, and private URLs outside the repository.
+- Do not claim immediate revocation of content already retained in a browser cache.
+
+No provider-specific configuration, paid feature, cache daemon, or purge integration is required.
+
 ## Administrator password recovery
 
 Generate a single-use recovery code on the server:
