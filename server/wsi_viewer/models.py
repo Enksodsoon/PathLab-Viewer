@@ -159,6 +159,10 @@ class Slide(Base):
     teaching_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
     admin_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
     thumbnail_filename: Mapped[str | None] = mapped_column(String(120))
+    privacy_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="pending", index=True
+    )
+    privacy_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sha256: Mapped[str | None] = mapped_column(String(64))

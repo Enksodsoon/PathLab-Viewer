@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, func, select, update
 from sqlalchemy.exc import IntegrityError
@@ -35,11 +35,23 @@ from .models import (
     CollectionSlide,
     Folder,
     Job,
+    LibraryShare,
     PublicationGrant,
     SavedView,
+    ShareSlide,
     Slide,
 )
 from .publication import delete_all_slide_grants
+from .sharing import (
+    ShareConflict,
+    activate_share,
+    active_public_share,
+    preview_share,
+    public_manifest,
+    revoke_share,
+    rotate_share,
+    share_json,
+)
 from .storage import StorageLayout
 
 
@@ -115,6 +127,15 @@ class ShareCreateRequest(BaseModel):
 
     target_type: str = Field(alias="targetType", pattern="^(folder|collection)$")
     target_id: str = Field(alias="targetId")
+    include_descendants: bool = Field(default=False, alias="includeDescendants")
+    auto_include_new: bool = Field(default=False, alias="autoIncludeNew")
+    expires_at: datetime | None = Field(default=None, alias="expiresAt")
+    slide_ids: list[str] | None = Field(
+        default=None, alias="slideIds", min_length=1, max_length=50
+    )
+    deidentified_confirmed: bool = Field(
+        default=False, alias="deidentifiedConfirmed"
+    )
 
 
 def _conflict(error: LibraryConflict) -> HTTPException:
@@ -1049,18 +1070,249 @@ def register_library_routes(
         methods=["GET"],
     )
 
+    def _share_error(error: ShareConflict) -> HTTPException:
+        if error.code == "SHARE_NOT_FOUND":
+            return HTTPException(
+                status_code=404,
+                detail={"code": "SHARE_NOT_FOUND"},
+            )
+        if error.code == "SHARE_SLIDES_NOT_REVIEWED":
+            return HTTPException(status_code=422, detail={"code": error.code})
+        return HTTPException(status_code=409, detail={"code": error.code})
+
+    def preview_library_share(
+        target_type: str = Query(alias="targetType", pattern="^(folder|collection)$"),
+        target_id: str = Query(alias="targetId"),
+        include_descendants: bool = Query(
+            default=False, alias="includeDescendants"
+        ),
+        _: Any = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        try:
+            return preview_share(
+                database,
+                target_type=target_type,
+                target_id=target_id,
+                include_descendants=include_descendants,
+            )
+        except ShareConflict as error:
+            raise _share_error(error) from error
+
+    app.add_api_route(
+        "/api/v2/admin/shares/preview",
+        preview_library_share,
+        methods=["GET"],
+    )
+
     def create_share(
         payload: ShareCreateRequest,
         _: Any = Depends(csrf_dependency),
-    ) -> None:
-        del payload
-        raise HTTPException(
-            status_code=409,
-            detail={"code": "PRIVACY_SCANNER_REQUIRED"},
+        database: OrmSession = Depends(database_dependency),
+    ) -> Response:
+        if not app.state.settings.multi_share_enabled:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "PRIVACY_SCANNER_REQUIRED"},
+            )
+        if not payload.deidentified_confirmed:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"},
+            )
+        expires_at = payload.expires_at
+        if expires_at is not None:
+            expires_at = expires_at.replace(tzinfo=None)
+            if expires_at <= utcnow():
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "INVALID_SHARE_EXPIRATION"},
+                )
+        try:
+            share = activate_share(
+                database,
+                storage,
+                target_type=payload.target_type,
+                target_id=payload.target_id,
+                include_descendants=payload.include_descendants,
+                auto_include_new=payload.auto_include_new,
+                expires_at=expires_at,
+                slide_ids=payload.slide_ids,
+            )
+        except ShareConflict as error:
+            database.rollback()
+            raise _share_error(error) from error
+        return JSONResponse(
+            content=share_json(database, share),
+            status_code=201,
         )
 
     app.add_api_route(
         "/api/v2/admin/shares",
         create_share,
         methods=["POST"],
+    )
+
+    def list_shares(
+        _: Any = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        shares = list(
+            database.scalars(
+                select(LibraryShare).order_by(
+                    LibraryShare.updated_at.desc(), LibraryShare.id
+                )
+            )
+        )
+        counts: dict[str, int] = {
+            share_id: int(count)
+            for share_id, count in database.execute(
+                select(ShareSlide.share_id, func.count(ShareSlide.id))
+                .group_by(ShareSlide.share_id)
+            ).all()
+        }
+        return {
+            "items": [
+                share_json(database, share, included_count=counts.get(share.id, 0))
+                for share in shares
+            ]
+        }
+
+    app.add_api_route("/api/v2/admin/shares", list_shares, methods=["GET"])
+
+    def rotate_library_share(
+        share_id: str,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        share = database.get(LibraryShare, share_id)
+        if share is None or not share.is_active:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        rotate_share(share)
+        database.commit()
+        return share_json(database, share)
+
+    app.add_api_route(
+        "/api/v2/admin/shares/{share_id}/rotate",
+        rotate_library_share,
+        methods=["POST"],
+    )
+
+    def revoke_library_share(
+        share_id: str,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> Response:
+        share = database.get(LibraryShare, share_id)
+        if share is None or not share.is_active:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        revoke_share(database, storage, share)
+        database.commit()
+        return Response(status_code=204)
+
+    app.add_api_route(
+        "/api/v2/admin/shares/{share_id}",
+        revoke_library_share,
+        methods=["DELETE"],
+    )
+
+    def get_public_share(
+        public_id: str,
+        target_type: str,
+        database: OrmSession,
+    ) -> dict[str, Any]:
+        try:
+            share = active_public_share(
+                database,
+                target_type=target_type,
+                public_id=public_id,
+            )
+            return public_manifest(database, share)
+        except ShareConflict as error:
+            raise _share_error(error) from error
+
+    def public_folder_share(
+        public_id: str,
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        return get_public_share(public_id, "folder", database)
+
+    def public_collection_share(
+        public_id: str,
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        return get_public_share(public_id, "collection", database)
+
+    app.add_api_route(
+        "/api/v2/public/folders/{public_id}",
+        public_folder_share,
+        methods=["GET"],
+    )
+    app.add_api_route(
+        "/api/v2/public/collections/{public_id}",
+        public_collection_share,
+        methods=["GET"],
+    )
+
+    def public_share_thumbnail(
+        public_id: str,
+        position: int,
+        target_type: str,
+        database: OrmSession,
+    ) -> FileResponse:
+        if position < 0:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        try:
+            share = active_public_share(
+                database,
+                target_type=target_type,
+                public_id=public_id,
+            )
+        except ShareConflict as error:
+            raise _share_error(error) from error
+        slide = database.scalar(
+            select(Slide)
+            .join(ShareSlide, ShareSlide.slide_id == Slide.id)
+            .where(ShareSlide.share_id == share.id)
+            .order_by(ShareSlide.sort_order, Slide.id)
+            .offset(position)
+            .limit(1)
+        )
+        if slide is None or not slide.thumbnail_filename:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        target = (
+            storage.public_for(slide.public_id)
+            / Path(slide.thumbnail_filename).name
+        )
+        if not target.is_file():
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        return FileResponse(
+            target,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
+    def public_folder_thumbnail(
+        public_id: str,
+        position: int,
+        database: OrmSession = Depends(database_dependency),
+    ) -> FileResponse:
+        return public_share_thumbnail(public_id, position, "folder", database)
+
+    def public_collection_thumbnail(
+        public_id: str,
+        position: int,
+        database: OrmSession = Depends(database_dependency),
+    ) -> FileResponse:
+        return public_share_thumbnail(public_id, position, "collection", database)
+
+    app.add_api_route(
+        "/api/v2/public/folders/{public_id}/slides/{position}/thumbnail",
+        public_folder_thumbnail,
+        methods=["GET"],
+    )
+    app.add_api_route(
+        "/api/v2/public/collections/{public_id}/slides/{position}/thumbnail",
+        public_collection_thumbnail,
+        methods=["GET"],
     )
