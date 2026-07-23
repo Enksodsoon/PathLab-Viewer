@@ -27,9 +27,15 @@ function niceScale(value: number) {
 export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onScaleChange }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
+  const initialSource = useRef(tileSource)
+  const openedSource = useRef('')
+  const scaleRef = useRef(micronsPerPixel)
+  const scaleCallbackRef = useRef(onScaleChange)
   const tileFailures = useRef(0)
   const errorTimer = useRef<number | null>(null)
   const [loadingError, setLoadingError] = useState(false)
+  scaleRef.current = micronsPerPixel
+  scaleCallbackRef.current = onScaleChange
   const retryLoading = useCallback(() => {
     if (errorTimer.current !== null) {
       window.clearTimeout(errorTimer.current)
@@ -37,8 +43,8 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
     }
     tileFailures.current = 0
     setLoadingError(false)
-    viewerRef.current?.open(tileSource as unknown as OpenSeadragon.TileSourceSpecifier)
-  }, [tileSource])
+    viewerRef.current?.open(openedSource.current as unknown as OpenSeadragon.TileSourceSpecifier)
+  }, [])
   useEffect(() => {
     if (!element.current) return
     let viewer: OpenSeadragon.Viewer | null = null
@@ -62,7 +68,7 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
       const narrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
       viewer = OpenSeadragon({
         element: element.current,
-        tileSources: tileSource,
+        tileSources: initialSource.current,
         showNavigationControl: false,
         showNavigator: true,
         navigatorPosition: 'BOTTOM_RIGHT',
@@ -82,6 +88,7 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
         gestureSettingsTouch: { pinchToZoom: true, flickEnabled: true },
       })
       viewerRef.current = viewer
+      openedSource.current = initialSource.current
       onReady({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
@@ -89,11 +96,13 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
       })
       const updateScale = () => {
-        if (!viewer || !micronsPerPixel || !onScaleChange) return
+        const scale = scaleRef.current
+        const callback = scaleCallbackRef.current
+        if (!viewer || !scale || !callback) return
         const imageZoom = viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))
-        const micronsPerScreenPixel = micronsPerPixel / imageZoom
+        const micronsPerScreenPixel = scale / imageZoom
         const microns = niceScale(micronsPerScreenPixel * 90)
-        onScaleChange(microns, microns / micronsPerScreenPixel)
+        callback(microns, microns / micronsPerScreenPixel)
       }
       const handleOpen = () => {
         clearLoadingError()
@@ -124,7 +133,15 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
       viewer?.destroy()
       if (viewerRef.current === viewer) viewerRef.current = null
     }
-  }, [micronsPerPixel, onReady, onScaleChange, tileSource])
+  }, [onReady])
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || openedSource.current === tileSource) return
+    openedSource.current = tileSource
+    tileFailures.current = 0
+    setLoadingError(false)
+    viewer.open(tileSource as unknown as OpenSeadragon.TileSourceSpecifier)
+  }, [tileSource])
   return <div className="osd-surface" data-tile-source={tileSource} style={{ position: 'relative' }}>
     <div ref={element} style={{ position: 'absolute', inset: 0 }} />
     {loadingError ? <div

@@ -2,7 +2,7 @@ import http from 'k6/http'
 import { check, sleep } from 'k6'
 import { Rate, Trend } from 'k6/metrics'
 
-import { validateManifest } from './manifest_contract.mjs'
+import { validateFolderManifest, validateManifest } from './manifest_contract.mjs'
 
 const tileFailures = new Rate('tile_failures')
 const tileLatency = new Trend('tile_latency', true)
@@ -41,10 +41,19 @@ try {
 } catch {
   throw new Error('Invalid viewer load manifest')
 }
-const slides = validateManifest(parsedManifest)
+const folderScenario = __ENV.FOLDER_PUBLIC_ID
+  ? validateFolderManifest(parsedManifest)
+  : null
+const slides = folderScenario ? folderScenario.slides : validateManifest(parsedManifest)
 
 export default function () {
   const slide = slides[(__VU - 1) % slides.length]
+  if (folderScenario && __ITER === 0) {
+    const folder = http.get(
+      `${base}/api/v1/public/folders/${folderScenario.folderPublicId}`,
+    )
+    check(folder, { 'folder manifest 200': (response) => response.status === 200 })
+  }
   const metadata = http.get(`${base}/api/v1/public/slides/${slide.publicId}`)
   check(metadata, { 'metadata 200': (response) => response.status === 200 })
   const tilePaths = []

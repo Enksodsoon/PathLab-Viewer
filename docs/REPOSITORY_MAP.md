@@ -25,9 +25,10 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 | OME-TIFF acceptance and stable failure codes | `server/wsi_viewer/ome.py`, `tests/backend/test_ome.py` |
 | DZI and JPEG conversion | `server/wsi_viewer/conversion.py`, conversion tests |
 | Authentication, sessions, CSRF, password change, and recovery | `server/wsi_viewer/auth.py`, `security.py`, API routes, `apps/web/src/components/AuthPanels.tsx` |
-| Slide state transitions and publication | domain and API modules plus `server/wsi_viewer/storage.py` |
+| Slide state transitions and publication grants | `server/wsi_viewer/publication.py`, domain/API modules, and `storage.py` |
+| Virtual folders, metadata, and collection APIs | `server/wsi_viewer/library.py`, `library_routes.py`, models, and migration `20260723_0006` |
 | Admin layout, uploads, and slide actions | `apps/web/src/pages/AdminPage.tsx`, components, tests, and `styles.css` |
-| Public OpenSeadragon viewer | `apps/web/src/pages/ViewerPage.tsx`, `components/OpenSeadragonViewer.tsx` |
+| Public OpenSeadragon viewers | `apps/web/src/pages/ViewerPage.tsx`, `FolderViewerPage.tsx`, `components/OpenSeadragonViewer.tsx` |
 | OCI service topology | `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/terraform` |
 | Backups and recovery | `deploy/scripts`, `deploy/README.md` |
 | Continuous integration | `.github/workflows/ci.yml` |
@@ -38,6 +39,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 - [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md): product scope, architecture, lifecycle, and operational boundaries.
 - [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): input validation, processing, publication, and privacy architecture.
 - [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): administrator credential lifecycle and abuse controls.
+- [`architecture/LIBRARY_SHARING.md`](architecture/LIBRARY_SHARING.md): virtual folders, grants, public manifests, and rollback.
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): branch, testing, review, documentation, and privacy standards.
 - [`evidence/QA.md`](evidence/QA.md): current verification results and unresolved evidence gates.
 - [`../deploy/README.md`](../deploy/README.md): deployment, update, password recovery, backup, and restore operations.
@@ -55,6 +57,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 | Compose validation | `docker compose -f deploy/compose.yaml config` |
 | Local administration | `http://127.0.0.1:5173/admin` |
 | Local public route | `http://127.0.0.1:5173/s/{publicId}` |
+| Local shared-folder route | `http://127.0.0.1:5173/f/{folderPublicId}` |
 
 ## Change flow
 

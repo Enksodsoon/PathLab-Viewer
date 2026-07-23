@@ -549,6 +549,45 @@ def test_chunked_auth_body_limit_stops_receiving_after_cap_is_crossed(tmp_path: 
     assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
 
 
+def test_library_mutation_body_limit_is_64_kib(tmp_path: Path) -> None:
+    app = create_app(
+        Settings(
+            database_url=f"sqlite:///{tmp_path / 'library-limit.sqlite3'}",
+            data_root=tmp_path / "data",
+        )
+    )
+    sent: list[dict[str, Any]] = []
+
+    async def receive() -> dict[str, Any]:
+        raise AssertionError("oversized declared body must not be consumed")
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    path = "/api/v1/admin/folders"
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [
+            (b"content-length", b"65537"),
+            (b"content-type", b"application/json"),
+        ],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+        "root_path": "",
+    }
+    asyncio.run(app(scope, receive, send))
+
+    assert sent[0]["status"] == 413
+    assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
+
+
 def test_legacy_long_password_can_login_and_migrate_via_password_change(tmp_path: Path) -> None:
     legacy_password = "legacy-" + "x" * 193
     replacement = "new correct horse battery"

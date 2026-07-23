@@ -8,6 +8,7 @@ PathLab Viewer is a private-first web application for reviewing and publishing O
 - Background validation and Deep Zoom conversion
 - Private preview before publication
 - Unlisted, read-only public slide links
+- Three-level virtual folders, private teaching metadata, and bearer-link folder sharing
 - Responsive OpenSeadragon viewing on desktop, tablet, and phone
 - Single-administrator authentication with password recovery
 - Storage admission controls, audit records, and atomic publication
@@ -63,7 +64,8 @@ pathlab-worker
 pnpm --dir apps/web dev
 ```
 
-Open `http://127.0.0.1:5173/admin`. Published local slides use `/s/{publicId}`.
+Open `http://127.0.0.1:5173/admin`. Published local slides use `/s/{publicId}`;
+shared collections use `/f/{folderPublicId}`.
 
 ## Verification
 
@@ -91,6 +93,8 @@ Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serv
 - Suspected vulnerabilities or patient-data exposure should be reported privately rather than through a public issue.
 
 Administrator recovery architecture is documented in [`docs/architecture/PASSWORD_RECOVERY.md`](docs/architecture/PASSWORD_RECOVERY.md).
+Virtual organization, publication grants, and collection-sharing boundaries are
+documented in [`docs/architecture/LIBRARY_SHARING.md`](docs/architecture/LIBRARY_SHARING.md).
 
 ## Contributing
 

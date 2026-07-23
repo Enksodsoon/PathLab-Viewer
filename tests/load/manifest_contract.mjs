@@ -2,6 +2,7 @@ const PUBLIC_ID = /^[A-Za-z0-9_-]+$/
 const DZI_PATH = /^[A-Za-z0-9_-]+\.dzi$/
 const TILE_PATH = /^slide_files\/\d+\/\d+_\d+\.(?:jpg|jpeg)$/i
 const SLIDE_KEYS = ['commonTiles', 'dziPath', 'publicId', 'randomTiles']
+const FOLDER_KEYS = ['folderPublicId', 'slides']
 
 function invalid() {
   throw new Error('Invalid viewer load manifest')
@@ -47,4 +48,22 @@ export function validateManifest(manifest) {
     validatePaths(slide.randomTiles, 256)
   }
   return manifest.slides
+}
+
+export function validateFolderManifest(manifest) {
+  if (
+    manifest === null ||
+    typeof manifest !== 'object' ||
+    Array.isArray(manifest) ||
+    Object.keys(manifest).sort().some((key, index) => key !== FOLDER_KEYS[index]) ||
+    !PUBLIC_ID.test(manifest.folderPublicId ?? '') ||
+    !Array.isArray(manifest.slides) ||
+    manifest.slides.length < 2
+  ) {
+    invalid()
+  }
+  return {
+    folderPublicId: manifest.folderPublicId,
+    slides: validateManifest({ slides: manifest.slides }),
+  }
 }

@@ -32,6 +32,7 @@
 	}
 
 	header /s/* X-Robots-Tag "noindex, nofollow, noarchive"
+	header /f/* X-Robots-Tag "noindex, nofollow, noarchive"
 	header {
 		Referrer-Policy "no-referrer"
 		X-Content-Type-Options "nosniff"

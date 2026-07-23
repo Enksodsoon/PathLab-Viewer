@@ -15,6 +15,7 @@ PathLab Viewer is a private-first web application for whole-slide image review a
 - Private preview
 - Publish, unpublish, retry, and delete actions
 - Unlisted anonymous public viewing
+- Virtual folders, slide teaching metadata, and direct-child shared collections
 - Responsive desktop, tablet, and phone interfaces
 - Password change and server-assisted account recovery
 - Docker Compose deployment with HTTPS
@@ -38,7 +39,7 @@ Changes to these boundaries require an explicit product and security review.
 | Web application | React, TypeScript, Vite | Administration interface and public viewer |
 | Viewer | OpenSeadragon | Deep Zoom pan, zoom, navigator, and scale display |
 | API | Python, FastAPI, Pydantic | Authentication, slide lifecycle, upload admission, metadata, and publication |
-| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, audit events, and recovery state |
+| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, virtual folders, publication grants, audit events, and recovery state |
 | Upload transport | tusd and `tus-js-client` | Resumable multi-gigabyte uploads |
 | TIFF inspection | `tifffile` and OME-XML parsing | Structural and metadata validation |
 | Conversion | libvips and pyvips | Resource-bounded JPEG Deep Zoom generation |
@@ -64,8 +65,14 @@ uploading → queued → validating → converting → ready_private → publish
 6. libvips creates one DZI descriptor and 512-pixel JPEG tiles.
 7. Generator metadata and unexpected derivative files are removed or rejected.
 8. The complete derivative becomes available for private preview.
-9. Publishing atomically copies only sanitized derivative files into the public tree.
+9. The first publication grant atomically hardlinks the sanitized private derivative into the public tree; later grants reuse it.
 10. The public route `/s/{publicId}` loads the metadata and tiles without exposing the original.
+
+Folders are SQLite metadata only: creating, renaming, sorting, or moving them does
+not scan storage, move tile trees, copy images, or invoke conversion. A shared
+folder publishes eligible direct children through grants and is opened at
+`/f/{folderPublicId}`. See
+[`architecture/LIBRARY_SHARING.md`](architecture/LIBRARY_SHARING.md).
 
 ## OME-TIFF contract
 

@@ -56,6 +56,7 @@ from .storage_accounting import reserve_new_slide, reserve_retry
 
 COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
+MAX_LIBRARY_BODY_BYTES = 64 * 1024
 
 
 class LoginRequest(BaseModel):
@@ -147,6 +148,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     throttle = LoginThrottle()
     app = FastAPI(title="PathLab Viewer API", version="0.1.0")
     app.add_middleware(AuthBodyLimitMiddleware, max_bytes=MAX_AUTH_BODY_BYTES)
+    app.add_middleware(
+        AuthBodyLimitMiddleware,
+        max_bytes=MAX_LIBRARY_BODY_BYTES,
+        path_prefixes=(
+            "/api/v1/admin/folders",
+            "/api/v1/admin/slides/",
+            "/api/v1/uploads",
+        ),
+    )
     app.state.settings = current
     if current.serve_public_tiles:
         mimetypes.add_type("application/xml", ".dzi")

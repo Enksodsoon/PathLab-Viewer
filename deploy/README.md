@@ -35,6 +35,22 @@ Use **Actions → Deploy production → Run workflow** from the current reviewed
 
 The previous release is retained under `/opt/pathlab-viewer.rollback-*` for manual rollback. Confirm the active release from the host or workflow output; do not record a temporary commit hash in this runbook.
 
+### Virtual-library migration and rollback
+
+Release `20260723_0006` adds only SQLite tables, indexes, and slide metadata
+columns. Before upgrading, take a consistent application-data backup. Run
+`alembic upgrade head` through the normal release workflow, then verify readiness,
+existing `/s/*` links, a representative shared `/f/*` link, and public hardlink
+inodes. Do not deploy application code that expects `0006` while the database is
+at an older revision.
+
+For a pre-deployment rollback, stop API and worker writes, restore the matching
+backup, and restore the previous application release. `alembic downgrade
+20260723_0005` removes virtual-library metadata and grants without mutating slide
+files or tile trees; use it only after confirming that losing folder organization
+and folder share tokens is intended. Never downgrade a live database while newer
+application processes are running.
+
 ## OCI Bastion setup
 
 The deployment workflow creates a temporary OCI Bastion managed SSH session for each approved deployment and deletes it when the job exits. Administrator SSH remains the break-glass path.
@@ -84,6 +100,12 @@ BASE_URL="$BASE_URL" \
 MANIFEST_PATH=/absolute/path/to/viewer-load-manifest.json \
 deploy/scripts/run-viewer-load-test.sh smoke
 ```
+
+To include the optional folder-viewer contract, provide a manifest with
+`folderPublicId` plus at least two selected slide entries, and set
+`FOLDER_PUBLIC_ID=1`. The workload fetches one folder manifest per virtual user
+and retains the existing seven-common/three-random tile request profile; it does
+not preload thumbnails or tile trees.
 
 Run `acceptance` only in an authorized external test window. It uses 100 virtual users for 10 minutes. The wrapper is never invoked by deployment or CI and requires an operator-provided URL and manifest.
 

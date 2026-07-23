@@ -54,6 +54,13 @@ Remaining manual evidence:
 - clean backup-and-restore drill;
 - real 300–500 MB conversion benchmark.
 
+The virtual-library candidate was exercised locally with the backend and
+frontend full suites, Python lint/type checks, frontend lint/build, Node load
+contract tests, JavaScript syntax check, a fresh upgrade/downgrade/re-upgrade
+migration cycle, Compose interpolation validation, and `git diff --check`.
+These local commands do not claim deployment, external load, physical-device,
+production-migration, restore, or security acceptance.
+
 ## Local browser workflow evidence
 
 The recorded local workflow used the real FastAPI and tusd services rather than mocked API responses:
