@@ -31,7 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for check in backend web containers; do
+          for check in public-repository backend web dependencies containers; do
             conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
               --jq ".check_runs[] | select(.name == \"${check}\") | .conclusion" | head -n 1)"
             test "${conclusion}" = success || {
