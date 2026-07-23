@@ -65,6 +65,27 @@ deploy/scripts/restore.sh --confirm /absolute/path/to/backup
 
 After restoration, compare slide records, SHA-256 values, manifests, representative DZI descriptors, representative JPEG tiles, authentication behavior, and readiness endpoints. Never test restoration directly over the only production data copy.
 
+### Library-v2 migration and rollback
+
+Migration `20260723_0006` preserves existing slide rows, public identifiers,
+originals, private derivatives, and `/s/{publicId}` links. Before upgrading:
+
+1. stop new uploads and conversion work;
+2. create and verify a database/data-root backup;
+3. run `alembic upgrade head`;
+4. verify `/readyz`, an existing private preview, and an existing public link.
+
+Code rollback across this migration also requires a database rollback:
+
+```bash
+alembic downgrade 20260723_0005
+```
+
+Downgrade removes library folders, collections, saved views, generic grants,
+Trash metadata, and thumbnail references. It does not remove originals or DZI
+trees. Do not downgrade after administrators begin relying on library metadata
+unless that metadata loss is accepted and the verified backup is available.
+
 ## Viewer load testing
 
 Create a manifest from sanitized public derivatives on the host. Supply public identifiers explicitly; the tooling never discovers or selects them:
