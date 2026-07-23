@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPOSITORY_URL="https://github.com/Enksodsoon/PathLab-Viewer.git"
 LIVE_DIR="/opt/pathlab-viewer"
+ENV_FILE="${LIVE_DIR}/deploy/.env"
 LOCK_FILE="/var/lock/pathlab-viewer-deploy.lock"
-HEALTH_URL="https://pathlab-viewer.140-245-126-212.sslip.io/readyz"
 REQUEST="${1:-${SSH_ORIGINAL_COMMAND:-}}"
 SWAPPED=0
 OLD_WORKER_STOPPED=0
@@ -57,6 +56,22 @@ cleanup_exit() {
   cleanup_stage
 }
 
+read_dotenv_value() {
+  local key="$1"
+  local line value
+  line="$(grep -E "^${key}=" "${ENV_FILE}" | tail -n 1 || true)"
+  [[ -n "${line}" ]] || fail "${key} is missing from live deploy/.env"
+  value="${line#*=}"
+  value="${value%$'\r'}"
+  if [[ "${value}" == \"*\" && "${value}" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "${value}" == \'*\' && "${value}" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  [[ -n "${value}" ]] || fail "${key} must not be empty"
+  printf '%s\n' "${value}"
+}
+
 deployment_check() {
   local release_dir="$1"
   (
@@ -74,16 +89,28 @@ command -v flock >/dev/null || fail "flock is required"
 exec 9>"${LOCK_FILE}"
 flock -n 9 || fail "another production deployment is already running"
 
+[[ -f "${ENV_FILE}" ]] || fail "live deploy/.env is missing"
+DOMAIN="$(read_dotenv_value DOMAIN)"
+[[ "${DOMAIN}" =~ ^[A-Za-z0-9][A-Za-z0-9.-]{1,251}[A-Za-z0-9]$ ]] || \
+  fail "DOMAIN in live deploy/.env is invalid"
+[[ "${DOMAIN}" == *.* && "${DOMAIN}" != *..* ]] || \
+  fail "DOMAIN in live deploy/.env is invalid"
+HEALTH_URL="https://${DOMAIN}/readyz"
+
+REPOSITORY_URL="$(
+  git -c safe.directory="${LIVE_DIR}" -C "${LIVE_DIR}" remote get-url origin 2>/dev/null || true
+)"
+[[ "${REPOSITORY_URL}" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$ ]] || \
+  fail "the live checkout origin must be an HTTPS GitHub repository"
+
 REMOTE_MAIN_SHA="$(git ls-remote "${REPOSITORY_URL}" refs/heads/main | awk '{print $1}')"
 [[ "${REMOTE_MAIN_SHA}" == "${TARGET_SHA}" ]] || \
   fail "requested commit is not the current main commit"
-[[ -f "${LIVE_DIR}/deploy/.env" ]] || fail "live deploy/.env is missing"
 
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 STAGE_DIR="/opt/pathlab-viewer.stage-${TARGET_SHA}-${TIMESTAMP}"
 CURRENT_SHA="$(
   cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null | cut -c1-12 || \
-    git -c safe.directory="${LIVE_DIR}" -C "${LIVE_DIR}" rev-parse --short=12 HEAD 2>/dev/null || \
     echo unknown
 )"
 ROLLBACK_DIR="/opt/pathlab-viewer.rollback-${CURRENT_SHA}-${TIMESTAMP}"
@@ -92,7 +119,7 @@ trap cleanup_exit EXIT
 git clone --quiet --branch main --single-branch "${REPOSITORY_URL}" "${STAGE_DIR}"
 [[ "$(git -C "${STAGE_DIR}" rev-parse HEAD)" == "${TARGET_SHA}" ]] || \
   fail "staged checkout does not match the requested commit"
-install -m 600 "${LIVE_DIR}/deploy/.env" "${STAGE_DIR}/deploy/.env"
+install -m 600 "${ENV_FILE}" "${STAGE_DIR}/deploy/.env"
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"
 chown -R ubuntu:ubuntu "${STAGE_DIR}"
 
