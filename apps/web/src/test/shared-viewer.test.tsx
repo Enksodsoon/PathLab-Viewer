@@ -92,7 +92,7 @@ describe('shared library viewer', () => {
   it('switches slides through one persistent OpenSeadragon instance', async () => {
     renderShare()
     expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
-    expect(osd.factory).toHaveBeenCalledOnce()
+    await waitFor(() => expect(osd.factory).toHaveBeenCalledOnce())
     await userEvent.click(screen.getByRole('button', { name: 'Next slide' }))
     expect(await screen.findByRole('heading', { name: 'Normal colon' })).toBeVisible()
     expect(osd.factory).toHaveBeenCalledOnce()

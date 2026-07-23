@@ -12,7 +12,6 @@ import {
   Plus,
   Search,
   Share2,
-  Share2,
   Table2,
   Upload,
 } from 'lucide-react'

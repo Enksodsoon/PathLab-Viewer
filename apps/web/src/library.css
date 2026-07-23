@@ -646,7 +646,8 @@
   .library-command-actions {
     width: 100%;
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 76px 44px 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 65px 44px 44px 44px;
+    gap: 3px;
     overflow: visible;
   }
 
@@ -667,8 +668,8 @@
   }
 
   .mobile-view-select {
-    width: 76px;
-    min-width: 76px;
+    width: 65px;
+    min-width: 65px;
     display: block;
   }
 
