@@ -84,6 +84,10 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .dialog-close { position:absolute; right:14px; top:14px; border:0; background:transparent; padding:7px; cursor:pointer; }
 .delete-dialog-copy { color:var(--muted); font-size:13px; line-height:1.55; }
 .delete-dialog-copy strong { color:var(--navy); }
+.publish-dialog-copy { display:grid; gap:10px; color:var(--muted); font-size:13px; line-height:1.55; }
+.publish-dialog-copy strong { color:var(--navy); }
+.security-dialog .privacy-confirmation { display:flex; grid-template-columns:none; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f8fafb; line-height:1.45; }
+.security-dialog .privacy-confirmation input { flex:0 0 auto; width:18px; height:18px; margin:1px 0 0; padding:0; accent-color:var(--teal); }
 .center-state { min-height:100vh; display:grid; place-items:center; color:var(--muted); }
 .center-state.dark { color:#d7dee4; background:#11171e; }
 .viewer-shell { height:100vh; display:grid; grid-template-rows:68px minmax(0,1fr); overflow:hidden; }
