@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
+from wsi_viewer import worker
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -119,3 +121,43 @@ def test_incomplete_tus_uploads_expire_after_24_hours(tmp_path: Path) -> None:
     assert expire_incomplete_uploads(tmp_path, older_than=timedelta(hours=24)) == 1
     assert not info.exists()
     assert not data.exists()
+
+
+def test_worker_applies_libvips_limits_before_job_processing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'db.sqlite3'}",
+        data_root=tmp_path,
+        libvips_concurrency=2,
+        libvips_cache_max_mem_bytes=123456,
+        libvips_cache_max_files=17,
+        libvips_cache_max_operations=19,
+    )
+    events: list[str] = []
+
+    class StopWorker(RuntimeError):
+        pass
+
+    class FakeScheduler:
+        def __init__(self, **_kwargs: object) -> None:
+            assert events == ["configured"]
+
+        def run_due(self) -> float:
+            raise StopWorker
+
+    configure = Mock(side_effect=lambda **_kwargs: events.append("configured"))
+    monkeypatch.setattr(worker, "Settings", Mock(return_value=settings))
+    monkeypatch.setattr(worker, "configure_libvips", configure)
+    monkeypatch.setattr(worker, "WorkerScheduler", FakeScheduler)
+    monkeypatch.setattr(worker, "session_factory", Mock())
+
+    with pytest.raises(StopWorker):
+        worker.main()
+
+    configure.assert_called_once_with(
+        concurrency=2,
+        cache_max_mem_bytes=123456,
+        cache_max_files=17,
+        cache_max_operations=19,
+    )

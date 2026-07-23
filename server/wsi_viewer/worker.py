@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import shutil
 import time
 from collections.abc import Callable
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .config import Settings
-from .conversion import generate_dzi
+from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
 from .domain import SlideState
 from .models import Job
@@ -171,7 +172,14 @@ def remove_slide(layout: StorageLayout, slide_id: str, public_id: str) -> None:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO)
     settings = Settings()
+    configure_libvips(
+        concurrency=settings.libvips_concurrency,
+        cache_max_mem_bytes=settings.libvips_cache_max_mem_bytes,
+        cache_max_files=settings.libvips_cache_max_files,
+        cache_max_operations=settings.libvips_cache_max_operations,
+    )
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
     scheduler = WorkerScheduler(

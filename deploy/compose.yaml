@@ -97,7 +97,14 @@ services:
         max-size: "10m"
         max-file: "3"
     command: ["pathlab-worker"]
-    environment: *pathlab-environment
+    environment:
+      <<: *pathlab-environment
+      PATHLAB_LIBVIPS_CONCURRENCY: "${PATHLAB_LIBVIPS_CONCURRENCY:-1}"
+      PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES: "${PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES:-268435456}"
+      PATHLAB_LIBVIPS_CACHE_MAX_FILES: "${PATHLAB_LIBVIPS_CACHE_MAX_FILES:-128}"
+      PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS: "${PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS:-100}"
+      VIPS_CONCURRENCY: "1"
+      MALLOC_ARENA_MAX: "2"
     volumes:
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
     depends_on:

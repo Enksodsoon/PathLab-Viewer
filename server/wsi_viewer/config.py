@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,3 +18,7 @@ class Settings(BaseSettings):
     tus_internal_upload_dir: Path = Path("./var/tus")
     worker_stale_seconds: int = 300
     serve_public_tiles: bool = False
+    libvips_concurrency: PositiveInt = 1
+    libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
+    libvips_cache_max_files: PositiveInt = 128
+    libvips_cache_max_operations: PositiveInt = 100

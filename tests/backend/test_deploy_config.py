@@ -50,6 +50,50 @@ def test_tusd_uses_pathlab_data_owner() -> None:
     assert 'user: "10001:10001"' in tusd_service
 
 
+def test_conversion_resource_limits_are_worker_only() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
+        "\n  api:\n", maxsplit=1
+    )[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
+        "\n  worker:\n", maxsplit=1
+    )[0]
+    worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
+        "\nvolumes:\n", maxsplit=1
+    )[0]
+    expected = (
+        "PATHLAB_LIBVIPS_CONCURRENCY",
+        "PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES",
+        "PATHLAB_LIBVIPS_CACHE_MAX_FILES",
+        "PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS",
+        "VIPS_CONCURRENCY",
+        "MALLOC_ARENA_MAX",
+    )
+
+    for name in expected:
+        assert name in worker_service
+        assert name not in caddy_service
+        assert name not in api_service
+        assert name not in tusd_service
+
+    assert 'VIPS_CONCURRENCY: "1"' in worker_service
+    assert 'MALLOC_ARENA_MAX: "2"' in worker_service
+    assert "mem_limit: 6g" in worker_service
+    assert "cpus: 1.50" in worker_service
+
+
+def test_example_environment_documents_libvips_overrides() -> None:
+    example = Path("deploy/.env.example").read_text(encoding="utf-8")
+
+    assert "PATHLAB_LIBVIPS_CONCURRENCY=1" in example
+    assert "PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES=268435456" in example
+    assert "PATHLAB_LIBVIPS_CACHE_MAX_FILES=128" in example
+    assert "PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS=100" in example
+
+
 def test_api_creates_runtime_directories_before_migrations() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
