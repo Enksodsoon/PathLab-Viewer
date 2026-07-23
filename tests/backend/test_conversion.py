@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import stat
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -56,6 +57,21 @@ def conversion_events(caplog: pytest.LogCaptureFixture) -> list[dict[str, object
     ]
 
 
+def fail_cleanup_for(
+    monkeypatch: pytest.MonkeyPatch, target: Path, *, detail: str = "cleanup failed"
+) -> None:
+    real_rmtree = shutil.rmtree
+
+    def fail_target_cleanup(
+        path: str | Path, *args: object, **kwargs: object
+    ) -> None:
+        if Path(path) == target:
+            raise OSError(detail)
+        real_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(conversion.shutil, "rmtree", fail_target_cleanup)
+
+
 def test_vips_metadata_is_deleted_and_only_dzi_jpegs_remain(tmp_path: Path) -> None:
     (tmp_path / "slide.dzi").write_text("<Image />", encoding="utf-8")
     tiles = tmp_path / "slide_files" / "0"
@@ -92,6 +108,233 @@ def test_configure_libvips_applies_process_limits(
     fake.cache_set_max.assert_called_once_with(19)
 
 
+def test_old_pid_staging_directory_is_removed_before_conversion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    destination = tmp_path / "private"
+    old_staging = tmp_path / "private.tmp-12345"
+    old_staging.mkdir()
+    (old_staging / "partial.jpg").write_bytes(b"partial")
+    image = FakeImage()
+    fake = install_fake_pyvips(monkeypatch, image)
+
+    def load_image(*_args: object, **_kwargs: object) -> FakeImage:
+        assert not old_staging.exists()
+        return image
+
+    fake.Image.new_from_file.side_effect = load_image
+
+    generate_dzi(source, destination, series_index=0, bits=8)
+
+    fake.Image.new_from_file.assert_called_once()
+
+
+def test_multiple_old_pid_staging_directories_are_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    old_staging = [tmp_path / "private.tmp-111", tmp_path / "private.tmp-222"]
+    for workspace in old_staging:
+        workspace.mkdir()
+        (workspace / "partial.jpg").write_bytes(b"partial")
+    install_fake_pyvips(monkeypatch, FakeImage())
+
+    generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert all(not workspace.exists() for workspace in old_staging)
+
+
+def test_old_staging_is_removed_before_conversion_that_later_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    old_staging = tmp_path / "private.tmp-12345"
+    old_staging.mkdir()
+    install_fake_pyvips(monkeypatch, FakeImage(error=RuntimeError("conversion failed")))
+
+    with pytest.raises(RuntimeError, match="conversion failed"):
+        generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert not old_staging.exists()
+
+
+def test_unrelated_siblings_remain_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    unrelated_directory = tmp_path / "private.tmp"
+    unrelated_directory.mkdir()
+    unrelated_file = tmp_path / "private-temporary-123"
+    unrelated_file.write_bytes(b"unrelated")
+    install_fake_pyvips(monkeypatch, FakeImage())
+
+    generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert unrelated_directory.is_dir()
+    assert unrelated_file.read_bytes() == b"unrelated"
+
+
+def test_another_destinations_staging_directory_remains_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    other_staging = tmp_path / "other.tmp-12345"
+    other_staging.mkdir()
+    (other_staging / "partial.jpg").write_bytes(b"partial")
+    install_fake_pyvips(monkeypatch, FakeImage())
+
+    generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert (other_staging / "partial.jpg").read_bytes() == b"partial"
+
+
+def test_matching_symlink_is_removed_without_following_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination_parent = tmp_path / "destination-parent"
+    destination_parent.mkdir()
+    source = destination_parent / "source.ome.tif"
+    source.write_bytes(b"source")
+    outside_target = tmp_path / "outside-target"
+    outside_target.mkdir()
+    marker = outside_target / "keep.marker"
+    marker.write_bytes(b"keep")
+    matching_link = destination_parent / "private.tmp-12345"
+    try:
+        matching_link.symlink_to(outside_target, target_is_directory=True)
+    except OSError:
+        matching_link.write_bytes(b"simulated symlink")
+        real_lstat = Path.lstat
+
+        def report_matching_path_as_symlink(path: Path) -> os.stat_result:
+            result = real_lstat(path)
+            if path != matching_link:
+                return result
+            values = list(result)
+            values[0] = stat.S_IFLNK | 0o777
+            return os.stat_result(values)
+
+        monkeypatch.setattr(Path, "lstat", report_matching_path_as_symlink)
+    install_fake_pyvips(monkeypatch, FakeImage())
+
+    generate_dzi(source, destination_parent / "private", series_index=0, bits=8)
+
+    assert not os.path.lexists(matching_link)
+    assert marker.read_bytes() == b"keep"
+
+
+def test_stale_cleanup_failure_prevents_conversion_and_logs_bounded_event(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    old_staging = tmp_path / "private.tmp-12345"
+    old_staging.mkdir()
+    fake = install_fake_pyvips(monkeypatch, FakeImage())
+    fail_cleanup_for(monkeypatch, old_staging, detail="private cleanup detail")
+
+    with (
+        caplog.at_level(logging.INFO, logger="wsi_viewer.conversion"),
+        pytest.raises(RuntimeError, match="stale conversion workspace") as captured,
+    ):
+        generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert type(captured.value).__name__ == "ConversionWorkspaceCleanupError"
+    fake.Image.new_from_file.assert_not_called()
+    stale_events = [
+        event
+        for event in conversion_events(caplog)
+        if event["event"] == "conversion_stale_cleanup_failure"
+    ]
+    assert stale_events == [
+        {"event": "conversion_stale_cleanup_failure", "error_type": "OSError"}
+    ]
+    assert "private cleanup detail" not in caplog.text
+    assert "private.tmp-12345" not in caplog.text
+
+
+def test_stale_cleanup_failure_preserves_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    old_staging = tmp_path / "private.tmp-12345"
+    old_staging.mkdir()
+    install_fake_pyvips(monkeypatch, FakeImage())
+    fail_cleanup_for(monkeypatch, old_staging)
+
+    with pytest.raises(RuntimeError, match="stale conversion workspace"):
+        generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert source.read_bytes() == b"source"
+
+
+def test_stale_cleanup_failure_preserves_completed_derivative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    destination = tmp_path / "private"
+    destination.mkdir()
+    marker = destination / "completed.marker"
+    marker.write_bytes(b"old")
+    old_staging = tmp_path / "private.tmp-12345"
+    old_staging.mkdir()
+    install_fake_pyvips(monkeypatch, FakeImage())
+    fail_cleanup_for(monkeypatch, old_staging)
+
+    with pytest.raises(RuntimeError, match="stale conversion workspace"):
+        generate_dzi(source, destination, series_index=0, bits=8)
+
+    assert marker.read_bytes() == b"old"
+
+
+def test_previous_derivative_is_restored_when_destination_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    destination = tmp_path / "private"
+    previous = tmp_path / "private.previous"
+    previous.mkdir()
+    (previous / "completed.marker").write_bytes(b"old")
+    install_fake_pyvips(monkeypatch, FakeImage(error=RuntimeError("conversion failed")))
+
+    with pytest.raises(RuntimeError, match="conversion failed"):
+        generate_dzi(source, destination, series_index=0, bits=8)
+
+    assert (destination / "completed.marker").read_bytes() == b"old"
+    assert not previous.exists()
+
+
+def test_previous_derivative_is_discarded_when_destination_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    destination = tmp_path / "private"
+    destination.mkdir()
+    (destination / "completed.marker").write_bytes(b"current")
+    previous = tmp_path / "private.previous"
+    previous.mkdir()
+    (previous / "completed.marker").write_bytes(b"rollback")
+    install_fake_pyvips(monkeypatch, FakeImage(error=RuntimeError("conversion failed")))
+
+    with pytest.raises(RuntimeError, match="conversion failed"):
+        generate_dzi(source, destination, series_index=0, bits=8)
+
+    assert (destination / "completed.marker").read_bytes() == b"current"
+    assert not previous.exists()
+
+
 def test_failed_conversion_removes_temporary_derivative(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -103,7 +346,7 @@ def test_failed_conversion_removes_temporary_derivative(
     with pytest.raises(RuntimeError, match="conversion failed"):
         generate_dzi(source, destination, series_index=0, bits=8)
 
-    assert not (tmp_path / f"private.tmp-{os.getpid()}").exists()
+    assert not list(tmp_path.glob("private.tmp-*"))
     assert source.read_bytes() == b"source"
 
 
@@ -139,7 +382,7 @@ def test_successful_conversion_atomically_replaces_completed_derivative(
     assert result.read_bytes() == b"<Image />"
     assert not (destination / "completed.marker").exists()
     assert not destination.with_name("private.previous").exists()
-    assert not destination.with_name(f"private.tmp-{os.getpid()}").exists()
+    assert not list(tmp_path.glob("private.tmp-*"))
     assert source.read_bytes() == b"source"
 
 

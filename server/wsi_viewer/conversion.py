@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import stat
 import time
 from pathlib import Path
 
@@ -9,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class InvalidDerivative(RuntimeError):
+    pass
+
+
+class ConversionWorkspaceCleanupError(RuntimeError):
     pass
 
 
@@ -64,11 +69,46 @@ def _measure_derivative(root: Path) -> tuple[int, int, int]:
     return derivative_bytes, file_count, tile_count
 
 
+def _remove_path_without_following_symlink(path: Path) -> None:
+    mode = path.lstat().st_mode
+    if stat.S_ISLNK(mode):
+        path.unlink()
+    elif stat.S_ISDIR(mode):
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
 def _remove_tree_without_masking_error(path: Path) -> None:
     try:
-        shutil.rmtree(path)
+        _remove_path_without_following_symlink(path)
+    except FileNotFoundError:
+        return
     except Exception as error:
         _log_event("conversion_cleanup_failure", error_type=type(error).__name__)
+
+
+def _remove_stale_conversion_workspaces(destination: Path) -> None:
+    parent = destination.parent
+    if not parent.exists():
+        return
+    prefix = f"{destination.name}.tmp-"
+    try:
+        # Runtime contract: one serial conversion worker. Every matching sibling at
+        # conversion start therefore belongs to a terminated or completed attempt.
+        candidates = [item for item in parent.iterdir() if item.name.startswith(prefix)]
+        for candidate in candidates:
+            try:
+                _remove_path_without_following_symlink(candidate)
+            except FileNotFoundError:
+                continue
+    except Exception as error:
+        _log_event(
+            "conversion_stale_cleanup_failure", error_type=type(error).__name__
+        )
+        raise ConversionWorkspaceCleanupError(
+            "Unable to remove stale conversion workspace; conversion aborted"
+        ) from error
 
 
 def _recover_previous_derivative(destination: Path, previous: Path) -> None:
@@ -87,8 +127,7 @@ def generate_dzi(source: Path, destination: Path, *, series_index: int, bits: in
     started = time.monotonic()
     _log_event("conversion_start", source_bytes=source_bytes)
     try:
-        if staging.exists():
-            shutil.rmtree(staging)
+        _remove_stale_conversion_workspaces(destination)
         _recover_previous_derivative(destination, previous)
         staging.mkdir(parents=True)
 
@@ -149,5 +188,4 @@ def generate_dzi(source: Path, destination: Path, *, series_index: int, bits: in
         )
         raise
     finally:
-        if staging.exists():
-            _remove_tree_without_masking_error(staging)
+        _remove_tree_without_masking_error(staging)
