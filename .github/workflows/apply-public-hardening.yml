@@ -52,16 +52,27 @@ jobs:
                   if count == 1:
                       write(path, content.replace(candidate_old, candidate_new, 1))
                       return
-                  if path == "deploy/compose.yaml" and count == 2:
-                      write(path, content.replace(candidate_old, candidate_new, 1))
-                      return
-                  if path == "deploy/compose.yaml" and count == 0 and candidate_new in content:
-                      return
               raise RuntimeError(f"Expected one match in {path}, found 0 or multiple")
           '''
           if old not in content:
               raise SystemExit('transformer helper shape changed')
-          path.write_text(content.replace(old, new, 1), encoding='utf-8')
+          content = content.replace(old, new, 1)
+          content = content.replace(
+              'sqlite:////data/db/pathlab.sqlite3',
+              'sqlite:////data/database/pathlab.sqlite3',
+          )
+          compose_edit = '''replace_once(
+              "deploy/compose.yaml",
+              "      PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3\\n",
+              "      PATHLAB_ENVIRONMENT: production\\n      PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3\\n",
+          )
+          '''
+          first = content.find(compose_edit)
+          second = content.find(compose_edit, first + len(compose_edit))
+          if first < 0 or second < 0:
+              raise SystemExit('compose transformer shape changed')
+          content = content[:second] + content[second + len(compose_edit):]
+          path.write_text(content, encoding='utf-8')
           PY
           if python scripts/apply_public_hardening.py > /tmp/apply.log 2>&1; then
             exit 0
