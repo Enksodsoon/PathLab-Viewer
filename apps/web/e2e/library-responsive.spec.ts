@@ -85,6 +85,61 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible()
 })
 
+test('keeps per-file processing stages readable on desktop and mobile', async ({ page }) => {
+  const processingSlides = [
+    {
+      ...slide,
+      id: 'slide-uploading',
+      displayName: 'Uploading source slide',
+      state: 'uploading',
+    },
+    {
+      ...slide,
+      id: 'slide-validating',
+      displayName: 'Validating OME-TIFF slide',
+      state: 'validating',
+    },
+    {
+      ...slide,
+      id: 'slide-converting',
+      displayName: 'Generating viewer tiles',
+      state: 'converting',
+    },
+  ]
+  await page.route('**/api/v2/admin/library/items**', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ items: processingSlides, nextCursor: null, total: 3 }),
+  }))
+  await page.route('**/api/v2/admin/slides/status**', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      items: processingSlides.map((item) => ({
+        id: item.id,
+        state: item.state,
+        errorCode: null,
+      })),
+    }),
+  }))
+  await page.goto('/admin?location=processing')
+
+  for (const viewport of [
+    { width: 1310, height: 912 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await expect(page.getByRole('heading', { name: 'Processing' })).toBeVisible()
+    await expect(page.getByText('Receiving source file')).toBeVisible()
+    await expect(page.getByText('Checking image structure and OME metadata')).toBeVisible()
+    await expect(page.locator('.processing-progress > p', {
+      hasText: 'Generating viewer tiles',
+    })).toBeVisible()
+    await expect(page.getByRole('progressbar')).toHaveCount(3)
+    await expect.poll(() => page.evaluate(() => (
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    ))).toBe(true)
+  }
+})
+
 test('keeps controls readable and non-overlapping across every layout boundary', async ({ page }) => {
   for (const width of [320, 360, 390, 600, 601, 768, 900, 901, 1100, 1101, 1250, 1251, 1439, 1440, 1584, 1920]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 900 })

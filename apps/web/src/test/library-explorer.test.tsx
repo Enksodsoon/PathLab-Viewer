@@ -168,6 +168,60 @@ describe('dark library explorer', () => {
     expect(api.getLibraryItems).toHaveBeenCalledWith(expect.objectContaining({ location: 'failed' }))
   })
 
+  it('uses processing-only messaging when no work is active', async () => {
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    render(
+      <MemoryRouter initialEntries={['/admin?location=processing']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'No files processing' })).toBeVisible()
+    expect(screen.getByText('Active uploads and conversions will appear here.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
+  })
+
+  it('shows honest processing stages and removes completed files', async () => {
+    vi.useFakeTimers()
+    api.getLibraryItems.mockResolvedValue({
+      items: [
+        { ...items.items[1], state: 'uploading', id: 'uploading-slide', displayName: 'Uploading slide' },
+        { ...items.items[1], state: 'queued', id: 'queued-slide', displayName: 'Queued slide' },
+        { ...items.items[1], state: 'validating', id: 'validating-slide', displayName: 'Validating slide' },
+        { ...items.items[1], state: 'converting', id: 'converting-slide', displayName: 'Converting slide' },
+      ],
+      nextCursor: null,
+      total: 4,
+    })
+    api.getSlideStatuses.mockResolvedValue([
+      { id: 'uploading-slide', state: 'uploading', errorCode: null },
+      { id: 'queued-slide', state: 'queued', errorCode: null },
+      { id: 'validating-slide', state: 'validating', errorCode: null },
+      { id: 'converting-slide', state: 'ready_private', errorCode: null },
+    ])
+
+    render(
+      <MemoryRouter initialEntries={['/admin?location=processing']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+    await act(async () => {
+      await api.getLibraryItems.mock.results[0]?.value
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Receiving source file')).toBeVisible()
+    expect(screen.getByText('Waiting for processing capacity')).toBeVisible()
+    expect(screen.getByText('Checking image structure and OME metadata')).toBeVisible()
+    expect(screen.getByText('Generating viewer tiles')).toBeVisible()
+    expect(screen.getAllByRole('progressbar')).toHaveLength(4)
+
+    await act(async () => vi.advanceTimersByTimeAsync(4000))
+
+    expect(screen.queryByText('Converting slide')).not.toBeInTheDocument()
+    expect(screen.getByText('3 slides')).toBeVisible()
+  })
+
   it('explains failed files and retries the selected originals without re-uploading', async () => {
     const failedSlide = {
       ...items.items[1],

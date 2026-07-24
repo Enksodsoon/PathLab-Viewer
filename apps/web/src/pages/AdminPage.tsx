@@ -1,5 +1,6 @@
 import {
   ChevronLeft,
+  CircleDashed,
   CircleX,
   FolderOpen,
   Menu,
@@ -245,6 +246,7 @@ export function AdminPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploadName, setUploadName] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
   const navigatorToggleRef = useRef<HTMLButtonElement>(null)
@@ -384,15 +386,25 @@ export function AdminPage() {
         const statuses = await getSlideStatuses(activeIds)
         if (cancelled) return
         const byId = new Map(statuses.map((item) => [item.id, item]))
-        setPage((current) => ({
-          ...current,
-          items: current.items.map((slide) => {
+        setPage((current) => {
+          const items = current.items.flatMap((slide) => {
             const statusItem = byId.get(slide.id)
-            return statusItem
-              ? { ...slide, state: statusItem.state, errorCode: statusItem.errorCode }
-              : slide
-          }),
-        }))
+            if (!statusItem) return [slide]
+            if (location === 'processing' && !ACTIVE_STATES.has(statusItem.state)) return []
+            return [{
+              ...slide,
+              state: statusItem.state,
+              errorCode: statusItem.errorCode,
+            }]
+          })
+          return {
+            ...current,
+            items,
+            total: location === 'processing'
+              ? Math.max(0, current.total - (current.items.length - items.length))
+              : current.total,
+          }
+        })
         if (statuses.some((status) => !ACTIVE_STATES.has(status.state))) {
           void loadNavigation()
         }
@@ -408,7 +420,7 @@ export function AdminPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [activeIds, activeIdsKey, authorized, loadNavigation, visible])
+  }, [activeIds, activeIdsKey, authorized, loadNavigation, location, visible])
 
   useEffect(() => {
     if (!filtersOpen || !authorized) return
@@ -912,6 +924,7 @@ export function AdminPage() {
         uploadName.trim() || file.name.replace(/\.ome\.tiff?$/i, ''),
         folderId,
       )
+      setActiveUploadId(reservation.slide.id)
       setPage((current) => ({
         ...current,
         items: [uploadSlide(reservation.slide, folderId), ...current.items],
@@ -1212,6 +1225,12 @@ export function AdminPage() {
                   <h3>No failed files</h3>
                   <p>Files that fail processing will appear here.</p>
                 </>
+              ) : location === 'processing' ? (
+                <>
+                  <CircleDashed />
+                  <h3>No files processing</h3>
+                  <p>Active uploads and conversions will appear here.</p>
+                </>
               ) : location.startsWith('folder:') ? (
                 <>
                   <FolderOpen />
@@ -1235,6 +1254,9 @@ export function AdminPage() {
               view={view}
               slides={page.items}
               selected={selected}
+              showProcessingProgress={location === 'processing'}
+              activeUploadId={activeUploadId}
+              uploadProgress={uploadProgress}
               onSelect={selectSlide}
               onOpen={(slide) => void openDetails(slide)}
               onAction={(slide, action) => void actOnSlide(slide, action)}
