@@ -544,7 +544,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         public_thumbnail = client.get(payload["slides"][0]["thumbnailUrl"])
         assert public_thumbnail.status_code == 200
         assert public_thumbnail.content == b"thumbnail"
-        assert public_thumbnail.headers["cache-control"] == "public, max-age=300"
+        assert public_thumbnail.headers["cache-control"] == "private, no-store"
         serialized = manifest.text
         for private_value in [
             "private-descendant.ome.tiff",
@@ -591,9 +591,14 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         assert rotated.status_code == 200
         assert rotated.json()["publicId"] != old_public_id
         assert client.get(f"/api/v2/public/collections/{old_public_id}").status_code == 404
-        assert client.get(
+        new_manifest = client.get(
             f"/api/v2/public/collections/{rotated.json()['publicId']}"
-        ).status_code == 200
+        )
+        assert new_manifest.status_code == 200
+        new_tile_source = new_manifest.json()["slides"][0]["tileSource"]
+        old_tile_source = new_tile_source.replace(rotated.json()["publicId"], old_public_id)
+        assert client.get(old_tile_source).status_code == 404
+        assert client.get(new_tile_source).status_code == 200
 
         revoked = client.delete(
             f"/api/v2/admin/shares/{share_id}",
@@ -606,6 +611,7 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         assert missing.status_code == 404
         assert missing.json()["detail"]["code"] == "SHARE_NOT_FOUND"
         assert client.get("/api/v2/public/collections/not-a-share").json() == missing.json()
+        assert client.get(new_tile_source).status_code == 404
 
         settings = client.app.state.settings
         with session_factory(settings)() as database:

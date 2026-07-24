@@ -149,13 +149,11 @@ def test_caddy_spa_fallback_does_not_rewrite_api_paths() -> None:
     assert caddyfile.index("handle @backend") < caddyfile.index(fallback)
 
 
-def test_caddy_cache_policy_separates_tiles_assets_html_and_api() -> None:
+def test_caddy_routes_public_tiles_through_authorizing_api() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     uploads = caddyfile.split("handle @uploads {", maxsplit=1)[1].split("}", maxsplit=1)[0]
     backend = caddyfile.split("handle @backend {", maxsplit=1)[1].split("}", maxsplit=1)[0]
-    tiles = caddyfile.split("handle_path /tiles/* {", maxsplit=1)[1].split(
-        "}", maxsplit=1
-    )[0]
     assets = caddyfile.split("handle /assets/* {", maxsplit=1)[1].split(
         "}", maxsplit=1
     )[0]
@@ -163,8 +161,9 @@ def test_caddy_cache_policy_separates_tiles_assets_html_and_api() -> None:
 
     assert 'header Cache-Control "no-store"' in uploads
     assert 'header Cache-Control "no-store"' in backend
-    assert 'header Cache-Control "public, max-age=31536000, s-maxage=60, immutable"' in tiles
-    assert 'header X-Content-Type-Options "nosniff"' in tiles
+    assert "handle_path /tiles/*" not in caddyfile
+    assert "/pathlab-data" not in compose
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/tus:/data/tus" in compose
     assert 'header Cache-Control "public, max-age=31536000, immutable"' in assets
     assert "root * /srv" in assets
     assert "reverse_proxy" not in assets
@@ -185,6 +184,42 @@ def test_production_deploy_is_manual_serial_and_main_only() -> None:
     assert "push:" not in workflow
 
 
+def test_runtime_container_inputs_are_pinned_by_digest() -> None:
+    dockerfiles = (
+        Path("deploy/Dockerfile.backend").read_text(encoding="utf-8"),
+        Path("deploy/Dockerfile.web").read_text(encoding="utf-8"),
+    )
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    for dockerfile in dockerfiles:
+        for line in dockerfile.splitlines():
+            if line.startswith("FROM "):
+                image = line.split()[1]
+                assert "@sha256:" in image
+                assert len(image.rsplit("@sha256:", 1)[1]) == 64
+    tusd_line = next(
+        line.strip() for line in compose.splitlines() if line.strip().startswith("image:")
+    )
+    assert "tusproject/tusd:v2.9.2@sha256:" in tusd_line
+    assert len(tusd_line.rsplit("@sha256:", 1)[1]) == 64
+    backend = dockerfiles[0]
+    assert "pip install --no-cache-dir --require-hashes" in backend
+    lockfile = Path("deploy/backend-requirements.txt").read_text(encoding="utf-8")
+    assert "fastapi==0.139.2" in lockfile
+    assert "pyvips==3.1.1" in lockfile
+    assert "--hash=sha256:" in lockfile
+    package = Path("package.json").read_text(encoding="utf-8")
+    assert '"packageManager": "pnpm@11.9.0+sha512.' in package
+
+
+def test_public_infrastructure_defaults_limit_operator_attack_surface() -> None:
+    variables = Path("deploy/terraform/variables.tf").read_text(encoding="utf-8")
+    duckdns = Path("deploy/scripts/duckdns.sh").read_text(encoding="utf-8")
+
+    assert 'can(tonumber(split("/", var.admin_cidr)[1]) >= 24)' in variables
+    assert "curl --fail --silent --show-error --max-time 15 --config -" in duckdns
+    assert "token=${DUCKDNS_TOKEN}&" not in duckdns
+
+
 def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     workflow = Path(".github/workflows/deploy-production.yml").read_text(
         encoding="utf-8"
@@ -196,6 +231,10 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "deploy/scripts/deploy-via-bastion.sh" in workflow
     assert "secrets.OCI_DEPLOY_KEY" not in workflow
     assert "vars.OCI_HOST" not in workflow
+    assert "pip install --require-hashes -r deploy/oci-cli-requirements.txt" in workflow
+    lockfile = Path("deploy/oci-cli-requirements.txt").read_text(encoding="utf-8")
+    assert "oci-cli==3.89.2" in lockfile
+    assert "--hash=sha256:" in lockfile
 
 
 def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:

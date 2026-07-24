@@ -19,7 +19,6 @@ services:
       DOMAIN: ${DOMAIN:?Set DOMAIN in deploy/.env}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
     volumes:
-      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/pathlab-data:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -42,6 +41,7 @@ services:
         max-file: "3"
     command: ["sh", "-c", "mkdir -p /data/database /data/tus && alembic upgrade head && pathlab-admin reconcile-storage && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips=*"]
     environment: &pathlab-environment
+      PATHLAB_ENVIRONMENT: production
       PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3
       PATHLAB_DATA_ROOT: /data
       PATHLAB_SECRET_KEY: ${PATHLAB_SECRET_KEY:?Set PATHLAB_SECRET_KEY in deploy/.env}
@@ -60,7 +60,7 @@ services:
     cpus: 0.75
 
   tusd:
-    image: tusproject/tusd:v2.9.2
+    image: tusproject/tusd:v2.9.2@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3
     user: "10001:10001"
     restart: unless-stopped
     logging:
@@ -80,7 +80,7 @@ services:
       - -hooks-enabled-events=pre-create,post-finish
       - -hooks-http-forward-headers=Authorization
     volumes:
-      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/tus:/data/tus
     depends_on:
       api:
         condition: service_healthy

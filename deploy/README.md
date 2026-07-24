@@ -112,10 +112,11 @@ Run `acceptance` only in an authorized external test window. It uses 100 virtual
 
 A CDN is optional and is not required for PathLab Viewer.
 
-- Cache only `/tiles/*` and `/assets/*`, respecting the origin `s-maxage`.
-- Bypass `/api/*`, `/api/v1/uploads/*`, `/admin`, `/s/*`, `/livez`, and `/readyz`.
+- Cache only fingerprinted `/assets/*`.
+- Never cache `/api/*`, including authorized DZI descriptors and JPEG tiles.
+- Bypass `/api/v1/uploads/*`, `/admin`, `/s/*`, `/livez`, and `/readyz`.
 - Keep credentials, provider tokens, zone identifiers, and private URLs outside the repository.
-- Do not claim immediate revocation of content already retained in a browser cache.
+- Preserve the origin `private, no-store` policy for all share-scoped content.
 
 No provider-specific configuration, paid feature, cache daemon, or purge integration is required.
 

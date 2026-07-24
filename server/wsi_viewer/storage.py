@@ -82,6 +82,19 @@ class StorageLayout:
             raise ValueError("Invalid generated public id")
         return self.root / "public" / public_id
 
+    def public_tile(self, public_id: str, tile_path: str) -> Path:
+        root = self.public_for(public_id).resolve()
+        target = (root / tile_path).resolve()
+        if not target.is_relative_to(root) or target.suffix.lower() not in {
+            ".dzi",
+            ".jpg",
+            ".jpeg",
+        }:
+            raise FileNotFoundError("Public tile was not found")
+        if not target.is_file():
+            raise FileNotFoundError("Public tile was not found")
+        return target
+
 
 def publish_derivative(layout: StorageLayout, slide_id: str, public_id: str) -> Path:
     source = layout.for_slide(slide_id).private_derivative

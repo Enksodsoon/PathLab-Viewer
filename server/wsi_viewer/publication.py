@@ -29,9 +29,9 @@ def ensure_grant(
         return existing
     grant_count = int(
         database.scalar(
-            select(func.count()).select_from(PublicationGrant).where(
-                PublicationGrant.slide_id == slide.id
-            )
+            select(func.count())
+            .select_from(PublicationGrant)
+            .where(PublicationGrant.slide_id == slide.id)
         )
         or 0
     )
@@ -43,8 +43,11 @@ def ensure_grant(
         source_id=source_id,
     )
     database.add(grant)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    slide.privacy_status = "passed"
+    slide.privacy_scanned_at = now
     slide.state = SlideState.PUBLISHED
-    slide.published_at = datetime.now(UTC).replace(tzinfo=None)
+    slide.published_at = now
     return grant
 
 
@@ -68,9 +71,9 @@ def remove_grant(
     database.flush()
     remaining = int(
         database.scalar(
-            select(func.count()).select_from(PublicationGrant).where(
-                PublicationGrant.slide_id == slide.id
-            )
+            select(func.count())
+            .select_from(PublicationGrant)
+            .where(PublicationGrant.slide_id == slide.id)
         )
         or 0
     )

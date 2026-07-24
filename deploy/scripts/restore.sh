@@ -21,7 +21,14 @@ recovery="${data_dir}.before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
 mv "$data_dir" "$recovery"
 mkdir -p "$data_dir/database"
 cp "${backup_dir}/database/pathlab.sqlite3" "$data_dir/database/pathlab.sqlite3"
-tar --extract --gzip --file "${backup_dir}/files.tar.gz" --directory "$data_dir"
+python3 - "${backup_dir}/files.tar.gz" "$data_dir" <<'PY'
+import sys
+import tarfile
+
+archive, destination = sys.argv[1:]
+with tarfile.open(archive, "r:gz") as stored:
+    stored.extractall(destination, filter="data")
+PY
 chown -R 10001:10001 "$data_dir"
 docker compose up -d
 echo "Restored. Previous data remains at $recovery"

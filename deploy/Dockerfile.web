@@ -1,4 +1,4 @@
-FROM node:24.14.0-alpine3.23 AS build
+FROM node:24.14.0-alpine3.23@sha256:7fddd9ddeae8196abf4a3ef2de34e11f7b1a722119f91f28ddf1e99dcafdf114 AS build
 WORKDIR /src
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -6,6 +6,6 @@ COPY apps/web ./apps/web
 RUN pnpm install --frozen-lockfile
 RUN pnpm --dir apps/web build
 
-FROM caddy:2.11.4-alpine
+FROM caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /src/apps/web/dist /srv

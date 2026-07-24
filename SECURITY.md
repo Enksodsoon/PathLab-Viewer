@@ -19,7 +19,14 @@ A useful report contains:
 
 Do not test against systems or data you are not authorized to access. Do not retain or redistribute any private data encountered during investigation.
 
-## High-priority areas
+## Automated safeguards
+
+Pull requests run current-tree disclosure checks, Python and JavaScript dependency audits,
+and CodeQL analysis. Production configuration refuses placeholder secrets or insecure cookies.
+Publication requires an explicit deidentification confirmation, and public responses expose
+only the technical image fields needed by the viewer.
+
+## Security boundaries
 
 Reports involving these boundaries are especially important:
 
