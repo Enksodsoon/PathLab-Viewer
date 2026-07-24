@@ -588,6 +588,27 @@
   text-decoration: none;
 }
 
+.publication-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.publication-state svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  stroke-width: 1.8;
+}
+
+.publication-state.is-private svg {
+  color: #d1a095;
+}
+
+.publication-state.is-published svg {
+  color: var(--ok);
+}
+
 .library-dialog {
   max-height: calc(100vh - 32px);
   overflow-y: auto;

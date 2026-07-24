@@ -1,4 +1,4 @@
-import { Edit3, Eye, Lock, X } from 'lucide-react'
+import { Edit3, Eye, Lock, LockOpen, X } from 'lucide-react'
 
 import type { LibrarySlide, LibrarySlideDetails } from '../../types'
 import { formatBytes } from './format'
@@ -20,6 +20,7 @@ export function SlideDetailsPanel({
 }: SlideDetailsPanelProps) {
   if (!slide) return null
   const adminNote = 'adminNotes' in slide ? slide.adminNotes : ''
+  const isPublished = slide.state === 'published'
   return (
     <aside className="slide-details-panel" aria-label="Slide details">
       <div className="details-heading">
@@ -44,7 +45,18 @@ export function SlideDetailsPanel({
         <div><dt>File size</dt><dd>{formatBytes(slide.sourceBytes)}</dd></div>
         <div><dt>Folder</dt><dd>{slide.folderId ? folderName ?? 'Folder' : 'Unfiled'}</dd></div>
         <div><dt>Collections</dt><dd>{collectionNames.join(', ') || '—'}</dd></div>
-        <div><dt>Publication</dt><dd>{slide.state === 'published' ? 'Published' : 'Private'} <Lock /></dd></div>
+        <div>
+          <dt>Publication</dt>
+          <dd
+            className={`publication-state ${isPublished ? 'is-published' : 'is-private'}`}
+            aria-label={`Publication: ${isPublished ? 'Published' : 'Private'}`}
+          >
+            <span>{isPublished ? 'Published' : 'Private'}</span>
+            {isPublished
+              ? <LockOpen aria-hidden="true" />
+              : <Lock aria-hidden="true" />}
+          </dd>
+        </div>
       </dl>
       <section>
         <h4>Admin note</h4>
