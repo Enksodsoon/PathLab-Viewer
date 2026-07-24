@@ -398,9 +398,119 @@
   font: 500 clamp(28px, 2.3vw, 34px)/1.1 Georgia, serif;
 }
 
+.select-visible input,
+.library-slide-card input,
+.library-table input {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  flex: 0 0 16px;
+  place-content: center;
+  margin: 0;
+  border: 1px solid #72584d;
+  border-radius: 4px;
+  appearance: none;
+  background: #17110f;
+  cursor: pointer;
+}
+
+.select-visible input::before,
+.library-slide-card input::before,
+.library-table input::before {
+  width: 8px;
+  height: 4px;
+  content: "";
+  border-bottom: 2px solid #1a0d09;
+  border-left: 2px solid #1a0d09;
+  opacity: 0;
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+.select-visible input:checked,
+.library-slide-card input:checked,
+.library-table input:checked {
+  border-color: var(--co);
+  background: var(--co);
+}
+
+.select-visible input:checked::before,
+.library-slide-card input:checked::before,
+.library-table input:checked::before {
+  opacity: 1;
+}
+
+.select-visible input:focus-visible,
+.library-slide-card input:focus-visible,
+.library-table input:focus-visible {
+  outline: 2px solid #f0a08f;
+  outline-offset: 2px;
+}
+
+.filter-panel-heading button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  background: var(--lp);
+  color: #9c8d82;
+  cursor: pointer;
+}
+
+.filter-panel-heading button:hover {
+  border-color: #725047;
+  color: var(--co);
+}
+
+.filter-panel-heading button:focus-visible {
+  outline: 2px solid #f0a08f;
+  outline-offset: 2px;
+}
+
+.filter-panel-heading button svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.8;
+}
+
 .library-slide-grid {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
+}
+
+.table-mini-thumb {
+  width: 64px;
+  height: 44px;
+  flex: 0 0 64px;
+  overflow: hidden;
+  border: 1px solid #3f3029;
+  border-radius: 6px;
+  background: #211611;
+}
+
+.table-mini-thumb .library-slide-thumbnail {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.table-mini-thumb .thumbnail-fallback {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.table-mini-thumb .thumbnail-fallback svg {
+  width: 21px;
+  height: 21px;
+}
+
+.table-mini-thumb .thumbnail-fallback span {
+  display: none;
 }
 
 .thumbnail-fallback {

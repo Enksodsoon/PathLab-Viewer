@@ -145,6 +145,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.clearAllMocks()
   vi.useRealTimers()
 })
@@ -204,6 +205,40 @@ describe('dark library explorer', () => {
     const callsWhileVisible = api.getSlideStatuses.mock.calls.length
     await act(async () => vi.advanceTimersByTime(15_000))
     expect(api.getSlideStatuses).toHaveBeenCalledTimes(callsWhileVisible)
+  })
+
+  it('refreshes navigator counters when a processing slide changes state', async () => {
+    vi.useFakeTimers()
+    api.getSlideStatuses.mockResolvedValue([{
+      id: 'slide-2',
+      state: 'published',
+      errorCode: null,
+    }])
+    api.getLibraryNavigation
+      .mockResolvedValueOnce(navigation)
+      .mockResolvedValue({
+        ...navigation,
+        counts: { ...navigation.counts, shared: 1, processing: 0 },
+      })
+
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await act(async () => {
+      await api.getLibraryNavigation.mock.results[0]?.value
+      await Promise.resolve()
+    })
+    expect(api.getLibraryNavigation).toHaveBeenCalledTimes(1)
+    expect(api.getLibraryItems).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      await api.getLibraryItems.mock.results[0]?.value
+      await Promise.resolve()
+    })
+
+    await act(async () => vi.advanceTimersByTimeAsync(4000))
+
+    expect(api.getSlideStatuses).toHaveBeenCalledWith(['slide-2'])
+    expect(api.getLibraryNavigation).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: /shared 1/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /processing 0/i })).toBeVisible()
   })
 
   it('provides forward navigation and all creation actions from the toolbar', async () => {

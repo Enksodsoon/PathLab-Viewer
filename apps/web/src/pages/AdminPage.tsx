@@ -386,6 +386,9 @@ export function AdminPage() {
               : slide
           }),
         }))
+        if (statuses.some((status) => !ACTIVE_STATES.has(status.state))) {
+          void loadNavigation()
+        }
       } catch {
         if (!cancelled) setError('Processing status could not refresh. Retrying automatically.')
       } finally {
@@ -398,7 +401,7 @@ export function AdminPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [activeIds, activeIdsKey, authorized, visible])
+  }, [activeIds, activeIdsKey, authorized, loadNavigation, visible])
 
   useEffect(() => {
     if (!filtersOpen || !authorized) return
@@ -592,6 +595,7 @@ export function AdminPage() {
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
           : 'Slide unpublished.')
+        void loadNavigation()
       } else if (action === 'trash' || action === 'restore') {
         await mutateLibrarySlide(slide.id, action)
         setPage((current) => ({
@@ -710,6 +714,7 @@ export function AdminPage() {
     setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${verb}${
       skipped ? `; ${skipped} skipped because their state was not eligible.` : '.'
     }`)
+    void loadNavigation()
   }
 
   async function removeSelectedFromCollection() {
@@ -873,6 +878,7 @@ export function AdminPage() {
         items: [uploadSlide(reservation.slide, folderId), ...current.items],
         total: current.total + 1,
       }))
+      void loadNavigation()
       setUploadProgress(0)
       setNotice('Upload prepared — it will resume automatically if interrupted.')
       await startTusUpload(file, reservation.uploadUrl, reservation.uploadToken, {

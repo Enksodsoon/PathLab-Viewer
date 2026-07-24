@@ -190,6 +190,37 @@ test('contains table scrolling without widening the document', async ({ page }) 
   ))).toBe(true)
 })
 
+test('uses designed filter, checkbox, and compact table thumbnail controls', async ({ page }) => {
+  await page.goto('/admin?view=table')
+  await page.getByRole('button', { name: 'Filters' }).click()
+
+  const closeStyle = await page.getByRole('button', { name: 'Close filters' }).evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      color: style.color,
+      background: style.backgroundColor,
+      width: style.width,
+      height: style.height,
+    }
+  })
+  expect(closeStyle.color).not.toBe('rgb(255, 255, 255)')
+  expect(closeStyle.background).toBe('rgb(20, 18, 16)')
+  expect(closeStyle.width).toBe('34px')
+  expect(closeStyle.height).toBe('34px')
+
+  const selectVisible = page.getByRole('checkbox', { name: 'Select visible' })
+  await expect(selectVisible).toHaveCSS('appearance', 'none')
+  await selectVisible.click()
+  await expect(selectVisible).toBeChecked()
+  await expect(selectVisible).toHaveCSS('background-color', 'rgb(240, 111, 91)')
+
+  const thumbnail = page.locator('.table-mini-thumb').first()
+  const thumbnailBounds = await thumbnail.boundingBox()
+  expect(thumbnailBounds?.width).toBeGreaterThanOrEqual(60)
+  expect(thumbnailBounds?.height).toBeGreaterThanOrEqual(40)
+  await expect(thumbnail.locator('.thumbnail-fallback span')).toBeHidden()
+})
+
 test('wraps long slide names within mobile cards', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const heading = page.getByRole('heading', {
