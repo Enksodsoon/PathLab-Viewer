@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
   batchUpdateSlides: vi.fn(),
   mutateLibrarySlide: vi.fn(),
   mutateSlide: vi.fn(),
+  publishSlide: vi.fn(),
   deleteLibrarySlide: vi.fn(),
   mutateFolder: vi.fn(),
   listSlides: vi.fn(),
@@ -132,6 +133,10 @@ beforeEach(() => {
   api.mutateSlide.mockImplementation(async (id, action) => ({
     ...items.items.find((slide) => slide.id === id),
     state: action === 'unpublish' ? 'ready_private' : action === 'retry' ? 'queued' : 'published',
+  }))
+  api.publishSlide.mockImplementation(async (id) => ({
+    ...items.items.find((slide) => slide.id === id),
+    state: 'published',
   }))
   api.deleteLibrarySlide.mockResolvedValue(undefined)
   api.mutateFolder.mockResolvedValue(undefined)
@@ -330,7 +335,7 @@ describe('dark library explorer', () => {
   })
 
   it('keeps failed mutations visible instead of leaving a dead control', async () => {
-    api.mutateSlide.mockRejectedValueOnce(new Error('offline'))
+    api.publishSlide.mockRejectedValueOnce(new Error('offline'))
     render(<AdminPage />, { wrapper: MemoryRouter })
     await screen.findAllByText('Colon adenocarcinoma')
 
@@ -338,6 +343,10 @@ describe('dark library explorer', () => {
       name: /more actions for colon adenocarcinoma/i,
     }))
     await userEvent.click(screen.getByRole('menuitem', { name: /^publish$/i }))
+    await userEvent.click(screen.getByRole('checkbox', {
+      name: /patient identifiers and private information have been removed/i,
+    }))
+    await userEvent.click(screen.getByRole('button', { name: /publish 1 slide/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/publish.*failed/i)
     expect(screen.getByRole('button', {

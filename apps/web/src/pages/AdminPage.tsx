@@ -34,6 +34,7 @@ import {
   mutateLibrarySlide,
   mutateFolder,
   mutateSlide,
+  publishSlide,
   reserveUpload,
   removeCollectionSlides,
   updateCollection,
@@ -54,6 +55,7 @@ import {
 } from '../components/library/LibraryToolbar'
 import { SelectionActionBar } from '../components/library/SelectionActionBar'
 import { QuickViewRail } from '../components/library/QuickViewRail'
+import { PublishConfirmationDialog } from '../components/library/PublishConfirmationDialog'
 import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
@@ -116,6 +118,7 @@ type DialogName =
   | 'delete-collection'
   | 'edit-saved'
   | 'delete-saved'
+  | 'publish'
   | 'share'
   | null
 
@@ -221,6 +224,7 @@ export function AdminPage() {
   const [notice, setNotice] = useState('')
   const [authNotice, setAuthNotice] = useState('')
   const [signingOut, setSigningOut] = useState(false)
+  const [publishBusy, setPublishBusy] = useState(false)
   const [visible, setVisible] = useState(() => document.visibilityState !== 'hidden')
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -553,7 +557,10 @@ export function AdminPage() {
       if (action === 'move') setDialog('move')
       else if (action === 'collection') setDialog('add-collection')
       else if (action === 'delete') setDialog('delete')
-      else if (action === 'publish' || action === 'unpublish' || action === 'retry') {
+      else if (action === 'publish') {
+        setDialog('publish')
+        return
+      } else if (action === 'unpublish' || action === 'retry') {
         const changed = await mutateSlide(slide.id, action)
         setPage((current) => ({
           ...current,
@@ -564,7 +571,7 @@ export function AdminPage() {
         setSelected(new Set())
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
-          : action === 'publish' ? 'Slide published.' : 'Slide unpublished.')
+          : 'Slide unpublished.')
       } else if (action === 'trash' || action === 'restore') {
         await mutateLibrarySlide(slide.id, action)
         setPage((current) => ({
@@ -665,7 +672,9 @@ export function AdminPage() {
   ) {
     const eligible = selectedSlides.filter((slide) => slide.state === eligibleState)
     const changed = await Promise.all(
-      eligible.map((slide) => mutateSlide(slide.id, action)),
+      eligible.map((slide) => action === 'publish'
+        ? publishSlide(slide.id)
+        : mutateSlide(slide.id, action)),
     )
     const changedById = new Map(changed.map((slide) => [slide.id, slide]))
     setPage((current) => ({
@@ -1119,7 +1128,7 @@ export function AdminPage() {
           onMove={() => openNamedDialog('move')}
           onCollection={() => openNamedDialog('add-collection')}
           onTags={() => openNamedDialog('tags')}
-          onPublish={() => runAction(publishSelected, 'Publish')}
+          onPublish={() => openNamedDialog('publish')}
           onUnpublish={() => runAction(unpublishSelected, 'Unpublish')}
           onRetry={() => runAction(retrySelected, 'Retry')}
           onRemoveCollection={() => runAction(
@@ -1159,6 +1168,22 @@ export function AdminPage() {
           onOpen={(slide) => void openDetails(slide)}
         />
       )}
+
+      <PublishConfirmationDialog
+        open={dialog === 'publish'}
+        count={selected.size}
+        busy={publishBusy}
+        onClose={() => setDialog(null)}
+        onConfirm={() => {
+          if (publishBusy) return
+          setPublishBusy(true)
+          setError('')
+          void publishSelected()
+            .then(() => setDialog(null))
+            .catch(() => setError('Publish failed. Review deidentification and try again.'))
+            .finally(() => setPublishBusy(false))
+        }}
+      />
 
       <LibraryDialog
         open={dialog === 'upload'}

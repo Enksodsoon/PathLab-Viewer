@@ -90,6 +90,12 @@ class SlideRequest(BaseModel):
     folder_id: str | None = Field(default=None, alias="folderId")
 
 
+class PublishRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    deidentified_confirmed: bool = Field(alias="deidentifiedConfirmed")
+
+
 class UploadCompleteRequest(BaseModel):
     token: str
     path: Path
@@ -117,6 +123,13 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not metadata:
+        return None
+    allowed = ("width", "height", "physicalSizeX")
+    return {key: metadata[key] for key in allowed if metadata.get(key) is not None}
+
+
 def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
     result: dict[str, Any] = {
         "id": slide.id,
@@ -134,6 +147,8 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
         result.pop("sourceBytes")
         result.pop("errorCode")
         result.pop("errorMessage")
+        result.pop("createdAt")
+        result["metadata"] = _public_metadata(slide.slide_metadata)
         result["tileSource"] = f"/tiles/{slide.public_id}/slide.dzi"
     else:
         result["filename"] = slide.original_filename
@@ -197,28 +212,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=413, detail={"code": "REQUEST_TOO_LARGE"})
         return await request.json()
 
-    async def password_change_payload(
-        request: Request, _: CsrfSession
-    ) -> PasswordChangeRequest:
+    async def password_change_payload(request: Request, _: CsrfSession) -> PasswordChangeRequest:
         try:
             return PasswordChangeRequest.model_validate(await bounded_json(request))
         except ValidationError as error:
             if error.errors() and all(
-                item.get("loc", ())[-1:] == ("currentPassword",)
-                for item in error.errors()
+                item.get("loc", ())[-1:] == ("currentPassword",) for item in error.errors()
             ):
                 raise HTTPException(
                     status_code=400, detail={"code": "CURRENT_PASSWORD_INVALID"}
                 ) from error
-            raise HTTPException(
-                status_code=400, detail={"code": "INVALID_PASSWORD"}
-            ) from error
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
 
-    PasswordChangePayload = Annotated[
-        PasswordChangeRequest, Depends(password_change_payload)
-    ]
+    PasswordChangePayload = Annotated[PasswordChangeRequest, Depends(password_change_payload)]
 
     async def password_recovery_payload(request: Request) -> PasswordRecoveryRequest:
         try:
@@ -229,9 +237,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if error.errors() and all(
                 item.get("loc", ())[-1:] == ("newPassword",) for item in error.errors()
             ):
-                raise HTTPException(
-                    status_code=400, detail={"code": "INVALID_PASSWORD"}
-                ) from error
+                raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
             raise HTTPException(
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error
@@ -240,9 +246,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error
 
-    PasswordRecoveryPayload = Annotated[
-        PasswordRecoveryRequest, Depends(password_recovery_payload)
-    ]
+    PasswordRecoveryPayload = Annotated[PasswordRecoveryRequest, Depends(password_recovery_payload)]
 
     register_library_routes(
         app,
@@ -260,9 +264,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/readyz")
     def readyz(db: Database) -> dict[str, str]:
         if not schema_is_current(db):
-            raise HTTPException(
-                status_code=503, detail={"code": "DATABASE_NOT_READY"}
-            )
+            raise HTTPException(status_code=503, detail={"code": "DATABASE_NOT_READY"})
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)
@@ -417,9 +419,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(target, media_type=media_type)
 
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
-    def create_slide(
-        payload: SlideRequest, authenticated: CsrfSession
-    ) -> dict[str, Any]:
+    def create_slide(payload: SlideRequest, authenticated: CsrfSession) -> dict[str, Any]:
         if payload.length > current.max_upload_bytes:
             raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         try:
@@ -567,10 +567,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _slide_json(slide)
 
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
-    def publish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
+    def publish(
+        slide_id: str,
+        authenticated: CsrfSession,
+        db: Database,
+        payload: PublishRequest | None = None,
+    ) -> dict[str, Any]:
+        if payload is None or not payload.deidentified_confirmed:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"},
+            )
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        slide.privacy_status = "passed"
+        slide.privacy_scanned_at = datetime.now(UTC).replace(tzinfo=None)
         try:
             ensure_grant(db, storage, slide, INDIVIDUAL, slide.id)
         except FileNotFoundError as error:
@@ -617,7 +629,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/v1/public/slides/{public_id}")
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:
         slide = db.scalar(
-            select(Slide).where(Slide.public_id == public_id, Slide.state == SlideState.PUBLISHED)
+            select(Slide).where(
+                Slide.public_id == public_id,
+                Slide.state == SlideState.PUBLISHED,
+                Slide.privacy_status == "passed",
+            )
         )
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
