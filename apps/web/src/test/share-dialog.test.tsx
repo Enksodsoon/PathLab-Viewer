@@ -51,9 +51,17 @@ describe('share activation dialog', () => {
     render(<ShareDialog open targetType="folder" targetId="folder-1" targetName="GI teaching set" onClose={vi.fn()} />)
 
     expect(await screen.findByText('Colon adenocarcinoma')).toBeVisible()
+    const descendantOption = screen.getByRole('checkbox', { name: /include slides in descendant folders/i })
+    const futureOption = screen.getByRole('checkbox', { name: /automatically include future additions/i })
+    const privacyOption = screen.getByRole('checkbox', { name: /I confirm public names/i })
+    for (const option of [descendantOption, futureOption, privacyOption]) {
+      expect(option).toHaveClass('share-checkbox-input')
+      expect(option.nextElementSibling).toHaveClass('share-checkbox-indicator')
+    }
+
     const create = screen.getByRole('button', { name: 'Create shared link' })
     expect(create).toBeDisabled()
-    await userEvent.click(screen.getByRole('checkbox', { name: /I confirm public names/i }))
+    await userEvent.click(privacyOption)
     expect(create).toBeEnabled()
     await userEvent.click(create)
 

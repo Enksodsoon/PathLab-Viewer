@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, SyntheticEvent } from 'react'
-import { X } from 'lucide-react'
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LockKeyhole,
+  ShieldCheck,
+  UserRound,
+  X,
+} from 'lucide-react'
 
 import { ApiError, changePassword, login, recoverPassword } from '../api'
 import { Brand } from './Brand'
@@ -38,6 +47,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   const [message, setMessage] = useState(notice)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [passwordVisible, setPasswordVisible] = useState(false)
   const busyRef = useRef(false)
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
@@ -111,66 +121,120 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   }
 
   return (
-    <main className="login-page">
-      <form className="login-card" onSubmit={mode === 'login' ? submitLogin : submitRecovery}>
-        <Brand />
-        <div>
-          <p className="eyebrow">Administrator access</p>
-          <h1>{mode === 'login' ? 'Manage whole-slide images' : 'Recover your account'}</h1>
+    <main className={`login-page${mode === 'recover' ? ' recovery-mode' : ''}`}>
+      <section className="auth-story" aria-labelledby="auth-story-title">
+        <Brand variant="library" />
+        <div className="auth-story-copy">
+          <h1 id="auth-story-title">See the <span>whole picture.</span></h1>
+          <p>A focused workspace for reviewing, organizing, and sharing whole-slide images.</p>
         </div>
-        {message ? <p className="form-notice" role="status">{message}</p> : null}
-        <label>
-          Username
-          <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
-        </label>
-        {mode === 'login' ? (
-          <>
-            <label>
-              Password
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
-            </label>
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-            <button className="button primary" type="submit" disabled={busy}>Sign in</button>
-            <button
-              className="auth-link"
-              type="button"
-              onClick={() => {
-                if (busyRef.current) return
-                setMode('recover')
-                setPassword('')
-                setError('')
-                setMessage('')
-              }}
-              disabled={busy}
-            >
-              Forgot password?
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="recovery-help">Generate a 15-minute code on the PathLab server, then enter it below.</p>
-            <code className="recovery-command">docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin</code>
-            <label>
-              Recovery code
-              <input value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} autoComplete="one-time-code" />
-            </label>
-            <label>
-              New password
-              <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="recovery-password-requirements" />
-            </label>
-            <p id="recovery-password-requirements" className="password-requirements">{RECOVERY_PASSWORD_REQUIREMENTS}</p>
-            <label>
-              Confirm new password
-              <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
-            </label>
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-            <div className="auth-actions">
-              <button className="button" type="button" onClick={returnToLogin} disabled={busy}>Back to sign in</button>
-              <button className="button primary" type="submit" disabled={busy}>Reset password</button>
+      </section>
+
+      <section className="auth-panel">
+        <form
+          className="login-card"
+          aria-labelledby="auth-form-title"
+          onSubmit={mode === 'login' ? submitLogin : submitRecovery}
+        >
+          <header className="auth-form-heading">
+            <h2 id="auth-form-title">
+              {mode === 'login' ? 'Administrator sign in' : 'Recover administrator access'}
+            </h2>
+            <p>
+              {mode === 'login'
+                ? 'Continue to your secure slide library.'
+                : 'Use a server-issued recovery code to restore access.'}
+            </p>
+          </header>
+          {message ? <p className="form-notice" role="status">{message}</p> : null}
+          <div className="auth-field">
+            <label htmlFor="auth-username">Username</label>
+            <div className="auth-input">
+              <UserRound aria-hidden="true" />
+              <input
+                id="auth-username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+              />
             </div>
-          </>
-        )}
-      </form>
+          </div>
+          {mode === 'login' ? (
+            <>
+              <div className="auth-field">
+                <label htmlFor="auth-password">Password</label>
+                <div className="auth-input">
+                  <LockKeyhole aria-hidden="true" />
+                  <input
+                    id="auth-password"
+                    type={passwordVisible ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    className="password-visibility"
+                    type="button"
+                    aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                    onClick={() => setPasswordVisible((visible) => !visible)}
+                  >
+                    {passwordVisible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                  </button>
+                </div>
+              </div>
+              {error ? <p className="form-error" role="alert">{error}</p> : null}
+              <button className="button primary auth-submit" type="submit" disabled={busy}>
+                <span>Enter workspace</span>
+                <ArrowRight aria-hidden="true" />
+              </button>
+              <div className="auth-separator"><span>or</span></div>
+              <button
+                className="auth-link"
+                type="button"
+                onClick={() => {
+                  if (busyRef.current) return
+                  setMode('recover')
+                  setPassword('')
+                  setPasswordVisible(false)
+                  setError('')
+                  setMessage('')
+                }}
+                disabled={busy}
+              >
+                <KeyRound aria-hidden="true" />
+                <span>Recover administrator access</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="recovery-help">Generate a 15-minute code on the PathLab server, then enter it below.</p>
+              <code className="recovery-command">docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin</code>
+              <label>
+                Recovery code
+                <input value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} autoComplete="one-time-code" />
+              </label>
+              <label>
+                New password
+                <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="recovery-password-requirements" />
+              </label>
+              <p id="recovery-password-requirements" className="password-requirements">{RECOVERY_PASSWORD_REQUIREMENTS}</p>
+              <label>
+                Confirm new password
+                <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
+              </label>
+              {error ? <p className="form-error" role="alert">{error}</p> : null}
+              <div className="auth-actions">
+                <button className="button" type="button" onClick={returnToLogin} disabled={busy}>Back to sign in</button>
+                <button className="button primary" type="submit" disabled={busy}>Reset password</button>
+              </div>
+            </>
+          )}
+        </form>
+        <footer className="auth-footnote">
+          <ShieldCheck aria-hidden="true" />
+          <span>Private by design. Built for whole-slide imaging.</span>
+        </footer>
+      </section>
     </main>
   )
 }

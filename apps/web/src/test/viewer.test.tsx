@@ -190,7 +190,7 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ),
   )
-  render(
+  const view = render(
     <MemoryRouter initialEntries={['/s/public-1']}>
       <Routes>
         <Route path="/s/:publicId" element={<ViewerPage />} />
@@ -198,6 +198,7 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
     </MemoryRouter>,
   )
   expect(await screen.findByText('HER2 control')).toBeVisible()
+  expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /zoom in/i })).toBeVisible()
   expect(screen.getByRole('button', { name: /home view/i })).toBeVisible()
   expect(screen.getByText(/µm/)).toBeVisible()

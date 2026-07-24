@@ -244,7 +244,10 @@ def register_library_routes(
                 func.count(Slide.id).filter(
                     Slide.trashed_at.is_(None), Slide.state == SlideState.FAILED
                 ),
-                func.count(Slide.id).filter(Slide.trashed_at.is_not(None)),
+                func.count(Slide.id).filter(
+                    Slide.trashed_at.is_not(None),
+                    Slide.state != SlideState.DELETING,
+                ),
             )
         ).one()
         shared_count = int(
@@ -1008,6 +1011,73 @@ def register_library_routes(
         methods=["POST"],
     )
 
+    def schedule_slide_deletion(database: OrmSession, slide: Slide) -> None:
+        try:
+            slide.state = transition(slide.state, SlideState.DELETING)
+        except InvalidTransition as error:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "INVALID_STATE"},
+            ) from error
+        database.execute(
+            update(Job)
+            .where(Job.slide_id == slide.id, Job.status == "queued")
+            .values(status="cancelled")
+        )
+        database.add(Job(slide_id=slide.id, kind="delete"))
+
+    def empty_trash(
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, int]:
+        candidates = list(
+            database.execute(
+                select(Slide.id, Slide.state).where(
+                    Slide.trashed_at.is_not(None),
+                    Slide.state != SlideState.DELETING,
+                )
+            ).all()
+        )
+        if any(
+            slide_state in {SlideState.VALIDATING, SlideState.CONVERTING}
+            for _, slide_state in candidates
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "TRASH_ITEMS_BUSY"},
+            )
+        for _, slide_state in candidates:
+            try:
+                transition(slide_state, SlideState.DELETING)
+            except InvalidTransition as error:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "INVALID_STATE"},
+                ) from error
+        slide_ids = [slide_id for slide_id, _ in candidates]
+        for offset in range(0, len(slide_ids), 100):
+            batch = slide_ids[offset : offset + 100]
+            database.execute(
+                update(Job)
+                .where(Job.slide_id.in_(batch), Job.status == "queued")
+                .values(status="cancelled")
+            )
+            database.execute(
+                update(Slide)
+                .where(Slide.id.in_(batch))
+                .values(state=SlideState.DELETING)
+            )
+            database.add_all(Job(slide_id=slide_id, kind="delete") for slide_id in batch)
+        database.commit()
+        return {"scheduled": len(slide_ids)}
+
+    app.add_api_route(
+        "/api/v2/admin/trash",
+        empty_trash,
+        methods=["DELETE"],
+        status_code=202,
+    )
+
     def permanently_delete_slide(
         slide_id: str,
         _: Any = Depends(csrf_dependency),
@@ -1019,11 +1089,7 @@ def register_library_routes(
                 status_code=409,
                 detail={"code": "TRASH_REQUIRED"},
             )
-        try:
-            slide.state = transition(slide.state, SlideState.DELETING)
-        except InvalidTransition as error:
-            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
-        database.add(Job(slide_id=slide.id, kind="delete"))
+        schedule_slide_deletion(database, slide)
         database.commit()
         return slide_json(slide)
 
