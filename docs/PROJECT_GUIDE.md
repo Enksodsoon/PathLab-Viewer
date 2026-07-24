@@ -44,7 +44,7 @@ Changes to these boundaries require an explicit product and security review.
 | Upload transport | tusd and `tus-js-client` | Resumable multi-gigabyte uploads |
 | TIFF inspection | `tifffile` and OME-XML parsing | Structural and metadata validation |
 | Conversion | libvips and pyvips | Resource-bounded JPEG Deep Zoom generation |
-| Edge and static delivery | Caddy | HTTPS, SPA delivery, immutable tiles, and API proxying |
+| Edge and static delivery | Caddy | HTTPS, SPA delivery, and API proxying |
 | Deployment | Docker Compose, systemd, Terraform | Repeatable single-node OCI deployment |
 | Load verification | k6 | Reproducible public-viewer concurrency scenario |
 

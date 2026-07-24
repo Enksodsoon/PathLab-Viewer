@@ -256,7 +256,10 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
                     f"/api/v2/public/{route}/{share.public_id}/slides/"
                     f"{position}/thumbnail"
                 ),
-                "tileSource": f"/tiles/{slide.public_id}/slide.dzi",
+                "tileSource": (
+                    f"/api/v2/public/{route}/{share.public_id}/slides/"
+                    f"{position}/tiles/slide.dzi"
+                ),
                 "scale": (slide.slide_metadata or {}).get("physicalSizeX"),
             }
             for position, slide in enumerate(slides)

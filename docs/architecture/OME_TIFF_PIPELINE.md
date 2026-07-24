@@ -37,7 +37,7 @@ A bounded compatibility path accepts legacy ImageJ converter output only when th
 
 | Component | Responsibility |
 |---|---|
-| Caddy | HTTPS termination, SPA delivery, immutable public tile delivery, and API proxying |
+| Caddy | HTTPS termination, SPA delivery, and API proxying |
 | FastAPI | Authentication, slide lifecycle, upload admission, metadata, and publication controls |
 | tusd | Resumable multi-gigabyte upload transport |
 | Worker | Validation, conversion, cleanup, and job recovery |
@@ -46,8 +46,8 @@ A bounded compatibility path accepts legacy ImageJ converter output only when th
 
 ## Privacy boundary
 
-Original OME-TIFF files, temporary uploads, private previews, databases, logs, and secrets must never be routed through the public Caddy tile path. Public viewers receive only an unlisted identifier, slide metadata required for display, one DZI descriptor, and sanitized JPEG tiles.
+Original OME-TIFF files, temporary uploads, private previews, databases, logs, and secrets are never mounted into Caddy. Public viewers receive only an unlisted identifier, slide metadata required for display, one DZI descriptor, and sanitized JPEG tiles through API routes that recheck the active publication grant or share capability on every request.
 
 ## Performance contract
 
-Conversion runs in the background and is resource-bounded. Public viewing is designed to be read-heavy and cache-friendly because tiles are immutable after publication. The target load scenario is documented in `tests/load`; measured readiness evidence belongs in `docs/evidence/QA.md` rather than in static architecture claims.
+Conversion runs in the background and is resource-bounded. Public tile responses use `private, no-store` so share rotation, expiry, and revocation take effect on the next request. The target load scenario is documented in `tests/load`; measured readiness evidence belongs in `docs/evidence/QA.md` rather than in static architecture claims.

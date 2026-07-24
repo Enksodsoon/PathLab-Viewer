@@ -90,7 +90,17 @@ Current verification results belong in CI and [`docs/evidence/QA.md`](docs/evide
 
 ## Deployment
 
-Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serves the web application and immutable public tiles, and proxies the API and tus upload service. Review [`deploy/README.md`](deploy/README.md) before provisioning, updating, backing up, or restoring an installation.
+Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serves the web application, and proxies authorized tile, API, and tus upload requests. Review [`deploy/README.md`](deploy/README.md) before provisioning, updating, backing up, or restoring an installation.
+
+## Public-repository safeguards
+
+- Production configuration fails closed unless a unique secret and secure cookies are set.
+- Deployment endpoints and infrastructure addresses are supplied through protected settings,
+  not committed source files.
+- Internal upload hook routes are blocked at the public reverse proxy.
+- Publishing requires explicit confirmation that image and public teaching fields are deidentified.
+- CI checks the current tree for common secret and infrastructure disclosures, audits dependencies,
+  and runs CodeQL.
 
 ## Security and privacy
 

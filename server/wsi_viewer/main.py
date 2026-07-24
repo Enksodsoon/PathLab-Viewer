@@ -1,6 +1,5 @@
 import hashlib
 import hmac
-import mimetypes
 import os
 import shutil
 from collections import defaultdict, deque
@@ -11,7 +10,6 @@ from typing import Annotated, Any
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
@@ -30,7 +28,7 @@ from .config import Settings
 from .database import session_factory
 from .domain import InvalidTransition, SlideState, transition
 from .library_routes import register_library_routes
-from .models import AuditEvent, Job, Session, Slide, User
+from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
 from .publication import (
     INDIVIDUAL,
     delete_all_slide_grants,
@@ -57,6 +55,7 @@ from .storage_accounting import reserve_new_slide, reserve_retry
 COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
 MAX_LIBRARY_BODY_BYTES = 64 * 1024
+MAX_INTERNAL_BODY_BYTES = 64 * 1024
 
 
 class LoginRequest(BaseModel):
@@ -90,6 +89,12 @@ class SlideRequest(BaseModel):
     folder_id: str | None = Field(default=None, alias="folderId")
 
 
+class PublishRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    deidentified_confirmed: bool = Field(alias="deidentifiedConfirmed")
+
+
 class UploadCompleteRequest(BaseModel):
     token: str
     path: Path
@@ -117,6 +122,13 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not metadata:
+        return None
+    allowed = ("width", "height", "physicalSizeX")
+    return {key: metadata[key] for key in allowed if metadata.get(key) is not None}
+
+
 def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
     result: dict[str, Any] = {
         "id": slide.id,
@@ -134,7 +146,9 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
         result.pop("sourceBytes")
         result.pop("errorCode")
         result.pop("errorMessage")
-        result["tileSource"] = f"/tiles/{slide.public_id}/slide.dzi"
+        result.pop("createdAt")
+        result["metadata"] = _public_metadata(slide.slide_metadata)
+        result["tileSource"] = f"/api/v1/public/slides/{slide.public_id}/tiles/slide.dzi"
     else:
         result["filename"] = slide.original_filename
     return result
@@ -153,13 +167,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         max_bytes=MAX_LIBRARY_BODY_BYTES,
         path_prefixes=("/api/v2/admin/",),
     )
+    app.add_middleware(
+        AuthBodyLimitMiddleware,
+        max_bytes=MAX_INTERNAL_BODY_BYTES,
+        path_prefixes=("/api/v1/internal/",),
+    )
     app.state.settings = current
-    if current.serve_public_tiles:
-        mimetypes.add_type("application/xml", ".dzi")
-        public_tiles = current.data_root / "public"
-        public_tiles.mkdir(parents=True, exist_ok=True)
-        app.mount("/tiles", StaticFiles(directory=public_tiles), name="development-tiles")
-
     def database() -> Iterator[OrmSession]:
         with factory() as session:
             yield session
@@ -197,28 +210,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=413, detail={"code": "REQUEST_TOO_LARGE"})
         return await request.json()
 
-    async def password_change_payload(
-        request: Request, _: CsrfSession
-    ) -> PasswordChangeRequest:
+    async def password_change_payload(request: Request, _: CsrfSession) -> PasswordChangeRequest:
         try:
             return PasswordChangeRequest.model_validate(await bounded_json(request))
         except ValidationError as error:
             if error.errors() and all(
-                item.get("loc", ())[-1:] == ("currentPassword",)
-                for item in error.errors()
+                item.get("loc", ())[-1:] == ("currentPassword",) for item in error.errors()
             ):
                 raise HTTPException(
                     status_code=400, detail={"code": "CURRENT_PASSWORD_INVALID"}
                 ) from error
-            raise HTTPException(
-                status_code=400, detail={"code": "INVALID_PASSWORD"}
-            ) from error
+            raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
 
-    PasswordChangePayload = Annotated[
-        PasswordChangeRequest, Depends(password_change_payload)
-    ]
+    PasswordChangePayload = Annotated[PasswordChangeRequest, Depends(password_change_payload)]
 
     async def password_recovery_payload(request: Request) -> PasswordRecoveryRequest:
         try:
@@ -229,9 +235,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if error.errors() and all(
                 item.get("loc", ())[-1:] == ("newPassword",) for item in error.errors()
             ):
-                raise HTTPException(
-                    status_code=400, detail={"code": "INVALID_PASSWORD"}
-                ) from error
+                raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
             raise HTTPException(
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error
@@ -240,9 +244,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=400, detail={"code": "INVALID_RECOVERY_CODE"}
             ) from error
 
-    PasswordRecoveryPayload = Annotated[
-        PasswordRecoveryRequest, Depends(password_recovery_payload)
-    ]
+    PasswordRecoveryPayload = Annotated[PasswordRecoveryRequest, Depends(password_recovery_payload)]
 
     register_library_routes(
         app,
@@ -260,9 +262,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/readyz")
     def readyz(db: Database) -> dict[str, str]:
         if not schema_is_current(db):
-            raise HTTPException(
-                status_code=503, detail={"code": "DATABASE_NOT_READY"}
-            )
+            raise HTTPException(status_code=503, detail={"code": "DATABASE_NOT_READY"})
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)
@@ -417,9 +417,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(target, media_type=media_type)
 
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
-    def create_slide(
-        payload: SlideRequest, authenticated: CsrfSession
-    ) -> dict[str, Any]:
+    def create_slide(payload: SlideRequest, authenticated: CsrfSession) -> dict[str, Any]:
         if payload.length > current.max_upload_bytes:
             raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         try:
@@ -567,10 +565,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _slide_json(slide)
 
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
-    def publish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
+    def publish(
+        slide_id: str,
+        authenticated: CsrfSession,
+        db: Database,
+        payload: PublishRequest | None = None,
+    ) -> dict[str, Any]:
+        if payload is None or not payload.deidentified_confirmed:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "DEIDENTIFICATION_CONFIRMATION_REQUIRED"},
+            )
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        slide.privacy_status = "passed"
+        slide.privacy_scanned_at = datetime.now(UTC).replace(tzinfo=None)
         try:
             ensure_grant(db, storage, slide, INDIVIDUAL, slide.id)
         except FileNotFoundError as error:
@@ -617,11 +627,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/v1/public/slides/{public_id}")
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:
         slide = db.scalar(
-            select(Slide).where(Slide.public_id == public_id, Slide.state == SlideState.PUBLISHED)
+            select(Slide).where(
+                Slide.public_id == public_id,
+                Slide.state == SlideState.PUBLISHED,
+                Slide.privacy_status == "passed",
+                select(PublicationGrant.id)
+                .where(
+                    PublicationGrant.slide_id == Slide.id,
+                    PublicationGrant.source_type == INDIVIDUAL,
+                    PublicationGrant.source_id == Slide.id,
+                )
+                .exists(),
+            )
         )
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         return _slide_json(slide, public=True)
+
+    @app.get("/api/v1/public/slides/{public_id}/tiles/{tile_path:path}")
+    def public_slide_tile(public_id: str, tile_path: str, db: Database) -> FileResponse:
+        slide = db.scalar(
+            select(Slide).where(
+                Slide.public_id == public_id,
+                Slide.state == SlideState.PUBLISHED,
+                Slide.privacy_status == "passed",
+                select(PublicationGrant.id)
+                .where(
+                    PublicationGrant.slide_id == Slide.id,
+                    PublicationGrant.source_type == INDIVIDUAL,
+                    PublicationGrant.source_id == Slide.id,
+                )
+                .exists(),
+            )
+        )
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        try:
+            target = storage.public_tile(slide.public_id, tile_path)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(
+                status_code=404, detail={"code": "TILE_NOT_FOUND"}
+            ) from None
+        media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
+        return FileResponse(
+            target,
+            media_type=media_type,
+            headers={"Cache-Control": "private, no-store"},
+        )
 
     return app
 

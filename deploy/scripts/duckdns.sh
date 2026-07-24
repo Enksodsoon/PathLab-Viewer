@@ -4,6 +4,15 @@ set -euo pipefail
 : "${DUCKDNS_SUBDOMAIN:?DUCKDNS_SUBDOMAIN is required}"
 : "${DUCKDNS_TOKEN:?DUCKDNS_TOKEN is required}"
 
-response="$(curl --fail --silent --show-error --max-time 15 \
-  "https://www.duckdns.org/update?domains=${DUCKDNS_SUBDOMAIN}&token=${DUCKDNS_TOKEN}&ip=")"
+[[ "$DUCKDNS_SUBDOMAIN" =~ ^[A-Za-z0-9-]+$ ]]
+[[ "$DUCKDNS_TOKEN" != *$'\n'* && "$DUCKDNS_TOKEN" != *$'\r'* ]]
+
+response="$(
+  printf '%s\n' \
+    'url = "https://www.duckdns.org/update"' \
+    "data-urlencode = \"domains=${DUCKDNS_SUBDOMAIN}\"" \
+    "data-urlencode = \"token=${DUCKDNS_TOKEN}\"" \
+    'data = "ip="' |
+    curl --fail --silent --show-error --max-time 15 --config -
+)"
 test "$response" = "OK"

@@ -130,19 +130,13 @@ class ShareCreateRequest(BaseModel):
     include_descendants: bool = Field(default=False, alias="includeDescendants")
     auto_include_new: bool = Field(default=False, alias="autoIncludeNew")
     expires_at: datetime | None = Field(default=None, alias="expiresAt")
-    slide_ids: list[str] | None = Field(
-        default=None, alias="slideIds", min_length=1, max_length=50
-    )
-    deidentified_confirmed: bool = Field(
-        default=False, alias="deidentifiedConfirmed"
-    )
+    slide_ids: list[str] | None = Field(default=None, alias="slideIds", min_length=1, max_length=50)
+    deidentified_confirmed: bool = Field(default=False, alias="deidentifiedConfirmed")
 
 
 def _conflict(error: LibraryConflict) -> HTTPException:
     status_code = (
-        status.HTTP_404_NOT_FOUND
-        if error.code.endswith("_NOT_FOUND")
-        else status.HTTP_409_CONFLICT
+        status.HTTP_404_NOT_FOUND if error.code.endswith("_NOT_FOUND") else status.HTTP_409_CONFLICT
     )
     return HTTPException(status_code=status_code, detail={"code": error.code})
 
@@ -194,6 +188,27 @@ def _get_collection(database: OrmSession, collection_id: str) -> Collection:
     return collection
 
 
+def _has_active_share(
+    database: OrmSession,
+    *,
+    target_type: str,
+    target_id: str,
+) -> bool:
+    return (
+        database.scalar(
+            select(LibraryShare.id)
+            .where(
+                LibraryShare.target_type == target_type,
+                LibraryShare.target_id == target_id,
+                LibraryShare.is_active.is_(True),
+                LibraryShare.revoked_at.is_(None),
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
 def _unique_ids(slide_ids: list[str]) -> list[str]:
     return list(dict.fromkeys(slide_ids))
 
@@ -214,9 +229,7 @@ def register_library_routes(
         state_counts = database.execute(
             select(
                 func.count(Slide.id).filter(Slide.trashed_at.is_(None)),
-                func.count(Slide.id).filter(
-                    Slide.trashed_at.is_(None), Slide.folder_id.is_(None)
-                ),
+                func.count(Slide.id).filter(Slide.trashed_at.is_(None), Slide.folder_id.is_(None)),
                 func.count(Slide.id).filter(
                     Slide.trashed_at.is_(None),
                     Slide.state.in_(
@@ -258,9 +271,7 @@ def register_library_routes(
             .group_by(Collection.id)
             .order_by(Collection.sort_order, Collection.normalized_name)
         ).all()
-        views = database.scalars(
-            select(SavedView).order_by(SavedView.normalized_name)
-        ).all()
+        views = database.scalars(select(SavedView).order_by(SavedView.normalized_name)).all()
         return {
             "counts": {
                 "all": int(state_counts[0]),
@@ -279,8 +290,7 @@ def register_library_routes(
                 for folder in roots
             ],
             "collections": [
-                collection_json(collection, int(count))
-                for collection, count in collections
+                collection_json(collection, int(count)) for collection, count in collections
             ],
             "savedViews": [saved_view_json(view) for view in views],
         }
@@ -356,23 +366,17 @@ def register_library_routes(
                 updated_to=updated_to,
             )
             total = int(
-                database.scalar(
-                    select(func.count()).select_from(base.order_by(None).subquery())
-                )
+                database.scalar(select(func.count()).select_from(base.order_by(None).subquery()))
                 or 0
             )
-            statement = apply_sort_and_cursor(base, sort=sort, cursor=cursor).limit(
-                limit + 1
-            )
+            statement = apply_sort_and_cursor(base, sort=sort, cursor=cursor).limit(limit + 1)
         except LibraryConflict as error:
             raise _conflict(error) from error
         slides = list(database.scalars(statement).all())
         has_more = len(slides) > limit
         page = slides[:limit]
         next_cursor = (
-            cursor_for_slide(page[-1], sort)
-            if has_more and page and sort != "manual"
-            else None
+            cursor_for_slide(page[-1], sort) if has_more and page and sort != "manual" else None
         )
         return {
             "items": [slide_json(slide) for slide in page],
@@ -430,12 +434,8 @@ def register_library_routes(
     ) -> dict[str, Any]:
         slide_ids = _unique_ids([item for item in ids.split(",") if item])
         if len(slide_ids) > 100:
-            raise HTTPException(
-                status_code=422, detail={"code": "TOO_MANY_SLIDES"}
-            )
-        slides = database.scalars(
-            select(Slide).where(Slide.id.in_(slide_ids))
-        ).all()
+            raise HTTPException(status_code=422, detail={"code": "TOO_MANY_SLIDES"})
+        slides = database.scalars(select(Slide).where(Slide.id.in_(slide_ids))).all()
         by_id = {slide.id: slide for slide in slides}
         return {
             "items": [
@@ -475,9 +475,7 @@ def register_library_routes(
     ) -> dict[str, Any]:
         try:
             name, normalized = normalize_name(payload.name)
-            validate_folder_parent(
-                database, folder_id=None, parent_id=payload.parent_id
-            )
+            validate_folder_parent(database, folder_id=None, parent_id=payload.parent_id)
             existing = database.scalar(
                 select(Folder).where(
                     Folder.parent_id == payload.parent_id,
@@ -501,9 +499,7 @@ def register_library_routes(
             raise _conflict(error) from error
         except IntegrityError as error:
             database.rollback()
-            raise HTTPException(
-                status_code=409, detail={"code": "FOLDER_NAME_CONFLICT"}
-            ) from error
+            raise HTTPException(status_code=409, detail={"code": "FOLDER_NAME_CONFLICT"}) from error
 
     app.add_api_route(
         "/api/v2/admin/folders",
@@ -521,11 +517,15 @@ def register_library_routes(
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is not None:
             raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
+        if (payload.name is not None or payload.description is not None) and _has_active_share(
+            database,
+            target_type="folder",
+            target_id=folder.id,
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SHARE_ACTIVE"})
         try:
             if "parent_id" in payload.model_fields_set:
-                validate_folder_parent(
-                    database, folder_id=folder.id, parent_id=payload.parent_id
-                )
+                validate_folder_parent(database, folder_id=folder.id, parent_id=payload.parent_id)
                 folder.parent_id = payload.parent_id
             if payload.name is not None:
                 folder.name, folder.normalized_name = normalize_name(payload.name)
@@ -541,9 +541,7 @@ def register_library_routes(
             raise _conflict(error) from error
         except IntegrityError as error:
             database.rollback()
-            raise HTTPException(
-                status_code=409, detail={"code": "FOLDER_NAME_CONFLICT"}
-            ) from error
+            raise HTTPException(status_code=409, detail={"code": "FOLDER_NAME_CONFLICT"}) from error
 
     app.add_api_route(
         "/api/v2/admin/folders/{folder_id}",
@@ -597,11 +595,7 @@ def register_library_routes(
                 if previous is not None and previous.trashed_at is None
                 else None
             )
-        database.execute(
-            update(Folder)
-            .where(Folder.id.in_(subtree))
-            .values(trashed_at=None)
-        )
+        database.execute(update(Folder).where(Folder.id.in_(subtree)).values(trashed_at=None))
         folder.previous_parent_id = None
         database.commit()
         return {"id": folder_id, "trashedAt": None, "folderIds": subtree}
@@ -624,17 +618,13 @@ def register_library_routes(
                 detail={"code": "TRASH_REQUIRED"},
             )
         subtree = folder_subtree_ids(database, folder_id)
-        occupied = database.scalar(
-            select(func.count(Slide.id)).where(Slide.folder_id.in_(subtree))
-        )
+        occupied = database.scalar(select(func.count(Slide.id)).where(Slide.folder_id.in_(subtree)))
         if occupied:
             raise HTTPException(
                 status_code=409,
                 detail={"code": "FOLDER_NOT_EMPTY"},
             )
-        folders = database.scalars(
-            select(Folder).where(Folder.id.in_(subtree))
-        ).all()
+        folders = database.scalars(select(Folder).where(Folder.id.in_(subtree))).all()
         by_id = {item.id: item for item in folders}
 
         def relative_depth(item: Folder) -> int:
@@ -694,11 +684,15 @@ def register_library_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         collection = _get_collection(database, collection_id)
+        if (payload.name is not None or payload.description is not None) and _has_active_share(
+            database,
+            target_type="collection",
+            target_id=collection.id,
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SHARE_ACTIVE"})
         try:
             if payload.name is not None:
-                collection.name, collection.normalized_name = normalize_name(
-                    payload.name
-                )
+                collection.name, collection.normalized_name = normalize_name(payload.name)
             if payload.description is not None:
                 collection.description = payload.description.strip()
             if payload.sort_order is not None:
@@ -743,9 +737,7 @@ def register_library_routes(
     ) -> dict[str, Any]:
         _get_collection(database, collection_id)
         slide_ids = _unique_ids(payload.slide_ids)
-        found = set(
-            database.scalars(select(Slide.id).where(Slide.id.in_(slide_ids))).all()
-        )
+        found = set(database.scalars(select(Slide.id).where(Slide.id.in_(slide_ids))).all())
         if found != set(slide_ids):
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         existing = {
@@ -756,10 +748,13 @@ def register_library_routes(
                 .order_by(CollectionSlide.sort_order)
             ).all()
         }
-        next_order = max(
-            (membership.sort_order for membership in existing.values()),
-            default=-1,
-        ) + 1
+        next_order = (
+            max(
+                (membership.sort_order for membership in existing.values()),
+                default=-1,
+            )
+            + 1
+        )
         for slide_id in slide_ids:
             if slide_id not in existing:
                 membership = CollectionSlide(
@@ -831,12 +826,8 @@ def register_library_routes(
             return saved_view_json(view)
         except LibraryConflict as error:
             database.rollback()
-            status_code = (
-                422 if error.code == "INVALID_SAVED_VIEW" else 409
-            )
-            raise HTTPException(
-                status_code=status_code, detail={"code": error.code}
-            ) from error
+            status_code = 422 if error.code == "INVALID_SAVED_VIEW" else 409
+            raise HTTPException(status_code=status_code, detail={"code": error.code}) from error
         except IntegrityError as error:
             database.rollback()
             raise HTTPException(
@@ -872,9 +863,7 @@ def register_library_routes(
             return saved_view_json(view)
         except LibraryConflict as error:
             database.rollback()
-            raise HTTPException(
-                status_code=422, detail={"code": error.code}
-            ) from error
+            raise HTTPException(status_code=422, detail={"code": error.code}) from error
 
     app.add_api_route(
         "/api/v2/admin/saved-views/{view_id}",
@@ -938,7 +927,7 @@ def register_library_routes(
         ).all()
         if len(slides) != len(slide_ids):
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        fields = {
+        public_fields = {
             "display_name": payload.display_name,
             "description": payload.description,
             "case_id": payload.case_id,
@@ -948,12 +937,24 @@ def register_library_routes(
             "course": payload.course,
             "tags": payload.tags,
             "teaching_note": payload.teaching_note,
-            "admin_notes": payload.admin_notes,
         }
+        public_changes = {
+            field: value for field, value in public_fields.items() if value is not None
+        }
+        if public_changes:
+            shared = database.scalar(
+                select(PublicationGrant.id).where(PublicationGrant.slide_id.in_(slide_ids)).limit(1)
+            )
+            if shared is not None:
+                raise HTTPException(status_code=409, detail={"code": "SLIDE_PUBLIC"})
+        fields = {**public_fields, "admin_notes": payload.admin_notes}
         for slide in slides:
             for field, value in fields.items():
                 if value is not None:
                     setattr(slide, field, value)
+            if public_changes:
+                slide.privacy_status = "pending"
+                slide.privacy_scanned_at = None
         database.commit()
         return {"items": [slide_json(slide) for slide in slides]}
 
@@ -993,13 +994,9 @@ def register_library_routes(
         if slide.trashed_at is None:
             return slide_json(slide)
         folder = (
-            database.get(Folder, slide.previous_folder_id)
-            if slide.previous_folder_id
-            else None
+            database.get(Folder, slide.previous_folder_id) if slide.previous_folder_id else None
         )
-        slide.folder_id = (
-            folder.id if folder is not None and folder.trashed_at is None else None
-        )
+        slide.folder_id = folder.id if folder is not None and folder.trashed_at is None else None
         slide.previous_folder_id = None
         slide.trashed_at = None
         database.commit()
@@ -1025,9 +1022,7 @@ def register_library_routes(
         try:
             slide.state = transition(slide.state, SlideState.DELETING)
         except InvalidTransition as error:
-            raise HTTPException(
-                status_code=409, detail={"code": "INVALID_STATE"}
-            ) from error
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
         database.add(Job(slide_id=slide.id, kind="delete"))
         database.commit()
         return slide_json(slide)
@@ -1083,9 +1078,7 @@ def register_library_routes(
     def preview_library_share(
         target_type: str = Query(alias="targetType", pattern="^(folder|collection)$"),
         target_id: str = Query(alias="targetId"),
-        include_descendants: bool = Query(
-            default=False, alias="includeDescendants"
-        ),
+        include_descendants: bool = Query(default=False, alias="includeDescendants"),
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
@@ -1159,16 +1152,13 @@ def register_library_routes(
     ) -> dict[str, Any]:
         shares = list(
             database.scalars(
-                select(LibraryShare).order_by(
-                    LibraryShare.updated_at.desc(), LibraryShare.id
-                )
+                select(LibraryShare).order_by(LibraryShare.updated_at.desc(), LibraryShare.id)
             )
         )
         counts: dict[str, int] = {
             share_id: int(count)
             for share_id, count in database.execute(
-                select(ShareSlide.share_id, func.count(ShareSlide.id))
-                .group_by(ShareSlide.share_id)
+                select(ShareSlide.share_id, func.count(ShareSlide.id)).group_by(ShareSlide.share_id)
             ).all()
         }
         return {
@@ -1280,16 +1270,53 @@ def register_library_routes(
         )
         if slide is None or not slide.thumbnail_filename:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
-        target = (
-            storage.public_for(slide.public_id)
-            / Path(slide.thumbnail_filename).name
-        )
+        target = storage.public_for(slide.public_id) / Path(slide.thumbnail_filename).name
         if not target.is_file():
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
         return FileResponse(
             target,
             media_type="image/jpeg",
-            headers={"Cache-Control": "public, max-age=300"},
+            headers={"Cache-Control": "private, no-store"},
+        )
+
+    def public_share_tile(
+        public_id: str,
+        position: int,
+        tile_path: str,
+        target_type: str,
+        database: OrmSession,
+    ) -> FileResponse:
+        if position < 0:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        try:
+            share = active_public_share(
+                database,
+                target_type=target_type,
+                public_id=public_id,
+            )
+        except ShareConflict as error:
+            raise _share_error(error) from error
+        slide = database.scalar(
+            select(Slide)
+            .join(ShareSlide, ShareSlide.slide_id == Slide.id)
+            .where(ShareSlide.share_id == share.id)
+            .order_by(ShareSlide.sort_order, Slide.id)
+            .offset(position)
+            .limit(1)
+        )
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        try:
+            target = storage.public_tile(slide.public_id, tile_path)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(
+                status_code=404, detail={"code": "SHARE_NOT_FOUND"}
+            ) from None
+        media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
+        return FileResponse(
+            target,
+            media_type=media_type,
+            headers={"Cache-Control": "private, no-store"},
         )
 
     def public_folder_thumbnail(
@@ -1306,6 +1333,22 @@ def register_library_routes(
     ) -> FileResponse:
         return public_share_thumbnail(public_id, position, "collection", database)
 
+    def public_folder_tile(
+        public_id: str,
+        position: int,
+        tile_path: str,
+        database: OrmSession = Depends(database_dependency),
+    ) -> FileResponse:
+        return public_share_tile(public_id, position, tile_path, "folder", database)
+
+    def public_collection_tile(
+        public_id: str,
+        position: int,
+        tile_path: str,
+        database: OrmSession = Depends(database_dependency),
+    ) -> FileResponse:
+        return public_share_tile(public_id, position, tile_path, "collection", database)
+
     app.add_api_route(
         "/api/v2/public/folders/{public_id}/slides/{position}/thumbnail",
         public_folder_thumbnail,
@@ -1314,5 +1357,15 @@ def register_library_routes(
     app.add_api_route(
         "/api/v2/public/collections/{public_id}/slides/{position}/thumbnail",
         public_collection_thumbnail,
+        methods=["GET"],
+    )
+    app.add_api_route(
+        "/api/v2/public/folders/{public_id}/slides/{position}/tiles/{tile_path:path}",
+        public_folder_tile,
+        methods=["GET"],
+    )
+    app.add_api_route(
+        "/api/v2/public/collections/{public_id}/slides/{position}/tiles/{tile_path:path}",
+        public_collection_tile,
         methods=["GET"],
     )

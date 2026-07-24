@@ -81,6 +81,10 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     restore = Path("deploy/scripts/restore.sh").read_text(encoding="utf-8")
 
     assert "--directory \"$data_dir\" originals private public" in backup
+    assert "umask 077" in backup
+    assert "install -d -m 700" in backup
     assert "sha256sum" in backup
     assert "sha256sum --check SHA256SUMS" in restore
+    assert 'extractall(destination, filter="data")' in restore
+    assert "tar --extract" not in restore
     assert ".before-restore-" in restore
