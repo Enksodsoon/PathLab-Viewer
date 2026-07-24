@@ -94,6 +94,10 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .viewer-help { margin:0 0 0 auto; display:flex; align-items:center; gap:6px; }
 .viewer-stage { position:relative; min-height:0; background:#11171e; overflow:hidden; }
 .osd-surface { width:100%; height:100%; background:#11171e; }
+.viewer-poster { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:contain; background:#090807; filter:saturate(.92); }
+.viewer-loading-mode { position:absolute; z-index:4; right:14px; top:14px; display:flex; align-items:center; gap:7px; padding:6px 8px; border:1px solid #3b3029; border-radius:8px; color:#cfc4b8; background:#141210e8; font-size:11px; }
+.viewer-loading-mode select { min-height:30px; border:0; border-radius:5px; padding:0 24px 0 8px; color:#f2eadc; background:#2a211d; font:inherit; }
+.viewer-connection-status { position:absolute; z-index:4; left:50%; top:14px; transform:translateX(-50%); padding:8px 11px; border:1px solid #6d4a40; border-radius:8px; color:#f2eadc; background:#241814ed; font-size:12px; }
 .viewer-tools { position:absolute; left:18px; top:18px; z-index:3; display:flex; flex-direction:column; background:rgba(255,255,255,.97); padding:5px; border-radius:10px; box-shadow:0 5px 24px rgba(0,0,0,.22); }
 .viewer-tools button { width:40px; height:40px; border:0; background:transparent; color:#26384c; border-radius:7px; display:grid; place-items:center; cursor:pointer; }
 .viewer-tools button:hover { background:#edf3f3; color:var(--teal); }
@@ -122,6 +126,9 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   .viewer-tools { top:auto; left:50%; bottom:18px; transform:translateX(-50%); flex-direction:row; }
   .viewer-tools span { width:1px; height:30px; margin:5px 4px; }
   .scale-bar { left:16px; bottom:82px; }
+  .viewer-loading-mode { top:10px; right:10px; }
+  .viewer-loading-mode span { display:none; }
+  .viewer-connection-status { top:56px; max-width:calc(100% - 20px); white-space:nowrap; }
   .login-card,.security-dialog { padding:24px 20px; }
   .auth-actions { flex-direction:column-reverse; }
   .auth-actions .button { width:100%; }

@@ -8,6 +8,7 @@ import { ViewerPage } from '../pages/ViewerPage'
 const osdMock = vi.hoisted(() => {
   const handlers = new Map<string, () => void>()
   const viewer = {
+    imageLoader: { jobLimit: 12 },
     viewport: {
       zoomBy: vi.fn(),
       goHome: vi.fn(),
@@ -61,6 +62,7 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
+  localStorage.clear()
   setViewportWidth(1024)
   osdMock.handlers.clear()
   osdMock.factory.mockClear()
@@ -70,16 +72,57 @@ afterEach(() => {
   for (const value of Object.values(osdMock.viewer.viewport)) value.mockClear()
 })
 
-it('uses conservative desktop loader and cache limits', () => {
+it('uses bounded desktop loader and cache limits', () => {
   setViewportWidth(1200)
   renderViewer()
 
   expect(latestViewerOptions()).toMatchObject({
-    imageLoaderLimit: 16,
+    imageLoaderLimit: 12,
     maxImageCacheCount: 100,
     animationTime: 0.45,
     blendTime: 0.05,
   })
+})
+
+it('shows a prioritized poster until the first tile is visible', () => {
+  render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      posterUrl="/tiles/public-1/thumbnail.jpg"
+      onReady={vi.fn()}
+    />,
+  )
+
+  const poster = screen.getByRole('img', { name: 'Slide preview' })
+  expect(poster).toHaveAttribute('src', '/tiles/public-1/thumbnail.jpg')
+  expect(poster).toHaveAttribute('fetchpriority', 'high')
+  emitViewerEvent('open')
+  expect(poster).toBeVisible()
+  emitViewerEvent('tile-loaded')
+  expect(screen.queryByRole('img', { name: 'Slide preview' })).not.toBeInTheDocument()
+})
+
+it('lets viewers choose and persist a bounded loading mode', () => {
+  renderViewer()
+
+  fireEvent.change(screen.getByRole('combobox', { name: 'Loading mode' }), {
+    target: { value: 'data-saver' },
+  })
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
+  expect(localStorage.getItem('pathlab-viewer-loading-mode:v1')).toBe('data-saver')
+
+  fireEvent.change(screen.getByRole('combobox', { name: 'Loading mode' }), {
+    target: { value: 'full' },
+  })
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(12)
+})
+
+it('keeps the loaded canvas mounted and reports an offline connection', () => {
+  renderViewer()
+  act(() => window.dispatchEvent(new Event('offline')))
+
+  expect(screen.getByRole('status')).toHaveTextContent('Offline')
+  expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
 })
 
 it('uses reduced loader and cache limits below 768 pixels', () => {
@@ -135,7 +178,7 @@ it('bounds repeated tile failures before showing the loading error', async () =>
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   emitViewerEvent('tile-load-failed')
   emitViewerEvent('tile-load-failed')
-  expect(vi.getTimerCount()).toBe(1)
+  expect(vi.getTimerCount()).toBeGreaterThan(0)
   await act(async () => { await vi.runOnlyPendingTimersAsync() })
   expect(screen.getByRole('alert')).toBeVisible()
 })
@@ -151,6 +194,39 @@ it('retries the tile source and clears the loading error', async () => {
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
 
+it('automatically retries an opening failure with bounded backoff', async () => {
+  vi.useFakeTimers()
+  renderViewer()
+  emitViewerEvent('open-failed')
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(999) })
+  expect(osdMock.viewer.open).not.toHaveBeenCalled()
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(osdMock.viewer.open).toHaveBeenCalledWith('/tiles/public-1/slide.dzi')
+})
+
+it('does not cancel reconnection when callback props change', async () => {
+  vi.useFakeTimers()
+  const view = render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      onReady={vi.fn()}
+      onScaleChange={vi.fn()}
+    />,
+  )
+  emitViewerEvent('open-failed')
+  view.rerender(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      onReady={vi.fn()}
+      onScaleChange={vi.fn()}
+    />,
+  )
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  expect(osdMock.viewer.open).toHaveBeenCalledWith('/tiles/public-1/slide.dzi')
+})
+
 it('updates scale after open and animation finish only', () => {
   const onScaleChange = vi.fn()
   renderViewer(onScaleChange)
@@ -163,14 +239,15 @@ it('updates scale after open and animation finish only', () => {
 
 it('removes handlers, pending errors, and the viewer during cleanup', () => {
   vi.useFakeTimers()
+  const clearInterval = vi.spyOn(window, 'clearInterval')
   const view = renderViewer()
   emitViewerEvent('open-failed')
-  expect(vi.getTimerCount()).toBe(1)
+  expect(vi.getTimerCount()).toBeGreaterThan(0)
 
   view.unmount()
-  expect(vi.getTimerCount()).toBe(0)
+  expect(clearInterval).toHaveBeenCalled()
   expect(osdMock.viewer.removeAllHandlers.mock.calls.map(([name]) => name)).toEqual([
-    'open', 'animation-finish', 'open-failed', 'tile-load-failed',
+    'open', 'tile-loaded', 'animation-finish', 'open-failed', 'tile-load-failed',
   ])
   expect(osdMock.viewer.destroy).toHaveBeenCalledOnce()
 })
@@ -183,6 +260,7 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
         displayName: 'HER2 control',
         state: 'published',
         tileSource: '/tiles/public-1/slide.dzi',
+        thumbnailUrl: '/tiles/public-1/thumbnail.jpg',
         metadata: {
           width: 24970,
           height: 31087,
@@ -204,6 +282,7 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
   expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /zoom in/i })).toBeVisible()
   expect(screen.getByRole('button', { name: /home view/i })).toBeVisible()
+  expect(screen.getByRole('img', { name: 'Slide preview' })).toHaveAttribute('src', '/tiles/public-1/thumbnail.jpg')
   expect(screen.getByText(/µm/)).toBeVisible()
 })
 

@@ -29,6 +29,7 @@ export interface AdminSlide {
   metadata: SlideMetadata | null
   createdAt: string
   tileSource?: string
+  thumbnailUrl?: string | null
 }
 
 export interface PublicSlide {
@@ -36,6 +37,7 @@ export interface PublicSlide {
   displayName: string
   state: 'published'
   tileSource: string
+  thumbnailUrl?: string | null
   metadata: SlideMetadata | null
 }
 

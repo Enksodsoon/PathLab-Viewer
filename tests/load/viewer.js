@@ -6,27 +6,42 @@ import { validateManifest } from './manifest_contract.mjs'
 
 const tileFailures = new Rate('tile_failures')
 const tileLatency = new Trend('tile_latency', true)
+const posterLatency = new Trend('poster_latency', true)
 const COMMON_REQUESTS = 7
 const RANDOM_REQUESTS = 3
 
 const profiles = {
-  acceptance: { vus: 100, duration: '10m' },
-  smoke: { vus: 2, duration: '30s' },
+  acceptance: {
+    viewers: { executor: 'constant-vus', vus: 100, duration: '10m' },
+  },
+  capacity300: {
+    viewers: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        { duration: '2m', target: 300 },
+        { duration: '10m', target: 300 },
+        { duration: '1m', target: 0 },
+      ],
+    },
+  },
+  smoke: {
+    viewers: { executor: 'constant-vus', vus: 2, duration: '30s' },
+  },
 }
 
 const profile = __ENV.PROFILE || 'acceptance'
 if (!(profile in profiles)) {
-  throw new Error('PROFILE must be smoke or acceptance')
+  throw new Error('PROFILE must be smoke, acceptance, or capacity300')
 }
 
 export const options = {
-  scenarios: {
-    viewers: { executor: 'constant-vus', ...profiles[profile] },
-  },
+  scenarios: profiles[profile],
   thresholds: {
     http_req_failed: ['rate<0.001'],
     tile_failures: ['rate<0.001'],
     tile_latency: ['p(95)<500'],
+    poster_latency: ['p(95)<1500'],
   },
 }
 
@@ -42,27 +57,52 @@ try {
   throw new Error('Invalid viewer load manifest')
 }
 const slides = validateManifest(parsedManifest)
+let tileRoot = ''
+let activeSlide = null
 
 export default function () {
-  const slide = slides[(__VU - 1) % slides.length]
-  const metadata = http.get(`${base}/api/v1/public/slides/${slide.publicId}`)
-  check(metadata, { 'metadata 200': (response) => response.status === 200 })
-  let metadataBody
-  try {
-    metadataBody = metadata.json()
-  } catch {
-    tileFailures.add(true)
-    sleep(1)
-    return
+  if (!tileRoot) {
+    activeSlide = slides[(__VU - 1) % slides.length]
+    const metadata = http.get(`${base}/api/v1/public/slides/${activeSlide.publicId}`)
+    check(metadata, { 'metadata 200': (response) => response.status === 200 })
+    let metadataBody
+    try {
+      metadataBody = metadata.json()
+    } catch {
+      tileFailures.add(true)
+      sleep(1)
+      return
+    }
+    const tileSource =
+      metadataBody && typeof metadataBody === 'object' ? metadataBody.tileSource : null
+    const thumbnailUrl =
+      metadataBody && typeof metadataBody === 'object' ? metadataBody.thumbnailUrl : null
+    if (
+      typeof tileSource !== 'string' ||
+      !tileSource.endsWith('/slide.dzi') ||
+      typeof thumbnailUrl !== 'string'
+    ) {
+      tileFailures.add(true)
+      sleep(1)
+      return
+    }
+    const opening = http.batch([
+      ['GET', `${base}${thumbnailUrl}`, null, { tags: { resource: 'poster' } }],
+      ['GET', `${base}${tileSource}`, null, { tags: { resource: 'descriptor' } }],
+    ])
+    const openingFailed = opening.some((response) => response.status !== 200)
+    tileFailures.add(openingFailed)
+    posterLatency.add(metadata.timings.duration + opening[0].timings.duration)
+    check(opening[0], { 'poster 200': (response) => response.status === 200 })
+    check(opening[1], { 'descriptor 200': (response) => response.status === 200 })
+    if (openingFailed) {
+      sleep(1)
+      return
+    }
+    tileRoot = tileSource.replace(/slide\.dzi$/, '')
   }
-  const tileSource =
-    metadataBody && typeof metadataBody === 'object' ? metadataBody.tileSource : null
-  if (typeof tileSource !== 'string' || !tileSource.endsWith('/slide.dzi')) {
-    tileFailures.add(true)
-    sleep(1)
-    return
-  }
-  const tileRoot = tileSource.replace(/slide\.dzi$/, '')
+
+  const slide = activeSlide
   const tilePaths = []
   for (let index = 0; index < COMMON_REQUESTS; index += 1) {
     tilePaths.push(slide.commonTiles[(__ITER * COMMON_REQUESTS + index) % slide.commonTiles.length])
@@ -70,11 +110,11 @@ export default function () {
   for (let index = 0; index < RANDOM_REQUESTS; index += 1) {
     tilePaths.push(slide.randomTiles[Math.floor(Math.random() * slide.randomTiles.length)])
   }
-  for (const path of tilePaths) {
-    const response = http.get(`${base}${tileRoot}${path}`)
+  const responses = http.batch(tilePaths.map((path) => ['GET', `${base}${tileRoot}${path}`]))
+  for (const response of responses) {
     tileLatency.add(response.timings.duration)
     tileFailures.add(response.status !== 200)
     check(response, { 'tile 200': (result) => result.status === 200 })
   }
-  sleep(1)
+  sleep(3)
 }

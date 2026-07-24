@@ -120,7 +120,14 @@ MANIFEST_PATH=/absolute/path/to/viewer-load-manifest.json \
 deploy/scripts/run-viewer-load-test.sh smoke
 ```
 
-Run `acceptance` only in an authorized external test window. It uses 100 virtual users for 10 minutes. The wrapper is never invoked by deployment or CI and requires an operator-provided URL and manifest.
+Run `acceptance` only in an authorized external test window. It uses 100 virtual
+users for 10 minutes. The `capacity300` profile ramps to 300 viewers over two
+minutes, holds 300 for ten minutes, then ramps down for one minute. It models
+one metadata/poster/DZI opening per viewer followed by parallel 70/30
+common/random tile batches. The wrapper is never invoked by deployment or CI
+and requires an operator-provided URL and manifest. Follow the full resource,
+administrator, conversion, and degraded-network gates in
+[`docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md`](../docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md).
 
 ## Optional CDN policy
 

@@ -150,9 +150,10 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
         result.pop("errorMessage")
         result.pop("createdAt")
         result["metadata"] = _public_metadata(slide.slide_metadata)
-        result["tileSource"] = (
-            f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"
-        )
+        delivery_root = f"/tiles/{slide.public_id}/{delivery_version(slide)}"
+        result["tileSource"] = f"{delivery_root}/slide.dzi"
+        if slide.thumbnail_filename:
+            result["thumbnailUrl"] = f"{delivery_root}/{slide.thumbnail_filename}"
     else:
         result["filename"] = slide.original_filename
     return result
@@ -400,6 +401,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         result = _slide_json(slide)
         if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
             result["tileSource"] = f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
+            if slide.thumbnail_filename:
+                result["thumbnailUrl"] = (
+                    f"/api/v1/admin/slides/{slide.id}/preview/{slide.thumbnail_filename}"
+                )
         return result
 
     @app.get("/api/v1/admin/slides/{slide_id}/preview/{tile_path:path}")

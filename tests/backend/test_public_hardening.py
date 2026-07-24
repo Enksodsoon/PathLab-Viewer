@@ -53,6 +53,7 @@ def _ready_slide(client: TestClient) -> tuple[str, str]:
             original_filename="private-source-name.ome.tif",
             source_bytes=100,
             state=SlideState.READY_PRIVATE,
+            thumbnail_filename="thumbnail.jpg",
             slide_metadata={
                 "width": 48,
                 "height": 32,
@@ -71,6 +72,7 @@ def _ready_slide(client: TestClient) -> tuple[str, str]:
     (derivative / "slide_files" / "0").mkdir(parents=True)
     (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
     (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"jpeg")
+    (derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
     return slide_id, public_id
 
 
@@ -130,7 +132,14 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
         public = client.get(f"/api/v1/public/slides/{public_id}")
         assert public.status_code == 200
         body = public.json()
-        assert set(body) == {"publicId", "displayName", "state", "metadata", "tileSource"}
+        assert set(body) == {
+            "publicId",
+            "displayName",
+            "state",
+            "metadata",
+            "thumbnailUrl",
+            "tileSource",
+        }
         assert body["metadata"] == {
             "width": 48,
             "height": 32,
@@ -138,6 +147,10 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
         }
         assert body["tileSource"].startswith(f"/tiles/{public_id}/")
         assert body["tileSource"].endswith("/slide.dzi")
+        assert body["thumbnailUrl"] == body["tileSource"].replace(
+            "slide.dzi",
+            "thumbnail.jpg",
+        )
         version = body["tileSource"].split("/")[3]
         assert version.isdigit()
         delivery_root = (
