@@ -186,6 +186,24 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   box-shadow:none;
 }
 
+.security-dialog .button:not(.primary):not(.danger) {
+  border:1px solid #5b463d;
+  background:#241c18;
+  color:#f2eadc;
+  box-shadow:none;
+}
+
+.security-dialog .button:not(.primary):not(.danger):hover:not(:disabled) {
+  border-color:#816256;
+  background:#30231e;
+  color:#fff8f2;
+}
+
+.security-dialog .button:not(.primary):not(.danger):focus-visible {
+  outline:2px solid #f06f5b;
+  outline-offset:2px;
+}
+
 .security-dialog::backdrop {
   background:#050403cc;
   backdrop-filter:blur(5px);
