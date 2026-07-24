@@ -23,22 +23,46 @@ afterEach(() => {
 })
 
 describe('administrator authentication', () => {
+  it('presents the redesigned PathLab landing experience', () => {
+    const view = render(<AuthPanel onSuccess={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: /see the whole picture/i })).toBeVisible()
+    expect(screen.getByRole('heading', { name: /administrator sign in/i })).toBeVisible()
+    expect(screen.getByText(/focused workspace for reviewing, organizing, and sharing/i)).toBeVisible()
+    expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
+  })
+
   it('uses a generic sign-in error and clears the password', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(
       { detail: { code: 'INVALID_CREDENTIALS' } },
       401,
     ))
     render(<AuthPanel onSuccess={vi.fn()} />)
-    await userEvent.type(screen.getByLabelText(/password/i), 'never-store-this')
-    await userEvent.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await userEvent.type(screen.getByLabelText(/^password$/i), 'never-store-this')
+    await userEvent.click(screen.getByRole('button', { name: /^enter workspace$/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in failed')
-    expect(screen.getByLabelText(/password/i)).toHaveValue('')
+    expect(screen.getByLabelText(/^password$/i)).toHaveValue('')
+  })
+
+  it('reveals and conceals the password without changing its value', async () => {
+    render(<AuthPanel onSuccess={vi.fn()} />)
+    const password = screen.getByLabelText(/^password$/i)
+    await userEvent.type(password, 'local-only-value')
+
+    await userEvent.click(screen.getByRole('button', { name: /show password/i }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveValue('local-only-value')
+
+    await userEvent.click(screen.getByRole('button', { name: /hide password/i }))
+    expect(password).toHaveAttribute('type', 'password')
   })
 
   it('validates recovery confirmation locally and clears secrets', async () => {
     const request = vi.spyOn(globalThis, 'fetch')
     render(<AuthPanel onSuccess={vi.fn()} />)
-    await userEvent.click(screen.getByRole('button', { name: /forgot password/i }))
+    await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
     await userEvent.type(screen.getByLabelText(/confirm new password/i), 'different password')
@@ -51,12 +75,12 @@ describe('administrator authentication', () => {
   it('sends only the public recovery contract and returns to sign in', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
     render(<AuthPanel onSuccess={vi.fn()} />)
-    await userEvent.click(screen.getByRole('button', { name: /forgot password/i }))
+    await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
     await userEvent.type(screen.getByLabelText(/confirm new password/i), 'correct horse battery')
     await userEvent.click(screen.getByRole('button', { name: /reset password/i }))
-    await screen.findByRole('button', { name: /^sign in$/i })
+    await screen.findByRole('button', { name: /^enter workspace$/i })
     const [input, init] = request.mock.calls[0] ?? []
     expect(urlOf(input as RequestInfo)).toBe('/api/v1/auth/password/recover')
     expect(init?.credentials).toBe('same-origin')
