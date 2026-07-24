@@ -151,6 +151,19 @@ afterEach(() => {
 })
 
 describe('dark library explorer', () => {
+  it('uses neutral messaging when the current folder is empty', async () => {
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    render(
+      <MemoryRouter initialEntries={['/admin?location=folder%3Afolder-organs']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'No files in this folder' })).toBeVisible()
+    expect(screen.getByText('This folder is currently empty.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
+  })
+
   it('presents the OME-TIFF chooser with the library design system', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 

@@ -1,5 +1,6 @@
 import {
   ChevronLeft,
+  FolderOpen,
   Menu,
   Plus,
   Upload,
@@ -1129,12 +1130,22 @@ export function AdminPage() {
           {loading ? <div className="library-loading" role="status">Loading slides…</div> : null}
           {!loading && page.items.length === 0 ? (
             <div className="library-empty">
-              <Plus />
-              <h3>No slides here</h3>
-              <p>Upload a slide or choose another location.</p>
-              <button type="button" onClick={() => openNamedDialog('upload')}>
-                <Upload /> Upload slide
-              </button>
+              {location.startsWith('folder:') ? (
+                <>
+                  <FolderOpen />
+                  <h3>No files in this folder</h3>
+                  <p>This folder is currently empty.</p>
+                </>
+              ) : (
+                <>
+                  <Plus />
+                  <h3>No slides here</h3>
+                  <p>Upload a slide or choose another location.</p>
+                  <button type="button" onClick={() => openNamedDialog('upload')}>
+                    <Upload /> Upload slide
+                  </button>
+                </>
+              )}
             </div>
           ) : null}
           {!loading && page.items.length ? (
