@@ -1,5 +1,9 @@
+import json
+import os
 import secrets
+import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
@@ -23,6 +27,63 @@ class ShareConflict(ValueError):
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
+
+
+def _share_delivery_path(storage: StorageLayout, public_id: str) -> Path:
+    validated = storage.public_for(public_id).name
+    return storage.root / "delivery" / "shares" / f"{validated}.json"
+
+
+def write_share_delivery_manifest(
+    storage: StorageLayout,
+    share: LibraryShare,
+    slides: list[Slide],
+) -> None:
+    target = _share_delivery_path(storage, share.public_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staging = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+    payload = {
+        "targetType": share.target_type,
+        "expiresAt": share.expires_at.isoformat() if share.expires_at else None,
+        "slides": [slide.public_id for slide in slides],
+    }
+    try:
+        staging.write_text(
+            json.dumps(payload, separators=(",", ":"), sort_keys=True),
+            encoding="utf-8",
+        )
+        os.replace(staging, target)
+    finally:
+        staging.unlink(missing_ok=True)
+
+
+def remove_share_delivery_manifest(storage: StorageLayout, public_id: str) -> None:
+    _share_delivery_path(storage, public_id).unlink(missing_ok=True)
+
+
+def share_delivery_public_id(
+    storage: StorageLayout,
+    *,
+    public_id: str,
+    target_type: str,
+    position: int,
+) -> str:
+    if position < 0:
+        raise ShareConflict("SHARE_NOT_FOUND")
+    try:
+        raw = json.loads(_share_delivery_path(storage, public_id).read_text(encoding="utf-8"))
+        if raw.get("targetType") != target_type:
+            raise ValueError
+        expires_at = raw.get("expiresAt")
+        if expires_at is not None and datetime.fromisoformat(expires_at) <= utcnow():
+            raise ValueError
+        slides = raw["slides"]
+        selected = slides[position]
+        if not isinstance(selected, str):
+            raise ValueError
+        return storage.public_for(selected).name
+    except (FileNotFoundError, IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        raise ShareConflict("SHARE_NOT_FOUND") from None
 
 
 def target_slides(
@@ -195,6 +256,11 @@ def activate_share(
         )
         ensure_grant(database, storage, slide, SHARE, share.id)
     database.commit()
+    write_share_delivery_manifest(
+        storage,
+        share,
+        [slides[slide_id] for slide_id in selected_ids],
+    )
     return share
 
 

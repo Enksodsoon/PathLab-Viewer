@@ -44,6 +44,22 @@ The smoke profile proves only that the selected public metadata and sampled tile
 
 The external acceptance profile must run 100 virtual users for 10 minutes while recording tile latency and failure thresholds plus host CPU, RAM, disk I/O, and network behavior. Observe viewing while one conversion is active.
 
+Record a baseline and candidate measurement with the same manifest and authorized
+300–500 MB source. The candidate passes only when:
+
+- tile and API failures stay below 0.1%;
+- tile and API latency stay below 500 ms at p95;
+- host CPU stays below 80% sustained and memory stays below 85%;
+- swap does not grow and no container is OOM-terminated;
+- administrator search, metadata changes, upload status, and publication remain responsive;
+- the active conversion completes without increasing the student-viewer failure rate.
+
+Use `docker stats --no-stream` for container CPU, memory, and network snapshots and
+the host's standard disk and swap tools. The worker checks filesystem capacity once
+per minute and emits path-free `storage_capacity_warning` events only when crossing
+70%, 80%, or 90%, plus one `storage_capacity_recovered` event after recovery. These
+events contain only utilization, threshold, and free-byte values.
+
 Remaining manual evidence:
 
 - real external 100-viewer acceptance run;

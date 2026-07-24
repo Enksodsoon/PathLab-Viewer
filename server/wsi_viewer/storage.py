@@ -82,6 +82,14 @@ class StorageLayout:
             raise ValueError("Invalid generated public id")
         return self.root / "public" / public_id
 
+    def individual_delivery_for(self, public_id: str, version: str | None = None) -> Path:
+        root = self.root / "delivery" / "individual" / self.public_for(public_id).name
+        if version is None:
+            return root
+        if not version.isdigit():
+            raise ValueError("Invalid delivery version")
+        return root / version
+
     def public_tile(self, public_id: str, tile_path: str) -> Path:
         root = self.public_for(public_id).resolve()
         target = (root / tile_path).resolve()
@@ -96,12 +104,11 @@ class StorageLayout:
         return target
 
 
-def publish_derivative(layout: StorageLayout, slide_id: str, public_id: str) -> Path:
+def _publish_derivative_to(layout: StorageLayout, slide_id: str, target: Path) -> Path:
     source = layout.for_slide(slide_id).private_derivative
     if not source.exists():
         raise FileNotFoundError("Private derivative is not ready")
     measure_derivative(source)
-    target = layout.public_for(public_id)
     staging = target.with_name(f".{target.name}.publish-{uuid.uuid4().hex}")
     previous = target.with_name(f".{target.name}.previous-{uuid.uuid4().hex}")
     staging.parent.mkdir(parents=True, exist_ok=True)
@@ -132,12 +139,41 @@ def publish_derivative(layout: StorageLayout, slide_id: str, public_id: str) -> 
     return target
 
 
+def publish_derivative(layout: StorageLayout, slide_id: str, public_id: str) -> Path:
+    return _publish_derivative_to(layout, slide_id, layout.public_for(public_id))
+
+
+def publish_individual_derivative(
+    layout: StorageLayout,
+    slide_id: str,
+    public_id: str,
+    version: str,
+) -> Path:
+    return _publish_derivative_to(
+        layout,
+        slide_id,
+        layout.individual_delivery_for(public_id, version),
+    )
+
+
 def unpublish_derivative(layout: StorageLayout, public_id: str) -> None:
     target = layout.public_for(public_id)
     if not os.path.lexists(target):
         return
     tombstone = target.with_name(f".{target.name}.delete-{uuid.uuid4().hex}")
     target.replace(tombstone)
+    _remove_entry(tombstone)
+
+
+def unpublish_individual_derivative(layout: StorageLayout, public_id: str) -> None:
+    target = layout.individual_delivery_for(public_id)
+    if not os.path.lexists(target):
+        return
+    tombstone = target.with_name(f".{target.name}.unpublish-{uuid.uuid4().hex}")
+    try:
+        target.replace(tombstone)
+    except OSError as error:
+        raise PublicationError("PUBLICATION_UNPUBLISH_FAILED") from error
     _remove_entry(tombstone)
 
 

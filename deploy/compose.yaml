@@ -21,13 +21,17 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/individual:/pathlab-individual:ro
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/private:/pathlab-private:ro
     depends_on:
       api:
         condition: service_healthy
       tusd:
         condition: service_started
     mem_limit: 256m
-    cpus: 0.50
+    cpus: 0.75
+    cpu_shares: 1024
 
   api:
     build:
@@ -39,7 +43,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: ["sh", "-c", "mkdir -p /data/database /data/tus && alembic upgrade head && pathlab-admin reconcile-storage && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips=*"]
+    command: ["sh", "-c", "mkdir -p /data/database /data/tus && alembic upgrade head && pathlab-admin reconcile-storage && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=*"]
     environment: &pathlab-environment
       PATHLAB_ENVIRONMENT: production
       PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3
@@ -49,6 +53,7 @@ services:
       PATHLAB_TUS_PUBLIC_URL: /api/v1/uploads/
       PATHLAB_TUS_INTERNAL_UPLOAD_DIR: /data/tus
       PATHLAB_MULTI_SHARE_ENABLED: "${PATHLAB_MULTI_SHARE_ENABLED:-false}"
+      PATHLAB_INTERNAL_FILE_REDIRECTS: "true"
     volumes:
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
     healthcheck:
@@ -56,8 +61,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-    mem_limit: 768m
-    cpus: 0.75
+    mem_limit: 512m
+    cpus: 0.50
+    cpu_shares: 1024
 
   tusd:
     image: tusproject/tusd:v2.9.2@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3
@@ -120,6 +126,7 @@ services:
       start_period: 30s
     mem_limit: 6g
     cpus: 1.50
+    cpu_shares: 256
 
 volumes:
   caddy_data:

@@ -24,6 +24,11 @@ def test_k6_script_uses_manifest_profiles_and_seventy_thirty_mix() -> None:
     assert "__VU" in script
     assert "tileFailures" in script
     assert "tileLatency" in script
+    assert "try {\n    metadataBody = metadata.json()\n  } catch" in script
+    assert "metadataBody.tileSource" in script
+    assert "tileSource.replace" in script
+    assert "`${base}/tiles/${slide.publicId}/${path}`" not in script
+    assert "tileFailures.add(true)\n    sleep(1)\n    return" in script
 
 
 def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:

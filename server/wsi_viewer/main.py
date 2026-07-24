@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
@@ -27,12 +26,14 @@ from .auth import (
 )
 from .config import Settings
 from .database import session_factory
+from .delivery import deliver_file
 from .domain import InvalidTransition, SlideState, transition
 from .library_routes import register_library_routes
 from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
 from .publication import (
     INDIVIDUAL,
     delete_all_slide_grants,
+    delivery_version,
     ensure_grant,
     remove_grant,
 )
@@ -149,7 +150,9 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
         result.pop("errorMessage")
         result.pop("createdAt")
         result["metadata"] = _public_metadata(slide.slide_metadata)
-        result["tileSource"] = f"/api/v1/public/slides/{slide.public_id}/tiles/slide.dzi"
+        result["tileSource"] = (
+            f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"
+        )
     else:
         result["filename"] = slide.original_filename
     return result
@@ -400,7 +403,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return result
 
     @app.get("/api/v1/admin/slides/{slide_id}/preview/{tile_path:path}")
-    def private_tile(slide_id: str, tile_path: str, _: AdminSession, db: Database) -> FileResponse:
+    def private_tile(slide_id: str, tile_path: str, _: AdminSession, db: Database) -> Response:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
@@ -415,7 +418,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not target.is_file():
             raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
-        return FileResponse(target, media_type=media_type)
+        return deliver_file(
+            target,
+            data_root=current.data_root,
+            internal_redirects=current.internal_file_redirects,
+            media_type=media_type,
+            cache_control="private, max-age=86400, immutable",
+        )
 
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
     def create_slide(payload: SlideRequest, authenticated: CsrfSession) -> dict[str, Any]:
@@ -650,7 +659,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _slide_json(slide, public=True)
 
     @app.get("/api/v1/public/slides/{public_id}/tiles/{tile_path:path}")
-    def public_slide_tile(public_id: str, tile_path: str, db: Database) -> FileResponse:
+    def public_slide_tile(public_id: str, tile_path: str, db: Database) -> Response:
         slide = db.scalar(
             select(Slide).where(
                 Slide.public_id == public_id,
@@ -674,10 +683,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=404, detail={"code": "TILE_NOT_FOUND"}
             ) from None
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
-        return FileResponse(
+        return deliver_file(
             target,
+            data_root=current.data_root,
+            internal_redirects=current.internal_file_redirects,
             media_type=media_type,
-            headers={"Cache-Control": "private, no-store"},
+            cache_control="private, max-age=86400, immutable",
         )
 
     return app

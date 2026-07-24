@@ -15,13 +15,14 @@ from wsi_viewer.security import hash_password
 STRONG_SECRET = "test-only-strong-secret-material-1234567890"
 
 
-def _client(tmp_path: Path) -> TestClient:
+def _client(tmp_path: Path, *, internal_file_redirects: bool = False) -> TestClient:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
         secret_key=STRONG_SECRET,
         secure_cookies=False,
         tus_internal_upload_dir=tmp_path / "tus",
+        internal_file_redirects=internal_file_redirects,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -135,13 +136,23 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
             "height": 32,
             "physicalSizeX": 0.25,
         }
-        assert body["tileSource"] == (
-            f"/api/v1/public/slides/{public_id}/tiles/slide.dzi"
+        assert body["tileSource"].startswith(f"/tiles/{public_id}/")
+        assert body["tileSource"].endswith("/slide.dzi")
+        version = body["tileSource"].split("/")[3]
+        assert version.isdigit()
+        delivery_root = (
+            client.app.state.settings.data_root
+            / "delivery"
+            / "individual"
+            / public_id
+            / version
         )
-        tile = client.get(body["tileSource"])
+        assert (delivery_root / "slide.dzi").read_text(encoding="utf-8") == "<Image />"
+
+        tile = client.get(f"/api/v1/public/slides/{public_id}/tiles/slide.dzi")
         assert tile.status_code == 200
         assert tile.text == "<Image />"
-        assert tile.headers["cache-control"] == "private, no-store"
+        assert tile.headers["cache-control"] == "private, max-age=86400, immutable"
         assert client.get(
             f"/api/v1/public/slides/{public_id}/tiles/../source.ome.tif"
         ).status_code == 404
@@ -152,6 +163,12 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
             assert slide is not None
             assert slide.privacy_status == "passed"
             assert slide.privacy_scanned_at is not None
+
+        assert (
+            client.post(f"/api/v1/admin/slides/{slide_id}/unpublish", headers=headers).status_code
+            == 200
+        )
+        assert not (settings.data_root / "delivery" / "individual" / public_id).exists()
 
 
 def test_public_fields_cannot_change_while_shared_and_private_edits_reset_review(
@@ -206,6 +223,25 @@ def test_public_fields_cannot_change_while_shared_and_private_edits_reset_review
             assert slide.privacy_scanned_at is None
 
 
+def test_production_file_delivery_uses_internal_caddy_redirect(tmp_path: Path) -> None:
+    with _client(tmp_path, internal_file_redirects=True) as client:
+        csrf = _login(client)
+        slide_id, public_id = _ready_slide(client)
+        assert client.post(
+            f"/api/v1/admin/slides/{slide_id}/publish",
+            headers={"X-CSRF-Token": csrf},
+            json={"deidentifiedConfirmed": True},
+        ).status_code == 200
+
+        tile = client.get(f"/api/v1/public/slides/{public_id}/tiles/slide.dzi")
+        assert tile.status_code == 200
+        assert tile.content == b""
+        assert tile.headers["x-accel-redirect"] == (
+            f"/pathlab-public/{public_id}/slide.dzi"
+        )
+        assert tile.headers["cache-control"] == "private, max-age=86400, immutable"
+
+
 def test_public_proxy_and_deployment_configuration_disclose_no_live_target() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
     release = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
@@ -226,7 +262,9 @@ def test_public_proxy_and_deployment_configuration_disclose_no_live_target() -> 
     assert "url: https://" not in workflow
     assert "Readiness: http" not in workflow
     assert "PATHLAB_ENVIRONMENT: production" in compose
-    assert "handle_path /tiles/*" not in caddyfile
+    assert "handle_path /tiles/*" in caddyfile
+    assert "root * /pathlab-individual" in caddyfile
+    assert "root * /data" not in caddyfile
     assert "/pathlab-data" not in compose
 
 
