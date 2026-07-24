@@ -216,6 +216,25 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   color:#a99e91;
 }
 
+.viewer-header .brand-library {
+  gap:7px;
+  font:500 16px/1 Georgia,serif;
+  letter-spacing:-.025em;
+}
+
+.viewer-header .brand-library .brand-mark {
+  width:40px;
+  height:40px;
+  border:1px solid #6d4a40;
+  border-radius:12px;
+  color:var(--coral);
+  background:transparent;
+}
+
+.viewer-header .brand-library .brand-product {
+  font-weight:500;
+}
+
 .viewer-stage,
 .osd-surface {
   background:#090807;
