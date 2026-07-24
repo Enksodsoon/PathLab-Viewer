@@ -217,6 +217,63 @@ describe('dark library explorer', () => {
     expect(screen.getByRole('menuitem', { name: /new saved view/i })).toBeVisible()
   })
 
+  it('exposes mobile-safe accessible names and selected view state', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    expect(screen.getByRole('button', { name: /^filters$/i })).toHaveAttribute(
+      'aria-label',
+      'Filters',
+    )
+    expect(screen.getByRole('button', { name: /grid view/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: /list view/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: /list view/i }))
+
+    expect(screen.getByRole('button', { name: /grid view/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: /list view/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('isolates the mobile navigator and restores focus after Escape', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    const toggle = screen.getByRole('button', { name: /open library navigator/i })
+    const main = screen.getByRole('main')
+    const productNavigation = screen.getByRole('complementary', {
+      name: /product navigation/i,
+    })
+
+    expect(toggle).toHaveAttribute('aria-controls', 'library-navigator')
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(document.querySelector('#library-navigator')).toBeInTheDocument()
+
+    await userEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(main).toHaveAttribute('inert')
+    expect(productNavigation).toHaveAttribute('inert')
+
+    await userEvent.keyboard('{Escape}')
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(main).not.toHaveAttribute('inert')
+    expect(productNavigation).not.toHaveAttribute('inert')
+    expect(toggle).toHaveFocus()
+  })
+
   it('turns the card overflow control into a complete metadata workflow', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
     await screen.findAllByText('Colon adenocarcinoma')

@@ -55,7 +55,18 @@ async function mockLibrary(page: Page) {
   }))
   await page.route('**/api/v2/admin/library/items**', (route) => route.fulfill({
     contentType: 'application/json',
-    body: JSON.stringify({ items: [slide, { ...slide, id: 'slide-2', displayName: 'Lung H&E' }], nextCursor: null, total: 2 }),
+    body: JSON.stringify({
+      items: [
+        slide,
+        {
+          ...slide,
+          id: 'slide-2',
+          displayName: 'SP-68-7354-C_U129 HER-2_20250501.vsi - SP-68-7354-C_U129 HER-2',
+        },
+      ],
+      nextCursor: null,
+      total: 2,
+    }),
   }))
   await page.route('**/api/v2/admin/slides/slide-1', (route) => route.fulfill({
     contentType: 'application/json',
@@ -103,6 +114,106 @@ test('keeps controls readable and non-overlapping across every layout boundary',
       ))).toBeGreaterThanOrEqual(11)
     }
   }
+})
+
+test('isolates the closed mobile navigator and restores focus after Escape', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const navigator = page.locator('#library-navigator')
+  const toggle = page.getByRole('button', { name: 'Open library navigator' })
+
+  await expect(navigator).toBeHidden()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await toggle.click()
+  await expect(navigator).toBeVisible()
+  await expect(page.locator('main')).toHaveAttribute('inert', '')
+
+  await page.keyboard.press('Escape')
+
+  await expect(navigator).toBeHidden()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(toggle).toBeFocused()
+})
+
+test('contains table scrolling without widening the document', async ({ page }) => {
+  await page.setViewportSize({ width: 1234, height: 900 })
+  await page.goto('/admin?view=table')
+  await expect(page.getByRole('table')).toBeVisible()
+
+  const overflow = await page.evaluate(() => ({
+    document: {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    },
+    layout: ['.library-shell', '.library-main', '.library-content', '.library-table-wrap']
+      .map((selector) => {
+        const element = document.querySelector(selector)
+        if (!element) return { selector }
+        const box = element.getBoundingClientRect()
+        return {
+          selector,
+          clientWidth: element.clientWidth,
+          left: box.left,
+          overflowX: getComputedStyle(element).overflowX,
+          right: box.right,
+          scrollWidth: element.scrollWidth,
+          width: box.width,
+        }
+      }),
+    offenders: Array.from(document.querySelectorAll('body *'))
+      .map((element) => {
+        const box = element.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        return {
+          className: typeof element.className === 'string' ? element.className : '',
+          clientWidth: element.clientWidth,
+          overflowX: style.overflowX,
+          right: box.right,
+          scrollWidth: element.scrollWidth,
+          tagName: element.tagName,
+        }
+      })
+      .filter((element) => (
+        element.right > document.documentElement.clientWidth + 1
+        || (
+          element.scrollWidth > element.clientWidth + 1
+          && element.overflowX === 'visible'
+        )
+      ))
+      .slice(0, 12),
+  }))
+  expect(
+    overflow.document.scrollWidth,
+    JSON.stringify({ layout: overflow.layout, offenders: overflow.offenders }),
+  ).toBeLessThanOrEqual(overflow.document.clientWidth)
+  expect(await page.locator('.library-table-wrap').evaluate((element) => (
+    element.scrollWidth > element.clientWidth
+  ))).toBe(true)
+})
+
+test('wraps long slide names within mobile cards', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const heading = page.getByRole('heading', {
+    name: 'SP-68-7354-C_U129 HER-2_20250501.vsi - SP-68-7354-C_U129 HER-2',
+  })
+  await expect(heading).toBeVisible()
+
+  const style = await heading.evaluate((element) => {
+    const computed = getComputedStyle(element)
+    return {
+      lineClamp: computed.getPropertyValue('-webkit-line-clamp'),
+      whiteSpace: computed.whiteSpace,
+    }
+  })
+  expect(style.whiteSpace).not.toBe('nowrap')
+  expect(style.lineClamp).toBe('2')
+
+  const card = heading.locator('xpath=ancestor::article')
+  const [headingBox, cardBox] = await Promise.all([heading.boundingBox(), card.boundingBox()])
+  expect(headingBox).not.toBeNull()
+  expect(cardBox).not.toBeNull()
+  expect((headingBox?.x ?? 0) + (headingBox?.width ?? 0)).toBeLessThanOrEqual(
+    (cardBox?.x ?? 0) + (cardBox?.width ?? 0),
+  )
 })
 
 test('exposes functional creation, card, and mobile account controls', async ({ page }) => {

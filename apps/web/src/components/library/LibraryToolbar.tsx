@@ -101,10 +101,11 @@ export function LibraryToolbar({
           <button
             type="button"
             className={filtersOpen ? 'active' : ''}
+            aria-label="Filters"
             aria-expanded={filtersOpen}
             onClick={onToggleFilters}
           >
-            <Filter /> <span>Filters</span>
+            <Filter aria-hidden="true" /> <span>Filters</span>
           </button>
           <label className="toolbar-select">
             <span className="visually-hidden">Sort slides</span>
@@ -130,18 +131,21 @@ export function LibraryToolbar({
               type="button"
               className={view === 'grid' ? 'active' : ''}
               aria-label="Grid view"
+              aria-pressed={view === 'grid'}
               onClick={() => onView('grid')}
             ><Grid2X2 /></button>
             <button
               type="button"
               className={view === 'list' ? 'active' : ''}
               aria-label="List view"
+              aria-pressed={view === 'list'}
               onClick={() => onView('list')}
             ><List /></button>
             <button
               type="button"
               className={view === 'table' ? 'active' : ''}
               aria-label="Table view"
+              aria-pressed={view === 'table'}
               onClick={() => onView('table')}
             ><Table2 /></button>
           </div>

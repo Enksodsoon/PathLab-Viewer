@@ -6,6 +6,7 @@ import {
   Edit3,
   ExternalLink,
   Eye,
+  FileImage,
   FolderInput,
   MoreVertical,
   RefreshCw,
@@ -58,7 +59,9 @@ function Thumbnail({ slide }: { slide: LibrarySlide }) {
         <img src={slide.thumbnailUrl} alt="" loading="lazy" decoding="async" />
       ) : (
         <div className="thumbnail-fallback" aria-label="Thumbnail unavailable">
-          <CircleDashed />
+          {slide.state === 'converting'
+            ? <CircleDashed aria-hidden="true" />
+            : <FileImage aria-hidden="true" />}
           <span>{slide.state === 'converting' ? 'Processing' : 'WSI'}</span>
         </div>
       )}

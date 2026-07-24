@@ -240,6 +240,26 @@ export function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
+  const navigatorToggleRef = useRef<HTMLButtonElement>(null)
+  const navigatorCloseRef = useRef<HTMLButtonElement>(null)
+
+  const closeNavigator = useCallback(() => {
+    setNavigatorOpen(false)
+    navigatorToggleRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (!navigatorOpen) return
+
+    navigatorCloseRef.current?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeNavigator()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [closeNavigator, navigatorOpen])
 
   const setUrlValues = useCallback((
     values: Record<string, string | null>,
@@ -959,24 +979,31 @@ export function AdminPage() {
     <div className={`library-shell ${navigatorOpen ? 'navigator-open' : ''}`}>
       <AppRail
         location={location}
+        isInert={navigatorOpen}
         onLocation={chooseLocation}
         onUpload={() => openNamedDialog('upload')}
         onSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void signOut()}
       />
       <button
+        ref={navigatorToggleRef}
         type="button"
         className="mobile-navigator-toggle"
         aria-label="Open library navigator"
+        aria-controls="library-navigator"
+        aria-expanded={navigatorOpen}
+        aria-hidden={navigatorOpen || undefined}
+        tabIndex={navigatorOpen ? -1 : undefined}
         onClick={() => setNavigatorOpen(true)}
       ><Menu /></button>
-      <div className="mobile-navigator-backdrop" onClick={() => setNavigatorOpen(false)} />
-      <div className="library-navigator-wrap">
+      <div className="mobile-navigator-backdrop" onClick={closeNavigator} />
+      <div id="library-navigator" className="library-navigator-wrap">
         <button
+          ref={navigatorCloseRef}
           type="button"
           className="mobile-navigator-close"
           aria-label="Close library navigator"
-          onClick={() => setNavigatorOpen(false)}
+          onClick={closeNavigator}
         ><ChevronLeft /></button>
         <LibraryNavigator
           navigation={navigation}
@@ -1003,7 +1030,11 @@ export function AdminPage() {
           onSavedViewAction={handleSavedViewAction}
         />
       </div>
-      <main className="library-main">
+      <main
+        className="library-main"
+        aria-hidden={navigatorOpen || undefined}
+        inert={navigatorOpen || undefined}
+      >
         <LibraryToolbar
           breadcrumbs={breadcrumbs}
           search={searchDraft}
