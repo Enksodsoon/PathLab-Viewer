@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import os
+import re
 import shutil
 from collections import defaultdict, deque
 from collections.abc import Iterator
@@ -447,13 +448,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def finalize_upload(
         grant: UploadGrant, upload_path: Path, reported_length: int, db: OrmSession
     ) -> dict[str, str]:
-        source = upload_path.resolve()
         upload_root = current.tus_internal_upload_dir.resolve()
-        if not source.is_relative_to(upload_root) and upload_path.as_posix().startswith(
-            "/data/tus/"
-        ):
-            source = (upload_root / upload_path.name).resolve()
-        if not source.is_relative_to(upload_root) or not source.is_file():
+        upload_id = upload_path.name
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", upload_id) is None:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
+        try:
+            source = (upload_root / upload_id).resolve(strict=True)
+        except OSError as error:
+            raise HTTPException(
+                status_code=400, detail={"code": "INVALID_UPLOAD_PATH"}
+            ) from error
+        if source.parent != upload_root or not source.is_file():
             raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
         slide = db.get(Slide, grant.slide_id)
         if slide is None or slide.state is not SlideState.UPLOADING:
