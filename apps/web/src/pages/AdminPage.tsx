@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Menu,
   Plus,
+  RefreshCw,
   RotateCcw,
   Trash2,
   Upload,
@@ -593,9 +594,14 @@ export function AdminPage() {
         const changed = await mutateSlide(slide.id, action)
         setPage((current) => ({
           ...current,
-          items: current.items.map((item) => (
-            item.id === slide.id ? { ...item, state: changed.state } : item
-          )),
+          items: action === 'retry' && location === 'failed'
+            ? current.items.filter((item) => item.id !== slide.id)
+            : current.items.map((item) => (
+              item.id === slide.id ? { ...item, state: changed.state } : item
+            )),
+          total: action === 'retry' && location === 'failed'
+            ? Math.max(0, current.total - 1)
+            : current.total,
         }))
         setSelected(new Set())
         setNotice(action === 'retry'
@@ -728,12 +734,18 @@ export function AdminPage() {
         : mutateSlide(slide.id, action)),
     )
     const changedById = new Map(changed.map((slide) => [slide.id, slide]))
+    const removeRetried = action === 'retry' && location === 'failed'
     setPage((current) => ({
       ...current,
-      items: current.items.map((slide) => {
-        const item = changedById.get(slide.id)
-        return item ? { ...slide, state: item.state } : slide
-      }),
+      items: removeRetried
+        ? current.items.filter((slide) => !changedById.has(slide.id))
+        : current.items.map((slide) => {
+          const item = changedById.get(slide.id)
+          return item ? { ...slide, state: item.state } : slide
+        }),
+      total: removeRetried
+        ? Math.max(0, current.total - changedById.size)
+        : current.total,
     }))
     setSelected(new Set())
     const skipped = selectedSlides.length - eligible.length
@@ -1150,7 +1162,7 @@ export function AdminPage() {
                 Select visible
               </label>
               {location === 'trash' ? (
-                <div className="trash-page-actions" aria-label="Trash actions">
+                <div className="state-page-actions" aria-label="Trash actions">
                   <button
                     type="button"
                     disabled={selected.size === 0}
@@ -1165,6 +1177,17 @@ export function AdminPage() {
                     onClick={() => setDialog('empty-trash')}
                   >
                     <Trash2 /> Empty trash
+                  </button>
+                </div>
+              ) : null}
+              {location === 'failed' ? (
+                <div className="state-page-actions" aria-label="Failed actions">
+                  <button
+                    type="button"
+                    disabled={!selectedSlides.some((slide) => slide.state === 'failed')}
+                    onClick={() => runAction(retrySelected, 'Retry')}
+                  >
+                    <RefreshCw /> Retry selected
                   </button>
                 </div>
               ) : null}

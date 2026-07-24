@@ -163,8 +163,46 @@ describe('dark library explorer', () => {
 
     expect(await screen.findByRole('heading', { name: 'No failed files' })).toBeVisible()
     expect(screen.getByText('Files that fail processing will appear here.')).toBeVisible()
+    expect(screen.getByRole('button', { name: /retry selected/i })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
     expect(api.getLibraryItems).toHaveBeenCalledWith(expect.objectContaining({ location: 'failed' }))
+  })
+
+  it('explains failed files and retries the selected originals without re-uploading', async () => {
+    const failedSlide = {
+      ...items.items[1],
+      displayName: 'Failed conversion',
+      state: 'failed' as const,
+      errorCode: 'UPLOAD_LENGTH_MISMATCH',
+    }
+    api.getLibraryItems.mockResolvedValue({
+      items: [failedSlide],
+      nextCursor: null,
+      total: 1,
+    })
+    api.getLibraryNavigation.mockResolvedValue({
+      ...navigation,
+      counts: { ...navigation.counts, failed: 1 },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/admin?location=failed']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('The uploaded file was incomplete.')).toBeVisible()
+    expect(screen.getByText('Error code: UPLOAD_LENGTH_MISMATCH')).toBeVisible()
+    const retry = screen.getByRole('button', { name: /retry selected/i })
+    expect(retry).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /select failed conversion/i }))
+    expect(retry).toBeEnabled()
+    await userEvent.click(retry)
+
+    await waitFor(() => expect(api.mutateSlide).toHaveBeenCalledWith('slide-2', 'retry'))
+    expect(await screen.findByRole('heading', { name: 'No failed files' })).toBeVisible()
+    expect(screen.getAllByText('1 slide queued.')[0]).toBeVisible()
   })
 
   it('uses trash-specific messaging and disables unavailable trash actions', async () => {

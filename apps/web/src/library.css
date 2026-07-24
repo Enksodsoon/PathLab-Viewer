@@ -404,14 +404,14 @@
 }
 
 .library-heading-actions,
-.trash-page-actions {
+.state-page-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 9px;
 }
 
-.trash-page-actions button {
+.state-page-actions button {
   min-height: 38px;
   display: inline-flex;
   align-items: center;
@@ -424,17 +424,17 @@
   cursor: pointer;
 }
 
-.trash-page-actions button svg {
+.state-page-actions button svg {
   width: 16px;
   height: 16px;
 }
 
-.trash-page-actions button.danger {
+.state-page-actions button.danger {
   border-color: #74443b;
   color: var(--bad);
 }
 
-.trash-page-actions button:disabled {
+.state-page-actions button:disabled {
   opacity: .42;
   cursor: not-allowed;
 }
@@ -627,6 +627,49 @@
   color: var(--iv);
   font-size: 12px;
   text-decoration: none;
+}
+
+.library-failure-reason {
+  max-width: 280px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid #6f3f37;
+  border-radius: 7px;
+  background: #241512;
+  color: #d9b3aa;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.library-failure-reason > svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--bad);
+}
+
+.library-failure-reason span,
+.library-failure-reason strong,
+.library-failure-reason small {
+  display: block;
+}
+
+.library-failure-reason strong {
+  margin-bottom: 2px;
+  color: #f1d2ca;
+  font-size: 11px;
+}
+
+.library-failure-reason small {
+  margin-top: 4px;
+  color: #a88d86;
+  font-size: 9px;
+  letter-spacing: .04em;
 }
 
 .publication-state {
@@ -963,7 +1006,7 @@
     flex-direction: column;
   }
 
-  .trash-page-actions {
+  .state-page-actions {
     flex-wrap: wrap;
   }
 

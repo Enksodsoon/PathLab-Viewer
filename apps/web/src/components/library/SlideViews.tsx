@@ -32,6 +32,18 @@ const STATUS: Record<LibrarySlide['state'], string> = {
   deleting: 'Deleting',
 }
 
+const FAILURE_EXPLANATIONS: Record<string, string> = {
+  DECOMPRESSION_FAILED: 'The image data could not be decoded.',
+  INVALID_IMAGEJ_METADATA: 'The ImageJ dimensions are invalid or inconsistent.',
+  INVALID_OME_XML: 'The file does not contain valid OME metadata.',
+  INVALID_TIFF_STRUCTURE: 'The TIFF structure is incomplete or invalid.',
+  UNSUPPORTED_COMPRESSION: 'The TIFF uses an unsupported compression format.',
+  UNSUPPORTED_DIMENSIONS: 'Only a single two-dimensional whole-slide image is supported.',
+  UNSUPPORTED_PIXEL_TYPE: 'The image pixel format is not supported.',
+  UPLOAD_LENGTH_MISMATCH: 'The uploaded file was incomplete.',
+  CONVERSION_FAILED: 'The slide could not be converted into viewable tiles.',
+}
+
 export type SlideAction =
   | 'edit'
   | 'move'
@@ -75,6 +87,23 @@ function Status({ slide }: { slide: LibrarySlide }) {
       {slide.state === 'failed' ? <CircleAlert /> : <Check />}
       {STATUS[slide.state]}
     </span>
+  )
+}
+
+function FailureReason({ slide }: { slide: LibrarySlide }) {
+  if (slide.state !== 'failed') return null
+  const code = slide.errorCode || 'CONVERSION_FAILED'
+  const explanation = FAILURE_EXPLANATIONS[code]
+    ?? 'Processing stopped unexpectedly. Retry the conversion or review the source file.'
+  return (
+    <div className="library-failure-reason">
+      <CircleAlert aria-hidden="true" />
+      <span>
+        <strong>Why it failed</strong>
+        {explanation}
+        <small>Error code: {code}</small>
+      </span>
+    </div>
   )
 }
 
@@ -228,6 +257,7 @@ function SlideCard({
         <p>Case {slide.caseId || '—'}</p>
         <p>{formatBytes(slide.sourceBytes)}</p>
         <Status slide={slide} />
+        <FailureReason slide={slide} />
       </div>
     </article>
   )
@@ -270,7 +300,11 @@ function SlideTable(props: CommonProps) {
               </td>
               <td>{slide.organSite || '—'}</td><td>{slide.stain || '—'}</td>
               <td>{slide.diagnosis || '—'}</td><td>{slide.caseId || '—'}</td>
-              <td>{formatBytes(slide.sourceBytes)}</td><td><Status slide={slide} /></td>
+              <td>{formatBytes(slide.sourceBytes)}</td>
+              <td>
+                <Status slide={slide} />
+                <FailureReason slide={slide} />
+              </td>
               <td>{new Date(slide.updatedAt).toLocaleDateString()}</td>
               <td><SlideActions slide={slide} onOpen={onOpen} onAction={onAction} /></td>
             </tr>
