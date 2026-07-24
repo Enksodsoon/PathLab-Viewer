@@ -10,6 +10,7 @@ import {
 
 interface AppRailProps {
   location: string
+  isInert: boolean
   onLocation: (location: string) => void
   onUpload: () => void
   onSecurity: () => void
@@ -18,6 +19,7 @@ interface AppRailProps {
 
 export function AppRail({
   location,
+  isInert,
   onLocation,
   onUpload,
   onSecurity,
@@ -30,7 +32,12 @@ export function AppRail({
       : 'library'
 
   return (
-    <aside className="library-app-rail" aria-label="Product navigation">
+    <aside
+      className="library-app-rail"
+      aria-label="Product navigation"
+      aria-hidden={isInert || undefined}
+      inert={isInert || undefined}
+    >
       <div className="library-brand" aria-label="PathLab Viewer">
         <Layers3 aria-hidden="true" />
         <span>PathLab Viewer</span>

@@ -409,6 +409,93 @@ def test_permanent_delete_is_explicit_and_uses_existing_worker(tmp_path: Path) -
             )
 
 
+def test_empty_trash_queues_worker_deletions_and_hides_scheduled_slides(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        for index in range(2):
+            slide_id = f"trash-{index}"
+            _seed_slide(
+                client,
+                slide_id=slide_id,
+                display_name=f"Trash {index}",
+                state=SlideState.READY_PRIVATE,
+            )
+            assert client.post(
+                f"/api/v2/admin/slides/{slide_id}/trash",
+                headers=headers,
+            ).status_code == 200
+
+        with session_factory(client.app.state.settings)() as database:
+            database.add(Job(slide_id="trash-0", kind="ingest"))
+            database.commit()
+
+        emptied = client.delete("/api/v2/admin/trash", headers=headers)
+        assert emptied.status_code == 202
+        assert emptied.json() == {"scheduled": 2}
+
+        trash = client.get(
+            "/api/v2/admin/library/items",
+            headers=headers,
+            params={"location": "trash"},
+        )
+        assert trash.status_code == 200
+        assert trash.json()["total"] == 0
+        navigation = client.get("/api/v2/admin/library/navigation", headers=headers)
+        assert navigation.json()["counts"]["trash"] == 0
+
+        with session_factory(client.app.state.settings)() as database:
+            slides = database.scalars(
+                select(Slide).where(Slide.id.in_({"trash-0", "trash-1"}))
+            ).all()
+            assert {slide.state for slide in slides} == {SlideState.DELETING}
+            jobs = database.scalars(
+                select(Job).where(
+                    Job.slide_id.in_({"trash-0", "trash-1"}),
+                    Job.kind == "delete",
+                    Job.status == "queued",
+                )
+            ).all()
+            assert len(jobs) == 2
+            assert database.scalar(
+                select(Job.status).where(
+                    Job.slide_id == "trash-0",
+                    Job.kind == "ingest",
+                )
+            ) == "cancelled"
+
+
+def test_empty_trash_refuses_to_race_an_active_conversion(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        _seed_slide(
+            client,
+            slide_id="trash-converting",
+            display_name="Converting",
+            state=SlideState.CONVERTING,
+        )
+        assert client.post(
+            "/api/v2/admin/slides/trash-converting/trash",
+            headers=headers,
+        ).status_code == 200
+
+        emptied = client.delete("/api/v2/admin/trash", headers=headers)
+        assert emptied.status_code == 409
+        assert emptied.json()["detail"]["code"] == "TRASH_ITEMS_BUSY"
+
+        with session_factory(client.app.state.settings)() as database:
+            slide = database.get(Slide, "trash-converting")
+            assert slide is not None
+            assert slide.state == SlideState.CONVERTING
+            assert database.scalar(
+                select(Job.id).where(
+                    Job.slide_id == "trash-converting",
+                    Job.kind == "delete",
+                )
+            ) is None
+
+
 def test_multi_share_activation_is_blocked_without_privacy_scanner(tmp_path: Path) -> None:
     with _client(tmp_path, multi_share_enabled=False) as client:
         headers = _headers(client)

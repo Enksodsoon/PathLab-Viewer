@@ -1,7 +1,13 @@
 import {
   ChevronLeft,
+  CircleDashed,
+  CircleX,
+  FolderOpen,
   Menu,
   Plus,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
   Upload,
 } from 'lucide-react'
 import {
@@ -24,6 +30,7 @@ import {
   deleteCollection,
   deleteLibrarySlide,
   deleteSavedView,
+  emptyLibraryTrash,
   getFolderChildren,
   getLibraryFacets,
   getLibraryItems,
@@ -111,6 +118,7 @@ type DialogName =
   | 'tags'
   | 'edit'
   | 'delete'
+  | 'empty-trash'
   | 'edit-folder'
   | 'move-folder'
   | 'trash-folder'
@@ -238,8 +246,29 @@ export function AdminPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploadName, setUploadName] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
+  const navigatorToggleRef = useRef<HTMLButtonElement>(null)
+  const navigatorCloseRef = useRef<HTMLButtonElement>(null)
+
+  const closeNavigator = useCallback(() => {
+    setNavigatorOpen(false)
+    navigatorToggleRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (!navigatorOpen) return
+
+    navigatorCloseRef.current?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeNavigator()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [closeNavigator, navigatorOpen])
 
   const setUrlValues = useCallback((
     values: Record<string, string | null>,
@@ -357,15 +386,28 @@ export function AdminPage() {
         const statuses = await getSlideStatuses(activeIds)
         if (cancelled) return
         const byId = new Map(statuses.map((item) => [item.id, item]))
-        setPage((current) => ({
-          ...current,
-          items: current.items.map((slide) => {
+        setPage((current) => {
+          const items = current.items.flatMap((slide) => {
             const statusItem = byId.get(slide.id)
-            return statusItem
-              ? { ...slide, state: statusItem.state, errorCode: statusItem.errorCode }
-              : slide
-          }),
-        }))
+            if (!statusItem) return [slide]
+            if (location === 'processing' && !ACTIVE_STATES.has(statusItem.state)) return []
+            return [{
+              ...slide,
+              state: statusItem.state,
+              errorCode: statusItem.errorCode,
+            }]
+          })
+          return {
+            ...current,
+            items,
+            total: location === 'processing'
+              ? Math.max(0, current.total - (current.items.length - items.length))
+              : current.total,
+          }
+        })
+        if (statuses.some((status) => !ACTIVE_STATES.has(status.state))) {
+          void loadNavigation()
+        }
       } catch {
         if (!cancelled) setError('Processing status could not refresh. Retrying automatically.')
       } finally {
@@ -378,7 +420,7 @@ export function AdminPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [activeIds, activeIdsKey, authorized, visible])
+  }, [activeIds, activeIdsKey, authorized, loadNavigation, location, visible])
 
   useEffect(() => {
     if (!filtersOpen || !authorized) return
@@ -564,14 +606,20 @@ export function AdminPage() {
         const changed = await mutateSlide(slide.id, action)
         setPage((current) => ({
           ...current,
-          items: current.items.map((item) => (
-            item.id === slide.id ? { ...item, state: changed.state } : item
-          )),
+          items: action === 'retry' && location === 'failed'
+            ? current.items.filter((item) => item.id !== slide.id)
+            : current.items.map((item) => (
+              item.id === slide.id ? { ...item, state: changed.state } : item
+            )),
+          total: action === 'retry' && location === 'failed'
+            ? Math.max(0, current.total - 1)
+            : current.total,
         }))
         setSelected(new Set())
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
           : 'Slide unpublished.')
+        void loadNavigation()
       } else if (action === 'trash' || action === 'restore') {
         await mutateLibrarySlide(slide.id, action)
         setPage((current) => ({
@@ -666,6 +714,27 @@ export function AdminPage() {
     await refreshNavigation()
   }
 
+  async function emptyTrash() {
+    setError('')
+    try {
+      const result = await emptyLibraryTrash()
+      setPage(EMPTY_PAGE)
+      setSelected(new Set())
+      setDialog(null)
+      setNotice(`${result.scheduled} file${
+        result.scheduled === 1 ? '' : 's'
+      } queued for permanent deletion.`)
+      await refreshNavigation()
+    } catch (caught) {
+      setDialog(null)
+      setError(
+        caught instanceof ApiError && caught.code === 'TRASH_ITEMS_BUSY'
+          ? 'Some trashed files are still processing. Try again when processing finishes.'
+          : 'Empty Trash failed. Try again.',
+      )
+    }
+  }
+
   async function changeSelectedState(
     action: 'publish' | 'unpublish' | 'retry',
     eligibleState: SlideState,
@@ -677,12 +746,18 @@ export function AdminPage() {
         : mutateSlide(slide.id, action)),
     )
     const changedById = new Map(changed.map((slide) => [slide.id, slide]))
+    const removeRetried = action === 'retry' && location === 'failed'
     setPage((current) => ({
       ...current,
-      items: current.items.map((slide) => {
-        const item = changedById.get(slide.id)
-        return item ? { ...slide, state: item.state } : slide
-      }),
+      items: removeRetried
+        ? current.items.filter((slide) => !changedById.has(slide.id))
+        : current.items.map((slide) => {
+          const item = changedById.get(slide.id)
+          return item ? { ...slide, state: item.state } : slide
+        }),
+      total: removeRetried
+        ? Math.max(0, current.total - changedById.size)
+        : current.total,
     }))
     setSelected(new Set())
     const skipped = selectedSlides.length - eligible.length
@@ -690,6 +765,7 @@ export function AdminPage() {
     setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${verb}${
       skipped ? `; ${skipped} skipped because their state was not eligible.` : '.'
     }`)
+    void loadNavigation()
   }
 
   async function removeSelectedFromCollection() {
@@ -848,11 +924,13 @@ export function AdminPage() {
         uploadName.trim() || file.name.replace(/\.ome\.tiff?$/i, ''),
         folderId,
       )
+      setActiveUploadId(reservation.slide.id)
       setPage((current) => ({
         ...current,
         items: [uploadSlide(reservation.slide, folderId), ...current.items],
         total: current.total + 1,
       }))
+      void loadNavigation()
       setUploadProgress(0)
       setNotice('Upload prepared — it will resume automatically if interrupted.')
       await startTusUpload(file, reservation.uploadUrl, reservation.uploadToken, {
@@ -959,24 +1037,31 @@ export function AdminPage() {
     <div className={`library-shell ${navigatorOpen ? 'navigator-open' : ''}`}>
       <AppRail
         location={location}
+        isInert={navigatorOpen}
         onLocation={chooseLocation}
         onUpload={() => openNamedDialog('upload')}
         onSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void signOut()}
       />
       <button
+        ref={navigatorToggleRef}
         type="button"
         className="mobile-navigator-toggle"
         aria-label="Open library navigator"
+        aria-controls="library-navigator"
+        aria-expanded={navigatorOpen}
+        aria-hidden={navigatorOpen || undefined}
+        tabIndex={navigatorOpen ? -1 : undefined}
         onClick={() => setNavigatorOpen(true)}
       ><Menu /></button>
-      <div className="mobile-navigator-backdrop" onClick={() => setNavigatorOpen(false)} />
-      <div className="library-navigator-wrap">
+      <div className="mobile-navigator-backdrop" onClick={closeNavigator} />
+      <div id="library-navigator" className="library-navigator-wrap">
         <button
+          ref={navigatorCloseRef}
           type="button"
           className="mobile-navigator-close"
           aria-label="Close library navigator"
-          onClick={() => setNavigatorOpen(false)}
+          onClick={closeNavigator}
         ><ChevronLeft /></button>
         <LibraryNavigator
           navigation={navigation}
@@ -1003,7 +1088,11 @@ export function AdminPage() {
           onSavedViewAction={handleSavedViewAction}
         />
       </div>
-      <main className="library-main">
+      <main
+        className="library-main"
+        aria-hidden={navigatorOpen || undefined}
+        inert={navigatorOpen || undefined}
+      >
         <LibraryToolbar
           breadcrumbs={breadcrumbs}
           search={searchDraft}
@@ -1072,18 +1161,50 @@ export function AdminPage() {
               <h2>{currentTitle}</h2>
               <span>{page.total} slides</span>
             </div>
-            <label className="select-visible">
-              <input
-                type="checkbox"
-                checked={page.items.length > 0 && selected.size === page.items.length}
-                onChange={(event) => setSelected(
-                  event.target.checked
-                    ? new Set(page.items.map((slide) => slide.id))
-                    : new Set(),
-                )}
-              />
-              Select visible
-            </label>
+            <div className="library-heading-actions">
+              <label className="select-visible">
+                <input
+                  type="checkbox"
+                  checked={page.items.length > 0 && selected.size === page.items.length}
+                  onChange={(event) => setSelected(
+                    event.target.checked
+                      ? new Set(page.items.map((slide) => slide.id))
+                      : new Set(),
+                  )}
+                />
+                Select visible
+              </label>
+              {location === 'trash' ? (
+                <div className="state-page-actions" aria-label="Trash actions">
+                  <button
+                    type="button"
+                    disabled={selected.size === 0}
+                    onClick={() => runAction(restoreSelected, 'Restore')}
+                  >
+                    <RotateCcw /> Restore selected
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={navigation.counts.trash === 0}
+                    onClick={() => setDialog('empty-trash')}
+                  >
+                    <Trash2 /> Empty trash
+                  </button>
+                </div>
+              ) : null}
+              {location === 'failed' ? (
+                <div className="state-page-actions" aria-label="Failed actions">
+                  <button
+                    type="button"
+                    disabled={!selectedSlides.some((slide) => slide.state === 'failed')}
+                    onClick={() => runAction(retrySelected, 'Retry')}
+                  >
+                    <RefreshCw /> Retry selected
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
           {error ? <div className="library-error" role="alert">{error}</div> : null}
           {notice && dialog === null ? (
@@ -1092,12 +1213,40 @@ export function AdminPage() {
           {loading ? <div className="library-loading" role="status">Loading slides…</div> : null}
           {!loading && page.items.length === 0 ? (
             <div className="library-empty">
-              <Plus />
-              <h3>No slides here</h3>
-              <p>Upload a slide or choose another location.</p>
-              <button type="button" onClick={() => openNamedDialog('upload')}>
-                <Upload /> Upload slide
-              </button>
+              {location === 'trash' ? (
+                <>
+                  <Trash2 />
+                  <h3>Trash is empty</h3>
+                  <p>Deleted files will appear here until permanently removed.</p>
+                </>
+              ) : location === 'failed' ? (
+                <>
+                  <CircleX />
+                  <h3>No failed files</h3>
+                  <p>Files that fail processing will appear here.</p>
+                </>
+              ) : location === 'processing' ? (
+                <>
+                  <CircleDashed />
+                  <h3>No files processing</h3>
+                  <p>Active uploads and conversions will appear here.</p>
+                </>
+              ) : location.startsWith('folder:') ? (
+                <>
+                  <FolderOpen />
+                  <h3>No files in this folder</h3>
+                  <p>This folder is currently empty.</p>
+                </>
+              ) : (
+                <>
+                  <Plus />
+                  <h3>No slides here</h3>
+                  <p>Upload a slide or choose another location.</p>
+                  <button type="button" onClick={() => openNamedDialog('upload')}>
+                    <Upload /> Upload slide
+                  </button>
+                </>
+              )}
             </div>
           ) : null}
           {!loading && page.items.length ? (
@@ -1105,6 +1254,9 @@ export function AdminPage() {
               view={view}
               slides={page.items}
               selected={selected}
+              showProcessingProgress={location === 'processing'}
+              activeUploadId={activeUploadId}
+              uploadProgress={uploadProgress}
               onSelect={selectSlide}
               onOpen={(slide) => void openDetails(slide)}
               onAction={(slide, action) => void actOnSlide(slide, action)}
@@ -1192,11 +1344,18 @@ export function AdminPage() {
         onClose={() => setDialog(null)}
       >
         <div className="library-dialog-form">
-          <label className="upload-drop">
-            <Upload />
-            <strong>{file?.name ?? 'Choose OME-TIFF'}</strong>
-            <span>Up to 5 GiB · resumable</span>
+          <label className={`upload-drop${file ? ' has-file' : ''}`}>
+            <span className="upload-drop-icon" aria-hidden="true"><Upload /></span>
+            <span className="upload-drop-copy">
+              <strong>{file ? 'OME-TIFF selected' : 'Choose OME-TIFF'}</strong>
+              <span className="upload-drop-hint">Up to 5 GiB · resumable</span>
+            </span>
+            <span className="upload-file-button">{file ? 'Choose another file' : 'Browse files'}</span>
+            <span className="upload-file-name" title={file?.name}>
+              {file?.name ?? 'No file selected'}
+            </span>
             <input
+              className="upload-file-input"
               type="file"
               accept=".ome.tif,.ome.tiff,image/tiff"
               aria-label="Choose OME-TIFF"
@@ -1420,6 +1579,26 @@ export function AdminPage() {
             onClick={() => runAction(permanentlyDeleteSelected, 'Permanent deletion')}
           >
             Delete permanently
+          </button>
+        </div>
+      </LibraryDialog>
+
+      <LibraryDialog
+        open={dialog === 'empty-trash'}
+        title="Empty trash"
+        description="Permanent deletion is queued in the background and cannot be undone."
+        onClose={() => setDialog(null)}
+      >
+        <div className="library-dialog-form">
+          <p>Permanently delete {navigation.counts.trash} file{
+            navigation.counts.trash === 1 ? '' : 's'
+          } from Trash?</p>
+          <button
+            type="button"
+            className="primary danger"
+            onClick={() => void emptyTrash()}
+          >
+            Empty trash
           </button>
         </div>
       </LibraryDialog>

@@ -32,7 +32,7 @@ export function ViewerPage() {
   if (!slide) return <div className="center-state dark">Opening slide…</div>
   const scale = slide.metadata?.physicalSizeX
   return <div className="viewer-shell">
-    <header className="viewer-header"><Brand /><div className="viewer-title"><strong>{slide.displayName}</strong><span>{slide.metadata ? `${slide.metadata.width.toLocaleString()} × ${slide.metadata.height.toLocaleString()} px` : 'Whole-slide image'}</span></div><span className="viewer-help"><Info size={15} /> Scroll or pinch to zoom</span></header>
+    <header className="viewer-header"><Brand variant="library" /><div className="viewer-title"><strong>{slide.displayName}</strong><span>{slide.metadata ? `${slide.metadata.width.toLocaleString()} × ${slide.metadata.height.toLocaleString()} px` : 'Whole-slide image'}</span></div><span className="viewer-help"><Info size={15} /> Scroll or pinch to zoom</span></header>
     <main className="viewer-stage">
       <OpenSeadragonViewer tileSource={slide.tileSource ?? ''} onReady={ready} micronsPerPixel={scale} onScaleChange={updateScale} />
       <nav className="viewer-tools" aria-label="Viewer controls">

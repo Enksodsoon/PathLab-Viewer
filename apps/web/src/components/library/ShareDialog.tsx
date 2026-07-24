@@ -160,8 +160,19 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             </button>
           </div>
         </> : <>
-          {targetType === 'folder' ? <label className="share-check"><input type="checkbox" checked={includeDescendants} onChange={(event) => setIncludeDescendants(event.target.checked)} /><span>Include slides in descendant folders</span></label> : null}
-          <label className="share-check"><input type="checkbox" checked={autoIncludeNew} onChange={(event) => setAutoIncludeNew(event.target.checked)} /><span>Automatically include future additions</span><small>Off by default. Routine moves never publish silently.</small></label>
+          {targetType === 'folder' ? (
+            <label className="share-check">
+              <input className="share-checkbox-input" type="checkbox" checked={includeDescendants} onChange={(event) => setIncludeDescendants(event.target.checked)} />
+              <span className="share-checkbox-indicator" aria-hidden="true"><Check /></span>
+              <span>Include slides in descendant folders</span>
+            </label>
+          ) : null}
+          <label className="share-check">
+            <input className="share-checkbox-input" type="checkbox" checked={autoIncludeNew} onChange={(event) => setAutoIncludeNew(event.target.checked)} />
+            <span className="share-checkbox-indicator" aria-hidden="true"><Check /></span>
+            <span>Automatically include future additions</span>
+            <small>Off by default. Routine moves never publish silently.</small>
+          </label>
           {autoIncludeNew ? (
             <p className="share-auto-warning" role="status">
               Future additions can only publish after an explicit shared-destination warning.
@@ -173,7 +184,12 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             {preview?.included.slice(0, 6).map((item) => <span key={item.id}><Check /> {item.displayName}</span>)}
             {preview?.excluded.length ? <small>{preview.excluded.length} slides excluded because they are not ready or privacy-reviewed.</small> : null}
           </div>
-          <label className="share-check privacy"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><ShieldCheck /><span>I confirm public names, teaching metadata, and visible pixels are de-identified.</span></label>
+          <label className="share-check privacy">
+            <input className="share-checkbox-input" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+            <span className="share-checkbox-indicator" aria-hidden="true"><Check /></span>
+            <ShieldCheck />
+            <span>I confirm public names, teaching metadata, and visible pixels are de-identified.</span>
+          </label>
           <button type="button" className="primary" disabled={busy || !confirmed || !preview?.included.length} onClick={() => void create()}>Create shared link</button>
         </>}
         {message ? <p role={messageIsError ? 'alert' : 'status'}>{message}</p> : null}

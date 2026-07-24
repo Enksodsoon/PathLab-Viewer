@@ -245,7 +245,10 @@ def build_items_statement(
 ) -> Select[tuple[Slide]]:
     statement = select(Slide)
     if location == "trash":
-        statement = statement.where(Slide.trashed_at.is_not(None))
+        statement = statement.where(
+            Slide.trashed_at.is_not(None),
+            Slide.state != SlideState.DELETING,
+        )
     else:
         statement = statement.where(
             Slide.trashed_at.is_(None),

@@ -6,6 +6,7 @@ import {
   Edit3,
   ExternalLink,
   Eye,
+  FileImage,
   FolderInput,
   MoreVertical,
   RefreshCw,
@@ -31,6 +32,32 @@ const STATUS: Record<LibrarySlide['state'], string> = {
   deleting: 'Deleting',
 }
 
+const FAILURE_EXPLANATIONS: Record<string, string> = {
+  DECOMPRESSION_FAILED: 'The image data could not be decoded.',
+  INVALID_IMAGEJ_METADATA: 'The ImageJ dimensions are invalid or inconsistent.',
+  INVALID_OME_XML: 'The file does not contain valid OME metadata.',
+  INVALID_TIFF_STRUCTURE: 'The TIFF structure is incomplete or invalid.',
+  UNSUPPORTED_COMPRESSION: 'The TIFF uses an unsupported compression format.',
+  UNSUPPORTED_DIMENSIONS: 'Only a single two-dimensional whole-slide image is supported.',
+  UNSUPPORTED_PIXEL_TYPE: 'The image pixel format is not supported.',
+  UPLOAD_LENGTH_MISMATCH: 'The uploaded file was incomplete.',
+  CONVERSION_FAILED: 'The slide could not be converted into viewable tiles.',
+}
+
+const PROCESSING_STAGES = [
+  { state: 'uploading', label: 'Upload', task: 'Receiving source file' },
+  { state: 'queued', label: 'Queue', task: 'Waiting for processing capacity' },
+  { state: 'validating', label: 'Validate', task: 'Checking image structure and OME metadata' },
+  { state: 'converting', label: 'Convert', task: 'Generating viewer tiles' },
+] as const
+
+const STARTED_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  month: 'short',
+})
+
 export type SlideAction =
   | 'edit'
   | 'move'
@@ -46,6 +73,9 @@ export type SlideAction =
 interface CommonProps {
   slides: LibrarySlide[]
   selected: Set<string>
+  showProcessingProgress?: boolean
+  activeUploadId?: string | null
+  uploadProgress?: number | null
   onSelect: (slideId: string, index: number, shift: boolean) => void
   onOpen: (slide: LibrarySlide) => void
   onAction: (slide: LibrarySlide, action: SlideAction) => void
@@ -58,7 +88,9 @@ function Thumbnail({ slide }: { slide: LibrarySlide }) {
         <img src={slide.thumbnailUrl} alt="" loading="lazy" decoding="async" />
       ) : (
         <div className="thumbnail-fallback" aria-label="Thumbnail unavailable">
-          <CircleDashed />
+          {slide.state === 'converting'
+            ? <CircleDashed aria-hidden="true" />
+            : <FileImage aria-hidden="true" />}
           <span>{slide.state === 'converting' ? 'Processing' : 'WSI'}</span>
         </div>
       )}
@@ -72,6 +104,91 @@ function Status({ slide }: { slide: LibrarySlide }) {
       {slide.state === 'failed' ? <CircleAlert /> : <Check />}
       {STATUS[slide.state]}
     </span>
+  )
+}
+
+function FailureReason({ slide }: { slide: LibrarySlide }) {
+  if (slide.state !== 'failed') return null
+  const code = slide.errorCode || 'CONVERSION_FAILED'
+  const explanation = FAILURE_EXPLANATIONS[code]
+    ?? 'Processing stopped unexpectedly. Retry the conversion or review the source file.'
+  return (
+    <div className="library-failure-reason">
+      <CircleAlert aria-hidden="true" />
+      <span>
+        <strong>Why it failed</strong>
+        {explanation}
+        <small>Error code: {code}</small>
+      </span>
+    </div>
+  )
+}
+
+function ProcessingProgress({
+  slide,
+  uploadPercent,
+}: {
+  slide: LibrarySlide
+  uploadPercent: number | null
+}) {
+  const stageIndex = PROCESSING_STAGES.findIndex((stage) => stage.state === slide.state)
+  if (stageIndex < 0) return null
+  const stage = PROCESSING_STAGES[stageIndex]
+  const knownUploadPercent = slide.state === 'uploading' && uploadPercent !== null
+    ? Math.min(100, Math.max(0, Math.round(uploadPercent)))
+    : null
+  const currentTask = knownUploadPercent === null
+    ? stage.task
+    : `${stage.task} · ${knownUploadPercent}%`
+  return (
+    <div className="processing-progress">
+      <div className="processing-progress-heading">
+        <strong>{stage.label}</strong>
+        <span>Stage {stageIndex + 1} of {PROCESSING_STAGES.length}</span>
+      </div>
+      <p>{currentTask}</p>
+      <div
+        className="processing-stage-track"
+        role="progressbar"
+        aria-label={`${slide.displayName} workflow progress`}
+        aria-valuemin={1}
+        aria-valuemax={PROCESSING_STAGES.length}
+        aria-valuenow={stageIndex + 1}
+        aria-valuetext={`${stage.label}: ${currentTask}`}
+      >
+        {PROCESSING_STAGES.map((item, index) => {
+          const completed = index < stageIndex
+          const active = index === stageIndex
+          const fill = completed
+            ? 100
+            : active && knownUploadPercent !== null
+              ? knownUploadPercent
+              : active ? 100 : 0
+          return (
+            <span
+              key={item.state}
+              className={`${completed ? 'complete' : ''} ${active ? 'active' : ''}`}
+            >
+              <i
+                className={active && knownUploadPercent === null ? 'indeterminate' : ''}
+                style={{ width: `${fill}%` }}
+              />
+            </span>
+          )
+        })}
+      </div>
+      <div className="processing-stage-labels" aria-hidden="true">
+        {PROCESSING_STAGES.map((item, index) => (
+          <span className={index <= stageIndex ? 'reached' : ''} key={item.state}>
+            {item.label}
+          </span>
+        ))}
+      </div>
+      <div className="processing-parameters">
+        <span>Source {formatBytes(slide.sourceBytes)}</span>
+        <span>Started {STARTED_FORMATTER.format(new Date(slide.createdAt))}</span>
+      </div>
+    </div>
   )
 }
 
@@ -170,6 +287,9 @@ function SlideCard({
   onSelect,
   onOpen,
   onAction,
+  showProcessingProgress,
+  activeUploadId,
+  uploadProgress,
 }: {
   slide: LibrarySlide
   index: number
@@ -178,6 +298,9 @@ function SlideCard({
   onSelect: CommonProps['onSelect']
   onOpen: CommonProps['onOpen']
   onAction: CommonProps['onAction']
+  showProcessingProgress?: boolean
+  activeUploadId?: string | null
+  uploadProgress?: number | null
 }) {
   return (
     <article
@@ -225,13 +348,29 @@ function SlideCard({
         <p>Case {slide.caseId || '—'}</p>
         <p>{formatBytes(slide.sourceBytes)}</p>
         <Status slide={slide} />
+        {showProcessingProgress ? (
+          <ProcessingProgress
+            slide={slide}
+            uploadPercent={activeUploadId === slide.id ? uploadProgress ?? null : null}
+          />
+        ) : null}
+        <FailureReason slide={slide} />
       </div>
     </article>
   )
 }
 
 function SlideTable(props: CommonProps) {
-  const { slides, selected, onSelect, onOpen, onAction } = props
+  const {
+    activeUploadId,
+    onAction,
+    onOpen,
+    onSelect,
+    selected,
+    showProcessingProgress,
+    slides,
+    uploadProgress,
+  } = props
   return (
     <div className="library-table-wrap">
       <table className="library-table">
@@ -267,7 +406,17 @@ function SlideTable(props: CommonProps) {
               </td>
               <td>{slide.organSite || '—'}</td><td>{slide.stain || '—'}</td>
               <td>{slide.diagnosis || '—'}</td><td>{slide.caseId || '—'}</td>
-              <td>{formatBytes(slide.sourceBytes)}</td><td><Status slide={slide} /></td>
+              <td>{formatBytes(slide.sourceBytes)}</td>
+              <td>
+                <Status slide={slide} />
+                {showProcessingProgress ? (
+                  <ProcessingProgress
+                    slide={slide}
+                    uploadPercent={activeUploadId === slide.id ? uploadProgress ?? null : null}
+                  />
+                ) : null}
+                <FailureReason slide={slide} />
+              </td>
               <td>{new Date(slide.updatedAt).toLocaleDateString()}</td>
               <td><SlideActions slide={slide} onOpen={onOpen} onAction={onAction} /></td>
             </tr>
@@ -282,15 +431,35 @@ export function SlideViews({
   view,
   slides,
   selected,
+  showProcessingProgress,
+  activeUploadId,
+  uploadProgress,
   onSelect,
   onOpen,
   onAction,
 }: CommonProps & { view: LibraryViewMode }) {
   if (view === 'table') {
-    return <SlideTable {...{ slides, selected, onSelect, onOpen, onAction }} />
+    return (
+      <SlideTable {...{
+        activeUploadId,
+        onAction,
+        onOpen,
+        onSelect,
+        selected,
+        showProcessingProgress,
+        slides,
+        uploadProgress,
+      }}
+      />
+    )
   }
   return (
-    <div className={`library-slide-grid ${view === 'list' ? 'list-view' : ''}`}>
+    <div className={[
+      'library-slide-grid',
+      view === 'list' ? 'list-view' : '',
+      showProcessingProgress ? 'processing-view' : '',
+    ].filter(Boolean).join(' ')}
+    >
       {slides.map((slide, index) => (
         <SlideCard
           key={slide.id}
@@ -301,6 +470,9 @@ export function SlideViews({
           onSelect={onSelect}
           onOpen={onOpen}
           onAction={onAction}
+          showProcessingProgress={showProcessingProgress}
+          activeUploadId={activeUploadId}
+          uploadProgress={uploadProgress}
         />
       ))}
     </div>

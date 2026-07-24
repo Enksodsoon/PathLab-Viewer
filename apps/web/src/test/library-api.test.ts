@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   batchMoveSlides,
   createFolder,
+  emptyLibraryTrash,
   getLibraryItems,
   getLibraryNavigation,
   getSlideStatuses,
@@ -64,6 +65,7 @@ describe('library v2 API contracts', () => {
     await createFolder({ name: 'Lung', parentId: null })
     await batchMoveSlides(['slide-1', 'slide-2'], 'folder-1')
     await getSlideStatuses(['slide-1', 'slide-2'])
+    await emptyLibraryTrash()
 
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
@@ -77,5 +79,13 @@ describe('library v2 API contracts', () => {
       folderId: 'folder-1',
     }))
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain('ids=slide-1%2Cslide-2')
+    expect(fetchMock.mock.calls[3]).toEqual([
+      '/api/v2/admin/trash',
+      {
+        method: 'DELETE',
+        credentials: 'same-origin',
+        headers: { 'X-CSRF-Token': 'csrf-token' },
+      },
+    ])
   })
 })
