@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   mutateSlide: vi.fn(),
   publishSlide: vi.fn(),
   deleteLibrarySlide: vi.fn(),
+  emptyLibraryTrash: vi.fn(),
   mutateFolder: vi.fn(),
   listSlides: vi.fn(),
 }))
@@ -139,6 +140,7 @@ beforeEach(() => {
     state: 'published',
   }))
   api.deleteLibrarySlide.mockResolvedValue(undefined)
+  api.emptyLibraryTrash.mockResolvedValue({ scheduled: 2 })
   api.mutateFolder.mockResolvedValue(undefined)
   api.listSlides.mockResolvedValue([])
 })
@@ -163,6 +165,21 @@ describe('dark library explorer', () => {
     expect(screen.getByText('Files that fail processing will appear here.')).toBeVisible()
     expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
     expect(api.getLibraryItems).toHaveBeenCalledWith(expect.objectContaining({ location: 'failed' }))
+  })
+
+  it('uses trash-specific messaging and disables unavailable trash actions', async () => {
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    render(
+      <MemoryRouter initialEntries={['/admin?location=trash']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Trash is empty' })).toBeVisible()
+    expect(screen.getByText('Deleted files will appear here until permanently removed.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /restore selected/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /empty trash/i })).toBeDisabled()
   })
 
   it('uses neutral messaging when the current folder is empty', async () => {
@@ -392,6 +409,10 @@ describe('dark library explorer', () => {
       })),
     }
     api.getLibraryItems.mockResolvedValue(trashedPage)
+    api.getLibraryNavigation.mockResolvedValue({
+      ...navigation,
+      counts: { ...navigation.counts, trash: 2 },
+    })
 
     render(
       <MemoryRouter initialEntries={['/admin?location=trash']}>
@@ -408,6 +429,39 @@ describe('dark library explorer', () => {
     expect(actions).toHaveTextContent('Delete permanently')
     expect(actions).not.toHaveTextContent('Publish')
     expect(actions).not.toHaveTextContent(/^Trash$/)
+    expect(screen.getByRole('button', { name: /restore selected/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /empty trash/i })).toBeEnabled()
+  })
+
+  it('confirms before scheduling the complete Trash for deletion', async () => {
+    api.getLibraryItems.mockResolvedValue({
+      ...items,
+      items: items.items.map((slide) => ({
+        ...slide,
+        trashedAt: '2026-07-23T00:00:00Z',
+      })),
+    })
+    api.getLibraryNavigation.mockResolvedValue({
+      ...navigation,
+      counts: { ...navigation.counts, trash: 2 },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/admin?location=trash']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('button', { name: /empty trash/i }))
+    const dialog = screen.getByRole('dialog', { name: /empty trash/i })
+    expect(dialog).toHaveTextContent('2 files')
+    await userEvent.click(within(dialog).getByRole('button', { name: /^empty trash$/i }))
+
+    await waitFor(() => expect(api.emptyLibraryTrash).toHaveBeenCalledTimes(1))
+    expect((await screen.findAllByText(
+      '2 files queued for permanent deletion.',
+    ))[0]).toBeVisible()
   })
 
   it('exposes working organization actions from the navigator', async () => {

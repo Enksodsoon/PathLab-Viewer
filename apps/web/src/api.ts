@@ -459,6 +459,16 @@ export async function deleteLibrarySlide(slideId: string): Promise<void> {
   ))
 }
 
+export async function emptyLibraryTrash(): Promise<{ scheduled: number }> {
+  return json<{ scheduled: number }>(
+    await fetch('/api/v2/admin/trash', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: csrfHeaders(),
+    }),
+  )
+}
+
 export async function getSharedManifest(
   targetType: 'folder' | 'collection',
   publicId: string,

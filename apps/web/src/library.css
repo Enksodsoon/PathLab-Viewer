@@ -403,6 +403,42 @@
   font: 500 clamp(28px, 2.3vw, 34px)/1.1 Georgia, serif;
 }
 
+.library-heading-actions,
+.trash-page-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.trash-page-actions button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  background: var(--lp);
+  color: var(--iv);
+  cursor: pointer;
+}
+
+.trash-page-actions button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.trash-page-actions button.danger {
+  border-color: #74443b;
+  color: var(--bad);
+}
+
+.trash-page-actions button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
 .select-visible input,
 .library-slide-card input,
 .library-table input {
@@ -920,6 +956,15 @@
 
   .library-content-heading {
     margin-bottom: 16px;
+  }
+
+  .library-heading-actions {
+    align-items: flex-end;
+    flex-direction: column;
+  }
+
+  .trash-page-actions {
+    flex-wrap: wrap;
   }
 
   .library-content-heading h2 {

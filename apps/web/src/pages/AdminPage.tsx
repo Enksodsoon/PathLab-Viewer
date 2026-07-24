@@ -4,6 +4,8 @@ import {
   FolderOpen,
   Menu,
   Plus,
+  RotateCcw,
+  Trash2,
   Upload,
 } from 'lucide-react'
 import {
@@ -26,6 +28,7 @@ import {
   deleteCollection,
   deleteLibrarySlide,
   deleteSavedView,
+  emptyLibraryTrash,
   getFolderChildren,
   getLibraryFacets,
   getLibraryItems,
@@ -113,6 +116,7 @@ type DialogName =
   | 'tags'
   | 'edit'
   | 'delete'
+  | 'empty-trash'
   | 'edit-folder'
   | 'move-folder'
   | 'trash-folder'
@@ -692,6 +696,27 @@ export function AdminPage() {
     await refreshNavigation()
   }
 
+  async function emptyTrash() {
+    setError('')
+    try {
+      const result = await emptyLibraryTrash()
+      setPage(EMPTY_PAGE)
+      setSelected(new Set())
+      setDialog(null)
+      setNotice(`${result.scheduled} file${
+        result.scheduled === 1 ? '' : 's'
+      } queued for permanent deletion.`)
+      await refreshNavigation()
+    } catch (caught) {
+      setDialog(null)
+      setError(
+        caught instanceof ApiError && caught.code === 'TRASH_ITEMS_BUSY'
+          ? 'Some trashed files are still processing. Try again when processing finishes.'
+          : 'Empty Trash failed. Try again.',
+      )
+    }
+  }
+
   async function changeSelectedState(
     action: 'publish' | 'unpublish' | 'retry',
     eligibleState: SlideState,
@@ -1111,18 +1136,39 @@ export function AdminPage() {
               <h2>{currentTitle}</h2>
               <span>{page.total} slides</span>
             </div>
-            <label className="select-visible">
-              <input
-                type="checkbox"
-                checked={page.items.length > 0 && selected.size === page.items.length}
-                onChange={(event) => setSelected(
-                  event.target.checked
-                    ? new Set(page.items.map((slide) => slide.id))
-                    : new Set(),
-                )}
-              />
-              Select visible
-            </label>
+            <div className="library-heading-actions">
+              <label className="select-visible">
+                <input
+                  type="checkbox"
+                  checked={page.items.length > 0 && selected.size === page.items.length}
+                  onChange={(event) => setSelected(
+                    event.target.checked
+                      ? new Set(page.items.map((slide) => slide.id))
+                      : new Set(),
+                  )}
+                />
+                Select visible
+              </label>
+              {location === 'trash' ? (
+                <div className="trash-page-actions" aria-label="Trash actions">
+                  <button
+                    type="button"
+                    disabled={selected.size === 0}
+                    onClick={() => runAction(restoreSelected, 'Restore')}
+                  >
+                    <RotateCcw /> Restore selected
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={navigation.counts.trash === 0}
+                    onClick={() => setDialog('empty-trash')}
+                  >
+                    <Trash2 /> Empty trash
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
           {error ? <div className="library-error" role="alert">{error}</div> : null}
           {notice && dialog === null ? (
@@ -1131,7 +1177,13 @@ export function AdminPage() {
           {loading ? <div className="library-loading" role="status">Loading slides…</div> : null}
           {!loading && page.items.length === 0 ? (
             <div className="library-empty">
-              {location === 'failed' ? (
+              {location === 'trash' ? (
+                <>
+                  <Trash2 />
+                  <h3>Trash is empty</h3>
+                  <p>Deleted files will appear here until permanently removed.</p>
+                </>
+              ) : location === 'failed' ? (
                 <>
                   <CircleX />
                   <h3>No failed files</h3>
@@ -1482,6 +1534,26 @@ export function AdminPage() {
             onClick={() => runAction(permanentlyDeleteSelected, 'Permanent deletion')}
           >
             Delete permanently
+          </button>
+        </div>
+      </LibraryDialog>
+
+      <LibraryDialog
+        open={dialog === 'empty-trash'}
+        title="Empty trash"
+        description="Permanent deletion is queued in the background and cannot be undone."
+        onClose={() => setDialog(null)}
+      >
+        <div className="library-dialog-form">
+          <p>Permanently delete {navigation.counts.trash} file{
+            navigation.counts.trash === 1 ? '' : 's'
+          } from Trash?</p>
+          <button
+            type="button"
+            className="primary danger"
+            onClick={() => void emptyTrash()}
+          >
+            Empty trash
           </button>
         </div>
       </LibraryDialog>
