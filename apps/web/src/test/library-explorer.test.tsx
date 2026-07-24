@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   getFolderChildren: vi.fn(),
   getLibrarySlide: vi.fn(),
   getSlideStatuses: vi.fn(),
+  addCollectionSlides: vi.fn(),
   batchMoveSlides: vi.fn(),
   batchUpdateSlides: vi.fn(),
   mutateLibrarySlide: vi.fn(),
@@ -117,6 +118,7 @@ beforeEach(() => {
     itemCount: 2,
   }])
   api.getSlideStatuses.mockResolvedValue([])
+  api.addCollectionSlides.mockResolvedValue(['slide-1'])
   api.getLibrarySlide.mockResolvedValue({
     ...items.items[0],
     filename: 'colon.ome.tiff',
@@ -153,6 +155,38 @@ afterEach(() => {
 })
 
 describe('dark library explorer', () => {
+  it('keeps only one cursor page rendered and restores the previous page from memory', async () => {
+    const firstPage = { ...items, nextCursor: 'cursor-2', total: 3 }
+    const secondPage = {
+      items: [{ ...items.items[0], id: 'slide-3', displayName: 'Next page slide' }],
+      nextCursor: null,
+      total: 0,
+    }
+    api.getLibraryItems
+      .mockResolvedValueOnce(firstPage)
+      .mockResolvedValueOnce(secondPage)
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(await screen.findByRole('heading', { name: 'Next page slide' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Colon adenocarcinoma' })).not.toBeInTheDocument()
+    expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({
+      cursor: 'cursor-2',
+      includeTotal: false,
+    }))
+
+    await user.click(screen.getByRole('button', { name: 'Previous page' }))
+    expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Next page slide' })).not.toBeInTheDocument()
+    expect(api.getLibraryItems).toHaveBeenCalledTimes(2)
+  })
+
   it('uses failed-only messaging when there are no failed files', async () => {
     api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
     render(
@@ -582,6 +616,41 @@ describe('dark library explorer', () => {
     expect(screen.getByRole('textbox', { name: /^name$/i })).toHaveValue(
       'Week 5 Teaching Set',
     )
+  })
+
+  it('refreshes the collection count immediately after adding slides', async () => {
+    api.getLibraryNavigation
+      .mockResolvedValueOnce(navigation)
+      .mockResolvedValue({
+        ...navigation,
+        collections: navigation.collections.map((collection) => ({
+          ...collection,
+          itemCount: 3,
+        })),
+      })
+
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('checkbox', {
+      name: /select colon adenocarcinoma/i,
+    }))
+    await userEvent.click(screen.getByRole('button', {
+      name: /^add to collection$/i,
+    }))
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /collection/i }),
+      'collection-week-5',
+    )
+    await userEvent.click(screen.getByRole('button', { name: /add slides/i }))
+
+    await waitFor(() => expect(api.addCollectionSlides).toHaveBeenCalledWith(
+      'collection-week-5',
+      ['slide-1'],
+    ))
+    expect((await screen.findAllByRole('button', {
+      name: /week 5 teaching set 3/i,
+    }))[0]).toBeVisible()
   })
 
   it('offers state-safe actions and the same overflow menu in table view', async () => {

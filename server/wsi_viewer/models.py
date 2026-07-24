@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -134,6 +135,7 @@ class Slide(Base):
         CheckConstraint("sort_order >= 0", name="ck_slides_sort_order_nonnegative"),
         Index("ix_slides_updated_id", "updated_at", "id"),
         Index("ix_slides_created_id", "created_at", "id"),
+        Index("ix_slides_display_name_id", "display_name", "id"),
         Index("ix_slides_trashed_at", "trashed_at"),
     )
 
@@ -183,6 +185,12 @@ class Slide(Base):
         DateTime(timezone=True), default=_now, onupdate=_now
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+Index("ix_slides_organ_site_ci", func.lower(Slide.organ_site))
+Index("ix_slides_stain_ci", func.lower(Slide.stain))
+Index("ix_slides_diagnosis_ci", func.lower(Slide.diagnosis))
+Index("ix_slides_course_ci", func.lower(Slide.course))
 
 
 class Collection(Base):

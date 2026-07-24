@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import shutil
 import signal
@@ -8,6 +9,7 @@ import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
@@ -25,6 +27,59 @@ from .worker_health import HeartbeatWriter
 JOB_POLL_INTERVAL_SECONDS = 2.0
 STALE_RECOVERY_INTERVAL_SECONDS = 60.0
 TUS_CLEANUP_INTERVAL_SECONDS = 30.0 * 60.0
+STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS = 60.0
+STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
+LOGGER = logging.getLogger(__name__)
+
+
+class DiskUsage(Protocol):
+    @property
+    def total(self) -> int: ...
+
+    @property
+    def used(self) -> int: ...
+
+    @property
+    def free(self) -> int: ...
+
+
+class StorageCapacityMonitor:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        disk_usage: Callable[[Path], DiskUsage] = shutil.disk_usage,
+        log: logging.Logger = LOGGER,
+    ) -> None:
+        self._root = root
+        self._disk_usage = disk_usage
+        self._log = log
+        self._last_threshold = 0
+
+    def check(self) -> None:
+        usage = self._disk_usage(self._root)
+        total = usage.total
+        used = usage.used
+        free = usage.free
+        utilization = 100.0 if total <= 0 else used * 100.0 / total
+        threshold = max(
+            (value for value in STORAGE_CAPACITY_THRESHOLDS if utilization >= value),
+            default=0,
+        )
+        if threshold == self._last_threshold:
+            return
+        payload = {
+            "event": "storage_capacity_warning" if threshold else "storage_capacity_recovered",
+            "free_bytes": free,
+            "threshold_percent": threshold,
+            "utilization_percent": round(utilization, 2),
+        }
+        message = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        if threshold:
+            self._log.warning(message)
+        elif self._last_threshold:
+            self._log.info(message)
+        self._last_threshold = threshold
 
 
 class WorkerScheduler:
@@ -34,17 +89,20 @@ class WorkerScheduler:
         recover_stale: Callable[[], object],
         cleanup_uploads: Callable[[], object],
         process_job: Callable[[], bool],
+        report_capacity: Callable[[], object] = lambda: None,
         shutdown_requested: Callable[[], bool] = lambda: False,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self._recover_stale = recover_stale
         self._cleanup_uploads = cleanup_uploads
         self._process_job = process_job
+        self._report_capacity = report_capacity
         self._shutdown_requested = shutdown_requested
         self._monotonic = monotonic
         self._next_job_poll = float("-inf")
         self._next_stale_recovery = float("-inf")
         self._next_tus_cleanup = float("-inf")
+        self._next_capacity_check = float("-inf")
 
     def run_due(self) -> float:
         now = self._monotonic()
@@ -54,6 +112,9 @@ class WorkerScheduler:
         if now >= self._next_tus_cleanup:
             self._cleanup_uploads()
             self._next_tus_cleanup = now + TUS_CLEANUP_INTERVAL_SECONDS
+        if now >= self._next_capacity_check:
+            self._report_capacity()
+            self._next_capacity_check = now + STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS
         if now >= self._next_job_poll:
             if self._shutdown_requested():
                 return 0.0
@@ -65,6 +126,7 @@ class WorkerScheduler:
                 self._next_job_poll,
                 self._next_stale_recovery,
                 self._next_tus_cleanup,
+                self._next_capacity_check,
             )
             - now,
         )
@@ -262,6 +324,7 @@ def main() -> None:
     )
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
+    capacity_monitor = StorageCapacityMonitor(settings.data_root)
     shutdown = threading.Event()
 
     def request_shutdown(_: int, __: object) -> None:
@@ -283,6 +346,7 @@ def main() -> None:
             layout,
             shutdown_requested=shutdown.is_set,
         ),
+        report_capacity=capacity_monitor.check,
         shutdown_requested=shutdown.is_set,
     )
     heartbeat = HeartbeatWriter(

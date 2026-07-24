@@ -5,10 +5,22 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .domain import SlideState
 from .models import PublicationGrant, Slide
-from .storage import StorageLayout, publish_derivative, unpublish_derivative
+from .storage import (
+    StorageLayout,
+    publish_derivative,
+    publish_individual_derivative,
+    unpublish_derivative,
+    unpublish_individual_derivative,
+)
 
 INDIVIDUAL = "individual"
 SHARE = "share"
+
+
+def delivery_version(slide: Slide) -> str:
+    if slide.published_at is None:
+        raise ValueError("Published slide has no publication timestamp")
+    return slide.published_at.strftime("%Y%m%d%H%M%S%f")
 
 
 def ensure_grant(
@@ -35,19 +47,27 @@ def ensure_grant(
         )
         or 0
     )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if slide.published_at is None:
+        slide.published_at = now
     if grant_count == 0:
         publish_derivative(storage, slide.id, slide.public_id)
+    if source_type == INDIVIDUAL:
+        publish_individual_derivative(
+            storage,
+            slide.id,
+            slide.public_id,
+            delivery_version(slide),
+        )
     grant = PublicationGrant(
         slide_id=slide.id,
         source_type=source_type,
         source_id=source_id,
     )
     database.add(grant)
-    now = datetime.now(UTC).replace(tzinfo=None)
     slide.privacy_status = "passed"
     slide.privacy_scanned_at = now
     slide.state = SlideState.PUBLISHED
-    slide.published_at = now
     return grant
 
 
@@ -67,6 +87,8 @@ def remove_grant(
     )
     if grant is None:
         return
+    if source_type == INDIVIDUAL:
+        unpublish_individual_derivative(storage, slide.public_id)
     database.delete(grant)
     database.flush()
     remaining = int(
@@ -94,5 +116,6 @@ def delete_all_slide_grants(
     ).all()
     for grant in grants:
         database.delete(grant)
+    unpublish_individual_derivative(storage, slide.public_id)
     unpublish_derivative(storage, slide.public_id)
     slide.published_at = None

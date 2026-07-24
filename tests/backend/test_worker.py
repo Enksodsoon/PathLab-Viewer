@@ -14,6 +14,7 @@ from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Job, Slide
 from wsi_viewer.storage import admission_required
 from wsi_viewer.worker import (
+    StorageCapacityMonitor,
     WorkerScheduler,
     expire_incomplete_uploads,
     recover_stale_jobs,
@@ -81,6 +82,24 @@ def test_worker_maintenance_runs_again_after_each_interval() -> None:
     assert cleanup.call_count == 2
 
 
+def test_worker_capacity_check_runs_once_per_minute() -> None:
+    clock = Mock(side_effect=[0.0, 59.0, 60.0])
+    report_capacity = Mock()
+    scheduler = WorkerScheduler(
+        recover_stale=Mock(),
+        cleanup_uploads=Mock(),
+        process_job=Mock(return_value=False),
+        report_capacity=report_capacity,
+        monotonic=clock,
+    )
+
+    scheduler.run_due()
+    scheduler.run_due()
+    scheduler.run_due()
+
+    assert report_capacity.call_count == 2
+
+
 def test_worker_processes_queued_jobs_without_an_extra_delay() -> None:
     clock = Mock(side_effect=[0.0, 0.0, 0.0])
     process = Mock(side_effect=[True, True, False])
@@ -144,6 +163,45 @@ def test_idle_worker_shutdown_is_prompt() -> None:
 
     assert not thread.is_alive()
     assert time.monotonic() - started < 0.5
+
+
+def test_storage_capacity_monitor_logs_only_threshold_transitions(tmp_path: Path) -> None:
+    disk_usage = Mock(
+        side_effect=[
+            SimpleNamespace(total=100, used=69, free=31),
+            SimpleNamespace(total=100, used=70, free=30),
+            SimpleNamespace(total=100, used=75, free=25),
+            SimpleNamespace(total=100, used=85, free=15),
+            SimpleNamespace(total=100, used=65, free=35),
+        ]
+    )
+    log = Mock()
+    monitor = StorageCapacityMonitor(tmp_path, disk_usage=disk_usage, log=log)
+
+    for _ in range(5):
+        monitor.check()
+
+    assert log.warning.call_count == 2
+    assert '"threshold_percent":70' in log.warning.call_args_list[0].args[0]
+    assert '"threshold_percent":80' in log.warning.call_args_list[1].args[0]
+    log.info.assert_called_once()
+    assert '"event":"storage_capacity_recovered"' in log.info.call_args.args[0]
+
+
+def test_storage_capacity_monitor_reports_ninety_percent_without_paths(tmp_path: Path) -> None:
+    log = Mock()
+    monitor = StorageCapacityMonitor(
+        tmp_path,
+        disk_usage=Mock(return_value=SimpleNamespace(total=1000, used=901, free=99)),
+        log=log,
+    )
+
+    monitor.check()
+
+    payload = log.warning.call_args.args[0]
+    assert '"threshold_percent":90' in payload
+    assert '"free_bytes":99' in payload
+    assert str(tmp_path) not in payload
 
 
 def test_stale_worker_job_is_requeued(tmp_path: Path) -> None:

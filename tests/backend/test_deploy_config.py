@@ -85,6 +85,28 @@ def test_conversion_resource_limits_are_worker_only() -> None:
     assert "cpus: 1.50" in worker_service
 
 
+def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
+        "\n  api:\n", maxsplit=1
+    )[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
+        "\nvolumes:\n", maxsplit=1
+    )[0]
+
+    assert "mem_limit: 256m" in caddy_service
+    assert "cpus: 0.75" in caddy_service
+    assert "cpu_shares: 1024" in caddy_service
+    assert "--workers 1" in api_service
+    assert "mem_limit: 512m" in api_service
+    assert "cpus: 0.50" in api_service
+    assert "cpu_shares: 1024" in api_service
+    assert "cpu_shares: 256" in worker_service
+
+
 def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
@@ -149,7 +171,7 @@ def test_caddy_spa_fallback_does_not_rewrite_api_paths() -> None:
     assert caddyfile.index("handle @backend") < caddyfile.index(fallback)
 
 
-def test_caddy_routes_public_tiles_through_authorizing_api() -> None:
+def test_caddy_serves_isolated_individual_tiles_and_preserves_route_cache_headers() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     uploads = caddyfile.split("handle @uploads {", maxsplit=1)[1].split("}", maxsplit=1)[0]
@@ -160,9 +182,20 @@ def test_caddy_routes_public_tiles_through_authorizing_api() -> None:
     spa = caddyfile.split("\thandle {\n", maxsplit=1)[1].split("\n\t}", maxsplit=1)[0]
 
     assert 'header Cache-Control "no-store"' in uploads
-    assert 'header Cache-Control "no-store"' in backend
-    assert "handle_path /tiles/*" not in caddyfile
+    assert 'header ?Cache-Control "no-store"' in backend
+    assert "handle_path /tiles/*" in caddyfile
+    assert "root * /pathlab-individual" in caddyfile
+    assert (
+        "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/individual:"
+        "/pathlab-individual:ro"
+    ) in compose
+    assert "/pathlab-individual" in compose
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro" in compose
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/private:/pathlab-private:ro" in compose
+    assert "PATHLAB_INTERNAL_FILE_REDIRECTS: \"true\"" in compose
     assert "/pathlab-data" not in compose
+    assert "header X-Accel-Redirect *" in caddyfile
+    assert "rewrite * {rp.header.X-Accel-Redirect}" in caddyfile
     assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/tus:/data/tus" in compose
     assert 'header Cache-Control "public, max-age=31536000, immutable"' in assets
     assert "root * /srv" in assets
@@ -218,6 +251,16 @@ def test_public_infrastructure_defaults_limit_operator_attack_surface() -> None:
     assert 'can(tonumber(split("/", var.admin_cidr)[1]) >= 24)' in variables
     assert "curl --fail --silent --show-error --max-time 15 --config -" in duckdns
     assert "token=${DUCKDNS_TOKEN}&" not in duckdns
+
+
+def test_terraform_stays_within_the_approved_free_tier_footprint() -> None:
+    terraform = Path("deploy/terraform/main.tf").read_text(encoding="utf-8")
+
+    assert 'shape               = "VM.Standard.A1.Flex"' in terraform
+    assert "ocpus         = 2" in terraform
+    assert "memory_in_gbs = 12" in terraform
+    assert "boot_volume_size_in_gbs = 50" in terraform
+    assert "size_in_gbs         = 150" in terraform
 
 
 def test_production_deploy_uses_temporary_oci_bastion_session() -> None:

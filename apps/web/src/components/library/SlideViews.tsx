@@ -15,6 +15,7 @@ import {
   Trash2,
   Undo2,
 } from 'lucide-react'
+import { memo } from 'react'
 
 import type { LibrarySlide } from '../../types'
 import { ContextMenu } from './ContextMenu'
@@ -427,7 +428,7 @@ function SlideTable(props: CommonProps) {
   )
 }
 
-export function SlideViews({
+export const SlideViews = memo(function SlideViews({
   view,
   slides,
   selected,
@@ -477,4 +478,4 @@ export function SlideViews({
       ))}
     </div>
   )
-}
+})

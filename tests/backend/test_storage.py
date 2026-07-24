@@ -1,4 +1,6 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -8,7 +10,13 @@ from sqlalchemy import func, select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Job, Slide
+from wsi_viewer.models import (
+    Job,
+    LibraryShare,
+    PublicationGrant,
+    ShareSlide,
+    Slide,
+)
 from wsi_viewer.storage import (
     InsufficientStorage,
     PublicationError,
@@ -328,3 +336,72 @@ def test_reconciliation_rejects_unsafe_derivative_symlink(tmp_path: Path) -> Non
 
     with pytest.raises(PublicationError, match="UNSAFE_DERIVATIVE"):
         reconcile_storage(factory, layout)
+
+
+def test_reconciliation_rebuilds_public_delivery_state(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'delivery-reconcile.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        slide = Slide(
+            display_name="Published",
+            original_filename="published.ome.tif",
+            source_bytes=8,
+            state=SlideState.PUBLISHED,
+            published_at=datetime.now(UTC).replace(tzinfo=None),
+            privacy_status="passed",
+        )
+        share = LibraryShare(
+            public_id="share-public",
+            target_type="folder",
+            target_id="folder-id",
+            privacy_status="passed",
+            is_active=True,
+        )
+        database.add_all([slide, share])
+        database.flush()
+        database.add_all(
+            [
+                PublicationGrant(
+                    slide_id=slide.id,
+                    source_type="individual",
+                    source_id=slide.id,
+                ),
+                PublicationGrant(
+                    slide_id=slide.id,
+                    source_type="share",
+                    source_id=share.id,
+                ),
+                ShareSlide(share_id=share.id, slide_id=slide.id, sort_order=0),
+            ]
+        )
+        database.commit()
+        slide_id = slide.id
+        public_id = slide.public_id
+        version = slide.published_at.strftime("%Y%m%d%H%M%S%f")
+
+    derivative = layout.for_slide(slide_id).private_derivative
+    (derivative / "slide_files" / "0").mkdir(parents=True)
+    (derivative / "slide.dzi").write_bytes(b"descriptor")
+    (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"jpeg")
+    orphan = layout.individual_delivery_for("orphan-public")
+    orphan.mkdir(parents=True)
+    (orphan / "stale").write_bytes(b"stale")
+
+    reconcile_storage(factory, layout)
+
+    assert (layout.public_for(public_id) / "slide.dzi").read_bytes() == b"descriptor"
+    assert (
+        layout.individual_delivery_for(public_id, version) / "slide.dzi"
+    ).read_bytes() == b"descriptor"
+    assert not orphan.exists()
+    manifest = json.loads(
+        (
+            settings.data_root / "delivery" / "shares" / "share-public.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert manifest["slides"] == [public_id]

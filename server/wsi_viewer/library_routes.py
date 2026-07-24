@@ -7,13 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
+from .delivery import deliver_file
 from .domain import InvalidTransition, SlideState, transition
 from .library import (
     LibraryConflict,
@@ -48,9 +49,12 @@ from .sharing import (
     active_public_share,
     preview_share,
     public_manifest,
+    remove_share_delivery_manifest,
     revoke_share,
     rotate_share,
+    share_delivery_public_id,
     share_json,
+    write_share_delivery_manifest,
 )
 from .storage import StorageLayout
 
@@ -349,6 +353,7 @@ def register_library_routes(
         sort: str = Query(default="updated_desc", max_length=40),
         cursor: str | None = Query(default=None, max_length=1000),
         limit: int = Query(default=48, ge=1, le=100),
+        include_total: bool = Query(default=True, alias="includeTotal"),
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
@@ -368,9 +373,15 @@ def register_library_routes(
                 updated_from=updated_from,
                 updated_to=updated_to,
             )
-            total = int(
-                database.scalar(select(func.count()).select_from(base.order_by(None).subquery()))
-                or 0
+            total = (
+                int(
+                    database.scalar(
+                        select(func.count()).select_from(base.order_by(None).subquery())
+                    )
+                    or 0
+                )
+                if include_total
+                else 0
             )
             statement = apply_sort_and_cursor(base, sort=sort, cursor=cursor).limit(limit + 1)
         except LibraryConflict as error:
@@ -1104,7 +1115,7 @@ def register_library_routes(
         slide_id: str,
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
-    ) -> FileResponse:
+    ) -> Response:
         slide = _get_slide(database, slide_id)
         if not slide.thumbnail_filename:
             raise HTTPException(status_code=404, detail={"code": "THUMBNAIL_NOT_FOUND"})
@@ -1116,13 +1127,13 @@ def register_library_routes(
         etag = hashlib.sha256(
             f"{stat_result.st_mtime_ns}:{stat_result.st_size}".encode()
         ).hexdigest()
-        return FileResponse(
+        return deliver_file(
             target,
+            data_root=app.state.settings.data_root,
+            internal_redirects=app.state.settings.internal_file_redirects,
             media_type="image/jpeg",
-            headers={
-                "Cache-Control": "private, max-age=3600",
-                "ETag": f'"{etag}"',
-            },
+            cache_control="private, max-age=86400, immutable",
+            headers={"ETag": f'"{etag}"'},
         )
 
     app.add_api_route(
@@ -1244,8 +1255,19 @@ def register_library_routes(
         share = database.get(LibraryShare, share_id)
         if share is None or not share.is_active:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        old_public_id = share.public_id
+        remove_share_delivery_manifest(storage, old_public_id)
         rotate_share(share)
         database.commit()
+        slides = list(
+            database.scalars(
+                select(Slide)
+                .join(ShareSlide, ShareSlide.slide_id == Slide.id)
+                .where(ShareSlide.share_id == share.id)
+                .order_by(ShareSlide.sort_order, Slide.id)
+            )
+        )
+        write_share_delivery_manifest(storage, share, slides)
         return share_json(database, share)
 
     app.add_api_route(
@@ -1262,6 +1284,7 @@ def register_library_routes(
         share = database.get(LibraryShare, share_id)
         if share is None or not share.is_active:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        remove_share_delivery_manifest(storage, share.public_id)
         revoke_share(database, storage, share)
         database.commit()
         return Response(status_code=204)
@@ -1315,34 +1338,25 @@ def register_library_routes(
         position: int,
         target_type: str,
         database: OrmSession,
-    ) -> FileResponse:
-        if position < 0:
-            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+    ) -> Response:
         try:
-            share = active_public_share(
-                database,
-                target_type=target_type,
+            slide_public_id = share_delivery_public_id(
+                storage,
                 public_id=public_id,
+                target_type=target_type,
+                position=position,
             )
         except ShareConflict as error:
             raise _share_error(error) from error
-        slide = database.scalar(
-            select(Slide)
-            .join(ShareSlide, ShareSlide.slide_id == Slide.id)
-            .where(ShareSlide.share_id == share.id)
-            .order_by(ShareSlide.sort_order, Slide.id)
-            .offset(position)
-            .limit(1)
-        )
-        if slide is None or not slide.thumbnail_filename:
-            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
-        target = storage.public_for(slide.public_id) / Path(slide.thumbnail_filename).name
+        target = storage.public_for(slide_public_id) / "thumbnail.jpg"
         if not target.is_file():
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
-        return FileResponse(
+        return deliver_file(
             target,
+            data_root=app.state.settings.data_root,
+            internal_redirects=app.state.settings.internal_file_redirects,
             media_type="image/jpeg",
-            headers={"Cache-Control": "private, no-store"},
+            cache_control="private, max-age=86400, immutable",
         )
 
     def public_share_tile(
@@ -1351,52 +1365,43 @@ def register_library_routes(
         tile_path: str,
         target_type: str,
         database: OrmSession,
-    ) -> FileResponse:
-        if position < 0:
-            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+    ) -> Response:
         try:
-            share = active_public_share(
-                database,
-                target_type=target_type,
+            slide_public_id = share_delivery_public_id(
+                storage,
                 public_id=public_id,
+                target_type=target_type,
+                position=position,
             )
         except ShareConflict as error:
             raise _share_error(error) from error
-        slide = database.scalar(
-            select(Slide)
-            .join(ShareSlide, ShareSlide.slide_id == Slide.id)
-            .where(ShareSlide.share_id == share.id)
-            .order_by(ShareSlide.sort_order, Slide.id)
-            .offset(position)
-            .limit(1)
-        )
-        if slide is None:
-            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
         try:
-            target = storage.public_tile(slide.public_id, tile_path)
+            target = storage.public_tile(slide_public_id, tile_path)
         except (FileNotFoundError, ValueError):
             raise HTTPException(
                 status_code=404, detail={"code": "SHARE_NOT_FOUND"}
             ) from None
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
-        return FileResponse(
+        return deliver_file(
             target,
+            data_root=app.state.settings.data_root,
+            internal_redirects=app.state.settings.internal_file_redirects,
             media_type=media_type,
-            headers={"Cache-Control": "private, no-store"},
+            cache_control="private, max-age=86400, immutable",
         )
 
     def public_folder_thumbnail(
         public_id: str,
         position: int,
         database: OrmSession = Depends(database_dependency),
-    ) -> FileResponse:
+    ) -> Response:
         return public_share_thumbnail(public_id, position, "folder", database)
 
     def public_collection_thumbnail(
         public_id: str,
         position: int,
         database: OrmSession = Depends(database_dependency),
-    ) -> FileResponse:
+    ) -> Response:
         return public_share_thumbnail(public_id, position, "collection", database)
 
     def public_folder_tile(
@@ -1404,7 +1409,7 @@ def register_library_routes(
         position: int,
         tile_path: str,
         database: OrmSession = Depends(database_dependency),
-    ) -> FileResponse:
+    ) -> Response:
         return public_share_tile(public_id, position, tile_path, "folder", database)
 
     def public_collection_tile(
@@ -1412,7 +1417,7 @@ def register_library_routes(
         position: int,
         tile_path: str,
         database: OrmSession = Depends(database_dependency),
-    ) -> FileResponse:
+    ) -> Response:
         return public_share_tile(public_id, position, tile_path, "collection", database)
 
     app.add_api_route(

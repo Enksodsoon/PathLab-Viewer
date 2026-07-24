@@ -211,6 +211,7 @@ export interface LibraryItemsQuery {
   sort?: string
   cursor?: string
   limit?: number
+  includeTotal?: boolean
   signal?: AbortSignal
 }
 

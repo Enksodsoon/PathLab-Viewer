@@ -250,3 +250,44 @@ def test_storage_accounting_columns_reject_negative_values(
             )
         )
         database.commit()
+
+
+def test_library_performance_indexes_upgrade_and_round_trip(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "library-indexes.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+
+    command.upgrade(config, "head")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    expected = {
+        "ix_slides_display_name_id",
+        "ix_slides_organ_site_ci",
+        "ix_slides_stain_ci",
+        "ix_slides_diagnosis_ci",
+        "ix_slides_course_ci",
+    }
+    with session_factory(settings)() as database:
+        indexes = {
+            row[1]
+            for row in database.execute(text("PRAGMA index_list('slides')"))
+        }
+    assert expected <= indexes
+
+    command.downgrade(config, "20260723_0007")
+    with session_factory(settings)() as database:
+        downgraded = {
+            row[1]
+            for row in database.execute(text("PRAGMA index_list('slides')"))
+        }
+    assert not expected & downgraded
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        restored = {
+            row[1]
+            for row in database.execute(text("PRAGMA index_list('slides')"))
+        }
+    assert expected <= restored

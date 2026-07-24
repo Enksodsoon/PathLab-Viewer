@@ -30,8 +30,23 @@
 
 	@backend path /api/* /livez /readyz
 	handle @backend {
-		header Cache-Control "no-store"
-		reverse_proxy api:8000
+		header ?Cache-Control "no-store"
+		reverse_proxy api:8000 {
+			@internal_delivery header X-Accel-Redirect *
+			handle_response @internal_delivery {
+				root * /
+				rewrite * {rp.header.X-Accel-Redirect}
+				header Cache-Control {rp.header.Cache-Control}
+				method GET
+				file_server
+			}
+		}
+	}
+
+	handle_path /tiles/* {
+		root * /pathlab-individual
+		header Cache-Control "private, max-age=86400, immutable"
+		file_server
 	}
 
 	handle /assets/* {

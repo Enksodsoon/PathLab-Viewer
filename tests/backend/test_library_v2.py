@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
+import wsi_viewer.library_routes as library_routes_module
 from fastapi.testclient import TestClient
 from sqlalchemy import event, insert, select, text
 from wsi_viewer.config import Settings
@@ -545,6 +547,7 @@ def _seed_share_ready_slide(
 
 def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with _client(tmp_path, multi_share_enabled=True) as client:
         headers = _headers(client)
@@ -604,6 +607,13 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         assert created.status_code == 201, created.text
         assert created.json()["autoIncludeNew"] is False
         assert created.json()["includedCount"] == 2
+        delivery_manifest = (
+            client.app.state.settings.data_root
+            / "delivery"
+            / "shares"
+            / f"{created.json()['publicId']}.json"
+        )
+        assert delivery_manifest.is_file()
 
         manifest = client.get(f"/api/v2/public/folders/{created.json()['publicId']}")
         assert manifest.status_code == 200
@@ -631,7 +641,20 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         public_thumbnail = client.get(payload["slides"][0]["thumbnailUrl"])
         assert public_thumbnail.status_code == 200
         assert public_thumbnail.content == b"thumbnail"
-        assert public_thumbnail.headers["cache-control"] == "private, no-store"
+        assert public_thumbnail.headers["cache-control"] == (
+            "private, max-age=86400, immutable"
+        )
+        monkeypatch.setattr(
+            library_routes_module,
+            "active_public_share",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("DB share lookup")),
+        )
+        public_tile = client.get(payload["slides"][0]["tileSource"])
+        assert public_tile.status_code == 200
+        assert public_tile.content == b"<Image />"
+        assert public_tile.headers["cache-control"] == (
+            "private, max-age=86400, immutable"
+        )
         serialized = manifest.text
         for private_value in [
             "private-descendant.ome.tiff",
@@ -677,6 +700,9 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         )
         assert rotated.status_code == 200
         assert rotated.json()["publicId"] != old_public_id
+        share_delivery_root = client.app.state.settings.data_root / "delivery" / "shares"
+        assert not (share_delivery_root / f"{old_public_id}.json").exists()
+        assert (share_delivery_root / f"{rotated.json()['publicId']}.json").is_file()
         assert client.get(f"/api/v2/public/collections/{old_public_id}").status_code == 404
         new_manifest = client.get(
             f"/api/v2/public/collections/{rotated.json()['publicId']}"
@@ -692,6 +718,7 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
             headers=headers,
         )
         assert revoked.status_code == 204
+        assert not (share_delivery_root / f"{rotated.json()['publicId']}.json").exists()
         missing = client.get(
             f"/api/v2/public/collections/{rotated.json()['publicId']}"
         )
@@ -829,7 +856,7 @@ def test_authenticated_thumbnail_uses_private_cache_and_etag(tmp_path: Path) -> 
 
         assert response.status_code == 200
         assert response.content == b"thumbnail"
-        assert response.headers["cache-control"] == "private, max-age=3600"
+        assert response.headers["cache-control"] == "private, max-age=86400, immutable"
         assert response.headers["etag"].startswith('"')
 
 
@@ -915,6 +942,17 @@ def test_synthetic_library_contract_is_query_payload_and_filesystem_bounded(
                 params={"q": "teaching", "organ": "Lung", "limit": 48},
             )
             item_queries = len(executed)
+            executed.clear()
+            page_without_total = client.get(
+                "/api/v2/admin/library/items",
+                params={
+                    "q": "teaching",
+                    "organ": "Lung",
+                    "limit": 48,
+                    "includeTotal": False,
+                },
+            )
+            page_without_total_queries = list(executed)
         finally:
             event.remove(engine, "before_cursor_execute", count_statement)
 
@@ -925,3 +963,6 @@ def test_synthetic_library_contract_is_query_payload_and_filesystem_bounded(
         assert len(items.json()["items"]) == 48
         assert len(items.content) <= 512 * 1024
         assert item_queries <= 7
+        assert page_without_total.status_code == 200
+        assert page_without_total.json()["total"] == 0
+        assert not any("count(" in statement.lower() for statement in page_without_total_queries)

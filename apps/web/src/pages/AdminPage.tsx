@@ -200,6 +200,7 @@ export function AdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [navigation, setNavigation] = useState(EMPTY_NAVIGATION)
   const [page, setPage] = useState(EMPTY_PAGE)
+  const [previousPages, setPreviousPages] = useState<LibraryItemsPage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
@@ -340,6 +341,7 @@ export function AdminPage() {
     void getLibraryItems({ ...query, signal: controller.signal })
       .then((value) => {
         setPage(safePage(value))
+        setPreviousPages([])
         setSelected(new Set())
         selectionAnchor.current = null
       })
@@ -387,16 +389,28 @@ export function AdminPage() {
         if (cancelled) return
         const byId = new Map(statuses.map((item) => [item.id, item]))
         setPage((current) => {
+          let changed = false
           const items = current.items.flatMap((slide) => {
             const statusItem = byId.get(slide.id)
             if (!statusItem) return [slide]
-            if (location === 'processing' && !ACTIVE_STATES.has(statusItem.state)) return []
+            if (location === 'processing' && !ACTIVE_STATES.has(statusItem.state)) {
+              changed = true
+              return []
+            }
+            if (
+              slide.state === statusItem.state
+              && slide.errorCode === statusItem.errorCode
+            ) {
+              return [slide]
+            }
+            changed = true
             return [{
               ...slide,
               state: statusItem.state,
               errorCode: statusItem.errorCode,
             }]
           })
+          if (!changed) return current
           return {
             ...current,
             items,
@@ -714,6 +728,27 @@ export function AdminPage() {
     await refreshNavigation()
   }
 
+  const selectSlideRef = useRef(selectSlide)
+  const openDetailsRef = useRef(openDetails)
+  const actOnSlideRef = useRef(actOnSlide)
+  selectSlideRef.current = selectSlide
+  openDetailsRef.current = openDetails
+  actOnSlideRef.current = actOnSlide
+  const handleSlideSelect = useCallback(
+    (slideId: string, index: number, shift: boolean) => (
+      selectSlideRef.current(slideId, index, shift)
+    ),
+    [],
+  )
+  const handleSlideOpen = useCallback(
+    (slide: LibrarySlide) => void openDetailsRef.current(slide),
+    [],
+  )
+  const handleSlideAction = useCallback(
+    (slide: LibrarySlide, action: SlideAction) => void actOnSlideRef.current(slide, action),
+    [],
+  )
+
   async function emptyTrash() {
     setError('')
     try {
@@ -789,22 +824,35 @@ export function AdminPage() {
   const unpublishSelected = () => changeSelectedState('unpublish', 'published')
   const retrySelected = () => changeSelectedState('retry', 'failed')
 
-  async function loadMore() {
+  async function loadNextPage() {
     if (!page.nextCursor || loadingMore) return
     setLoadingMore(true)
     try {
       const next = safePage(await getLibraryItems({
         ...query,
         cursor: page.nextCursor,
+        includeTotal: false,
       }))
-      setPage((current) => ({
-        items: [...current.items, ...next.items],
+      setPreviousPages((current) => [...current, page])
+      setPage({
+        items: next.items,
         nextCursor: next.nextCursor,
-        total: next.total,
-      }))
+        total: page.total,
+      })
+      setSelected(new Set())
+      selectionAnchor.current = null
     } finally {
       setLoadingMore(false)
     }
+  }
+
+  function loadPreviousPage() {
+    const previous = previousPages.at(-1)
+    if (!previous) return
+    setPreviousPages((current) => current.slice(0, -1))
+    setPage(previous)
+    setSelected(new Set())
+    selectionAnchor.current = null
   }
 
   async function submitSimpleDialog() {
@@ -854,7 +902,10 @@ export function AdminPage() {
       await moveSlides(selectedIds, moveTarget || null)
       return
     } else if (dialog === 'add-collection') {
-      if (collectionTarget) await addCollectionSlides(collectionTarget, selectedIds)
+      if (collectionTarget) {
+        await addCollectionSlides(collectionTarget, selectedIds)
+        await refreshNavigation()
+      }
     } else if (dialog === 'tags') {
       const tags = tagValue.split(',').map((tag) => tag.trim()).filter(Boolean)
       const changed = await batchUpdateSlides(selectedIds, { tags })
@@ -1257,20 +1308,29 @@ export function AdminPage() {
               showProcessingProgress={location === 'processing'}
               activeUploadId={activeUploadId}
               uploadProgress={uploadProgress}
-              onSelect={selectSlide}
-              onOpen={(slide) => void openDetails(slide)}
-              onAction={(slide, action) => void actOnSlide(slide, action)}
+              onSelect={handleSlideSelect}
+              onOpen={handleSlideOpen}
+              onAction={handleSlideAction}
             />
           ) : null}
-          {page.nextCursor ? (
-            <button
-              type="button"
-              className="load-more"
-              disabled={loadingMore}
-              onClick={() => runAction(loadMore, 'Load more')}
-            >
-              {loadingMore ? 'Loading…' : 'Load more slides'}
-            </button>
+          {(previousPages.length > 0 || page.nextCursor) ? (
+            <div className="library-pagination" aria-label="Library pages">
+              {previousPages.length > 0 ? (
+                <button type="button" className="load-more" onClick={loadPreviousPage}>
+                  Previous page
+                </button>
+              ) : null}
+              {page.nextCursor ? (
+                <button
+                  type="button"
+                  className="load-more"
+                  disabled={loadingMore}
+                  onClick={() => runAction(loadNextPage, 'Next page')}
+                >
+                  {loadingMore ? 'Loading…' : 'Next page'}
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </section>
         <SelectionActionBar

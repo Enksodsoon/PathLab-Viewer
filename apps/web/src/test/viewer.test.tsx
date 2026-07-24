@@ -75,8 +75,10 @@ it('uses conservative desktop loader and cache limits', () => {
   renderViewer()
 
   expect(latestViewerOptions()).toMatchObject({
-    imageLoaderLimit: 10,
+    imageLoaderLimit: 16,
     maxImageCacheCount: 100,
+    animationTime: 0.45,
+    blendTime: 0.05,
   })
 })
 
@@ -85,8 +87,9 @@ it('uses reduced loader and cache limits below 768 pixels', () => {
   renderViewer()
 
   expect(latestViewerOptions()).toMatchObject({
-    imageLoaderLimit: 6,
+    imageLoaderLimit: 8,
     maxImageCacheCount: 50,
+    showNavigator: false,
   })
 })
 
@@ -94,8 +97,8 @@ it('sets bounded tile retry and request timeout options', () => {
   renderViewer()
 
   expect(latestViewerOptions()).toMatchObject({
-    tileRetryMax: 2,
-    tileRetryDelay: 500,
+    tileRetryMax: 1,
+    tileRetryDelay: 1000,
     timeout: 20000,
   })
 })

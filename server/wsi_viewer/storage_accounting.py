@@ -8,13 +8,27 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .domain import InvalidTransition, SlideState, transition
-from .models import AuditEvent, Folder, Job, Slide
+from .library import utcnow
+from .models import (
+    AuditEvent,
+    Folder,
+    Job,
+    LibraryShare,
+    PublicationGrant,
+    ShareSlide,
+    Slide,
+)
+from .publication import INDIVIDUAL, delivery_version
+from .sharing import write_share_delivery_manifest
 from .storage import (
     InsufficientStorage,
     PublicationError,
     StorageLayout,
     admission_required,
     measure_derivative,
+    publish_derivative,
+    publish_individual_derivative,
+    unpublish_individual_derivative,
 )
 
 ACTIVE_STATES = (
@@ -147,6 +161,9 @@ def reconcile_storage(
 ) -> ReconciliationSummary:
     derivative_count = 0
     active_reservation_count = 0
+    public_deliveries: list[tuple[str, str]] = []
+    individual_deliveries: list[tuple[str, str, str]] = []
+    share_deliveries: list[tuple[LibraryShare, list[Slide]]] = []
     with factory() as database:
         _begin_immediate(database)
         database.execute(
@@ -177,7 +194,91 @@ def reconcile_storage(
                 active_reservation_count += 1
             else:
                 slide.reserved_bytes = 0
+
+        granted_slide_ids = set(
+            database.scalars(select(PublicationGrant.slide_id).distinct()).all()
+        )
+        individual_slide_ids = set(
+            database.scalars(
+                select(PublicationGrant.slide_id).where(
+                    PublicationGrant.source_type == INDIVIDUAL
+                )
+            ).all()
+        )
+        slides_by_id = {slide.id: slide for slide in slides}
+        for slide_id in granted_slide_ids:
+            granted_slide = slides_by_id.get(slide_id)
+            if granted_slide is None:
+                continue
+            public_deliveries.append((granted_slide.id, granted_slide.public_id))
+            if slide_id in individual_slide_ids:
+                if granted_slide.published_at is None:
+                    granted_slide.published_at = utcnow()
+                individual_deliveries.append(
+                    (
+                        granted_slide.id,
+                        granted_slide.public_id,
+                        delivery_version(granted_slide),
+                    )
+                )
+
+        active_shares = database.scalars(
+            select(LibraryShare).where(
+                LibraryShare.is_active.is_(True),
+                LibraryShare.revoked_at.is_(None),
+                LibraryShare.privacy_status == "passed",
+            )
+        ).all()
+        now = utcnow()
+        for share in active_shares:
+            if share.expires_at is not None and share.expires_at <= now:
+                continue
+            share_slides = list(
+                database.scalars(
+                    select(Slide)
+                    .join(ShareSlide, ShareSlide.slide_id == Slide.id)
+                    .where(ShareSlide.share_id == share.id)
+                    .order_by(ShareSlide.sort_order, Slide.id)
+                )
+            )
+            share_deliveries.append((share, share_slides))
         database.commit()
+
+        for slide_id, public_id in public_deliveries:
+            target = layout.public_for(public_id)
+            if os.path.lexists(target):
+                measure_derivative(target)
+            else:
+                publish_derivative(layout, slide_id, public_id)
+
+        expected_individual_ids = {
+            public_id for _, public_id, _ in individual_deliveries
+        }
+        individual_root = layout.root / "delivery" / "individual"
+        if individual_root.exists():
+            for candidate in individual_root.iterdir():
+                if candidate.name not in expected_individual_ids:
+                    try:
+                        layout.public_for(candidate.name)
+                    except ValueError:
+                        continue
+                    unpublish_individual_derivative(layout, candidate.name)
+        for slide_id, public_id, version in individual_deliveries:
+            target = layout.individual_delivery_for(public_id, version)
+            if os.path.lexists(target):
+                measure_derivative(target)
+                continue
+            unpublish_individual_derivative(layout, public_id)
+            publish_individual_derivative(layout, slide_id, public_id, version)
+
+        expected_share_ids = {share.public_id for share, _ in share_deliveries}
+        share_root = layout.root / "delivery" / "shares"
+        if share_root.exists():
+            for candidate in share_root.glob("*.json"):
+                if candidate.stem not in expected_share_ids:
+                    candidate.unlink(missing_ok=True)
+        for share, share_slides in share_deliveries:
+            write_share_delivery_manifest(layout, share, share_slides)
     return ReconciliationSummary(
         slide_count=len(slides),
         derivative_count=derivative_count,

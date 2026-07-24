@@ -4,6 +4,20 @@ This runbook covers the repository's single-host OCI deployment. Read [`docs/PRO
 
 The checked-in Terraform configuration targets one Arm-based compute instance, a boot volume, and a separate application-data volume. Cloud pricing, public IPv4 charges, quotas, and promotional eligibility can change. Review the current Terraform plan, OCI cost estimator, tenancy limits, and billing page before creating or updating resources.
 
+## Free-capacity guardrail
+
+The checked-in target remains `VM.Standard.A1.Flex` with 2 OCPUs and 12 GB of
+memory. Its 50 GB boot volume and 150 GB data volume use the complete checked-in
+200 GB storage allocation. Do not increase CPU, memory, storage, or instance count
+unless the tenancy's current **Limits, Quotas and Usage** page shows sufficient
+unused Always Free capacity, every affected resource is labeled Always Free
+eligible, no other instance consumes the allowance, and the cost estimator shows
+zero monthly cost. A public pricing page alone is not deployment authorization.
+
+Resizing a flexible instance restarts it and can fail when A1 capacity is
+unavailable. Treat any future resize as a separate maintenance operation with a
+verified backup, rollback procedure, and explicit production approval.
+
 ## Initial deployment
 
 1. Copy `deploy/terraform/terraform.tfvars.example` to `deploy/terraform/terraform.tfvars` and fill in the tenancy-specific values.

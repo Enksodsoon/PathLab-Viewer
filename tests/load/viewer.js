@@ -47,6 +47,22 @@ export default function () {
   const slide = slides[(__VU - 1) % slides.length]
   const metadata = http.get(`${base}/api/v1/public/slides/${slide.publicId}`)
   check(metadata, { 'metadata 200': (response) => response.status === 200 })
+  let metadataBody
+  try {
+    metadataBody = metadata.json()
+  } catch {
+    tileFailures.add(true)
+    sleep(1)
+    return
+  }
+  const tileSource =
+    metadataBody && typeof metadataBody === 'object' ? metadataBody.tileSource : null
+  if (typeof tileSource !== 'string' || !tileSource.endsWith('/slide.dzi')) {
+    tileFailures.add(true)
+    sleep(1)
+    return
+  }
+  const tileRoot = tileSource.replace(/slide\.dzi$/, '')
   const tilePaths = []
   for (let index = 0; index < COMMON_REQUESTS; index += 1) {
     tilePaths.push(slide.commonTiles[(__ITER * COMMON_REQUESTS + index) % slide.commonTiles.length])
@@ -55,7 +71,7 @@ export default function () {
     tilePaths.push(slide.randomTiles[Math.floor(Math.random() * slide.randomTiles.length)])
   }
   for (const path of tilePaths) {
-    const response = http.get(`${base}/tiles/${slide.publicId}/${path}`)
+    const response = http.get(`${base}${tileRoot}${path}`)
     tileLatency.add(response.timings.duration)
     tileFailures.add(response.status !== 200)
     check(response, { 'tile 200': (result) => result.status === 200 })
