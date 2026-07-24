@@ -151,6 +151,20 @@ afterEach(() => {
 })
 
 describe('dark library explorer', () => {
+  it('uses failed-only messaging when there are no failed files', async () => {
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    render(
+      <MemoryRouter initialEntries={['/admin?location=failed']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'No failed files' })).toBeVisible()
+    expect(screen.getByText('Files that fail processing will appear here.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
+    expect(api.getLibraryItems).toHaveBeenCalledWith(expect.objectContaining({ location: 'failed' }))
+  })
+
   it('uses neutral messaging when the current folder is empty', async () => {
     api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
     render(

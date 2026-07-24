@@ -1,5 +1,6 @@
 import {
   ChevronLeft,
+  CircleX,
   FolderOpen,
   Menu,
   Plus,
@@ -1130,7 +1131,13 @@ export function AdminPage() {
           {loading ? <div className="library-loading" role="status">Loading slides…</div> : null}
           {!loading && page.items.length === 0 ? (
             <div className="library-empty">
-              {location.startsWith('folder:') ? (
+              {location === 'failed' ? (
+                <>
+                  <CircleX />
+                  <h3>No failed files</h3>
+                  <p>Files that fail processing will appear here.</p>
+                </>
+              ) : location.startsWith('folder:') ? (
                 <>
                   <FolderOpen />
                   <h3>No files in this folder</h3>
