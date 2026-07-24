@@ -151,6 +151,23 @@ afterEach(() => {
 })
 
 describe('dark library explorer', () => {
+  it('presents the OME-TIFF chooser with the library design system', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+
+    await screen.findByRole('heading', { name: /slides library/i })
+    await userEvent.click(screen.getByRole('button', { name: /^upload$/i }))
+
+    const fileInput = screen.getByLabelText('Choose OME-TIFF')
+    expect(fileInput).toHaveClass('upload-file-input')
+    expect(screen.getByText('Browse files')).toBeVisible()
+    expect(screen.getByText('No file selected')).toBeVisible()
+    expect(fileInput).toHaveAttribute('accept', '.ome.tif,.ome.tiff,image/tiff')
+
+    await userEvent.upload(fileInput, new File(['slide'], 'sample.ome.tiff', { type: 'image/tiff' }))
+    expect(screen.getByText('Choose another file')).toBeVisible()
+    expect(screen.getByText('sample.ome.tiff')).toBeVisible()
+  })
+
   it('shows only functional destinations and lazily expands folders', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 

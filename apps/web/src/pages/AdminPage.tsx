@@ -1229,11 +1229,18 @@ export function AdminPage() {
         onClose={() => setDialog(null)}
       >
         <div className="library-dialog-form">
-          <label className="upload-drop">
-            <Upload />
-            <strong>{file?.name ?? 'Choose OME-TIFF'}</strong>
-            <span>Up to 5 GiB · resumable</span>
+          <label className={`upload-drop${file ? ' has-file' : ''}`}>
+            <span className="upload-drop-icon" aria-hidden="true"><Upload /></span>
+            <span className="upload-drop-copy">
+              <strong>{file ? 'OME-TIFF selected' : 'Choose OME-TIFF'}</strong>
+              <span className="upload-drop-hint">Up to 5 GiB · resumable</span>
+            </span>
+            <span className="upload-file-button">{file ? 'Choose another file' : 'Browse files'}</span>
+            <span className="upload-file-name" title={file?.name}>
+              {file?.name ?? 'No file selected'}
+            </span>
             <input
+              className="upload-file-input"
               type="file"
               accept=".ome.tif,.ome.tiff,image/tiff"
               aria-label="Choose OME-TIFF"
