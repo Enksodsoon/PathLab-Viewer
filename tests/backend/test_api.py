@@ -682,6 +682,36 @@ def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> 
         assert response.json()["detail"]["code"] == "INVALID_TIFF_SIGNATURE"
 
 
+def test_completed_upload_reduces_hook_path_to_a_safe_tus_id(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        outside = tmp_path / "outside-upload"
+        outside.write_bytes(b"II*\x00" + b"private")
+        created = client.post(
+            "/api/v1/admin/slides",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "displayName": "Outside",
+                "filename": "x.ome.tif",
+                "length": outside.stat().st_size,
+            },
+        ).json()
+
+        response = client.post(
+            "/api/v1/internal/uploads/complete",
+            json={
+                "token": created["uploadToken"],
+                "path": str(outside),
+                "length": outside.stat().st_size,
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"]["code"] == "INVALID_UPLOAD_PATH"
+        assert outside.read_bytes() == b"II*\x00" + b"private"
+        assert client.get("/api/v1/admin/slides").json()[0]["state"] == "uploading"
+
+
 def test_private_preview_publish_and_delete_lifecycle(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         csrf = _login(client)
