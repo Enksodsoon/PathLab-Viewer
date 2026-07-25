@@ -233,11 +233,15 @@ def test_capacity_certification_is_manual_protected_and_serialized_with_deploys(
     assert "pull_request:" not in workflow
     assert "push:" not in workflow
     assert "schedule:" not in workflow
-    assert "secrets.LOAD_TEST_PUBLIC_ID" in workflow
+    assert "secrets.LOAD_TEST_PUBLIC_ID" not in workflow
+    assert "secrets.LOAD_TEST_ADMIN_SLIDE_ID" not in workflow
     assert "secrets.LOAD_TEST_ADMIN_PASSWORD" in workflow
     assert "vars.PRODUCTION_BASE_URL" in workflow
     assert "tests/load/viewer.js" not in workflow
     assert "deploy/scripts/run-capacity-certification.sh" in workflow
+    assert "capacity-fixture.spec.ts" in Path(
+        "deploy/scripts/run-capacity-certification.sh"
+    ).read_text(encoding="utf-8")
 
 
 def test_capacity_workflow_publishes_only_sanitized_aggregate_evidence() -> None:

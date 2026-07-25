@@ -2,8 +2,6 @@
 set -Eeuo pipefail
 
 : "${CAPACITY_BASE_URL:?CAPACITY_BASE_URL is required}"
-: "${LOAD_TEST_PUBLIC_ID:?LOAD_TEST_PUBLIC_ID is required}"
-: "${LOAD_TEST_ADMIN_SLIDE_ID:?LOAD_TEST_ADMIN_SLIDE_ID is required}"
 : "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
 : "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
 : "${GITHUB_SHA:?GITHUB_SHA is required}"
@@ -12,14 +10,6 @@ set -Eeuo pipefail
 
 [[ "${CAPACITY_BASE_URL}" =~ ^https://[^/?#]+/?$ ]] || {
   echo "CAPACITY_BASE_URL must be an HTTPS origin." >&2
-  exit 1
-}
-[[ "${LOAD_TEST_PUBLIC_ID}" =~ ^[A-Za-z0-9_-]+$ ]] || {
-  echo "LOAD_TEST_PUBLIC_ID is invalid." >&2
-  exit 1
-}
-[[ "${LOAD_TEST_ADMIN_SLIDE_ID}" =~ ^[A-Za-z0-9-]+$ ]] || {
-  echo "LOAD_TEST_ADMIN_SLIDE_ID is invalid." >&2
   exit 1
 }
 [[ "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
@@ -32,6 +22,9 @@ command -v curl >/dev/null || { echo "curl is required." >&2; exit 1; }
 WORK_DIR="$(mktemp -d)"
 MANIFEST_PATH="${WORK_DIR}/viewer-manifest.json"
 SYNTHETIC_PATH="${WORK_DIR}/synthetic-capacity.ome.tiff"
+FIXTURE_PATH="${WORK_DIR}/synthetic-public-fixture.ome.tiff"
+export CAPACITY_FIXTURE_OME="${FIXTURE_PATH}"
+export CAPACITY_FIXTURE_RESULT="${WORK_DIR}/capacity-fixture.json"
 export MANIFEST_PATH
 export CAPACITY_SYNTHETIC_OME="${SYNTHETIC_PATH}"
 export CAPACITY_BROWSER_RESULT="${WORK_DIR}/browser-result.json"
@@ -41,10 +34,52 @@ cleanup() {
   local exit_code=$?
   trap - EXIT
   jobs -pr | xargs -r kill >/dev/null 2>&1 || true
+  if [[ -f "${CAPACITY_FIXTURE_RESULT}" ]]; then
+    set +e
+    CAPACITY_FIXTURE_ACTION=cleanup \
+      pnpm --dir apps/web exec playwright test \
+      --config playwright.live.config.ts \
+      e2e-live/capacity-fixture.spec.ts \
+      > "${WORK_DIR}/fixture-cleanup-private.log" 2>&1
+    cleanup_status=$?
+    set -e
+    if [[ "${cleanup_status}" -ne 0 ]]; then
+      echo "Synthetic capacity fixture cleanup failed." >&2
+      [[ "${exit_code}" -eq 0 ]] && exit_code=1
+    fi
+  fi
   rm -rf -- "${WORK_DIR}"
   exit "${exit_code}"
 }
 trap cleanup EXIT
+
+python tests/load/generate_synthetic_ome.py \
+  --output "${FIXTURE_PATH}" \
+  --width 4096 \
+  --height 4096
+CAPACITY_FIXTURE_ACTION=prepare \
+  pnpm --dir apps/web exec playwright test \
+  --config playwright.live.config.ts \
+  e2e-live/capacity-fixture.spec.ts \
+  > "${WORK_DIR}/fixture-prepare-private.log" 2>&1
+export LOAD_TEST_PUBLIC_ID="$(
+  python -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["publicId"])' \
+    "${CAPACITY_FIXTURE_RESULT}"
+)"
+export LOAD_TEST_ADMIN_SLIDE_ID="$(
+  python -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["slideId"])' \
+    "${CAPACITY_FIXTURE_RESULT}"
+)"
+[[ "${LOAD_TEST_PUBLIC_ID}" =~ ^[A-Za-z0-9_-]+$ ]] || {
+  echo "Synthetic fixture public ID is invalid." >&2
+  exit 1
+}
+[[ "${LOAD_TEST_ADMIN_SLIDE_ID}" =~ ^[A-Za-z0-9-]+$ ]] || {
+  echo "Synthetic fixture slide ID is invalid." >&2
+  exit 1
+}
 
 python tests/load/generate_remote_manifest.py \
   --base-url "${CAPACITY_BASE_URL}" \
