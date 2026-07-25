@@ -25,7 +25,7 @@ SYNTHETIC_PATH="${WORK_DIR}/synthetic-capacity.ome.tiff"
 FIXTURE_PATH="${WORK_DIR}/synthetic-public-fixture.ome.tiff"
 export CAPACITY_FIXTURE_OME="${FIXTURE_PATH}"
 export CAPACITY_FIXTURE_RESULT="${WORK_DIR}/capacity-fixture.json"
-export CAPACITY_FIXTURE_DIAGNOSTIC="${WORK_DIR}/capacity-fixture-diagnostic.json"
+export CAPACITY_FIXTURE_DIAGNOSTIC="${CAPACITY_EVIDENCE_DIR}/capacity-fixture-diagnostic.json"
 export MANIFEST_PATH
 export CAPACITY_SYNTHETIC_OME="${SYNTHETIC_PATH}"
 export CAPACITY_BROWSER_RESULT="${WORK_DIR}/browser-result.json"
