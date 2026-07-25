@@ -438,6 +438,7 @@ def test_worker_healthcheck_console_command_is_registered() -> None:
 def test_ci_avoids_duplicate_feature_branch_runs() -> None:
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
+    assert "workflow_dispatch:" in workflow
     assert "push:\n    branches: [main]" in workflow
     assert "pull_request:" in workflow
     assert "group: ci-${{ github.workflow }}-${{" in workflow
@@ -451,3 +452,9 @@ def test_arm64_container_builds_use_separate_github_caches() -> None:
     for scope in ("backend", "web"):
         assert f"--cache-from type=gha,scope={scope}" in workflow
         assert f"--cache-to type=gha,mode=max,scope={scope}" in workflow
+
+
+def test_security_workflow_supports_manual_event_recovery() -> None:
+    workflow = Path(".github/workflows/security.yml").read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
