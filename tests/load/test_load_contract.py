@@ -122,6 +122,10 @@ def test_live_capacity_specs_share_scoped_upload_and_current_api_contracts() -> 
     assert "/api/v2/admin/slides/" in certification
     assert "waitForSlideDeletion" in fixture
     assert "waitForSlideDeletion" in certification
+    assert "waitForSlideConversion" in fixture
+    assert "CONVERSION_TIMEOUT" in Path(
+        "apps/web/e2e-live/capacity-helpers.ts"
+    ).read_text(encoding="utf-8")
 
 
 def test_capacity_diagnostics_separate_prepare_and_cleanup_failures() -> None:

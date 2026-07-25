@@ -6,6 +6,7 @@ import {
   csrfJson,
   signIn,
   uploadSyntheticSlide,
+  waitForSlideConversion,
   waitForSlideDeletion,
 } from './capacity-helpers'
 
@@ -75,19 +76,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     await expect(page.getByText('Upload complete. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
-    await expect.poll(async () => page.evaluate(async (approvedSlideId) => {
-      const response = await fetch(
-        `/api/v1/admin/slides/${encodeURIComponent(approvedSlideId)}`,
-        { credentials: 'same-origin' },
-      )
-      if (!response.ok) return 'unavailable'
-      const body = await response.json() as { state?: unknown }
-      return typeof body.state === 'string' ? body.state : 'unknown'
-    }, slideId), {
-      timeout: 10 * 60_000,
-      intervals: [5_000],
-      message: 'Synthetic fixture conversion did not reach ready_private',
-    }).toBe('ready_private')
+    await waitForSlideConversion(page, slideId)
 
     stage = 'publication'
     writeDiagnostic(prepareDiagnosticPath, stage)
