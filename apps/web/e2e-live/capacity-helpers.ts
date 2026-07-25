@@ -12,6 +12,11 @@ interface JsonResponse {
   status: number
 }
 
+export type ConversionDecision =
+  | { kind: 'failed'; errorCode: string }
+  | { kind: 'pending' }
+  | { kind: 'ready' }
+
 export class CapacityHttpError extends Error {
   readonly errorCode?: string
   readonly httpStatus: number
@@ -30,10 +35,30 @@ function sanitizedErrorCode(body: unknown): string | undefined {
   const detail = typeof record.detail === 'object' && record.detail !== null
     ? record.detail as Record<string, unknown>
     : undefined
-  const candidate = detail?.code ?? record.code
+  const candidate = detail?.code ?? record.code ?? record.errorCode
   return typeof candidate === 'string' && /^[A-Z0-9_]{1,64}$/.test(candidate)
     ? candidate
     : undefined
+}
+
+export function conversionDecision(
+  body: unknown,
+  timedOut: boolean,
+): ConversionDecision {
+  const state = typeof body === 'object' && body !== null
+    ? (body as Record<string, unknown>).state
+    : undefined
+  if (state === 'ready_private') return { kind: 'ready' }
+  if (state === 'failed') {
+    return {
+      kind: 'failed',
+      errorCode: sanitizedErrorCode(body) ?? 'CONVERSION_FAILED',
+    }
+  }
+  if (timedOut) {
+    return { kind: 'failed', errorCode: 'CONVERSION_TIMEOUT' }
+  }
+  return { kind: 'pending' }
 }
 
 async function responseBody(response: Response): Promise<unknown> {
@@ -110,6 +135,49 @@ export async function uploadSyntheticSlide(
     : null
   if (slideId === null) throw new Error('Synthetic upload reservation was incomplete')
   return slideId
+}
+
+export async function waitForSlideConversion(
+  page: Page,
+  slideId: string,
+  timeoutMs = 10 * 60_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (true) {
+    const observation = await page.evaluate(async (approvedSlideId) => {
+      const response = await fetch(
+        `/api/v1/admin/slides/${encodeURIComponent(approvedSlideId)}`,
+        { credentials: 'same-origin' },
+      )
+      let body: unknown = null
+      try {
+        body = await response.json()
+      } catch {
+        // A non-JSON response is reported through its HTTP status.
+      }
+      return { body, ok: response.ok, status: response.status }
+    }, slideId)
+    if (!observation.ok) {
+      throw new CapacityHttpError(
+        'Synthetic fixture conversion status was unavailable',
+        observation.status,
+        sanitizedErrorCode(observation.body),
+      )
+    }
+    const decision = conversionDecision(
+      observation.body,
+      Date.now() >= deadline,
+    )
+    if (decision.kind === 'ready') return
+    if (decision.kind === 'failed') {
+      throw new CapacityHttpError(
+        'Synthetic fixture conversion failed',
+        0,
+        decision.errorCode,
+      )
+    }
+    await page.waitForTimeout(Math.min(5_000, Math.max(1, deadline - Date.now())))
+  }
 }
 
 export async function csrfJson(
