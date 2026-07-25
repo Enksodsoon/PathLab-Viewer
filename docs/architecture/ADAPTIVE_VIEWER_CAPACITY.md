@@ -73,16 +73,16 @@ the protected `production` environment.
 The protected environment supplies:
 
 - variable `PRODUCTION_BASE_URL`;
-- secrets `LOAD_TEST_PUBLIC_ID` and `LOAD_TEST_ADMIN_SLIDE_ID`, selecting the
-  explicitly approved teaching slide;
 - secrets `LOAD_TEST_ADMIN_USERNAME` and `LOAD_TEST_ADMIN_PASSWORD`;
 - the existing OCI Bastion variables and credentials used by deployment.
 
-The runner fetches only the approved public metadata and DZI descriptor. It
-derives a bounded deterministic manifest for the highest three levels without
-reading production storage. The manifest, raw observations, k6 stream, browser
-log, credentials, IDs, and synthetic source stay in a temporary directory and
-are removed on exit. Artifacts contain only aggregate Markdown and JSON.
+The runner creates a small non-patient synthetic slide, waits for conversion,
+publishes it as the load fixture, and verifies its poster and DZI before
+deriving a bounded deterministic manifest for the highest three levels. It
+does not discover or publish existing slides. The fixture, manifest, raw
+observations, k6 stream, browser log, credentials, IDs, and synthetic source
+stay in a temporary directory and are removed on exit. Artifacts contain only
+aggregate Markdown and JSON.
 
 For a non-production authorized host, a manifest can still be generated
 explicitly and passed to the standalone profile:
@@ -111,12 +111,13 @@ During the ten-minute hold:
   or loaded canvas remains visible, the offline status appears, and navigation
   continues after reconnection.
 
-The workflow creates an uncompressed synthetic, non-PHI OME-TIFF of
-approximately 330 MB. It uploads the file through the real administrator UI,
-waits for conversion to reach `ready_private`, never publishes it, and schedules
-its deletion in cleanup. The approved teaching slide is changed only by
-temporarily appending a run marker to its private administrator note; cleanup
-restores the exact original value. A failed cleanup fails certification.
+The workflow also creates an uncompressed synthetic, non-PHI OME-TIFF of
+approximately 330 MB during the 300-viewer hold. It uploads the file through the
+real administrator UI, waits for conversion to reach `ready_private`, never
+publishes it, and schedules its deletion in cleanup. The temporary public
+fixture is changed only by temporarily appending a run marker to its private
+administrator note. Cleanup restores the original value and schedules both
+synthetic slides for deletion. A failed cleanup fails certification.
 
 The host observer is a forced-command operation limited to
 `observe-load <seconds>`, with a multiple-of-ten duration from 10 through 900.
@@ -148,6 +149,6 @@ The k6 profile does not create production authorization, alter shares, upload
 slides, or run automatically during deployment or CI.
 
 The standalone k6 profile does not perform those mutations. The protected
-certification workflow does perform only the reversible administrator and
-temporary synthetic-upload operations described above after environment
-approval.
+certification workflow performs only the isolated synthetic fixture,
+administrator, and temporary conversion operations described above after
+environment approval.

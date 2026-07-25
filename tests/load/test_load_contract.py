@@ -66,7 +66,23 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
     assert "certification_report.py" in script
     assert "generate_remote_manifest.py" in script
     assert "generate_synthetic_ome.py" in script
+    assert "capacity-fixture.spec.ts" in script
+    assert "CAPACITY_FIXTURE_ACTION=prepare" in script
+    assert "CAPACITY_FIXTURE_ACTION=cleanup" in script
+    assert "--width 4096" in script
+    assert "--height 4096" in script
     assert "playwright.live.config.ts" in script
+
+
+def test_capacity_workflow_does_not_require_preexisting_slide_secrets() -> None:
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "LOAD_TEST_PUBLIC_ID: ${{ secrets." not in workflow
+    assert "LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets." not in workflow
+    assert "LOAD_TEST_ADMIN_USERNAME" in workflow
+    assert "LOAD_TEST_ADMIN_PASSWORD" in workflow
 
 
 @pytest.mark.skipif(BASH is None, reason="bash is unavailable")

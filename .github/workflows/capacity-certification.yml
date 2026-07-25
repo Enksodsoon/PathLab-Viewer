@@ -27,8 +27,6 @@ jobs:
       name: production
     env:
       CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
-      LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
-      LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets.LOAD_TEST_ADMIN_SLIDE_ID }}
       LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
       LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
       CAPACITY_EVIDENCE_DIR: ${{ github.workspace }}/.capacity-evidence
