@@ -18,6 +18,7 @@ This ledger separates reproducible evidence from product or architecture claims.
 | Physical desktop, tablet, and phone use | Test real devices and browsers | Not recorded |
 | Clean backup and restore | Restore into a disposable host and compare records, hashes, manifests, and representative tiles | Not recorded |
 | Real 300–500 MB conversion | Measure a representative synthetic or authorized slide through validation and conversion | Not recorded |
+| Production 300-viewer certification | Run the protected `Capacity certification` workflow and retain its sanitized aggregate report | Not recorded |
 | Infrastructure cost and eligibility | Review the active tenancy billing page and deployed resources | Not recorded |
 
 ## Reproducible viewer load checks
@@ -75,6 +76,20 @@ Remaining manual evidence:
 - physical desktop, tablet, and phone testing;
 - clean backup-and-restore drill;
 - real 300–500 MB conversion benchmark.
+
+## Protected production certification
+
+The repository includes a manually dispatched, production-environment-approved
+certification workflow. Its existence is not evidence that the test passed.
+Only a completed run for the exact deployed commit with a retained aggregate
+report may change the production 300-viewer gate above.
+
+The report passes only when the 300-viewer latency/failure thresholds, host
+resource gates, exact release marker, exact service set, real administrator
+interaction, temporary synthetic conversion, cleanup, and degraded-browser
+recovery all pass. The report deliberately excludes slide IDs, raw URLs,
+credentials, screenshots, tissue imagery, host paths, and raw monitoring or k6
+streams.
 
 ## Local browser workflow evidence
 
