@@ -63,11 +63,15 @@ if ! python tests/load/generate_synthetic_ome.py \
   exit 1
 fi
 echo "Capacity phase: synthetic fixture preparation."
-if ! CAPACITY_FIXTURE_ACTION=prepare \
+set +e
+CAPACITY_FIXTURE_ACTION=prepare \
   pnpm --dir apps/web exec playwright test \
     --config playwright.live.config.ts \
     e2e-live/capacity-fixture.spec.ts \
-    > "${WORK_DIR}/fixture-prepare-private.log" 2>&1; then
+    > "${WORK_DIR}/fixture-prepare-private.log" 2>&1
+fixture_prepare_status=$?
+set -e
+if [[ "${fixture_prepare_status}" -ne 0 ]]; then
   python -c \
     'import json,sys; print("Synthetic fixture preparation failed at stage: " + json.load(open(sys.argv[1], encoding="utf-8"))["stage"], file=sys.stderr)' \
     "${CAPACITY_FIXTURE_DIAGNOSTIC}" 2>/dev/null || \
