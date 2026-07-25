@@ -34,7 +34,13 @@ export function ViewerPage() {
   return <div className="viewer-shell">
     <header className="viewer-header"><Brand variant="library" /><div className="viewer-title"><strong>{slide.displayName}</strong><span>{slide.metadata ? `${slide.metadata.width.toLocaleString()} × ${slide.metadata.height.toLocaleString()} px` : 'Whole-slide image'}</span></div><span className="viewer-help"><Info size={15} /> Scroll or pinch to zoom</span></header>
     <main className="viewer-stage">
-      <OpenSeadragonViewer tileSource={slide.tileSource ?? ''} onReady={ready} micronsPerPixel={scale} onScaleChange={updateScale} />
+      <OpenSeadragonViewer
+        tileSource={slide.tileSource ?? ''}
+        posterUrl={slide.thumbnailUrl}
+        onReady={ready}
+        micronsPerPixel={scale}
+        onScaleChange={updateScale}
+      />
       <nav className="viewer-tools" aria-label="Viewer controls">
         <button aria-label="Zoom in" title="Zoom in" onClick={() => controls.current?.zoomIn()}><Plus /></button>
         <button aria-label="Zoom out" title="Zoom out" onClick={() => controls.current?.zoomOut()}><Minus /></button>

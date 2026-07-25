@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import OpenSeadragon from 'openseadragon'
 
+import {
+  initialViewerNetworkState,
+  nextViewerNetworkState,
+  type ViewerConnectionHint,
+  type ViewerLoadingMode,
+} from '../viewerNetwork'
+
 const NARROW_VIEWPORT_MAX = 768
 const TILE_FAILURE_LIMIT = 3
+const NETWORK_MODE_KEY = 'pathlab-viewer-loading-mode:v1'
+const NETWORK_WINDOW_MS = 5000
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000]
 
 export interface ViewerHandle {
   zoomIn: () => void
@@ -13,9 +23,19 @@ export interface ViewerHandle {
 
 interface Props {
   tileSource: string
+  posterUrl?: string | null
   onReady: (handle: ViewerHandle) => void
   micronsPerPixel?: number | null
   onScaleChange?: (microns: number, width: number) => void
+}
+
+interface NavigatorWithConnection extends Navigator {
+  connection?: ViewerConnectionHint
+}
+
+function savedLoadingMode(): ViewerLoadingMode {
+  const saved = localStorage.getItem(NETWORK_MODE_KEY)
+  return saved === 'data-saver' || saved === 'full' ? saved : 'auto'
 }
 
 function niceScale(value: number) {
@@ -24,17 +44,30 @@ function niceScale(value: number) {
   return (normalized < 2 ? 1 : normalized < 5 ? 2 : 5) * exponent
 }
 
-export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onScaleChange }: Props) {
+export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPerPixel, onScaleChange }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const tileSourceRef = useRef(tileSource)
   const openedSourceRef = useRef(tileSource)
   const onReadyRef = useRef(onReady)
+  const modeRef = useRef<ViewerLoadingMode>('auto')
   const micronsPerPixelRef = useRef(micronsPerPixel)
   const onScaleChangeRef = useRef(onScaleChange)
   const tileFailures = useRef(0)
+  const windowFailures = useRef(0)
   const errorTimer = useRef<number | null>(null)
+  const reconnectTimer = useRef<number | null>(null)
+  const reconnectAttempt = useRef(0)
+  const [mode, setMode] = useState<ViewerLoadingMode>(savedLoadingMode)
+  const [posterVisible, setPosterVisible] = useState(Boolean(posterUrl))
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null)
   const [loadingError, setLoadingError] = useState(false)
+  const narrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
+  const networkState = useRef(initialViewerNetworkState(
+    mode,
+    narrowViewport,
+    (navigator as NavigatorWithConnection).connection,
+  ))
   const retryLoading = useCallback(() => {
     if (errorTimer.current !== null) {
       window.clearTimeout(errorTimer.current)
@@ -52,14 +85,61 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
     if (viewerRef.current && openedSourceRef.current !== tileSource) {
       openedSourceRef.current = tileSource
       tileFailures.current = 0
+      setPosterVisible(Boolean(posterUrl))
       setLoadingError(false)
       viewerRef.current.open(tileSource as unknown as OpenSeadragon.TileSourceSpecifier)
+      if (reconnectTimer.current !== null) {
+        window.clearTimeout(reconnectTimer.current)
+        reconnectTimer.current = null
+      }
+      reconnectAttempt.current = 0
     }
-  }, [micronsPerPixel, onReady, onScaleChange, tileSource])
+  }, [micronsPerPixel, onReady, onScaleChange, posterUrl, tileSource])
+  useEffect(() => {
+    modeRef.current = mode
+    localStorage.setItem(NETWORK_MODE_KEY, mode)
+    const next = initialViewerNetworkState(
+      mode,
+      narrowViewport,
+      mode === 'auto' ? (navigator as NavigatorWithConnection).connection : undefined,
+    )
+    networkState.current = next
+    if (viewerRef.current) viewerRef.current.imageLoader.jobLimit = next.jobLimit
+  }, [mode, narrowViewport])
   useEffect(() => {
     if (!element.current) return
     let viewer: OpenSeadragon.Viewer | null = null
     let disposed = false
+    const mountedNarrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
+    const durations: number[] = []
+    let performanceObserver: PerformanceObserver | null = null
+    let networkTimer: number | null = null
+    const scheduleReconnect = (overrideDelay?: number) => {
+      if (disposed || reconnectTimer.current !== null || !navigator.onLine) return
+      const index = Math.min(reconnectAttempt.current, RECONNECT_DELAYS_MS.length - 1)
+      const delay = overrideDelay ?? RECONNECT_DELAYS_MS[index]
+      reconnectAttempt.current += 1
+      setConnectionStatus('Reconnecting…')
+      reconnectTimer.current = window.setTimeout(() => {
+        reconnectTimer.current = null
+        if (!disposed && navigator.onLine) {
+          viewerRef.current?.open(tileSourceRef.current as unknown as OpenSeadragon.TileSourceSpecifier)
+        }
+      }, delay)
+    }
+    const handleOffline = () => {
+      if (reconnectTimer.current !== null) {
+        window.clearTimeout(reconnectTimer.current)
+        reconnectTimer.current = null
+      }
+      networkState.current = { jobLimit: 2, healthyWindows: 0 }
+      if (viewerRef.current) viewerRef.current.imageLoader.jobLimit = 2
+      setConnectionStatus('Offline — keeping the current view')
+    }
+    const handleOnline = () => {
+      setConnectionStatus('Connection restored')
+      if (reconnectAttempt.current > 0) scheduleReconnect(500 + Math.random() * 2000)
+    }
     const clearLoadingError = () => {
       if (errorTimer.current !== null) {
         window.clearTimeout(errorTimer.current)
@@ -75,13 +155,14 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
         if (!disposed) setLoadingError(true)
       }, 0)
     }
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
     try {
-      const narrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
       viewer = OpenSeadragon({
         element: element.current,
         tileSources: tileSourceRef.current,
         showNavigationControl: false,
-        showNavigator: !narrowViewport,
+        showNavigator: !mountedNarrowViewport,
         navigatorPosition: 'BOTTOM_RIGHT',
         navigatorSizeRatio: 0.16,
         navigatorMaintainSizeRatio: true,
@@ -90,8 +171,8 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
         constrainDuringPan: true,
         maxZoomPixelRatio: 2,
         visibilityRatio: 0.5,
-        imageLoaderLimit: narrowViewport ? 8 : 16,
-        maxImageCacheCount: narrowViewport ? 50 : 100,
+        imageLoaderLimit: networkState.current.jobLimit,
+        maxImageCacheCount: mountedNarrowViewport ? 50 : 100,
         tileRetryMax: 1,
         tileRetryDelay: 1000,
         timeout: 20000,
@@ -115,18 +196,58 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
         reportScale(microns, microns / micronsPerScreenPixel)
       }
       const handleOpen = () => {
+        if (reconnectTimer.current !== null) {
+          window.clearTimeout(reconnectTimer.current)
+          reconnectTimer.current = null
+        }
+        reconnectAttempt.current = 0
+        setConnectionStatus(null)
         clearLoadingError()
         updateScale()
       }
+      const handleTileLoaded = () => setPosterVisible(false)
       const handleTileLoadFailed = () => {
+        windowFailures.current += 1
         if (tileFailures.current >= TILE_FAILURE_LIMIT) return
         tileFailures.current += 1
         if (tileFailures.current === TILE_FAILURE_LIMIT) reportLoadingError()
       }
       viewer.addHandler('open', handleOpen)
+      viewer.addHandler('tile-loaded', handleTileLoaded)
       viewer.addHandler('animation-finish', updateScale)
-      viewer.addHandler('open-failed', reportLoadingError)
+      viewer.addHandler('open-failed', () => {
+        reportLoadingError()
+        scheduleReconnect()
+      })
       viewer.addHandler('tile-load-failed', handleTileLoadFailed)
+
+      if (typeof PerformanceObserver !== 'undefined') {
+        performanceObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as PerformanceResourceTiming[]) {
+            if (!entry.name.includes('/tiles/') || entry.transferSize === 0) continue
+            durations.push(entry.duration)
+          }
+        })
+        try {
+          performanceObserver.observe({ type: 'resource', buffered: true })
+        } catch {
+          performanceObserver = null
+        }
+      }
+      networkTimer = window.setInterval(() => {
+        const sorted = durations.splice(0).sort((left, right) => left - right)
+        const failures = windowFailures.current
+        windowFailures.current = 0
+        const sampleCount = sorted.length + failures
+        const p75Index = Math.max(0, Math.ceil(sorted.length * 0.75) - 1)
+        networkState.current = nextViewerNetworkState(networkState.current, {
+          online: navigator.onLine,
+          sampleCount,
+          failureRate: sampleCount ? failures / sampleCount : 0,
+          p75Ms: sorted[p75Index] ?? 0,
+        }, mountedNarrowViewport, modeRef.current)
+        if (viewer) viewer.imageLoader.jobLimit = networkState.current.jobLimit
+      }, NETWORK_WINDOW_MS)
     } catch {
       reportLoadingError()
     }
@@ -136,7 +257,16 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
         window.clearTimeout(errorTimer.current)
         errorTimer.current = null
       }
+      if (reconnectTimer.current !== null) {
+        window.clearTimeout(reconnectTimer.current)
+        reconnectTimer.current = null
+      }
+      if (networkTimer !== null) window.clearInterval(networkTimer)
+      performanceObserver?.disconnect()
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
       viewer?.removeAllHandlers('open')
+      viewer?.removeAllHandlers('tile-loaded')
       viewer?.removeAllHandlers('animation-finish')
       viewer?.removeAllHandlers('open-failed')
       viewer?.removeAllHandlers('tile-load-failed')
@@ -145,7 +275,23 @@ export function OpenSeadragonViewer({ tileSource, onReady, micronsPerPixel, onSc
     }
   }, [])
   return <div className="osd-surface" data-tile-source={tileSource} style={{ position: 'relative' }}>
+    {posterVisible && posterUrl ? <img
+      className="viewer-poster"
+      src={posterUrl}
+      alt="Slide preview"
+      fetchPriority="high"
+      decoding="async"
+    /> : null}
     <div ref={element} style={{ position: 'absolute', inset: 0 }} />
+    <label className="viewer-loading-mode">
+      <span>Loading</span>
+      <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>
+        <option value="auto">Auto</option>
+        <option value="data-saver">Data saver</option>
+        <option value="full">Full detail</option>
+      </select>
+    </label>
+    {connectionStatus ? <div className="viewer-connection-status" role="status">{connectionStatus}</div> : null}
     {loadingError ? <div
       role="alert"
       style={{

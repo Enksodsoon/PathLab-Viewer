@@ -121,6 +121,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       <main className="shared-viewer-stage">
         <OpenSeadragonViewer
           tileSource={slide.tileSource}
+          posterUrl={slide.thumbnailUrl}
           onReady={ready}
           micronsPerPixel={slide.scale}
           onScaleChange={(microns, width) => setScaleBar({ microns, width })}

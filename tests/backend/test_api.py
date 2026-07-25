@@ -723,6 +723,7 @@ def test_private_preview_publish_and_delete_lifecycle(tmp_path: Path) -> None:
                 source_bytes=100,
                 state=SlideState.READY_PRIVATE,
                 slide_metadata={"width": 48, "height": 32},
+                thumbnail_filename="thumbnail.jpg",
             )
             database.add(slide)
             database.commit()
@@ -730,11 +731,13 @@ def test_private_preview_publish_and_delete_lifecycle(tmp_path: Path) -> None:
         derivative = settings.data_root / "private" / slide_id
         (derivative / "slide_files" / "0").mkdir(parents=True)
         (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
+        (derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
         (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"jpeg")
 
         preview = client.get(f"/api/v1/admin/slides/{slide_id}")
         assert preview.status_code == 200
         assert preview.json()["tileSource"].endswith("/slide.dzi")
+        assert preview.json()["thumbnailUrl"].endswith("/preview/thumbnail.jpg")
         tile = client.get(f"/api/v1/admin/slides/{slide_id}/preview/slide_files/0/0_0.jpeg")
         assert tile.content == b"jpeg"
 

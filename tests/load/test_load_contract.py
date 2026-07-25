@@ -17,6 +17,9 @@ def test_k6_script_uses_manifest_profiles_and_seventy_thirty_mix() -> None:
     assert "PROFILE" in script
     assert "vus: 100" in script
     assert "duration: '10m'" in script
+    assert "target: 300" in script
+    assert "duration: '2m'" in script
+    assert "duration: '10m', target: 300" in script
     assert "vus: 2" in script
     assert "duration: '30s'" in script
     assert "COMMON_REQUESTS = 7" in script
@@ -24,11 +27,16 @@ def test_k6_script_uses_manifest_profiles_and_seventy_thirty_mix() -> None:
     assert "__VU" in script
     assert "tileFailures" in script
     assert "tileLatency" in script
-    assert "try {\n    metadataBody = metadata.json()\n  } catch" in script
+    assert "posterLatency" in script
+    assert "http.batch" in script
+    assert "let tileRoot" in script
+    assert "if (!tileRoot)" in script
+    assert "metadataBody = metadata.json()" in script
     assert "metadataBody.tileSource" in script
     assert "tileSource.replace" in script
     assert "`${base}/tiles/${slide.publicId}/${path}`" not in script
-    assert "tileFailures.add(true)\n    sleep(1)\n    return" in script
+    assert "tileFailures.add(true)" in script
+    assert "sleep(1)" in script
 
 
 def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:
@@ -39,7 +47,7 @@ def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:
     assert 'MANIFEST_PATH:?MANIFEST_PATH is required' in script
     assert '[[ "${MANIFEST_PATH}" = /* ]]' in script
     assert "command -v k6" in script
-    assert "smoke|acceptance" in script
+    assert "smoke|acceptance|capacity300" in script
     assert "public_id" not in script.lower()
     assert "curl" not in script
 

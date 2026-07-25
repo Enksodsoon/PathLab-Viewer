@@ -42,7 +42,12 @@ deploy/scripts/run-viewer-load-test.sh smoke
 
 The smoke profile proves only that the selected public metadata and sampled tile routes remain valid under a small local k6 workload. It does not establish production capacity.
 
-The external acceptance profile must run 100 virtual users for 10 minutes while recording tile latency and failure thresholds plus host CPU, RAM, disk I/O, and network behavior. Observe viewing while one conversion is active.
+The external `capacity300` profile must ramp to 300 virtual users, hold all 300
+for 10 minutes, and ramp down while recording poster/tile latency and failure
+thresholds plus host CPU, RAM, swap, disk I/O, and network behavior. Observe
+viewing while one conversion and the administrator workflow are active. Also
+complete the shaped-browser and 30-second dropout checks in
+[`ADAPTIVE_VIEWER_CAPACITY.md`](../architecture/ADAPTIVE_VIEWER_CAPACITY.md).
 
 Record a baseline and candidate measurement with the same manifest and authorized
 300–500 MB source. The candidate passes only when:
@@ -62,7 +67,8 @@ events contain only utilization, threshold, and free-byte values.
 
 Remaining manual evidence:
 
-- real external 100-viewer acceptance run;
+- real external 300-viewer capacity run;
+- 256 Kbit/s, 1 s RTT, 5% loss, and 30-second dropout browser evidence;
 - CPU, RAM, disk I/O, and network observation;
 - viewing while one conversion is active;
 - shaped 10 Mbps / 50 ms network verification;
