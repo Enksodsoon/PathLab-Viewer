@@ -218,6 +218,53 @@ def test_production_deploy_is_manual_serial_and_main_only() -> None:
     assert "group: production-control" in workflow
 
 
+def test_capacity_certification_is_manual_protected_and_serialized_with_deploys() -> None:
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert "CERTIFY_PRODUCTION_300" in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
+    assert "name: production" in workflow
+    assert "group: production-control" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "timeout-minutes: 60" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+    assert "schedule:" not in workflow
+    assert "secrets.LOAD_TEST_PUBLIC_ID" in workflow
+    assert "secrets.LOAD_TEST_ADMIN_PASSWORD" in workflow
+    assert "vars.PRODUCTION_BASE_URL" in workflow
+    assert "tests/load/viewer.js" not in workflow
+    assert "deploy/scripts/run-capacity-certification.sh" in workflow
+
+
+def test_capacity_workflow_publishes_only_sanitized_aggregate_evidence() -> None:
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
+        encoding="utf-8"
+    )
+    runner = Path("deploy/scripts/run-capacity-certification.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "capacity-certification.json" in workflow
+    assert "capacity-certification.md" in workflow
+    for private_name in (
+        "viewer-manifest.json",
+        "observer.ndjson",
+        "k6.ndjson",
+        "browser-private.log",
+        "synthetic-capacity.ome.tiff",
+    ):
+        assert private_name not in workflow
+    assert 'WORK_DIR="$(mktemp -d)"' in runner
+    assert 'rm -rf -- "${WORK_DIR}"' in runner
+    assert "LOAD_TEST_ADMIN_PASSWORD" not in runner.replace(
+        ': "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"', ""
+    )
+
+
 def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     dockerfiles = (
         Path("deploy/Dockerfile.backend").read_text(encoding="utf-8"),

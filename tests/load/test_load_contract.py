@@ -52,6 +52,23 @@ def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:
     assert "curl" not in script
 
 
+def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() -> None:
+    script = Path("deploy/scripts/run-capacity-certification.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "run_profile smoke 50 false" in script
+    assert "run_profile acceptance 630 false" in script
+    assert "run_profile capacity300 900 true" in script
+    assert "/v1/status" in script
+    assert '["data"]["attributes"]["vus"] >= 300' in script
+    assert "certification_watchdog.py" in script
+    assert "certification_report.py" in script
+    assert "generate_remote_manifest.py" in script
+    assert "generate_synthetic_ome.py" in script
+    assert "playwright.live.config.ts" in script
+
+
 @pytest.mark.skipif(BASH is None, reason="bash is unavailable")
 def test_load_wrapper_rejects_missing_inputs() -> None:
     environment = os.environ.copy()
