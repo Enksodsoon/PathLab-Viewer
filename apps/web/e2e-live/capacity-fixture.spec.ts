@@ -79,8 +79,10 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
   let slideId: string | null = null
   let stage = 'admin-sign-in'
   try {
+    writeDiagnostic(stage)
     await signIn(page)
     stage = 'upload-reservation'
+    writeDiagnostic(stage)
     await page.getByRole('button', { name: 'Upload', exact: true }).click()
     await page.getByLabel('Choose OME-TIFF').setInputFiles(syntheticPath)
     await page.getByLabel('Display name').fill('Synthetic public capacity fixture')
@@ -101,6 +103,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     writeRecord({ slideId })
 
     stage = 'upload-and-conversion'
+    writeDiagnostic(stage)
     await expect(page.getByText('Upload complete. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
@@ -119,6 +122,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     }).toBe('ready_private')
 
     stage = 'publication'
+    writeDiagnostic(stage)
     const publication = await csrfJson(
       page,
       `/api/v1/admin/slides/${encodeURIComponent(slideId)}/publish`,
@@ -173,8 +177,10 @@ test('remove the synthetic public capacity fixture', async ({ page }) => {
   const { slideId } = readRecord()
   let stage = 'cleanup-admin-sign-in'
   try {
+    writeDiagnostic(stage)
     await signIn(page)
     stage = 'fixture-deletion'
+    writeDiagnostic(stage)
     const deletion = await csrfJson(
       page,
       `/api/v1/admin/slides/${encodeURIComponent(slideId)}`,

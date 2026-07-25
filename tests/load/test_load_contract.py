@@ -71,6 +71,8 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
     assert "CAPACITY_FIXTURE_ACTION=cleanup" in script
     assert "CAPACITY_FIXTURE_DIAGNOSTIC" in script
     assert "Synthetic fixture preparation failed at stage:" in script
+    assert "fixture_prepare_status=$?" in script
+    assert 'if [[ "${fixture_prepare_status}" -ne 0 ]]' in script
     assert "Capacity phase: synthetic fixture generation." in script
     assert "Capacity certification failed during synthetic fixture generation." in script
     assert "Capacity phase: synthetic fixture preparation." in script
