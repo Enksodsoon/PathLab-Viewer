@@ -67,6 +67,22 @@ Scope the OCI policy to the deployment Bastion, target instance, and `pathlab-de
 
 The deployment workflow must never read or modify `/srv/pathlab/data` except through the deployed application services and approved backup or restore procedures.
 
+After deploying the release that introduces capacity certification, a trusted
+administrator must perform this one-time update through the existing
+break-glass host access:
+
+```bash
+sudo install -o root -g root -m 755 \
+  /opt/pathlab-viewer/deploy/scripts/deploy-release.sh \
+  /usr/local/sbin/pathlab-viewer-deploy
+```
+
+Verify that `sudo /usr/local/sbin/pathlab-viewer-deploy "observe-load 10"`
+returns two path-free JSON records and no application data. The existing forced
+SSH command remains in place. This bootstrap cannot be performed by the old
+forced command because that version intentionally accepts only
+`deploy <commit>`.
+
 ## Backup and restore
 
 Run backups on a fixed schedule and monitor their age and size. A backup is not considered verified until it has been restored successfully.
@@ -128,6 +144,20 @@ common/random tile batches. The wrapper is never invoked by deployment or CI
 and requires an operator-provided URL and manifest. Follow the full resource,
 administrator, conversion, and degraded-network gates in
 [`docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md`](../docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md).
+
+For the production certification, configure the protected `production`
+environment with `PRODUCTION_BASE_URL`, `LOAD_TEST_PUBLIC_ID`,
+`LOAD_TEST_ADMIN_SLIDE_ID`, `LOAD_TEST_ADMIN_USERNAME`, and
+`LOAD_TEST_ADMIN_PASSWORD`. Then use **Actions → Capacity certification → Run
+workflow**, enter `CERTIFY_PRODUCTION_300`, and approve the environment only
+after confirming the selected public and administrator slide IDs refer to the
+same authorized non-PHI teaching material.
+
+The workflow runs baseline/smoke, 100-viewer acceptance, and the 300-viewer
+capacity profile. It starts the real administrator and degraded-network browser
+checks only after k6 reports 300 active virtual users. Do not upload its
+temporary working directory or browser logs. The retained artifact is limited
+to `capacity-certification.md` and `capacity-certification.json`.
 
 ## Optional CDN policy
 

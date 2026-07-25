@@ -64,11 +64,18 @@ deployment_check() {
   )
 }
 
+[[ "${EUID}" -eq 0 ]] || fail "this script must run as root"
+if [[ "${REQUEST}" =~ ^observe-load[[:space:]]([0-9]{2,3})$ ]]; then
+  OBSERVE_DURATION="${BASH_REMATCH[1]}"
+  (( OBSERVE_DURATION >= 10 && OBSERVE_DURATION <= 900 && OBSERVE_DURATION % 10 == 0 )) || \
+    fail "observe-load duration must be a multiple of 10 from 10 to 900 seconds"
+  exec "${LIVE_DIR}/deploy/scripts/observe-load.sh" "${OBSERVE_DURATION}"
+fi
+
 [[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})$ ]] || \
-  fail "expected: deploy <40-character lowercase commit SHA>"
+  fail "expected: deploy <40-character lowercase commit SHA> or observe-load <10-900 seconds>"
 TARGET_SHA="${BASH_REMATCH[1]}"
 
-[[ "${EUID}" -eq 0 ]] || fail "this script must run as root"
 command -v flock >/dev/null || fail "flock is required"
 exec 9>"${LOCK_FILE}"
 flock -n 9 || fail "another production deployment is already running"

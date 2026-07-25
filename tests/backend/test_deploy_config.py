@@ -215,6 +215,54 @@ def test_production_deploy_is_manual_serial_and_main_only() -> None:
     assert "github.ref == 'refs/heads/main'" in workflow
     assert "pull_request:" not in workflow
     assert "push:" not in workflow
+    assert "group: production-control" in workflow
+
+
+def test_capacity_certification_is_manual_protected_and_serialized_with_deploys() -> None:
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert "CERTIFY_PRODUCTION_300" in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
+    assert "name: production" in workflow
+    assert "group: production-control" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "timeout-minutes: 60" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+    assert "schedule:" not in workflow
+    assert "secrets.LOAD_TEST_PUBLIC_ID" in workflow
+    assert "secrets.LOAD_TEST_ADMIN_PASSWORD" in workflow
+    assert "vars.PRODUCTION_BASE_URL" in workflow
+    assert "tests/load/viewer.js" not in workflow
+    assert "deploy/scripts/run-capacity-certification.sh" in workflow
+
+
+def test_capacity_workflow_publishes_only_sanitized_aggregate_evidence() -> None:
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
+        encoding="utf-8"
+    )
+    runner = Path("deploy/scripts/run-capacity-certification.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "capacity-certification.json" in workflow
+    assert "capacity-certification.md" in workflow
+    for private_name in (
+        "viewer-manifest.json",
+        "observer.ndjson",
+        "k6.ndjson",
+        "browser-private.log",
+        "synthetic-capacity.ome.tiff",
+    ):
+        assert private_name not in workflow
+    assert 'WORK_DIR="$(mktemp -d)"' in runner
+    assert 'rm -rf -- "${WORK_DIR}"' in runner
+    assert "LOAD_TEST_ADMIN_PASSWORD" not in runner.replace(
+        ': "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"', ""
+    )
 
 
 def test_runtime_container_inputs_are_pinned_by_digest() -> None:
@@ -293,6 +341,27 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "oci bastion session delete" in script
     assert "StrictHostKeyChecking=yes" in script
     assert "deploy ${TARGET_SHA}" in script
+
+
+def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> None:
+    client = Path("deploy/scripts/observe-via-bastion.sh").read_text(encoding="utf-8")
+    observer = Path("deploy/scripts/observe-load.sh").read_text(encoding="utf-8")
+    release = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+
+    assert "ssh-keygen" in client
+    assert "trap cleanup_bastion_session EXIT" in client
+    assert "oci bastion session delete" in client
+    assert "StrictHostKeyChecking=yes" in client
+    assert "observe-load ${DURATION}" in client
+    assert "DURATION <= 900" in client
+    assert "^observe-load[[:space:]]([0-9]{2,3})$" in release
+    assert "exec \"${LIVE_DIR}/deploy/scripts/observe-load.sh\"" in release
+    assert "/proc/stat" in observer
+    assert "/proc/meminfo" in observer
+    assert "docker inspect" in observer
+    assert "releaseSha" in observer
+    assert "/srv/pathlab/data" not in observer
+    assert "docker compose logs" not in observer
 
 
 def test_bastion_target_has_no_interactive_deployment_access() -> None:
