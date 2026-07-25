@@ -67,6 +67,22 @@ Scope the OCI policy to the deployment Bastion, target instance, and `pathlab-de
 
 The deployment workflow must never read or modify `/srv/pathlab/data` except through the deployed application services and approved backup or restore procedures.
 
+After deploying the release that introduces capacity certification, a trusted
+administrator must perform this one-time update through the existing
+break-glass host access:
+
+```bash
+sudo install -o root -g root -m 755 \
+  /opt/pathlab-viewer/deploy/scripts/deploy-release.sh \
+  /usr/local/sbin/pathlab-viewer-deploy
+```
+
+Verify that `sudo /usr/local/sbin/pathlab-viewer-deploy "observe-load 10"`
+returns two path-free JSON records and no application data. The existing forced
+SSH command remains in place. This bootstrap cannot be performed by the old
+forced command because that version intentionally accepts only
+`deploy <commit>`.
+
 ## Backup and restore
 
 Run backups on a fixed schedule and monitor their age and size. A backup is not considered verified until it has been restored successfully.

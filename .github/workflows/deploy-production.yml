@@ -9,7 +9,7 @@ permissions:
   deployments: write
 
 concurrency:
-  group: production-deploy
+  group: production-control
   cancel-in-progress: false
 
 jobs:
