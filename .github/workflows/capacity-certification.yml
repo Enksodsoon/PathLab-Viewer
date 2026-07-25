@@ -102,7 +102,7 @@ jobs:
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_TARGET_USER: pathlab-deploy
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-        run: deploy/scripts/run-capacity-certification.sh
+        run: bash deploy/scripts/run-capacity-certification.sh
 
       - name: Publish sanitized aggregate evidence
         if: success()

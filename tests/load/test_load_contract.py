@@ -79,6 +79,7 @@ def test_capacity_workflow_does_not_require_preexisting_slide_secrets() -> None:
         encoding="utf-8"
     )
 
+    assert "run: bash deploy/scripts/run-capacity-certification.sh" in workflow
     assert "LOAD_TEST_PUBLIC_ID: ${{ secrets." not in workflow
     assert "LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets." not in workflow
     assert "LOAD_TEST_ADMIN_USERNAME" in workflow
