@@ -94,6 +94,8 @@ def test_live_capacity_specs_wait_for_current_admin_sign_in() -> None:
         assert "await expect(heading).toBeVisible" in spec
         assert "name: 'Enter workspace'" in spec
         assert "name: 'Sign in'" not in spec
+        assert "getByLabel('Username', { exact: true })" in spec
+        assert "getByLabel('Password', { exact: true })" in spec
         assert "authenticationResponse.ok()" in spec
 
 

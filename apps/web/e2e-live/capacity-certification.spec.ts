@@ -41,8 +41,8 @@ async function signIn(page: Page) {
   await page.goto('/admin')
   const heading = page.getByRole('heading', { name: 'Administrator sign in' })
   await expect(heading).toBeVisible({ timeout: 30_000 })
-  await page.getByLabel('Username').fill(username)
-  await page.getByLabel('Password').fill(password)
+  await page.getByLabel('Username', { exact: true }).fill(username)
+  await page.getByLabel('Password', { exact: true }).fill(password)
   const authentication = page.waitForResponse((response) => (
     response.request().method() === 'POST'
     && new URL(response.url()).pathname === '/api/v1/auth/session'
