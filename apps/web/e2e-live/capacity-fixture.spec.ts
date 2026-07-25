@@ -43,6 +43,7 @@ async function signIn(page: Page) {
   await page.getByRole('button', { name: 'Enter workspace' }).click()
   const authenticationResponse = await authentication
   if (!authenticationResponse.ok()) {
+    writeDiagnostic(`admin-sign-in-http-${authenticationResponse.status()}`)
     throw new Error(`Administrator sign-in failed with status ${authenticationResponse.status()}`)
   }
   await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible({

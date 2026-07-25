@@ -96,6 +96,8 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Run production capacity certification
+        id: capacity-runner
+        continue-on-error: true
         env:
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
@@ -103,6 +105,25 @@ jobs:
           OCI_TARGET_USER: pathlab-deploy
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
         run: bash deploy/scripts/run-capacity-certification.sh
+
+      - name: Report sanitized certification failure
+        if: steps.capacity-runner.outcome == 'failure'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          path = Path(os.environ["CAPACITY_EVIDENCE_DIR"]) / "capacity-fixture-diagnostic.json"
+          stage = "unavailable"
+          if path.is_file():
+              candidate = json.loads(path.read_text(encoding="utf-8")).get("stage")
+              if isinstance(candidate, str) and re.fullmatch(r"[a-z0-9-]+", candidate):
+                  stage = candidate
+          print(f"Capacity certification failed at sanitized fixture stage: {stage}")
+          PY
+          exit 1
 
       - name: Publish sanitized aggregate evidence
         if: success()

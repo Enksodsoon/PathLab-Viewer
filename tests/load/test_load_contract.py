@@ -70,6 +70,7 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
     assert "CAPACITY_FIXTURE_ACTION=prepare" in script
     assert "CAPACITY_FIXTURE_ACTION=cleanup" in script
     assert "CAPACITY_FIXTURE_DIAGNOSTIC" in script
+    assert '"${CAPACITY_EVIDENCE_DIR}/capacity-fixture-diagnostic.json"' in script
     assert "Synthetic fixture preparation failed at stage:" in script
     assert "fixture_prepare_status=$?" in script
     assert 'if [[ "${fixture_prepare_status}" -ne 0 ]]' in script
@@ -102,6 +103,10 @@ def test_capacity_workflow_does_not_require_preexisting_slide_secrets() -> None:
     )
 
     assert "run: bash deploy/scripts/run-capacity-certification.sh" in workflow
+    assert "id: capacity-runner" in workflow
+    assert "continue-on-error: true" in workflow
+    assert "steps.capacity-runner.outcome == 'failure'" in workflow
+    assert "Capacity certification failed at sanitized fixture stage:" in workflow
     assert "LOAD_TEST_PUBLIC_ID: ${{ secrets." not in workflow
     assert "LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets." not in workflow
     assert "LOAD_TEST_ADMIN_USERNAME" in workflow
