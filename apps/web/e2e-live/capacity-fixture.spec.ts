@@ -1,9 +1,18 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { readFileSync, writeFileSync } from 'node:fs'
+
+import {
+  CapacityHttpError,
+  csrfJson,
+  signIn,
+  uploadSyntheticSlide,
+  waitForSlideDeletion,
+} from './capacity-helpers'
 
 const action = required('CAPACITY_FIXTURE_ACTION')
 const resultPath = required('CAPACITY_FIXTURE_RESULT')
-const diagnosticPath = required('CAPACITY_FIXTURE_DIAGNOSTIC')
+const prepareDiagnosticPath = required('CAPACITY_FIXTURE_PREPARE_DIAGNOSTIC')
+const cleanupDiagnosticPath = required('CAPACITY_FIXTURE_CLEANUP_DIAGNOSTIC')
 const username = required('LOAD_TEST_ADMIN_USERNAME')
 const password = required('LOAD_TEST_ADMIN_PASSWORD')
 
@@ -26,52 +35,22 @@ function writeRecord(record: FixtureRecord) {
   writeFileSync(resultPath, `${JSON.stringify(record)}\n`)
 }
 
-function writeDiagnostic(stage: string) {
-  writeFileSync(diagnosticPath, `${JSON.stringify({ stage })}\n`)
-}
-
-async function signIn(page: Page) {
-  await page.goto('/admin')
-  const heading = page.getByRole('heading', { name: 'Administrator sign in' })
-  await expect(heading).toBeVisible({ timeout: 30_000 })
-  await page.getByLabel('Username', { exact: true }).fill(username)
-  await page.getByLabel('Password', { exact: true }).fill(password)
-  const authentication = page.waitForResponse((response) => (
-    response.request().method() === 'POST'
-    && new URL(response.url()).pathname === '/api/v1/auth/session'
-  ))
-  await page.getByRole('button', { name: 'Enter workspace' }).click()
-  const authenticationResponse = await authentication
-  if (!authenticationResponse.ok()) {
-    writeDiagnostic(`admin-sign-in-http-${authenticationResponse.status()}`)
-    throw new Error(`Administrator sign-in failed with status ${authenticationResponse.status()}`)
-  }
-  await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible({
-    timeout: 30_000,
-  })
-}
-
-async function csrfJson(
-  page: Page,
-  path: string,
-  method: 'DELETE' | 'POST',
-): Promise<{ body: unknown; ok: boolean; status: number }> {
-  return page.evaluate(async ({ requestPath, requestMethod }) => {
-    const response = await fetch(requestPath, {
-      method: requestMethod,
-      credentials: 'same-origin',
-      headers: {
-        'X-CSRF-Token': sessionStorage.getItem('pathlab-csrf') ?? '',
-      },
-    })
-    let body: unknown = null
-    try {
-      body = await response.json()
-    } catch {
-      // DELETE may legitimately return no JSON body.
+function writeDiagnostic(path: string, stage: string, error?: unknown) {
+  if (!/^[a-z0-9-]+$/.test(stage)) throw new Error('Invalid diagnostic stage')
+  const diagnostic: {
+    errorCode?: string
+    httpStatus?: number
+    stage: string
+  } = { stage }
+  if (error instanceof CapacityHttpError) {
+    if (error.httpStatus >= 100 && error.httpStatus <= 599) {
+      diagnostic.httpStatus = error.httpStatus
     }
-    return { body, ok: response.ok, status: response.status }
-  }, { requestPath: path, requestMethod: method })
+    if (error.errorCode && /^[A-Z0-9_]{1,64}$/.test(error.errorCode)) {
+      diagnostic.errorCode = error.errorCode
+    }
+  }
+  writeFileSync(path, `${JSON.stringify(diagnostic)}\n`)
 }
 
 test('prepare a synthetic public capacity fixture', async ({ page }) => {
@@ -80,31 +59,19 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
   let slideId: string | null = null
   let stage = 'admin-sign-in'
   try {
-    writeDiagnostic(stage)
-    await signIn(page)
+    writeDiagnostic(prepareDiagnosticPath, stage)
+    await signIn(page, username, password)
     stage = 'upload-reservation'
-    writeDiagnostic(stage)
-    await page.getByRole('button', { name: 'Upload', exact: true }).click()
-    await page.getByLabel('Choose OME-TIFF').setInputFiles(syntheticPath)
-    await page.getByLabel('Display name').fill('Synthetic public capacity fixture')
-    const reservation = page.waitForResponse((response) => (
-      response.request().method() === 'POST'
-      && new URL(response.url()).pathname === '/api/v1/admin/slides'
-    ))
-    await page.getByRole('button', { name: 'Upload slide' }).click()
-    const reservationResponse = await reservation
-    if (!reservationResponse.ok()) throw new Error('Synthetic fixture reservation failed')
-    const reservationBody = await reservationResponse.json() as {
-      slide?: { id?: unknown }
-    }
-    if (typeof reservationBody.slide?.id !== 'string') {
-      throw new Error('Synthetic fixture reservation was incomplete')
-    }
-    slideId = reservationBody.slide.id
+    writeDiagnostic(prepareDiagnosticPath, stage)
+    slideId = await uploadSyntheticSlide(
+      page,
+      syntheticPath,
+      'Synthetic public capacity fixture',
+    )
     writeRecord({ slideId })
 
     stage = 'upload-and-conversion'
-    writeDiagnostic(stage)
+    writeDiagnostic(prepareDiagnosticPath, stage)
     await expect(page.getByText('Upload complete. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
@@ -123,13 +90,19 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     }).toBe('ready_private')
 
     stage = 'publication'
-    writeDiagnostic(stage)
+    writeDiagnostic(prepareDiagnosticPath, stage)
     const publication = await csrfJson(
       page,
       `/api/v1/admin/slides/${encodeURIComponent(slideId)}/publish`,
-      'POST',
+      { method: 'POST', body: { deidentifiedConfirmed: true } },
     )
-    if (!publication.ok) throw new Error('Synthetic fixture publication failed')
+    if (!publication.ok) {
+      throw new CapacityHttpError(
+        'Synthetic fixture publication failed',
+        publication.status,
+        publication.errorCode,
+      )
+    }
     const published = publication.body as { publicId?: unknown }
     if (typeof published.publicId !== 'string') {
       throw new Error('Synthetic fixture publication response was incomplete')
@@ -161,13 +134,30 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     }
     writeRecord({ slideId, publicId: published.publicId })
   } catch (error) {
-    writeDiagnostic(stage)
+    writeDiagnostic(prepareDiagnosticPath, stage, error)
     if (slideId !== null) {
-      await csrfJson(
-        page,
-        `/api/v1/admin/slides/${encodeURIComponent(slideId)}`,
-        'DELETE',
-      ).catch(() => null)
+      try {
+        writeDiagnostic(cleanupDiagnosticPath, 'prepare-rollback-deletion')
+        const deletion = await csrfJson(
+          page,
+          `/api/v1/admin/slides/${encodeURIComponent(slideId)}`,
+          { method: 'DELETE' },
+        )
+        if (!deletion.ok && deletion.status !== 404) {
+          throw new CapacityHttpError(
+            'Synthetic fixture rollback deletion was rejected',
+            deletion.status,
+            deletion.errorCode,
+          )
+        }
+        await waitForSlideDeletion(page, slideId)
+      } catch (cleanupError) {
+        writeDiagnostic(
+          cleanupDiagnosticPath,
+          'prepare-rollback-deletion',
+          cleanupError,
+        )
+      }
     }
     throw error
   }
@@ -178,31 +168,25 @@ test('remove the synthetic public capacity fixture', async ({ page }) => {
   const { slideId } = readRecord()
   let stage = 'cleanup-admin-sign-in'
   try {
-    writeDiagnostic(stage)
-    await signIn(page)
+    writeDiagnostic(cleanupDiagnosticPath, stage)
+    await signIn(page, username, password)
     stage = 'fixture-deletion'
-    writeDiagnostic(stage)
+    writeDiagnostic(cleanupDiagnosticPath, stage)
     const deletion = await csrfJson(
       page,
       `/api/v1/admin/slides/${encodeURIComponent(slideId)}`,
-      'DELETE',
+      { method: 'DELETE' },
     )
     if (!deletion.ok && deletion.status !== 404) {
-      throw new Error('Synthetic fixture deletion was rejected')
-    }
-    await expect.poll(async () => page.evaluate(async (approvedSlideId) => {
-      const response = await fetch(
-        `/api/v1/admin/slides/${encodeURIComponent(approvedSlideId)}`,
-        { credentials: 'same-origin' },
+      throw new CapacityHttpError(
+        'Synthetic fixture deletion was rejected',
+        deletion.status,
+        deletion.errorCode,
       )
-      return response.status
-    }, slideId), {
-      timeout: 5 * 60_000,
-      intervals: [5_000],
-      message: 'Synthetic fixture was not removed',
-    }).toBe(404)
+    }
+    await waitForSlideDeletion(page, slideId)
   } catch (error) {
-    writeDiagnostic(stage)
+    writeDiagnostic(cleanupDiagnosticPath, stage, error)
     throw error
   }
 })

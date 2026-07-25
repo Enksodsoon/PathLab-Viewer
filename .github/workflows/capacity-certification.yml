@@ -115,13 +115,31 @@ jobs:
           import re
           from pathlib import Path
 
-          path = Path(os.environ["CAPACITY_EVIDENCE_DIR"]) / "capacity-fixture-diagnostic.json"
-          stage = "unavailable"
-          if path.is_file():
-              candidate = json.loads(path.read_text(encoding="utf-8")).get("stage")
-              if isinstance(candidate, str) and re.fullmatch(r"[a-z0-9-]+", candidate):
-                  stage = candidate
-          print(f"Capacity certification failed at sanitized fixture stage: {stage}")
+          evidence = Path(os.environ["CAPACITY_EVIDENCE_DIR"])
+
+          def sanitized_diagnostic(filename):
+              path = evidence / filename
+              diagnostic = {"stage": "unavailable"}
+              if not path.is_file():
+                  return diagnostic
+              candidate = json.loads(path.read_text(encoding="utf-8"))
+              stage = candidate.get("stage")
+              if isinstance(stage, str) and re.fullmatch(r"[a-z0-9-]+", stage):
+                  diagnostic["stage"] = stage
+              status = candidate.get("httpStatus")
+              if isinstance(status, int) and 100 <= status <= 599:
+                  diagnostic["httpStatus"] = status
+              code = candidate.get("errorCode")
+              if isinstance(code, str) and re.fullmatch(r"[A-Z0-9_]{1,64}", code):
+                  diagnostic["errorCode"] = code
+              return diagnostic
+
+          prepare = sanitized_diagnostic("capacity-fixture-prepare-diagnostic.json")
+          cleanup = sanitized_diagnostic("capacity-fixture-cleanup-diagnostic.json")
+          print(f"Capacity certification failed at sanitized fixture stage: {prepare['stage']}")
+          print(f"Sanitized fixture prepare diagnostic: {json.dumps(prepare, sort_keys=True)}")
+          if cleanup["stage"] != "unavailable":
+              print(f"Sanitized fixture cleanup diagnostic: {json.dumps(cleanup, sort_keys=True)}")
           PY
           exit 1
 

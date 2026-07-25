@@ -25,7 +25,8 @@ SYNTHETIC_PATH="${WORK_DIR}/synthetic-capacity.ome.tiff"
 FIXTURE_PATH="${WORK_DIR}/synthetic-public-fixture.ome.tiff"
 export CAPACITY_FIXTURE_OME="${FIXTURE_PATH}"
 export CAPACITY_FIXTURE_RESULT="${WORK_DIR}/capacity-fixture.json"
-export CAPACITY_FIXTURE_DIAGNOSTIC="${CAPACITY_EVIDENCE_DIR}/capacity-fixture-diagnostic.json"
+export CAPACITY_FIXTURE_PREPARE_DIAGNOSTIC="${CAPACITY_EVIDENCE_DIR}/capacity-fixture-prepare-diagnostic.json"
+export CAPACITY_FIXTURE_CLEANUP_DIAGNOSTIC="${CAPACITY_EVIDENCE_DIR}/capacity-fixture-cleanup-diagnostic.json"
 export MANIFEST_PATH
 export CAPACITY_SYNTHETIC_OME="${SYNTHETIC_PATH}"
 export CAPACITY_BROWSER_RESULT="${WORK_DIR}/browser-result.json"
@@ -74,7 +75,7 @@ set -e
 if [[ "${fixture_prepare_status}" -ne 0 ]]; then
   python -c \
     'import json,sys; print("Synthetic fixture preparation failed at stage: " + json.load(open(sys.argv[1], encoding="utf-8"))["stage"], file=sys.stderr)' \
-    "${CAPACITY_FIXTURE_DIAGNOSTIC}" 2>/dev/null || \
+    "${CAPACITY_FIXTURE_PREPARE_DIAGNOSTIC}" 2>/dev/null || \
     echo "Synthetic fixture preparation failed before a diagnostic stage was recorded." >&2
   exit 1
 fi

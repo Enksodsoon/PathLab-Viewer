@@ -1,0 +1,173 @@
+import {
+  expect,
+  type Locator,
+  type Page,
+  type Response,
+} from '@playwright/test'
+
+interface JsonResponse {
+  body: unknown
+  errorCode?: string
+  ok: boolean
+  status: number
+}
+
+export class CapacityHttpError extends Error {
+  readonly errorCode?: string
+  readonly httpStatus: number
+
+  constructor(message: string, httpStatus: number, errorCode?: string) {
+    super(message)
+    this.name = 'CapacityHttpError'
+    this.httpStatus = httpStatus
+    this.errorCode = errorCode
+  }
+}
+
+function sanitizedErrorCode(body: unknown): string | undefined {
+  if (typeof body !== 'object' || body === null) return undefined
+  const record = body as Record<string, unknown>
+  const detail = typeof record.detail === 'object' && record.detail !== null
+    ? record.detail as Record<string, unknown>
+    : undefined
+  const candidate = detail?.code ?? record.code
+  return typeof candidate === 'string' && /^[A-Z0-9_]{1,64}$/.test(candidate)
+    ? candidate
+    : undefined
+}
+
+async function responseBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
+export function capacityUploadDialog(page: Page): Locator {
+  return page.getByRole('dialog', { name: 'Upload OME-TIFF' })
+}
+
+export async function signIn(
+  page: Page,
+  username: string,
+  password: string,
+): Promise<void> {
+  await page.goto('/admin')
+  const heading = page.getByRole('heading', { name: 'Administrator sign in' })
+  await expect(heading).toBeVisible({ timeout: 30_000 })
+  await page.getByLabel('Username', { exact: true }).fill(username)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  const authentication = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/v1/auth/session'
+  ))
+  await page.getByRole('button', { name: 'Enter workspace' }).click()
+  const authenticationResponse = await authentication
+  if (!authenticationResponse.ok()) {
+    const body = await responseBody(authenticationResponse)
+    throw new CapacityHttpError(
+      'Administrator sign-in failed',
+      authenticationResponse.status(),
+      sanitizedErrorCode(body),
+    )
+  }
+  await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible({
+    timeout: 30_000,
+  })
+}
+
+export async function uploadSyntheticSlide(
+  page: Page,
+  syntheticPath: string,
+  displayName: string,
+): Promise<string> {
+  await page.getByRole('button', { name: 'Upload', exact: true }).click()
+  const dialog = capacityUploadDialog(page)
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Choose OME-TIFF', { exact: true }).setInputFiles(syntheticPath)
+  await dialog.getByLabel('Display name', { exact: true }).fill(displayName)
+  const reservation = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/v1/admin/slides'
+  ))
+  await dialog.getByRole('button', { name: 'Upload slide', exact: true }).click()
+  const reservationResponse = await reservation
+  const body = await responseBody(reservationResponse)
+  if (!reservationResponse.ok()) {
+    throw new CapacityHttpError(
+      'Synthetic upload reservation failed',
+      reservationResponse.status(),
+      sanitizedErrorCode(body),
+    )
+  }
+  const slideId = (
+    typeof body === 'object'
+    && body !== null
+    && typeof (body as { slide?: { id?: unknown } }).slide?.id === 'string'
+  )
+    ? (body as { slide: { id: string } }).slide.id
+    : null
+  if (slideId === null) throw new Error('Synthetic upload reservation was incomplete')
+  return slideId
+}
+
+export async function csrfJson(
+  page: Page,
+  path: string,
+  init: { method: 'DELETE' | 'POST'; body?: unknown },
+): Promise<JsonResponse> {
+  return page.evaluate(async ({ requestPath, requestInit }) => {
+    const response = await fetch(requestPath, {
+      method: requestInit.method,
+      credentials: 'same-origin',
+      headers: {
+        ...(requestInit.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        'X-CSRF-Token': sessionStorage.getItem('pathlab-csrf') ?? '',
+      },
+      ...(requestInit.body === undefined
+        ? {}
+        : { body: JSON.stringify(requestInit.body) }),
+    })
+    let body: unknown = null
+    try {
+      body = await response.json()
+    } catch {
+      // DELETE may legitimately return no JSON body.
+    }
+    const record = typeof body === 'object' && body !== null
+      ? body as Record<string, unknown>
+      : {}
+    const detail = typeof record.detail === 'object' && record.detail !== null
+      ? record.detail as Record<string, unknown>
+      : {}
+    const candidate = detail.code ?? record.code
+    const errorCode = typeof candidate === 'string'
+      && /^[A-Z0-9_]{1,64}$/.test(candidate)
+      ? candidate
+      : undefined
+    return {
+      body,
+      ...(errorCode === undefined ? {} : { errorCode }),
+      ok: response.ok,
+      status: response.status,
+    }
+  }, { requestPath: path, requestInit: init })
+}
+
+export async function waitForSlideDeletion(
+  page: Page,
+  slideId: string,
+): Promise<void> {
+  await expect.poll(async () => page.evaluate(async (approvedSlideId) => {
+    const response = await fetch(
+      `/api/v1/admin/slides/${encodeURIComponent(approvedSlideId)}`,
+      { credentials: 'same-origin' },
+    )
+    return response.status
+  }, slideId), {
+    timeout: 5 * 60_000,
+    intervals: [5_000],
+    message: 'Synthetic slide was not removed',
+  }).toBe(404)
+}

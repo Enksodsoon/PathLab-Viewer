@@ -1,5 +1,12 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { readFileSync, writeFileSync } from 'node:fs'
+
+import {
+  csrfJson,
+  signIn,
+  uploadSyntheticSlide,
+  waitForSlideDeletion,
+} from './capacity-helpers'
 
 const resultPath = required('CAPACITY_BROWSER_RESULT')
 const publicId = required('LOAD_TEST_PUBLIC_ID')
@@ -37,48 +44,6 @@ function updateResult(patch: Partial<BrowserResult>) {
   writeFileSync(resultPath, `${JSON.stringify({ ...current, ...patch }, null, 2)}\n`)
 }
 
-async function signIn(page: Page) {
-  await page.goto('/admin')
-  const heading = page.getByRole('heading', { name: 'Administrator sign in' })
-  await expect(heading).toBeVisible({ timeout: 30_000 })
-  await page.getByLabel('Username', { exact: true }).fill(username)
-  await page.getByLabel('Password', { exact: true }).fill(password)
-  const authentication = page.waitForResponse((response) => (
-    response.request().method() === 'POST'
-    && new URL(response.url()).pathname === '/api/v1/auth/session'
-  ))
-  await page.getByRole('button', { name: 'Enter workspace' }).click()
-  const authenticationResponse = await authentication
-  if (!authenticationResponse.ok()) {
-    throw new Error(`Administrator sign-in failed with status ${authenticationResponse.status()}`)
-  }
-  await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible({
-    timeout: 30_000,
-  })
-}
-
-async function csrfFetch(
-  page: Page,
-  path: string,
-  init: { method: string; body?: unknown },
-): Promise<{ ok: boolean; status: number }> {
-  return page.evaluate(async ({ path: requestPath, init: requestInit }) => {
-    const token = sessionStorage.getItem('pathlab-csrf') ?? ''
-    const response = await fetch(requestPath, {
-      method: requestInit.method,
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': token,
-      },
-      ...(requestInit.body === undefined
-        ? {}
-        : { body: JSON.stringify(requestInit.body) }),
-    })
-    return { ok: response.ok, status: response.status }
-  }, { path, init })
-}
-
 test.beforeAll(() => updateResult({}))
 
 test('admin remains responsive and conversion cleanup succeeds', async ({ page }) => {
@@ -88,9 +53,9 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
   let conversionSucceeded = false
   let cleanupSucceeded = false
   try {
-    await signIn(page)
+    await signIn(page, username, password)
     const target = await page.evaluate(async (slideId) => {
-      const response = await fetch(`/api/v1/admin/slides/${encodeURIComponent(slideId)}`, {
+      const response = await fetch(`/api/v2/admin/slides/${encodeURIComponent(slideId)}`, {
         credentials: 'same-origin',
       })
       if (!response.ok) throw new Error('Approved admin slide was unavailable')
@@ -118,23 +83,11 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
     await expect(page.getByRole('heading', { name: 'Edit slide details' })).toBeHidden()
     updateResult({ adminResponsive: true })
 
-    await page.getByRole('button', { name: 'Upload', exact: true }).click()
-    await page.getByLabel('Choose OME-TIFF').setInputFiles(syntheticPath)
-    await page.getByLabel('Display name').fill(`Synthetic certification ${runMarker}`)
-    const reservation = page.waitForResponse((response) => (
-      response.request().method() === 'POST'
-      && new URL(response.url()).pathname === '/api/v1/admin/slides'
-    ))
-    await page.getByRole('button', { name: 'Upload slide' }).click()
-    const reservationResponse = await reservation
-    if (!reservationResponse.ok()) throw new Error('Synthetic upload reservation failed')
-    const reservationBody = await reservationResponse.json() as {
-      slide?: { id?: unknown }
-    }
-    if (typeof reservationBody.slide?.id !== 'string') {
-      throw new Error('Synthetic upload reservation was incomplete')
-    }
-    syntheticSlideId = reservationBody.slide.id
+    syntheticSlideId = await uploadSyntheticSlide(
+      page,
+      syntheticPath,
+      `Synthetic certification ${runMarker}`,
+    )
     await expect(page.getByText('Upload complete. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
@@ -156,19 +109,23 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
     let noteRestored = !noteChanged
     let syntheticDeleted = syntheticSlideId === null
     if (noteChanged && originalNote !== null) {
-      const response = await csrfFetch(page, '/api/v2/admin/slides/batch-metadata', {
+      const response = await csrfJson(page, '/api/v2/admin/slides/batch-metadata', {
         method: 'POST',
         body: { slideIds: [adminSlideId], adminNotes: originalNote },
       }).catch(() => ({ ok: false, status: 0 }))
       noteRestored = response.ok
     }
     if (syntheticSlideId !== null) {
-      const response = await csrfFetch(
+      const response = await csrfJson(
         page,
         `/api/v1/admin/slides/${encodeURIComponent(syntheticSlideId)}`,
         { method: 'DELETE' },
       ).catch(() => ({ ok: false, status: 0 }))
-      syntheticDeleted = response.ok || response.status === 404
+      if (response.ok || response.status === 404) {
+        syntheticDeleted = await waitForSlideDeletion(page, syntheticSlideId)
+          .then(() => true)
+          .catch(() => false)
+      }
     }
     cleanupSucceeded = noteRestored && syntheticDeleted
     updateResult({ cleanupSucceeded, conversionSucceeded })

@@ -69,8 +69,12 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
     assert "capacity-fixture.spec.ts" in script
     assert "CAPACITY_FIXTURE_ACTION=prepare" in script
     assert "CAPACITY_FIXTURE_ACTION=cleanup" in script
-    assert "CAPACITY_FIXTURE_DIAGNOSTIC" in script
-    assert '"${CAPACITY_EVIDENCE_DIR}/capacity-fixture-diagnostic.json"' in script
+    assert "CAPACITY_FIXTURE_PREPARE_DIAGNOSTIC" in script
+    assert "CAPACITY_FIXTURE_CLEANUP_DIAGNOSTIC" in script
+    assert (
+        '"${CAPACITY_EVIDENCE_DIR}/capacity-fixture-prepare-diagnostic.json"'
+        in script
+    )
     assert "Synthetic fixture preparation failed at stage:" in script
     assert "fixture_prepare_status=$?" in script
     assert 'if [[ "${fixture_prepare_status}" -ne 0 ]]' in script
@@ -85,18 +89,69 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
 
 
 def test_live_capacity_specs_wait_for_current_admin_sign_in() -> None:
+    helper = Path(
+        "apps/web/e2e-live/capacity-helpers.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "await expect(heading).toBeVisible" in helper
+    assert "name: 'Enter workspace'" in helper
+    assert "name: 'Sign in'" not in helper
+    assert "getByLabel('Username', { exact: true })" in helper
+    assert "getByLabel('Password', { exact: true })" in helper
+    assert "authenticationResponse.ok()" in helper
     for path in (
         "apps/web/e2e-live/capacity-fixture.spec.ts",
         "apps/web/e2e-live/capacity-certification.spec.ts",
     ):
-        spec = Path(path).read_text(encoding="utf-8")
+        assert "signIn(page, username, password)" in Path(path).read_text(
+            encoding="utf-8"
+        )
 
-        assert "await expect(heading).toBeVisible" in spec
-        assert "name: 'Enter workspace'" in spec
-        assert "name: 'Sign in'" not in spec
-        assert "getByLabel('Username', { exact: true })" in spec
-        assert "getByLabel('Password', { exact: true })" in spec
-        assert "authenticationResponse.ok()" in spec
+
+def test_live_capacity_specs_share_scoped_upload_and_current_api_contracts() -> None:
+    fixture = Path(
+        "apps/web/e2e-live/capacity-fixture.spec.ts"
+    ).read_text(encoding="utf-8")
+    certification = Path(
+        "apps/web/e2e-live/capacity-certification.spec.ts"
+    ).read_text(encoding="utf-8")
+
+    assert "uploadSyntheticSlide" in fixture
+    assert "uploadSyntheticSlide" in certification
+    assert "deidentifiedConfirmed: true" in fixture
+    assert "/api/v2/admin/slides/" in certification
+    assert "waitForSlideDeletion" in fixture
+    assert "waitForSlideDeletion" in certification
+
+
+def test_capacity_diagnostics_separate_prepare_and_cleanup_failures() -> None:
+    fixture = Path(
+        "apps/web/e2e-live/capacity-fixture.spec.ts"
+    ).read_text(encoding="utf-8")
+    runner = Path("deploy/scripts/run-capacity-certification.sh").read_text(
+        encoding="utf-8"
+    )
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
+        encoding="utf-8"
+    )
+
+    for name in (
+        "CAPACITY_FIXTURE_PREPARE_DIAGNOSTIC",
+        "CAPACITY_FIXTURE_CLEANUP_DIAGNOSTIC",
+    ):
+        assert name in fixture
+        assert name in runner
+    assert "httpStatus" in fixture
+    assert "errorCode" in fixture
+    assert "prepare-diagnostic.json" in workflow
+    assert "cleanup-diagnostic.json" in workflow
+
+
+def test_arm64_container_job_has_a_bounded_timeout() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    containers = workflow.split("  containers:", maxsplit=1)[1]
+
+    assert "timeout-minutes: 30" in containers
 
 
 def test_capacity_workflow_does_not_require_preexisting_slide_secrets() -> None:
