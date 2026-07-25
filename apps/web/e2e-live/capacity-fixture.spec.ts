@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 
 const action = required('CAPACITY_FIXTURE_ACTION')
 const resultPath = required('CAPACITY_FIXTURE_RESULT')
+const diagnosticPath = required('CAPACITY_FIXTURE_DIAGNOSTIC')
 const username = required('LOAD_TEST_ADMIN_USERNAME')
 const password = required('LOAD_TEST_ADMIN_PASSWORD')
 
@@ -25,13 +26,24 @@ function writeRecord(record: FixtureRecord) {
   writeFileSync(resultPath, `${JSON.stringify(record)}\n`)
 }
 
+function writeDiagnostic(stage: string) {
+  writeFileSync(diagnosticPath, `${JSON.stringify({ stage })}\n`)
+}
+
 async function signIn(page: Page) {
   await page.goto('/admin')
   const heading = page.getByRole('heading', { name: 'Administrator sign in' })
-  if (await heading.isVisible()) {
-    await page.getByLabel('Username').fill(username)
-    await page.getByLabel('Password').fill(password)
-    await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(heading).toBeVisible({ timeout: 30_000 })
+  await page.getByLabel('Username').fill(username)
+  await page.getByLabel('Password').fill(password)
+  const authentication = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/v1/auth/session'
+  ))
+  await page.getByRole('button', { name: 'Enter workspace' }).click()
+  const authenticationResponse = await authentication
+  if (!authenticationResponse.ok()) {
+    throw new Error(`Administrator sign-in failed with status ${authenticationResponse.status()}`)
   }
   await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible({
     timeout: 30_000,
@@ -65,8 +77,10 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
   test.skip(action !== 'prepare', 'Fixture preparation was not requested')
   const syntheticPath = required('CAPACITY_FIXTURE_OME')
   let slideId: string | null = null
+  let stage = 'admin-sign-in'
   try {
     await signIn(page)
+    stage = 'upload-reservation'
     await page.getByRole('button', { name: 'Upload', exact: true }).click()
     await page.getByLabel('Choose OME-TIFF').setInputFiles(syntheticPath)
     await page.getByLabel('Display name').fill('Synthetic public capacity fixture')
@@ -86,6 +100,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     slideId = reservationBody.slide.id
     writeRecord({ slideId })
 
+    stage = 'upload-and-conversion'
     await expect(page.getByText('Upload complete. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
@@ -103,6 +118,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
       message: 'Synthetic fixture conversion did not reach ready_private',
     }).toBe('ready_private')
 
+    stage = 'publication'
     const publication = await csrfJson(
       page,
       `/api/v1/admin/slides/${encodeURIComponent(slideId)}/publish`,
@@ -140,6 +156,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     }
     writeRecord({ slideId, publicId: published.publicId })
   } catch (error) {
+    writeDiagnostic(stage)
     if (slideId !== null) {
       await csrfJson(
         page,
@@ -154,24 +171,31 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
 test('remove the synthetic public capacity fixture', async ({ page }) => {
   test.skip(action !== 'cleanup', 'Fixture cleanup was not requested')
   const { slideId } = readRecord()
-  await signIn(page)
-  const deletion = await csrfJson(
-    page,
-    `/api/v1/admin/slides/${encodeURIComponent(slideId)}`,
-    'DELETE',
-  )
-  if (!deletion.ok && deletion.status !== 404) {
-    throw new Error('Synthetic fixture deletion was rejected')
-  }
-  await expect.poll(async () => page.evaluate(async (approvedSlideId) => {
-    const response = await fetch(
-      `/api/v1/admin/slides/${encodeURIComponent(approvedSlideId)}`,
-      { credentials: 'same-origin' },
+  let stage = 'cleanup-admin-sign-in'
+  try {
+    await signIn(page)
+    stage = 'fixture-deletion'
+    const deletion = await csrfJson(
+      page,
+      `/api/v1/admin/slides/${encodeURIComponent(slideId)}`,
+      'DELETE',
     )
-    return response.status
-  }, slideId), {
-    timeout: 5 * 60_000,
-    intervals: [5_000],
-    message: 'Synthetic fixture was not removed',
-  }).toBe(404)
+    if (!deletion.ok && deletion.status !== 404) {
+      throw new Error('Synthetic fixture deletion was rejected')
+    }
+    await expect.poll(async () => page.evaluate(async (approvedSlideId) => {
+      const response = await fetch(
+        `/api/v1/admin/slides/${encodeURIComponent(approvedSlideId)}`,
+        { credentials: 'same-origin' },
+      )
+      return response.status
+    }, slideId), {
+      timeout: 5 * 60_000,
+      intervals: [5_000],
+      message: 'Synthetic fixture was not removed',
+    }).toBe(404)
+  } catch (error) {
+    writeDiagnostic(stage)
+    throw error
+  }
 })

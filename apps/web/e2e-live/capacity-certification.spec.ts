@@ -40,10 +40,17 @@ function updateResult(patch: Partial<BrowserResult>) {
 async function signIn(page: Page) {
   await page.goto('/admin')
   const heading = page.getByRole('heading', { name: 'Administrator sign in' })
-  if (await heading.isVisible()) {
-    await page.getByLabel('Username').fill(username)
-    await page.getByLabel('Password').fill(password)
-    await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(heading).toBeVisible({ timeout: 30_000 })
+  await page.getByLabel('Username').fill(username)
+  await page.getByLabel('Password').fill(password)
+  const authentication = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/v1/auth/session'
+  ))
+  await page.getByRole('button', { name: 'Enter workspace' }).click()
+  const authenticationResponse = await authentication
+  if (!authenticationResponse.ok()) {
+    throw new Error(`Administrator sign-in failed with status ${authenticationResponse.status()}`)
   }
   await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible({
     timeout: 30_000,

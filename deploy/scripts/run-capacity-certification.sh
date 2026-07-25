@@ -25,6 +25,7 @@ SYNTHETIC_PATH="${WORK_DIR}/synthetic-capacity.ome.tiff"
 FIXTURE_PATH="${WORK_DIR}/synthetic-public-fixture.ome.tiff"
 export CAPACITY_FIXTURE_OME="${FIXTURE_PATH}"
 export CAPACITY_FIXTURE_RESULT="${WORK_DIR}/capacity-fixture.json"
+export CAPACITY_FIXTURE_DIAGNOSTIC="${WORK_DIR}/capacity-fixture-diagnostic.json"
 export MANIFEST_PATH
 export CAPACITY_SYNTHETIC_OME="${SYNTHETIC_PATH}"
 export CAPACITY_BROWSER_RESULT="${WORK_DIR}/browser-result.json"
@@ -57,11 +58,17 @@ python tests/load/generate_synthetic_ome.py \
   --output "${FIXTURE_PATH}" \
   --width 4096 \
   --height 4096
-CAPACITY_FIXTURE_ACTION=prepare \
+if ! CAPACITY_FIXTURE_ACTION=prepare \
   pnpm --dir apps/web exec playwright test \
-  --config playwright.live.config.ts \
-  e2e-live/capacity-fixture.spec.ts \
-  > "${WORK_DIR}/fixture-prepare-private.log" 2>&1
+    --config playwright.live.config.ts \
+    e2e-live/capacity-fixture.spec.ts \
+    > "${WORK_DIR}/fixture-prepare-private.log" 2>&1; then
+  python -c \
+    'import json,sys; print("Synthetic fixture preparation failed at stage: " + json.load(open(sys.argv[1], encoding="utf-8"))["stage"], file=sys.stderr)' \
+    "${CAPACITY_FIXTURE_DIAGNOSTIC}" 2>/dev/null || \
+    echo "Synthetic fixture preparation failed before a diagnostic stage was recorded." >&2
+  exit 1
+fi
 export LOAD_TEST_PUBLIC_ID="$(
   python -c \
     'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["publicId"])' \

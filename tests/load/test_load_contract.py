@@ -69,9 +69,24 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
     assert "capacity-fixture.spec.ts" in script
     assert "CAPACITY_FIXTURE_ACTION=prepare" in script
     assert "CAPACITY_FIXTURE_ACTION=cleanup" in script
+    assert "CAPACITY_FIXTURE_DIAGNOSTIC" in script
+    assert "Synthetic fixture preparation failed at stage:" in script
     assert "--width 4096" in script
     assert "--height 4096" in script
     assert "playwright.live.config.ts" in script
+
+
+def test_live_capacity_specs_wait_for_current_admin_sign_in() -> None:
+    for path in (
+        "apps/web/e2e-live/capacity-fixture.spec.ts",
+        "apps/web/e2e-live/capacity-certification.spec.ts",
+    ):
+        spec = Path(path).read_text(encoding="utf-8")
+
+        assert "await expect(heading).toBeVisible" in spec
+        assert "name: 'Enter workspace'" in spec
+        assert "name: 'Sign in'" not in spec
+        assert "authenticationResponse.ok()" in spec
 
 
 def test_capacity_workflow_does_not_require_preexisting_slide_secrets() -> None:
