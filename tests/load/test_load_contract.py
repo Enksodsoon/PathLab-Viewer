@@ -71,6 +71,11 @@ def test_capacity_runner_uses_all_three_profiles_and_strict_safety_monitoring() 
     assert "CAPACITY_FIXTURE_ACTION=cleanup" in script
     assert "CAPACITY_FIXTURE_DIAGNOSTIC" in script
     assert "Synthetic fixture preparation failed at stage:" in script
+    assert "Capacity phase: synthetic fixture generation." in script
+    assert "Capacity certification failed during synthetic fixture generation." in script
+    assert "Capacity phase: synthetic fixture preparation." in script
+    assert "Capacity phase: 100-user acceptance profile." in script
+    assert "Capacity phase: 300-user capacity profile." in script
     assert "--width 4096" in script
     assert "--height 4096" in script
     assert "playwright.live.config.ts" in script

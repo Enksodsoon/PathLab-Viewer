@@ -54,10 +54,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python tests/load/generate_synthetic_ome.py \
+echo "Capacity phase: synthetic fixture generation."
+if ! python tests/load/generate_synthetic_ome.py \
   --output "${FIXTURE_PATH}" \
   --width 4096 \
-  --height 4096
+  --height 4096; then
+  echo "Capacity certification failed during synthetic fixture generation." >&2
+  exit 1
+fi
+echo "Capacity phase: synthetic fixture preparation."
 if ! CAPACITY_FIXTURE_ACTION=prepare \
   pnpm --dir apps/web exec playwright test \
     --config playwright.live.config.ts \
@@ -69,16 +74,25 @@ if ! CAPACITY_FIXTURE_ACTION=prepare \
     echo "Synthetic fixture preparation failed before a diagnostic stage was recorded." >&2
   exit 1
 fi
-export LOAD_TEST_PUBLIC_ID="$(
+echo "Capacity phase: synthetic fixture result validation."
+if ! LOAD_TEST_PUBLIC_ID="$(
   python -c \
     'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["publicId"])' \
     "${CAPACITY_FIXTURE_RESULT}"
-)"
-export LOAD_TEST_ADMIN_SLIDE_ID="$(
+)"; then
+  echo "Synthetic fixture result did not contain a public ID." >&2
+  exit 1
+fi
+export LOAD_TEST_PUBLIC_ID
+if ! LOAD_TEST_ADMIN_SLIDE_ID="$(
   python -c \
     'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["slideId"])' \
     "${CAPACITY_FIXTURE_RESULT}"
-)"
+)"; then
+  echo "Synthetic fixture result did not contain an admin slide ID." >&2
+  exit 1
+fi
+export LOAD_TEST_ADMIN_SLIDE_ID
 [[ "${LOAD_TEST_PUBLIC_ID}" =~ ^[A-Za-z0-9_-]+$ ]] || {
   echo "Synthetic fixture public ID is invalid." >&2
   exit 1
@@ -88,13 +102,22 @@ export LOAD_TEST_ADMIN_SLIDE_ID="$(
   exit 1
 }
 
-python tests/load/generate_remote_manifest.py \
+echo "Capacity phase: private load manifest generation."
+if ! python tests/load/generate_remote_manifest.py \
   --base-url "${CAPACITY_BASE_URL}" \
   --public-id "${LOAD_TEST_PUBLIC_ID}" \
   --output "${MANIFEST_PATH}" \
-  --seed "${GITHUB_RUN_ID}"
-python tests/load/generate_synthetic_ome.py --output "${SYNTHETIC_PATH}"
+  --seed "${GITHUB_RUN_ID}"; then
+  echo "Capacity certification failed during private manifest generation." >&2
+  exit 1
+fi
+echo "Capacity phase: conversion fixture generation."
+if ! python tests/load/generate_synthetic_ome.py --output "${SYNTHETIC_PATH}"; then
+  echo "Capacity certification failed during conversion fixture generation." >&2
+  exit 1
+fi
 
+echo "Capacity phase: readiness probes."
 for _ in 1 2 3; do
   curl --fail --silent --show-error --max-time 10 \
     "${CAPACITY_BASE_URL%/}/readyz" >/dev/null
@@ -256,10 +279,14 @@ run_profile() {
   fi
 }
 
+echo "Capacity phase: smoke profile."
 run_profile smoke 50 false
+echo "Capacity phase: 100-user acceptance profile."
 run_profile acceptance 630 false
+echo "Capacity phase: 300-user capacity profile."
 run_profile capacity300 900 true
 
+echo "Capacity phase: aggregate report generation."
 python tests/load/certification_report.py \
   --summary "${WORK_DIR}/capacity-summary.json" \
   --observer "${WORK_DIR}/capacity-observer.ndjson" \
