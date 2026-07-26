@@ -181,7 +181,6 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                     onChange={(event) => setPassword(event.target.value)}
                     autoComplete="current-password"
                   />
-                  <span className="auth-inline-label" aria-hidden="true">Password</span>
                   <button
                     className="password-visibility"
                     type="button"
@@ -190,6 +189,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                   >
                     {passwordVisible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
                   </button>
+                  <span className="auth-inline-label" aria-hidden="true">Password</span>
                 </div>
               </div>
               {error ? <p className="form-error" role="alert">{error}</p> : null}
@@ -268,7 +268,9 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
           />
           <div className="auth-visual-grain" aria-hidden="true" />
           <div className="auth-visual-content">
-            <p className="auth-visual-kicker">PathLab Viewer</p>
+            <div className="auth-visual-brand">
+              <Brand variant="library" />
+            </div>
             <h1 id="auth-visual-title">
               See the whole
               <br />
@@ -276,7 +278,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
             </h1>
             <div className="auth-visual-note">
               <ShieldCheck aria-hidden="true" />
-              <span>Focused review for whole-slide imaging.</span>
+              <span>A focused workspace for reviewing, organizing, and sharing whole-slide images.</span>
             </div>
           </div>
         </section>

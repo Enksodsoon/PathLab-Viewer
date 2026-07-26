@@ -34,8 +34,9 @@ describe('administrator authentication', () => {
 
     expect(screen.getByRole('heading', { name: /see the whole picture/i })).toBeVisible()
     expect(screen.getByRole('heading', { name: /administrator sign in/i })).toBeVisible()
-    expect(screen.getByText(/focused review for whole-slide imaging/i)).toBeVisible()
+    expect(screen.getByText(/a focused workspace for reviewing, organizing, and sharing whole-slide images/i)).toBeVisible()
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
+    expect(screen.getAllByTestId('pathlab-tissue-mark')).toHaveLength(2)
     expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
     expect(screen.getByRole('group', { name: /color theme/i })).toBeVisible()

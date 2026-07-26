@@ -166,7 +166,7 @@
 
 .auth-form-content {
   display:grid;
-  gap:20px;
+  gap:18px;
   animation:auth-form-enter .32s cubic-bezier(.16,1,.3,1) both;
 }
 
@@ -253,6 +253,7 @@
 
 .auth-inline-label {
   flex:0 0 auto;
+  order:3;
   color:var(--solace-ink);
   font-size:15px;
   font-weight:600;
@@ -269,7 +270,7 @@
   height:40px;
   display:grid;
   flex:0 0 auto;
-  order:3;
+  order:2;
   place-items:center;
   padding:0;
   border:0;
@@ -326,29 +327,31 @@
 }
 
 .auth-solace-card .auth-link {
-  min-height:48px;
+  width:max-content;
+  min-height:32px;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:9px;
-  padding:0;
+  gap:7px;
+  margin:0 auto;
+  padding:0 6px;
   border:0;
-  border-top:1px solid var(--solace-border);
-  border-radius:0;
+  border-radius:6px;
   background:transparent;
   color:var(--solace-muted);
-  font-size:14px;
+  font-size:12px;
   font-weight:600;
   cursor:pointer;
 }
 
 .auth-solace-card .auth-link:hover {
   color:var(--solace-accent);
+  background:var(--solace-accent-soft);
 }
 
 .auth-solace-card .auth-link svg {
-  width:17px;
-  height:17px;
+  width:14px;
+  height:14px;
 }
 
 .auth-solace-card .form-notice,
@@ -424,6 +427,7 @@
   width:100%;
   display:flex;
   align-items:center;
+  justify-content:center;
   gap:10px;
   margin-top:34px;
   padding-top:22px;
@@ -431,6 +435,7 @@
   color:var(--solace-faint);
   font-size:12px;
   line-height:1.45;
+  text-align:center;
 }
 
 .auth-footnote svg {
@@ -486,21 +491,40 @@
   min-height:100%;
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
+  justify-content:flex-start;
   padding:clamp(34px,5vw,72px);
 }
 
-.auth-visual-kicker {
-  color:var(--solace-visual-muted);
-  font-size:12px;
+.auth-visual-brand .brand-library {
+  gap:9px;
+  color:var(--solace-visual-ink);
+  font-size:16px;
   font-weight:700;
-  letter-spacing:.14em;
-  text-transform:uppercase;
+  letter-spacing:-.02em;
+}
+
+.auth-visual-brand .brand-mark {
+  width:34px;
+  height:34px;
+  border:1px solid color-mix(in srgb,var(--solace-visual-ink) 22%,transparent);
+  border-radius:9px;
+  color:var(--solace-accent);
+  background:color-mix(in srgb,var(--solace-canvas) 24%,transparent);
+}
+
+.auth-visual-brand .brand-mark svg {
+  width:19px;
+  height:19px;
+}
+
+.auth-visual-brand .brand-product {
+  color:var(--solace-visual-muted);
+  font-weight:600;
 }
 
 .auth-visual h1 {
   max-width:700px;
-  margin-top:clamp(70px,11vh,130px);
+  margin-top:clamp(24px,4vh,42px);
   color:var(--solace-visual-ink);
   font:500 clamp(54px,6vw,86px)/.96 Inter,ui-sans-serif,system-ui,sans-serif;
   letter-spacing:-.06em;
@@ -512,21 +536,22 @@
   max-width:100%;
   display:flex;
   align-items:center;
-  gap:11px;
+  gap:6px;
   margin-top:auto;
-  padding:13px 16px;
+  padding:7px 9px;
   border:1px solid color-mix(in srgb,var(--solace-visual-ink) 24%,transparent);
-  border-radius:10px;
+  border-radius:7px;
   color:var(--solace-visual-muted);
   background:color-mix(in srgb,var(--solace-canvas) 16%,transparent);
-  font-size:14px;
+  font-size:10px;
   font-weight:600;
-  backdrop-filter:blur(5px);
+  line-height:1.35;
+  backdrop-filter:blur(3px);
 }
 
 .auth-visual-note svg {
-  width:20px;
-  height:20px;
+  width:13px;
+  height:13px;
   flex:0 0 auto;
 }
 
@@ -583,7 +608,7 @@
 
   .auth-visual h1 {
     max-width:600px;
-    margin:58px 0;
+    margin:28px 0 0;
     font-size:clamp(48px,10vw,72px);
   }
 }
@@ -647,12 +672,12 @@
   }
 
   .auth-visual h1 {
-    margin:42px 0;
+    margin:24px 0 0;
     font-size:44px;
   }
 
   .auth-visual-note {
-    font-size:12px;
+    font-size:9px;
   }
 }
 
