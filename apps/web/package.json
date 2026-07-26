@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b && vite build --config vite.config.ts",
+    "build": "tsc -b && vite build --config vite.config.ts --manifest",
+    "check:annotation-bundle": "node scripts/check-annotation-bundle-budget.mjs",
     "dev": "vite --config vite.config.ts --host 127.0.0.1",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
@@ -15,6 +16,8 @@
     "@fontsource-variable/source-sans-3": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "openseadragon": "6.0.2",
+    "polygon-clipping": "0.15.7",
+    "rbush": "4.0.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router-dom": "6.30.4",

@@ -21,12 +21,17 @@ export interface ViewerHandle {
   fullscreen: () => void
 }
 
+export type ViewerAttachmentCallback = (
+  viewer: OpenSeadragon.Viewer,
+) => void | (() => void)
+
 interface Props {
   tileSource: string
   posterUrl?: string | null
   onReady: (handle: ViewerHandle) => void
   micronsPerPixel?: number | null
   onScaleChange?: (microns: number, width: number) => void
+  onViewerAttach?: ViewerAttachmentCallback
 }
 
 interface NavigatorWithConnection extends Navigator {
@@ -44,7 +49,14 @@ function niceScale(value: number) {
   return (normalized < 2 ? 1 : normalized < 5 ? 2 : 5) * exponent
 }
 
-export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPerPixel, onScaleChange }: Props) {
+export function OpenSeadragonViewer({
+  tileSource,
+  posterUrl,
+  onReady,
+  micronsPerPixel,
+  onScaleChange,
+  onViewerAttach,
+}: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const tileSourceRef = useRef(tileSource)
@@ -53,6 +65,8 @@ export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPer
   const modeRef = useRef<ViewerLoadingMode>('auto')
   const micronsPerPixelRef = useRef(micronsPerPixel)
   const onScaleChangeRef = useRef(onScaleChange)
+  const attachmentCallbackRef = useRef(onViewerAttach)
+  const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
   const windowFailures = useRef(0)
   const errorTimer = useRef<number | null>(null)
@@ -77,6 +91,25 @@ export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPer
     setLoadingError(false)
     viewerRef.current?.open(tileSourceRef.current as unknown as OpenSeadragon.TileSourceSpecifier)
   }, [])
+  const detachViewerAttachment = useCallback(() => {
+    const cleanup = attachmentCleanupRef.current
+    attachmentCleanupRef.current = null
+    try {
+      cleanup?.()
+    } catch {
+      // An optional overlay must never block source replacement or viewer cleanup.
+    }
+  }, [])
+  const attachViewerAttachment = useCallback((viewer: OpenSeadragon.Viewer) => {
+    const callback = attachmentCallbackRef.current
+    if (!callback) return
+    try {
+      attachmentCleanupRef.current = callback(viewer) ?? null
+    } catch {
+      viewer.setMouseNavEnabled?.(true)
+      attachmentCleanupRef.current = null
+    }
+  }, [])
   useEffect(() => {
     tileSourceRef.current = tileSource
     onReadyRef.current = onReady
@@ -87,14 +120,31 @@ export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPer
       tileFailures.current = 0
       setPosterVisible(Boolean(posterUrl))
       setLoadingError(false)
+      detachViewerAttachment()
       viewerRef.current.open(tileSource as unknown as OpenSeadragon.TileSourceSpecifier)
+      attachViewerAttachment(viewerRef.current)
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current)
         reconnectTimer.current = null
       }
       reconnectAttempt.current = 0
     }
-  }, [micronsPerPixel, onReady, onScaleChange, posterUrl, tileSource])
+  }, [
+    attachViewerAttachment,
+    detachViewerAttachment,
+    micronsPerPixel,
+    onReady,
+    onScaleChange,
+    posterUrl,
+    tileSource,
+  ])
+  useEffect(() => {
+    attachmentCallbackRef.current = onViewerAttach
+    const viewer = viewerRef.current
+    if (!viewer) return
+    detachViewerAttachment()
+    attachViewerAttachment(viewer)
+  }, [attachViewerAttachment, detachViewerAttachment, onViewerAttach])
   useEffect(() => {
     modeRef.current = mode
     localStorage.setItem(NETWORK_MODE_KEY, mode)
@@ -180,6 +230,7 @@ export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPer
         gestureSettingsTouch: { pinchToZoom: true, flickEnabled: true },
       })
       viewerRef.current = viewer
+      attachViewerAttachment(viewer)
       onReadyRef.current({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
@@ -253,6 +304,7 @@ export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPer
     }
     return () => {
       disposed = true
+      detachViewerAttachment()
       if (errorTimer.current !== null) {
         window.clearTimeout(errorTimer.current)
         errorTimer.current = null
@@ -273,7 +325,7 @@ export function OpenSeadragonViewer({ tileSource, posterUrl, onReady, micronsPer
       viewer?.destroy()
       if (viewerRef.current === viewer) viewerRef.current = null
     }
-  }, [])
+  }, [attachViewerAttachment, detachViewerAttachment])
   return <div className="osd-surface" data-tile-source={tileSource} style={{ position: 'relative' }}>
     {posterVisible && posterUrl ? <img
       className="viewer-poster"

@@ -130,6 +130,81 @@ def test_example_environment_documents_libvips_overrides() -> None:
     assert "PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS=100" in example
 
 
+def test_annotation_feature_flag_is_explicitly_default_off_in_deployment_examples() -> None:
+    root_example = Path(".env.example").read_text(encoding="utf-8")
+    deploy_example = Path("deploy/.env.example").read_text(encoding="utf-8")
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+
+    assert "PATHLAB_ANNOTATIONS_ENABLED=false" in root_example
+    assert "PATHLAB_ANNOTATIONS_ENABLED=false" in deploy_example
+    assert (
+        'PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"'
+        in compose
+    )
+
+
+def test_annotation_operations_runbook_and_bundle_budget_are_ci_contracts() -> None:
+    guide = Path("docs/architecture/ADMIN_ANNOTATIONS.md")
+    package = Path("apps/web/package.json").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    web_job = workflow.split("\n  web:\n", maxsplit=1)[1].split(
+        "\n  containers:\n", maxsplit=1
+    )[0]
+
+    assert guide.is_file()
+    guide_text = guide.read_text(encoding="utf-8")
+    for required in (
+        "PATHLAB_ANNOTATIONS_ENABLED=false",
+        "25,000",
+        "256 KiB",
+        "30-day",
+        "backup",
+        "rollback",
+        "admin-only",
+    ):
+        assert required in guide_text
+    assert '"check:annotation-bundle"' in package
+    assert "fetch-depth: 0" in web_job
+    assert "github.event.pull_request.base.sha" in web_job
+    assert "github.event.before" in web_job
+    assert "git worktree add --detach" in web_job
+    assert "vite build --config vite.config.ts --manifest" in web_job
+    assert (
+        'pnpm --dir apps/web check:annotation-bundle -- '
+        '--baseline "$PATHLAB_BUNDLE_BASELINE"'
+    ) in web_job
+
+
+def test_annotation_benchmark_explains_the_actual_paginated_api_query_shape() -> None:
+    benchmark = Path("scripts/benchmark_annotations.py").read_text(encoding="utf-8")
+
+    assert "select(Annotation)" in benchmark
+    assert "select(func.count(Annotation.id))" in benchmark
+    assert ".order_by(Annotation.created_at, Annotation.id)" in benchmark
+    assert ".offset(PAGE_OFFSET)" in benchmark
+    assert ".limit(PAGE_SIZE)" in benchmark
+    assert '"literal_binds": True' in benchmark
+    assert '"activeCountQueryPlan"' in benchmark
+    assert '"activePageQueryPlan"' in benchmark
+    assert '"viewportCountQueryPlan"' in benchmark
+    assert '"viewportPageQueryPlan"' in benchmark
+
+
+def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "\n  browser:\n" in workflow
+    browser_job = workflow.split("\n  browser:\n", maxsplit=1)[1].split(
+        "\n  containers:\n", maxsplit=1
+    )[0]
+    assert "timeout-minutes: 15" in browser_job
+    assert "playwright install --with-deps chromium firefox webkit" in browser_job
+    assert "PLAYWRIGHT_PORT: \"5217\"" in browser_job
+    assert "e2e/annotation-responsive.spec.ts" in browser_job
+    assert "e2e/shared-viewer-responsive.spec.ts" in browser_job
+    assert "--workers=2" in browser_job
+
+
 def test_api_creates_runtime_directories_before_migrations() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(

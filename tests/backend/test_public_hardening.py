@@ -151,6 +151,17 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
             "slide.dzi",
             "thumbnail.jpg",
         )
+        annotation_paths = {
+            getattr(route, "path", "")
+            for route in client.app.routes
+            if "annotations" in getattr(route, "path", "")
+        }
+        assert annotation_paths
+        assert all(
+            path.startswith("/api/v2/admin/annotations/")
+            for path in annotation_paths
+        )
+        assert not {"annotationsEnabled", "annotationVersion"} & set(body)
         version = body["tileSource"].split("/")[3]
         assert version.isdigit()
         delivery_root = (

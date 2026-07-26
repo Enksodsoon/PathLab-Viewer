@@ -38,6 +38,17 @@ def test_libvips_limits_accept_environment_overrides(
     assert settings.libvips_cache_max_operations == 50
 
 
+def test_annotations_are_disabled_by_default_and_accept_an_explicit_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_ANNOTATIONS_ENABLED", raising=False)
+
+    assert Settings(_env_file=None).annotations_enabled is False
+
+    monkeypatch.setenv("PATHLAB_ANNOTATIONS_ENABLED", "true")
+    assert Settings(_env_file=None).annotations_enabled is True
+
+
 @pytest.mark.parametrize(
     "field",
     (

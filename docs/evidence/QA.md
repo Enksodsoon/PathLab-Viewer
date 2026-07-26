@@ -21,6 +21,43 @@ This ledger separates reproducible evidence from product or architecture claims.
 | Production 300-viewer certification | Run the protected `Capacity certification` workflow and retain its sanitized aggregate report | Not recorded |
 | Infrastructure cost and eligibility | Review the active tenancy billing page and deployed resources | Not recorded |
 
+## 2026-07-27 private-annotation candidate
+
+These are machine-local results for the `codex/admin-annotations` candidate.
+They are reproducible evidence for that candidate only and do not replace
+protected CI or production acceptance.
+
+- Backend: 364 passed, 2 intentional skips; Ruff and strict mypy passed.
+- Frontend: 183 Vitest tests passed; ESLint, TypeScript, and the production
+  build passed.
+- Browser: 121 passed and 3 expected skips across Chromium, Firefox, WebKit,
+  and mobile Chromium. The browser contract observed no annotation UI, API
+  request, payload field, or lazy-module request on individual-slide,
+  folder-share, or collection-share public routes.
+- Build budget against detached `origin/main` `63966f3`: HTML-linked initial
+  JavaScript and CSS, including `/theme-init.js`, grew 125 gzip bytes
+  (5,120-byte limit). The complete incremental lazy annotation payload was
+  183,107 raw bytes and 52,555 gzip bytes across all transitive JavaScript,
+  CSS, and the boolean worker (307,200-byte raw limit).
+- SQLite/WAL: four readers ran during one 50-operation update. Every
+  single-statement snapshot was either complete pre-commit state or complete
+  post-commit state; no lock error occurred.
+- Synthetic 25,000-annotation API run: 19,705,856-byte database; 800.747 ms
+  seed; 29.711 ms manifest; 681.271 ms 5,000-item page; 169.598 ms 1,000-item
+  viewport; 33,889,146 peak traced endpoint-allocation bytes. EXPLAIN used the
+  API's full-column ORM count/page shapes. The active page used
+  `ix_annotations_slide_active` without the prior temporary order B-tree; the
+  viewport count/page used `ix_annotations_slide_bbox`.
+- Synthetic 25,000-record Vitest/jsdom run: 26.425 ms RBush load, 93.476 ms
+  density render plan, 448.648 ms store load plus one compact edit, 79,148,624
+  observed heap-delta bytes, zero mounted individual shapes, 5,000 cached
+  records, 1,024 density cells, and a 268-byte recovery draft.
+
+The API and frontend timings are single machine-local synthetic observations,
+not enforced latency or memory service-level objectives. No live multi-user
+traffic, OCI host, physical device, patient slide, production backup restore,
+clinical use, or production deployment was tested or claimed.
+
 ## Reproducible viewer load checks
 
 Generate a public-only manifest:

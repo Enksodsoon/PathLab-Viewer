@@ -40,7 +40,7 @@ def test_empty_database_is_not_ready_and_readiness_does_not_mutate_it(tmp_path: 
 
 @pytest.mark.parametrize(
     "revision",
-    ["20260719_0001", "20260719_0003", "20260719_0004"],
+    ["20260719_0001", "20260719_0003", "20260719_0004", "20260724_0008"],
 )
 def test_stale_migration_is_not_ready(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, revision: str
@@ -64,5 +64,16 @@ def test_falsely_stamped_incomplete_schema_is_not_ready(
     _upgrade(settings, "head", monkeypatch)
     with session_factory(settings)() as database:
         database.execute(text("DROP INDEX ix_audit_events_action_created_at"))
+        database.commit()
+    _assert_not_ready(settings)
+
+
+def test_annotation_query_index_is_required_for_readiness(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, "missing-annotation-index.sqlite3")
+    _upgrade(settings, "head", monkeypatch)
+    with session_factory(settings)() as database:
+        database.execute(text("DROP INDEX ix_annotations_slide_active"))
         database.commit()
     _assert_not_ready(settings)
