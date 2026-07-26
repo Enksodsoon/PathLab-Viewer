@@ -44,6 +44,44 @@ async function expectOk(response: Response): Promise<void> {
   if (!response.ok) await json<never>(response)
 }
 
+async function refreshSession(): Promise<void> {
+  const body = await json<{ csrfToken: string }>(
+    await fetch('/api/v1/auth/session', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    }),
+  )
+  sessionStorage.setItem(CSRF_KEY, body.csrfToken)
+}
+
+async function csrfFetch(
+  input: RequestInfo | URL,
+  init: RequestInit,
+): Promise<Response> {
+  const send = () => fetch(input, {
+    ...init,
+    credentials: 'same-origin',
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
+    },
+  })
+  const response = await send()
+  if (response.status !== 403) return response
+
+  let code = ''
+  try {
+    const body = (await response.clone().json()) as { detail?: { code?: string } }
+    code = body.detail?.code ?? ''
+  } catch {
+    return response
+  }
+  if (code !== 'CSRF_INVALID') return response
+
+  await refreshSession()
+  return send()
+}
+
 export async function login(username: string, password: string): Promise<void> {
   const body = await json<{ csrfToken: string }>(
     await fetch('/api/v1/auth/session', {
@@ -57,10 +95,8 @@ export async function login(username: string, password: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
-  const response = await fetch('/api/v1/auth/session', {
+  const response = await csrfFetch('/api/v1/auth/session', {
     method: 'DELETE',
-    credentials: 'same-origin',
-    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
   })
   if (response.status !== 204) throw new ApiError(response.status, 'LOGOUT_FAILED')
   sessionStorage.removeItem(CSRF_KEY)
@@ -82,12 +118,10 @@ export async function recoverPassword(
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   try {
-    await expectOk(await fetch('/api/v1/auth/password', {
+    await expectOk(await csrfFetch('/api/v1/auth/password', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
       },
       body: JSON.stringify({ currentPassword, newPassword }),
     }))
@@ -123,12 +157,10 @@ export async function reserveUpload(
   folderId?: string | null,
 ): Promise<UploadReservation> {
   return json<UploadReservation>(
-    await fetch('/api/v1/admin/slides', {
+    await csrfFetch('/api/v1/admin/slides', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
       },
       body: JSON.stringify({
         displayName,
@@ -142,19 +174,16 @@ export async function reserveUpload(
 
 export async function mutateSlide(id: string, action: string): Promise<AdminSlide> {
   return json<AdminSlide>(
-    await fetch(`/api/v1/admin/slides/${id}/${action}`, {
+    await csrfFetch(`/api/v1/admin/slides/${id}/${action}`, {
       method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
     }),
   )
 }
 
 export async function publishSlide(id: string): Promise<AdminSlide> {
   return json<AdminSlide>(
-    await fetch(`/api/v1/admin/slides/${encodeURIComponent(id)}/publish`, {
+    await csrfFetch(`/api/v1/admin/slides/${encodeURIComponent(id)}/publish`, {
       method: 'POST',
-      credentials: 'same-origin',
       headers: csrfHeaders(true),
       body: JSON.stringify({ deidentifiedConfirmed: true }),
     }),
@@ -162,10 +191,8 @@ export async function publishSlide(id: string): Promise<AdminSlide> {
 }
 
 export async function deleteSlide(id: string): Promise<void> {
-  const response = await fetch(`/api/v1/admin/slides/${id}`, {
+  const response = await csrfFetch(`/api/v1/admin/slides/${id}`, {
     method: 'DELETE',
-    credentials: 'same-origin',
-    headers: { 'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '' },
   })
   if (!response.ok) throw new ApiError(response.status, `HTTP_${response.status}`)
 }
@@ -275,7 +302,7 @@ export async function createFolder(payload: {
   description?: string
 }): Promise<LibraryFolder> {
   return json<LibraryFolder>(
-    await fetch('/api/v2/admin/folders', {
+    await csrfFetch('/api/v2/admin/folders', {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -289,7 +316,7 @@ export async function updateFolder(
   payload: Partial<Pick<LibraryFolder, 'name' | 'description' | 'parentId' | 'sortOrder'>>,
 ): Promise<LibraryFolder> {
   return json<LibraryFolder>(
-    await fetch(`/api/v2/admin/folders/${encodeURIComponent(folderId)}`, {
+    await csrfFetch(`/api/v2/admin/folders/${encodeURIComponent(folderId)}`, {
       method: 'PATCH',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -299,7 +326,7 @@ export async function updateFolder(
 }
 
 export async function mutateFolder(folderId: string, action: 'trash' | 'restore'): Promise<void> {
-  await expectOk(await fetch(
+  await expectOk(await csrfFetch(
     `/api/v2/admin/folders/${encodeURIComponent(folderId)}/${action}`,
     { method: 'POST', credentials: 'same-origin', headers: csrfHeaders() },
   ))
@@ -310,7 +337,7 @@ export async function createCollection(payload: {
   description?: string
 }): Promise<LibraryCollection> {
   return json<LibraryCollection>(
-    await fetch('/api/v2/admin/collections', {
+    await csrfFetch('/api/v2/admin/collections', {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -324,7 +351,7 @@ export async function updateCollection(
   payload: Partial<Pick<LibraryCollection, 'name' | 'description' | 'sortOrder'>>,
 ): Promise<LibraryCollection> {
   return json<LibraryCollection>(
-    await fetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}`, {
+    await csrfFetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}`, {
       method: 'PATCH',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -334,7 +361,7 @@ export async function updateCollection(
 }
 
 export async function deleteCollection(collectionId: string): Promise<void> {
-  await expectOk(await fetch(
+  await expectOk(await csrfFetch(
     `/api/v2/admin/collections/${encodeURIComponent(collectionId)}`,
     { method: 'DELETE', credentials: 'same-origin', headers: csrfHeaders() },
   ))
@@ -345,7 +372,7 @@ export async function addCollectionSlides(
   slideIds: string[],
 ): Promise<string[]> {
   const body = await json<{ slideIds: string[] }>(
-    await fetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}/items`, {
+    await csrfFetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}/items`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -361,7 +388,7 @@ export async function createSavedView(payload: {
   sort: string
 }): Promise<SavedView> {
   return json<SavedView>(
-    await fetch('/api/v2/admin/saved-views', {
+    await csrfFetch('/api/v2/admin/saved-views', {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -375,7 +402,7 @@ export async function removeCollectionSlides(
   slideIds: string[],
 ): Promise<string[]> {
   const body = await json<{ removedSlideIds: string[] }>(
-    await fetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}/items`, {
+    await csrfFetch(`/api/v2/admin/collections/${encodeURIComponent(collectionId)}/items`, {
       method: 'DELETE',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -390,7 +417,7 @@ export async function updateSavedView(
   payload: Partial<Pick<SavedView, 'name' | 'definition' | 'sort'>>,
 ): Promise<SavedView> {
   return json<SavedView>(
-    await fetch(`/api/v2/admin/saved-views/${encodeURIComponent(viewId)}`, {
+    await csrfFetch(`/api/v2/admin/saved-views/${encodeURIComponent(viewId)}`, {
       method: 'PATCH',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -400,7 +427,7 @@ export async function updateSavedView(
 }
 
 export async function deleteSavedView(viewId: string): Promise<void> {
-  await expectOk(await fetch(
+  await expectOk(await csrfFetch(
     `/api/v2/admin/saved-views/${encodeURIComponent(viewId)}`,
     { method: 'DELETE', credentials: 'same-origin', headers: csrfHeaders() },
   ))
@@ -411,7 +438,7 @@ export async function batchMoveSlides(
   folderId: string | null,
 ): Promise<LibrarySlide[]> {
   const body = await json<{ items: LibrarySlide[] }>(
-    await fetch('/api/v2/admin/slides/batch-move', {
+    await csrfFetch('/api/v2/admin/slides/batch-move', {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -426,7 +453,7 @@ export async function batchUpdateSlides(
   metadata: Record<string, unknown>,
 ): Promise<LibrarySlide[]> {
   const body = await json<{ items: LibrarySlide[] }>(
-    await fetch('/api/v2/admin/slides/batch-metadata', {
+    await csrfFetch('/api/v2/admin/slides/batch-metadata', {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -441,7 +468,7 @@ export async function mutateLibrarySlide(
   action: 'trash' | 'restore',
 ): Promise<LibrarySlide> {
   return json<LibrarySlide>(
-    await fetch(`/api/v2/admin/slides/${encodeURIComponent(slideId)}/${action}`, {
+    await csrfFetch(`/api/v2/admin/slides/${encodeURIComponent(slideId)}/${action}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(),
@@ -450,7 +477,7 @@ export async function mutateLibrarySlide(
 }
 
 export async function deleteLibrarySlide(slideId: string): Promise<void> {
-  await expectOk(await fetch(
+  await expectOk(await csrfFetch(
     `/api/v2/admin/slides/${encodeURIComponent(slideId)}`,
     {
       method: 'DELETE',
@@ -462,7 +489,7 @@ export async function deleteLibrarySlide(slideId: string): Promise<void> {
 
 export async function emptyLibraryTrash(): Promise<{ scheduled: number }> {
   return json<{ scheduled: number }>(
-    await fetch('/api/v2/admin/trash', {
+    await csrfFetch('/api/v2/admin/trash', {
       method: 'DELETE',
       credentials: 'same-origin',
       headers: csrfHeaders(),
@@ -516,7 +543,7 @@ export async function createLibraryShare(payload: {
   deidentifiedConfirmed: boolean
 }): Promise<LibraryShare> {
   return json<LibraryShare>(
-    await fetch('/api/v2/admin/shares', {
+    await csrfFetch('/api/v2/admin/shares', {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(true),
@@ -527,7 +554,7 @@ export async function createLibraryShare(payload: {
 
 export async function rotateLibraryShare(shareId: string): Promise<LibraryShare> {
   return json<LibraryShare>(
-    await fetch(`/api/v2/admin/shares/${encodeURIComponent(shareId)}/rotate`, {
+    await csrfFetch(`/api/v2/admin/shares/${encodeURIComponent(shareId)}/rotate`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: csrfHeaders(),
@@ -537,7 +564,7 @@ export async function rotateLibraryShare(shareId: string): Promise<LibraryShare>
 
 export async function revokeLibraryShare(shareId: string): Promise<void> {
   await expectOk(
-    await fetch(`/api/v2/admin/shares/${encodeURIComponent(shareId)}`, {
+    await csrfFetch(`/api/v2/admin/shares/${encodeURIComponent(shareId)}`, {
       method: 'DELETE',
       credentials: 'same-origin',
       headers: csrfHeaders(),
