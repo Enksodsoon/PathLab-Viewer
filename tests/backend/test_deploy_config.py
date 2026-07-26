@@ -278,7 +278,8 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     for dockerfile in dockerfiles:
         for line in dockerfile.splitlines():
             if line.startswith("FROM "):
-                image = line.split()[1]
+                parts = line.split()
+                image = next(part for part in parts[1:] if not part.startswith("--"))
                 assert "@sha256:" in image
                 assert len(image.rsplit("@sha256:", 1)[1]) == 64
     tusd_line = next(
@@ -294,6 +295,8 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     assert "--hash=sha256:" in lockfile
     package = Path("package.json").read_text(encoding="utf-8")
     assert '"packageManager": "pnpm@11.9.0+sha512.' in package
+    web = dockerfiles[1]
+    assert web.startswith("FROM --platform=$BUILDPLATFORM node:")
 
 
 def test_public_infrastructure_defaults_limit_operator_attack_surface() -> None:
