@@ -1,10 +1,11 @@
+import { ArrowsOut as Expand, House as Home, Info, Minus, Plus } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Expand, Home, Info, Minus, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 
 import { getPrivateSlide, getPublicSlide } from '../api'
 import { Brand } from '../components/Brand'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
+import { ThemeControl } from '../theme/ThemeControl'
 import type { AdminSlide, PublicSlide } from '../types'
 
 export function ViewerPage() {
@@ -32,7 +33,15 @@ export function ViewerPage() {
   if (!slide) return <div className="center-state dark">Opening slide…</div>
   const scale = slide.metadata?.physicalSizeX
   return <div className="viewer-shell">
-    <header className="viewer-header"><Brand variant="library" /><div className="viewer-title"><strong>{slide.displayName}</strong><span>{slide.metadata ? `${slide.metadata.width.toLocaleString()} × ${slide.metadata.height.toLocaleString()} px` : 'Whole-slide image'}</span></div><span className="viewer-help"><Info size={15} /> Scroll or pinch to zoom</span></header>
+    <header className="viewer-header">
+      <Brand variant="library" />
+      <div className="viewer-title">
+        <strong>{slide.displayName}</strong>
+        <span>{slide.metadata ? `${slide.metadata.width.toLocaleString()} × ${slide.metadata.height.toLocaleString()} px` : 'Whole-slide image'}</span>
+      </div>
+      <span className="viewer-help"><Info size={15} /> Scroll or pinch to zoom</span>
+      <ThemeControl compact className="viewer-theme-control" />
+    </header>
     <main className="viewer-stage">
       <OpenSeadragonViewer
         tileSource={slide.tileSource ?? ''}

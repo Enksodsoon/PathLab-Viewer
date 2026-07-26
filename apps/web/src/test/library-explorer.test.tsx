@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AdminPage } from '../pages/AdminPage'
+import { AdminPage as CanvasFocusAdminPage } from '../pages/AdminPage'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import type { LibraryItemsPage, LibraryNavigation } from '../types'
 
 const api = vi.hoisted(() => ({
@@ -106,6 +107,16 @@ const items: LibraryItemsPage = {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })))
   api.getLibraryNavigation.mockResolvedValue(navigation)
   api.getLibraryItems.mockResolvedValue(items)
   api.getFolderChildren.mockResolvedValue([{
@@ -151,10 +162,100 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
-describe('dark library explorer', () => {
+function renderCanvasFocusAdmin(initialEntry = '/admin') {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <AdminPage />
+    </MemoryRouter>,
+  )
+}
+
+function AdminPage() {
+  return (
+    <ThemeProvider>
+      <CanvasFocusAdminPage />
+    </ThemeProvider>
+  )
+}
+
+describe('Canvas Focus library explorer', () => {
+  it('composes the Canvas Focus rail with theme and every persistent destination', async () => {
+    renderCanvasFocusAdmin()
+
+    await screen.findAllByText('Colon adenocarcinoma')
+    const rail = screen.getByRole('complementary', { name: /product navigation/i })
+
+    expect(rail).toHaveAttribute('data-canvas-region', 'icon-rail')
+    expect(within(rail).getByRole('button', { name: /^all slides$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /open library navigator/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^upload$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^processing$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^failed$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^trash$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^account$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^sign out$/i })).toBeVisible()
+    expect(within(rail).getByRole('group', { name: /theme preference/i })).toBeVisible()
+  })
+
+  it('integrates quick views inside the Canvas Focus navigator overlay', async () => {
+    renderCanvasFocusAdmin()
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    const toggle = screen.getByRole('button', { name: /open library navigator/i })
+    const main = screen.getByRole('main')
+    const productNavigation = screen.getByRole('complementary', {
+      name: /product navigation/i,
+    })
+    await userEvent.click(toggle)
+
+    const navigator = screen.getByRole('complementary', { name: /library navigator/i })
+    const overlay = navigator.closest('#library-navigator')
+    const quickViews = within(navigator).getByRole('region', { name: /quick views/i })
+    expect(overlay).toHaveAttribute('data-overlay', 'navigator')
+    expect(overlay).toHaveAttribute('aria-hidden', 'false')
+    expect(quickViews).toBeVisible()
+    expect(within(quickViews).getByRole('button', {
+      name: /week 5 teaching set 2/i,
+    })).toBeVisible()
+    expect(main).toHaveAttribute('inert')
+    expect(productNavigation).toHaveAttribute('inert')
+
+    await userEvent.keyboard('{Escape}')
+    expect(overlay).toHaveAttribute('aria-hidden', 'true')
+    await waitFor(() => expect(toggle).toHaveFocus())
+
+    await userEvent.click(toggle)
+    await userEvent.click(within(quickViews).getByRole('button', {
+      name: /colon adenocarcinoma/i,
+    }))
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('complementary', { name: /slide details/i })).toBeVisible()
+  })
+
+  it('opens slide details as a right overlay without adding a shell grid track', async () => {
+    const view = renderCanvasFocusAdmin()
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await userEvent.click(screen.getByRole('button', {
+      name: /open details for colon adenocarcinoma/i,
+    }))
+
+    const inspector = screen.getByRole('complementary', { name: /slide details/i })
+    expect(inspector).toHaveAttribute('data-overlay', 'inspector')
+    expect(view.container.querySelector('.library-shell')).toHaveAttribute(
+      'data-layout',
+      'canvas-focus',
+    )
+    expect(view.container.querySelector('.library-main')).toHaveAttribute(
+      'data-canvas-region',
+      'content',
+    )
+  })
+
   it('keeps only one cursor page rendered and restores the previous page from memory', async () => {
     const firstPage = { ...items, nextCursor: 'cursor-2', total: 3 }
     const secondPage = {
@@ -324,8 +425,10 @@ describe('dark library explorer', () => {
   it('presents the OME-TIFF chooser with the library design system', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 
-    await screen.findByRole('heading', { name: /slides library/i })
-    await userEvent.click(screen.getByRole('button', { name: /^upload$/i }))
+    await screen.findByRole('heading', { name: /all slides/i })
+    await userEvent.click(within(screen.getByRole('complementary', {
+      name: /product navigation/i,
+    })).getByRole('button', { name: /^upload$/i }))
 
     const fileInput = screen.getByLabelText('Choose OME-TIFF')
     expect(fileInput).toHaveClass('upload-file-input')
@@ -341,12 +444,17 @@ describe('dark library explorer', () => {
   it('shows only functional destinations and lazily expands folders', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 
-    expect(await screen.findByRole('heading', { name: /slides library/i })).toBeVisible()
-    expect(screen.getByRole('button', { name: /^library$/i })).toBeVisible()
-    expect(screen.getByRole('button', { name: /^uploads$/i })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: /all slides/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /^all slides$/i })).toBeVisible()
+    expect(within(screen.getByRole('complementary', {
+      name: /product navigation/i,
+    })).getByRole('button', { name: /^upload$/i })).toBeVisible()
     expect(screen.queryByText('Cases')).not.toBeInTheDocument()
     expect(screen.queryByText('Annotations')).not.toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole('button', {
+      name: /open library navigator/i,
+    }))
     await userEvent.click(screen.getByRole('button', { name: /expand organ systems/i }))
     expect(api.getFolderChildren).toHaveBeenCalledWith('folder-organs')
     expect(await screen.findByRole('treeitem', { name: /gi/i })).toBeVisible()
@@ -424,6 +532,9 @@ describe('dark library explorer', () => {
 
     expect(api.getSlideStatuses).toHaveBeenCalledWith(['slide-2'])
     expect(api.getLibraryNavigation).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', {
+      name: /open library navigator/i,
+    }))
     expect(screen.getByRole('button', { name: /shared 1/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /processing 0/i })).toBeVisible()
   })
@@ -493,7 +604,7 @@ describe('dark library explorer', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(main).not.toHaveAttribute('inert')
     expect(productNavigation).not.toHaveAttribute('inert')
-    expect(toggle).toHaveFocus()
+    await waitFor(() => expect(toggle).toHaveFocus())
   })
 
   it('turns the card overflow control into a complete metadata workflow', async () => {
@@ -595,6 +706,9 @@ describe('dark library explorer', () => {
     await screen.findAllByText('Colon adenocarcinoma')
 
     await userEvent.click(screen.getByRole('button', {
+      name: /open library navigator/i,
+    }))
+    await userEvent.click(screen.getByRole('button', {
       name: /more actions for organ systems/i,
     }))
     expect(screen.getByRole('menuitem', { name: /^rename$/i })).toBeVisible()
@@ -648,6 +762,9 @@ describe('dark library explorer', () => {
       'collection-week-5',
       ['slide-1'],
     ))
+    await userEvent.click(screen.getByRole('button', {
+      name: /open library navigator/i,
+    }))
     expect((await screen.findAllByRole('button', {
       name: /week 5 teaching set 3/i,
     }))[0]).toBeVisible()

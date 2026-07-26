@@ -1,13 +1,13 @@
 import {
-  ChevronDown,
-  ChevronRight,
-  Edit3,
+  CaretDown as ChevronDown,
+  CaretRight as ChevronRight,
+  DotsThree as MoreHorizontal,
   Folder,
-  FolderInput,
+  FolderSimple as FolderInput,
   FolderOpen,
-  MoreHorizontal,
-  Trash2,
-} from 'lucide-react'
+  PencilSimple as Edit3,
+  Trash as Trash2,
+} from '@phosphor-icons/react'
 import { useMemo, useRef, useState } from 'react'
 
 import type { LibraryFolder } from '../../types'

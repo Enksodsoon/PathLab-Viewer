@@ -1,4 +1,4 @@
-import { Edit3, Eye, Lock, LockOpen, X } from 'lucide-react'
+import { Eye, Lock, LockOpen, PencilSimple as Edit3, X } from '@phosphor-icons/react'
 
 import type { LibrarySlide, LibrarySlideDetails } from '../../types'
 import { formatBytes } from './format'
@@ -22,7 +22,11 @@ export function SlideDetailsPanel({
   const adminNote = 'adminNotes' in slide ? slide.adminNotes : ''
   const isPublished = slide.state === 'published'
   return (
-    <aside className="slide-details-panel" aria-label="Slide details">
+    <aside
+      className="slide-details-panel"
+      aria-label="Slide details"
+      data-overlay="inspector"
+    >
       <div className="details-heading">
         <h2>Slide details</h2>
         <button type="button" aria-label="Close slide details" onClick={onClose}><X /></button>
@@ -53,8 +57,8 @@ export function SlideDetailsPanel({
           >
             <span>{isPublished ? 'Published' : 'Private'}</span>
             {isPublished
-              ? <LockOpen aria-hidden="true" />
-              : <Lock aria-hidden="true" />}
+              ? <LockOpen aria-hidden="true" color="currentColor" data-lock-state="open" />
+              : <Lock aria-hidden="true" color="currentColor" data-lock-state="closed" />}
           </dd>
         </div>
       </dl>

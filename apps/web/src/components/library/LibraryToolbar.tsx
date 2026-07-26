@@ -2,19 +2,19 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  BookmarkPlus,
-  ChevronRight,
-  Filter,
+  BookmarkSimple as BookmarkPlus,
+  CaretRight as ChevronRight,
+  Funnel as Filter,
   FolderPlus,
-  Grid2X2,
-  Grid2X2Plus,
+  GridFour as Grid2X2Plus,
   List,
+  MagnifyingGlass as Search,
   Plus,
-  Search,
-  Share2,
-  Table2,
-  Upload,
-} from 'lucide-react'
+  ShareNetwork as Share2,
+  SquaresFour as Grid2X2,
+  Table as Table2,
+  UploadSimple as Upload,
+} from '@phosphor-icons/react'
 import { ContextMenu } from './ContextMenu'
 
 export type LibraryViewMode = 'grid' | 'list' | 'table'
@@ -65,7 +65,11 @@ export function LibraryToolbar({
   onShare,
 }: LibraryToolbarProps) {
   return (
-    <header className="library-toolbar">
+    <header
+      className="library-toolbar"
+      aria-label="Library command bar"
+      data-canvas-region="command-bar"
+    >
       <div className="library-breadcrumb-row">
         <button type="button" aria-label="Back" onClick={onBack}><ArrowLeft /></button>
         <button type="button" aria-label="Forward" onClick={onForward}><ArrowRight /></button>
