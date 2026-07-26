@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
+import { ThemeProvider } from '../ThemeProvider'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -16,15 +17,20 @@ function urlOf(input: RequestInfo | URL) {
   return input instanceof URL ? input.toString() : input.url
 }
 
+function renderAuth(onSuccess = vi.fn()) {
+  return render(<ThemeProvider><AuthPanel onSuccess={onSuccess} /></ThemeProvider>)
+}
+
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  localStorage.clear()
   sessionStorage.clear()
 })
 
 describe('administrator authentication', () => {
   it('presents the redesigned PathLab landing experience', () => {
-    const view = render(<AuthPanel onSuccess={vi.fn()} />)
+    const view = renderAuth()
 
     expect(screen.getByRole('heading', { name: /see the whole picture/i })).toBeVisible()
     expect(screen.getByRole('heading', { name: /administrator sign in/i })).toBeVisible()
@@ -32,6 +38,23 @@ describe('administrator authentication', () => {
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
+    expect(screen.getByRole('group', { name: /color theme/i })).toBeVisible()
+    expect(screen.getByRole('radio', { name: /system/i })).toBeChecked()
+    expect(view.container.querySelectorAll('.auth-path')).toHaveLength(48)
+    expect(view.container.querySelectorAll('.auth-path-active')).toHaveLength(12)
+  })
+
+  it('switches and persists the login theme without touching the form', async () => {
+    renderAuth()
+    const username = screen.getByLabelText(/^username$/i)
+
+    await userEvent.clear(username)
+    await userEvent.type(username, 'pathlab-admin')
+    await userEvent.click(screen.getByRole('radio', { name: /dark/i }))
+
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+    expect(localStorage.getItem('pathlab-theme')).toBe('dark')
+    expect(username).toHaveValue('pathlab-admin')
   })
 
   it('uses a generic sign-in error and clears the password', async () => {
@@ -39,7 +62,7 @@ describe('administrator authentication', () => {
       { detail: { code: 'INVALID_CREDENTIALS' } },
       401,
     ))
-    render(<AuthPanel onSuccess={vi.fn()} />)
+    renderAuth()
     await userEvent.type(screen.getByLabelText(/^password$/i), 'never-store-this')
     await userEvent.click(screen.getByRole('button', { name: /^enter workspace$/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in failed')
@@ -47,7 +70,7 @@ describe('administrator authentication', () => {
   })
 
   it('reveals and conceals the password without changing its value', async () => {
-    render(<AuthPanel onSuccess={vi.fn()} />)
+    renderAuth()
     const password = screen.getByLabelText(/^password$/i)
     await userEvent.type(password, 'local-only-value')
 
@@ -61,7 +84,7 @@ describe('administrator authentication', () => {
 
   it('validates recovery confirmation locally and clears secrets', async () => {
     const request = vi.spyOn(globalThis, 'fetch')
-    render(<AuthPanel onSuccess={vi.fn()} />)
+    renderAuth()
     await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
@@ -74,7 +97,7 @@ describe('administrator authentication', () => {
 
   it('sends only the public recovery contract and returns to sign in', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
-    render(<AuthPanel onSuccess={vi.fn()} />)
+    renderAuth()
     await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')

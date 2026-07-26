@@ -4,6 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#faf9f5" />
+    <script>
+      (() => {
+        const key = 'pathlab-theme'
+        let preference = 'system'
+        try {
+          const stored = localStorage.getItem(key)
+          if (stored === 'light' || stored === 'dark' || stored === 'system') preference = stored
+          else if (stored !== null) localStorage.removeItem(key)
+        } catch {}
+        const theme = preference === 'system'
+          ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : preference
+        document.documentElement.dataset.theme = theme
+        document.documentElement.dataset.themePreference = preference
+        document.querySelector('meta[name="theme-color"]')?.setAttribute(
+          'content',
+          theme === 'dark' ? '#181715' : '#faf9f5',
+        )
+      })()
+    </script>
     <title>PathLab Viewer</title>
   </head>
   <body>
