@@ -13,6 +13,7 @@ import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
+import { ThemeControl } from '../theme/ThemeControl'
 import type { SharedManifest } from '../types'
 import '../shared-viewer.css'
 import '../shared-message.css'
@@ -109,6 +110,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       <header className="shared-viewer-header">
         <button type="button" className="share-menu" aria-label="Open slide navigator" onClick={() => setDrawerOpen(true)}><Menu /></button>
         <div><p>PathLab Viewer</p><h1>{manifest.name}</h1></div>
+        <ThemeControl compact className="shared-theme-control" />
         <span>{position + 1} / {manifest.slides.length}</span>
       </header>
       <button type="button" className="share-drawer-backdrop" aria-label="Close slide navigator" onClick={() => setDrawerOpen(false)} />
