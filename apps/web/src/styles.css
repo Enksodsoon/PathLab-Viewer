@@ -744,6 +744,16 @@ h1,h2,h3,.brand { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 }
 
 @media (max-width:420px) {
+  .auth-story-header {
+    flex-direction:column;
+    gap:16px;
+  }
+
+  .auth-theme-control {
+    max-width:100%;
+    align-self:flex-start;
+  }
+
   .auth-story {
     padding-inline:18px;
   }

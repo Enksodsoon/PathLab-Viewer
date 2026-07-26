@@ -112,7 +112,9 @@ body {
 }
 
 .theme-control--compact .theme-control__option {
-  width: 38px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   justify-content: center;
   padding: 0;
 }
