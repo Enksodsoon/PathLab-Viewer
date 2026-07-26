@@ -15,16 +15,88 @@ reference product or brand.
 
 ## Semantic tokens
 
-`src/theme/theme.css` is the token authority. Components consume semantic
-variables such as `--canvas`, `--surface`, `--ink`, `--border`, `--primary`,
-and `--focus`; they do not branch on the active mode.
+`src/theme/theme.css` is the authority for mode-varying semantic chrome
+tokens. Components consume variables such as `--canvas`, `--surface`, `--ink`,
+`--border`, `--primary`, and `--focus`; they do not branch on the active mode.
+Fixed pathology-imaging tokens live in `src/styles.css` and never vary by
+theme.
 
-The main radius rule is 8px for controls and 12px for cards. The page floor is
-warm cream in light mode and warm charcoal in dark mode. Viewer stages are a
-separate warm-black surface in both modes, preserving pathology image color.
+| Token | Light | Dark |
+| --- | --- | --- |
+| `--canvas` | `#faf9f5` | `#181715` |
+| `--surface` | `#f5f0e8` | `#1f1e1b` |
+| `--surface-card` | `#efe9de` | `#252320` |
+| `--surface-elevated` | `#ffffff` | `#2d2b27` |
+| `--ink` | `#141413` | `#faf9f5` |
+| `--body` | `#3d3d3a` | `#dedad2` |
+| `--muted` | `#6c6a64` | `#a09d96` |
+| `--border` | `#e6dfd8` | `#403d37` |
+| `--border-soft` | `#ebe6df` | `#34322e` |
+| `--primary` | `#cc785c` | `#e18a6d` |
+| `--primary-hover` | `#a9583e` | `#ef9b7e` |
+| `--on-primary` | `#141413` | `#181715` |
+| `--focus` | `#8f432e` | `#f0aa90` |
+| `--success` | `#3f7d4d` | `#72c486` |
+| `--warning` | `#936b00` | `#e8bb59` |
+| `--danger` | `#a33f35` | `#ef8175` |
+
+`--font-display` resolves to Cormorant Garamond with a Georgia fallback;
+`--font-ui` resolves to Source Sans 3 with a Segoe UI fallback.
+`--radius-control` is `8px` and `--radius-card` is `12px` in both modes.
+
+Viewer imagery uses the separate, mode-invariant `--viewer-stage: #090807` and
+`--viewer-on-stage: #f2eadc` values. The viewer stage, OpenSeadragon surface,
+poster, thumbnails, and tiles remain natural-color and receive no theme filter,
+inversion, or blend mode.
+
+## Responsive composition
+
+### Authentication
+
+- Above `820px`, the entry surface uses `46% / 54%` editorial columns; the form
+  column has a `460px` minimum and the histology field occupies the left `48%`.
+- At `820px` and below, the surface becomes one scrolling column with the
+  histology story above the form. Inputs remain at least `50px` high, the submit
+  action at least `54px`, and the secondary authentication action at least
+  `44px`.
+- At `420px` and below, the story header stacks, the compact theme control moves
+  below the brand, and both story and form use `18px` inline padding.
+
+### Canvas Focus library
+
+- Above `600px`, a sticky `72px` product rail anchors a centered content canvas
+  capped at `1560px`. The library navigator is a fixed overlay up to `360px`
+  wide, and slide details use a fixed right overlay up to `390px`; neither
+  consumes a permanent content-grid column.
+- At `1250px` and below, command groups stack and filters use three columns. At
+  `900px` and below, filters use two columns and content padding contracts.
+- At `600px` and below, the product rail becomes a fixed `72px` bottom dock,
+  the navigator opens from the left, slide details stop above the dock, and
+  interactive library controls use a `44px` minimum target. Slide cards use two
+  columns, except processing cards which remain single-column.
+- At `390px` and below, slide cards and the content heading become
+  single-column. At `340px` and below, command actions reflow to three equal
+  columns.
+
+### Single-slide and shared viewers
+
+- Private and individual public viewers switch at `760px`: the header becomes
+  `60px`, viewer tools become a centered bottom row with `44px` controls, and
+  Loading mode keeps a `44px` select. Offline status begins at `top: 76px`,
+  leaving an `8px` gap below the `58px` loading container, while the scale bar
+  sits above the tools.
+- Folder and collection viewers use a `320px` slide rail and `74px` header above
+  `760px`. At `760px` and below, the header becomes `68px`, the rail becomes a
+  left drawer up to `340px` or `90vw`, and menu, close, and viewer controls are
+  `44px`.
+- Both viewer layouts keep the stage warm-black at every breakpoint and in
+  light, dark, and system preferences.
 
 ## Accessibility and motion
 
 Text and controls require WCAG AA contrast in each theme. Keyboard focus uses
-the semantic `--focus` token. Theme selection is an accessible three-choice
-radio group. Reduced-motion users receive no nonessential transitions.
+the semantic `--focus` token with a `3px` outline. Theme selection is an
+accessible three-choice radio group; its compact controls are `44px`.
+Reduced-motion users bypass the GSAP authentication entrance, navigator and
+shared-rail transitions are removed, the indeterminate processing animation is
+disabled, and remaining CSS transitions are reduced to `0.01ms`.

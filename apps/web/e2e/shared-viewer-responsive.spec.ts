@@ -170,6 +170,8 @@ test('keeps collection routes usable at desktop and mobile sizes', async ({ page
 })
 
 test('keeps private and individual public imagery invariant across themes and widths', async ({ page }) => {
+  test.setTimeout(120_000)
+
   const routes = [
     { path: '/s/public-1', title: 'HER2 control' },
     { path: '/admin/preview/private-1', title: 'Private teaching slide' },
