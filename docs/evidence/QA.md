@@ -21,6 +21,40 @@ This ledger separates reproducible evidence from product or architecture claims.
 | Production 300-viewer certification | Run the protected `Capacity certification` workflow and retain its sanitized aggregate report | Not recorded |
 | Infrastructure cost and eligibility | Review the active tenancy billing page and deployed resources | Not recorded |
 
+## 2026-07-27 private-annotation candidate
+
+These are machine-local results for the `codex/admin-annotations` candidate.
+They are reproducible evidence for that candidate only and do not replace
+protected CI or production acceptance.
+
+- Backend: 363 passed, 2 intentional skips; Ruff and strict mypy passed.
+- Frontend: 180 Vitest tests passed; ESLint, TypeScript, and the production
+  build passed.
+- Browser: 113 passed and 3 expected skips across Chromium, Firefox, WebKit,
+  and mobile Chromium. The browser contract observed no annotation UI, API
+  request, payload field, or lazy-module request on the public route.
+- Build budget against detached `origin/main` `63966f3`: HTML-linked initial
+  JavaScript and CSS grew 125 gzip bytes (5,120-byte limit). The lazy annotation
+  JavaScript was 122,430 raw bytes and 36,070 gzip bytes (307,200-byte raw
+  limit).
+- SQLite/WAL: four readers ran during one 50-operation update. Every
+  single-statement snapshot was either complete pre-commit state or complete
+  post-commit state; no lock error occurred.
+- Synthetic 25,000-annotation API run: 18,956,288-byte database; 916.827 ms
+  seed; 27.975 ms manifest; 698.979 ms 5,000-item page; 181.945 ms 1,000-item
+  viewport; 33,928,834 peak traced endpoint-allocation bytes. The active query
+  used `ix_annotations_slide_active`; the viewport query used
+  `ix_annotations_slide_bbox`.
+- Synthetic 25,000-record Vitest/jsdom run: 26.425 ms RBush load, 93.476 ms
+  density render plan, 448.648 ms store load plus one compact edit, 79,148,624
+  observed heap-delta bytes, zero mounted individual shapes, 5,000 cached
+  records, 1,024 density cells, and a 268-byte recovery draft.
+
+The API and frontend timings are single machine-local synthetic observations,
+not enforced latency or memory service-level objectives. No live multi-user
+traffic, OCI host, physical device, patient slide, production backup restore,
+clinical use, or production deployment was tested or claimed.
+
 ## Reproducible viewer load checks
 
 Generate a public-only manifest:

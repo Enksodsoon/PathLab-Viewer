@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build --config vite.config.ts",
+    "check:annotation-bundle": "node scripts/check-annotation-bundle-budget.mjs",
     "dev": "vite --config vite.config.ts --host 127.0.0.1",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",

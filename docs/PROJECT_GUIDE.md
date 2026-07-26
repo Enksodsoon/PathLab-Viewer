@@ -16,6 +16,7 @@ PathLab Viewer is a private-first web application for whole-slide image review a
 - Publish, unpublish, retry, and delete actions
 - Nested canonical folders, curated collections, saved views, and Trash
 - Server-side search, filters, facets, deterministic cursor pagination, and cached thumbnails
+- Private administrator-only manual annotations behind a default-off feature flag
 - Unlisted anonymous public viewing
 - Responsive desktop, tablet, and phone interfaces
 - Password change and server-assisted account recovery
@@ -27,7 +28,7 @@ PathLab Viewer is a private-first web application for whole-slide image review a
 - self-registration or multiple administrator accounts;
 - teams, roles, and shared workspaces;
 - slide galleries or public indexing;
-- annotations and assessments;
+- public/shared annotations and assessments;
 - fluorescence controls;
 - Z-stacks and time series.
 
@@ -40,7 +41,7 @@ Changes to these boundaries require an explicit product and security review.
 | Web application | React, TypeScript, Vite | Administration interface and public viewer |
 | Viewer | OpenSeadragon | Deep Zoom pan, zoom, navigator, and scale display |
 | API | Python, FastAPI, Pydantic | Authentication, slide lifecycle, upload admission, metadata, and publication |
-| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, folders, collections, saved views, grants, audit events, and recovery state |
+| Persistence | SQLite WAL, SQLAlchemy, Alembic | Users, sessions, jobs, slides, folders, collections, saved views, private annotations, grants, audit events, and recovery state |
 | Upload transport | tusd and `tus-js-client` | Resumable multi-gigabyte uploads |
 | TIFF inspection | `tifffile` and OME-XML parsing | Structural and metadata validation |
 | Conversion | libvips and pyvips | Resource-bounded JPEG Deep Zoom generation |
@@ -106,6 +107,13 @@ phase. The dormant `/f/{publicId}` and `/c/{publicId}` viewer routes expose only
 explicitly safe teaching fields and reuse one OpenSeadragon instance while
 switching slides. Routine folder and collection mutations never publish.
 Individual `/s/{publicId}` publication remains compatible.
+
+Administrator annotations are isolated under `/api/v2/admin/annotations` and load
+only in `/admin/preview/{slideId}` when `PATHLAB_ANNOTATIONS_ENABLED=true`.
+Every read requires an administrator session and every mutation requires CSRF
+validation. Public and shared routes receive no annotation fields, make no
+annotation requests, and do not load the annotation workspace chunk. See
+[`architecture/ADMIN_ANNOTATIONS.md`](architecture/ADMIN_ANNOTATIONS.md).
 
 The application uses:
 

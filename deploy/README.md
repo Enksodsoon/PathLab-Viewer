@@ -116,6 +116,17 @@ Trash metadata, and thumbnail references. It does not remove originals or DZI
 trees. Do not downgrade after administrators begin relying on library metadata
 unless that metadata loss is accepted and the verified backup is available.
 
+### Administrator annotation rollout
+
+Private administrator annotations are documented in
+[`docs/architecture/ADMIN_ANNOTATIONS.md`](../docs/architecture/ADMIN_ANNOTATIONS.md).
+Keep `PATHLAB_ANNOTATIONS_ENABLED=false` while backing up, restoring on a
+disposable host, and migrating. Enabling the flag is a separate production
+change that requires private create/save/reload checks and public-route
+isolation checks. The kill-switch rollback preserves the additive annotation
+tables; do not automatically downgrade migration `20260726_0009`, because its
+downgrade removes annotation data.
+
 ## Viewer load testing
 
 Create a manifest from sanitized public derivatives on the host. Supply public identifiers explicitly; the tooling never discovers or selects them:

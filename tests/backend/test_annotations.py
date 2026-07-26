@@ -3,7 +3,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from threading import Barrier
+from threading import Barrier, Event
+from time import sleep
 from typing import Any
 
 import pytest
@@ -1391,3 +1392,132 @@ def test_pathlab_geojson_and_csv_interchange_is_bounded_and_lossless(
         assert vertex_limited.json() == {
             "detail": {"code": "ANNOTATION_IMPORT_VERTEX_LIMIT"}
         }
+
+
+def test_wal_reads_remain_available_and_atomically_visible_during_50_op_save(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from wsi_viewer import annotations as annotation_service
+    from wsi_viewer.annotations import AnnotationBatchRequest, apply_batch
+
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client, slide_id="annotation-wal-reads")
+        layer = _create_layer(client, slide.id, headers)
+        items = [
+            _item_payload(layer["id"], item_id=str(uuid.uuid4()))
+            for _ in range(50)
+        ]
+        created = _batch(
+            client,
+            slide.id,
+            headers,
+            base_version=1,
+            operations=[{"type": "create", "item": item} for item in items],
+        )
+        assert created.status_code == 200
+
+        settings = client.app.state.settings
+        with session_factory(settings)() as database:
+            actor_user_id = str(
+                database.scalar(select(User.id).where(User.username == "admin"))
+            )
+
+        writer_started = Event()
+        writer_done = Event()
+        original_record_revision = annotation_service._record_revision
+
+        def delayed_record_revision(
+            database: Any,
+            annotation: Annotation,
+        ) -> None:
+            writer_started.set()
+            sleep(0.002)
+            original_record_revision(database, annotation)
+
+        monkeypatch.setattr(
+            annotation_service,
+            "_record_revision",
+            delayed_record_revision,
+        )
+        payload = AnnotationBatchRequest.model_validate(
+            {
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 2,
+                "operations": [
+                    {
+                        "type": "update",
+                        "id": item["id"],
+                        "version": 1,
+                        "metadata": {
+                            "title": "Updated atomically",
+                            "classification": "",
+                            "tags": [],
+                            "notes": "",
+                        },
+                    }
+                    for item in items
+                ],
+            }
+        )
+
+        def write_batch() -> tuple[int, int]:
+            try:
+                with session_factory(settings)() as database:
+                    current_slide = database.get(Slide, slide.id)
+                    assert current_slide is not None
+                    result = apply_batch(
+                        database,
+                        current_slide,
+                        payload,
+                        actor_user_id=actor_user_id,
+                    )
+                    return int(result["version"]), len(result["results"])
+            finally:
+                writer_done.set()
+
+        def read_snapshots() -> list[tuple[int, int]]:
+            assert writer_started.wait(timeout=5)
+            snapshots: list[tuple[int, int]] = []
+            while not writer_done.is_set():
+                with session_factory(settings)() as database:
+                    snapshot = database.execute(
+                        text(
+                            "SELECT annotation_version, "
+                            "(SELECT COUNT(*) FROM annotations "
+                            "WHERE slide_id = :slide_id "
+                            "AND json_extract(annotation_metadata, '$.title') = "
+                            "'Updated atomically') "
+                            "FROM slides WHERE id = :slide_id"
+                        ),
+                        {"slide_id": slide.id},
+                    ).one()
+                snapshots.append((int(snapshot[0]), int(snapshot[1])))
+            return snapshots
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            writer = executor.submit(write_batch)
+            readers = [executor.submit(read_snapshots) for _ in range(4)]
+            assert writer.result(timeout=15) == (3, 50)
+            observations = [
+                snapshot
+                for reader in readers
+                for snapshot in reader.result(timeout=15)
+            ]
+
+        assert observations
+        assert set(observations) <= {(2, 0), (3, 50)}
+        with session_factory(settings)() as database:
+            final = database.execute(
+                text(
+                    "SELECT annotation_version, "
+                    "(SELECT COUNT(*) FROM annotations "
+                    "WHERE slide_id = :slide_id "
+                    "AND json_extract(annotation_metadata, '$.title') = "
+                    "'Updated atomically') "
+                    "FROM slides WHERE id = :slide_id"
+                ),
+                {"slide_id": slide.id},
+            ).one()
+        assert tuple(final) == (3, 50)

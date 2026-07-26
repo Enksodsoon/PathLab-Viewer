@@ -10,7 +10,7 @@ import pytest
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Annotation, AnnotationLayer, Slide
+from wsi_viewer.models import Annotation, AnnotationLayer, AnnotationRevision, Slide
 
 
 @pytest.mark.skipif(shutil.which("tar") is None, reason="tar is unavailable")
@@ -151,6 +151,28 @@ def test_sqlite_backup_preserves_private_annotation_state(tmp_path: Path) -> Non
         database.commit()
         database.add(annotation)
         database.commit()
+        database.add(
+            AnnotationRevision(
+                id="5b26bafe-9dc4-45d9-8bf8-bf1d9c26e703",
+                annotation_id=annotation.id,
+                version=1,
+                layer_id=layer.id,
+                geometry_type=annotation.geometry_type,
+                geometry=annotation.geometry,
+                style=annotation.style,
+                annotation_metadata={
+                    **annotation.annotation_metadata,
+                    "title": "Private historical label",
+                },
+                bbox_min_x=annotation.bbox_min_x,
+                bbox_min_y=annotation.bbox_min_y,
+                bbox_max_x=annotation.bbox_max_x,
+                bbox_max_y=annotation.bbox_max_y,
+                vertex_count=annotation.vertex_count,
+                mutation_id=annotation.mutation_id,
+            )
+        )
+        database.commit()
 
     with (
         sqlite3.connect(source_path) as source,
@@ -166,3 +188,12 @@ def test_sqlite_backup_preserves_private_annotation_state(tmp_path: Path) -> Non
             "SELECT json_extract(annotation_metadata, '$.title') "
             "FROM annotations WHERE id = 'e38e1283-dc44-4d55-8802-75e41111c665'"
         ).fetchone() == ("Private label",)
+        assert restored.execute(
+            "SELECT json_extract(annotation_metadata, '$.title') "
+            "FROM annotation_revisions "
+            "WHERE id = '5b26bafe-9dc4-45d9-8bf8-bf1d9c26e703'"
+        ).fetchone() == ("Private historical label",)
+        assert restored.execute(
+            "SELECT name || ':' || opacity FROM annotation_layers "
+            "WHERE id = '5e1a407e-c773-4782-9ab7-962485229894'"
+        ).fetchone() == ("Private annotations:1.0",)

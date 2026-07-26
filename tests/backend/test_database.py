@@ -333,6 +333,68 @@ def test_admin_annotation_migration_is_additive_and_round_trips_existing_slides(
                 "WHERE id = 'slide-before-annotations'"
             )
         ).scalar_one() == "public-before-annotations:0"
+        database.execute(
+            text(
+                "INSERT INTO annotation_layers "
+                "(id, slide_id, name, sort_order, visible, locked, opacity, "
+                "created_at, updated_at) VALUES "
+                "('11111111-1111-4111-8111-111111111111', "
+                "'slide-before-annotations', 'Existing layer', 0, 1, 0, 1.0, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO annotations "
+                "(id, slide_id, layer_id, geometry_type, geometry, style, "
+                "annotation_metadata, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y, "
+                "vertex_count, version, mutation_id, created_at, updated_at) VALUES "
+                "('22222222-2222-4222-8222-222222222222', "
+                "'slide-before-annotations', "
+                "'11111111-1111-4111-8111-111111111111', 'point', "
+                "json_object('type', 'point', 'x', 1, 'y', 2), "
+                "json_object('strokeColor', '#c43d3d', 'fillColor', '#c43d3d', "
+                "'strokeWidth', 2, 'opacity', 0.35, 'labelVisible', json('true')), "
+                "json_object('title', 'Existing annotation', 'classification', '', "
+                "'tags', json('[]'), 'notes', ''), "
+                "1, 2, 1, 2, 1, 1, "
+                "'33333333-3333-4333-8333-333333333333', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO annotation_revisions "
+                "(id, annotation_id, version, layer_id, geometry_type, geometry, style, "
+                "annotation_metadata, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y, "
+                "vertex_count, mutation_id, created_at) VALUES "
+                "('44444444-4444-4444-8444-444444444444', "
+                "'22222222-2222-4222-8222-222222222222', 1, "
+                "'11111111-1111-4111-8111-111111111111', 'point', "
+                "json_object('type', 'point', 'x', 1, 'y', 2), "
+                "json_object('strokeColor', '#c43d3d', 'fillColor', '#c43d3d', "
+                "'strokeWidth', 2, 'opacity', 0.35, 'labelVisible', json('true')), "
+                "json_object('title', 'Existing annotation', 'classification', '', "
+                "'tags', json('[]'), 'notes', ''), "
+                "1, 2, 1, 2, 1, "
+                "'33333333-3333-4333-8333-333333333333', CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "UPDATE slides SET annotation_version = 1 "
+                "WHERE id = 'slide-before-annotations'"
+            )
+        )
+        database.commit()
+        assert database.execute(
+            text(
+                "SELECT "
+                "(SELECT COUNT(*) FROM annotation_layers), "
+                "(SELECT COUNT(*) FROM annotations), "
+                "(SELECT COUNT(*) FROM annotation_revisions)"
+            )
+        ).one() == (1, 1, 1)
 
     command.downgrade(config, "20260724_0008")
     with session_factory(settings)() as database:
@@ -359,3 +421,11 @@ def test_admin_annotation_migration_is_additive_and_round_trips_existing_slides(
                 "WHERE id = 'slide-before-annotations'"
             )
         ).scalar_one() == "public-before-annotations:0"
+        assert database.execute(
+            text(
+                "SELECT "
+                "(SELECT COUNT(*) FROM annotation_layers), "
+                "(SELECT COUNT(*) FROM annotations), "
+                "(SELECT COUNT(*) FROM annotation_revisions)"
+            )
+        ).one() == (0, 0, 0)

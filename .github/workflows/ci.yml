@@ -40,6 +40,7 @@ jobs:
       - run: pnpm --dir apps/web lint
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
+      - run: pnpm --dir apps/web check:annotation-bundle
 
   containers:
     runs-on: ubuntu-24.04
