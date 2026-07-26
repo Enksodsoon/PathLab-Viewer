@@ -86,9 +86,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 12px 8px;
   border-right: 1px solid var(--border);
   background: var(--surface);
+  scrollbar-width: thin;
 }
 
 .library-rail-brand {
@@ -2250,6 +2253,17 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   .card-actions > button {
     width: 44px;
     height: 44px;
+  }
+
+  .filter-panel-heading button,
+  .filter-clear,
+  .state-page-actions button,
+  .load-more,
+  .library-menu button,
+  .library-menu a,
+  .selection-action-bar button {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .selection-action-bar {

@@ -40,3 +40,57 @@ passed.
   exposed their removal; persistent toolbar blur was removed.
 - No backend, viewer lifecycle, conversion, storage, deployment, or public-link
   behavior was changed.
+
+## Fix round 1: short rail reachability and mobile touch targets
+
+### Review findings
+
+- At 768×600, the desktop rail had 666px of required content inside a 600px
+  fixed-height container, but `overflow-y` remained `visible`; Sign out had no
+  rail scrolling path.
+- At ≤600px, representative filter, state/pagination, menu, and selection
+  actions retained 40–42px target heights instead of the required 44px floor.
+
+### RED evidence
+
+- The new CSS contract ran with one incumbent pass and one expected failure
+  because the mobile 44px selector group did not exist.
+- The two new Chromium browser contracts both failed as expected:
+  `overflow-y` was `visible` rather than `auto` at 768×600, and the mobile
+  Close filters target measured 40px rather than at least 44px.
+
+### Fix
+
+- The persistent desktop rail now owns thin vertical scrolling while the
+  ≤600px dock explicitly retains horizontal scrolling and hidden vertical
+  overflow.
+- At ≤600px, filter close/clear, state/pagination, menu, and selection action
+  controls now have 44px minimum width and height. The existing breadcrumb
+  44px contract remains intact.
+- The existing semantic-control E2E assertion now distinguishes the 40px
+  desktop compact control from the required 44px mobile target.
+
+### GREEN evidence and validation
+
+| Check | Result |
+| --- | --- |
+| Focused CSS contract | PASS: 2/2 |
+| Focused Chromium rail/touch regressions | PASS: 2/2 |
+| Full unit suite with one worker | PASS: 16 files / 86 tests |
+| Full responsive Playwright matrix | PASS: 52/52 across Chromium, Firefox, WebKit, and mobile Chromium |
+| `pnpm.cmd --dir apps/web lint` | PASS |
+| `pnpm.cmd --dir apps/web build` | PASS |
+| `git diff --check` | PASS |
+
+Rendered Browser QA at `/admin` confirmed:
+
+- at 768×600, the rail reports `clientHeight: 600`,
+  `scrollHeight: 666`, and `overflow-y: auto`; scrolling placed Sign out fully
+  inside the rail at y=538–588;
+- at 390×844, Close filters measured 44×44 and Clear filters measured
+  approximately 75.8×44;
+- no framework overlay or application error appeared. Console output was
+  limited to the repository's existing React Router v7 future-flag warnings.
+
+No backend, query, action, viewer, storage, conversion, sharing, focus/inert,
+or deployment contract changed in this fix round.

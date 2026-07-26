@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const navigation = {
   counts: { all: 2, unfiled: 0, shared: 0, processing: 0, failed: 0, trash: 0 },
@@ -77,6 +77,18 @@ async function mockLibrary(page: Page) {
       metadata: null,
     }),
   }))
+}
+
+async function expectMinimumTouchTarget(targets: Locator, label: string) {
+  const boxes = await targets.evaluateAll((elements) => elements.map((element) => {
+    const box = element.getBoundingClientRect()
+    return { height: box.height, width: box.width }
+  }))
+  expect(boxes.length, `${label} should expose at least one target`).toBeGreaterThan(0)
+  for (const [index, box] of boxes.entries()) {
+    expect(box.height, `${label} target ${index} height`).toBeGreaterThanOrEqual(44)
+    expect(box.width, `${label} target ${index} width`).toBeGreaterThanOrEqual(44)
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -214,6 +226,78 @@ test('uses the Canvas Focus shell at every approved responsive width', async ({ 
   }
 })
 
+test('keeps every rail destination reachable on short desktop viewports', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 600 })
+  const rail = page.getByRole('complementary', { name: 'Product navigation' })
+  const requiredDestinations = [
+    'All slides',
+    'Open library navigator',
+    'Upload',
+    'Processing',
+    'Failed',
+    'Trash',
+    'Account',
+    'Sign out',
+  ]
+
+  await expect(rail).toHaveCSS('overflow-y', 'auto')
+  const railMetrics = await rail.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }))
+  expect(railMetrics.scrollHeight).toBeGreaterThan(railMetrics.clientHeight)
+
+  for (const name of requiredDestinations) {
+    const target = rail.getByRole('button', { name, exact: true })
+    await expect(target).toHaveCount(1)
+    await target.scrollIntoViewIfNeeded()
+    const [railBox, targetBox] = await Promise.all([
+      rail.boundingBox(),
+      target.boundingBox(),
+    ])
+    expect(railBox).not.toBeNull()
+    expect(targetBox).not.toBeNull()
+    expect(targetBox!.y).toBeGreaterThanOrEqual(railBox!.y - 1)
+    expect(targetBox!.y + targetBox!.height).toBeLessThanOrEqual(
+      railBox!.y + railBox!.height + 1,
+    )
+  }
+})
+
+test('keeps representative mobile controls at least 44 pixels in both axes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  await expectMinimumTouchTarget(
+    page.locator('.library-breadcrumb-row > button:visible'),
+    'breadcrumb',
+  )
+
+  await page.getByRole('button', { name: 'Filters' }).click()
+  await expectMinimumTouchTarget(
+    page.getByRole('button', { name: 'Close filters' }),
+    'filter close',
+  )
+  await expectMinimumTouchTarget(
+    page.getByRole('button', { name: 'Clear filters' }),
+    'clear filters',
+  )
+  await page.getByRole('button', { name: 'Close filters' }).click()
+
+  await page.getByRole('button', {
+    name: 'More actions for Colon adenocarcinoma',
+  }).click()
+  await expectMinimumTouchTarget(page.getByRole('menuitem'), 'slide menu')
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('checkbox', {
+    name: 'Select Colon adenocarcinoma',
+  }).check()
+  await expectMinimumTouchTarget(
+    page.getByRole('toolbar', { name: 'Selection actions' }).getByRole('button'),
+    'selection action',
+  )
+})
+
 test('keeps the details inspector out of the content grid', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 })
   const mainBefore = await page.locator('.library-main').boundingBox()
@@ -335,8 +419,9 @@ test('uses designed filter, checkbox, and compact table thumbnail controls', asy
   })
   expect(closeStyle.color).not.toBe('rgba(0, 0, 0, 0)')
   expect(closeStyle.background).toBe(semanticColors.surfaceElevated)
-  expect(closeStyle.width).toBe('40px')
-  expect(closeStyle.height).toBe('40px')
+  const minimumCloseSize = (page.viewportSize()?.width ?? 0) <= 600 ? 44 : 40
+  expect(Number.parseFloat(closeStyle.width)).toBeGreaterThanOrEqual(minimumCloseSize)
+  expect(Number.parseFloat(closeStyle.height)).toBeGreaterThanOrEqual(minimumCloseSize)
 
   const selectVisible = page.getByRole('checkbox', { name: 'Select visible' })
   await expect(selectVisible).toHaveCSS('appearance', 'none')
