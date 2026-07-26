@@ -202,7 +202,7 @@ def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
     assert "PLAYWRIGHT_PORT: \"5217\"" in browser_job
     assert "e2e/annotation-responsive.spec.ts" in browser_job
     assert "e2e/shared-viewer-responsive.spec.ts" in browser_job
-    assert "--workers=4" in browser_job
+    assert "--workers=2" in browser_job
 
 
 def test_api_creates_runtime_directories_before_migrations() -> None:

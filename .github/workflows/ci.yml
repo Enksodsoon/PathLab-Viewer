@@ -94,7 +94,7 @@ jobs:
           pnpm --dir apps/web exec playwright test
           e2e/annotation-responsive.spec.ts
           e2e/shared-viewer-responsive.spec.ts
-          --workers=4
+          --workers=2
 
   containers:
     runs-on: ubuntu-24.04
