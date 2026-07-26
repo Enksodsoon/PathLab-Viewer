@@ -383,4 +383,52 @@ describe('annotation autosave', () => {
       version: 2,
     })
   })
+
+  it('isolates an atomic group from surrounding work and retries the whole group unchanged', async () => {
+    const before = mutation(1)
+    const atomic = [mutation(2), mutation(3), mutation(4)]
+    const after = mutation(5)
+    const calls: Array<{ mutationId: string; operations: AnnotationMutation[] }> = []
+    let version = 1
+    const save = vi.fn(async (
+      mutationId: string,
+      _baseVersion: number,
+      operations: AnnotationMutation[],
+    ): Promise<AnnotationBatchResult> => {
+      calls.push({ mutationId, operations: structuredClone(operations) })
+      if (calls.length === 2) throw new TypeError('offline')
+      version += 1
+      return { mutationId, version, results: [], purged: 0 }
+    })
+    const mutationIds = ['before-id', 'atomic-id', 'after-id']
+    const autosave = new AnnotationAutosave({
+      transport: { save },
+      baseVersion: 1,
+      retryDelaysMs: [1],
+      idFactory: () => mutationIds.shift() ?? 'unexpected-id',
+    })
+    autosave.replacePendingBatches([
+      { atomic: false, operations: [before] },
+      { atomic: true, operations: atomic },
+      { atomic: false, operations: [after] },
+    ])
+
+    await autosave.flush()
+    expect(autosave.snapshot()).toMatchObject({ status: 'retrying', dirtyCount: 4 })
+    await autosave.flush()
+
+    expect(calls.map((call) => call.operations)).toEqual([
+      [before],
+      atomic,
+      atomic,
+      [after],
+    ])
+    expect(calls.map((call) => call.mutationId)).toEqual([
+      'before-id',
+      'atomic-id',
+      'atomic-id',
+      'after-id',
+    ])
+    expect(autosave.snapshot()).toMatchObject({ status: 'saved', dirtyCount: 0 })
+  })
 })

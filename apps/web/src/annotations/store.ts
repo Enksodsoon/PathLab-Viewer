@@ -3,6 +3,7 @@ import {
   MAX_ANNOTATION_BATCH_BYTES,
   type AnnotationAutosaveAcknowledgement,
   type AnnotationAutosaveBatch,
+  type AnnotationPendingMutationBatch,
 } from './autosave'
 import type { BooleanWorkerClient } from './boolean'
 import { createBooleanWorkerClient } from './boolean'
@@ -68,6 +69,7 @@ export interface AnnotationStoreState {
   selection: Set<string>
   filter: AnnotationFilter
   pendingMutations: AnnotationMutation[]
+  pendingMutationBatches: AnnotationPendingMutationBatch[]
   recoveryMutations: AnnotationMutation[]
   autosaveStatus: string
   overlayError: string | null
@@ -107,6 +109,8 @@ interface PendingEntry {
   token: number
   mutation: AnnotationMutation
   inFlight: string | null
+  atomicGroup: number | null
+  compositionKey: string | null
 }
 
 interface HistoryEntry {
@@ -257,6 +261,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
   const pending: PendingEntry[] = []
   const brushPipelines = new Map<string, Promise<void>>()
   let nextPendingToken = 1
+  let nextAtomicGroup = 1
   let clipboard: AnnotationRecord[] = []
   let overlay: AnnotationOverlayAttachment | null = null
   let activeCount = 0
@@ -277,21 +282,50 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     overlayError: null,
   }
 
-  const sendableEntries = (): PendingEntry[] => {
+  const sendableBatches = (): Array<{
+    atomic: boolean
+    entries: PendingEntry[]
+  }> => {
     const blocked = new Set<string>()
+    const atomicGroups = new Map<number, PendingEntry[]>()
     for (const entry of pending) {
       if (entry.inFlight) blocked.add(mutationTargetId(entry.mutation))
+      if (entry.atomicGroup !== null) {
+        const group = atomicGroups.get(entry.atomicGroup) ?? []
+        group.push(entry)
+        atomicGroups.set(entry.atomicGroup, group)
+      }
     }
     const selected = new Set<string>()
-    const result: PendingEntry[] = []
+    const result: Array<{ atomic: boolean; entries: PendingEntry[] }> = []
+    const visitedAtomicGroups = new Set<number>()
     for (const entry of pending) {
+      if (entry.atomicGroup !== null) {
+        if (visitedAtomicGroups.has(entry.atomicGroup)) continue
+        visitedAtomicGroups.add(entry.atomicGroup)
+        const group = atomicGroups.get(entry.atomicGroup) ?? []
+        const targets = group.map((candidate) => mutationTargetId(candidate.mutation))
+        if (
+          group.some((candidate) => candidate.inFlight)
+          || targets.some((target) => blocked.has(target) || selected.has(target))
+        ) continue
+        for (const target of targets) selected.add(target)
+        result.push({ atomic: true, entries: group })
+        continue
+      }
       const target = mutationTargetId(entry.mutation)
       if (entry.inFlight || blocked.has(target) || selected.has(target)) continue
       selected.add(target)
-      result.push(entry)
+      const tail = result.at(-1)
+      if (tail && !tail.atomic) tail.entries.push(entry)
+      else result.push({ atomic: false, entries: [entry] })
     }
     return result
   }
+
+  const sendableEntries = (): PendingEntry[] => (
+    sendableBatches().flatMap((batch) => batch.entries)
+  )
 
   const makeSnapshot = (): AnnotationStoreState => ({
     slideId: internal.slideId,
@@ -313,6 +347,10 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       tags: internal.filter.tags ? readonlySet(internal.filter.tags) : undefined,
     },
     pendingMutations: sendableEntries().map((entry) => cloneMutation(entry.mutation)),
+    pendingMutationBatches: sendableBatches().map((batch) => ({
+      atomic: batch.atomic,
+      operations: batch.entries.map((entry) => cloneMutation(entry.mutation)),
+    })),
     recoveryMutations: pending.map((entry) => cloneMutation(entry.mutation)),
     autosaveStatus: internal.autosaveStatus,
     overlayError: internal.overlayError,
@@ -340,22 +378,32 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
   const queueMutation = (mutation: AnnotationMutation) => {
     const target = mutationTargetId(mutation)
     const targetEntries = pending.filter((entry) => (
-      !entry.inFlight && mutationTargetId(entry.mutation) === target
+      !entry.inFlight
+      && entry.atomicGroup === null
+      && mutationTargetId(entry.mutation) === target
     ))
     if (targetEntries.length === 0) {
       pending.push({
         token: nextPendingToken++,
         mutation: cloneMutation(mutation),
         inFlight: null,
+        atomicGroup: null,
+        compositionKey: null,
       })
       return
     }
     const firstIndex = pending.findIndex((entry) => (
-      !entry.inFlight && mutationTargetId(entry.mutation) === target
+      !entry.inFlight
+      && entry.atomicGroup === null
+      && mutationTargetId(entry.mutation) === target
     ))
     const insertionIndex = pending
       .slice(0, firstIndex)
-      .filter((entry) => entry.inFlight || mutationTargetId(entry.mutation) !== target)
+      .filter((entry) => (
+        entry.inFlight
+        || entry.atomicGroup !== null
+        || mutationTargetId(entry.mutation) !== target
+      ))
       .length
     const normalized = coalesceMutationSequence([
       ...targetEntries.map((entry) => entry.mutation),
@@ -365,12 +413,87 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       token: targetEntries[index]?.token ?? nextPendingToken++,
       mutation: cloneMutation(entry),
       inFlight: null,
+      atomicGroup: null,
+      compositionKey: null,
     }))
     const withoutTarget = pending.filter((entry) => (
-      entry.inFlight || mutationTargetId(entry.mutation) !== target
+      entry.inFlight
+      || entry.atomicGroup !== null
+      || mutationTargetId(entry.mutation) !== target
     ))
     withoutTarget.splice(insertionIndex, 0, ...replacements)
     pending.splice(0, pending.length, ...withoutTarget)
+  }
+
+  const queueAtomicMutationGroup = (
+    mutations: readonly AnnotationMutation[],
+    compositionKey: string | null,
+  ) => {
+    const coalesceGroup = (
+      operations: readonly AnnotationMutation[],
+    ): AnnotationMutation[] => {
+      const order: string[] = []
+      const byTarget = new Map<string, AnnotationMutation[]>()
+      for (const operation of operations) {
+        const target = mutationTargetId(operation)
+        if (!byTarget.has(target)) order.push(target)
+        const targetOperations = byTarget.get(target) ?? []
+        targetOperations.push(operation)
+        byTarget.set(target, targetOperations)
+      }
+      return order.flatMap((target) => coalesceMutationSequence(byTarget.get(target) ?? []))
+    }
+    const last = pending.at(-1)
+    if (
+      compositionKey
+      && last
+      && last.atomicGroup !== null
+      && last.compositionKey === compositionKey
+    ) {
+      let firstIndex = pending.length - 1
+      while (
+        firstIndex > 0
+        && pending[firstIndex - 1].atomicGroup === last.atomicGroup
+      ) firstIndex -= 1
+      const previous = pending.slice(firstIndex)
+      if (previous.every((entry) => !entry.inFlight)) {
+        const normalized = coalesceGroup([
+          ...previous.map((entry) => entry.mutation),
+          ...mutations,
+        ])
+        if (
+          normalized.length <= MAX_BATCH_OPERATIONS
+          && annotationBatchRequestBytes(
+            '00000000-0000-4000-8000-000000000000',
+            internal.version,
+            normalized,
+          ) <= MAX_ANNOTATION_BATCH_BYTES
+        ) {
+          const previousTokens = new Set(previous.map((entry) => entry.token))
+          const replacement = normalized.map((mutation, index): PendingEntry => ({
+            token: previous[index]?.token ?? nextPendingToken++,
+            mutation: cloneMutation(mutation),
+            inFlight: null,
+            atomicGroup: last.atomicGroup,
+            compositionKey,
+          }))
+          const withoutPrevious = pending.filter((entry) => !previousTokens.has(entry.token))
+          withoutPrevious.splice(firstIndex, 0, ...replacement)
+          pending.splice(0, pending.length, ...withoutPrevious)
+          return
+        }
+      }
+    }
+    const atomicGroup = nextAtomicGroup++
+    for (const mutation of mutations) {
+      pending.push({
+        token: nextPendingToken++,
+        mutation: cloneMutation(mutation),
+        inFlight: null,
+        atomicGroup,
+        compositionKey,
+      })
+    }
   }
 
   const recordCommand = (
@@ -391,6 +514,43 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       after.set(id, record ? cloneRecord(record) : null)
     }
     for (const mutation of mutations) queueMutation(mutation)
+    undoStack.push({ before, after })
+    if (undoStack.length > 100) undoStack.shift()
+    redoStack.length = 0
+    emit()
+  }
+
+  const recordAtomicCommand = (
+    ids: Iterable<string>,
+    mutations: readonly AnnotationMutation[],
+    mutate: () => void,
+    compositionKey: string | null,
+  ) => {
+    if (mutations.length > MAX_BATCH_OPERATIONS) {
+      throw new RangeError('Boolean result exceeds the 50-operation transaction limit')
+    }
+    if (
+      annotationBatchRequestBytes(
+        '00000000-0000-4000-8000-000000000000',
+        internal.version,
+        mutations,
+      ) > MAX_ANNOTATION_BATCH_BYTES
+    ) {
+      throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE')
+    }
+    const affected = [...new Set(ids)]
+    const before = new Map<string, AnnotationRecord | null>()
+    for (const id of affected) {
+      const record = internal.annotations.get(id)
+      before.set(id, record ? cloneRecord(record) : null)
+    }
+    mutate()
+    const after = new Map<string, AnnotationRecord | null>()
+    for (const id of affected) {
+      const record = internal.annotations.get(id)
+      after.set(id, record ? cloneRecord(record) : null)
+    }
+    queueAtomicMutationGroup(mutations, compositionKey)
     undoStack.push({ before, after })
     if (undoStack.length > 100) undoStack.shift()
     redoStack.length = 0
@@ -527,6 +687,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
   const applyBooleanResults = (
     sources: AnnotationRecord[],
     results: PolygonGeometry[],
+    compositionKey: string | null = null,
   ): string[] => {
     if (results.some((geometry) => geometryVertexCount(geometry) > MAX_VERTICES_PER_SHAPE)) {
       throw new RangeError('Boolean results cannot exceed 8,192 vertices per shape')
@@ -574,16 +735,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       id: record.id,
       version: Math.max(1, record.version),
     })))
-    if (
-      annotationBatchRequestBytes(
-        '00000000-0000-4000-8000-000000000000',
-        internal.version,
-        mutations,
-      ) > MAX_ANNOTATION_BATCH_BYTES
-    ) {
-      throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE')
-    }
-    recordCommand(affected, mutations, () => {
+    recordAtomicCommand(affected, mutations, () => {
       if (results.length > 0) {
         const geometry = structuredClone(results[0])
         setRecord(sources[0].id, {
@@ -620,7 +772,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         else setRecord(source.id, { ...cloneRecord(source), deletedAt: timestamp })
         internal.selection.delete(source.id)
       }
-    })
+    }, compositionKey)
     const selected = results.length > 0 ? [sources[0].id, ...newIds] : []
     internal.selection = new Set(selected)
     emit()
@@ -858,7 +1010,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
             || !layerEditable(current)
           ) return []
           if (!equal(current.geometry, source.geometry)) continue
-          return applyBooleanResults([source], results)
+          return applyBooleanResults([source], results, `brush:${id}`)
         }
       })
     },
@@ -1021,7 +1173,8 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       if (!mutationId || pending.some((entry) => entry.inFlight === mutationId)) {
         throw new Error('Annotation mutation ID is already in flight')
       }
-      const available = sendableEntries()
+      const availableBatches = sendableBatches()
+      const available = availableBatches.flatMap((batch) => batch.entries)
       const selected: PendingEntry[] = []
       const targets = new Set<string>()
       for (const operation of operations) {
@@ -1035,6 +1188,22 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         if (!entry) throw new Error(`Pending annotation mutation ${target} was not found`)
         selected.push(entry)
         targets.add(target)
+      }
+      const selectedAtomicGroups = new Set(
+        selected.flatMap((entry) => entry.atomicGroup === null ? [] : [entry.atomicGroup]),
+      )
+      if (selectedAtomicGroups.size > 0) {
+        if (selectedAtomicGroups.size !== 1 || selected.some((entry) => entry.atomicGroup === null)) {
+          throw new Error('Atomic annotation mutation group cannot be mixed with other work')
+        }
+        const [atomicGroup] = selectedAtomicGroups
+        const entireGroup = pending.filter((entry) => entry.atomicGroup === atomicGroup)
+        if (
+          entireGroup.length !== selected.length
+          || entireGroup.some((entry) => !selected.includes(entry))
+        ) {
+          throw new Error('Atomic annotation mutation group cannot be split')
+        }
       }
       for (const entry of selected) entry.inFlight = mutationId
       emit()

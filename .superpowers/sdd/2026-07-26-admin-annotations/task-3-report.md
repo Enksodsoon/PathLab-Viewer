@@ -362,3 +362,72 @@ pnpm --dir apps/web exec vitest run `
 
 No push, pull request, merge, deployment, OCI change, or live-environment acceptance
 was performed.
+
+## Fix Round 3: indivisible brush persistence
+
+Fix Round 3 closes the store-to-transport atomicity gap for brush and Boolean
+results. It does not change roles, routes, public payloads, the Canvas Focus visual
+language, or deployment state.
+
+### Atomic mutation-group contract
+
+- The annotation store now publishes explicit pending mutation batches. Ordinary
+  mutations remain coalescible, while every Boolean or brush result is tagged as one
+  atomic group.
+- The workspace passes those batch boundaries to autosave instead of flattening and
+  reconstructing the queue.
+- Autosave stops an ordinary batch when it reaches an atomic boundary. An atomic
+  group is selected whole, is never mixed with adjacent work, and is never split by
+  the 50-operation or 256 KiB batch limits.
+- Store-side preflight measures the complete serialized request envelope and enforces
+  both limits before optimistic records, history, or selection are changed. Exactly
+  50 brush-result mutations remain valid; 51 and oversized serialized groups are
+  rejected without local changes.
+- Rapid same-target brush strokes still serialize through the worker. A wholly
+  unsent trailing brush group is composed by target, including multi-fragment
+  creates, without duplicate backend targets. If the earlier group is already in
+  flight or composition would exceed a limit, the later group waits behind its
+  acknowledgement instead of freezing editing.
+- Retry retains the in-flight mutation ID, complete operation list, and operation
+  order. Store failure releases every entry in the group together, and store
+  acknowledgement rejects split or mixed atomic selections before reconciling it.
+- Atomic-group discovery is linear in pending queue size; it does not add an
+  annotation-count scan per group.
+
+### Fix-round TDD evidence
+
+The initial RED run completed 178 tests: 176 passed and the two new contract tests
+failed for the intended missing behavior:
+
+- `AnnotationAutosave.replacePendingBatches` did not exist.
+- `AnnotationStoreState.pendingMutationBatches` did not exist.
+
+The focused suite then covered surrounding unrelated edits, multi-fragment brush
+transport grouping, whole-group network retry with a stable mutation ID, exact
+50-operation acceptance, 51-operation and serialized-byte rejection before local
+mutation, rapid multi-fragment composition, whole-group release, and existing normal
+coalescing.
+
+### Final verification after Fix Round 3
+
+- Focused store and autosave Vitest:
+  - PASS: 2 files, 33 tests.
+- `pnpm --dir apps/web test`
+  - PASS: 25 files, 179 tests.
+- `pnpm --dir apps/web build`
+  - PASS: TypeScript project build and 4,661 Vite modules transformed.
+  - Lazy annotation JavaScript: 122.43 kB raw / 36.11 kB gzip.
+  - Lazy annotation CSS: 17.31 kB raw / 3.68 kB gzip.
+  - Boolean worker: 27.52 kB raw.
+- `pnpm --dir apps/web lint`
+  - PASS with `--max-warnings 0`.
+- Mobile Chromium touch-edit Playwright case:
+  - PASS: 1/1, including the 44×44 polygon vertex touch target.
+- `pnpm audit --prod --audit-level high`
+  - PASS at the requested threshold: zero high and zero critical findings.
+  - The same three pre-existing moderate advisories remain.
+- `git diff --check`
+  - PASS; only Windows LF-to-CRLF checkout notices were emitted.
+
+No push, pull request, merge, deployment, OCI change, or live-environment acceptance
+was performed.

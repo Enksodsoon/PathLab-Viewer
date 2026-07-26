@@ -596,10 +596,10 @@ export function AnnotationWorkspace({
           if (!active) return
           latestStateRef.current = next
           setStoreState(next)
-          const signature = JSON.stringify(next.pendingMutations)
+          const signature = JSON.stringify(next.pendingMutationBatches)
           if (signature !== pendingSignatureRef.current) {
             pendingSignatureRef.current = signature
-            saver.replacePending(next.pendingMutations)
+            saver.replacePendingBatches(next.pendingMutationBatches)
           }
           if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current)
           draftTimerRef.current = null

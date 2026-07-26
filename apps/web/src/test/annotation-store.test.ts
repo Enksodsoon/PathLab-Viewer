@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { AnnotationAutosave } from '../annotations/autosave'
 import { createAnnotationStore } from '../annotations/store'
-import type { AnnotationLayer, AnnotationRecord } from '../annotations/types'
+import { MAX_BATCH_OPERATIONS } from '../annotations/types'
+import type {
+  AnnotationLayer,
+  AnnotationMutation,
+  AnnotationRecord,
+} from '../annotations/types'
 
 const layer: AnnotationLayer = {
   id: 'layer-1',
@@ -390,6 +395,16 @@ describe('framework-neutral annotation editing store', () => {
         geometry: subtracted,
       }),
     ])
+    expect(store.getState().pendingMutationBatches).toEqual([{
+      atomic: true,
+      operations: [
+        expect.objectContaining({
+          type: 'update',
+          id: roi.id,
+          geometry: subtracted,
+        }),
+      ],
+    }])
     await expect(store.brush('add', roi.id, stroke)).rejects.toThrow('worker unavailable')
     expect(store.getState().annotations.get(roi.id)?.geometry).toEqual(subtracted)
     expect(store.peekPendingMutations()).toHaveLength(1)
@@ -403,6 +418,70 @@ describe('framework-neutral annotation editing store', () => {
         geometry: recovered,
       }),
     ])
+  })
+
+  it('composes rapid multi-fragment brush groups without duplicate targets and retries them whole', async () => {
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const roi = {
+      ...structuredClone(annotation),
+      id: 'rapid-roi',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }, { x: 0, y: 20 }],
+      },
+    }
+    const grown = {
+      ...roi.geometry,
+      points: roi.geometry.points.map((point) => ({ ...point, x: point.x + 1 })),
+    }
+    const latest = {
+      ...roi.geometry,
+      points: roi.geometry.points.map((point) => ({ ...point, x: point.x + 2 })),
+    }
+    const fragmentOne = {
+      ...roi.geometry,
+      points: roi.geometry.points.map((point) => ({ ...point, x: point.x + 30 })),
+    }
+    const fragmentTwo = {
+      ...roi.geometry,
+      points: roi.geometry.points.map((point) => ({ ...point, x: point.x + 60 })),
+    }
+    const worker = {
+      run: vi.fn()
+        .mockImplementationOnce(async () => {
+          await firstGate
+          return [grown, fragmentOne]
+        })
+        .mockResolvedValueOnce([latest, fragmentTwo]),
+    }
+    const ids = ['fragment-one', 'fragment-two']
+    const store = createAnnotationStore({
+      slideId: 'slide-1',
+      booleanClient: worker,
+      idFactory: () => ids.shift() ?? 'unexpected',
+    })
+    store.load({ version: 1, layers: [layer], annotations: [roi] })
+
+    const first = store.brush('add', roi.id, roi.geometry)
+    const second = store.brush('subtract', roi.id, roi.geometry)
+    releaseFirst()
+    await Promise.all([first, second])
+
+    const [batch] = store.getState().pendingMutationBatches
+    expect(batch.atomic).toBe(true)
+    expect(batch.operations).toHaveLength(3)
+    expect(batch.operations.map((operation) => (
+      operation.type === 'create' ? operation.item.id : operation.id
+    ))).toEqual([roi.id, 'fragment-one', 'fragment-two'])
+    expect(batch.operations[0]).toMatchObject({ type: 'update', geometry: latest })
+
+    expect(() => store.beginSave('rapid-brush', batch.operations)).not.toThrow()
+    expect(store.getState().pendingMutationBatches).toEqual([])
+    store.failSave('rapid-brush')
+    expect(store.getState().pendingMutationBatches).toEqual([batch])
   })
 
   it('reconciles a version-zero create and preserves a newer edit made while create is in flight', () => {
@@ -821,5 +900,151 @@ describe('framework-neutral annotation editing store', () => {
     expect(save.mock.calls[0][2]).toEqual(group)
     expect(store.getState().pendingMutations).toEqual([])
     expect(autosave.snapshot()).toMatchObject({ status: 'saved', dirtyCount: 0 })
+  })
+
+  it('keeps a multi-fragment brush atomic when unrelated work is already queued', async () => {
+    const roi = {
+      ...structuredClone(annotation),
+      id: 'brush-roi',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }, { x: 0, y: 20 }],
+      },
+    }
+    const unrelated = { ...structuredClone(annotation), id: 'unrelated' }
+    const fragment = {
+      ...roi.geometry,
+      points: roi.geometry.points.map((point) => ({ ...point, x: point.x + 30 })),
+    }
+    const generatedIds = ['brush-fragment']
+    const store = createAnnotationStore({
+      slideId: 'slide-1',
+      booleanClient: { run: vi.fn(async () => [roi.geometry, fragment]) },
+      idFactory: () => generatedIds.shift() ?? 'unexpected',
+    })
+    store.load({ version: 1, layers: [layer], annotations: [roi, unrelated] })
+    store.update(unrelated.id, {
+      metadata: { ...unrelated.metadata, title: 'Queued first' },
+    })
+    await store.brush('subtract', roi.id, roi.geometry)
+
+    const batches = store.getState().pendingMutationBatches
+    expect(batches).toHaveLength(2)
+    expect(batches[0]).toMatchObject({
+      atomic: false,
+      operations: [expect.objectContaining({ type: 'update', id: unrelated.id })],
+    })
+    expect(batches[1]).toMatchObject({
+      atomic: true,
+      operations: [
+        expect.objectContaining({ type: 'update', id: roi.id }),
+        expect.objectContaining({
+          type: 'create',
+          item: expect.objectContaining({ id: 'brush-fragment' }),
+        }),
+      ],
+    })
+
+    const sent: AnnotationMutation[][] = []
+    let version = 1
+    const autosave = new AnnotationAutosave({
+      baseVersion: 1,
+      transport: {
+        save: vi.fn(async (
+          mutationId: string,
+          _baseVersion: number,
+          operations: AnnotationMutation[],
+        ) => {
+          sent.push(structuredClone(operations))
+          version += 1
+          return {
+            mutationId,
+            version,
+            results: operations.map((operation) => ({
+              id: operation.type === 'create' ? operation.item.id : operation.id,
+              operation: operation.type,
+              version,
+              deleted: operation.type === 'delete',
+            })),
+            purged: 0,
+          }
+        }),
+      },
+      ...store.autosaveHooks(),
+    })
+    autosave.replacePendingBatches(batches)
+    await autosave.flush()
+
+    expect(sent).toEqual([
+      batches[0].operations,
+      batches[1].operations,
+    ])
+    expect(store.getState().pendingMutations).toEqual([])
+  })
+
+  it('rejects brush groups over count and byte limits before changing local state', async () => {
+    const roi = {
+      ...structuredClone(annotation),
+      id: 'brush-roi',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }, { x: 0, y: 20 }],
+      },
+    }
+    const stroke = structuredClone(roi.geometry)
+    const assertRejectedWithoutMutation = async (
+      results: Array<typeof roi.geometry>,
+      expected: RegExp,
+    ) => {
+      let nextId = 0
+      const store = createAnnotationStore({
+        slideId: 'slide-1',
+        maxAnnotations: 100,
+        booleanClient: { run: vi.fn(async () => results) },
+        idFactory: () => `fragment-${nextId++}`,
+      })
+      store.load({ version: 1, layers: [layer], annotations: [roi] })
+      const before = store.getState()
+      await expect(store.brush('subtract', roi.id, stroke)).rejects.toThrow(expected)
+      expect(store.getState().annotations).toEqual(before.annotations)
+      expect(store.getState().pendingMutations).toEqual([])
+      expect(store.canUndo()).toBe(false)
+    }
+
+    const fiftyOneFragments = Array.from({ length: 51 }, (_, index) => ({
+      ...roi.geometry,
+      points: roi.geometry.points.map((point) => ({ ...point, x: point.x + index * 30 })),
+    }))
+    let acceptedId = 0
+    const boundaryStore = createAnnotationStore({
+      slideId: 'slide-1',
+      maxAnnotations: 100,
+      booleanClient: {
+        run: vi.fn(async () => fiftyOneFragments.slice(0, MAX_BATCH_OPERATIONS)),
+      },
+      idFactory: () => `accepted-fragment-${acceptedId++}`,
+    })
+    boundaryStore.load({ version: 1, layers: [layer], annotations: [roi] })
+    await expect(boundaryStore.brush('subtract', roi.id, stroke)).resolves.toHaveLength(
+      MAX_BATCH_OPERATIONS,
+    )
+    expect(boundaryStore.getState().pendingMutationBatches).toEqual([{
+      atomic: true,
+      operations: expect.any(Array),
+    }])
+    expect(boundaryStore.getState().pendingMutationBatches[0].operations).toHaveLength(
+      MAX_BATCH_OPERATIONS,
+    )
+
+    await assertRejectedWithoutMutation(fiftyOneFragments, /50|operation|transaction/i)
+
+    const tooManyBytes = [{
+      type: 'polygon' as const,
+      points: Array.from({ length: 8_191 }, (_, index) => ({
+        x: index + 0.1234567890123456,
+        y: index + 0.9876543210987654,
+      })),
+    }]
+    await assertRejectedWithoutMutation(tooManyBytes, /256|request|large/i)
   })
 })

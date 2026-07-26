@@ -27,6 +27,11 @@ export interface AnnotationAutosaveBatch {
   operations: AnnotationMutation[]
 }
 
+export interface AnnotationPendingMutationBatch {
+  atomic: boolean
+  operations: AnnotationMutation[]
+}
+
 export interface AnnotationAutosaveAcknowledgement extends AnnotationAutosaveBatch {
   result: AnnotationBatchResult
 }
@@ -76,6 +81,7 @@ export interface AnnotationAutosaveOptions {
 interface QueueEntry {
   token: number
   mutation: AnnotationMutation
+  atomicGroup: number | null
 }
 
 interface InFlightBatch {
@@ -120,6 +126,7 @@ export class AnnotationAutosave {
   private queue: QueueEntry[] = []
   private inFlight: InFlightBatch | null = null
   private nextToken = 1
+  private nextAtomicGroup = 1
   private version: number
   private status: AutosaveStatus = 'idle'
   private retryAt: number | null = null
@@ -181,6 +188,25 @@ export class AnnotationAutosave {
   replacePending(operations: readonly AnnotationMutation[]): void {
     this.queue = []
     for (const operation of operations) this.enqueueInternal(operation)
+    this.pendingQueueChanged()
+  }
+
+  replacePendingBatches(batches: readonly AnnotationPendingMutationBatch[]): void {
+    this.queue = []
+    for (const batch of batches) {
+      const atomicGroup = batch.atomic ? this.nextAtomicGroup++ : null
+      for (const operation of batch.operations) {
+        this.queue.push({
+          token: this.nextToken++,
+          mutation: structuredClone(operation),
+          atomicGroup,
+        })
+      }
+    }
+    this.pendingQueueChanged()
+  }
+
+  private pendingQueueChanged(): void {
     if (!this.inFlight && this.status !== 'conflict') {
       this.status = this.snapshot().dirtyCount > 0 ? 'dirty' : 'idle'
     }
@@ -260,18 +286,24 @@ export class AnnotationAutosave {
   private enqueueInternal(operation: AnnotationMutation): void {
     const target = mutationTargetId(operation)
     const targetEntries = this.queue.filter(
-      (entry) => mutationTargetId(entry.mutation) === target,
+      (entry) => entry.atomicGroup === null && mutationTargetId(entry.mutation) === target,
     )
     if (targetEntries.length === 0) {
-      this.queue.push({ token: this.nextToken++, mutation: structuredClone(operation) })
+      this.queue.push({
+        token: this.nextToken++,
+        mutation: structuredClone(operation),
+        atomicGroup: null,
+      })
       return
     }
     const firstIndex = this.queue.findIndex(
-      (entry) => mutationTargetId(entry.mutation) === target,
+      (entry) => entry.atomicGroup === null && mutationTargetId(entry.mutation) === target,
     )
     const insertionIndex = this.queue
       .slice(0, firstIndex)
-      .filter((entry) => mutationTargetId(entry.mutation) !== target)
+      .filter((entry) => (
+        entry.atomicGroup !== null || mutationTargetId(entry.mutation) !== target
+      ))
       .length
     const normalized = coalesceMutationSequence([
       ...targetEntries.map((entry) => entry.mutation),
@@ -280,9 +312,10 @@ export class AnnotationAutosave {
     const replacement = normalized.map((mutation, index): QueueEntry => ({
       token: targetEntries[index]?.token ?? this.nextToken++,
       mutation: structuredClone(mutation),
+      atomicGroup: null,
     }))
     const withoutTarget = this.queue.filter(
-      (entry) => mutationTargetId(entry.mutation) !== target,
+      (entry) => entry.atomicGroup !== null || mutationTargetId(entry.mutation) !== target,
     )
     withoutTarget.splice(insertionIndex, 0, ...replacement)
     this.queue = withoutTarget
@@ -320,30 +353,50 @@ export class AnnotationAutosave {
     if (this.queue.length === 0) return false
     const mutationId = this.idFactory()
     const entries: QueueEntry[] = []
-    const targets = new Set<string>()
-    for (const entry of this.queue) {
-      const target = mutationTargetId(entry.mutation)
-      if (targets.has(target)) continue
-      const candidate = [...entries, entry]
-      const candidateOperations = cloneOperations(candidate)
-      const bytes = annotationBatchRequestBytes(
-        mutationId,
-        this.version,
-        candidateOperations,
-      )
-      if (entries.length === 0 && bytes > MAX_ANNOTATION_BATCH_BYTES) {
+    const first = this.queue[0]
+    if (first.atomicGroup !== null) {
+      entries.push(...this.queue.filter(
+        (entry) => entry.atomicGroup === first.atomicGroup,
+      ))
+      const operations = cloneOperations(entries)
+      if (
+        entries.length > MAX_BATCH_OPERATIONS
+        || annotationBatchRequestBytes(mutationId, this.version, operations)
+          > MAX_ANNOTATION_BATCH_BYTES
+      ) {
         this.status = 'error'
         this.error = 'ANNOTATION_REQUEST_TOO_LARGE'
         this.retryAt = null
         this.notify()
         return false
       }
-      if (
-        bytes > MAX_ANNOTATION_BATCH_BYTES
-        || entries.length >= MAX_BATCH_OPERATIONS
-      ) break
-      entries.push(entry)
-      targets.add(target)
+    } else {
+      const targets = new Set<string>()
+      for (const entry of this.queue) {
+        if (entry.atomicGroup !== null) break
+        const target = mutationTargetId(entry.mutation)
+        if (targets.has(target)) continue
+        const candidate = [...entries, entry]
+        const candidateOperations = cloneOperations(candidate)
+        const bytes = annotationBatchRequestBytes(
+          mutationId,
+          this.version,
+          candidateOperations,
+        )
+        if (entries.length === 0 && bytes > MAX_ANNOTATION_BATCH_BYTES) {
+          this.status = 'error'
+          this.error = 'ANNOTATION_REQUEST_TOO_LARGE'
+          this.retryAt = null
+          this.notify()
+          return false
+        }
+        if (
+          bytes > MAX_ANNOTATION_BATCH_BYTES
+          || entries.length >= MAX_BATCH_OPERATIONS
+        ) break
+        entries.push(entry)
+        targets.add(target)
+      }
     }
     const selected = new Set(entries.map((entry) => entry.token))
     this.queue = this.queue.filter((entry) => !selected.has(entry.token))
