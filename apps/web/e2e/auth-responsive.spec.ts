@@ -17,12 +17,28 @@ test('persists theme choice and remains usable at every layout boundary', async 
   await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toBeVisible({ timeout: 20_000 })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.getByRole('radio', { name: 'System' })).toBeChecked()
+  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
+
+  const initialArtworkRequests = await page.evaluate(() => performance
+    .getEntriesByType('resource')
+    .filter((entry) => (entry as PerformanceResourceTiming).initiatorType === 'img')
+    .map((entry) => entry.name)
+    .filter((name) => name.includes('auth-histology-solace-')))
+  expect(initialArtworkRequests.some((name) => name.includes('dark'))).toBe(true)
+  expect(initialArtworkRequests.some((name) => name.includes('light'))).toBe(false)
 
   await page.locator('label[for="theme-light"]').click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'light')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await expect(page.getByRole('radio', { name: 'Light' })).toBeChecked()
+
+  await page.locator('label[for="theme-system"]').click()
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
+  await page.emulateMedia({ colorScheme: 'light' })
+  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'light')
 
   for (const width of [320, 390, 768, 820, 940, 941, 1024, 1584, 1920]) {
     await page.setViewportSize({ width, height: width <= 940 ? 844 : 900 })
@@ -30,18 +46,21 @@ test('persists theme choice and remains usable at every layout boundary', async 
     const layout = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
-      headingLines: Array.from(document.querySelectorAll('.auth-story-copy h1 > span'))
-        .map((line) => line.getClientRects().length),
+      formWidth: document.querySelector('.auth-form-panel')?.getBoundingClientRect().width ?? 0,
+      visualWidth: document.querySelector('.auth-visual')?.getBoundingClientRect().width ?? 0,
     }))
     expect(layout.scrollWidth, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(layout.clientWidth)
-    expect(layout.headingLines).toEqual([1, 1])
+    expect(layout.formWidth).toBeGreaterThan(0)
+    expect(layout.visualWidth).toBeGreaterThan(0)
   }
 })
 
 test('keeps recovery immediate, focused, and motion-safe', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/admin')
-  await expect(page.locator('.auth-atmosphere')).toHaveAttribute('data-motion', 'reduced', { timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toBeVisible({ timeout: 20_000 })
+  const animationName = await page.locator('.auth-visual-image').evaluate((element) => getComputedStyle(element).animationName)
+  expect(animationName).toBe('none')
 
   await page.getByRole('button', { name: 'Recover administrator access' }).click()
   await expect(page.getByRole('heading', { name: 'Recover administrator access' })).toBeFocused()

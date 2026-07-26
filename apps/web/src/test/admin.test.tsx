@@ -34,14 +34,15 @@ describe('administrator authentication', () => {
 
     expect(screen.getByRole('heading', { name: /see the whole picture/i })).toBeVisible()
     expect(screen.getByRole('heading', { name: /administrator sign in/i })).toBeVisible()
-    expect(screen.getByText(/focused workspace for reviewing, organizing, and sharing/i)).toBeVisible()
+    expect(screen.getByText(/focused review for whole-slide imaging/i)).toBeVisible()
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
     expect(screen.getByRole('group', { name: /color theme/i })).toBeVisible()
     expect(screen.getByRole('radio', { name: /system/i })).toBeChecked()
-    expect(view.container.querySelectorAll('.auth-path')).toHaveLength(48)
-    expect(view.container.querySelectorAll('.auth-path-active')).toHaveLength(12)
+    const artwork = view.container.querySelector<HTMLImageElement>('.auth-visual-image')
+    expect(artwork).toHaveAttribute('data-auth-artwork-theme', 'light')
+    expect(artwork?.src).toContain('auth-histology-solace-light.webp')
   })
 
   it('switches and persists the login theme without touching the form', async () => {
@@ -55,6 +56,8 @@ describe('administrator authentication', () => {
     expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
     expect(localStorage.getItem('pathlab-theme')).toBe('dark')
     expect(username).toHaveValue('pathlab-admin')
+    expect(document.querySelector('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
+    expect(document.querySelector<HTMLImageElement>('.auth-visual-image')?.src).toContain('auth-histology-solace-dark.webp')
   })
 
   it('uses a generic sign-in error and clears the password', async () => {

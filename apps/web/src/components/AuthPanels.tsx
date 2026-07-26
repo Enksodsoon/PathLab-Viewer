@@ -1,19 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, SyntheticEvent } from 'react'
-import { domAnimation, LazyMotion, m, MotionConfig } from 'motion/react'
 import {
   ArrowRight,
   Eye,
   EyeOff,
   KeyRound,
-  LockKeyhole,
   ShieldCheck,
-  UserRound,
   X,
 } from 'lucide-react'
 
 import { ApiError, changePassword, login, recoverPassword } from '../api'
-import { AuthAtmosphere } from './AuthAtmosphere'
+import darkArtwork from '../assets/auth-histology-solace-dark.webp'
+import lightArtwork from '../assets/auth-histology-solace-light.webp'
+import { useTheme } from '../theme'
 import { Brand } from './Brand'
 import { ThemeControl } from './ThemeControl'
 
@@ -41,6 +40,7 @@ interface AuthPanelProps {
 }
 
 export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
+  const { resolvedTheme } = useTheme()
   const [mode, setMode] = useState<'login' | 'recover'>('login')
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
@@ -132,74 +132,20 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
   }
 
   return (
-    <LazyMotion features={domAnimation} strict>
-      <MotionConfig reducedMotion="user" transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}>
-        <main className={`login-page${mode === 'recover' ? ' recovery-mode' : ''}`}>
-          <AuthAtmosphere />
-          <ThemeControl />
-
-          <m.section
-            animate={{ opacity: 1 }}
-            aria-labelledby="auth-story-title"
-            className="auth-story"
-            initial={{ opacity: 0.01 }}
-            transition={{ duration: 0.7 }}
-          >
-            <m.div
-              animate={{ opacity: 1, y: 0 }}
-              className="auth-brand"
-              initial={{ opacity: 0.01, y: -14 }}
-              transition={{ delay: 0.08 }}
-            >
-              <Brand variant="library" />
-            </m.div>
-            <div className="auth-story-copy">
-              <h1 aria-label="See the whole picture." id="auth-story-title">
-                <m.span
-                  animate={{ clipPath: 'inset(0 0 0% 0)', y: 0 }}
-                  aria-hidden="true"
-                  initial={{ clipPath: 'inset(0 0 100% 0)', y: 30 }}
-                  transition={{ delay: 0.16, duration: 0.62 }}
-                >
-                  See the
-                </m.span>
-                <m.span
-                  animate={{ clipPath: 'inset(0 0 0% 0)', y: 0 }}
-                  aria-hidden="true"
-                  initial={{ clipPath: 'inset(0 0 100% 0)', y: 34 }}
-                  transition={{ delay: 0.24, duration: 0.68 }}
-                >
-                  whole picture.
-                </m.span>
-              </h1>
-              <m.p
-                animate={{ opacity: 1, y: 0 }}
-                initial={{ opacity: 0.01, y: 18 }}
-                transition={{ delay: 0.34, duration: 0.55 }}
-              >
-                A focused workspace for reviewing, organizing, and sharing whole-slide images.
-              </m.p>
-            </div>
-          </m.section>
-
-          <m.section
-            animate={{ opacity: 1, x: 0 }}
-            className="auth-panel"
-            initial={{ opacity: 0.01, x: 24 }}
-            transition={{ delay: 0.12, duration: 0.56 }}
-          >
+    <main className={`auth-shell${mode === 'recover' ? ' recovery-mode' : ''}`}>
+      <div className="auth-layout">
+        <section className="auth-form-panel" aria-labelledby="auth-form-title">
+          <header className="auth-panel-header">
+            <Brand variant="library" />
+            <ThemeControl />
+          </header>
+          <div className="auth-form-wrap">
             <form
-              className="login-card"
+              className="login-card auth-solace-card"
               aria-labelledby="auth-form-title"
               onSubmit={mode === 'login' ? submitLogin : submitRecovery}
             >
-              <m.div
-                animate={{ opacity: 1, y: 0 }}
-                className="auth-form-content"
-                initial={{ opacity: 0.01, y: 14 }}
-                key={mode}
-                transition={{ duration: 0.24 }}
-              >
+              <div className="auth-form-content" key={mode}>
                   <header className="auth-form-heading">
                     <h2 id="auth-form-title" ref={formHeadingRef} tabIndex={-1}>
                       {mode === 'login' ? 'Administrator sign in' : 'Recover administrator access'}
@@ -214,13 +160,13 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                   <div className="auth-field">
                     <label htmlFor="auth-username">Username</label>
                     <div className="auth-input">
-                      <UserRound aria-hidden="true" />
                       <input
                         id="auth-username"
                         value={username}
                         onChange={(event) => setUsername(event.target.value)}
                         autoComplete="username"
                       />
+                      <span className="auth-inline-label" aria-hidden="true">Username</span>
                     </div>
                   </div>
                   {mode === 'login' ? (
@@ -228,7 +174,6 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
               <div className="auth-field">
                 <label htmlFor="auth-password">Password</label>
                 <div className="auth-input">
-                  <LockKeyhole aria-hidden="true" />
                   <input
                     id="auth-password"
                     type={passwordVisible ? 'text' : 'password'}
@@ -236,6 +181,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                     onChange={(event) => setPassword(event.target.value)}
                     autoComplete="current-password"
                   />
+                  <span className="auth-inline-label" aria-hidden="true">Password</span>
                   <button
                     className="password-visibility"
                     type="button"
@@ -251,7 +197,6 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                 <span>Enter workspace</span>
                 <ArrowRight aria-hidden="true" />
               </button>
-              <div className="auth-separator"><span>or</span></div>
               <button
                 className="auth-link"
                 type="button"
@@ -276,23 +221,23 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       <div className="auth-field">
                         <label htmlFor="recovery-code">Recovery code</label>
                         <div className="auth-input">
-                          <KeyRound aria-hidden="true" />
                           <input id="recovery-code" value={recoveryCode} onChange={(event) => setRecoveryCode(event.target.value)} autoComplete="one-time-code" />
+                          <span className="auth-inline-label" aria-hidden="true">Recovery code</span>
                         </div>
                       </div>
                       <div className="auth-field">
                         <label htmlFor="recovery-new-password">New password</label>
                         <div className="auth-input">
-                          <LockKeyhole aria-hidden="true" />
                           <input id="recovery-new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" aria-describedby="recovery-password-requirements" />
+                          <span className="auth-inline-label" aria-hidden="true">New password</span>
                         </div>
                       </div>
                       <p id="recovery-password-requirements" className="password-requirements">{RECOVERY_PASSWORD_REQUIREMENTS}</p>
                       <div className="auth-field">
                         <label htmlFor="recovery-confirm-password">Confirm new password</label>
                         <div className="auth-input">
-                          <ShieldCheck aria-hidden="true" />
                           <input id="recovery-confirm-password" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
+                          <span className="auth-inline-label" aria-hidden="true">Confirm password</span>
                         </div>
                       </div>
                       {error ? <p className="form-error" role="alert">{error}</p> : null}
@@ -302,16 +247,41 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       </div>
                     </>
                   )}
-              </m.div>
+              </div>
             </form>
             <footer className="auth-footnote">
               <ShieldCheck aria-hidden="true" />
               <span>Private by design. Built for whole-slide imaging.</span>
             </footer>
-          </m.section>
-        </main>
-      </MotionConfig>
-    </LazyMotion>
+          </div>
+        </section>
+
+        <section className="auth-visual" aria-labelledby="auth-visual-title">
+          <img
+            alt=""
+            aria-hidden="true"
+            className="auth-visual-image"
+            data-auth-artwork-theme={resolvedTheme}
+            decoding="async"
+            fetchPriority="high"
+            src={resolvedTheme === 'dark' ? darkArtwork : lightArtwork}
+          />
+          <div className="auth-visual-grain" aria-hidden="true" />
+          <div className="auth-visual-content">
+            <p className="auth-visual-kicker">PathLab Viewer</p>
+            <h1 id="auth-visual-title">
+              See the whole
+              <br />
+              picture.
+            </h1>
+            <div className="auth-visual-note">
+              <ShieldCheck aria-hidden="true" />
+              <span>Focused review for whole-slide imaging.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   )
 }
 
