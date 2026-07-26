@@ -325,6 +325,16 @@ def test_admin_annotation_migration_is_additive_and_round_trips_existing_slides(
             "annotations",
             "annotation_revisions",
         } <= set(inspector.get_table_names())
+        annotation_indexes = {
+            index["name"]: index["column_names"]
+            for index in inspector.get_indexes("annotations")
+        }
+        assert annotation_indexes["ix_annotations_slide_active"] == [
+            "slide_id",
+            "deleted_at",
+            "created_at",
+            "id",
+        ]
         slide_columns = {column["name"] for column in inspector.get_columns("slides")}
         assert "annotation_version" in slide_columns
         assert database.execute(

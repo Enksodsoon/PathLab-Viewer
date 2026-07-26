@@ -33,6 +33,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: "24.14.0", cache: pnpm }
@@ -40,7 +41,35 @@ jobs:
       - run: pnpm --dir apps/web lint
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
-      - run: pnpm --dir apps/web check:annotation-bundle
+      - name: Check annotation bundle budgets against the real base
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${PR_BASE_SHA}" ]]; then
+            BASE_SHA="${PR_BASE_SHA}"
+          elif [[ "${PUSH_BEFORE_SHA}" =~ ^[0-9a-f]{40}$ ]] &&
+               [[ "${PUSH_BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]; then
+            BASE_SHA="${PUSH_BEFORE_SHA}"
+          else
+            git fetch --no-tags origin main
+            BASE_SHA="$(git merge-base HEAD origin/main)"
+            if [[ "${BASE_SHA}" == "$(git rev-parse HEAD)" ]]; then
+              BASE_SHA="$(git rev-parse HEAD^)"
+            fi
+          fi
+          git cat-file -e "${BASE_SHA}^{commit}"
+          BASE_WORKTREE="${RUNNER_TEMP}/pathlab-bundle-base-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "${BASE_WORKTREE}"
+          git worktree add --detach "${BASE_WORKTREE}" "${BASE_SHA}"
+          trap 'git worktree remove --force "${BASE_WORKTREE}"' EXIT
+          pnpm --dir "${BASE_WORKTREE}" install --frozen-lockfile
+          pnpm --dir "${BASE_WORKTREE}/apps/web" exec \
+            vite build --config vite.config.ts --manifest
+          PATHLAB_BUNDLE_BASELINE="${BASE_WORKTREE}/apps/web/dist"
+          test -f "${PATHLAB_BUNDLE_BASELINE}/index.html"
+          pnpm --dir apps/web check:annotation-bundle -- --baseline "$PATHLAB_BUNDLE_BASELINE"
 
   containers:
     runs-on: ubuntu-24.04

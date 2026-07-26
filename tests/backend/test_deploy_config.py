@@ -147,6 +147,9 @@ def test_annotation_operations_runbook_and_bundle_budget_are_ci_contracts() -> N
     guide = Path("docs/architecture/ADMIN_ANNOTATIONS.md")
     package = Path("apps/web/package.json").read_text(encoding="utf-8")
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    web_job = workflow.split("\n  web:\n", maxsplit=1)[1].split(
+        "\n  containers:\n", maxsplit=1
+    )[0]
 
     assert guide.is_file()
     guide_text = guide.read_text(encoding="utf-8")
@@ -161,7 +164,30 @@ def test_annotation_operations_runbook_and_bundle_budget_are_ci_contracts() -> N
     ):
         assert required in guide_text
     assert '"check:annotation-bundle"' in package
-    assert "pnpm --dir apps/web check:annotation-bundle" in workflow
+    assert "fetch-depth: 0" in web_job
+    assert "github.event.pull_request.base.sha" in web_job
+    assert "github.event.before" in web_job
+    assert "git worktree add --detach" in web_job
+    assert "vite build --config vite.config.ts --manifest" in web_job
+    assert (
+        'pnpm --dir apps/web check:annotation-bundle -- '
+        '--baseline "$PATHLAB_BUNDLE_BASELINE"'
+    ) in web_job
+
+
+def test_annotation_benchmark_explains_the_actual_paginated_api_query_shape() -> None:
+    benchmark = Path("scripts/benchmark_annotations.py").read_text(encoding="utf-8")
+
+    assert "select(Annotation)" in benchmark
+    assert "select(func.count(Annotation.id))" in benchmark
+    assert ".order_by(Annotation.created_at, Annotation.id)" in benchmark
+    assert ".offset(PAGE_OFFSET)" in benchmark
+    assert ".limit(PAGE_SIZE)" in benchmark
+    assert '"literal_binds": True' in benchmark
+    assert '"activeCountQueryPlan"' in benchmark
+    assert '"activePageQueryPlan"' in benchmark
+    assert '"viewportCountQueryPlan"' in benchmark
+    assert '"viewportPageQueryPlan"' in benchmark
 
 
 def test_api_creates_runtime_directories_before_migrations() -> None:

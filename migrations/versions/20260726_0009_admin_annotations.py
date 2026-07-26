@@ -80,7 +80,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_annotations_slide_active",
         "annotations",
-        ["slide_id", "deleted_at", "id"],
+        ["slide_id", "deleted_at", "created_at", "id"],
     )
     op.create_index(
         "ix_annotations_slide_layer_active",

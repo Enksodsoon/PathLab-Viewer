@@ -14,7 +14,8 @@ from time import perf_counter
 from typing import Any
 
 from fastapi.testclient import TestClient
-from sqlalchemy import insert, text
+from sqlalchemy import func, insert, select, text
+from sqlalchemy.sql import Select
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
@@ -25,6 +26,7 @@ from wsi_viewer.security import hash_password
 
 ANNOTATION_COUNT = 25_000
 PAGE_SIZE = 5_000
+PAGE_OFFSET = 0
 PASSWORD = "synthetic-annotation-benchmark-password"
 SECRET = "synthetic-annotation-benchmark-secret"
 LAYER_ID = "11111111-1111-4111-8111-111111111111"
@@ -76,12 +78,53 @@ def synthetic_rows() -> list[dict[str, Any]]:
     ]
 
 
-def query_plan(database: Any, sql: str, parameters: dict[str, Any]) -> list[str]:
+def item_query_statements(
+    *,
+    min_x: float | None = None,
+    min_y: float | None = None,
+    max_x: float | None = None,
+    max_y: float | None = None,
+) -> tuple[Select[Any], Select[Any]]:
+    """Mirror annotation_routes.list_items for the benchmark's API requests."""
+    page_statement = select(Annotation).where(
+        Annotation.slide_id == SLIDE_ID,
+        Annotation.deleted_at.is_(None),
+    )
+    count_statement = select(func.count(Annotation.id)).where(
+        Annotation.slide_id == SLIDE_ID,
+        Annotation.deleted_at.is_(None),
+    )
+    bounds = (min_x, min_y, max_x, max_y)
+    if all(value is not None for value in bounds):
+        assert min_x is not None
+        assert min_y is not None
+        assert max_x is not None
+        assert max_y is not None
+        predicates = (
+            Annotation.bbox_max_x >= min_x,
+            Annotation.bbox_max_y >= min_y,
+            Annotation.bbox_min_x <= max_x,
+            Annotation.bbox_min_y <= max_y,
+        )
+        page_statement = page_statement.where(*predicates)
+        count_statement = count_statement.where(*predicates)
+    return (
+        count_statement,
+        page_statement.order_by(Annotation.created_at, Annotation.id)
+        .offset(PAGE_OFFSET)
+        .limit(PAGE_SIZE),
+    )
+
+
+def query_plan(database: Any, statement: Select[Any]) -> list[str]:
+    compiled = statement.compile(
+        bind=database.get_bind(),
+        compile_kwargs={"literal_binds": True},
+    )
     return [
         str(row[3])
         for row in database.execute(
-            text(f"EXPLAIN QUERY PLAN {sql}"),
-            parameters,
+            text(f"EXPLAIN QUERY PLAN {compiled}"),
         )
     ]
 
@@ -141,28 +184,17 @@ def run() -> dict[str, Any]:
         seed_ms = (perf_counter() - seed_started) * 1_000
 
         with session_factory(settings)() as database:
-            active_plan = query_plan(
-                database,
-                "SELECT id FROM annotations "
-                "WHERE slide_id = :slide_id AND deleted_at IS NULL "
-                "ORDER BY id LIMIT 5000",
-                {"slide_id": SLIDE_ID},
+            active_count_statement, active_page_statement = item_query_statements()
+            viewport_count_statement, viewport_page_statement = item_query_statements(
+                min_x=0,
+                min_y=0,
+                max_x=99,
+                max_y=9,
             )
-            viewport_plan = query_plan(
-                database,
-                "SELECT id FROM annotations "
-                "WHERE slide_id = :slide_id AND deleted_at IS NULL "
-                "AND bbox_max_x >= :min_x AND bbox_max_y >= :min_y "
-                "AND bbox_min_x <= :max_x AND bbox_min_y <= :max_y "
-                "ORDER BY created_at, id LIMIT 5000",
-                {
-                    "slide_id": SLIDE_ID,
-                    "min_x": 0,
-                    "min_y": 0,
-                    "max_x": 99,
-                    "max_y": 9,
-                },
-            )
+            active_count_plan = query_plan(database, active_count_statement)
+            active_page_plan = query_plan(database, active_page_statement)
+            viewport_count_plan = query_plan(database, viewport_count_statement)
+            viewport_page_plan = query_plan(database, viewport_page_statement)
 
         with TestClient(create_app(settings)) as client:
             login = client.post(
@@ -205,10 +237,22 @@ def run() -> dict[str, Any]:
             raise RuntimeError("Unfiltered endpoint did not return its bounded page")
         if viewport.status_code != 200 or viewport.json()["total"] != 1_000:
             raise RuntimeError("Viewport endpoint returned an unexpected synthetic count")
-        if not any("ix_annotations_slide_active" in line for line in active_plan):
-            raise RuntimeError(f"Active query missed its index: {active_plan}")
-        if not any("ix_annotations_slide_bbox" in line for line in viewport_plan):
-            raise RuntimeError(f"Viewport query missed its index: {viewport_plan}")
+        if not any(
+            "ix_annotations_slide_active" in line
+            for line in [*active_count_plan, *active_page_plan]
+        ):
+            raise RuntimeError(
+                "Active API query missed its index: "
+                f"{active_count_plan}, {active_page_plan}"
+            )
+        if not any(
+            "ix_annotations_slide_bbox" in line
+            for line in [*viewport_count_plan, *viewport_page_plan]
+        ):
+            raise RuntimeError(
+                "Viewport API query missed its index: "
+                f"{viewport_count_plan}, {viewport_page_plan}"
+            )
 
         result = {
             "scope": "machine-local synthetic; not live or multi-user acceptance",
@@ -220,8 +264,10 @@ def run() -> dict[str, Any]:
             "pageMs": round(page_ms, 3),
             "viewportMs": round(viewport_ms, 3),
             "endpointPeakAllocatedBytes": peak_bytes,
-            "activeQueryPlan": active_plan,
-            "viewportQueryPlan": viewport_plan,
+            "activeCountQueryPlan": active_count_plan,
+            "activePageQueryPlan": active_page_plan,
+            "viewportCountQueryPlan": viewport_count_plan,
+            "viewportPageQueryPlan": viewport_page_plan,
             "manifestActiveCount": manifest.json()["activeCount"],
             "pageItems": len(page.json()["items"]),
             "viewportItems": len(viewport.json()["items"]),

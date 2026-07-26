@@ -235,7 +235,13 @@ class Annotation(Base):
             "bbox_min_x <= bbox_max_x AND bbox_min_y <= bbox_max_y",
             name="ck_annotations_bbox_order",
         ),
-        Index("ix_annotations_slide_active", "slide_id", "deleted_at", "id"),
+        Index(
+            "ix_annotations_slide_active",
+            "slide_id",
+            "deleted_at",
+            "created_at",
+            "id",
+        ),
         Index(
             "ix_annotations_slide_layer_active",
             "slide_id",

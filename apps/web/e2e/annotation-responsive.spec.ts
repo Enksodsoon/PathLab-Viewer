@@ -39,6 +39,26 @@ const publicSlide = {
   },
 }
 
+const sharedManifest = {
+  publicId: 'share-public',
+  targetType: 'folder',
+  name: 'Public teaching set',
+  description: 'De-identified teaching slides',
+  expiresAt: null,
+  slides: [{
+    position: 0,
+    displayName: 'Public teaching slide',
+    organSite: 'Colon',
+    stain: 'H&E',
+    diagnosis: 'Teaching',
+    tags: [],
+    teachingNote: '',
+    thumbnailUrl: null,
+    tileSource: '/tiles/public-1/slide.dzi',
+    scale: null,
+  }],
+}
+
 const layer = {
   id: '11111111-1111-4111-8111-111111111111',
   slideId: 'private-1',
@@ -87,6 +107,14 @@ async function mockSlides(page: Page) {
   await page.route('**/api/v1/public/slides/public-1', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify(publicSlide),
+  }))
+  await page.route('**/api/v2/public/folders/share-public', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify(sharedManifest),
+  }))
+  await page.route('**/api/v2/public/collections/share-public', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ ...sharedManifest, targetType: 'collection' }),
   }))
   await page.route('**/api/v2/admin/annotations/slides/private-1/manifest', (route) => route.fulfill({
     contentType: 'application/json',
@@ -312,17 +340,30 @@ test('tracks light and dark application themes without filtering the pathology c
   expect(dark.stageFilter).toBe('none')
 })
 
-test('keeps the public route free of annotation UI, APIs, payload fields, and lazy modules', async ({ page }) => {
-  const requests: string[] = []
-  page.on('request', (request) => requests.push(request.url()))
-  await page.goto('/s/public-1')
+for (const publicRoute of [
+  { path: '/s/public-1', apiPath: '/api/v1/public/slides/public-1' },
+  { path: '/f/share-public', apiPath: '/api/v2/public/folders/share-public' },
+  { path: '/c/share-public', apiPath: '/api/v2/public/collections/share-public' },
+]) {
+  test(`keeps ${publicRoute.path} free of annotation UI, APIs, payload fields, and lazy modules`, async ({ page }) => {
+    const requests: string[] = []
+    page.on('request', (request) => requests.push(request.url()))
+    const publicResponse = page.waitForResponse((response) => (
+      response.url().includes(publicRoute.apiPath)
+    ))
 
-  await expect(page.getByText('Public teaching slide', { exact: true })).toBeVisible()
-  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toHaveCount(0)
-  await expect(page.getByText('Annotations', { exact: true })).toHaveCount(0)
+    await page.goto(publicRoute.path)
+    const payload = await (await publicResponse).json() as unknown
 
-  expect(requests.some((url) => url.includes('/api/v2/admin/annotations/'))).toBe(false)
-  expect(requests.some((url) => url.includes('/src/annotations/'))).toBe(false)
-  expect(Object.keys(publicSlide)).not.toContain('annotationsEnabled')
-  expect(Object.keys(publicSlide)).not.toContain('annotationVersion')
-})
+    await expect(page.getByText('Public teaching slide', { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toHaveCount(0)
+    await expect(page.getByText('Annotations', { exact: true })).toHaveCount(0)
+
+    expect(requests.some((url) => url.includes('/api/v2/admin/annotations/'))).toBe(false)
+    expect(requests.some((url) => url.includes('/src/annotations/'))).toBe(false)
+    expect(requests.some((url) => url.includes('AnnotationWorkspace'))).toBe(false)
+    expect(requests.some((url) => url.includes('boolean.worker'))).toBe(false)
+    expect(JSON.stringify(payload)).not.toContain('"annotationsEnabled"')
+    expect(JSON.stringify(payload)).not.toContain('"annotationVersion"')
+  })
+}
