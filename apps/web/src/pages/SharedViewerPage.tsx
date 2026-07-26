@@ -8,7 +8,7 @@ import {
   Plus,
   X,
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
@@ -54,7 +54,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
     setDrawerOpen(false)
   }, [manifest, storageKey])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return

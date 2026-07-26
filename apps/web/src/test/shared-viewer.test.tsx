@@ -142,8 +142,10 @@ describe('shared library viewer', () => {
     await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     expect(await screen.findByRole('heading', { name: 'Normal colon' })).toBeVisible()
+    expect(sessionStorage.getItem('pathlab-share-position:folder:share-public')).toBe('1')
     fireEvent.keyDown(window, { key: 'ArrowLeft' })
     expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+    expect(sessionStorage.getItem('pathlab-share-position:folder:share-public')).toBe('0')
 
     await userEvent.click(screen.getByRole('button', { name: 'Open slide navigator' }))
     expect(container.querySelector('.shared-viewer-shell')).toHaveClass('drawer-open')
