@@ -6,6 +6,7 @@ import stat
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -151,13 +152,17 @@ def generate_dzi(
 
         import pyvips  # Native library lives in worker image.
 
-        image = pyvips.Image.new_from_file(
-            str(source), access="sequential", page=series_index
-        )
-        if bits == 16:
-            image = (image / 257.0).round().cast("uchar")
-        if image.get_typeof("icc-profile-data"):
-            image = image.icc_transform("srgb")
+        def load_image() -> Any:
+            image = pyvips.Image.new_from_file(
+                str(source), access="sequential", page=series_index
+            )
+            if bits == 16:
+                image = (image / 257.0).round().cast("uchar")
+            if image.get_typeof("icc-profile-data"):
+                image = image.icc_transform("srgb")
+            return image
+
+        image = load_image()
         output = staging / "slide"
         image.dzsave(
             str(output),
@@ -167,7 +172,8 @@ def generate_dzi(
             skip_blanks=-1,
             depth="onepixel",
         )
-        image.thumbnail_image(384).jpegsave(
+        del image
+        load_image().thumbnail_image(384).jpegsave(
             str(staging / "thumbnail.jpg"),
             Q=80,
             strip=True,
