@@ -12,7 +12,7 @@ import {
 } from './types'
 
 const DEFAULT_RETRY_DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000] as const
-const MAX_REQUEST_BYTES = 256 * 1024
+export const MAX_ANNOTATION_BATCH_BYTES = 256 * 1024
 
 export interface AnnotationAutosaveTransport {
   save(
@@ -80,7 +80,7 @@ interface InFlightBatch {
   entries: QueueEntry[]
 }
 
-function requestBytes(
+export function annotationBatchRequestBytes(
   mutationId: string,
   baseVersion: number,
   operations: readonly AnnotationMutation[],
@@ -295,15 +295,22 @@ export class AnnotationAutosave {
       if (targets.has(target)) continue
       const candidate = [...entries, entry]
       const candidateOperations = cloneOperations(candidate)
-      const bytes = requestBytes(mutationId, this.version, candidateOperations)
-      if (entries.length === 0 && bytes > MAX_REQUEST_BYTES) {
+      const bytes = annotationBatchRequestBytes(
+        mutationId,
+        this.version,
+        candidateOperations,
+      )
+      if (entries.length === 0 && bytes > MAX_ANNOTATION_BATCH_BYTES) {
         this.status = 'error'
         this.error = 'ANNOTATION_REQUEST_TOO_LARGE'
         this.retryAt = null
         this.notify()
         return false
       }
-      if (bytes > MAX_REQUEST_BYTES || entries.length >= MAX_BATCH_OPERATIONS) break
+      if (
+        bytes > MAX_ANNOTATION_BATCH_BYTES
+        || entries.length >= MAX_BATCH_OPERATIONS
+      ) break
       entries.push(entry)
       targets.add(target)
     }

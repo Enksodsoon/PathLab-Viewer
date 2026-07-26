@@ -1,6 +1,8 @@
-import type {
-  AnnotationAutosaveAcknowledgement,
-  AnnotationAutosaveBatch,
+import {
+  annotationBatchRequestBytes,
+  MAX_ANNOTATION_BATCH_BYTES,
+  type AnnotationAutosaveAcknowledgement,
+  type AnnotationAutosaveBatch,
 } from './autosave'
 import type { BooleanWorkerClient } from './boolean'
 import { createBooleanWorkerClient } from './boolean'
@@ -71,6 +73,20 @@ export interface AnnotationStoreState {
 
 export interface AnnotationStoreAcknowledgement extends AnnotationAutosaveAcknowledgement {
   records?: AnnotationRecord[]
+}
+
+export type AnnotationBooleanAtomicityCode =
+  | 'ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN'
+  | 'ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE'
+
+export class AnnotationBooleanAtomicityError extends Error {
+  readonly name = 'AnnotationBooleanAtomicityError'
+
+  constructor(readonly code: AnnotationBooleanAtomicityCode) {
+    super(code === 'ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN'
+      ? 'Save pending annotation edits before running a boolean operation'
+      : 'Boolean operation exceeds the 256 KiB atomic request limit')
+  }
 }
 
 interface MutableState {
@@ -664,12 +680,18 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
           && !record.deletedAt
           && record.geometry.type === 'polygon'
           && layerEditable(record),
-        ))
+      ))
       if (sources.length === 0) return []
+      if (pending.length > 0) {
+        throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN')
+      }
       const results = await booleanClient.run(
         operation,
         sources.map((record) => record.geometry as PolygonGeometry),
       )
+      if (pending.length > 0) {
+        throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN')
+      }
       if (results.some((geometry) => geometryVertexCount(geometry) > MAX_VERTICES_PER_SHAPE)) {
         throw new RangeError('Boolean results cannot exceed 8,192 vertices per shape')
       }
@@ -716,6 +738,15 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         id: record.id,
         version: Math.max(1, record.version),
       })))
+      if (
+        annotationBatchRequestBytes(
+          '00000000-0000-4000-8000-000000000000',
+          internal.version,
+          mutations,
+        ) > MAX_ANNOTATION_BATCH_BYTES
+      ) {
+        throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE')
+      }
       recordCommand(affected, mutations, () => {
         if (results.length > 0) {
           const geometry = structuredClone(results[0])

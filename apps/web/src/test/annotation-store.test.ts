@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { AnnotationAutosave } from '../annotations/autosave'
 import { createAnnotationStore } from '../annotations/store'
 import type { AnnotationLayer, AnnotationRecord } from '../annotations/types'
 
@@ -467,5 +468,133 @@ describe('framework-neutral annotation editing store', () => {
       })),
     }]
     await assertAtomicRejection(oversized, /8,192|vertices/i)
+  })
+
+  it('rejects a boolean while unrelated work is pending without changing either edit', async () => {
+    const first = {
+      ...structuredClone(annotation),
+      id: 'poly-1',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }],
+      },
+    }
+    const second = {
+      ...structuredClone(first),
+      id: 'poly-2',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 10 }, { x: 4, y: 10 }],
+      },
+    }
+    const unrelated = { ...structuredClone(annotation), id: 'other' }
+    const booleanClient = { run: vi.fn(async () => [first.geometry]) }
+    const store = createAnnotationStore({ slideId: 'slide-1', booleanClient })
+    store.load({ version: 1, layers: [layer], annotations: [first, second, unrelated] })
+    store.update('other', {
+      metadata: { ...unrelated.metadata, title: 'Unsaved unrelated edit' },
+    })
+    const before = store.getState()
+    const pendingBefore = store.peekPendingMutations()
+
+    await expect(store.boolean('split', ['poly-1', 'poly-2'])).rejects.toMatchObject({
+      name: 'AnnotationBooleanAtomicityError',
+      code: 'ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN',
+    })
+    expect(booleanClient.run).not.toHaveBeenCalled()
+    expect(store.getState().annotations).toEqual(before.annotations)
+    expect(store.peekPendingMutations()).toEqual(pendingBefore)
+    expect(store.canUndo()).toBe(true)
+  })
+
+  it('rejects an under-8,192-vertex boolean whose complete request exceeds 256 KiB', async () => {
+    const first = {
+      ...structuredClone(annotation),
+      id: 'poly-1',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }],
+      },
+    }
+    const second = { ...structuredClone(first), id: 'poly-2' }
+    const largeResult = {
+      type: 'polygon' as const,
+      points: Array.from({ length: 8_191 }, (_, index) => ({
+        x: index + 0.1234567890123456,
+        y: index + 0.9876543210987654,
+      })),
+    }
+    const store = createAnnotationStore({
+      slideId: 'slide-1',
+      booleanClient: { run: vi.fn(async () => [largeResult]) },
+    })
+    store.load({ version: 1, layers: [layer], annotations: [first, second] })
+    const before = store.getState()
+
+    await expect(store.boolean('split', ['poly-1', 'poly-2'])).rejects.toMatchObject({
+      name: 'AnnotationBooleanAtomicityError',
+      code: 'ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE',
+    })
+    expect(store.getState().annotations).toEqual(before.annotations)
+    expect(store.getState().pendingMutations).toEqual([])
+    expect(store.canUndo()).toBe(false)
+    expect(store.canRedo()).toBe(false)
+  })
+
+  it('sends a valid boolean mutation group as exactly one backend batch', async () => {
+    const first = {
+      ...structuredClone(annotation),
+      id: 'poly-1',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }],
+      },
+    }
+    const second = { ...structuredClone(first), id: 'poly-2' }
+    const results = [
+      first.geometry,
+      {
+        ...first.geometry,
+        points: first.geometry.points.map((point) => ({ ...point, x: point.x + 20 })),
+      },
+    ]
+    const generatedIds = ['00000000-0000-4000-8000-000000000020']
+    const store = createAnnotationStore({
+      slideId: 'slide-1',
+      booleanClient: { run: vi.fn(async () => results) },
+      idFactory: () => generatedIds.shift() ?? 'unexpected',
+    })
+    store.load({ version: 1, layers: [layer], annotations: [first, second] })
+    await store.boolean('split', ['poly-1', 'poly-2'])
+    const group = store.peekPendingMutations()
+    const save = vi.fn(async (
+      mutationId: string,
+      _baseVersion: number,
+      operations: typeof group,
+    ) => ({
+      mutationId,
+      version: 2,
+      results: operations.map((operation) => ({
+        id: operation.type === 'create' ? operation.item.id : operation.id,
+        operation: operation.type,
+        version: 2,
+        deleted: operation.type === 'delete',
+      })),
+      purged: 0,
+    }))
+    const autosave = new AnnotationAutosave({
+      transport: { save },
+      baseVersion: 1,
+      idFactory: () => '00000000-0000-4000-8000-000000000030',
+      ...store.autosaveHooks(),
+    })
+    for (const operation of group) autosave.enqueue(operation)
+
+    await autosave.flush()
+
+    expect(save).toHaveBeenCalledOnce()
+    expect(save.mock.calls[0][2]).toEqual(group)
+    expect(store.getState().pendingMutations).toEqual([])
+    expect(autosave.snapshot()).toMatchObject({ status: 'saved', dirtyCount: 0 })
   })
 })
