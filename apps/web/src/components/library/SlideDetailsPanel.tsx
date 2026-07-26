@@ -22,7 +22,11 @@ export function SlideDetailsPanel({
   const adminNote = 'adminNotes' in slide ? slide.adminNotes : ''
   const isPublished = slide.state === 'published'
   return (
-    <aside className="slide-details-panel" aria-label="Slide details">
+    <aside
+      className="slide-details-panel"
+      aria-label="Slide details"
+      data-overlay="inspector"
+    >
       <div className="details-heading">
         <h2>Slide details</h2>
         <button type="button" aria-label="Close slide details" onClick={onClose}><X /></button>

@@ -1,4 +1,5 @@
 import { Bookmark, Clock as Clock3, SquaresFour as Grid2X2 } from '@phosphor-icons/react'
+import { useId } from 'react'
 
 import type { LibraryNavigation, LibrarySlide } from '../../types'
 
@@ -15,9 +16,10 @@ export function QuickViewRail({
   onLocation,
   onOpen,
 }: QuickViewRailProps) {
+  const headingId = useId()
   return (
-    <aside className="library-quick-rail" aria-label="Quick views">
-      <header><p>Workspace</p><h2>Quick views</h2></header>
+    <section className="library-quick-views" aria-labelledby={headingId}>
+      <header><h2 id={headingId}>Quick views</h2></header>
       <section>
         <h3><Grid2X2 /> Collections</h3>
         {navigation.collections.slice(0, 4).map((item) => (
@@ -43,6 +45,6 @@ export function QuickViewRail({
           </button>
         ))}
       </section>
-    </aside>
+    </section>
   )
 }

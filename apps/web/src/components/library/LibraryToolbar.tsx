@@ -65,7 +65,11 @@ export function LibraryToolbar({
   onShare,
 }: LibraryToolbarProps) {
   return (
-    <header className="library-toolbar">
+    <header
+      className="library-toolbar"
+      aria-label="Library command bar"
+      data-canvas-region="command-bar"
+    >
       <div className="library-breadcrumb-row">
         <button type="button" aria-label="Back" onClick={onBack}><ArrowLeft /></button>
         <button type="button" aria-label="Forward" onClick={onForward}><ArrowRight /></button>

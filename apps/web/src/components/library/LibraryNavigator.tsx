@@ -11,17 +11,20 @@ import {
   XCircle as CircleX,
 } from '@phosphor-icons/react'
 
-import type { LibraryFolder, LibraryNavigation } from '../../types'
+import type { LibraryFolder, LibraryNavigation, LibrarySlide } from '../../types'
 import { ContextMenu } from './ContextMenu'
 import { FolderTree } from './FolderTree'
+import { QuickViewRail } from './QuickViewRail'
 
 interface LibraryNavigatorProps {
   navigation: LibraryNavigation
   location: string
   folderChildren: Map<string, LibraryFolder[]>
   expandedFolders: Set<string>
+  recent: LibrarySlide[]
   onExpandFolder: (folder: LibraryFolder) => void
   onLocation: (location: string) => void
+  onOpen: (slide: LibrarySlide) => void
   onNewFolder: () => void
   onNewCollection: () => void
   onNewSavedView: () => void
@@ -65,8 +68,10 @@ export function LibraryNavigator({
   location,
   folderChildren,
   expandedFolders,
+  recent,
   onExpandFolder,
   onLocation,
+  onOpen,
   onNewFolder,
   onNewCollection,
   onNewSavedView,
@@ -81,7 +86,9 @@ export function LibraryNavigator({
 
   return (
     <aside className="library-navigator" aria-label="Library navigator">
-      <h1>Slides library</h1>
+      <div className="navigator-heading">
+        <h1>Slides library</h1>
+      </div>
       <nav className="navigator-special">
         {SPECIAL.map(([id, label, Icon, countKey]) => (
           <button
@@ -166,6 +173,12 @@ export function LibraryNavigator({
           </div>
         ))}
       </nav>
+      <QuickViewRail
+        navigation={navigation}
+        recent={recent}
+        onLocation={onLocation}
+        onOpen={onOpen}
+      />
     </aside>
   )
 }

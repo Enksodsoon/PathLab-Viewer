@@ -147,6 +147,8 @@ test('keeps controls readable and non-overlapping across every layout boundary',
       document.documentElement.scrollWidth <= document.documentElement.clientWidth
     ))).toBe(true)
     await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible()
+    const searchBox = await page.locator('.library-search').boundingBox()
+    expect(searchBox?.height, `search control expanded vertically at ${width}px`).toBeLessThanOrEqual(56)
     if (width <= 600) {
       const selects = page.locator('.library-command-actions select')
       const boxes = await selects.evaluateAll((elements) => elements.map((element) => {
@@ -163,12 +165,72 @@ test('keeps controls readable and non-overlapping across every layout boundary',
           ).toBe(true)
         }
       }
-      const libraryLabel = page.getByRole('button', { name: /^library$/i })
+      const libraryLabel = page.getByRole('button', { name: /^all slides$/i })
       await expect.poll(() => libraryLabel.evaluate((element) => (
         Number.parseFloat(getComputedStyle(element).fontSize)
       ))).toBeGreaterThanOrEqual(11)
     }
   }
+})
+
+test('uses the Canvas Focus shell at every approved responsive width', async ({ page }) => {
+  for (const width of [320, 390, 600, 768, 901, 1251, 1440, 1920]) {
+    await page.setViewportSize({ width, height: width <= 600 ? 844 : 960 })
+    await expect(page.getByRole('heading', { name: 'All slides' })).toBeVisible()
+
+    const layout = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>('.library-shell')
+      const rail = document.querySelector<HTMLElement>('.library-app-rail')
+      const main = document.querySelector<HTMLElement>('.library-main')
+      const navigator = document.querySelector<HTMLElement>('.library-navigator-wrap')
+      if (!shell || !rail || !main || !navigator) throw new Error('Canvas Focus regions missing')
+      const shellStyle = getComputedStyle(shell)
+      const railStyle = getComputedStyle(rail)
+      const mainBox = main.getBoundingClientRect()
+      return {
+        columns: shellStyle.gridTemplateColumns.split(' ').filter(Boolean).length,
+        documentFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+        mainRight: mainBox.right,
+        mainWidth: mainBox.width,
+        navigatorPosition: getComputedStyle(navigator).position,
+        railBottom: railStyle.bottom,
+        railPosition: railStyle.position,
+        railWidth: rail.getBoundingClientRect().width,
+      }
+    })
+
+    expect(layout.documentFits).toBe(true)
+    expect(layout.navigatorPosition).toBe('fixed')
+    expect(layout.columns).toBe(width <= 600 ? 1 : 2)
+    expect(layout.mainRight).toBeLessThanOrEqual(width + 1)
+    expect(layout.mainWidth).toBeLessThanOrEqual(1560)
+    if (width <= 600) {
+      expect(layout.railPosition).toBe('fixed')
+      expect(layout.railBottom).toBe('0px')
+      expect(layout.railWidth).toBeCloseTo(width, 0)
+    } else {
+      expect(layout.railWidth).toBeLessThanOrEqual(72)
+    }
+  }
+})
+
+test('keeps the details inspector out of the content grid', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 960 })
+  const mainBefore = await page.locator('.library-main').boundingBox()
+
+  await page.getByRole('button', {
+    name: /open details for colon adenocarcinoma/i,
+  }).click()
+  const inspector = page.getByRole('complementary', { name: 'Slide details' })
+  await expect(inspector).toBeVisible()
+  await expect(inspector).toHaveAttribute('data-overlay', 'inspector')
+
+  const [mainAfter, inspectorPosition] = await Promise.all([
+    page.locator('.library-main').boundingBox(),
+    inspector.evaluate((element) => getComputedStyle(element).position),
+  ])
+  expect(mainAfter).toEqual(mainBefore)
+  expect(inspectorPosition).toBe('fixed')
 })
 
 test('isolates the closed mobile navigator and restores focus after Escape', async ({ page }) => {
@@ -190,7 +252,7 @@ test('isolates the closed mobile navigator and restores focus after Escape', asy
 })
 
 test('contains table scrolling without widening the document', async ({ page }) => {
-  await page.setViewportSize({ width: 1234, height: 900 })
+  await page.setViewportSize({ width: 901, height: 900 })
   await page.goto('/admin?view=table')
   await expect(page.getByRole('table')).toBeVisible()
 
@@ -249,6 +311,19 @@ test('uses designed filter, checkbox, and compact table thumbnail controls', asy
   await page.goto('/admin?view=table')
   await page.getByRole('button', { name: 'Filters' }).click()
 
+  const semanticColors = await page.evaluate(() => {
+    const probe = document.createElement('span')
+    probe.style.backgroundColor = 'var(--surface-elevated)'
+    probe.style.color = 'var(--primary)'
+    document.body.append(probe)
+    const style = getComputedStyle(probe)
+    const colors = {
+      primary: style.color,
+      surfaceElevated: style.backgroundColor,
+    }
+    probe.remove()
+    return colors
+  })
   const closeStyle = await page.getByRole('button', { name: 'Close filters' }).evaluate((element) => {
     const style = getComputedStyle(element)
     return {
@@ -258,16 +333,16 @@ test('uses designed filter, checkbox, and compact table thumbnail controls', asy
       height: style.height,
     }
   })
-  expect(closeStyle.color).not.toBe('rgb(255, 255, 255)')
-  expect(closeStyle.background).toBe('rgb(20, 18, 16)')
-  expect(closeStyle.width).toBe('34px')
-  expect(closeStyle.height).toBe('34px')
+  expect(closeStyle.color).not.toBe('rgba(0, 0, 0, 0)')
+  expect(closeStyle.background).toBe(semanticColors.surfaceElevated)
+  expect(closeStyle.width).toBe('40px')
+  expect(closeStyle.height).toBe('40px')
 
   const selectVisible = page.getByRole('checkbox', { name: 'Select visible' })
   await expect(selectVisible).toHaveCSS('appearance', 'none')
   await selectVisible.click()
   await expect(selectVisible).toBeChecked()
-  await expect(selectVisible).toHaveCSS('background-color', 'rgb(240, 111, 91)')
+  await expect(selectVisible).toHaveCSS('background-color', semanticColors.primary)
 
   const thumbnail = page.locator('.table-mini-thumb').first()
   const thumbnailBounds = await thumbnail.boundingBox()
@@ -378,7 +453,7 @@ test('keeps folder sharing controls contained on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const share = page.getByRole('button', { name: 'Share', exact: true })
   await expect(share).toBeVisible()
-  for (const control of [share, page.getByRole('button', { name: 'Upload', exact: true })]) {
+  for (const control of [share, page.locator('.library-upload-button')]) {
     const box = await control.boundingBox()
     expect(box).not.toBeNull()
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
