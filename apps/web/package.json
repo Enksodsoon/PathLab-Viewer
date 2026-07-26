@@ -15,6 +15,8 @@
     "@fontsource-variable/source-sans-3": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "openseadragon": "6.0.2",
+    "polygon-clipping": "0.15.7",
+    "rbush": "4.0.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router-dom": "6.30.4",
