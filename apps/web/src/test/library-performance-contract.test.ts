@@ -23,6 +23,9 @@ describe('library rendering performance contract', () => {
       '.library-breadcrumb-row > button { min-width: 44px; min-height: 44px; }',
     )
     expect(mobileCss).toContain(
+      '.library-breadcrumb-row nav button { min-width: 44px; min-height: 44px; }',
+    )
+    expect(mobileCss).toContain(
       '.filter-panel-heading button, .filter-clear, .state-page-actions button, .load-more, .library-menu button, .library-menu a, .selection-action-bar button { min-width: 44px; min-height: 44px; }',
     )
   })

@@ -298,6 +298,18 @@ test('keeps representative mobile controls at least 44 pixels in both axes', asy
   )
 })
 
+test('keeps nested mobile breadcrumb links at least 44 pixels in both axes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/admin?location=folder:folder-organs')
+  await expect(page.getByRole('heading', { name: 'Organ systems' })).toBeVisible()
+
+  const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' })
+  await expectMinimumTouchTarget(
+    breadcrumb.getByRole('button', { name: 'All slides' }),
+    'nested breadcrumb',
+  )
+})
+
 test('keeps the details inspector out of the content grid', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 })
   const mainBefore = await page.locator('.library-main').boundingBox()

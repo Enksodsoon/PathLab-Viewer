@@ -2118,6 +2118,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     min-height: 44px;
   }
 
+  .library-breadcrumb-row nav button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .library-breadcrumb-row > button:nth-child(3) {
     display: none;
   }

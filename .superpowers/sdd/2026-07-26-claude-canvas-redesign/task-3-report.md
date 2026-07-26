@@ -94,3 +94,40 @@ Rendered Browser QA at `/admin` confirmed:
 
 No backend, query, action, viewer, storage, conversion, sharing, focus/inert,
 or deployment contract changed in this fix round.
+
+## Fix round 2: nested mobile breadcrumb target
+
+### RED evidence
+
+- The mobile CSS contract failed because the ≤600px block did not include
+  `.library-breadcrumb-row nav button`.
+- At 390×844 on `/admin?location=folder:folder-organs`, the new Chromium
+  regression measured the nested All slides breadcrumb at 32px high rather
+  than the required 44px.
+
+### Fix
+
+The ≤600px rules now give nested breadcrumb buttons a 44px minimum width and
+height, matching the already-hardened Back, Forward, and Up controls without
+changing desktop breadcrumb density.
+
+### GREEN evidence and validation
+
+| Check | Result |
+| --- | --- |
+| Focused CSS contract | PASS: 2/2 |
+| Focused nested-breadcrumb Chromium test | PASS: 1/1 |
+| Relevant library unit suite | PASS: 2 files / 27 tests |
+| Full responsive Playwright matrix | PASS: 56/56 across Chromium, Firefox, WebKit, and mobile Chromium |
+| `pnpm.cmd --dir apps/web lint` | PASS |
+| `pnpm.cmd --dir apps/web build` | PASS |
+| `git diff --check` | PASS |
+
+Rendered Browser QA opened a real folder at 390×844, measured its All slides
+ancestor breadcrumb at approximately 57.4×44, and verified that activating it
+returned the route to `/admin`. No framework overlay or application error
+appeared; console output remained limited to the existing React Router v7
+future-flag warnings.
+
+No API, query, action, focus/inert, navigator, inspector, sharing, viewer,
+storage, conversion, or deployment behavior changed in this fix round.
