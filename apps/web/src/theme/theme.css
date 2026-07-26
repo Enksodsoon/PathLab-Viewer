@@ -1,0 +1,136 @@
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --canvas: #faf9f5;
+  --surface: #f5f0e8;
+  --surface-card: #efe9de;
+  --surface-elevated: #ffffff;
+  --ink: #141413;
+  --body: #3d3d3a;
+  --muted: #6c6a64;
+  --border: #e6dfd8;
+  --border-soft: #ebe6df;
+  --primary: #cc785c;
+  --primary-hover: #a9583e;
+  --on-primary: #ffffff;
+  --focus: #8f432e;
+  --success: #3f7d4d;
+  --warning: #936b00;
+  --danger: #a33f35;
+  --font-display: 'Cormorant Garamond Variable', Georgia, serif;
+  --font-ui: 'Source Sans 3 Variable', 'Segoe UI', sans-serif;
+  --radius-control: 8px;
+  --radius-card: 12px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: #181715;
+  --surface: #1f1e1b;
+  --surface-card: #252320;
+  --surface-elevated: #2d2b27;
+  --ink: #faf9f5;
+  --body: #dedad2;
+  --muted: #a09d96;
+  --border: #403d37;
+  --border-soft: #34322e;
+  --primary: #e18a6d;
+  --primary-hover: #ef9b7e;
+  --on-primary: #181715;
+  --focus: #f0aa90;
+  --success: #72c486;
+  --warning: #e8bb59;
+  --danger: #ef8175;
+}
+
+:root {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--body);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.theme-control {
+  display: inline-flex;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--body);
+}
+
+.theme-control__option {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.theme-control__option:has(input:checked) {
+  background: var(--surface-elevated);
+  color: var(--ink);
+}
+
+.theme-control__option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.theme-control__option input {
+  position: absolute;
+  opacity: 0;
+}
+
+.theme-control__label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.theme-control--compact .theme-control__option {
+  width: 38px;
+  justify-content: center;
+  padding: 0;
+}
+
+.theme-control--compact .theme-control__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
