@@ -6,6 +6,30 @@ import {
 
 const DATABASE_NAME = 'pathlab-annotation-drafts-v1'
 const STORE_NAME = 'drafts'
+const CAPACITY_LOCK_NAME = 'pathlab-annotation-drafts-capacity-v1'
+
+let fallbackCapacityQueue: Promise<void> = Promise.resolve()
+
+interface AsyncLockManager {
+  request<T>(
+    name: string,
+    options: LockOptions,
+    callback: () => Promise<T>,
+  ): Promise<T>
+}
+
+function withCapacityLock<T>(operation: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    const locks = navigator.locks as unknown as AsyncLockManager
+    return locks.request(CAPACITY_LOCK_NAME, { mode: 'exclusive' }, operation)
+  }
+  const result = fallbackCapacityQueue.then(operation, operation)
+  fallbackCapacityQueue = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  return result
+}
 
 export interface AnnotationDraft {
   schema: 'pathlab-annotation-draft/v1'
@@ -34,10 +58,14 @@ export class DraftCapacityError extends Error {
 function contentBytes(
   draft: Omit<AnnotationDraft, 'byteSize'>,
 ): number {
-  return new TextEncoder().encode(JSON.stringify({
-    mutations: draft.mutations,
-    snapshot: draft.snapshot,
-  })).byteLength
+  const encoder = new TextEncoder()
+  let byteSize = 0
+  for (let iteration = 0; iteration < 8; iteration += 1) {
+    const measured = encoder.encode(JSON.stringify({ ...draft, byteSize })).byteLength
+    if (measured === byteSize) return measured
+    byteSize = measured
+  }
+  return byteSize
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -137,31 +165,37 @@ export class AnnotationDraftRepository {
   }
 
   async save(draft: Omit<AnnotationDraft, 'byteSize'>): Promise<AnnotationDraft> {
-    await this.prune()
-    const normalized: AnnotationDraft = {
-      ...structuredClone(draft),
-      byteSize: contentBytes(draft),
-    }
-    const existing = (await this.storage.list())
-      .filter((candidate) => candidate.slideId !== normalized.slideId)
-    let total = normalized.byteSize + existing.reduce(
-      (sum, candidate) => sum + candidate.byteSize,
-      0,
-    )
-    const evictable = existing
-      .filter((candidate) => !candidate.dirty)
-      .sort((left, right) => left.savedAt - right.savedAt)
-    for (const candidate of evictable) {
-      if (total <= this.maxBytes) break
-      await this.storage.delete(candidate.slideId)
-      total -= candidate.byteSize
-    }
-    if (total > this.maxBytes) throw new DraftCapacityError()
-    await this.storage.put(normalized)
-    return normalized
+    return withCapacityLock(async () => {
+      await this.pruneUnlocked()
+      const normalized: AnnotationDraft = {
+        ...structuredClone(draft),
+        byteSize: contentBytes(draft),
+      }
+      const existing = (await this.storage.list())
+        .filter((candidate) => candidate.slideId !== normalized.slideId)
+      let total = normalized.byteSize + existing.reduce(
+        (sum, candidate) => sum + candidate.byteSize,
+        0,
+      )
+      const evictable = existing
+        .filter((candidate) => !candidate.dirty)
+        .sort((left, right) => left.savedAt - right.savedAt)
+      for (const candidate of evictable) {
+        if (total <= this.maxBytes) break
+        await this.storage.delete(candidate.slideId)
+        total -= candidate.byteSize
+      }
+      if (total > this.maxBytes) throw new DraftCapacityError()
+      await this.storage.put(normalized)
+      return normalized
+    })
   }
 
   async prune(): Promise<void> {
+    await withCapacityLock(() => this.pruneUnlocked())
+  }
+
+  private async pruneUnlocked(): Promise<void> {
     const cutoff = this.now() - this.maxAgeMs
     const drafts = await this.storage.list()
     await Promise.all(
@@ -172,10 +206,10 @@ export class AnnotationDraftRepository {
   }
 
   async acknowledge(slideId: string): Promise<void> {
-    await this.storage.delete(slideId)
+    await withCapacityLock(() => this.storage.delete(slideId))
   }
 
   async discard(slideId: string): Promise<void> {
-    await this.storage.delete(slideId)
+    await withCapacityLock(() => this.storage.delete(slideId))
   }
 }

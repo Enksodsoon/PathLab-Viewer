@@ -54,9 +54,9 @@ async function refreshSession(): Promise<void> {
   sessionStorage.setItem(CSRF_KEY, body.csrfToken)
 }
 
-async function csrfFetch(
+export async function csrfFetch(
   input: RequestInfo | URL,
-  init: RequestInit,
+  init: RequestInit = {},
 ): Promise<Response> {
   const send = () => fetch(input, {
     ...init,

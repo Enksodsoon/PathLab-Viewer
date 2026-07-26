@@ -7,10 +7,16 @@ import type {
   AnnotationManifest,
   AnnotationRecord,
 } from './types'
+import { csrfFetch } from '../api'
 
 const BASE = '/api/v2/admin/annotations/slides'
 const NORMAL_REQUEST_BYTES = 256 * 1024
 const IMPORT_REQUEST_BYTES = 8 * 1024 * 1024
+
+type AnnotationFetcher = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>
 
 export class AnnotationApiError extends Error {
   constructor(
@@ -23,7 +29,8 @@ export class AnnotationApiError extends Error {
 }
 
 export interface AnnotationApiClientOptions {
-  fetcher?: typeof fetch
+  fetcher?: AnnotationFetcher
+  mutationFetcher?: AnnotationFetcher
   csrfToken?: () => string
 }
 
@@ -76,11 +83,13 @@ function encodedBytes(value: unknown): number {
 }
 
 export class AnnotationApiClient {
-  private readonly fetcher: typeof fetch
+  private readonly fetcher: AnnotationFetcher
+  private readonly mutationFetcher: AnnotationFetcher
   private readonly csrfToken: () => string
 
   constructor(options: AnnotationApiClientOptions = {}) {
     this.fetcher = options.fetcher ?? fetch
+    this.mutationFetcher = options.mutationFetcher ?? options.fetcher ?? csrfFetch
     this.csrfToken = options.csrfToken ?? (() => sessionStorage.getItem('pathlab-csrf') ?? '')
   }
 
@@ -122,7 +131,7 @@ export class AnnotationApiClient {
     if (encodedBytes(payload) > maxBytes) {
       throw new AnnotationApiError(413, 'ANNOTATION_REQUEST_TOO_LARGE')
     }
-    return this.parse<T>(await this.fetcher(route, {
+    return this.parse<T>(await this.mutationFetcher(route, {
       method,
       credentials: 'same-origin',
       headers: {

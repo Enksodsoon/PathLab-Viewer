@@ -108,9 +108,19 @@ export function executePolygonBoolean(
       result = intersection(polygons[0], ...polygons.slice(1))
       break
     case 'subtract':
-    case 'split':
       result = difference(polygons[0], ...polygons.slice(1))
       break
+    case 'split': {
+      if (polygons.length === 1) {
+        result = [polygons[0]]
+        break
+      }
+      const cutters = union(polygons[1], ...polygons.slice(2))
+      const outside = difference(polygons[0], cutters)
+      const inside = intersection(polygons[0], cutters)
+      result = [...outside, ...inside]
+      break
+    }
   }
   return fromMultiPolygon(result)
 }

@@ -1,3 +1,7 @@
+import type {
+  AnnotationAutosaveAcknowledgement,
+  AnnotationAutosaveBatch,
+} from './autosave'
 import type { BooleanWorkerClient } from './boolean'
 import { createBooleanWorkerClient } from './boolean'
 import {
@@ -16,6 +20,12 @@ import {
   type GeoJsonFeatureCollection,
 } from './interchange'
 import { measureGeometry } from './measurement'
+import {
+  coalesceMutationSequence,
+  mutationTargetId,
+  rebaseMutation,
+  sameMutation,
+} from './mutationQueue'
 import type {
   AnnotationBounds,
   AnnotationCalibration,
@@ -49,8 +59,8 @@ export interface AnnotationStoreState {
   slideId: string
   version: number
   tool: AnnotationTool
-  layers: Map<string, AnnotationLayer>
   annotations: Map<string, AnnotationRecord>
+  layers: Map<string, AnnotationLayer>
   selection: Set<string>
   filter: AnnotationFilter
   pendingMutations: AnnotationMutation[]
@@ -58,10 +68,31 @@ export interface AnnotationStoreState {
   overlayError: string | null
 }
 
+export interface AnnotationStoreAcknowledgement extends AnnotationAutosaveAcknowledgement {
+  records?: AnnotationRecord[]
+}
+
+interface MutableState {
+  slideId: string
+  version: number
+  tool: AnnotationTool
+  annotations: Map<string, AnnotationRecord>
+  layers: Map<string, AnnotationLayer>
+  selection: Set<string>
+  filter: AnnotationFilter
+  autosaveStatus: string
+  overlayError: string | null
+}
+
+interface PendingEntry {
+  token: number
+  mutation: AnnotationMutation
+  inFlight: string | null
+}
+
 interface HistoryEntry {
   before: Map<string, AnnotationRecord | null>
   after: Map<string, AnnotationRecord | null>
-  mutations: AnnotationMutation[]
 }
 
 export interface AnnotationStoreOptions {
@@ -121,7 +152,16 @@ export interface AnnotationStore {
   attachOverlay(attachment: AnnotationOverlayAttachment): void
   detachOverlay(): void
   setAutosaveStatus(status: string): void
+  peekPendingMutations(): AnnotationMutation[]
   takePendingMutations(): AnnotationMutation[]
+  beginSave(mutationId: string, operations: readonly AnnotationMutation[]): void
+  acknowledgeSave(acknowledgement: AnnotationStoreAcknowledgement): void
+  failSave(mutationId: string): void
+  autosaveHooks(): {
+    onBatchStart(batch: AnnotationAutosaveBatch): void
+    onAcknowledged(acknowledgement: AnnotationAutosaveAcknowledgement): void
+    onBatchFailed(batch: AnnotationAutosaveBatch): void
+  }
 }
 
 const EMPTY_FILTER: AnnotationFilter = {
@@ -140,79 +180,280 @@ function cloneMutation(mutation: AnnotationMutation): AnnotationMutation {
   return structuredClone(mutation)
 }
 
+function readonlyMap<K, V>(entries: Iterable<readonly [K, V]>): Map<K, V> {
+  const map = new Map(entries)
+  const fail = () => {
+    throw new TypeError('Annotation store snapshots are read-only')
+  }
+  Object.defineProperties(map, {
+    set: { value: fail },
+    delete: { value: fail },
+    clear: { value: fail },
+  })
+  return map
+}
+
+function readonlySet<T>(values: Iterable<T>): Set<T> {
+  const set = new Set(values)
+  const fail = () => {
+    throw new TypeError('Annotation store snapshots are read-only')
+  }
+  Object.defineProperties(set, {
+    add: { value: fail },
+    delete: { value: fail },
+    clear: { value: fail },
+  })
+  return set
+}
+
+function inputFromRecord(record: AnnotationRecord): AnnotationInput {
+  return {
+    id: record.id,
+    layerId: record.layerId,
+    geometry: structuredClone(record.geometry),
+    style: structuredClone(record.style),
+    metadata: structuredClone(record.metadata),
+  }
+}
+
+function equal(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 export function createAnnotationStore(options: AnnotationStoreOptions): AnnotationStore {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID())
   const now = options.now ?? (() => new Date())
   const booleanClient = options.booleanClient ?? createBooleanWorkerClient()
   const maxAnnotations = options.maxAnnotations ?? MAX_ACTIVE_ANNOTATIONS
   const maxLayers = options.maxLayers ?? MAX_ANNOTATION_LAYERS
-  const bounds = options.bounds ?? { width: 0, height: 0 }
+  const slideBounds = options.bounds ?? { width: 0, height: 0 }
   const listeners = new Set<(state: AnnotationStoreState) => void>()
   const undoStack: HistoryEntry[] = []
   const redoStack: HistoryEntry[] = []
+  const pending: PendingEntry[] = []
+  let nextPendingToken = 1
   let clipboard: AnnotationRecord[] = []
   let overlay: AnnotationOverlayAttachment | null = null
   let activeCount = 0
-  const state: AnnotationStoreState = {
+  const internal: MutableState = {
     slideId: options.slideId,
     version: 0,
     tool: 'hand',
-    layers: new Map(),
     annotations: new Map(),
+    layers: new Map(),
     selection: new Set(),
-    filter: { ...EMPTY_FILTER, layerIds: new Set(), classifications: new Set(), tags: new Set() },
-    pendingMutations: [],
+    filter: {
+      ...EMPTY_FILTER,
+      layerIds: new Set(),
+      classifications: new Set(),
+      tags: new Set(),
+    },
     autosaveStatus: 'idle',
     overlayError: null,
   }
 
-  const emit = () => {
-    for (const listener of listeners) listener(state)
-  }
-
-  const layerEditable = (record: AnnotationRecord): boolean => {
-    const layer = state.layers.get(record.layerId)
-    return !layer?.locked
-  }
-
-  const applyHistoryRecords = (records: Map<string, AnnotationRecord | null>) => {
-    for (const [id, record] of records) {
-      const current = state.annotations.get(id)
-      const wasActive = Boolean(current && !current.deletedAt)
-      const willBeActive = Boolean(record && !record.deletedAt)
-      if (wasActive !== willBeActive) activeCount += willBeActive ? 1 : -1
-      if (record) state.annotations.set(id, cloneRecord(record))
-      else state.annotations.delete(id)
+  const sendableEntries = (): PendingEntry[] => {
+    const blocked = new Set<string>()
+    for (const entry of pending) {
+      if (entry.inFlight) blocked.add(mutationTargetId(entry.mutation))
     }
+    const selected = new Set<string>()
+    const result: PendingEntry[] = []
+    for (const entry of pending) {
+      const target = mutationTargetId(entry.mutation)
+      if (entry.inFlight || blocked.has(target) || selected.has(target)) continue
+      selected.add(target)
+      result.push(entry)
+    }
+    return result
+  }
+
+  const makeSnapshot = (): AnnotationStoreState => ({
+    slideId: internal.slideId,
+    version: internal.version,
+    tool: internal.tool,
+    annotations: readonlyMap(
+      [...internal.annotations].map(([id, record]) => [id, cloneRecord(record)] as const),
+    ),
+    layers: readonlyMap(
+      [...internal.layers].map(([id, layer]) => [id, structuredClone(layer)] as const),
+    ),
+    selection: readonlySet(internal.selection),
+    filter: {
+      ...internal.filter,
+      layerIds: readonlySet(internal.filter.layerIds),
+      classifications: internal.filter.classifications
+        ? readonlySet(internal.filter.classifications)
+        : undefined,
+      tags: internal.filter.tags ? readonlySet(internal.filter.tags) : undefined,
+    },
+    pendingMutations: sendableEntries().map((entry) => cloneMutation(entry.mutation)),
+    autosaveStatus: internal.autosaveStatus,
+    overlayError: internal.overlayError,
+  })
+
+  let snapshot = makeSnapshot()
+  const emit = () => {
+    snapshot = makeSnapshot()
+    for (const listener of listeners) listener(snapshot)
+  }
+
+  const setRecord = (id: string, record: AnnotationRecord | null) => {
+    const previous = internal.annotations.get(id)
+    const wasActive = Boolean(previous && !previous.deletedAt)
+    const willBeActive = Boolean(record && !record.deletedAt)
+    if (wasActive !== willBeActive) activeCount += willBeActive ? 1 : -1
+    if (record) internal.annotations.set(id, cloneRecord(record))
+    else internal.annotations.delete(id)
+  }
+
+  const layerEditable = (record: AnnotationRecord): boolean => (
+    !internal.layers.get(record.layerId)?.locked
+  )
+
+  const queueMutation = (mutation: AnnotationMutation) => {
+    const target = mutationTargetId(mutation)
+    const targetEntries = pending.filter((entry) => (
+      !entry.inFlight && mutationTargetId(entry.mutation) === target
+    ))
+    if (targetEntries.length === 0) {
+      pending.push({
+        token: nextPendingToken++,
+        mutation: cloneMutation(mutation),
+        inFlight: null,
+      })
+      return
+    }
+    const firstIndex = pending.findIndex((entry) => (
+      !entry.inFlight && mutationTargetId(entry.mutation) === target
+    ))
+    const insertionIndex = pending
+      .slice(0, firstIndex)
+      .filter((entry) => entry.inFlight || mutationTargetId(entry.mutation) !== target)
+      .length
+    const normalized = coalesceMutationSequence([
+      ...targetEntries.map((entry) => entry.mutation),
+      mutation,
+    ])
+    const replacements = normalized.map((entry, index): PendingEntry => ({
+      token: targetEntries[index]?.token ?? nextPendingToken++,
+      mutation: cloneMutation(entry),
+      inFlight: null,
+    }))
+    const withoutTarget = pending.filter((entry) => (
+      entry.inFlight || mutationTargetId(entry.mutation) !== target
+    ))
+    withoutTarget.splice(insertionIndex, 0, ...replacements)
+    pending.splice(0, pending.length, ...withoutTarget)
   }
 
   const recordCommand = (
     ids: Iterable<string>,
-    mutations: AnnotationMutation[],
+    mutations: readonly AnnotationMutation[],
     mutate: () => void,
   ) => {
-    const uniqueIds = [...new Set(ids)]
+    const affected = [...new Set(ids)]
     const before = new Map<string, AnnotationRecord | null>()
-    for (const id of uniqueIds) {
-      const record = state.annotations.get(id)
+    for (const id of affected) {
+      const record = internal.annotations.get(id)
       before.set(id, record ? cloneRecord(record) : null)
     }
     mutate()
     const after = new Map<string, AnnotationRecord | null>()
-    for (const id of uniqueIds) {
-      const record = state.annotations.get(id)
+    for (const id of affected) {
+      const record = internal.annotations.get(id)
       after.set(id, record ? cloneRecord(record) : null)
     }
-    for (const id of uniqueIds) {
-      const wasActive = Boolean(before.get(id) && !before.get(id)?.deletedAt)
-      const isActive = Boolean(after.get(id) && !after.get(id)?.deletedAt)
-      if (wasActive !== isActive) activeCount += isActive ? 1 : -1
-    }
-    const entry = { before, after, mutations: mutations.map(cloneMutation) }
-    undoStack.push(entry)
+    for (const mutation of mutations) queueMutation(mutation)
+    undoStack.push({ before, after })
     if (undoStack.length > 100) undoStack.shift()
     redoStack.length = 0
-    state.pendingMutations.push(...entry.mutations.map(cloneMutation))
+    emit()
+  }
+
+  const patchBetween = (
+    current: AnnotationRecord,
+    target: AnnotationRecord,
+  ): Extract<AnnotationMutation, { type: 'update' }> | null => {
+    const patch: Extract<AnnotationMutation, { type: 'update' }> = {
+      type: 'update',
+      id: current.id,
+      version: Math.max(1, current.version),
+    }
+    if (current.layerId !== target.layerId) patch.layerId = target.layerId
+    if (!equal(current.geometry, target.geometry)) patch.geometry = structuredClone(target.geometry)
+    if (!equal(current.style, target.style)) patch.style = structuredClone(target.style)
+    if (!equal(current.metadata, target.metadata)) patch.metadata = structuredClone(target.metadata)
+    return Object.keys(patch).length > 3 ? patch : null
+  }
+
+  const desiredRecord = (
+    target: AnnotationRecord,
+    serverVersion: number,
+  ): AnnotationRecord => {
+    const geometry = structuredClone(target.geometry)
+    return {
+      ...cloneRecord(target),
+      version: serverVersion,
+      geometry,
+      bounds: geometryBounds(geometry),
+      measurements: measureGeometry(geometry, options.calibration).values as Record<
+        string,
+        string | number
+      >,
+      updatedAt: now().toISOString(),
+    }
+  }
+
+  const applyHistoryTarget = (targets: Map<string, AnnotationRecord | null>) => {
+    const compensations: AnnotationMutation[] = []
+    for (const [id, target] of targets) {
+      const current = internal.annotations.get(id) ?? null
+      if (!current && target) {
+        const restored = desiredRecord(target, 0)
+        setRecord(id, restored)
+        compensations.push({ type: 'create', item: inputFromRecord(restored) })
+        continue
+      }
+      if (!current) continue
+      if (!target) {
+        compensations.push({
+          type: 'delete',
+          id,
+          version: Math.max(1, current.version),
+        })
+        if (current.version === 0) setRecord(id, null)
+        else setRecord(id, { ...cloneRecord(current), deletedAt: now().toISOString() })
+        internal.selection.delete(id)
+        continue
+      }
+      if (!current.deletedAt && target.deletedAt) {
+        compensations.push({
+          type: 'delete',
+          id,
+          version: Math.max(1, current.version),
+        })
+        setRecord(id, { ...desiredRecord(target, current.version), deletedAt: target.deletedAt })
+        continue
+      }
+      if (current.deletedAt && !target.deletedAt) {
+        if (activeCount >= maxAnnotations) throw new RangeError('Active annotation limit exceeded')
+        compensations.push({
+          type: 'restore',
+          id,
+          version: Math.max(1, current.version),
+        })
+        const restored = desiredRecord(target, current.version)
+        const update = patchBetween({ ...current, deletedAt: null }, restored)
+        if (update) compensations.push(update)
+        setRecord(id, { ...restored, deletedAt: null })
+        continue
+      }
+      const update = patchBetween(current, target)
+      if (update) compensations.push(update)
+      setRecord(id, desiredRecord(target, current.version))
+    }
+    for (const compensation of compensations) queueMutation(compensation)
     emit()
   }
 
@@ -224,8 +465,10 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       throw new RangeError('Annotation shapes cannot exceed 8,192 vertices')
     }
     const records = [...new Set(ids)]
-      .map((id) => state.annotations.get(id))
-      .filter((record): record is AnnotationRecord => Boolean(record && layerEditable(record)))
+      .map((id) => internal.annotations.get(id))
+      .filter((record): record is AnnotationRecord => Boolean(
+        record && !record.deletedAt && layerEditable(record),
+      ))
     const mutations: AnnotationMutation[] = records.map((record) => ({
       type: 'update',
       id: record.id,
@@ -240,11 +483,14 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         const geometry = patch.geometry
           ? structuredClone(patch.geometry)
           : structuredClone(record.geometry)
-        state.annotations.set(record.id, {
+        setRecord(record.id, {
           ...cloneRecord(record),
           ...structuredClone(patch),
           geometry,
           bounds: geometryBounds(geometry),
+          measurements: patch.geometry
+            ? measureGeometry(geometry, options.calibration).values as Record<string, string | number>
+            : structuredClone(record.measurements),
           updatedAt: now().toISOString(),
         })
       }
@@ -252,96 +498,86 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
   }
 
   const store: AnnotationStore = {
-    getState: () => state,
+    getState: () => snapshot,
     subscribe(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     load(payload) {
-      if (payload.layers.length > maxLayers) {
-        throw new RangeError('Annotation layer limit exceeded')
-      }
-      if (payload.annotations.filter((annotation) => !annotation.deletedAt).length > maxAnnotations) {
-        throw new RangeError('Active annotation limit exceeded')
-      }
-      state.version = payload.version
-      state.layers = new Map(payload.layers.map((layer) => [layer.id, structuredClone(layer)]))
-      state.annotations = new Map(
+      if (payload.layers.length > maxLayers) throw new RangeError('Annotation layer limit exceeded')
+      const loadedActive = payload.annotations.filter((annotation) => !annotation.deletedAt).length
+      if (loadedActive > maxAnnotations) throw new RangeError('Active annotation limit exceeded')
+      internal.version = payload.version
+      internal.layers = new Map(payload.layers.map((layer) => [layer.id, structuredClone(layer)]))
+      internal.annotations = new Map(
         payload.annotations.map((annotation) => [annotation.id, cloneRecord(annotation)]),
       )
-      activeCount = payload.annotations.filter((annotation) => !annotation.deletedAt).length
-      state.selection.clear()
-      state.pendingMutations = []
+      activeCount = loadedActive
+      internal.selection.clear()
+      pending.length = 0
       undoStack.length = 0
       redoStack.length = 0
       emit()
     },
     setTool(tool) {
-      state.tool = tool
+      internal.tool = tool
       emit()
     },
     select(ids, additive = false) {
-      if (!additive) state.selection.clear()
+      if (!additive) internal.selection.clear()
       for (const id of ids) {
-        if (state.annotations.has(id)) state.selection.add(id)
+        if (internal.annotations.has(id)) internal.selection.add(id)
       }
       emit()
     },
     clearSelection() {
-      state.selection.clear()
+      internal.selection.clear()
       emit()
     },
     setFilter(filter) {
-      state.filter = {
-        ...state.filter,
+      internal.filter = {
+        ...internal.filter,
         ...filter,
-        layerIds: filter.layerIds ? new Set(filter.layerIds) : state.filter.layerIds,
+        layerIds: filter.layerIds ? new Set(filter.layerIds) : internal.filter.layerIds,
         classifications: filter.classifications
           ? new Set(filter.classifications)
-          : state.filter.classifications,
-        tags: filter.tags ? new Set(filter.tags) : state.filter.tags,
+          : internal.filter.classifications,
+        tags: filter.tags ? new Set(filter.tags) : internal.filter.tags,
       }
       emit()
     },
     visibleAnnotations() {
-      const search = state.filter.search.trim().toLocaleLowerCase()
-      return [...state.annotations.values()].filter((annotation) => {
-        if (annotation.deletedAt && !state.filter.includeDeleted) return false
-        const layer = state.layers.get(annotation.layerId)
+      const search = internal.filter.search.trim().toLocaleLowerCase()
+      return [...internal.annotations.values()].filter((record) => {
+        if (record.deletedAt && !internal.filter.includeDeleted) return false
+        const layer = internal.layers.get(record.layerId)
         if (layer && !layer.visible) return false
-        if (state.filter.layerIds.size > 0 && !state.filter.layerIds.has(annotation.layerId)) {
-          return false
-        }
         if (
-          state.filter.classifications
-          && state.filter.classifications.size > 0
-          && !state.filter.classifications.has(annotation.metadata.classification)
-        ) {
-          return false
-        }
+          internal.filter.layerIds.size > 0
+          && !internal.filter.layerIds.has(record.layerId)
+        ) return false
         if (
-          state.filter.tags
-          && state.filter.tags.size > 0
-          && !annotation.metadata.tags.some((tag) => state.filter.tags?.has(tag))
-        ) {
-          return false
-        }
+          internal.filter.classifications
+          && internal.filter.classifications.size > 0
+          && !internal.filter.classifications.has(record.metadata.classification)
+        ) return false
+        if (
+          internal.filter.tags
+          && internal.filter.tags.size > 0
+          && !record.metadata.tags.some((tag) => internal.filter.tags?.has(tag))
+        ) return false
         if (!search) return true
         return [
-          annotation.metadata.title,
-          annotation.metadata.classification,
-          annotation.metadata.notes,
-          ...annotation.metadata.tags,
+          record.metadata.title,
+          record.metadata.classification,
+          record.metadata.notes,
+          ...record.metadata.tags,
         ].some((value) => value.toLocaleLowerCase().includes(search))
-      })
+      }).map(cloneRecord)
     },
     create(input) {
-      if (state.annotations.has(input.id)) {
-        throw new Error(`Annotation ${input.id} already exists`)
-      }
-      if (activeCount >= maxAnnotations) {
-        throw new RangeError('Active annotation limit exceeded')
-      }
+      if (internal.annotations.has(input.id)) throw new Error(`Annotation ${input.id} already exists`)
+      if (activeCount >= maxAnnotations) throw new RangeError('Active annotation limit exceeded')
       if (geometryVertexCount(input.geometry) > MAX_VERTICES_PER_SHAPE) {
         throw new RangeError('Annotation shapes cannot exceed 8,192 vertices')
       }
@@ -358,11 +594,9 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
           options.calibration,
         ).values as Record<string, string | number>,
       }
-      recordCommand(
-        [input.id],
-        [{ type: 'create', item: structuredClone(input) }],
-        () => state.annotations.set(record.id, record),
-      )
+      recordCommand([input.id], [{ type: 'create', item: structuredClone(input) }], () => {
+        setRecord(record.id, record)
+      })
     },
     update(id, patch) {
       updateRecords([id], patch)
@@ -371,17 +605,21 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       updateRecords(ids, patch)
     },
     move(ids, deltaX, deltaY) {
-      for (const id of ids) {
-        const record = state.annotations.get(id)
-        if (record) updateRecords([id], { geometry: moveGeometry(record.geometry, deltaX, deltaY) })
+      const records = [...ids]
+        .map((id) => internal.annotations.get(id))
+        .filter((record): record is AnnotationRecord => Boolean(record))
+      for (const record of records) {
+        updateRecords([record.id], {
+          geometry: moveGeometry(record.geometry, deltaX, deltaY),
+        })
       }
     },
     resize(id, targetBounds) {
-      const record = state.annotations.get(id)
+      const record = internal.annotations.get(id)
       if (record) updateRecords([id], { geometry: resizeGeometry(record.geometry, targetBounds) })
     },
     editVertex(id, vertexIndex, point) {
-      const record = state.annotations.get(id)
+      const record = internal.annotations.get(id)
       if (record) {
         updateRecords([id], {
           geometry: editGeometryVertex(record.geometry, vertexIndex, point),
@@ -391,25 +629,18 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     duplicate(ids, offset = { x: 12, y: 12 }) {
       const created: string[] = []
       for (const id of ids) {
-        const source = state.annotations.get(id)
+        const source = internal.annotations.get(id)
         if (!source) continue
         const newId = idFactory()
         const copy = duplicateAnnotation(source, newId, offset)
-        const input: AnnotationInput = {
-          id: copy.id,
-          layerId: copy.layerId,
-          geometry: copy.geometry,
-          style: copy.style,
-          metadata: copy.metadata,
-        }
-        store.create(input)
+        store.create(inputFromRecord(copy))
         created.push(newId)
       }
       return created
     },
     copy() {
-      clipboard = [...state.selection]
-        .map((id) => state.annotations.get(id))
+      clipboard = [...internal.selection]
+        .map((id) => internal.annotations.get(id))
         .filter((record): record is AnnotationRecord => Boolean(record))
         .map(cloneRecord)
     },
@@ -418,13 +649,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       for (const source of clipboard) {
         const id = idFactory()
         const copy = duplicateAnnotation(source, id, offset)
-        store.create({
-          id,
-          layerId: copy.layerId,
-          geometry: copy.geometry,
-          style: copy.style,
-          metadata: copy.metadata,
-        })
+        store.create(inputFromRecord(copy))
         ids.push(id)
       }
       store.select(ids)
@@ -432,44 +657,106 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     },
     async boolean(operation, ids) {
       const sources = [...new Set(ids)]
-        .map((id) => state.annotations.get(id))
-        .filter((record): record is AnnotationRecord => (
-          Boolean(record)
-          && record?.geometry.type === 'polygon'
-          && layerEditable(record)
+        .map((id) => internal.annotations.get(id))
+        .filter((record): record is AnnotationRecord => Boolean(
+          record
+          && !record.deletedAt
+          && record.geometry.type === 'polygon'
+          && layerEditable(record),
         ))
       if (sources.length === 0) return []
-      const result = await booleanClient.run(
+      const results = await booleanClient.run(
         operation,
         sources.map((record) => record.geometry as PolygonGeometry),
       )
-      const created: string[] = []
-      const source = sources[0]
-      if (result.length > 0) {
-        updateRecords([source.id], { geometry: result[0] })
-        created.push(source.id)
+      const resultingActive = activeCount - sources.length + results.length
+      if (resultingActive > maxAnnotations) {
+        throw new RangeError('Active annotation limit exceeded')
       }
-      for (const geometry of result.slice(1)) {
-        const id = idFactory()
-        store.create({
-          id,
-          layerId: source.layerId,
-          geometry,
-          style: structuredClone(source.style),
-          metadata: structuredClone(source.metadata),
+      const newIds = results.slice(1).map(() => idFactory())
+      const reserved = new Set([...internal.annotations.keys(), ...sources.map((record) => record.id)])
+      for (const id of newIds) {
+        if (reserved.has(id)) throw new Error(`Annotation ${id} already exists`)
+        reserved.add(id)
+      }
+      const affected = [...sources.map((record) => record.id), ...newIds]
+      const timestamp = now().toISOString()
+      const mutations: AnnotationMutation[] = []
+      if (results.length > 0) {
+        mutations.push({
+          type: 'update',
+          id: sources[0].id,
+          version: Math.max(1, sources[0].version),
+          geometry: structuredClone(results[0]),
         })
-        created.push(id)
+        results.slice(1).forEach((geometry, index) => {
+          mutations.push({
+            type: 'create',
+            item: {
+              id: newIds[index],
+              layerId: sources[0].layerId,
+              geometry: structuredClone(geometry),
+              style: structuredClone(sources[0].style),
+              metadata: structuredClone(sources[0].metadata),
+            },
+          })
+        })
       }
-      if (operation !== 'intersection') {
-        store.delete(sources.slice(1).map((record) => record.id))
-      }
-      store.select(created)
-      return created
+      const deletedSources = results.length > 0 ? sources.slice(1) : sources
+      mutations.push(...deletedSources.map((record) => ({
+        type: 'delete' as const,
+        id: record.id,
+        version: Math.max(1, record.version),
+      })))
+      recordCommand(affected, mutations, () => {
+        if (results.length > 0) {
+          const geometry = structuredClone(results[0])
+          setRecord(sources[0].id, {
+            ...cloneRecord(sources[0]),
+            geometry,
+            bounds: geometryBounds(geometry),
+            measurements: measureGeometry(
+              geometry,
+              options.calibration,
+            ).values as Record<string, string | number>,
+            updatedAt: timestamp,
+          })
+          results.slice(1).forEach((geometry, index) => {
+            setRecord(newIds[index], {
+              id: newIds[index],
+              layerId: sources[0].layerId,
+              geometry: structuredClone(geometry),
+              style: structuredClone(sources[0].style),
+              metadata: structuredClone(sources[0].metadata),
+              version: 0,
+              deletedAt: null,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+              bounds: geometryBounds(geometry),
+              measurements: measureGeometry(
+                geometry,
+                options.calibration,
+              ).values as Record<string, string | number>,
+            })
+          })
+        }
+        for (const source of deletedSources) {
+          if (source.version === 0) setRecord(source.id, null)
+          else setRecord(source.id, { ...cloneRecord(source), deletedAt: timestamp })
+          internal.selection.delete(source.id)
+        }
+      })
+      const selected = results.length > 0 ? [sources[0].id, ...newIds] : []
+      internal.selection = new Set(selected)
+      emit()
+      return selected
     },
     delete(ids) {
       const records = [...new Set(ids)]
-        .map((id) => state.annotations.get(id))
-        .filter((record): record is AnnotationRecord => Boolean(record && layerEditable(record)))
+        .map((id) => internal.annotations.get(id))
+        .filter((record): record is AnnotationRecord => Boolean(
+          record && !record.deletedAt && layerEditable(record),
+        ))
       const timestamp = now().toISOString()
       recordCommand(
         records.map((record) => record.id),
@@ -480,16 +767,20 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         })),
         () => {
           for (const record of records) {
-            state.annotations.set(record.id, { ...cloneRecord(record), deletedAt: timestamp })
-            state.selection.delete(record.id)
+            if (record.version === 0) setRecord(record.id, null)
+            else setRecord(record.id, { ...cloneRecord(record), deletedAt: timestamp })
+            internal.selection.delete(record.id)
           }
         },
       )
     },
     restore(ids) {
       const records = [...new Set(ids)]
-        .map((id) => state.annotations.get(id))
+        .map((id) => internal.annotations.get(id))
         .filter((record): record is AnnotationRecord => Boolean(record?.deletedAt))
+      if (activeCount + records.length > maxAnnotations) {
+        throw new RangeError('Active annotation limit exceeded')
+      }
       recordCommand(
         records.map((record) => record.id),
         records.map((record) => ({
@@ -499,7 +790,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         })),
         () => {
           for (const record of records) {
-            state.annotations.set(record.id, { ...cloneRecord(record), deletedAt: null })
+            setRecord(record.id, { ...cloneRecord(record), deletedAt: null })
           }
         },
       )
@@ -507,53 +798,53 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     undo() {
       const entry = undoStack.pop()
       if (!entry) return
-      applyHistoryRecords(entry.before)
-      state.pendingMutations.splice(-entry.mutations.length, entry.mutations.length)
+      applyHistoryTarget(entry.before)
       redoStack.push(entry)
-      emit()
     },
     redo() {
       const entry = redoStack.pop()
       if (!entry) return
-      applyHistoryRecords(entry.after)
-      state.pendingMutations.push(...entry.mutations.map(cloneMutation))
+      applyHistoryTarget(entry.after)
       undoStack.push(entry)
-      emit()
     },
     canUndo: () => undoStack.length > 0,
     canRedo: () => redoStack.length > 0,
     setLayers(layers) {
       if (layers.length > maxLayers) throw new RangeError('Annotation layer limit exceeded')
-      state.layers = new Map(layers.map((layer) => [layer.id, structuredClone(layer)]))
+      internal.layers = new Map(layers.map((layer) => [layer.id, structuredClone(layer)]))
       emit()
     },
     updateLayer(id, patch) {
-      const layer = state.layers.get(id)
+      const layer = internal.layers.get(id)
       if (!layer) return
-      state.layers.set(id, { ...structuredClone(layer), ...structuredClone(patch) })
+      internal.layers.set(id, { ...structuredClone(layer), ...structuredClone(patch) })
       emit()
     },
     zoomTarget(id) {
-      const record = state.annotations.get(id)
+      const record = internal.annotations.get(id)
       return record ? { ...record.bounds } : null
     },
     measure(id) {
-      const record = state.annotations.get(id)
+      const record = internal.annotations.get(id)
       return record ? measureGeometry(record.geometry, options.calibration) : null
     },
     previewImport(source) {
-      return previewImport(source)
+      return previewImport(source, {
+        ...(slideBounds.width > 0 && slideBounds.height > 0
+          ? { bounds: slideBounds }
+          : {}),
+      })
     },
     exportPathLab() {
       return {
         schema: ANNOTATION_SCHEMA,
         slide: {
-          id: state.slideId,
-          width: bounds.width,
-          height: bounds.height,
-          annotationVersion: state.version,
+          id: internal.slideId,
+          width: slideBounds.width,
+          height: slideBounds.height,
+          annotationVersion: internal.version,
         },
-        layers: [...state.layers.values()].map((layer) => ({
+        layers: [...internal.layers.values()].map((layer) => ({
           id: layer.id,
           name: layer.name,
           sortOrder: layer.sortOrder,
@@ -561,26 +852,20 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
           locked: layer.locked,
           opacity: layer.opacity,
         })),
-        annotations: [...state.annotations.values()]
+        annotations: [...internal.annotations.values()]
           .filter((record) => !record.deletedAt)
-          .map((record) => ({
-            id: record.id,
-            layerId: record.layerId,
-            geometry: structuredClone(record.geometry),
-            style: structuredClone(record.style),
-            metadata: structuredClone(record.metadata),
-          })),
+          .map(inputFromRecord),
       }
     },
     exportGeoJson() {
       return toGeoJson(store.exportPathLab())
     },
     exportCsv() {
-      const rows: CsvMeasurementRow[] = [...state.annotations.values()]
+      const rows: CsvMeasurementRow[] = [...internal.annotations.values()]
         .filter((record) => !record.deletedAt)
         .map((record) => ({
           id: record.id,
-          layer: state.layers.get(record.layerId)?.name ?? '',
+          layer: internal.layers.get(record.layerId)?.name ?? '',
           title: record.metadata.title,
           classification: record.metadata.classification,
           geometryType: record.geometry.type,
@@ -591,11 +876,11 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     attachOverlay(attachment) {
       store.detachOverlay()
       overlay = attachment
-      state.overlayError = null
+      internal.overlayError = null
       try {
         attachment.render()
       } catch (caught) {
-        state.overlayError = caught instanceof Error ? caught.message : 'Annotation overlay failed'
+        internal.overlayError = caught instanceof Error ? caught.message : 'Annotation overlay failed'
         attachment.detach()
         attachment.restoreNavigation()
         overlay = null
@@ -610,14 +895,126 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       emit()
     },
     setAutosaveStatus(status) {
-      state.autosaveStatus = status
+      internal.autosaveStatus = status
       emit()
     },
+    peekPendingMutations() {
+      return sendableEntries().map((entry) => cloneMutation(entry.mutation))
+    },
     takePendingMutations() {
-      const pending = state.pendingMutations.map(cloneMutation)
-      state.pendingMutations = []
+      return store.peekPendingMutations()
+    },
+    beginSave(mutationId, operations) {
+      if (!mutationId || pending.some((entry) => entry.inFlight === mutationId)) {
+        throw new Error('Annotation mutation ID is already in flight')
+      }
+      const available = sendableEntries()
+      const selected: PendingEntry[] = []
+      const targets = new Set<string>()
+      for (const operation of operations) {
+        const target = mutationTargetId(operation)
+        if (targets.has(target)) throw new Error(`Duplicate annotation target ${target}`)
+        const entry = available.find((candidate) => (
+          !selected.includes(candidate)
+          && mutationTargetId(candidate.mutation) === target
+          && sameMutation(candidate.mutation, operation)
+        ))
+        if (!entry) throw new Error(`Pending annotation mutation ${target} was not found`)
+        selected.push(entry)
+        targets.add(target)
+      }
+      for (const entry of selected) entry.inFlight = mutationId
       emit()
-      return pending
+    },
+    acknowledgeSave(acknowledgement) {
+      if (acknowledgement.result.mutationId !== acknowledgement.mutationId) {
+        throw new Error('Annotation acknowledgement mutation ID mismatch')
+      }
+      const entries = pending.filter((entry) => entry.inFlight === acknowledgement.mutationId)
+      if (
+        entries.length !== acknowledgement.operations.length
+        || entries.some((entry) => !acknowledgement.operations.some(
+          (operation) => sameMutation(entry.mutation, operation),
+        ))
+      ) {
+        throw new Error('Annotation acknowledgement does not match the in-flight batch')
+      }
+      const results = new Map(acknowledgement.result.results.map((result) => [result.id, result]))
+      const acknowledgedTokens = new Set(entries.map((entry) => entry.token))
+      const hasNewerMutation = (target: string): boolean => pending.some((entry) => (
+        !acknowledgedTokens.has(entry.token)
+        && mutationTargetId(entry.mutation) === target
+      ))
+      for (const entry of entries) {
+        const target = mutationTargetId(entry.mutation)
+        const result = results.get(target)
+        if (!result || result.operation !== entry.mutation.type) {
+          throw new Error(`Annotation acknowledgement is missing ${target}`)
+        }
+        if (!internal.annotations.has(target) && !hasNewerMutation(target)) {
+          throw new Error(`Annotation acknowledgement target ${target} is missing locally`)
+        }
+      }
+      const returnedRecords = new Map(
+        (acknowledgement.records ?? []).map((record) => [record.id, record]),
+      )
+      for (const entry of entries) {
+        const target = mutationTargetId(entry.mutation)
+        const result = results.get(target)
+        if (!result) continue
+        const returned = returnedRecords.get(target)
+        const current = internal.annotations.get(target)
+        if (!current) continue
+        const reconciled = hasNewerMutation(target)
+          ? {
+            ...cloneRecord(current),
+            version: result.version,
+          }
+          : returned
+            ? cloneRecord(returned)
+          : {
+            ...cloneRecord(current),
+            version: result.version,
+            deletedAt: result.deleted ? current.deletedAt ?? now().toISOString() : null,
+            updatedAt: now().toISOString(),
+          }
+        setRecord(target, reconciled)
+      }
+      for (let index = pending.length - 1; index >= 0; index -= 1) {
+        if (acknowledgedTokens.has(pending[index].token)) pending.splice(index, 1)
+      }
+      for (const result of acknowledgement.result.results) {
+        for (const entry of pending) {
+          if (mutationTargetId(entry.mutation) === result.id) {
+            entry.mutation = rebaseMutation(entry.mutation, result.version)
+          }
+        }
+      }
+      internal.version = acknowledgement.result.version
+      emit()
+    },
+    failSave(mutationId) {
+      let changed = false
+      for (const entry of pending) {
+        if (entry.inFlight === mutationId) {
+          entry.inFlight = null
+          changed = true
+        }
+      }
+      if (changed) emit()
+    },
+    autosaveHooks() {
+      return {
+        onBatchStart(batch) {
+          store.beginSave(batch.mutationId, batch.operations)
+        },
+        onAcknowledged(acknowledgement) {
+          store.acknowledgeSave(acknowledgement)
+        },
+        onBatchFailed(batch) {
+          store.failSave(batch.mutationId)
+        },
+      }
     },
   }
   return store

@@ -1,5 +1,10 @@
 import { AnnotationApiError } from './api'
 import {
+  coalesceMutationSequence,
+  mutationTargetId,
+  rebaseForResults,
+} from './mutationQueue'
+import {
   AUTOSAVE_DELAY_MS,
   MAX_BATCH_OPERATIONS,
   type AnnotationBatchResult,
@@ -7,7 +12,7 @@ import {
 } from './types'
 
 const DEFAULT_RETRY_DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000] as const
-const MAX_BATCH_BYTES = 250 * 1024
+const MAX_REQUEST_BYTES = 256 * 1024
 
 export interface AnnotationAutosaveTransport {
   save(
@@ -15,6 +20,15 @@ export interface AnnotationAutosaveTransport {
     baseVersion: number,
     operations: AnnotationMutation[],
   ): Promise<AnnotationBatchResult>
+}
+
+export interface AnnotationAutosaveBatch {
+  mutationId: string
+  operations: AnnotationMutation[]
+}
+
+export interface AnnotationAutosaveAcknowledgement extends AnnotationAutosaveBatch {
+  result: AnnotationBatchResult
 }
 
 export type ConflictChoice = 'reload' | 'save-as-duplicate'
@@ -48,11 +62,38 @@ export interface AnnotationAutosaveOptions {
   now?: () => number
   onReload?: () => Promise<number>
   onSaveAsDuplicate?: (operations: readonly AnnotationMutation[]) => Promise<number>
+  onBatchStart?: (batch: AnnotationAutosaveBatch) => void
+  onAcknowledged?: (
+    acknowledgement: AnnotationAutosaveAcknowledgement,
+  ) => void | Promise<void>
+  onBatchFailed?: (batch: AnnotationAutosaveBatch, error: unknown) => void
   onChange?: (snapshot: AutosaveSnapshot) => void
 }
 
-function requestBytes(operations: readonly AnnotationMutation[]): number {
-  return new TextEncoder().encode(JSON.stringify({ operations })).byteLength
+interface QueueEntry {
+  token: number
+  mutation: AnnotationMutation
+}
+
+interface InFlightBatch {
+  mutationId: string
+  entries: QueueEntry[]
+}
+
+function requestBytes(
+  mutationId: string,
+  baseVersion: number,
+  operations: readonly AnnotationMutation[],
+): number {
+  return new TextEncoder().encode(JSON.stringify({
+    mutationId,
+    baseVersion,
+    operations,
+  })).byteLength
+}
+
+function cloneOperations(entries: readonly QueueEntry[]): AnnotationMutation[] {
+  return entries.map((entry) => structuredClone(entry.mutation))
 }
 
 export class AnnotationAutosave {
@@ -65,9 +106,16 @@ export class AnnotationAutosave {
   private readonly onSaveAsDuplicate?: (
     operations: readonly AnnotationMutation[],
   ) => Promise<number>
+  private readonly onBatchStart?: (batch: AnnotationAutosaveBatch) => void
+  private readonly onAcknowledged?: (
+    acknowledgement: AnnotationAutosaveAcknowledgement,
+  ) => void | Promise<void>
+  private readonly onBatchFailed?: (batch: AnnotationAutosaveBatch, error: unknown) => void
   private readonly onChange?: (snapshot: AutosaveSnapshot) => void
 
-  private queue: AnnotationMutation[] = []
+  private queue: QueueEntry[] = []
+  private inFlight: InFlightBatch | null = null
+  private nextToken = 1
   private version: number
   private status: AutosaveStatus = 'idle'
   private retryAt: number | null = null
@@ -76,7 +124,6 @@ export class AnnotationAutosave {
   private retryIndex = 0
   private timer: ReturnType<typeof setTimeout> | null = null
   private active: Promise<void> | null = null
-  private currentMutationId: string | null = null
   private disposed = false
 
   constructor(options: AnnotationAutosaveOptions) {
@@ -88,13 +135,16 @@ export class AnnotationAutosave {
     this.now = options.now ?? Date.now
     this.onReload = options.onReload
     this.onSaveAsDuplicate = options.onSaveAsDuplicate
+    this.onBatchStart = options.onBatchStart
+    this.onAcknowledged = options.onAcknowledged
+    this.onBatchFailed = options.onBatchFailed
     this.onChange = options.onChange
   }
 
   snapshot(): AutosaveSnapshot {
     return {
       status: this.status,
-      dirtyCount: this.queue.length,
+      dirtyCount: this.queue.length + (this.inFlight?.entries.length ?? 0),
       version: this.version,
       retryAt: this.retryAt,
       error: this.error,
@@ -104,40 +154,66 @@ export class AnnotationAutosave {
 
   enqueue(operation: AnnotationMutation): void {
     if (this.disposed) throw new Error('Annotation autosave has been disposed')
-    this.queue.push(structuredClone(operation))
-    this.status = 'dirty'
+    this.enqueueInternal(operation)
+    if (
+      !this.inFlight
+      && this.status !== 'conflict'
+      && this.status !== 'retrying'
+      && this.status !== 'error'
+    ) {
+      this.status = this.queue.length > 0 ? 'dirty' : 'idle'
+    }
     this.error = null
     this.notify()
-    this.schedule(this.debounceMs)
+    if (!this.inFlight && this.queue.length > 0 && this.status === 'dirty') {
+      this.schedule(this.debounceMs)
+    } else if (!this.inFlight && this.queue.length === 0) {
+      this.clearTimer()
+      this.retryAt = null
+    }
   }
 
   replacePending(operations: readonly AnnotationMutation[]): void {
-    this.queue = structuredClone([...operations])
-    this.currentMutationId = null
-    this.status = this.queue.length > 0 ? 'dirty' : 'idle'
+    this.queue = []
+    for (const operation of operations) this.enqueueInternal(operation)
+    if (!this.inFlight && this.status !== 'conflict') {
+      this.status = this.snapshot().dirtyCount > 0 ? 'dirty' : 'idle'
+    }
+    this.error = null
     this.notify()
-    if (this.queue.length > 0) this.schedule(this.debounceMs)
+    if (!this.inFlight && this.queue.length > 0 && this.status === 'dirty') {
+      this.schedule(this.debounceMs)
+    }
   }
 
   async flush(): Promise<void> {
     this.clearTimer()
     if (this.active) await this.active
-    if (this.queue.length > 0 && this.status !== 'conflict') {
+    this.clearTimer()
+    if (
+      (this.queue.length > 0 || this.inFlight)
+      && this.status !== 'conflict'
+      && this.status !== 'error'
+    ) {
       await this.run()
     }
   }
 
   async resolveConflict(choice: ConflictChoice): Promise<void> {
     if (this.status !== 'conflict') return
+    const dirty = this.allDirtyOperations()
+    if (this.inFlight) {
+      this.onBatchFailed?.(this.batchContext(this.inFlight), new Error('Conflict resolved'))
+    }
     if (choice === 'reload') {
       if (!this.onReload) throw new Error('Conflict reload is not configured')
       this.version = await this.onReload()
     } else {
       if (!this.onSaveAsDuplicate) throw new Error('Save-as-duplicate is not configured')
-      this.version = await this.onSaveAsDuplicate(structuredClone(this.queue))
+      this.version = await this.onSaveAsDuplicate(dirty)
     }
     this.queue = []
-    this.currentMutationId = null
+    this.inFlight = null
     this.conflict = null
     this.error = null
     this.retryAt = null
@@ -148,6 +224,44 @@ export class AnnotationAutosave {
   dispose(): void {
     this.disposed = true
     this.clearTimer()
+  }
+
+  private enqueueInternal(operation: AnnotationMutation): void {
+    const target = mutationTargetId(operation)
+    const targetEntries = this.queue.filter(
+      (entry) => mutationTargetId(entry.mutation) === target,
+    )
+    if (targetEntries.length === 0) {
+      this.queue.push({ token: this.nextToken++, mutation: structuredClone(operation) })
+      return
+    }
+    const firstIndex = this.queue.findIndex(
+      (entry) => mutationTargetId(entry.mutation) === target,
+    )
+    const insertionIndex = this.queue
+      .slice(0, firstIndex)
+      .filter((entry) => mutationTargetId(entry.mutation) !== target)
+      .length
+    const normalized = coalesceMutationSequence([
+      ...targetEntries.map((entry) => entry.mutation),
+      operation,
+    ])
+    const replacement = normalized.map((mutation, index): QueueEntry => ({
+      token: targetEntries[index]?.token ?? this.nextToken++,
+      mutation: structuredClone(mutation),
+    }))
+    const withoutTarget = this.queue.filter(
+      (entry) => mutationTargetId(entry.mutation) !== target,
+    )
+    withoutTarget.splice(insertionIndex, 0, ...replacement)
+    this.queue = withoutTarget
+  }
+
+  private allDirtyOperations(): AnnotationMutation[] {
+    return [
+      ...(this.inFlight ? cloneOperations(this.inFlight.entries) : []),
+      ...cloneOperations(this.queue),
+    ]
   }
 
   private notify(): void {
@@ -170,14 +284,41 @@ export class AnnotationAutosave {
     }, delayMs)
   }
 
-  private nextBatch(): AnnotationMutation[] {
-    const batch: AnnotationMutation[] = []
-    for (const operation of this.queue.slice(0, MAX_BATCH_OPERATIONS)) {
-      const candidate = [...batch, operation]
-      if (batch.length > 0 && requestBytes(candidate) > MAX_BATCH_BYTES) break
-      batch.push(operation)
+  private createInFlight(): boolean {
+    if (this.inFlight) return true
+    if (this.queue.length === 0) return false
+    const mutationId = this.idFactory()
+    const entries: QueueEntry[] = []
+    const targets = new Set<string>()
+    for (const entry of this.queue) {
+      const target = mutationTargetId(entry.mutation)
+      if (targets.has(target)) continue
+      const candidate = [...entries, entry]
+      const candidateOperations = cloneOperations(candidate)
+      const bytes = requestBytes(mutationId, this.version, candidateOperations)
+      if (entries.length === 0 && bytes > MAX_REQUEST_BYTES) {
+        this.status = 'error'
+        this.error = 'ANNOTATION_REQUEST_TOO_LARGE'
+        this.retryAt = null
+        this.notify()
+        return false
+      }
+      if (bytes > MAX_REQUEST_BYTES || entries.length >= MAX_BATCH_OPERATIONS) break
+      entries.push(entry)
+      targets.add(target)
     }
-    return batch
+    const selected = new Set(entries.map((entry) => entry.token))
+    this.queue = this.queue.filter((entry) => !selected.has(entry.token))
+    this.inFlight = { mutationId, entries }
+    this.onBatchStart?.(this.batchContext(this.inFlight))
+    return true
+  }
+
+  private batchContext(batch: InFlightBatch): AnnotationAutosaveBatch {
+    return {
+      mutationId: batch.mutationId,
+      operations: cloneOperations(batch.entries),
+    }
   }
 
   private async run(): Promise<void> {
@@ -189,37 +330,33 @@ export class AnnotationAutosave {
   }
 
   private async drain(): Promise<void> {
-    while (this.queue.length > 0 && !this.disposed) {
-      const batch = this.nextBatch()
-      this.currentMutationId ??= this.idFactory()
+    while (!this.disposed && (this.inFlight || this.queue.length > 0)) {
+      if (!this.createInFlight()) return
+      const batch = this.inFlight
+      if (!batch) return
+      const context = this.batchContext(batch)
       this.status = 'saving'
       this.error = null
       this.retryAt = null
       this.notify()
+      let result: AnnotationBatchResult
       try {
-        const result = await this.transport.save(
-          this.currentMutationId,
+        result = await this.transport.save(
+          batch.mutationId,
           this.version,
-          structuredClone(batch),
+          structuredClone(context.operations),
         )
-        this.version = result.version
-        this.queue.splice(0, batch.length)
-        this.currentMutationId = null
-        this.retryIndex = 0
-        this.status = this.queue.length > 0 ? 'dirty' : 'saved'
-        this.notify()
       } catch (caught) {
         if (
           caught instanceof AnnotationApiError
           && caught.status === 409
           && caught.code === 'ANNOTATION_CONFLICT'
         ) {
-          const currentVersion = typeof caught.detail.currentVersion === 'number'
-            ? caught.detail.currentVersion
-            : null
           this.status = 'conflict'
           this.conflict = {
-            currentVersion,
+            currentVersion: typeof caught.detail.currentVersion === 'number'
+              ? caught.detail.currentVersion
+              : null,
             choices: ['reload', 'save-as-duplicate'],
           }
           this.notify()
@@ -228,6 +365,7 @@ export class AnnotationAutosave {
         if (caught instanceof AnnotationApiError && caught.status < 500) {
           this.status = 'error'
           this.error = caught.code
+          this.onBatchFailed?.(context, caught)
           this.notify()
           return
         }
@@ -241,6 +379,25 @@ export class AnnotationAutosave {
         this.notify()
         return
       }
+
+      try {
+        await this.onAcknowledged?.({ ...context, result: structuredClone(result) })
+      } catch (caught) {
+        this.status = 'error'
+        this.error = 'ANNOTATION_ACKNOWLEDGEMENT_FAILED'
+        this.onBatchFailed?.(context, caught)
+        this.notify()
+        return
+      }
+      this.version = result.version
+      this.inFlight = null
+      this.queue = this.queue.map((entry) => ({
+        ...entry,
+        mutation: rebaseForResults([entry.mutation], result.results)[0],
+      }))
+      this.retryIndex = 0
+      this.status = this.queue.length > 0 ? 'dirty' : 'saved'
+      this.notify()
     }
   }
 }

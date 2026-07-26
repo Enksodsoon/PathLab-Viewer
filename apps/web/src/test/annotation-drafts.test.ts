@@ -66,7 +66,7 @@ describe('durable annotation drafts', () => {
     const repository = new AnnotationDraftRepository({
       storage,
       now: () => 10_000,
-      maxBytes: 900,
+      maxBytes: 1_000,
     })
     await repository.save(draft('clean', 1, false, 'x'.repeat(300)))
     await repository.save(draft('dirty', 2, true, 'y'.repeat(300)))
@@ -78,5 +78,29 @@ describe('durable annotation drafts', () => {
     await expect(repository.save(draft('overflow', 4, true, 'q'.repeat(900))))
       .rejects.toBeInstanceOf(DraftCapacityError)
     expect(await repository.load('dirty')).not.toBeNull()
+  })
+
+  it('counts every persisted draft field, including byteSize metadata, against capacity', async () => {
+    const storage = new MemoryDraftStorage()
+    const repository = new AnnotationDraftRepository({ storage, maxBytes: 10_000 })
+    const saved = await repository.save(draft('all-fields', 123, true, 'payload'))
+    expect(saved.byteSize).toBe(
+      new TextEncoder().encode(JSON.stringify(saved)).byteLength,
+    )
+  })
+
+  it('serializes concurrent repositories before making a shared capacity decision', async () => {
+    const storage = new MemoryDraftStorage()
+    const first = new AnnotationDraftRepository({ storage, maxBytes: 500 })
+    const second = new AnnotationDraftRepository({ storage, maxBytes: 500 })
+
+    const results = await Promise.allSettled([
+      first.save(draft('first', 1, true, 'x'.repeat(250))),
+      second.save(draft('second', 2, true, 'y'.repeat(250))),
+    ])
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    expect(storage.records).toHaveLength(1)
   })
 })

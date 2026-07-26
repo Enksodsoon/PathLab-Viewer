@@ -132,8 +132,27 @@ describe('bounded polygon booleans', () => {
       polygon([[5, 0], [10, 0], [10, 10], [5, 10]]),
     ])
     expect(executePolygonBoolean('subtract', [left, right])).toHaveLength(1)
-    expect(executePolygonBoolean('split', [left, right]).length).toBeGreaterThanOrEqual(1)
+    const split = executePolygonBoolean('split', [left, right])
+    expect(split).toHaveLength(2)
+    expect(split).toEqual([
+      polygon([[0, 0], [5, 0], [5, 10], [0, 10]]),
+      polygon([[5, 0], [10, 0], [10, 10], [5, 10]]),
+    ])
     expect([left, right]).toEqual(before)
+  })
+
+  it('splits against the union of multiple cutters without dropping disjoint inside regions', () => {
+    const subject = polygon([[0, 0], [30, 0], [30, 10], [0, 10]])
+    const firstCutter = polygon([[5, 0], [10, 0], [10, 10], [5, 10]])
+    const secondCutter = polygon([[20, 0], [25, 0], [25, 10], [20, 10]])
+
+    expect(executePolygonBoolean('split', [subject, firstCutter, secondCutter])).toEqual([
+      polygon([[0, 0], [5, 0], [5, 10], [0, 10]]),
+      polygon([[10, 0], [20, 0], [20, 10], [10, 10]]),
+      polygon([[25, 0], [30, 0], [30, 10], [25, 10]]),
+      polygon([[5, 0], [10, 0], [10, 10], [5, 10]]),
+      polygon([[20, 0], [25, 0], [25, 10], [20, 10]]),
+    ])
   })
 
   it('terminates a stalled worker at two seconds and leaves source geometry untouched', async () => {

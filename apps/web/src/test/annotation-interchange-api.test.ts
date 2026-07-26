@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AnnotationApiClient, AnnotationApiError } from '../annotations/api'
 import {
@@ -127,9 +127,64 @@ describe('annotation interchange fixtures', () => {
       errors: [expect.stringMatching(/vertex limit/i)],
     })
   })
+
+  it('rejects malformed, out-of-bounds, per-shape, annotation, and layer overflows', () => {
+    const malformed = structuredClone(pathlabFixture)
+    malformed.annotations[0].geometry = {
+      type: 'point',
+      x: 10_001,
+      y: Number.NaN,
+    }
+    malformed.annotations[0].style.opacity = 2
+    malformed.annotations[0].metadata.title = '<b>unsafe</b>'
+    expect(previewImport(malformed)).toMatchObject({
+      valid: false,
+      errors: expect.arrayContaining([
+        expect.stringMatching(/finite/i),
+        expect.stringMatching(/bounds/i),
+        expect.stringMatching(/style/i),
+        expect.stringMatching(/metadata/i),
+      ]),
+    })
+
+    const oversizedShape = structuredClone(pathlabFixture)
+    oversizedShape.annotations[0].geometry = {
+      type: 'polygon',
+      points: Array.from({ length: 8_193 }, (_, index) => ({
+        x: index % 100,
+        y: Math.floor(index / 100),
+      })),
+    }
+    expect(previewImport(oversizedShape).errors).toEqual(
+      expect.arrayContaining([expect.stringMatching(/8,192/)]),
+    )
+
+    const tooManyAnnotations = structuredClone(pathlabFixture)
+    tooManyAnnotations.annotations = Array.from(
+      { length: 25_001 },
+      (_, index) => ({ ...structuredClone(pathlabFixture.annotations[0]), id: `a-${index}` }),
+    )
+    expect(previewImport(tooManyAnnotations).errors).toEqual(
+      expect.arrayContaining([expect.stringMatching(/25,000 annotation/i)]),
+    )
+
+    const tooManyLayers = structuredClone(pathlabFixture)
+    tooManyLayers.layers = Array.from(
+      { length: 101 },
+      (_, index) => ({ ...pathlabFixture.layers[0], id: `layer-${index}` }),
+    )
+    expect(previewImport(tooManyLayers).errors).toEqual(
+      expect.arrayContaining([expect.stringMatching(/100 layer/i)]),
+    )
+  })
 })
 
 describe('private annotation API client', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    sessionStorage.clear()
+  })
+
   it('uses only encoded admin routes, same-origin credentials, and CSRF on mutation', async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -190,5 +245,36 @@ describe('private annotation API client', () => {
     await expect(client.getManifest('slide-1')).rejects.toEqual(
       new AnnotationApiError(409, 'ANNOTATION_CONFLICT', { currentVersion: 12 }),
     )
+  })
+
+  it('reuses the application CSRF refresh-and-retry path for a rotated token', async () => {
+    sessionStorage.setItem('pathlab-csrf', 'stale')
+    const fetcher = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        detail: { code: 'CSRF_INVALID' },
+      }), { status: 403, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        csrfToken: 'rotated',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        mutationId: 'm-1',
+        version: 2,
+        results: [],
+        purged: 0,
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const client = new AnnotationApiClient()
+
+    await client.batch('slide-1', {
+      mutationId: 'm-1',
+      baseVersion: 1,
+      operations: [{ type: 'delete', id: 'a-1', version: 1 }],
+    })
+
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    expect(fetcher.mock.calls[1][0]).toBe('/api/v1/auth/session')
+    expect(fetcher.mock.calls[2][1]).toMatchObject({
+      credentials: 'same-origin',
+      headers: expect.objectContaining({ 'X-CSRF-Token': 'rotated' }),
+    })
   })
 })
