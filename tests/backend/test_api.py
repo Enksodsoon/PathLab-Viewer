@@ -560,6 +560,124 @@ def test_chunked_auth_body_limit_stops_receiving_after_cap_is_crossed(tmp_path: 
     assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
 
 
+@pytest.mark.parametrize(
+    ("path", "declared_length"),
+    [
+        (
+            "/api/v2/admin/annotations/slides/slide-1/batch",
+            256 * 1024 + 1,
+        ),
+        (
+            "/api/v2/admin/annotations/slides/slide-1/import",
+            8 * 1024 * 1024 + 1,
+        ),
+    ],
+)
+def test_annotation_body_limits_reject_declared_oversize_without_receiving(
+    tmp_path: Path,
+    path: str,
+    declared_length: int,
+) -> None:
+    app = create_app(
+        Settings(
+            database_url=f"sqlite:///{tmp_path / 'annotation-limit.sqlite3'}",
+            data_root=tmp_path / "data",
+        )
+    )
+    receive_calls = 0
+    sent: list[dict[str, Any]] = []
+
+    async def receive() -> dict[str, Any]:
+        nonlocal receive_calls
+        receive_calls += 1
+        return {"type": "http.request", "body": b"never-read", "more_body": False}
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [
+            (b"content-length", str(declared_length).encode()),
+            (b"content-type", b"application/json"),
+        ],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+        "root_path": "",
+    }
+    asyncio.run(app(scope, receive, send))
+
+    assert receive_calls == 0
+    assert sent[0]["status"] == 413
+    assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
+
+
+def test_chunked_annotation_body_limit_stops_at_256_kibibytes(tmp_path: Path) -> None:
+    app = create_app(
+        Settings(
+            database_url=f"sqlite:///{tmp_path / 'annotation-chunked.sqlite3'}",
+            data_root=tmp_path / "data",
+        )
+    )
+    chunks = iter(
+        [
+            {
+                "type": "http.request",
+                "body": b"x" * (128 * 1024),
+                "more_body": True,
+            },
+            {
+                "type": "http.request",
+                "body": b"x" * (128 * 1024 + 1),
+                "more_body": True,
+            },
+            {
+                "type": "http.request",
+                "body": b"must-not-be-consumed",
+                "more_body": False,
+            },
+        ]
+    )
+    receive_calls = 0
+    sent: list[dict[str, Any]] = []
+
+    async def receive() -> dict[str, Any]:
+        nonlocal receive_calls
+        receive_calls += 1
+        return next(chunks)
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    path = "/api/v2/admin/annotations/slides/slide-1/batch"
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+        "root_path": "",
+    }
+    asyncio.run(app(scope, receive, send))
+
+    assert receive_calls == 2
+    assert sent[0]["status"] == 413
+    assert json.loads(sent[1]["body"]) == {"detail": {"code": "REQUEST_TOO_LARGE"}}
+
+
 def test_legacy_long_password_can_login_and_migrate_via_password_change(tmp_path: Path) -> None:
     legacy_password = "legacy-" + "x" * 193
     replacement = "new correct horse battery"

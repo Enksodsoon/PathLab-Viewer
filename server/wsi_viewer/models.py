@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -185,12 +186,133 @@ class Slide(Base):
         DateTime(timezone=True), default=_now, onupdate=_now
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    annotation_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 Index("ix_slides_organ_site_ci", func.lower(Slide.organ_site))
 Index("ix_slides_stain_ci", func.lower(Slide.stain))
 Index("ix_slides_diagnosis_ci", func.lower(Slide.diagnosis))
 Index("ix_slides_course_ci", func.lower(Slide.course))
+
+
+class AnnotationLayer(Base):
+    __tablename__ = "annotation_layers"
+    __table_args__ = (
+        CheckConstraint("sort_order >= 0", name="ck_annotation_layers_sort_order"),
+        CheckConstraint(
+            "opacity >= 0 AND opacity <= 1",
+            name="ck_annotation_layers_opacity",
+        ),
+        Index(
+            "ix_annotation_layers_slide_order",
+            "slide_id",
+            "sort_order",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    opacity: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class Annotation(Base):
+    __tablename__ = "annotations"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_annotations_version"),
+        CheckConstraint("vertex_count >= 1", name="ck_annotations_vertex_count"),
+        CheckConstraint(
+            "bbox_min_x <= bbox_max_x AND bbox_min_y <= bbox_max_y",
+            name="ck_annotations_bbox_order",
+        ),
+        Index("ix_annotations_slide_active", "slide_id", "deleted_at", "id"),
+        Index(
+            "ix_annotations_slide_layer_active",
+            "slide_id",
+            "layer_id",
+            "deleted_at",
+        ),
+        Index(
+            "ix_annotations_slide_bbox",
+            "slide_id",
+            "bbox_min_x",
+            "bbox_max_x",
+            "bbox_min_y",
+            "bbox_max_y",
+        ),
+        Index("ix_annotations_purge_after", "purge_after"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    layer_id: Mapped[str] = mapped_column(
+        ForeignKey("annotation_layers.id", ondelete="CASCADE"), nullable=False
+    )
+    geometry_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    geometry: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    style: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    annotation_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    bbox_min_x: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_min_y: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_max_x: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_max_y: Mapped[float] = mapped_column(Float, nullable=False)
+    vertex_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    mutation_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purge_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class AnnotationRevision(Base):
+    __tablename__ = "annotation_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "annotation_id",
+            "version",
+            name="uq_annotation_revisions_annotation_version",
+        ),
+        Index(
+            "ix_annotation_revisions_annotation_created",
+            "annotation_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    annotation_id: Mapped[str] = mapped_column(
+        ForeignKey("annotations.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    layer_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    geometry_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    geometry: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    style: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    annotation_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    bbox_min_x: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_min_y: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_max_x: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_max_y: Mapped[float] = mapped_column(Float, nullable=False)
+    vertex_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    mutation_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purge_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Collection(Base):

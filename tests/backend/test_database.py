@@ -291,3 +291,71 @@ def test_library_performance_indexes_upgrade_and_round_trip(
             for row in database.execute(text("PRAGMA index_list('slides')"))
         }
     assert expected <= restored
+
+
+def test_admin_annotation_migration_is_additive_and_round_trips_existing_slides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_path = tmp_path / "admin-annotations.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260724_0008")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        database.execute(
+            text(
+                "INSERT INTO slides "
+                "(id, public_id, display_name, original_filename, source_bytes, state, "
+                "reserved_bytes, derivative_bytes, derivative_file_count, description, "
+                "case_id, organ_site, stain, diagnosis, course, tags, teaching_note, "
+                "admin_notes, sort_order, created_at, updated_at) VALUES "
+                "('slide-before-annotations', 'public-before-annotations', 'Existing', "
+                "'existing.ome.tif', 1, 'ready_private', 0, 0, 0, '', '', '', '', '', '', "
+                "'[]', '', '', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        inspector = inspect(database.connection())
+        assert {
+            "annotation_layers",
+            "annotations",
+            "annotation_revisions",
+        } <= set(inspector.get_table_names())
+        slide_columns = {column["name"] for column in inspector.get_columns("slides")}
+        assert "annotation_version" in slide_columns
+        assert database.execute(
+            text(
+                "SELECT public_id || ':' || annotation_version FROM slides "
+                "WHERE id = 'slide-before-annotations'"
+            )
+        ).scalar_one() == "public-before-annotations:0"
+
+    command.downgrade(config, "20260724_0008")
+    with session_factory(settings)() as database:
+        inspector = inspect(database.connection())
+        assert not {
+            "annotation_layers",
+            "annotations",
+            "annotation_revisions",
+        } & set(inspector.get_table_names())
+        assert "annotation_version" not in {
+            column["name"] for column in inspector.get_columns("slides")
+        }
+        assert database.execute(
+            text(
+                "SELECT public_id FROM slides WHERE id = 'slide-before-annotations'"
+            )
+        ).scalar_one() == "public-before-annotations"
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text(
+                "SELECT public_id || ':' || annotation_version FROM slides "
+                "WHERE id = 'slide-before-annotations'"
+            )
+        ).scalar_one() == "public-before-annotations:0"

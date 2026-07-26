@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .models import Base
 
-ALEMBIC_HEAD = "20260724_0008"
+ALEMBIC_HEAD = "20260726_0009"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
+ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
 
 
 def schema_is_current(database: OrmSession) -> bool:
@@ -26,6 +27,12 @@ def schema_is_current(database: OrmSession) -> bool:
             if not {column.name for column in table.columns} <= actual_columns:
                 return False
         audit_indexes = {index["name"] for index in inspector.get_indexes("audit_events")}
-        return AUDIT_RETENTION_INDEX in audit_indexes
+        annotation_indexes = {
+            index["name"] for index in inspector.get_indexes("annotations")
+        }
+        return (
+            AUDIT_RETENTION_INDEX in audit_indexes
+            and ANNOTATION_ACTIVE_INDEX in annotation_indexes
+        )
     except SQLAlchemyError:
         return False

@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
+from .annotation_routes import register_annotation_routes
 from .auth import (
     CredentialConflict,
     InvalidCurrentPassword,
@@ -58,6 +59,8 @@ COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
 MAX_LIBRARY_BODY_BYTES = 64 * 1024
 MAX_INTERNAL_BODY_BYTES = 64 * 1024
+MAX_ANNOTATION_BODY_BYTES = 256 * 1024
+MAX_ANNOTATION_IMPORT_BODY_BYTES = 8 * 1024 * 1024
 
 
 class LoginRequest(BaseModel):
@@ -131,7 +134,12 @@ def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
     return {key: metadata[key] for key in allowed if metadata.get(key) is not None}
 
 
-def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
+def _slide_json(
+    slide: Slide,
+    *,
+    public: bool = False,
+    annotations_enabled: bool = False,
+) -> dict[str, Any]:
     result: dict[str, Any] = {
         "id": slide.id,
         "publicId": slide.public_id,
@@ -156,6 +164,8 @@ def _slide_json(slide: Slide, *, public: bool = False) -> dict[str, Any]:
             result["thumbnailUrl"] = f"{delivery_root}/{slide.thumbnail_filename}"
     else:
         result["filename"] = slide.original_filename
+        result["annotationsEnabled"] = annotations_enabled
+        result["annotationVersion"] = slide.annotation_version
     return result
 
 
@@ -166,16 +176,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
     app = FastAPI(title="PathLab Viewer API", version="0.1.0")
-    app.add_middleware(AuthBodyLimitMiddleware, max_bytes=MAX_AUTH_BODY_BYTES)
     app.add_middleware(
         AuthBodyLimitMiddleware,
-        max_bytes=MAX_LIBRARY_BODY_BYTES,
-        path_prefixes=("/api/v2/admin/",),
-    )
-    app.add_middleware(
-        AuthBodyLimitMiddleware,
-        max_bytes=MAX_INTERNAL_BODY_BYTES,
-        path_prefixes=("/api/v1/internal/",),
+        path_limits=(
+            ("/api/v2/admin/annotations/", MAX_ANNOTATION_BODY_BYTES),
+            ("/api/v2/admin/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/internal/", MAX_INTERNAL_BODY_BYTES),
+            ("/api/v1/auth/", MAX_AUTH_BODY_BYTES),
+        ),
+        suffix_limits=(
+            (
+                "/api/v2/admin/annotations/",
+                "/import",
+                MAX_ANNOTATION_IMPORT_BODY_BYTES,
+            ),
+        ),
     )
     app.state.settings = current
     def database() -> Iterator[OrmSession]:
@@ -255,6 +270,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app,
         factory=factory,
         storage=storage,
+        database_dependency=database,
+        admin_dependency=admin_session,
+        csrf_dependency=csrf,
+    )
+    register_annotation_routes(
+        app,
         database_dependency=database,
         admin_dependency=admin_session,
         csrf_dependency=csrf,
@@ -396,14 +417,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/v1/admin/slides")
     def list_slides(_: AdminSession, db: Database) -> list[dict[str, Any]]:
         slides = db.scalars(select(Slide).order_by(Slide.created_at.desc())).all()
-        return [_slide_json(slide) for slide in slides]
+        return [
+            _slide_json(slide, annotations_enabled=current.annotations_enabled)
+            for slide in slides
+        ]
 
     @app.get("/api/v1/admin/slides/{slide_id}")
     def get_admin_slide(slide_id: str, _: AdminSession, db: Database) -> dict[str, Any]:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        result = _slide_json(slide)
+        result = _slide_json(slide, annotations_enabled=current.annotations_enabled)
         if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
             result["tileSource"] = f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
             if slide.thumbnail_filename:
@@ -458,7 +482,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             UploadGrant(slide.id, payload.length), current.secret_key, ttl=timedelta(hours=1)
         )
         return {
-            "slide": _slide_json(slide),
+            "slide": _slide_json(slide, annotations_enabled=current.annotations_enabled),
             "uploadUrl": current.tus_public_url,
             "uploadToken": token,
             "expiresIn": 3600,
@@ -586,7 +610,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
         except InsufficientStorage as error:
             raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"}) from error
-        return _slide_json(slide)
+        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
 
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
     def publish(
@@ -619,7 +643,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         )
         db.commit()
-        return _slide_json(slide)
+        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
 
     @app.post("/api/v1/admin/slides/{slide_id}/unpublish")
     def unpublish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
@@ -635,7 +659,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         )
         db.commit()
-        return _slide_json(slide)
+        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)
     def delete(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
@@ -646,7 +670,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         slide = mutate(slide_id, SlideState.DELETING, authenticated, db)
         db.add(Job(slide_id=slide.id, kind="delete"))
         db.commit()
-        return _slide_json(slide)
+        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
 
     @app.get("/api/v1/public/slides/{public_id}")
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:
