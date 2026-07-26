@@ -1,4 +1,13 @@
-import { ChevronLeft, ChevronRight, Expand, Home, Menu, Minus, Plus, X } from 'lucide-react'
+import {
+  ArrowsOut as Expand,
+  CaretLeft as ChevronLeft,
+  CaretRight as ChevronRight,
+  House as Home,
+  List as Menu,
+  Minus,
+  Plus,
+  X,
+} from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 

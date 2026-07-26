@@ -1,15 +1,15 @@
 import {
   CircleDashed,
-  CircleX,
-  Clock3,
-  FolderInput,
-  Grid2X2,
-  Edit3,
-  MoreHorizontal,
+  Clock as Clock3,
+  DotsThree as MoreHorizontal,
+  FolderSimple as FolderInput,
+  PencilSimple as Edit3,
   Plus,
-  Share2,
-  Trash2,
-} from 'lucide-react'
+  ShareNetwork as Share2,
+  SquaresFour as Grid2X2,
+  Trash as Trash2,
+  XCircle as CircleX,
+} from '@phosphor-icons/react'
 
 import type { LibraryFolder, LibraryNavigation } from '../../types'
 import { ContextMenu } from './ContextMenu'

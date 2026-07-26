@@ -1,5 +1,5 @@
+import { ArrowsOut as Expand, House as Home, Info, Minus, Plus } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Expand, Home, Info, Minus, Plus } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 
 import { getPrivateSlide, getPublicSlide } from '../api'

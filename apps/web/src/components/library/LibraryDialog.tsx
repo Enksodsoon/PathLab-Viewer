@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { X } from '@phosphor-icons/react'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 interface LibraryDialogProps {

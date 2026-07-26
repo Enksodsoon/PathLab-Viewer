@@ -33,8 +33,8 @@ describe('slide publication details', () => {
       <SlideDetailsPanel slide={slide} onClose={vi.fn()} onEdit={vi.fn()} />,
     )
 
-    expect(screen.getByText('Private').closest('dd')?.querySelector('.lucide-lock')).not.toBeNull()
-    expect(screen.getByText('Private').closest('dd')?.querySelector('.lucide-lock-open')).toBeNull()
+    expect(screen.getByText('Private').closest('dd')?.querySelector('[data-lock-state="closed"]')).not.toBeNull()
+    expect(screen.getByText('Private').closest('dd')?.querySelector('[data-lock-state="open"]')).toBeNull()
 
     rerender(
       <SlideDetailsPanel
@@ -44,7 +44,7 @@ describe('slide publication details', () => {
       />,
     )
 
-    expect(screen.getByText('Published').closest('dd')?.querySelector('.lucide-lock-open')).not.toBeNull()
-    expect(screen.getByText('Published').closest('dd')?.querySelector('.lucide-lock')).toBeNull()
+    expect(screen.getByText('Published').closest('dd')?.querySelector('[data-lock-state="open"]')).not.toBeNull()
+    expect(screen.getByText('Published').closest('dd')?.querySelector('[data-lock-state="closed"]')).toBeNull()
   })
 })

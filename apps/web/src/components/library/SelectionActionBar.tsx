@@ -1,14 +1,14 @@
 import {
-  FolderInput,
-  RefreshCw,
-  RotateCcw,
-  Share,
-  Tags,
-  Trash2,
-  Undo2,
-  Unlink,
+  ArrowClockwise as RefreshCw,
+  ArrowCounterClockwise as RotateCcw,
+  ArrowUUpLeft as Undo2,
+  FolderSimple as FolderInput,
+  LinkBreak as Unlink,
+  ShareNetwork as Share,
+  Tag as Tags,
+  Trash as Trash2,
   X,
-} from 'lucide-react'
+} from '@phosphor-icons/react'
 
 interface SelectionActionBarProps {
   count: number

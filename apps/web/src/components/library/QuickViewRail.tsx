@@ -1,4 +1,4 @@
-import { Bookmark, Clock3, Grid2X2 } from 'lucide-react'
+import { Bookmark, Clock as Clock3, SquaresFour as Grid2X2 } from '@phosphor-icons/react'
 
 import type { LibraryNavigation, LibrarySlide } from '../../types'
 

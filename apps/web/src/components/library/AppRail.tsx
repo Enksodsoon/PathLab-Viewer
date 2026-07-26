@@ -1,12 +1,12 @@
 import {
   BookOpen,
-  KeyRound,
-  Layers3,
-  LogOut,
-  Share2,
-  Trash2,
-  Upload,
-} from 'lucide-react'
+  Key,
+  ShareNetwork as Share2,
+  SignOut as LogOut,
+  Stack as Layers3,
+  Trash as Trash2,
+  UploadSimple as Upload,
+} from '@phosphor-icons/react'
 
 interface AppRailProps {
   location: string
@@ -75,7 +75,7 @@ export function AppRail({
           <span>Trash</span>
         </button>
         <button type="button" className="account-action account-start" onClick={onSecurity}>
-          <KeyRound />
+          <Key />
           <span>Account</span>
         </button>
         <button type="button" className="account-action" onClick={onSignOut}>

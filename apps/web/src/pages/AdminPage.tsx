@@ -1,21 +1,23 @@
 import {
-  ChevronLeft,
+  ArrowClockwise as RefreshCw,
+  ArrowCounterClockwise as RotateCcw,
+  CaretLeft as ChevronLeft,
   CircleDashed,
-  CircleX,
   FolderOpen,
-  Menu,
+  List as Menu,
   Plus,
-  RefreshCw,
-  RotateCcw,
-  Trash2,
-  Upload,
-} from 'lucide-react'
+  Trash as Trash2,
+  UploadSimple as Upload,
+  XCircle as CircleX,
+} from '@phosphor-icons/react'
 import {
   useCallback,
   useEffect,
+  lazy,
   useMemo,
   useRef,
   useState,
+  Suspense,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -48,7 +50,7 @@ import {
   updateFolder,
   updateSavedView,
 } from '../api'
-import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
+import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
 import { AppRail } from '../components/library/AppRail'
 import {
   FilterPanel,
@@ -78,6 +80,10 @@ import type {
   SavedView,
   SlideState,
 } from '../types'
+
+const AuthPanel = lazy(() => import('../components/AuthPanel').then((module) => ({
+  default: module.AuthPanel,
+})))
 import { startTusUpload } from '../upload'
 import '../library.css'
 
@@ -1072,14 +1078,16 @@ export function AdminPage() {
   if (signingOut) return <div className="center-state dark">Signing out…</div>
   if (authorized === false) {
     return (
-      <AuthPanel
-        notice={authNotice}
-        onSuccess={() => {
-          setAuthNotice('')
-          setAuthorized(null)
-          void loadNavigation()
-        }}
-      />
+      <Suspense fallback={<div className="center-state">Opening secure sign in…</div>}>
+        <AuthPanel
+          notice={authNotice}
+          onSuccess={() => {
+            setAuthNotice('')
+            setAuthorized(null)
+            void loadNavigation()
+          }}
+        />
+      </Suspense>
     )
   }
   if (authorized === null) return <div className="center-state dark">Loading secure library…</div>
