@@ -6,7 +6,7 @@ import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, TypedDict
 from uuid import UUID
 
 from pydantic import (
@@ -411,6 +411,15 @@ class PathLabDocument(AnnotationModel):
     slide: PathLabSlide
     layers: list[PathLabLayer] = Field(max_length=MAX_LAYERS_PER_SLIDE)
     annotations: list[AnnotationItemInput] = Field(max_length=MAX_ACTIVE_ANNOTATIONS)
+
+
+class _IncomingLayer(TypedDict):
+    id: str
+    name: str
+    sort_order: int
+    visible: bool
+    locked: bool
+    opacity: float
 
 
 class GeoJsonClassification(AnnotationModel):
@@ -1376,24 +1385,10 @@ def _geojson_geometry(feature: GeoJsonFeature) -> AnnotationGeometry:
     )
 
 
-def _import_items(
+def _import_geojson_items(
     payload: AnnotationImportRequest,
 ) -> tuple[str, list[tuple[AnnotationGeometry, AnnotationStyle, AnnotationMetadata]]]:
     try:
-        if payload.format == "pathlab":
-            pathlab_document = PathLabDocument.model_validate(payload.data)
-            default_name = (
-                pathlab_document.layers[0].name
-                if pathlab_document.layers
-                else "Imported annotations"
-            )
-            return (
-                payload.layer_name or default_name,
-                [
-                    (item.geometry, item.style, item.metadata)
-                    for item in pathlab_document.annotations
-                ],
-            )
         geojson_document = GeoJsonFeatureCollection.model_validate(payload.data)
         default_name = (
             geojson_document.features[0].properties.layer_name
@@ -1433,6 +1428,90 @@ def import_annotations(
 ) -> dict[str, Any]:
     started = perf_counter()
     slide = lock_annotation_mutation(database, slide, payload.base_version)
+    incoming_layers: list[_IncomingLayer]
+    incoming_items: list[
+        tuple[
+            str,
+            str,
+            AnnotationGeometry,
+            AnnotationStyle,
+            AnnotationMetadata,
+        ]
+    ]
+    pathlab_document: PathLabDocument | None = None
+    if payload.format == "pathlab":
+        if payload.layer_name is not None:
+            raise AnnotationError("ANNOTATION_IMPORT_LAYER_OVERRIDE")
+        try:
+            pathlab_document = PathLabDocument.model_validate(payload.data)
+        except ValidationError as error:
+            raise AnnotationError("ANNOTATION_IMPORT_INVALID") from error
+        layer_ids = [str(layer.id) for layer in pathlab_document.layers]
+        annotation_ids = [str(item.id) for item in pathlab_document.annotations]
+        sort_orders = [layer.sort_order for layer in pathlab_document.layers]
+        if (
+            len(layer_ids) != len(set(layer_ids))
+            or len(annotation_ids) != len(set(annotation_ids))
+            or len(sort_orders) != len(set(sort_orders))
+        ):
+            raise AnnotationError("ANNOTATION_IMPORT_INVALID")
+        known_layers = set(layer_ids)
+        if any(str(item.layer_id) not in known_layers for item in pathlab_document.annotations):
+            raise AnnotationError("ANNOTATION_IMPORT_INVALID")
+        layer_collisions = set(
+            database.scalars(
+                select(AnnotationLayer.id).where(AnnotationLayer.id.in_(layer_ids))
+            )
+        )
+        annotation_collisions = set(
+            database.scalars(
+                select(Annotation.id).where(Annotation.id.in_(annotation_ids))
+            )
+        )
+        if layer_collisions or annotation_collisions:
+            raise AnnotationError(
+                "ANNOTATION_IMPORT_ID_CONFLICT",
+                status_code=409,
+            )
+        incoming_layers = [
+            _IncomingLayer(
+                id=str(layer.id),
+                name=layer.name,
+                sort_order=layer.sort_order,
+                visible=layer.visible,
+                locked=layer.locked,
+                opacity=layer.opacity,
+            )
+            for layer in pathlab_document.layers
+        ]
+        incoming_items = [
+            (
+                str(item.id),
+                str(item.layer_id),
+                item.geometry,
+                item.style,
+                item.metadata,
+            )
+            for item in pathlab_document.annotations
+        ]
+    else:
+        layer_name, items = _import_geojson_items(payload)
+        imported_layer_id = new_uuid()
+        incoming_layers = [
+            _IncomingLayer(
+                id=imported_layer_id,
+                name=layer_name.strip(),
+                sort_order=-1,
+                visible=True,
+                locked=False,
+                opacity=1.0,
+            )
+        ]
+        incoming_items = [
+            (new_uuid(), imported_layer_id, geometry, style, metadata)
+            for geometry, style, metadata in items
+        ]
+
     layer_count = int(
         database.scalar(
             select(func.count(AnnotationLayer.id)).where(
@@ -1441,10 +1520,9 @@ def import_annotations(
         )
         or 0
     )
-    if layer_count >= MAX_LAYERS_PER_SLIDE:
+    if layer_count + len(incoming_layers) > MAX_LAYERS_PER_SLIDE:
         raise AnnotationError("ANNOTATION_LAYER_LIMIT")
-    layer_name, items = _import_items(payload)
-    if not items:
+    if not incoming_items:
         raise AnnotationError("ANNOTATION_IMPORT_EMPTY")
     active_count = int(
         database.scalar(
@@ -1455,47 +1533,57 @@ def import_annotations(
         )
         or 0
     )
-    if active_count + len(items) > MAX_ACTIVE_ANNOTATIONS:
+    if active_count + len(incoming_items) > MAX_ACTIVE_ANNOTATIONS:
         raise AnnotationError("ANNOTATION_ACTIVE_LIMIT")
     total_vertices = 0
     prepared: list[
         tuple[
+            str,
+            str,
             AnnotationGeometry,
             AnnotationStyle,
             AnnotationMetadata,
             tuple[float, float, float, float, int],
         ]
     ] = []
-    for geometry, style, metadata in items:
+    for item_id, layer_id, geometry, style, metadata in incoming_items:
         validate_geometry_bounds(geometry, slide)
         stats = geometry_stats(geometry)
         total_vertices += stats[4]
         if total_vertices > MAX_VERTICES_PER_IMPORT:
             raise AnnotationError("ANNOTATION_IMPORT_VERTEX_LIMIT")
-        prepared.append((geometry, style, metadata, stats))
+        prepared.append((item_id, layer_id, geometry, style, metadata, stats))
 
     now = utcnow()
     purged = purge_expired_tombstones(database, now)
-    layer = AnnotationLayer(
-        slide_id=slide.id,
-        name=layer_name.strip(),
-        sort_order=layer_count,
-        visible=True,
-        locked=False,
-        opacity=1.0,
-        created_at=now,
-        updated_at=now,
-    )
-    database.add(layer)
+    layers = [
+        AnnotationLayer(
+            id=layer_data["id"],
+            slide_id=slide.id,
+            name=str(layer_data["name"]),
+            sort_order=(
+                layer_count
+                if int(layer_data["sort_order"]) < 0
+                else int(layer_data["sort_order"])
+            ),
+            visible=bool(layer_data["visible"]),
+            locked=bool(layer_data["locked"]),
+            opacity=float(layer_data["opacity"]),
+            created_at=now,
+            updated_at=now,
+        )
+        for layer_data in incoming_layers
+    ]
+    database.add_all(layers)
     database.flush()
     mutation_id = str(payload.mutation_id)
-    for geometry, style, metadata, stats in prepared:
+    for item_id, layer_id, geometry, style, metadata, stats in prepared:
         min_x, min_y, max_x, max_y, vertices = stats
         database.add(
             Annotation(
-                id=new_uuid(),
+                id=item_id,
                 slide_id=slide.id,
-                layer_id=layer.id,
+                layer_id=layer_id,
                 geometry_type=geometry.type,
                 geometry=geometry.model_dump(by_alias=True, mode="json"),
                 style=style.model_dump(by_alias=True, mode="json"),
@@ -1531,7 +1619,8 @@ def import_annotations(
     return {
         "version": slide.annotation_version,
         "imported": len(prepared),
-        "layer": layer_json(layer),
+        "layer": layer_json(layers[0]),
+        "layers": [layer_json(layer) for layer in layers],
         "purged": purged,
     }
 

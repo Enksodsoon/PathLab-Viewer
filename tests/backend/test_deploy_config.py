@@ -190,6 +190,21 @@ def test_annotation_benchmark_explains_the_actual_paginated_api_query_shape() ->
     assert '"viewportPageQueryPlan"' in benchmark
 
 
+def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "\n  browser:\n" in workflow
+    browser_job = workflow.split("\n  browser:\n", maxsplit=1)[1].split(
+        "\n  containers:\n", maxsplit=1
+    )[0]
+    assert "timeout-minutes: 15" in browser_job
+    assert "playwright install --with-deps chromium firefox webkit" in browser_job
+    assert "PLAYWRIGHT_PORT: \"5217\"" in browser_job
+    assert "e2e/annotation-responsive.spec.ts" in browser_job
+    assert "e2e/shared-viewer-responsive.spec.ts" in browser_job
+    assert "--workers=4" in browser_job
+
+
 def test_api_creates_runtime_directories_before_migrations() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(

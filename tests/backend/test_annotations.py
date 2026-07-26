@@ -1296,6 +1296,12 @@ def test_pathlab_geojson_and_csv_interchange_is_bounded_and_lossless(
         assert ",60.0,200.0,µm,µm²" in lines[1]
 
         target = _slide(client, slide_id="interchange-target")
+        import_document = json.loads(json.dumps(document))
+        imported_layer_id = str(uuid.uuid4())
+        import_document["layers"][0]["id"] = imported_layer_id
+        for annotation in import_document["annotations"]:
+            annotation["id"] = str(uuid.uuid4())
+            annotation["layerId"] = imported_layer_id
         imported = client.post(
             f"/api/v2/admin/annotations/slides/{target.id}/import",
             headers=headers,
@@ -1303,8 +1309,7 @@ def test_pathlab_geojson_and_csv_interchange_is_bounded_and_lossless(
                 "mutationId": str(uuid.uuid4()),
                 "baseVersion": 0,
                 "format": "pathlab",
-                "layerName": "Imported review",
-                "data": document,
+                "data": import_document,
             },
         )
         assert imported.status_code == 200
@@ -1378,6 +1383,12 @@ def test_pathlab_geojson_and_csv_interchange_is_bounded_and_lossless(
         )
 
         monkeypatch.setattr(annotation_service, "MAX_VERTICES_PER_IMPORT", 3)
+        vertex_document = json.loads(json.dumps(document))
+        vertex_layer_id = str(uuid.uuid4())
+        vertex_document["layers"][0]["id"] = vertex_layer_id
+        for annotation in vertex_document["annotations"]:
+            annotation["id"] = str(uuid.uuid4())
+            annotation["layerId"] = vertex_layer_id
         vertex_limited = client.post(
             f"/api/v2/admin/annotations/slides/{rejected_target.id}/import",
             headers=headers,
@@ -1385,13 +1396,150 @@ def test_pathlab_geojson_and_csv_interchange_is_bounded_and_lossless(
                 "mutationId": str(uuid.uuid4()),
                 "baseVersion": 0,
                 "format": "pathlab",
-                "data": document,
+                "data": vertex_document,
             },
         )
         assert vertex_limited.status_code == 422
         assert vertex_limited.json() == {
             "detail": {"code": "ANNOTATION_IMPORT_VERTEX_LIMIT"}
         }
+
+
+def test_pathlab_two_layer_round_trip_preserves_safe_ids_membership_and_properties(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        source = _slide(client, slide_id="two-layer-source")
+        first = _create_layer(client, source.id, headers)
+        second_response = client.post(
+            f"/api/v2/admin/annotations/slides/{source.id}/layers",
+            headers=headers,
+            json={
+                **_layer_payload(base_version=1, name="Review"),
+                "sortOrder": 7,
+                "opacity": 0.65,
+            },
+        )
+        assert second_response.status_code == 201
+        second = second_response.json()
+        first_item = _item_payload(
+            first["id"],
+            item_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        )
+        second_item = {
+            **_item_payload(
+                second["id"],
+                item_id="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            ),
+            "metadata": {
+                "title": "Second layer",
+                "classification": "Review",
+                "tags": ["round-trip"],
+                "notes": "Preserve me",
+            },
+        }
+        assert _batch(
+            client,
+            source.id,
+            headers,
+            base_version=2,
+            operations=[
+                {"type": "create", "item": first_item},
+                {"type": "create", "item": second_item},
+            ],
+        ).status_code == 200
+        assert client.patch(
+            f"/api/v2/admin/annotations/slides/{source.id}/layers/{first['id']}",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 3,
+                "sortOrder": 3,
+                "visible": False,
+                "opacity": 0.4,
+            },
+        ).status_code == 200
+        assert client.patch(
+            f"/api/v2/admin/annotations/slides/{source.id}/layers/{second['id']}",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 4,
+                "locked": True,
+                "opacity": 0.65,
+            },
+        ).status_code == 200
+        exported = client.get(
+            f"/api/v2/admin/annotations/slides/{source.id}/export",
+            params={"format": "pathlab"},
+        ).json()
+        target = _slide(client, slide_id="two-layer-target")
+
+        collision = client.post(
+            f"/api/v2/admin/annotations/slides/{target.id}/import",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "format": "pathlab",
+                "data": exported,
+            },
+        )
+        assert collision.status_code == 409
+        assert collision.json() == {
+            "detail": {"code": "ANNOTATION_IMPORT_ID_CONFLICT"}
+        }
+        assert client.get(
+            f"/api/v2/admin/annotations/slides/{target.id}/layers"
+        ).json()["items"] == []
+
+        invalid_reference = json.loads(json.dumps(exported))
+        invalid_reference["annotations"][0]["layerId"] = (
+            "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+        )
+        rejected_reference = client.post(
+            f"/api/v2/admin/annotations/slides/{target.id}/import",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "format": "pathlab",
+                "data": invalid_reference,
+            },
+        )
+        assert rejected_reference.status_code == 422
+        assert rejected_reference.json() == {
+            "detail": {"code": "ANNOTATION_IMPORT_INVALID"}
+        }
+        assert client.get(
+            f"/api/v2/admin/annotations/slides/{target.id}/layers"
+        ).json()["items"] == []
+
+        with session_factory(client.app.state.settings)() as database:
+            stored_source = database.get(Slide, source.id)
+            assert stored_source is not None
+            database.delete(stored_source)
+            database.commit()
+
+        imported = client.post(
+            f"/api/v2/admin/annotations/slides/{target.id}/import",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "format": "pathlab",
+                "data": exported,
+            },
+        )
+        assert imported.status_code == 200
+        assert imported.json()["imported"] == 2
+        round_trip = client.get(
+            f"/api/v2/admin/annotations/slides/{target.id}/export",
+            params={"format": "pathlab"},
+        ).json()
+        assert round_trip["layers"] == exported["layers"]
+        assert round_trip["annotations"] == exported["annotations"]
 
 
 def test_wal_reads_remain_available_and_atomically_visible_during_50_op_save(

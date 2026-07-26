@@ -41,6 +41,7 @@ import {
   createCompactAnnotationDraft,
   type AnnotationDraft,
 } from './drafts'
+import { replayDraft } from './draftRecovery'
 import { attachAnnotationOverlay } from './AnnotationOverlay'
 import { createAnnotationStore, type AnnotationStore, type AnnotationStoreState } from './store'
 import type {
@@ -137,7 +138,7 @@ export interface AnnotationWorkspaceServices {
     mutationId: string
     baseVersion: number
     format: 'pathlab' | 'geojson'
-    layerName: string
+    layerName?: string
     data: Record<string, unknown>
   }): Promise<AnnotationBatchResult>
   exportDocument(format: 'pathlab' | 'geojson' | 'csv'): Promise<Response>
@@ -228,21 +229,6 @@ function isEditingTarget(target: EventTarget | null): boolean {
     || (target instanceof HTMLElement && target.isContentEditable)
 }
 
-function replayDraft(store: AnnotationStore, draft: AnnotationDraft) {
-  for (const mutation of draft.mutations) {
-    if (mutation.type === 'create') store.create(mutation.item)
-    else if (mutation.type === 'update') {
-      store.update(mutation.id, {
-        ...(mutation.layerId === undefined ? {} : { layerId: mutation.layerId }),
-        ...(mutation.geometry === undefined ? {} : { geometry: mutation.geometry }),
-        ...(mutation.style === undefined ? {} : { style: mutation.style }),
-        ...(mutation.metadata === undefined ? {} : { metadata: mutation.metadata }),
-      })
-    } else if (mutation.type === 'delete') store.delete([mutation.id])
-    else store.restore([mutation.id])
-  }
-}
-
 function stateDraft(
   slideId: string,
   state: AnnotationStoreState,
@@ -264,7 +250,7 @@ function focusableElements(container: HTMLElement): HTMLElement[] {
 
 interface PendingImport {
   format: 'pathlab' | 'geojson'
-  layerName: string
+  layerName?: string
   data: Record<string, unknown>
 }
 
@@ -618,7 +604,13 @@ export function AnnotationWorkspace({
         setStoreState(store.getState())
         if (loadedDraft?.dirty) {
           replayDraft(store, loadedDraft)
-          setOperationStatus('Recovered unsaved local changes')
+          if (store.getState().recoveryMutations.length === 0) {
+            await acknowledgePersistedDraft()
+            if (!active) return
+            setOperationStatus('Reconciled saved local changes')
+          } else {
+            setOperationStatus('Recovered unsaved local changes')
+          }
         } else {
           setOperationStatus(draftLoadFailed
             ? 'Annotations ready; local draft recovery unavailable'
@@ -1181,7 +1173,10 @@ export function AnnotationWorkspace({
       }
       const candidate: PendingImport = {
         format: preview.format,
-        layerName: file.name.replace(/\.[^.]+$/, '').slice(0, 160) || 'Imported annotations',
+        ...(preview.format === 'geojson' ? {
+          layerName: file.name.replace(/\.[^.]+$/, '').slice(0, 160)
+            || 'Imported annotations',
+        } : {}),
         data,
       }
       const baseVersion = storeRef.current?.getState().version ?? storeState.version
@@ -1227,7 +1222,7 @@ export function AnnotationWorkspace({
       setImportPreview(null)
       await reload(generation, expectedStore)
       requireCurrentWorkspace(generation, expectedStore)
-      setOperationStatus('Import completed in a new layer')
+      setOperationStatus('Import completed')
     } catch (caught) {
       if (caught instanceof StaleWorkspaceOperationError) return
       setError(caught instanceof Error ? caught.message : 'Import failed')

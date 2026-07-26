@@ -8,6 +8,8 @@ import {
   AnnotationWorkspace,
   type AnnotationWorkspaceServices,
 } from '../annotations/AnnotationWorkspace'
+import { replayDraft } from '../annotations/draftRecovery'
+import { createAnnotationStore } from '../annotations/store'
 import type { AnnotationDraft } from '../annotations/drafts'
 import type {
   AnnotationBatchRequest,
@@ -109,6 +111,78 @@ function successfulBatch(request: AnnotationBatchRequest, version = request.base
   } satisfies AnnotationBatchResult
 }
 
+it('drops a recovered create that is already committed after its response was lost', () => {
+  const committed = record(17)
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 9, layers: [layerA], annotations: [committed] })
+
+  replayDraft(store, {
+    schema: 'pathlab-annotation-draft/v1',
+    slideId: 'slide-1',
+    baseVersion: 8,
+    dirty: true,
+    savedAt: Date.now(),
+    byteSize: 1,
+    mutations: [{
+      type: 'create',
+      item: {
+        id: committed.id,
+        layerId: committed.layerId,
+        geometry: committed.geometry,
+        style: committed.style,
+        metadata: committed.metadata,
+      },
+    }],
+  })
+
+  expect(store.getState().version).toBe(9)
+  expect(store.getState().pendingMutations).toEqual([])
+  expect(store.getState().recoveryMutations).toEqual([])
+})
+
+it('rebases a divergent response-lost create to a retryable server-versioned update', () => {
+  const committed = record(18)
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 9, layers: [layerA], annotations: [committed] })
+
+  replayDraft(store, {
+    schema: 'pathlab-annotation-draft/v1',
+    slideId: 'slide-1',
+    baseVersion: 8,
+    dirty: true,
+    savedAt: Date.now(),
+    byteSize: 1,
+    mutations: [{
+      type: 'create',
+      item: {
+        id: committed.id,
+        layerId: layerA.id,
+        geometry: { type: 'point', x: 701, y: 211 },
+        style: { ...committed.style, opacity: 0.42 },
+        metadata: { ...committed.metadata, title: 'Recovered local intent' },
+      },
+    }],
+  })
+
+  expect(store.getState().annotations.get(committed.id)).toMatchObject({
+    geometry: { type: 'point', x: 701, y: 211 },
+    style: { opacity: 0.42 },
+    metadata: { title: 'Recovered local intent' },
+  })
+  expect(store.getState().pendingMutations).toEqual([{
+    type: 'update',
+    id: committed.id,
+    version: committed.version,
+    layerId: layerA.id,
+    geometry: { type: 'point', x: 701, y: 211 },
+    style: { ...committed.style, opacity: 0.42 },
+    metadata: { ...committed.metadata, title: 'Recovered local intent' },
+  }])
+  expect(store.getState().recoveryMutations).toEqual(
+    store.getState().pendingMutations,
+  )
+})
+
 function services(
   overrides: Partial<AnnotationWorkspaceServices> = {},
   items: AnnotationRecord[] = [],
@@ -142,6 +216,50 @@ function services(
     ...overrides,
   }
 }
+
+it('acknowledges the durable draft after an equivalent lost-response create reloads', async () => {
+  const committed = record(19)
+  const acknowledgeDraft = vi.fn(async () => undefined)
+  const recovered: AnnotationDraft = {
+    schema: 'pathlab-annotation-draft/v1',
+    slideId: 'slide-1',
+    baseVersion: 8,
+    dirty: true,
+    savedAt: Date.now(),
+    byteSize: 1,
+    mutations: [{
+      type: 'create',
+      item: {
+        id: committed.id,
+        layerId: committed.layerId,
+        geometry: committed.geometry,
+        style: committed.style,
+        metadata: committed.metadata,
+      },
+    }],
+  }
+  const workspaceServices = services({
+    getManifest: vi.fn(async () => ({
+      ...manifest([layerA], 9),
+      activeCount: 1,
+    })),
+    loadDraft: vi.fn(async () => recovered),
+    acknowledgeDraft,
+  }, [committed], [layerA])
+
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Lost response"
+      services={workspaceServices}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+
+  await screen.findByRole('toolbar', { name: 'Annotation tools' })
+  await waitFor(() => expect(acknowledgeDraft).toHaveBeenCalledOnce())
+  expect(workspaceServices.batch).not.toHaveBeenCalled()
+})
 
 function deferred<T>() {
   let resolve!: (value: T) => void
