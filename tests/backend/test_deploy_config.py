@@ -98,7 +98,7 @@ def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
     )[0]
 
     assert "mem_limit: 256m" in caddy_service
-    assert "cpus: 0.75" in caddy_service
+    assert "cpus: 1.25" in caddy_service
     assert "cpu_shares: 1024" in caddy_service
     assert "--workers 1" in api_service
     assert "mem_limit: 512m" in api_service
@@ -278,7 +278,8 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     for dockerfile in dockerfiles:
         for line in dockerfile.splitlines():
             if line.startswith("FROM "):
-                image = line.split()[1]
+                parts = line.split()
+                image = next(part for part in parts[1:] if not part.startswith("--"))
                 assert "@sha256:" in image
                 assert len(image.rsplit("@sha256:", 1)[1]) == 64
     tusd_line = next(
@@ -294,6 +295,8 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     assert "--hash=sha256:" in lockfile
     package = Path("package.json").read_text(encoding="utf-8")
     assert '"packageManager": "pnpm@11.9.0+sha512.' in package
+    web = dockerfiles[1]
+    assert web.startswith("FROM --platform=$BUILDPLATFORM node:")
 
 
 def test_public_infrastructure_defaults_limit_operator_attack_surface() -> None:

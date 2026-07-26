@@ -30,7 +30,7 @@ services:
       tusd:
         condition: service_started
     mem_limit: 256m
-    cpus: 0.75
+    cpus: 1.25
     cpu_shares: 1024
 
   api:

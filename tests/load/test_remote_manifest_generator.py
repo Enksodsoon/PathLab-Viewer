@@ -36,6 +36,10 @@ def test_remote_manifest_is_deterministic_bounded_and_multilevel() -> None:
     assert set(slide) == {"publicId", "dziPath", "commonTiles", "randomTiles"}
     assert len(slide["commonTiles"]) <= 12
     assert len(slide["randomTiles"]) <= 256
+    assert all(
+        path.endswith(".jpg")
+        for path in slide["commonTiles"] + slide["randomTiles"]
+    )
     levels = {
         path.split("/")[1]
         for path in slide["commonTiles"] + slide["randomTiles"]
@@ -52,6 +56,22 @@ def test_remote_manifest_never_embeds_metadata_or_absolute_urls() -> None:
     assert "thumbnailUrl" not in serialized
     assert "tileSource" not in serialized
     assert "displayName" not in serialized
+
+
+def test_remote_manifest_accepts_missing_optional_thumbnail() -> None:
+    def no_thumbnail(url: str) -> bytes:
+        if url.endswith(f"/api/v1/public/slides/{PUBLIC_ID}"):
+            return json.dumps(
+                {"tileSource": f"/tiles/{PUBLIC_ID}/v1/slide.dzi"}
+            ).encode()
+        if url.endswith(f"/tiles/{PUBLIC_ID}/v1/slide.dzi"):
+            return DZI
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("generate_remote_manifest._fetch", side_effect=no_thumbnail):
+        manifest = generate_remote_manifest(BASE_URL, [PUBLIC_ID])
+
+    assert manifest["slides"][0]["publicId"] == PUBLIC_ID
 
 
 @pytest.mark.parametrize(

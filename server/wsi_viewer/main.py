@@ -303,6 +303,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         return {"csrfToken": csrf_token}
 
+    @app.get("/api/v1/auth/session")
+    def refresh_session(authenticated: AdminSession, response: Response) -> dict[str, str]:
+        response.headers["Cache-Control"] = "no-store"
+        return {"csrfToken": authenticated.csrf_token}
+
     @app.delete("/api/v1/auth/session", status_code=status.HTTP_204_NO_CONTENT)
     def logout(authenticated: CsrfSession, response: Response, db: Database) -> None:
         db.delete(authenticated)

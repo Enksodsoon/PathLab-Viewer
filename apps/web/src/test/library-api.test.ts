@@ -7,6 +7,7 @@ import {
   getLibraryItems,
   getLibraryNavigation,
   getSlideStatuses,
+  reserveUpload,
 } from '../api'
 
 describe('library v2 API contracts', () => {
@@ -87,5 +88,50 @@ describe('library v2 API contracts', () => {
         headers: { 'X-CSRF-Token': 'csrf-token' },
       },
     ])
+  })
+
+  it('refreshes a stale CSRF token and retries a mutation only once', async () => {
+    sessionStorage.setItem('pathlab-csrf', 'stale-token')
+    const forbidden = new Response(
+      JSON.stringify({ detail: { code: 'CSRF_INVALID' } }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(forbidden)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'fresh-token' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        slide: { id: 'slide-1' },
+        uploadUrl: '/files/',
+        uploadToken: 'upload-token',
+        expiresIn: 900,
+      })))
+
+    await reserveUpload(
+      new File(['fixture'], 'synthetic.ome.tiff', { type: 'image/tiff' }),
+      'Synthetic',
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[1]).toEqual([
+      '/api/v1/auth/session',
+      { credentials: 'same-origin', cache: 'no-store' },
+    ])
+    expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get('X-CSRF-Token'))
+      .toBe('fresh-token')
+    expect(sessionStorage.getItem('pathlab-csrf')).toBe('fresh-token')
+  })
+
+  it('does not retry unrelated forbidden mutations', async () => {
+    sessionStorage.setItem('pathlab-csrf', 'csrf-token')
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ detail: { code: 'STORAGE_CAPACITY_EXCEEDED' } }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    ))
+
+    await expect(reserveUpload(
+      new File(['fixture'], 'synthetic.ome.tiff', { type: 'image/tiff' }),
+      'Synthetic',
+    )).rejects.toMatchObject({ status: 403, code: 'STORAGE_CAPACITY_EXCEEDED' })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 })

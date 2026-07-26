@@ -61,6 +61,7 @@ def _level_tiles(
     height: int,
     max_level: int,
     tile_size: int,
+    image_format: str,
 ) -> list[str]:
     divisor = 2 ** (max_level - level)
     level_width = math.ceil(width / divisor)
@@ -68,7 +69,7 @@ def _level_tiles(
     columns = math.ceil(level_width / tile_size)
     rows = math.ceil(level_height / tile_size)
     return [
-        f"slide_files/{level}/{column}_{row}.jpeg"
+        f"slide_files/{level}/{column}_{row}.{image_format}"
         for column in range(columns)
         for row in range(rows)
     ]
@@ -88,7 +89,9 @@ def _build_slide(base_url: str, public_id: str, seed: int) -> dict[str, Any]:
     if not isinstance(metadata, dict):
         raise RemoteManifestError("Public metadata was malformed")
     dzi_path = _same_origin_path(metadata.get("tileSource"), suffix="/slide.dzi")
-    _same_origin_path(metadata.get("thumbnailUrl"))
+    thumbnail_url = metadata.get("thumbnailUrl")
+    if thumbnail_url is not None:
+        _same_origin_path(thumbnail_url)
     expected_prefix = f"/tiles/{public_id}/"
     if not dzi_path.startswith(expected_prefix) or "/../" in dzi_path:
         raise RemoteManifestError("Public DZI path did not match the approved slide")
@@ -119,6 +122,7 @@ def _build_slide(base_url: str, public_id: str, seed: int) -> dict[str, Any]:
             height=height,
             max_level=max_level,
             tile_size=tile_size,
+            image_format=image_format,
         )
         for level in selected_levels
     ]

@@ -22,6 +22,9 @@ def test_k6_script_uses_manifest_profiles_and_seventy_thirty_mix() -> None:
     assert "duration: '10m', target: 300" in script
     assert "vus: 2" in script
     assert "duration: '30s'" in script
+    assert "TARGET_VUS" in script
+    assert "TARGET_DURATION" in script
+    assert "TARGET_RAMP_DURATION" in script
     assert "COMMON_REQUESTS = 7" in script
     assert "RANDOM_REQUESTS = 3" in script
     assert "__VU" in script
@@ -47,7 +50,7 @@ def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:
     assert 'MANIFEST_PATH:?MANIFEST_PATH is required' in script
     assert '[[ "${MANIFEST_PATH}" = /* ]]' in script
     assert "command -v k6" in script
-    assert "smoke|acceptance|capacity300" in script
+    assert "smoke|staged|acceptance|capacity300" in script
     assert "public_id" not in script.lower()
     assert "curl" not in script
 
@@ -172,6 +175,28 @@ def test_capacity_workflow_does_not_require_preexisting_slide_secrets() -> None:
     assert "LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets." not in workflow
     assert "LOAD_TEST_ADMIN_USERNAME" in workflow
     assert "LOAD_TEST_ADMIN_PASSWORD" in workflow
+
+
+def test_public_capacity_load_is_manual_bounded_and_public_only() -> None:
+    workflow = Path(".github/workflows/public-capacity-load.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert "RUN_PUBLIC_300" in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
+    assert "group: production-control" in workflow
+    assert "name: production" in workflow
+    assert "timeout-minutes: 25" in workflow
+    assert "LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}" in workflow
+    assert "LOAD_TEST_ADMIN_" not in workflow
+    assert "PROFILE=capacity300" in workflow
+    assert "consecutive_failures >= 2" in workflow
+    assert "public-capacity-manifest.json" in workflow
+    assert "path: ${{ env.EVIDENCE_DIR }}" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+    assert "schedule:" not in workflow
 
 
 @pytest.mark.skipif(BASH is None, reason="bash is unavailable")

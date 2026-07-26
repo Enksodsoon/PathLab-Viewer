@@ -17,6 +17,10 @@ export type ConversionDecision =
   | { kind: 'pending' }
   | { kind: 'ready' }
 
+export type PublicAvailabilityDecision =
+  | { kind: 'failed'; errorCode: string; httpStatus: number }
+  | { kind: 'ok' }
+
 export class CapacityHttpError extends Error {
   readonly errorCode?: string
   readonly httpStatus: number
@@ -59,6 +63,62 @@ export function conversionDecision(
     return { kind: 'failed', errorCode: 'CONVERSION_TIMEOUT' }
   }
   return { kind: 'pending' }
+}
+
+export function publicAvailabilityDecision(observation: {
+  descriptorStatus?: number
+  metadataBody: unknown
+  metadataStatus: number
+  posterStatus?: number
+}): PublicAvailabilityDecision {
+  if (
+    observation.metadataStatus < 200
+    || observation.metadataStatus >= 300
+  ) {
+    return {
+      kind: 'failed',
+      errorCode: sanitizedErrorCode(observation.metadataBody)
+        ?? 'PUBLIC_METADATA_UNAVAILABLE',
+      httpStatus: observation.metadataStatus,
+    }
+  }
+  const metadata = typeof observation.metadataBody === 'object'
+    && observation.metadataBody !== null
+    ? observation.metadataBody as Record<string, unknown>
+    : undefined
+  if (
+    typeof metadata?.thumbnailUrl !== 'string'
+    || typeof metadata.tileSource !== 'string'
+  ) {
+    return {
+      kind: 'failed',
+      errorCode: 'PUBLIC_METADATA_INCOMPLETE',
+      httpStatus: 0,
+    }
+  }
+  if (
+    observation.posterStatus === undefined
+    || observation.posterStatus < 200
+    || observation.posterStatus >= 300
+  ) {
+    return {
+      kind: 'failed',
+      errorCode: 'PUBLIC_POSTER_UNAVAILABLE',
+      httpStatus: observation.posterStatus ?? 0,
+    }
+  }
+  if (
+    observation.descriptorStatus === undefined
+    || observation.descriptorStatus < 200
+    || observation.descriptorStatus >= 300
+  ) {
+    return {
+      kind: 'failed',
+      errorCode: 'PUBLIC_DESCRIPTOR_UNAVAILABLE',
+      httpStatus: observation.descriptorStatus ?? 0,
+    }
+  }
+  return { kind: 'ok' }
 }
 
 async function responseBody(response: Response): Promise<unknown> {

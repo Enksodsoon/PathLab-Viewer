@@ -66,6 +66,20 @@ def test_admin_session_requires_valid_password(tmp_path: Path) -> None:
         assert response.status_code == 401
 
 
+def test_authenticated_session_can_refresh_its_csrf_token(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        assert _has_error(
+            client.get("/api/v1/auth/session"),
+            401,
+            "AUTH_REQUIRED",
+        )
+        csrf = _login(client)
+        refreshed = client.get("/api/v1/auth/session")
+        assert refreshed.status_code == 200
+        assert refreshed.json() == {"csrfToken": csrf}
+        assert refreshed.headers["cache-control"] == "no-store"
+
+
 def test_password_route_handlers_are_synchronous(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         for path in ("/api/v1/auth/password", "/api/v1/auth/password/recover"):
