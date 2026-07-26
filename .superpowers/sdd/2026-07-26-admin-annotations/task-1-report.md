@@ -136,3 +136,75 @@ configuration deprecation warnings.
 - Browser/frontend integration, concurrency benchmarking, 25,000-item
   performance certification, GitHub delivery, and OCI rollout are explicitly
   later tasks and were not claimed here.
+
+## Fix round 1
+
+### Status
+
+DONE
+
+Implementation commit: `d6f8f53bafc053e9a5bbde5b3ff9e59040751323`
+
+### Corrections
+
+- Every annotation mutation now acquires the database write lock before
+  reloading and rechecking `baseVersion`. SQLite uses `BEGIN IMMEDIATE`; other
+  SQLAlchemy dialects use a row-level `SELECT ... FOR UPDATE`.
+- Batch/create/update/delete/restore, historical revision restore, import, and
+  layer create/update/delete all use the shared serialized mutation boundary.
+  A concurrent loser returns stable `409 ANNOTATION_CONFLICT` with the current
+  slide version.
+- Historical revision restore checks the active annotation limit before
+  reviving a tombstoned item.
+- Style and layer inputs use strict finite numeric, integer, and boolean
+  scalars, so coercible JSON strings are rejected.
+- Layer names are normalized and whitespace-only names are rejected across
+  direct mutations and imports.
+- GeoJSON polygons with interior rings are rejected as
+  `ANNOTATION_IMPORT_INVALID` instead of silently discarding every ring after
+  the exterior ring.
+
+### TDD RED evidence
+
+Before production changes, this focused command failed all four new
+regressions:
+
+`python.exe -m pytest tests/backend/test_annotations.py::test_concurrent_batches_with_the_same_base_version_allow_one_commit tests/backend/test_annotations.py::test_style_and_layer_mutations_reject_coercible_scalars_and_blank_names tests/backend/test_annotations.py::test_historical_revision_restore_enforces_the_active_annotation_limit tests/backend/test_annotations.py::test_geojson_import_rejects_polygon_interior_rings_before_commit -q`
+
+Observed failures:
+
+- Both real SQLite/WAL sessions committed from `baseVersion=2`.
+- A layer mutation with string `sortOrder` returned `201`.
+- Historical revision restore exceeded the active limit and returned `200`.
+- A GeoJSON polygon with an interior ring imported successfully and returned
+  `200`.
+
+### GREEN and final verification evidence
+
+Interpreter:
+
+`C:\Users\enkso\.cache\pathlab-viewer-py312\Scripts\python.exe`
+
+Commands and results:
+
+- The four-test focused RED command above: 4 passed.
+- `python.exe -m pytest tests/backend/test_annotations.py -q`
+  - 13 passed.
+- The real concurrent SQLite/WAL regression repeated 10 consecutive times:
+  all 10 passed.
+- `python.exe -m pytest -o addopts='' tests/backend -q`
+  - 360 passed, 2 intentional skips.
+- `python.exe -m ruff check server tests migrations`
+  - `All checks passed!`
+- `python.exe -m mypy server/wsi_viewer`
+  - `Success: no issues found in 24 source files`
+- `git diff --check`
+  - Exit 0.
+
+### Concerns
+
+- No functional concern remains within fix round 1.
+- The race test proves one winner and one stable conflict under real SQLite
+  WAL concurrency, but it is not a sustained write-contention benchmark.
+- No push, merge, PR, browser/frontend work, OCI deployment, or live
+  acceptance was performed or claimed.
