@@ -29,7 +29,7 @@ export function ThemeControl() {
             type="radio"
             value={value}
           />
-          <label htmlFor={`theme-${value}`} title={`${label} theme`}>
+          <label htmlFor={`theme-${value}`}>
             <Icon aria-hidden="true" size={16} weight={preference === value ? 'fill' : 'regular'} />
             <span>{label}</span>
           </label>

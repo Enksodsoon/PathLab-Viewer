@@ -107,27 +107,20 @@
   z-index:auto;
   width:auto;
   margin:0;
-  gap:2px;
-  padding:4px;
+  padding:3px;
   border:1px solid var(--solace-border);
-  border-radius:14px;
-  background-color:color-mix(in srgb,var(--solace-field) 94%,transparent);
-  background-image:radial-gradient(circle,color-mix(in srgb,var(--solace-muted) 20%,transparent) 1px,transparent 1px);
-  background-size:8px 8px;
-  box-shadow:
-    inset 0 1px color-mix(in srgb,var(--solace-surface) 72%,transparent),
-    0 8px 22px color-mix(in srgb,var(--solace-ink) 7%,transparent);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--solace-field) 92%,transparent);
+  box-shadow:none;
 }
 
 .auth-panel-header .theme-option label {
-  min-width:36px;
+  min-width:40px;
   min-height:36px;
-  padding:0;
-  border:1px solid transparent;
-  border-radius:10px;
+  padding:0 10px;
+  border:0;
+  border-radius:7px;
   color:var(--solace-muted);
-  background:color-mix(in srgb,var(--solace-field) 72%,transparent);
-  backdrop-filter:blur(3px);
 }
 
 .auth-panel-header .theme-option label span {
@@ -141,11 +134,8 @@
 
 .auth-panel-header .theme-option input:checked + label {
   color:var(--solace-ink);
-  border-color:color-mix(in srgb,var(--solace-accent) 46%,var(--solace-border));
   background:var(--solace-accent-soft);
-  box-shadow:
-    0 1px 0 color-mix(in srgb,var(--solace-surface) 80%,transparent) inset,
-    0 4px 11px color-mix(in srgb,var(--solace-accent) 18%,transparent);
+  box-shadow:none;
 }
 
 .auth-panel-header .theme-option input:focus-visible + label {
@@ -617,7 +607,7 @@
 
   .auth-panel-header .theme-option label {
     min-width:36px;
-    padding:0;
+    padding:0 8px;
   }
 
   .auth-form-wrap {
