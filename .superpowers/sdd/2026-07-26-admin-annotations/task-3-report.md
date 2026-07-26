@@ -167,3 +167,109 @@ pnpm --dir apps/web exec vitest run `
   was claimed.
 - Task 4 still owns full backend/migration/Compose/load/security/delivery verification,
   branch push, and protected pull-request workflow.
+
+## Fix Round 1: durability, complete canvas tools, and stability
+
+Fix Round 1 is complete in
+`859694ffa6e267e0a80ef43a2093e1d4c62c099e`
+(`fix: harden admin annotation workspace`).
+
+### Critical durability and conflict corrections
+
+- Draft snapshots now include both queued and in-flight mutations. Dirty drafts are
+  serialized through one write pipeline, persisted again during unmount, and removed
+  only after the matching server acknowledgement or an explicit reload discard.
+- Draft write, acknowledgement, and discard operations cannot overtake one another.
+  Cross-slide lifecycle refs are reset before a new workspace initializes.
+- Save-as-duplicate now rebases its replacement batch on the server-provided
+  `currentVersion`; an empty duplicate result also returns that server version.
+- The conflict surface is an `aria-modal` focus-trapped alert dialog and restores the
+  previously focused control after reload or duplicate resolution.
+
+### Complete annotation behavior
+
+- Brush add/subtract now performs the real worker-backed polygon union/difference
+  against the selected closed ROI, preserving the existing atomic preflight and
+  single-batch semantics.
+- Visible annotation titles/classifications and text callouts render on the canvas.
+  Selected geometry exposes real vertex handles and four resize handles; edits are
+  committed in image-pixel coordinates.
+- `pointercancel` clears construction and handle state without creating or mutating an
+  annotation.
+- Locked layers are immutable across create, edit, duplicate, paste, Boolean, brush,
+  delete, and restore paths, and can never become the active drawing layer.
+
+### Bounded rendering and workflow stability
+
+- The spatial index is loaded once and updated incrementally as records change.
+  Viewer animation no longer rebuilds the index or clears/remounts every annotation
+  group.
+- At the 25,000-object ceiling, density mode mounts no individual shapes, density
+  markers remain bounded to 512, normal rendering remains capped at 2,000 mounted
+  records, and the object register renders 200 rows at a time with an accessible
+  continuation.
+- Layer writes are serialized. Reordering normalizes unique `sortOrder` values and
+  advances the returned server version between updates. Opacity changes stay local
+  during the gesture and commit once.
+- Imports reject files over 8 MiB before calling `File.text()`, show a bounded preview,
+  and require confirmation. Exports flush pending edits first. Revision history is
+  bounded to 25 entries and requires an explicit preview selection before restore.
+- Mobile inspector and conflict surfaces trap focus and restore it on close. Browser
+  auditing verifies every visible mobile annotation control target at the 44 CSS px
+  contract, allowing only sub-pixel browser layout rounding.
+- Image coordinates were verified through a rotated viewport transform, and mobile
+  browser execution now creates an annotation from an explicit touch pointer.
+
+### Fix-round TDD evidence
+
+The focused regression command was:
+
+```powershell
+pnpm --dir apps/web exec vitest run `
+  src/test/annotation-autosave.test.ts `
+  src/test/annotation-store.test.ts `
+  src/test/annotation-measurement-spatial.test.ts `
+  src/test/annotation-overlay.test.ts `
+  src/test/annotation-workspace-stability.test.tsx
+```
+
+- RED exposed missing in-flight recovery, stale duplicate conflict bases, placeholder
+  brush behavior, missing canvas labels/handles, 2,000 shapes mounted in density mode,
+  repeated overlay/index rebuilds, and all nine workspace stability regressions.
+- The first bounded resume run was 40/46, with the remaining failures confined to
+  handle assertion shape and deterministic browser-event harness details.
+- GREEN: 5/5 files and 46/46 tests.
+- A separate locked-layer regression was RED at 17/18 because duplicate could still
+  create on a locked layer; it is GREEN at 18/18 after the store-level immutability
+  guard.
+- The mobile browser audit was RED on two 32×44 layer-order controls; after the
+  responsive grid correction it passed with all visible targets at the 44 px
+  contract.
+
+### Final verification after Fix Round 1
+
+- `pnpm --dir apps/web test`
+  - PASS: 25 files, 168 tests.
+- `pnpm --dir apps/web lint`
+  - PASS with `--max-warnings 0`.
+- `pnpm --dir apps/web exec tsc --noEmit`
+  - PASS.
+- `pnpm --dir apps/web build`
+  - PASS: 4,661 modules transformed.
+  - Lazy annotation JavaScript: 115.62 kB raw / 34.31 kB gzip.
+  - Lazy annotation CSS: 17.18 kB raw / 3.66 kB gzip.
+  - Boolean worker: 27.52 kB raw.
+  - `ViewerPage`: 6.23 kB raw / 2.40 kB gzip.
+- `PLAYWRIGHT_PORT=5192 pnpm --dir apps/web exec playwright test
+  e2e/annotation-responsive.spec.ts`
+  - PASS: 16/16 across Chromium, Firefox, WebKit, and mobile Chromium.
+  - Includes private create/save, explicit touch creation, exhaustive mobile target
+    sizing, modal focus behavior, theme integration, and public-route zero annotation
+    UI/API/payload/lazy-module behavior.
+- `pnpm audit --prod --audit-level high`
+  - PASS at the requested threshold: zero high and zero critical findings.
+  - The same three pre-existing moderate advisories remain.
+- `git diff --check` and `git diff --cached --check`
+  - PASS; only Windows LF-to-CRLF checkout notices were emitted.
+
+No push, pull request, merge, deployment, or infrastructure change was performed.
