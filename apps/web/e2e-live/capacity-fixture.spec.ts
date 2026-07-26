@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import {
   CapacityHttpError,
   csrfJson,
+  publicAvailabilityDecision,
   signIn,
   uploadSyntheticSlide,
   waitForSlideConversion,
@@ -94,32 +95,60 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
     }
     const published = publication.body as { publicId?: unknown }
     if (typeof published.publicId !== 'string') {
-      throw new Error('Synthetic fixture publication response was incomplete')
+      throw new CapacityHttpError(
+        'Synthetic fixture publication response was incomplete',
+        0,
+        'PUBLICATION_RESPONSE_INCOMPLETE',
+      )
     }
 
-    const publicResult = await page.evaluate(async (publicId) => {
-      const metadataResponse = await fetch(
-        `/api/v1/public/slides/${encodeURIComponent(publicId)}`,
-      )
-      if (!metadataResponse.ok) return { ok: false }
-      const metadata = await metadataResponse.json() as {
-        thumbnailUrl?: unknown
-        tileSource?: unknown
+    stage = 'public-availability'
+    writeDiagnostic(prepareDiagnosticPath, stage)
+    const publicObservation = await page.evaluate(async (publicId) => {
+      let metadataResponse: Response
+      try {
+        metadataResponse = await fetch(
+          `/api/v1/public/slides/${encodeURIComponent(publicId)}`,
+        )
+      } catch {
+        return { metadataBody: null, metadataStatus: 0 }
       }
+      let metadataBody: unknown = null
+      try {
+        metadataBody = await metadataResponse.json()
+      } catch {
+        // Invalid metadata is classified outside the browser context.
+      }
+      const metadata = typeof metadataBody === 'object' && metadataBody !== null
+        ? metadataBody as { thumbnailUrl?: unknown; tileSource?: unknown }
+        : undefined
       if (
-        typeof metadata.thumbnailUrl !== 'string'
-        || typeof metadata.tileSource !== 'string'
+        typeof metadata?.thumbnailUrl !== 'string'
+        || typeof metadata?.tileSource !== 'string'
       ) {
-        return { ok: false }
+        return {
+          metadataBody,
+          metadataStatus: metadataResponse.status,
+        }
       }
       const [poster, descriptor] = await Promise.all([
-        fetch(metadata.thumbnailUrl),
-        fetch(metadata.tileSource),
+        fetch(metadata.thumbnailUrl).catch(() => null),
+        fetch(metadata.tileSource).catch(() => null),
       ])
-      return { ok: poster.ok && descriptor.ok }
+      return {
+        descriptorStatus: descriptor?.status ?? 0,
+        metadataBody,
+        metadataStatus: metadataResponse.status,
+        posterStatus: poster?.status ?? 0,
+      }
     }, published.publicId)
-    if (!publicResult.ok) {
-      throw new Error('Synthetic public poster or DZI was unavailable')
+    const availability = publicAvailabilityDecision(publicObservation)
+    if (availability.kind === 'failed') {
+      throw new CapacityHttpError(
+        'Synthetic public fixture was unavailable',
+        availability.httpStatus,
+        availability.errorCode,
+      )
     }
     writeRecord({ slideId, publicId: published.publicId })
   } catch (error) {
