@@ -5,7 +5,8 @@ import {
   type AnnotationAutosaveTransport,
 } from '../annotations/autosave'
 import { AnnotationApiError } from '../annotations/api'
-import type { AnnotationMutation } from '../annotations/types'
+import { createAnnotationStore } from '../annotations/store'
+import type { AnnotationBatchResult, AnnotationMutation } from '../annotations/types'
 
 const mutation = (index: number): AnnotationMutation => ({
   type: 'delete',
@@ -273,5 +274,74 @@ describe('annotation autosave', () => {
     await flushing
     expect(acknowledgements).toHaveBeenCalledOnce()
     expect(autosave.snapshot().dirtyCount).toBe(0)
+  })
+
+  it('finishes create-delete across two acknowledgements without resurrection or dirty state', async () => {
+    const first = deferred<AnnotationBatchResult>()
+    const mutationIds = ['create-mutation', 'delete-mutation']
+    const store = createAnnotationStore({ slideId: 'slide-1' })
+    store.load({ version: 0, layers: [], annotations: [] })
+    const save = vi.fn(async (
+      mutationId: string,
+      _baseVersion: number,
+      operations: AnnotationMutation[],
+    ): Promise<AnnotationBatchResult> => {
+      if (save.mock.calls.length === 1) return first.promise
+      return {
+        mutationId,
+        version: 2,
+        results: operations.map((operation) => ({
+          id: operation.type === 'create' ? operation.item.id : operation.id,
+          operation: operation.type,
+          version: 2,
+          deleted: operation.type === 'delete',
+        })),
+        purged: 0,
+      }
+    })
+    const autosave = new AnnotationAutosave({
+      transport: { save },
+      baseVersion: 0,
+      idFactory: () => mutationIds.shift() ?? 'unexpected',
+      ...store.autosaveHooks(),
+      onChange: (snapshot) => store.setAutosaveStatus(snapshot.status),
+    })
+    store.create({
+      id: 'new-a',
+      layerId: '00000000-0000-4000-8000-000000000010',
+      geometry: { type: 'point', x: 1, y: 1 },
+      style: {
+        strokeColor: '#112233',
+        fillColor: '#445566',
+        strokeWidth: 2,
+        opacity: 0.4,
+        labelVisible: true,
+      },
+      metadata: { title: '', classification: '', tags: [], notes: '' },
+    })
+    autosave.enqueue(store.peekPendingMutations()[0])
+    const flushing = autosave.flush()
+    expect(save).toHaveBeenCalledOnce()
+
+    store.delete(['new-a'])
+    autosave.enqueue({ type: 'delete', id: 'new-a', version: 1 })
+    first.resolve({
+      mutationId: 'create-mutation',
+      version: 1,
+      results: [{ id: 'new-a', operation: 'create', version: 1, deleted: false }],
+      purged: 0,
+    })
+    await flushing
+
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(store.getState().annotations.has('new-a')).toBe(false)
+    expect(store.getState().pendingMutations).toEqual([])
+    expect(store.getState().autosaveStatus).toBe('saved')
+    expect(autosave.snapshot()).toMatchObject({
+      status: 'saved',
+      dirtyCount: 0,
+      error: null,
+      version: 2,
+    })
   })
 })

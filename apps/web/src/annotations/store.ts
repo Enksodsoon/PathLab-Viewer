@@ -46,6 +46,7 @@ import {
   ANNOTATION_SCHEMA,
   MAX_ACTIVE_ANNOTATIONS,
   MAX_ANNOTATION_LAYERS,
+  MAX_BATCH_OPERATIONS,
   MAX_VERTICES_PER_SHAPE,
 } from './types'
 
@@ -669,6 +670,13 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         operation,
         sources.map((record) => record.geometry as PolygonGeometry),
       )
+      if (results.some((geometry) => geometryVertexCount(geometry) > MAX_VERTICES_PER_SHAPE)) {
+        throw new RangeError('Boolean results cannot exceed 8,192 vertices per shape')
+      }
+      const deletedSourceCount = results.length > 0 ? sources.length - 1 : sources.length
+      if (results.length + deletedSourceCount > MAX_BATCH_OPERATIONS) {
+        throw new RangeError('Boolean result exceeds the 50-operation transaction limit')
+      }
       const resultingActive = activeCount - sources.length + results.length
       if (resultingActive > maxAnnotations) {
         throw new RangeError('Active annotation limit exceeded')
@@ -951,7 +959,12 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         if (!result || result.operation !== entry.mutation.type) {
           throw new Error(`Annotation acknowledgement is missing ${target}`)
         }
-        if (!internal.annotations.has(target) && !hasNewerMutation(target)) {
+        const isMissingTerminalDelete = entry.mutation.type === 'delete' && result.deleted
+        if (
+          !internal.annotations.has(target)
+          && !hasNewerMutation(target)
+          && !isMissingTerminalDelete
+        ) {
           throw new Error(`Annotation acknowledgement target ${target} is missing locally`)
         }
       }

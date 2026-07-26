@@ -265,8 +265,9 @@ interface PreviewValidation {
   point(value: unknown, path: string, bounds: { width: number; height: number }): boolean
 }
 
-const HEX_COLOR = /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i
-const UNSAFE_MARKUP = /[<>]/
+const HEX_COLOR = /^#[0-9a-f]{6}$/i
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const HTML_TAG = /<\s*\/?\s*[a-zA-Z][^>]*>/
 
 function validationCollector(errors: string[]): PreviewValidation {
   const seen = new Set<string>()
@@ -304,7 +305,7 @@ function validPlainText(
   return (
     typeof value === 'string'
     && value.length <= maxLength
-    && !UNSAFE_MARKUP.test(value)
+    && !HTML_TAG.test(value)
     && !Array.from(value).some((character) => {
       const codePoint = character.codePointAt(0) ?? 0
       return (
@@ -318,36 +319,81 @@ function validPlainText(
   )
 }
 
+function validNonblankPlainText(value: unknown, maxLength: number): value is string {
+  return validPlainText(value, maxLength) && value.trim().length > 0
+}
+
+function validateExactKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  path: string,
+  validation: PreviewValidation,
+): void {
+  const allowedKeys = new Set(allowed)
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) {
+      validation.add(`${path} contains unknown extra field ${key}`)
+    }
+  }
+}
+
+function validUuid(value: unknown): value is string {
+  return typeof value === 'string' && UUID.test(value)
+}
+
 function validateStyle(value: unknown, path: string, validation: PreviewValidation): void {
+  if (value === undefined) return
+  if (!isObject(value)) {
+    validation.add(`${path} has invalid annotation style values`)
+    return
+  }
+  validateExactKeys(
+    value,
+    ['strokeColor', 'fillColor', 'strokeWidth', 'opacity', 'labelVisible'],
+    path,
+    validation,
+  )
   if (
-    !isObject(value)
-    || typeof value.strokeColor !== 'string'
-    || !HEX_COLOR.test(value.strokeColor)
-    || typeof value.fillColor !== 'string'
-    || !HEX_COLOR.test(value.fillColor)
-    || typeof value.strokeWidth !== 'number'
-    || !Number.isFinite(value.strokeWidth)
-    || value.strokeWidth < 0.25
-    || value.strokeWidth > 64
-    || typeof value.opacity !== 'number'
-    || !Number.isFinite(value.opacity)
-    || value.opacity < 0
-    || value.opacity > 1
-    || typeof value.labelVisible !== 'boolean'
+    (value.strokeColor !== undefined
+      && (typeof value.strokeColor !== 'string' || !HEX_COLOR.test(value.strokeColor)))
+    || (value.fillColor !== undefined
+      && (typeof value.fillColor !== 'string' || !HEX_COLOR.test(value.fillColor)))
+    || (value.strokeWidth !== undefined
+      && (
+        typeof value.strokeWidth !== 'number'
+        || !Number.isFinite(value.strokeWidth)
+        || value.strokeWidth < 0.25
+        || value.strokeWidth > 64
+      ))
+    || (value.opacity !== undefined
+      && (
+        typeof value.opacity !== 'number'
+        || !Number.isFinite(value.opacity)
+        || value.opacity < 0
+        || value.opacity > 1
+      ))
+    || (value.labelVisible !== undefined && typeof value.labelVisible !== 'boolean')
   ) {
     validation.add(`${path} has invalid annotation style values`)
   }
 }
 
 function validateMetadata(value: unknown, path: string, validation: PreviewValidation): void {
+  if (value === undefined) return
+  if (!isObject(value)) {
+    validation.add(`${path} has invalid or unsafe annotation metadata`)
+    return
+  }
+  validateExactKeys(value, ['title', 'classification', 'tags', 'notes'], path, validation)
   if (
-    !isObject(value)
-    || !validPlainText(value.title, 500)
-    || !validPlainText(value.classification, 200)
-    || !validPlainText(value.notes, 10_000)
-    || !Array.isArray(value.tags)
-    || value.tags.length > 100
-    || value.tags.some((tag) => !validPlainText(tag, 100))
+    (value.title !== undefined && !validPlainText(value.title, 200))
+    || (value.classification !== undefined && !validPlainText(value.classification, 120))
+    || (value.notes !== undefined && !validPlainText(value.notes, 4_000))
+    || (value.tags !== undefined && (
+      !Array.isArray(value.tags)
+      || value.tags.length > 50
+      || value.tags.some((tag) => !validNonblankPlainText(tag, 80))
+    ))
   ) {
     validation.add(`${path} has invalid or unsafe annotation metadata`)
   }
@@ -364,6 +410,19 @@ function validateGeometry(
     validation.add(`${path} is not a supported annotation geometry`)
     return 0
   }
+  const geometryKeys: Record<string, readonly string[]> = {
+    point: ['type', 'x', 'y'],
+    text: ['type', 'x', 'y', 'text'],
+    polyline: ['type', 'points'],
+    angle: ['type', 'points'],
+    polygon: ['type', 'points'],
+    rectangle: ['type', 'x', 'y', 'width', 'height'],
+    ellipse: ['type', 'cx', 'cy', 'rx', 'ry'],
+  }
+  const allowedGeometryKeys = geometryKeys[value.type]
+  if (allowedGeometryKeys) {
+    validateExactKeys(value, allowedGeometryKeys, path, validation)
+  }
 
   let vertexCount = 0
   const validatePoints = (candidate: unknown, minimum: number, exact?: number): void => {
@@ -376,6 +435,9 @@ function validateGeometry(
       validation.add(`${path} has an invalid number of vertices`)
     }
     for (let index = 0; index < candidate.length; index += 1) {
+      if (isObject(candidate[index])) {
+        validateExactKeys(candidate[index], ['x', 'y'], `${path}.points[${index}]`, validation)
+      }
       validation.point(candidate[index], `${path}.points[${index}]`, bounds)
     }
   }
@@ -511,9 +573,26 @@ function validatePathLabPreview(
   >> & { bounds?: { width: number; height: number } },
   validation: PreviewValidation,
 ): { annotationCount: number; vertexCount: number } {
+  validateExactKeys(source, ['schema', 'slide', 'layers', 'annotations'], 'document', validation)
   if (!isObject(source.slide) || !Array.isArray(source.layers) || !Array.isArray(source.annotations)) {
     validation.add('Invalid PathLab annotation document')
     return { annotationCount: 0, vertexCount: 0 }
+  }
+  validateExactKeys(
+    source.slide,
+    ['id', 'width', 'height', 'annotationVersion'],
+    'slide',
+    validation,
+  )
+  const annotationVersion = source.slide.annotationVersion
+  if (
+    typeof source.slide.id !== 'string'
+    || !validBounds(source.slide)
+    || typeof annotationVersion !== 'number'
+    || !Number.isSafeInteger(annotationVersion)
+    || annotationVersion < 0
+  ) {
+    validation.add('PathLab slide fields are invalid')
   }
   const annotationCount = source.annotations.length
   if (annotationCount > limits.maxAnnotations) {
@@ -534,15 +613,22 @@ function validatePathLabPreview(
     : { width: 0, height: 0 }
   const layerIds = new Set<string>()
   source.layers.forEach((layer, index) => {
+    if (isObject(layer)) {
+      validateExactKeys(
+        layer,
+        ['id', 'name', 'sortOrder', 'visible', 'locked', 'opacity'],
+        `layers[${index}]`,
+        validation,
+      )
+      if (!validUuid(layer.id)) validation.add(`layers[${index}].id must be a UUID`)
+    }
     if (
       !isObject(layer)
-      || typeof layer.id !== 'string'
-      || layer.id.length === 0
-      || typeof layer.name !== 'string'
-      || layer.name.length === 0
-      || layer.name.length > 200
+      || !validUuid(layer.id)
+      || !validNonblankPlainText(layer.name, 160)
       || typeof layer.sortOrder !== 'number'
       || !Number.isSafeInteger(layer.sortOrder)
+      || layer.sortOrder < 0
       || typeof layer.visible !== 'boolean'
       || typeof layer.locked !== 'boolean'
       || typeof layer.opacity !== 'number'
@@ -565,12 +651,21 @@ function validatePathLabPreview(
       validation.add(`${path} is invalid`)
       return
     }
-    if (typeof annotation.id !== 'string' || annotation.id.length === 0) {
-      validation.add(`${path}.id is invalid`)
+    validateExactKeys(
+      annotation,
+      ['id', 'layerId', 'geometry', 'style', 'metadata'],
+      path,
+      validation,
+    )
+    if (!validUuid(annotation.id)) {
+      validation.add(`${path}.id must be a UUID`)
     } else if (annotationIds.has(annotation.id)) {
       validation.add(`${path}.id is duplicated`)
     } else {
       annotationIds.add(annotation.id)
+    }
+    if (!validUuid(annotation.layerId)) {
+      validation.add(`${path}.layerId must be a UUID`)
     }
     if (typeof annotation.layerId !== 'string' || !layerIds.has(annotation.layerId)) {
       validation.add(`${path}.layerId does not reference an imported layer`)
@@ -594,7 +689,7 @@ function geoJsonPositionCount(
   bounds: { width: number; height: number } | undefined,
   validation: PreviewValidation,
 ): number {
-  if (!Array.isArray(value) || value.length < 2) {
+  if (!Array.isArray(value) || value.length !== 2) {
     validation.add(`${path} must contain finite x/y coordinates`)
     return 0
   }
@@ -624,6 +719,7 @@ function validateGeoJsonPreview(
   >> & { bounds?: { width: number; height: number } },
   validation: PreviewValidation,
 ): { annotationCount: number; vertexCount: number } {
+  validateExactKeys(source, ['type', 'features'], 'GeoJSON document', validation)
   if (!Array.isArray(source.features)) {
     validation.add('GeoJSON import requires a FeatureCollection')
     return { annotationCount: 0, vertexCount: 0 }
@@ -646,10 +742,34 @@ function validateGeoJsonPreview(
       validation.add(`${path} is not a valid GeoJSON feature`)
       return
     }
+    validateExactKeys(feature, ['type', 'id', 'geometry', 'properties'], path, validation)
+    if (
+      feature.id !== undefined
+      && feature.id !== null
+      && typeof feature.id !== 'string'
+      && (typeof feature.id !== 'number' || !Number.isFinite(feature.id))
+    ) {
+      validation.add(`${path}.id must be a string, number, or null`)
+    }
+    if (!isObject(feature.properties)) {
+      validation.add(`${path}.properties is required`)
+    }
     const properties = isObject(feature.properties) ? feature.properties : {}
-    if (typeof properties.layerName === 'string') layerNames.add(properties.layerName)
+    validateExactKeys(
+      properties,
+      ['name', 'classification', 'tags', 'notes', 'layerName', 'style', 'text'],
+      `${path}.properties`,
+      validation,
+    )
+    const layerName = properties.layerName ?? 'Imported annotations'
+    if (!validNonblankPlainText(layerName, 160)) {
+      validation.add(`${path}.properties.layerName is invalid`)
+    } else {
+      layerNames.add(layerName)
+    }
     let shapeVertices = 0
     const geometry = feature.geometry
+    validateExactKeys(geometry, ['type', 'coordinates'], `${path}.geometry`, validation)
     if (geometry.type === 'Point') {
       shapeVertices += geoJsonPositionCount(
         geometry.coordinates,
@@ -674,9 +794,20 @@ function validateGeoJsonPreview(
       if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length === 0) {
         validation.add(`${path}.geometry requires a polygon ring`)
       } else {
+        if (geometry.coordinates.length !== 1) {
+          validation.add(`${path}.geometry must contain exactly one ring; interior rings are unsupported`)
+        }
         geometry.coordinates.forEach((ring, ringIndex) => {
-          if (!Array.isArray(ring) || ring.length < 4) {
-            validation.add(`${path}.geometry ring ${ringIndex} requires at least 4 positions`)
+          if (
+            !Array.isArray(ring)
+            || ring.length < 4
+            || ring.length > limits.maxVerticesPerShape + 1
+          ) {
+            validation.add(
+              `${path}.geometry ring ${ringIndex} requires 4 to ${(
+                limits.maxVerticesPerShape + 1
+              ).toLocaleString('en-US')} positions`,
+            )
             return
           }
           ring.forEach((position, positionIndex) => {
@@ -721,8 +852,37 @@ function validateGeoJsonPreview(
       tags: properties.tags ?? [],
       notes: properties.notes ?? '',
     }, `${path}.properties metadata`, validation)
-    if (properties.text !== undefined && !validPlainText(properties.text, 2_000)) {
+    if (
+      properties.classification !== undefined
+      && properties.classification !== null
+    ) {
+      if (!isObject(properties.classification)) {
+        validation.add(`${path}.properties.classification is invalid`)
+      } else {
+        validateExactKeys(
+          properties.classification,
+          ['name', 'color'],
+          `${path}.properties.classification`,
+          validation,
+        )
+        if (
+          !validNonblankPlainText(properties.classification.name, 120)
+          || typeof properties.classification.color !== 'string'
+          || !HEX_COLOR.test(properties.classification.color)
+        ) {
+          validation.add(`${path}.properties.classification has invalid name or color`)
+        }
+      }
+    }
+    if (
+      properties.text !== undefined
+      && properties.text !== null
+      && !validPlainText(properties.text, 2_000)
+    ) {
       validation.add(`${path}.properties.text has invalid or unsafe metadata`)
+    }
+    if (geometry.type === 'Point' && properties.text === '') {
+      validation.add(`${path}.properties.text must be non-empty for a text point`)
     }
   })
   if (layerNames.size > limits.maxLayers) {

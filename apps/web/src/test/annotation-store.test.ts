@@ -249,6 +249,25 @@ describe('framework-neutral annotation editing store', () => {
       id: 'new-a',
       version: 1,
     }])
+    const deletion = store.peekPendingMutations()
+    store.beginSave('delete-1', deletion)
+    expect(() => store.acknowledgeSave({
+      mutationId: 'delete-1',
+      operations: deletion,
+      result: {
+        mutationId: 'delete-1',
+        version: 2,
+        results: [{ id: 'new-a', operation: 'delete', version: 2, deleted: true }],
+        purged: 0,
+      },
+    })).not.toThrow()
+    expect(store.getState()).toMatchObject({
+      version: 2,
+      pendingMutations: [],
+      autosaveStatus: 'idle',
+      overlayError: null,
+    })
+    expect(store.getState().annotations.has('new-a')).toBe(false)
   })
 
   it('keeps a newer optimistic restore active when the earlier delete is acknowledged', () => {
@@ -394,5 +413,59 @@ describe('framework-neutral annotation editing store', () => {
     )
     expect(limited.getState().annotations).toEqual(before.annotations)
     expect(limited.getState().pendingMutations).toEqual([])
+  })
+
+  it('rejects oversized boolean results and over-50 mutation transactions atomically', async () => {
+    const first = {
+      ...structuredClone(annotation),
+      id: 'poly-1',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }],
+      },
+    }
+    const second = {
+      ...structuredClone(first),
+      id: 'poly-2',
+      geometry: {
+        type: 'polygon' as const,
+        points: [{ x: 4, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 10 }, { x: 4, y: 10 }],
+      },
+    }
+    const assertAtomicRejection = async (
+      results: Array<typeof first.geometry>,
+      message: RegExp,
+    ) => {
+      let id = 0
+      const store = createAnnotationStore({
+        slideId: 'slide-1',
+        maxAnnotations: 100,
+        booleanClient: { run: vi.fn(async () => results) },
+        idFactory: () => `generated-${id++}`,
+      })
+      store.load({ version: 1, layers: [layer], annotations: [first, second] })
+      const before = store.getState()
+
+      await expect(store.boolean('split', ['poly-1', 'poly-2'])).rejects.toThrow(message)
+      expect(store.getState().annotations).toEqual(before.annotations)
+      expect(store.getState().pendingMutations).toEqual([])
+      expect(store.canUndo()).toBe(false)
+      expect(store.canRedo()).toBe(false)
+    }
+
+    const fiftyFragments = Array.from({ length: 50 }, (_, index) => ({
+      type: 'polygon' as const,
+      points: first.geometry.points.map((point) => ({ ...point, x: point.x + index * 20 })),
+    }))
+    await assertAtomicRejection(fiftyFragments, /50|operation|transaction/i)
+
+    const oversized = [{
+      type: 'polygon' as const,
+      points: Array.from({ length: 8_193 }, (_, index) => ({
+        x: index % 100,
+        y: Math.floor(index / 100),
+      })),
+    }]
+    await assertAtomicRejection(oversized, /8,192|vertices/i)
   })
 })
