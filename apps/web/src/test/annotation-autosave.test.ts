@@ -214,6 +214,41 @@ describe('annotation autosave', () => {
     expect(autosave.snapshot()).toMatchObject({ dirtyCount: 0, version: 3 })
   })
 
+  it('rebases after a manual reload and ignores an older in-flight acknowledgement', async () => {
+    const pending = deferred<AnnotationBatchResult>()
+    const save = vi.fn(() => pending.promise)
+    const acknowledged = vi.fn()
+    const autosave = new AnnotationAutosave({
+      transport: { save },
+      baseVersion: 2,
+      onAcknowledged: acknowledged,
+    })
+    autosave.enqueue(mutation(1))
+    const flushing = autosave.flush()
+    expect(save).toHaveBeenCalledOnce()
+
+    autosave.reset(8)
+    expect(autosave.snapshot()).toMatchObject({
+      status: 'idle',
+      dirtyCount: 0,
+      version: 8,
+    })
+    pending.resolve({
+      mutationId: 'obsolete',
+      version: 3,
+      results: [],
+      purged: 0,
+    })
+    await flushing
+
+    expect(acknowledged).not.toHaveBeenCalled()
+    expect(autosave.snapshot()).toMatchObject({
+      status: 'idle',
+      dirtyCount: 0,
+      version: 8,
+    })
+  })
+
   it('counts the complete request envelope and rejects a single oversized operation locally', async () => {
     const save = vi.fn()
     const autosave = new AnnotationAutosave({

@@ -193,6 +193,40 @@ it('keeps one viewer instance and opens the next slide in place', () => {
   expect(osdMock.viewer.open).toHaveBeenCalledWith('/tiles/second/slide.dzi')
 })
 
+it('cleans optional attachments before source replacement and viewer destruction', () => {
+  const events: string[] = []
+  const attach = vi.fn((viewer: unknown) => {
+    void viewer
+    events.push('attach')
+    return () => events.push('cleanup')
+  })
+  const view = render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/first/slide.dzi"
+      onReady={vi.fn()}
+      onViewerAttach={attach}
+    />,
+  )
+
+  expect(attach).toHaveBeenCalledWith(osdMock.viewer)
+  expect(events).toEqual(['attach'])
+
+  view.rerender(
+    <OpenSeadragonViewer
+      tileSource="/tiles/second/slide.dzi"
+      onReady={vi.fn()}
+      onViewerAttach={attach}
+    />,
+  )
+  expect(events).toEqual(['attach', 'cleanup', 'attach'])
+  expect(osdMock.viewer.open).toHaveBeenCalledWith('/tiles/second/slide.dzi')
+
+  view.unmount()
+  expect(events).toEqual(['attach', 'cleanup', 'attach', 'cleanup'])
+  expect(osdMock.viewer.destroy).toHaveBeenCalledOnce()
+  expect(attach.mock.calls[0][0]).toBe(osdMock.viewer)
+})
+
 it('shows an asynchronous loading error when opening fails', async () => {
   vi.useFakeTimers()
   renderViewer()
@@ -339,6 +373,8 @@ it('keeps the authenticated private-preview API branch intact', async () => {
         tileSource: '/api/v1/admin/slides/private-1/tiles/slide.dzi',
         thumbnailUrl: '/api/v1/admin/slides/private-1/thumbnail',
         metadata: { width: 2048, height: 1024, physicalSizeX: 0.5 },
+        annotationsEnabled: false,
+        annotationVersion: 0,
         createdAt: '2026-07-26T00:00:00Z',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
@@ -352,6 +388,103 @@ it('keeps the authenticated private-preview API branch intact', async () => {
     '/api/v1/admin/slides/private-1',
     { credentials: 'same-origin' },
   )
+})
+
+it('loads annotation code and APIs only for an enabled private admin slide', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const route = String(input)
+    if (route === '/api/v1/admin/slides/private-1') {
+      return new Response(JSON.stringify({
+        id: 'private-1',
+        publicId: '',
+        displayName: 'Private teaching slide',
+        filename: 'private-slide.ome.tiff',
+        sourceBytes: 1048576,
+        state: 'ready_private',
+        errorCode: null,
+        errorMessage: null,
+        tileSource: '/api/v1/admin/slides/private-1/tiles/slide.dzi',
+        thumbnailUrl: null,
+        metadata: {
+          width: 2048,
+          height: 1024,
+          physicalSizeX: 0.5,
+          physicalSizeY: 0.75,
+          physicalSizeUnit: 'MICROMETER',
+        },
+        annotationsEnabled: true,
+        annotationVersion: 0,
+        createdAt: '2026-07-26T00:00:00Z',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    if (route.endsWith('/manifest')) {
+      return new Response(JSON.stringify({
+        slideId: 'private-1',
+        version: 0,
+        bounds: { width: 2048, height: 1024 },
+        calibration: { x: 0.5, y: 0.75, unit: 'µm' },
+        activeCount: 0,
+        trashedCount: 0,
+        layers: [{
+          id: '11111111-1111-4111-8111-111111111111',
+          slideId: 'private-1',
+          name: 'Findings',
+          sortOrder: 0,
+          visible: true,
+          locked: false,
+          opacity: 1,
+          createdAt: '2026-07-26T00:00:00Z',
+          updatedAt: '2026-07-26T00:00:00Z',
+        }],
+        limits: {
+          activeAnnotations: 25000,
+          layers: 100,
+          verticesPerShape: 8192,
+          verticesPerImport: 250000,
+          batchOperations: 50,
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    if (route.includes('/items?')) {
+      return new Response(JSON.stringify({
+        items: [],
+        total: 0,
+        nextOffset: null,
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    throw new Error(`Unexpected fetch: ${route}`)
+  })
+
+  renderViewerPage('/admin/preview/private-1')
+
+  expect(await screen.findByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Point marker' })).toBeVisible()
+  expect(await screen.findByRole('button', { name: 'Findings' })).toBeVisible()
+  expect(fetch.mock.calls.some(([input]) => String(input).endsWith('/manifest'))).toBe(true)
+  expect(fetch.mock.calls.some(([input]) => String(input).includes('/items?'))).toBe(true)
+})
+
+it('keeps the public slide branch annotation-free even if unknown fields are present', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(JSON.stringify({
+      publicId: 'public-1',
+      displayName: 'HER2 control',
+      state: 'published',
+      tileSource: '/tiles/public-1/slide.dzi',
+      thumbnailUrl: null,
+      metadata: { width: 2048, height: 1024 },
+      annotationsEnabled: true,
+      annotationVersion: 99,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+  )
+
+  renderViewerPage('/s/public-1')
+
+  expect(await screen.findByText('HER2 control')).toBeVisible()
+  expect(screen.queryByRole('toolbar', { name: 'Annotation tools' })).not.toBeInTheDocument()
+  expect(screen.queryByText('Annotations')).not.toBeInTheDocument()
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(String(fetch.mock.calls[0][0])).toBe('/api/v1/public/slides/public-1')
 })
 
 it('shows a private-safe not found state', async () => {

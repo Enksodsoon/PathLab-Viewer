@@ -30,6 +30,8 @@ export interface AdminSlide {
   createdAt: string
   tileSource?: string
   thumbnailUrl?: string | null
+  annotationsEnabled?: boolean
+  annotationVersion?: number
 }
 
 export interface PublicSlide {

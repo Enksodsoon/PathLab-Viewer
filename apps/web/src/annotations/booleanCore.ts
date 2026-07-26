@@ -1,13 +1,12 @@
-import {
-  difference,
-  intersection,
-  union,
+import polygonClipping, {
   type MultiPolygon,
   type Polygon,
   type Ring,
 } from 'polygon-clipping'
 
 import type { PolygonBooleanOperation, PolygonGeometry } from './types'
+
+const { difference, intersection, union } = polygonClipping
 
 function toPolygon(geometry: PolygonGeometry): Polygon {
   const ring: Ring = geometry.points.map(({ x, y }) => [x, y])

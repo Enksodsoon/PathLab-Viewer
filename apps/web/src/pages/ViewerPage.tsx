@@ -1,10 +1,20 @@
 import { ArrowsOut as Expand, House as Home, Info, Minus, Plus } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getPrivateSlide, getPublicSlide } from '../api'
 import { Brand } from '../components/Brand'
-import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
+import {
+  OpenSeadragonViewer,
+  type ViewerAttachmentCallback,
+  type ViewerHandle,
+} from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
 import type { AdminSlide, PublicSlide } from '../types'
 
@@ -12,18 +22,66 @@ export function ViewerPage() {
   const { publicId, slideId } = useParams()
   const [slide, setSlide] = useState<PublicSlide | AdminSlide | null>(null)
   const [missing, setMissing] = useState(false)
+  const [annotationWorkspace, setAnnotationWorkspace] = useState<ComponentType<{
+    slideId: string
+    slideName: string
+    onAttachmentChange: (attachment?: ViewerAttachmentCallback) => void
+  }> | null>(null)
+  const [annotationAttachment, setAnnotationAttachment] = useState<
+    ViewerAttachmentCallback | undefined
+  >()
+  const [annotationLoadError, setAnnotationLoadError] = useState(false)
+  const [annotationLoadAttempt, setAnnotationLoadAttempt] = useState(0)
   const [scaleInfo, setScaleInfo] = useState({ microns: 100, width: 86 })
   const controls = useRef<ViewerHandle | null>(null)
   const ready = useCallback((handle: ViewerHandle) => { controls.current = handle }, [])
   const updateScale = useCallback((microns: number, width: number) => {
     setScaleInfo({ microns, width })
   }, [])
+  const updateAnnotationAttachment = useCallback((
+    attachment?: ViewerAttachmentCallback,
+  ) => {
+    setAnnotationAttachment(() => attachment)
+  }, [])
   useEffect(() => {
     let active = true
+    setMissing(false)
+    setSlide(null)
     const request = slideId ? getPrivateSlide(slideId) : getPublicSlide(publicId ?? '')
     void request.then((result) => { if (active) setSlide(result) }).catch(() => { if (active) setMissing(true) })
     return () => { active = false }
   }, [publicId, slideId])
+  useEffect(() => {
+    let active = true
+    const enabled = Boolean(
+      slideId
+      && slide
+      && 'id' in slide
+      && slide.annotationsEnabled,
+    )
+    if (!enabled) {
+      setAnnotationWorkspace(null)
+      setAnnotationAttachment(undefined)
+      setAnnotationLoadError(false)
+      return () => { active = false }
+    }
+    setAnnotationLoadError(false)
+    void import('../annotations/AnnotationWorkspace')
+      .then((module) => {
+        if (active) setAnnotationWorkspace(() => module.AnnotationWorkspace)
+      })
+      .catch(() => {
+        if (active) {
+          setAnnotationWorkspace(null)
+          setAnnotationAttachment(undefined)
+          setAnnotationLoadError(true)
+        }
+      })
+    return () => {
+      active = false
+      setAnnotationAttachment(undefined)
+    }
+  }, [annotationLoadAttempt, slide, slideId])
   useEffect(() => {
     let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]')
     if (!robots) { robots = document.createElement('meta'); robots.name = 'robots'; document.head.append(robots) }
@@ -32,6 +90,12 @@ export function ViewerPage() {
   if (missing) return <main className="viewer-message"><Brand /><div><h1>This slide is unavailable</h1><p>The link may be incorrect, unpublished, or removed.</p></div></main>
   if (!slide) return <div className="center-state dark">Opening slide…</div>
   const scale = slide.metadata?.physicalSizeX
+  const annotationsEnabled = Boolean(
+    slideId
+    && 'id' in slide
+    && slide.annotationsEnabled,
+  )
+  const AnnotationWorkspace = annotationWorkspace
   return <div className="viewer-shell">
     <header className="viewer-header">
       <Brand variant="library" />
@@ -42,14 +106,38 @@ export function ViewerPage() {
       <span className="viewer-help"><Info size={15} /> Scroll or pinch to zoom</span>
       <ThemeControl compact className="viewer-theme-control" />
     </header>
-    <main className="viewer-stage">
+    <main className={`viewer-stage${annotationsEnabled ? ' viewer-stage--annotations' : ''}`}>
       <OpenSeadragonViewer
         tileSource={slide.tileSource ?? ''}
         posterUrl={slide.thumbnailUrl}
         onReady={ready}
         micronsPerPixel={scale}
         onScaleChange={updateScale}
+        onViewerAttach={annotationsEnabled ? annotationAttachment : undefined}
       />
+      {annotationsEnabled && AnnotationWorkspace && slideId ? (
+        <AnnotationWorkspace
+          slideId={slideId}
+          slideName={slide.displayName}
+          onAttachmentChange={updateAnnotationAttachment}
+        />
+      ) : null}
+      {annotationsEnabled && !AnnotationWorkspace && !annotationLoadError ? (
+        <div className="annotation-private-loading" role="status">
+          Opening annotation tools…
+        </div>
+      ) : null}
+      {annotationsEnabled && annotationLoadError ? (
+        <div className="annotation-private-failure" role="alert">
+          <span>Annotation tools could not load. Slide navigation is still available.</span>
+          <button
+            type="button"
+            onClick={() => setAnnotationLoadAttempt((attempt) => attempt + 1)}
+          >
+            Retry annotations
+          </button>
+        </div>
+      ) : null}
       <nav className="viewer-tools" aria-label="Viewer controls">
         <button aria-label="Zoom in" title="Zoom in" onClick={() => controls.current?.zoomIn()}><Plus /></button>
         <button aria-label="Zoom out" title="Zoom out" onClick={() => controls.current?.zoomOut()}><Minus /></button>

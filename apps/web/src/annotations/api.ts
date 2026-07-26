@@ -88,7 +88,7 @@ export class AnnotationApiClient {
   private readonly csrfToken: () => string
 
   constructor(options: AnnotationApiClientOptions = {}) {
-    this.fetcher = options.fetcher ?? fetch
+    this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init))
     this.mutationFetcher = options.mutationFetcher ?? options.fetcher ?? csrfFetch
     this.csrfToken = options.csrfToken ?? (() => sessionStorage.getItem('pathlab-csrf') ?? '')
   }

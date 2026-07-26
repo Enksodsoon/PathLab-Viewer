@@ -125,6 +125,7 @@ export class AnnotationAutosave {
   private timer: ReturnType<typeof setTimeout> | null = null
   private active: Promise<void> | null = null
   private disposed = false
+  private generation = 0
 
   constructor(options: AnnotationAutosaveOptions) {
     this.transport = options.transport
@@ -221,8 +222,30 @@ export class AnnotationAutosave {
     this.notify()
   }
 
+  reset(baseVersion: number): void {
+    if (this.disposed) throw new Error('Annotation autosave has been disposed')
+    if (!Number.isSafeInteger(baseVersion) || baseVersion < 0) {
+      throw new RangeError('Annotation version must be a non-negative safe integer')
+    }
+    this.generation += 1
+    this.clearTimer()
+    if (this.inFlight) {
+      this.onBatchFailed?.(this.batchContext(this.inFlight), new Error('Annotation autosave reset'))
+    }
+    this.queue = []
+    this.inFlight = null
+    this.version = baseVersion
+    this.status = 'idle'
+    this.retryAt = null
+    this.error = null
+    this.conflict = null
+    this.retryIndex = 0
+    this.notify()
+  }
+
   dispose(): void {
     this.disposed = true
+    this.generation += 1
     this.clearTimer()
   }
 
@@ -330,14 +353,27 @@ export class AnnotationAutosave {
 
   private async run(): Promise<void> {
     if (this.active) return this.active
-    this.active = this.drain().finally(() => {
+    const generation = this.generation
+    this.active = this.drain(generation).finally(() => {
       this.active = null
+      if (
+        !this.disposed
+        && this.queue.length > 0
+        && this.status === 'dirty'
+        && this.timer === null
+      ) {
+        this.schedule(0)
+      }
     })
     return this.active
   }
 
-  private async drain(): Promise<void> {
-    while (!this.disposed && (this.inFlight || this.queue.length > 0)) {
+  private async drain(generation: number): Promise<void> {
+    while (
+      !this.disposed
+      && generation === this.generation
+      && (this.inFlight || this.queue.length > 0)
+    ) {
       if (!this.createInFlight()) return
       const batch = this.inFlight
       if (!batch) return
@@ -354,6 +390,7 @@ export class AnnotationAutosave {
           structuredClone(context.operations),
         )
       } catch (caught) {
+        if (this.disposed || generation !== this.generation) return
         if (
           caught instanceof AnnotationApiError
           && caught.status === 409
@@ -386,16 +423,19 @@ export class AnnotationAutosave {
         this.notify()
         return
       }
+      if (this.disposed || generation !== this.generation) return
 
       try {
         await this.onAcknowledged?.({ ...context, result: structuredClone(result) })
       } catch (caught) {
+        if (this.disposed || generation !== this.generation) return
         this.status = 'error'
         this.error = 'ANNOTATION_ACKNOWLEDGEMENT_FAILED'
         this.onBatchFailed?.(context, caught)
         this.notify()
         return
       }
+      if (this.disposed || generation !== this.generation) return
       this.version = result.version
       this.inFlight = null
       this.queue = this.queue.map((entry) => ({
