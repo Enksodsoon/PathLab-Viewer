@@ -49,12 +49,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     preference,
     resolvedTheme,
     setPreference(nextPreference) {
+      const nextSystemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
       const nextResolvedTheme = resolveTheme(
         nextPreference,
-        window.matchMedia('(prefers-color-scheme: dark)').matches,
+        nextSystemPrefersDark,
       )
       applyResolvedTheme(nextResolvedTheme)
       persistThemePreference(nextPreference)
+      setSystemPrefersDark(nextSystemPrefersDark)
       setPreferenceState(nextPreference)
     },
   }), [preference, resolvedTheme])

@@ -145,6 +145,30 @@ it('never renders an explicit preference with a stale resolved or root theme', (
   expect(snapshots).toEqual([{ resolvedTheme: 'light', rootTheme: 'light' }])
 })
 
+it('switches to system with a fresh OS value after an explicit preference', () => {
+  const colorScheme = installColorScheme(false)
+  localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+  const snapshots: Array<{ resolvedTheme: string; rootTheme: string | null }> = []
+
+  function SystemThemeProbe() {
+    const { preference, resolvedTheme, setPreference } = useTheme()
+    if (preference === 'system') {
+      snapshots.push({
+        resolvedTheme,
+        rootTheme: document.documentElement.getAttribute('data-theme'),
+      })
+    }
+    return <button onClick={() => setPreference('system')} type="button">Use system theme</button>
+  }
+
+  render(<ThemeProvider><SystemThemeProbe /></ThemeProvider>)
+  act(() => colorScheme.setMatches(true))
+  fireEvent.click(screen.getByRole('button', { name: 'Use system theme' }))
+
+  expect(snapshots).toEqual([{ resolvedTheme: 'dark', rootTheme: 'dark' }])
+  expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+})
+
 it('keeps primary action text at WCAG AA normal-text contrast in both themes', () => {
   const css = readFileSync('src/theme/theme.css', 'utf8')
   const lightBlock = css.match(/:root,\s*\[data-theme='light'\]\s*\{([\s\S]*?)\}/)?.[1]
