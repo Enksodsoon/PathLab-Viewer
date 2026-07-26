@@ -27,14 +27,14 @@ test('persists theme choice and remains usable at every layout boundary', async 
   expect(initialArtworkRequests.some((name) => name.includes('dark'))).toBe(true)
   expect(initialArtworkRequests.some((name) => name.includes('light'))).toBe(false)
 
-  await page.locator('label[for="theme-light"]').click()
+  await page.getByRole('radio', { name: 'Light' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'light')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await expect(page.getByRole('radio', { name: 'Light' })).toBeChecked()
 
-  await page.locator('label[for="theme-system"]').click()
+  await page.getByRole('radio', { name: 'System' }).click()
   await page.emulateMedia({ colorScheme: 'dark' })
   await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
   await page.emulateMedia({ colorScheme: 'light' })

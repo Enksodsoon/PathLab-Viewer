@@ -1,20 +1,20 @@
 import {
+  ArrowClockwise as RefreshCw,
+  ArrowCounterClockwise as RotateCcw,
+  ArrowSquareOut as ExternalLink,
+  ArrowUUpLeft as Undo2,
   Check,
-  CircleAlert,
   CircleDashed,
   Clipboard,
-  Edit3,
-  ExternalLink,
+  DotsThreeVertical as MoreVertical,
   Eye,
   FileImage,
-  FolderInput,
-  MoreVertical,
-  RefreshCw,
-  RotateCcw,
-  Share2,
-  Trash2,
-  Undo2,
-} from 'lucide-react'
+  FolderSimple as FolderInput,
+  PencilSimple as Edit3,
+  ShareNetwork as Share2,
+  Trash as Trash2,
+  WarningCircle as CircleAlert,
+} from '@phosphor-icons/react'
 import { memo } from 'react'
 
 import type { LibrarySlide } from '../../types'

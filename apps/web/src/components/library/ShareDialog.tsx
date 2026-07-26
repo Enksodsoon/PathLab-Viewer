@@ -1,4 +1,11 @@
-import { Check, Copy, Link2, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
+import {
+  ArrowClockwise as RefreshCw,
+  Check,
+  Copy,
+  Link as Link2,
+  ShieldCheck,
+  Trash as Trash2,
+} from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 
 import {

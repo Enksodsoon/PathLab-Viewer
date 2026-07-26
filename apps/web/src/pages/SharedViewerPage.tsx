@@ -1,9 +1,19 @@
-import { ChevronLeft, ChevronRight, Expand, Home, Menu, Minus, Plus, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ArrowsOut as Expand,
+  CaretLeft as ChevronLeft,
+  CaretRight as ChevronRight,
+  House as Home,
+  List as Menu,
+  Minus,
+  Plus,
+  X,
+} from '@phosphor-icons/react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
+import { ThemeControl } from '../theme/ThemeControl'
 import type { SharedManifest } from '../types'
 import '../shared-viewer.css'
 import '../shared-message.css'
@@ -44,7 +54,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
     setDrawerOpen(false)
   }, [manifest, storageKey])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
@@ -100,6 +110,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       <header className="shared-viewer-header">
         <button type="button" className="share-menu" aria-label="Open slide navigator" onClick={() => setDrawerOpen(true)}><Menu /></button>
         <div><p>PathLab Viewer</p><h1>{manifest.name}</h1></div>
+        <ThemeControl compact className="shared-theme-control" />
         <span>{position + 1} / {manifest.slides.length}</span>
       </header>
       <button type="button" className="share-drawer-backdrop" aria-label="Close slide navigator" onClick={() => setDrawerOpen(false)} />

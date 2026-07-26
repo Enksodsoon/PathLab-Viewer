@@ -1,9 +1,10 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
-import { ThemeProvider } from '../ThemeProvider'
+import { Brand } from '../components/Brand'
+import { ThemeProvider } from '../theme/ThemeProvider'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -17,48 +18,60 @@ function urlOf(input: RequestInfo | URL) {
   return input instanceof URL ? input.toString() : input.url
 }
 
-function renderAuth(onSuccess = vi.fn()) {
-  return render(<ThemeProvider><AuthPanel onSuccess={onSuccess} /></ThemeProvider>)
-}
-
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
-  localStorage.clear()
+  vi.unstubAllGlobals()
   sessionStorage.clear()
+})
+
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+    matches: query === '(prefers-reduced-motion: reduce)',
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })))
+})
+
+function renderAuthPanel(props: { onSuccess: () => void; notice?: string }) {
+  return render(
+    <ThemeProvider>
+      <AuthPanel {...props} />
+    </ThemeProvider>,
+  )
+}
+
+describe('PathLab brand', () => {
+  it('uses an original tissue-layer mark while retaining the accessible product name', () => {
+    const view = render(<Brand variant="library" />)
+    const brand = screen.getByLabelText('PathLab Viewer')
+    const mark = within(brand).getByTestId('pathlab-tissue-mark')
+
+    expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
+    expect(mark.tagName).toBe('svg')
+    expect(mark).toHaveAttribute('aria-hidden', 'true')
+    expect(mark.querySelectorAll('[data-tissue-layer]')).toHaveLength(3)
+    expect(mark).not.toHaveAttribute('aria-label')
+  })
 })
 
 describe('administrator authentication', () => {
   it('presents the redesigned PathLab landing experience', () => {
-    const view = renderAuth()
+    const view = renderAuthPanel({ onSuccess: vi.fn() })
 
     expect(screen.getByRole('heading', { name: /see the whole picture/i })).toBeVisible()
     expect(screen.getByRole('heading', { name: /administrator sign in/i })).toBeVisible()
     expect(screen.getByText(/built for detail\. designed for focus\./i)).toBeVisible()
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Theme preference' })).toBeVisible()
     expect(screen.getAllByTestId('pathlab-tissue-mark')).toHaveLength(1)
     expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
-    expect(screen.getByRole('group', { name: /color theme/i })).toBeVisible()
-    expect(screen.getByRole('radio', { name: /system/i })).toBeChecked()
-    const artwork = view.container.querySelector<HTMLImageElement>('.auth-visual-image')
-    expect(artwork).toHaveAttribute('data-auth-artwork-theme', 'light')
-    expect(artwork?.src).toContain('auth-histology-solace-light.webp')
-  })
-
-  it('switches and persists the login theme without touching the form', async () => {
-    renderAuth()
-    const username = screen.getByLabelText(/^username$/i)
-
-    await userEvent.clear(username)
-    await userEvent.type(username, 'pathlab-admin')
-    await userEvent.click(screen.getByRole('radio', { name: /dark/i }))
-
-    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
-    expect(localStorage.getItem('pathlab-theme')).toBe('dark')
-    expect(username).toHaveValue('pathlab-admin')
-    expect(document.querySelector('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
-    expect(document.querySelector<HTMLImageElement>('.auth-visual-image')?.src).toContain('auth-histology-solace-dark.webp')
   })
 
   it('uses a generic sign-in error and clears the password', async () => {
@@ -66,7 +79,7 @@ describe('administrator authentication', () => {
       { detail: { code: 'INVALID_CREDENTIALS' } },
       401,
     ))
-    renderAuth()
+    renderAuthPanel({ onSuccess: vi.fn() })
     await userEvent.type(screen.getByLabelText(/^password$/i), 'never-store-this')
     await userEvent.click(screen.getByRole('button', { name: /^enter workspace$/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in failed')
@@ -74,7 +87,7 @@ describe('administrator authentication', () => {
   })
 
   it('reveals and conceals the password without changing its value', async () => {
-    renderAuth()
+    renderAuthPanel({ onSuccess: vi.fn() })
     const password = screen.getByLabelText(/^password$/i)
     await userEvent.type(password, 'local-only-value')
 
@@ -88,7 +101,7 @@ describe('administrator authentication', () => {
 
   it('validates recovery confirmation locally and clears secrets', async () => {
     const request = vi.spyOn(globalThis, 'fetch')
-    renderAuth()
+    renderAuthPanel({ onSuccess: vi.fn() })
     await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')
@@ -101,7 +114,7 @@ describe('administrator authentication', () => {
 
   it('sends only the public recovery contract and returns to sign in', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
-    renderAuth()
+    renderAuthPanel({ onSuccess: vi.fn() })
     await userEvent.click(screen.getByRole('button', { name: /recover administrator access/i }))
     await userEvent.type(screen.getByLabelText(/recovery code/i), 'one-time-secret')
     await userEvent.type(screen.getByLabelText(/^new password$/i), 'correct horse battery')

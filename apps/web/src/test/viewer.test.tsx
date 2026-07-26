@@ -1,9 +1,14 @@
+import { readFileSync } from 'node:fs'
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { OpenSeadragonViewer } from '../components/OpenSeadragonViewer'
 import { ViewerPage } from '../pages/ViewerPage'
+import { ThemeProvider } from '../theme/ThemeProvider'
+
+const viewerCss = readFileSync('src/styles.css', 'utf8')
 
 const osdMock = vi.hoisted(() => {
   const handlers = new Map<string, () => void>()
@@ -58,11 +63,41 @@ function renderViewer(onScaleChange = vi.fn()) {
   )
 }
 
+function renderViewerPage(route = '/s/public-1') {
+  return render(
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[route]}>
+        <Routes>
+          <Route path="/s/:publicId" element={<ViewerPage />} />
+          <Route path="/admin/preview/:slideId" element={<ViewerPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
+  )
+}
+
+beforeEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
+})
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
   localStorage.clear()
+  document.documentElement.removeAttribute('data-theme')
   setViewportWidth(1024)
   osdMock.handlers.clear()
   osdMock.factory.mockClear()
@@ -271,29 +306,61 @@ it('loads public metadata and exposes responsive viewer controls', async () => {
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ),
   )
-  const view = render(
-    <MemoryRouter initialEntries={['/s/public-1']}>
-      <Routes>
-        <Route path="/s/:publicId" element={<ViewerPage />} />
-      </Routes>
-    </MemoryRouter>,
-  )
+  const view = renderViewerPage()
   expect(await screen.findByText('HER2 control')).toBeVisible()
   expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
+  expect(screen.getByRole('group', { name: 'Theme preference' })).toBeVisible()
+  expect(screen.getByRole('radio', { name: 'Light' })).toBeVisible()
+  expect(screen.getByRole('radio', { name: 'Dark' })).toBeVisible()
+  expect(screen.getByRole('radio', { name: 'System' })).toBeVisible()
   expect(screen.getByRole('button', { name: /zoom in/i })).toBeVisible()
   expect(screen.getByRole('button', { name: /home view/i })).toBeVisible()
   expect(screen.getByRole('img', { name: 'Slide preview' })).toHaveAttribute('src', '/tiles/public-1/thumbnail.jpg')
   expect(screen.getByText(/µm/)).toBeVisible()
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Dark' }))
+  expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+  expect(osdMock.factory).toHaveBeenCalledOnce()
+  expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
+})
+
+it('keeps the authenticated private-preview API branch intact', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        id: 'private-1',
+        publicId: '',
+        displayName: 'Private teaching slide',
+        filename: 'private-slide.ome.tiff',
+        sourceBytes: 1048576,
+        state: 'ready_private',
+        errorCode: null,
+        errorMessage: null,
+        tileSource: '/api/v1/admin/slides/private-1/tiles/slide.dzi',
+        thumbnailUrl: '/api/v1/admin/slides/private-1/thumbnail',
+        metadata: { width: 2048, height: 1024, physicalSizeX: 0.5 },
+        createdAt: '2026-07-26T00:00:00Z',
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ),
+  )
+
+  renderViewerPage('/admin/preview/private-1')
+
+  expect(await screen.findByText('Private teaching slide')).toBeVisible()
+  expect(fetch).toHaveBeenCalledWith(
+    '/api/v1/admin/slides/private-1',
+    { credentials: 'same-origin' },
+  )
 })
 
 it('shows a private-safe not found state', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 404 }))
-  render(
-    <MemoryRouter initialEntries={['/s/missing']}>
-      <Routes>
-        <Route path="/s/:publicId" element={<ViewerPage />} />
-      </Routes>
-    </MemoryRouter>,
-  )
+  renderViewerPage('/s/missing')
   expect(await screen.findByText(/slide is unavailable/i)).toBeVisible()
+})
+
+it('keeps pathology posters and viewer stages free of theme color filters', () => {
+  expect(viewerCss).not.toMatch(/(?:^|[;{])\s*(?:filter|mix-blend-mode)\s*:/m)
+  expect(viewerCss).not.toMatch(/invert\(/i)
 })

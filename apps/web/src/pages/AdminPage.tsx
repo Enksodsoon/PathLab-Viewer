@@ -1,21 +1,22 @@
 import {
-  ChevronLeft,
+  ArrowClockwise as RefreshCw,
+  ArrowCounterClockwise as RotateCcw,
+  CaretLeft as ChevronLeft,
   CircleDashed,
-  CircleX,
   FolderOpen,
-  Menu,
   Plus,
-  RefreshCw,
-  RotateCcw,
-  Trash2,
-  Upload,
-} from 'lucide-react'
+  Trash as Trash2,
+  UploadSimple as Upload,
+  XCircle as CircleX,
+} from '@phosphor-icons/react'
 import {
   useCallback,
   useEffect,
+  lazy,
   useMemo,
   useRef,
   useState,
+  Suspense,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -48,7 +49,7 @@ import {
   updateFolder,
   updateSavedView,
 } from '../api'
-import { AccountSecurityDialog, AuthPanel } from '../components/AuthPanels'
+import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
 import { AppRail } from '../components/library/AppRail'
 import {
   FilterPanel,
@@ -61,7 +62,6 @@ import {
   type LibraryViewMode,
 } from '../components/library/LibraryToolbar'
 import { SelectionActionBar } from '../components/library/SelectionActionBar'
-import { QuickViewRail } from '../components/library/QuickViewRail'
 import { PublishConfirmationDialog } from '../components/library/PublishConfirmationDialog'
 import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
@@ -78,6 +78,10 @@ import type {
   SavedView,
   SlideState,
 } from '../types'
+
+const AuthPanel = lazy(() => import('../components/AuthPanel').then((module) => ({
+  default: module.AuthPanel,
+})))
 import { startTusUpload } from '../upload'
 import '../library.css'
 
@@ -255,7 +259,7 @@ export function AdminPage() {
 
   const closeNavigator = useCallback(() => {
     setNavigatorOpen(false)
-    navigatorToggleRef.current?.focus()
+    window.requestAnimationFrame(() => navigatorToggleRef.current?.focus())
   }, [])
 
   useEffect(() => {
@@ -515,7 +519,7 @@ export function AdminPage() {
 
   function chooseLocation(nextLocation: string) {
     setUrlValues({ location: nextLocation === 'all' ? null : nextLocation }, false)
-    setNavigatorOpen(false)
+    if (navigatorOpen) closeNavigator()
   }
 
   function runAction(task: () => Promise<unknown>, failure: string) {
@@ -1072,41 +1076,48 @@ export function AdminPage() {
   if (signingOut) return <div className="center-state dark">Signing out…</div>
   if (authorized === false) {
     return (
-      <AuthPanel
-        notice={authNotice}
-        onSuccess={() => {
-          setAuthNotice('')
-          setAuthorized(null)
-          void loadNavigation()
-        }}
-      />
+      <Suspense fallback={<div className="center-state">Opening secure sign in…</div>}>
+        <AuthPanel
+          notice={authNotice}
+          onSuccess={() => {
+            setAuthNotice('')
+            setAuthorized(null)
+            void loadNavigation()
+          }}
+        />
+      </Suspense>
     )
   }
   if (authorized === null) return <div className="center-state dark">Loading secure library…</div>
 
   return (
-    <div className={`library-shell ${navigatorOpen ? 'navigator-open' : ''}`}>
+    <div
+      className={`library-shell ${navigatorOpen ? 'navigator-open' : ''}`}
+      data-layout="canvas-focus"
+    >
       <AppRail
         location={location}
         isInert={navigatorOpen}
+        navigatorOpen={navigatorOpen}
+        navigatorButtonRef={navigatorToggleRef}
         onLocation={chooseLocation}
+        onNavigator={() => setNavigatorOpen((current) => !current)}
         onUpload={() => openNamedDialog('upload')}
         onSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void signOut()}
       />
-      <button
-        ref={navigatorToggleRef}
-        type="button"
-        className="mobile-navigator-toggle"
-        aria-label="Open library navigator"
-        aria-controls="library-navigator"
-        aria-expanded={navigatorOpen}
-        aria-hidden={navigatorOpen || undefined}
-        tabIndex={navigatorOpen ? -1 : undefined}
-        onClick={() => setNavigatorOpen(true)}
-      ><Menu /></button>
-      <div className="mobile-navigator-backdrop" onClick={closeNavigator} />
-      <div id="library-navigator" className="library-navigator-wrap">
+      <div
+        className="mobile-navigator-backdrop"
+        aria-hidden="true"
+        onClick={closeNavigator}
+      />
+      <div
+        id="library-navigator"
+        className="library-navigator-wrap"
+        aria-hidden={!navigatorOpen}
+        data-overlay="navigator"
+        inert={!navigatorOpen || undefined}
+      >
         <button
           ref={navigatorCloseRef}
           type="button"
@@ -1119,11 +1130,16 @@ export function AdminPage() {
           location={location}
           folderChildren={folderChildren}
           expandedFolders={expandedFolders}
+          recent={page.items}
           onExpandFolder={(folder) => runAction(
             () => expandFolder(folder),
             'Folder expansion',
           )}
           onLocation={chooseLocation}
+          onOpen={(slide) => {
+            closeNavigator()
+            void openDetails(slide)
+          }}
           onNewFolder={() => openNamedDialog('folder')}
           onNewCollection={() => openNamedDialog('collection')}
           onNewSavedView={() => openNamedDialog('saved')}
@@ -1142,6 +1158,7 @@ export function AdminPage() {
       <main
         className="library-main"
         aria-hidden={navigatorOpen || undefined}
+        data-canvas-region="content"
         inert={navigatorOpen || undefined}
       >
         <LibraryToolbar
@@ -1355,31 +1372,24 @@ export function AdminPage() {
           canRetry={selectedSlides.some((slide) => slide.state === 'failed')}
           inCollection={location.startsWith('collection:')}
         />
+        {details ? (
+          <SlideDetailsPanel
+            slide={details}
+            folderName={details.folderId
+              ? foldersById.get(details.folderId)?.name
+              : undefined}
+            collectionNames={location.startsWith('collection:')
+              ? [navigation.collections.find(
+                (collection) => collection.id === location.slice('collection:'.length),
+              )?.name].filter((name): name is string => Boolean(name))
+              : []}
+            onClose={() => setDetails(null)}
+            onEdit={() => {
+              void openEditor(details)
+            }}
+          />
+        ) : null}
       </main>
-      {details ? (
-        <SlideDetailsPanel
-          slide={details}
-          folderName={details.folderId
-            ? foldersById.get(details.folderId)?.name
-            : undefined}
-          collectionNames={location.startsWith('collection:')
-            ? [navigation.collections.find(
-              (collection) => collection.id === location.slice('collection:'.length),
-            )?.name].filter((name): name is string => Boolean(name))
-            : []}
-          onClose={() => setDetails(null)}
-          onEdit={() => {
-            void openEditor(details)
-          }}
-        />
-      ) : (
-        <QuickViewRail
-          navigation={navigation}
-          recent={page.items}
-          onLocation={chooseLocation}
-          onOpen={(slide) => void openDetails(slide)}
-        />
-      )}
 
       <PublishConfirmationDialog
         open={dialog === 'publish'}

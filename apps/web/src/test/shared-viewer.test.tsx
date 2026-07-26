@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SharedViewerPage } from '../pages/SharedViewerPage'
+import { ThemeProvider } from '../theme/ThemeProvider'
 
 const osd = vi.hoisted(() => {
   const viewer = {
@@ -59,20 +60,37 @@ const MANIFEST = {
   ],
 }
 
-function renderShare() {
+function renderShare(targetType: 'folder' | 'collection' = 'folder') {
+  const path = targetType === 'folder' ? '/f/share-public' : '/c/share-public'
+  const route = targetType === 'folder' ? '/f/:publicId' : '/c/:publicId'
   return render(
-    <MemoryRouter initialEntries={['/f/share-public']}>
-      <Routes>
-        <Route
-          path="/f/:publicId"
-          element={<SharedViewerPage targetType="folder" />}
-        />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route
+            path={route}
+            element={<SharedViewerPage targetType={targetType} />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   )
 }
 
 beforeEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
     JSON.stringify(MANIFEST),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
@@ -82,13 +100,31 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  localStorage.clear()
   sessionStorage.clear()
+  document.documentElement.removeAttribute('data-theme')
   osd.factory.mockClear()
   osd.viewer.open.mockClear()
   osd.viewer.destroy.mockClear()
 })
 
 describe('shared library viewer', () => {
+  it('makes light, dark, and system themes available without leaving the viewer', async () => {
+    renderShare()
+    await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })
+
+    expect(screen.getByRole('group', { name: 'Theme preference' })).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'Light' })).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'Dark' })).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'System' })).toBeVisible()
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Dark' }))
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark')
+    expect(osd.factory).toHaveBeenCalledOnce()
+    expect(osd.viewer.open).not.toHaveBeenCalled()
+    expect(osd.viewer.destroy).not.toHaveBeenCalled()
+  })
+
   it('switches slides through one persistent OpenSeadragon instance', async () => {
     renderShare()
     expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
@@ -106,8 +142,10 @@ describe('shared library viewer', () => {
     await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     expect(await screen.findByRole('heading', { name: 'Normal colon' })).toBeVisible()
+    expect(sessionStorage.getItem('pathlab-share-position:folder:share-public')).toBe('1')
     fireEvent.keyDown(window, { key: 'ArrowLeft' })
     expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+    expect(sessionStorage.getItem('pathlab-share-position:folder:share-public')).toBe('0')
 
     await userEvent.click(screen.getByRole('button', { name: 'Open slide navigator' }))
     expect(container.querySelector('.shared-viewer-shell')).toHaveClass('drawer-open')
@@ -136,5 +174,18 @@ describe('shared library viewer', () => {
     await screen.findByText(/shared library is unavailable/i)
     await userEvent.click(screen.getByRole('button', { name: /try again/i }))
     expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+  })
+
+  it('preserves collection manifest and session-position contracts', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch')
+    renderShare('collection')
+    expect(await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v2/public/collections/share-public',
+      { credentials: 'omit' },
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next slide' }))
+    expect(sessionStorage.getItem('pathlab-share-position:collection:share-public')).toBe('1')
   })
 })

@@ -7,9 +7,11 @@ class ResizeObserverStub {
 }
 
 globalThis.ResizeObserver = ResizeObserverStub as typeof ResizeObserver
-Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
-  value: () => null,
-})
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    value: () => null,
+  })
+}
 
 const dialogState = new WeakMap<
   HTMLDialogElement,

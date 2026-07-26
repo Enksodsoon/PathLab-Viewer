@@ -8,6 +8,7 @@ export function Brand({ variant = 'default' }: BrandProps) {
       <span className={`brand-mark${variant === 'library' ? ' brand-mark-layers' : ''}`}>
         <svg
           aria-hidden="true"
+          color="currentColor"
           data-testid="pathlab-tissue-mark"
           fill="none"
           viewBox="0 0 32 32"
