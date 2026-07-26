@@ -268,18 +268,12 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
           />
           <div className="auth-visual-grain" aria-hidden="true" />
           <div className="auth-visual-content">
-            <div className="auth-visual-brand">
-              <Brand variant="library" />
-            </div>
             <h1 id="auth-visual-title">
               See the whole
               <br />
               picture.
             </h1>
-            <div className="auth-visual-note">
-              <ShieldCheck aria-hidden="true" />
-              <span>A focused workspace for reviewing, organizing, and sharing whole-slide images.</span>
-            </div>
+            <p className="auth-visual-caption">Built for detail. Designed for focus.</p>
           </div>
         </section>
       </div>
