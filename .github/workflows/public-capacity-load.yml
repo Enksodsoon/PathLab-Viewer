@@ -1,0 +1,111 @@
+name: Public capacity load
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RUN_PUBLIC_300 to run the load-only production test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-control
+  cancel-in-progress: false
+
+jobs:
+  load:
+    if: >-
+      github.ref == 'refs/heads/main'
+      && inputs.confirmation == 'RUN_PUBLIC_300'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: production
+    env:
+      BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+      LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
+      EVIDENCE_DIR: ${{ github.workspace }}/.public-capacity-evidence
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: grafana/setup-k6-action@c00053c996b4061198c9c24a00474b748abdf8b7 # v1.2.1
+        with:
+          k6-version: "2.1.0"
+
+      - name: Build sanitized public manifest
+        run: |
+          mkdir -p "${EVIDENCE_DIR}"
+          python tests/load/generate_remote_manifest.py \
+            --base-url "${BASE_URL}" \
+            --public-id "${LOAD_TEST_PUBLIC_ID}" \
+            --output "${RUNNER_TEMP}/public-capacity-manifest.json" \
+            --seed "${GITHUB_RUN_ID}"
+
+      - name: Run 300-viewer load with readiness abort
+        run: |
+          set -euo pipefail
+          readiness="${EVIDENCE_DIR}/readiness.ndjson"
+          abort_marker="${RUNNER_TEMP}/readiness-abort"
+          export PROFILE=capacity300
+          export MANIFEST_PATH="${RUNNER_TEMP}/public-capacity-manifest.json"
+
+          k6 run --quiet \
+            --summary-export "${EVIDENCE_DIR}/k6-summary.json" \
+            tests/load/viewer.js &
+          k6_pid=$!
+
+          (
+            consecutive_failures=0
+            while kill -0 "${k6_pid}" 2>/dev/null; do
+              observation="$(
+                curl --silent --show-error --output /dev/null \
+                  --max-time 5 \
+                  --write-out '%{http_code} %{time_total}' \
+                  "${BASE_URL}/readyz" 2>/dev/null || true
+              )"
+              code="${observation%% *}"
+              duration="${observation#* }"
+              printf '{"timestamp":"%s","status":"%s","seconds":"%s"}\n' \
+                "$(date --utc +%FT%TZ)" "${code:-000}" "${duration:-5}" \
+                >> "${readiness}"
+              if [[ "${code}" == "200" ]]; then
+                consecutive_failures=0
+              else
+                consecutive_failures=$((consecutive_failures + 1))
+              fi
+              if (( consecutive_failures >= 2 )); then
+                touch "${abort_marker}"
+                kill -TERM "${k6_pid}" 2>/dev/null || true
+                break
+              fi
+              sleep 10
+            done
+          ) &
+          probe_pid=$!
+
+          k6_status=0
+          wait "${k6_pid}" || k6_status=$?
+          wait "${probe_pid}" || true
+          if [[ -f "${abort_marker}" ]]; then
+            echo "Load stopped after two consecutive readiness failures." >&2
+            exit 97
+          fi
+          exit "${k6_status}"
+
+      - name: Upload sanitized load evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: public-capacity-load-${{ github.sha }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 14

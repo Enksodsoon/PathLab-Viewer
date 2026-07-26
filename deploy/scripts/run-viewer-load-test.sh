@@ -3,9 +3,9 @@ set -euo pipefail
 
 profile="${1:-}"
 case "${profile}" in
-  smoke|acceptance|capacity300) ;;
+  smoke|staged|acceptance|capacity300) ;;
   *)
-    echo "Usage: run-viewer-load-test.sh smoke|acceptance|capacity300" >&2
+    echo "Usage: run-viewer-load-test.sh smoke|staged|acceptance|capacity300" >&2
     exit 2
     ;;
 esac
