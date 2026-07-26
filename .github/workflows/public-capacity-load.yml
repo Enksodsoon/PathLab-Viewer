@@ -109,3 +109,4 @@ jobs:
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 14
+          include-hidden-files: true

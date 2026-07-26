@@ -98,7 +98,7 @@ def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
     )[0]
 
     assert "mem_limit: 256m" in caddy_service
-    assert "cpus: 0.75" in caddy_service
+    assert "cpus: 1.25" in caddy_service
     assert "cpu_shares: 1024" in caddy_service
     assert "--workers 1" in api_service
     assert "mem_limit: 512m" in api_service
