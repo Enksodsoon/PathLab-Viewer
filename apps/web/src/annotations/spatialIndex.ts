@@ -91,8 +91,12 @@ export class AnnotationSpatialIndex {
     return this.tree.search(viewport).map((item) => item.annotation)
   }
 
-  plan(viewport: AnnotationBounds): AnnotationRenderPlan {
+  plan(
+    viewport: AnnotationBounds,
+    predicate: (annotation: AnnotationRecord) => boolean = () => true,
+  ): AnnotationRenderPlan {
     const visible = this.tree.search(viewport)
+      .filter((item) => predicate(item.annotation))
     for (const item of visible) {
       this.cache.delete(item.id)
       this.cache.set(item.id, item.annotation)
@@ -104,9 +108,11 @@ export class AnnotationSpatialIndex {
     }
     const densityEnabled = visible.length > MAX_MOUNTED_ANNOTATIONS
     return {
-      mounted: visible
-        .slice(0, MAX_MOUNTED_ANNOTATIONS)
-        .map((item) => item.annotation),
+      mounted: densityEnabled
+        ? []
+        : visible
+          .slice(0, MAX_MOUNTED_ANNOTATIONS)
+          .map((item) => item.annotation),
       cached: [...this.cache.values()],
       totalVisible: visible.length,
       density: {

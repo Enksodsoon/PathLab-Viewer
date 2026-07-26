@@ -61,7 +61,10 @@ export interface AnnotationAutosaveOptions {
   idFactory?: () => string
   now?: () => number
   onReload?: () => Promise<number>
-  onSaveAsDuplicate?: (operations: readonly AnnotationMutation[]) => Promise<number>
+  onSaveAsDuplicate?: (
+    operations: readonly AnnotationMutation[],
+    currentVersion: number,
+  ) => Promise<number>
   onBatchStart?: (batch: AnnotationAutosaveBatch) => void
   onAcknowledged?: (
     acknowledgement: AnnotationAutosaveAcknowledgement,
@@ -105,6 +108,7 @@ export class AnnotationAutosave {
   private readonly onReload?: () => Promise<number>
   private readonly onSaveAsDuplicate?: (
     operations: readonly AnnotationMutation[],
+    currentVersion: number,
   ) => Promise<number>
   private readonly onBatchStart?: (batch: AnnotationAutosaveBatch) => void
   private readonly onAcknowledged?: (
@@ -211,7 +215,11 @@ export class AnnotationAutosave {
       this.version = await this.onReload()
     } else {
       if (!this.onSaveAsDuplicate) throw new Error('Save-as-duplicate is not configured')
-      this.version = await this.onSaveAsDuplicate(dirty)
+      const currentVersion = this.conflict?.currentVersion
+      if (currentVersion === null || currentVersion === undefined) {
+        throw new Error('Conflict response did not include the current annotation version')
+      }
+      this.version = await this.onSaveAsDuplicate(dirty, currentVersion)
     }
     this.queue = []
     this.inFlight = null

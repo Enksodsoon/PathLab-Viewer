@@ -155,7 +155,7 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
 
   const toolbar = page.getByRole('toolbar', { name: 'Annotation tools' })
   await expect(toolbar).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByRole('region', { name: 'Annotation inspector' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Annotation inspector' })).toHaveCount(0)
 
   const toolbarBox = await toolbar.boundingBox()
   expect(toolbarBox).not.toBeNull()
@@ -166,13 +166,50 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
 
   const openInspector = page.getByRole('button', { name: 'Open annotation inspector' })
   await openInspector.click()
-  const sheet = page.getByRole('region', { name: 'Annotation inspector' })
+  const sheet = page.getByRole('dialog', { name: 'Annotation inspector' })
   await expect(sheet).toBeVisible()
+  await expect(sheet).toHaveAttribute('aria-modal', 'true')
   const sheetBox = await sheet.boundingBox()
   expect(sheetBox?.y).toBeGreaterThan(200)
+  const undersizedTargets = await page.locator('.annotation-workspace').evaluate((workspace) => {
+    const targets = [...workspace.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea',
+    )]
+    const measured = new Set<HTMLElement>()
+    return targets.flatMap((element) => {
+      const style = getComputedStyle(element)
+      if (style.display === 'none' || style.visibility === 'hidden') return []
+      const target = element.matches('input[type="checkbox"], input[type="color"]')
+        ? element.closest<HTMLElement>('label') ?? element
+        : element
+      if (measured.has(target)) return []
+      measured.add(target)
+      const box = target.getBoundingClientRect()
+      // Fractional device-pixel conversion can report a declared 44 CSS px target
+      // as 43.99 in Chromium/WebKit, so compare with a half-pixel layout tolerance.
+      if (box.width >= 43.5 && box.height >= 43.5) return []
+      return [{
+        label: element.getAttribute('aria-label') ?? element.textContent?.trim() ?? element.tagName,
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      }]
+    })
+  })
+  expect(undersizedTargets).toEqual([])
   await sheet.getByRole('button', { name: 'Close annotation inspector' }).click()
   await expect(sheet).toHaveCount(0)
   await expect(openInspector).toBeFocused()
+
+  await page.getByRole('button', { name: 'Point marker' }).click()
+  const overlay = page.locator('.annotation-svg-overlay')
+  await expect(overlay).toBeAttached()
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 180,
+    clientY: 360,
+    pointerId: 7,
+    pointerType: 'touch',
+  })
+  await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (
     document.documentElement.scrollWidth <= document.documentElement.clientWidth
   ))).toBe(true)
@@ -183,10 +220,11 @@ test('tracks light and dark application themes without filtering the pathology c
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
     timeout: 30_000,
   })
-  if (await page.getByRole('region', { name: 'Annotation inspector' }).count() === 0) {
+  const inspector = page.locator('.annotation-inspector')
+  if (await inspector.count() === 0) {
     await page.getByRole('button', { name: 'Open annotation inspector' }).click()
   }
-  await expect(page.getByRole('region', { name: 'Annotation inspector' })).toBeVisible()
+  await expect(inspector).toBeVisible()
 
   await page.getByRole('radio', { name: 'Light' }).check()
   const light = await page.evaluate(() => ({

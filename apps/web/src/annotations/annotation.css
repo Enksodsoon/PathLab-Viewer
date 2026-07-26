@@ -307,6 +307,18 @@
   text-align:left;
 }
 
+.annotation-list-scroll > .annotation-list-more {
+  position:sticky;
+  bottom:0;
+  width:100%;
+  min-height:44px;
+  justify-content:center;
+  border-top:1px solid var(--annotation-line);
+  color:var(--annotation-accent-ink);
+  background:var(--annotation-accent);
+  font-weight:800;
+}
+
 .annotation-list-scroll > button.is-selected {
   background:color-mix(in srgb,var(--annotation-accent) 16%,var(--surface));
   box-shadow:inset 3px 0 var(--annotation-accent);
@@ -641,6 +653,35 @@
   width:100%;
 }
 
+.annotation-confirm-row {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+
+.annotation-revision-browser {
+  display:grid;
+  gap:8px;
+  padding:10px;
+  border:1px solid var(--annotation-line);
+  border-radius:7px;
+  background:var(--annotation-panel);
+}
+
+.annotation-revision-preview {
+  display:grid;
+  gap:2px;
+  padding:8px;
+  border-left:2px solid var(--annotation-accent);
+  background:var(--surface);
+}
+
+.annotation-revision-preview span,
+.annotation-revision-preview small {
+  color:var(--muted);
+  font-size:10px;
+}
+
 .annotation-data-cue {
   position:absolute;
   z-index:-1;
@@ -747,6 +788,24 @@
   pointer-events:visiblePainted;
 }
 
+.annotation-svg-overlay [data-annotation-label] {
+  fill:#fff;
+  stroke:#111;
+  stroke-width:3px;
+  paint-order:stroke;
+  font:700 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;
+  pointer-events:none;
+}
+
+.annotation-canvas-handle {
+  fill:var(--annotation-accent);
+  stroke:#17130b;
+  stroke-width:1.5px;
+  vector-effect:non-scaling-stroke;
+  cursor:move;
+  pointer-events:all;
+}
+
 .annotation-density-cell {
   fill:var(--annotation-accent);
   fill-opacity:.58;
@@ -833,6 +892,30 @@
   }
 
   .annotation-search input {
+    min-height:44px;
+  }
+
+  .annotation-filterbar select,
+  .annotation-filterbar label,
+  .annotation-inspector button,
+  .annotation-inspector select,
+  .annotation-inspector input:not([type='checkbox']):not([type='color']),
+  .annotation-inspector textarea {
+    min-height:44px;
+  }
+
+  .annotation-inspector button {
+    min-width:44px;
+  }
+
+  .annotation-layers > div {
+    grid-template-columns:minmax(0,1fr) 44px 44px 44px 44px;
+  }
+
+  .annotation-filterbar label,
+  .annotation-check,
+  .annotation-layers label {
+    min-width:44px;
     min-height:44px;
   }
 

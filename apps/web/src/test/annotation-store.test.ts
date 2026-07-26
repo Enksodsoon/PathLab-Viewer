@@ -61,6 +61,42 @@ describe('framework-neutral annotation editing store', () => {
     expect(store.visibleAnnotations()).toHaveLength(1)
   })
 
+  it('keeps locked layers immutable across create, edit, duplicate, delete, and restore', () => {
+    const lockedLayer = { ...layer, locked: true }
+    const lockedRecord = structuredClone(annotation)
+    const store = createAnnotationStore({
+      slideId: 'slide-1',
+      idFactory: () => 'locked-copy',
+    })
+    store.load({ version: 1, layers: [lockedLayer], annotations: [lockedRecord] })
+
+    store.create({
+      id: 'locked-create',
+      layerId: lockedLayer.id,
+      geometry: { type: 'point', x: 5, y: 5 },
+      style: lockedRecord.style,
+      metadata: lockedRecord.metadata,
+    })
+    store.update(lockedRecord.id, {
+      metadata: { ...lockedRecord.metadata, title: 'Changed' },
+    })
+    store.delete([lockedRecord.id])
+
+    expect(store.duplicate([lockedRecord.id])).toEqual([])
+    expect(store.getState().annotations.has('locked-create')).toBe(false)
+    expect(store.getState().annotations.get(lockedRecord.id)).toEqual(lockedRecord)
+    expect(store.getState().pendingMutations).toEqual([])
+
+    store.load({
+      version: 1,
+      layers: [lockedLayer],
+      annotations: [{ ...lockedRecord, deletedAt: '2026-07-26T01:00:00Z' }],
+    })
+    store.restore([lockedRecord.id])
+    expect(store.getState().annotations.get(lockedRecord.id)?.deletedAt).not.toBeNull()
+    expect(store.getState().pendingMutations).toEqual([])
+  })
+
   it('copies, pastes, duplicates, zooms, and publishes import/export previews', () => {
     const store = createAnnotationStore({
       slideId: 'slide-1',
@@ -156,6 +192,7 @@ describe('framework-neutral annotation editing store', () => {
     const sent = store.peekPendingMutations()
     store.beginSave('m-1', sent)
     expect(store.peekPendingMutations()).toEqual([])
+    expect(store.getState().recoveryMutations).toEqual(sent)
     store.acknowledgeSave({
       mutationId: 'm-1',
       operations: sent,
@@ -173,11 +210,97 @@ describe('framework-neutral annotation editing store', () => {
       measurements: { x: 4, xUnit: 'px', y: 5, yUnit: 'px', count: 1 },
     })
     expect(store.getState().pendingMutations).toEqual([])
+    expect(store.getState().recoveryMutations).toEqual([])
 
     store.update('a-1', {
       metadata: { ...annotation.metadata, title: 'Second save' },
     })
     expect(store.peekPendingMutations()[0]).toMatchObject({ version: 2 })
+  })
+
+  it('applies brush add and subtract to the selected closed ROI through atomic worker semantics', async () => {
+    const worker = {
+      run: vi.fn()
+        .mockResolvedValueOnce([{
+          type: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 30, y: 0 },
+            { x: 30, y: 30 },
+            { x: 0, y: 30 },
+          ],
+        }])
+        .mockResolvedValueOnce([{
+          type: 'polygon',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        }]),
+    }
+    const roi: AnnotationRecord = {
+      ...annotation,
+      geometry: {
+        type: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 20, y: 0 },
+          { x: 20, y: 20 },
+          { x: 0, y: 20 },
+        ],
+      },
+      bounds: { minX: 0, minY: 0, maxX: 20, maxY: 20 },
+    }
+    const brush = {
+      type: 'polygon' as const,
+      points: [
+        { x: 10, y: 10 },
+        { x: 30, y: 10 },
+        { x: 30, y: 30 },
+        { x: 10, y: 30 },
+      ],
+    }
+    const store = createAnnotationStore({
+      slideId: 'slide-1',
+      booleanClient: worker,
+    })
+    store.load({ version: 1, layers: [layer], annotations: [roi] })
+
+    await store.brush('add', 'a-1', brush)
+    expect(worker.run).toHaveBeenNthCalledWith(1, 'union', [roi.geometry, brush])
+    expect(store.getState().annotations.get('a-1')?.bounds).toEqual({
+      minX: 0,
+      minY: 0,
+      maxX: 30,
+      maxY: 30,
+    })
+
+    const save = store.peekPendingMutations()
+    store.beginSave('brush-add', save)
+    store.acknowledgeSave({
+      mutationId: 'brush-add',
+      operations: save,
+      result: {
+        mutationId: 'brush-add',
+        version: 2,
+        results: [{ id: 'a-1', operation: 'update', version: 2, deleted: false }],
+        purged: 0,
+      },
+    })
+    await store.brush('subtract', 'a-1', brush)
+    expect(worker.run).toHaveBeenNthCalledWith(
+      2,
+      'subtract',
+      [expect.objectContaining({ type: 'polygon' }), brush],
+    )
+    expect(store.getState().annotations.get('a-1')?.bounds).toEqual({
+      minX: 0,
+      minY: 0,
+      maxX: 10,
+      maxY: 10,
+    })
   })
 
   it('reconciles a version-zero create and preserves a newer edit made while create is in flight', () => {

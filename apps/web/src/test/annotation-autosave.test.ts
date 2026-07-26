@@ -91,8 +91,12 @@ describe('annotation autosave', () => {
   it('stops on 409 and exposes reload or save-as-duplicate conflict choices', async () => {
     vi.useFakeTimers()
     const onReload = vi.fn(async () => 9)
-    const onDuplicate = vi.fn(async (items: readonly AnnotationMutation[]) => {
+    const onDuplicate = vi.fn(async (
+      items: readonly AnnotationMutation[],
+      currentVersion: number,
+    ) => {
       expect(items).toHaveLength(1)
+      expect(currentVersion).toBe(9)
       return 10
     })
     const autosave = new AnnotationAutosave({

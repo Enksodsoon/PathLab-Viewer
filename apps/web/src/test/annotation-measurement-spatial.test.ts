@@ -76,7 +76,7 @@ describe('bounded spatial rendering plan', () => {
     index.load(Array.from({ length: 6_000 }, (_, itemIndex) => record(itemIndex)))
 
     const plan = index.plan({ minX: 0, minY: 0, maxX: 100, maxY: 100 })
-    expect(plan.mounted).toHaveLength(2_000)
+    expect(plan.mounted).toHaveLength(0)
     expect(plan.cached.length).toBeLessThanOrEqual(5_000)
     expect(plan.totalVisible).toBe(6_000)
     expect(plan.density.enabled).toBe(true)

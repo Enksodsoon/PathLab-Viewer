@@ -25,7 +25,7 @@ import {
 } from 'react'
 
 import type { ViewerAttachmentCallback } from '../components/OpenSeadragonViewer'
-import { AnnotationApiClient } from './api'
+import { AnnotationApiClient, type AnnotationRevision } from './api'
 import {
   AnnotationAutosave,
   type AutosaveSnapshot,
@@ -75,6 +75,9 @@ const EMPTY_AUTOSAVE: AutosaveSnapshot = {
   error: null,
   conflict: null,
 }
+
+const MAX_IMPORT_FILE_BYTES = 8 * 1024 * 1024
+const OBJECT_REGISTER_PAGE_SIZE = 200
 
 const TOOLS: Array<{
   tool: AnnotationTool
@@ -132,9 +135,7 @@ export interface AnnotationWorkspaceServices {
     data: Record<string, unknown>
   }): Promise<AnnotationBatchResult>
   exportDocument(format: 'pathlab' | 'geojson' | 'csv'): Promise<Response>
-  revisions(annotationId: string): Promise<{
-    items: Array<{ id: string; version: number }>
-  }>
+  revisions(annotationId: string): Promise<{ items: AnnotationRevision[] }>
   restoreRevision(
     annotationId: string,
     revisionId: string,
@@ -244,15 +245,28 @@ function stateDraft(
     schema: 'pathlab-annotation-draft/v1',
     slideId,
     baseVersion: state.version,
-    mutations: state.pendingMutations,
+    mutations: state.recoveryMutations,
     snapshot: {
       version: state.version,
       layers: [...state.layers.values()],
       annotations: [...state.annotations.values()],
     },
     savedAt: Date.now(),
-    dirty: state.pendingMutations.length > 0,
+    dirty: state.recoveryMutations.length > 0,
   }
+}
+
+function focusableElements(container: HTMLElement): HTMLElement[] {
+  return [...container.querySelectorAll<HTMLElement>(
+    'button:not([disabled]),input:not([disabled]),select:not([disabled]),'
+    + 'textarea:not([disabled]),[href],[tabindex]:not([tabindex="-1"])',
+  )].filter((element) => !element.hasAttribute('hidden'))
+}
+
+interface PendingImport {
+  format: 'pathlab' | 'geojson'
+  layerName: string
+  data: Record<string, unknown>
 }
 
 function selectionRecords(state: AnnotationStoreState | null): AnnotationRecord[] {
@@ -272,15 +286,18 @@ function hasEditablePoints(
   return 'points' in record.geometry
 }
 
-function triggerDownload(response: Response, filename: string) {
-  void response.blob().then((blob) => {
-    const url = URL.createObjectURL(blob)
+async function triggerDownload(response: Response, filename: string): Promise<void> {
+  const blob = await response.blob()
+  if (typeof URL.createObjectURL !== 'function') return
+  const url = URL.createObjectURL(blob)
+  try {
     const link = document.createElement('a')
     link.href = url
     link.download = filename
     link.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 0)
-  })
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 export interface AnnotationWorkspaceProps {
@@ -308,8 +325,15 @@ export function AnnotationWorkspace({
   const metadataRef = useRef<AnnotationMetadata>(DEFAULT_METADATA)
   const textRef = useRef('Callout')
   const draftTimerRef = useRef<number | null>(null)
+  const latestStateRef = useRef<AnnotationStoreState | null>(null)
+  const draftPipelineRef = useRef<Promise<void>>(Promise.resolve())
+  const layerPipelineRef = useRef<Promise<void>>(Promise.resolve())
+  const layerOpacityDraftRef = useRef(new Map<string, number>())
   const pendingSignatureRef = useRef('[]')
   const inspectorTriggerRef = useRef<HTMLButtonElement>(null)
+  const inspectorRef = useRef<HTMLElement>(null)
+  const conflictRef = useRef<HTMLDivElement>(null)
+  const conflictReturnFocusRef = useRef<HTMLElement | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
   const [storeState, setStoreState] = useState<AnnotationStoreState | null>(null)
   const [autosave, setAutosave] = useState(EMPTY_AUTOSAVE)
@@ -322,15 +346,57 @@ export function AnnotationWorkspace({
   const [densityPrompt, setDensityPrompt] = useState<string | null>(null)
   const [coordinate, setCoordinate] = useState<{ x: number; y: number } | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth > 760)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [resetKey, setResetKey] = useState(0)
   const [operationStatus, setOperationStatus] = useState('Opening annotation workspace…')
   const [importPreview, setImportPreview] = useState<string | null>(null)
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
+  const [revisions, setRevisions] = useState<AnnotationRevision[]>([])
+  const [selectedRevisionId, setSelectedRevisionId] = useState('')
+  const [listLimit, setListLimit] = useState(OBJECT_REGISTER_PAGE_SIZE)
   const attachmentReady = Boolean(storeState)
 
   activeLayerRef.current = activeLayerId
   styleRef.current = style
   metadataRef.current = metadata
   textRef.current = calloutText
+
+  const persistDraft = useCallback((state: AnnotationStoreState): Promise<void> => {
+    const draft = stateDraft(slideId, state)
+    if (!draft.dirty) return draftPipelineRef.current
+    const write = draftPipelineRef.current
+      .catch(() => undefined)
+      .then(() => services.saveDraft(draft))
+      .then(() => undefined)
+    draftPipelineRef.current = write
+    return write
+  }, [services, slideId])
+
+  const acknowledgePersistedDraft = useCallback((): Promise<void> => {
+    const acknowledgement = draftPipelineRef.current
+      .catch(() => undefined)
+      .then(() => services.acknowledgeDraft())
+    draftPipelineRef.current = acknowledgement
+    return acknowledgement
+  }, [services])
+
+  const discardPersistedDraft = useCallback((): Promise<void> => {
+    const discard = draftPipelineRef.current
+      .catch(() => undefined)
+      .then(() => services.discardDraft())
+    draftPipelineRef.current = discard
+    return discard
+  }, [services])
+
+  const serializeLayerMutation = useCallback((
+    operation: () => Promise<void>,
+  ): Promise<void> => {
+    const result = layerPipelineRef.current
+      .catch(() => undefined)
+      .then(operation)
+    layerPipelineRef.current = result.catch(() => undefined)
+    return result
+  }, [])
 
   const loadRemote = useCallback(async (store: AnnotationStore): Promise<number> => {
     const manifest = await services.getManifest()
@@ -347,16 +413,17 @@ export function AnnotationWorkspace({
       layers: manifest.layers,
       annotations: items,
     })
-    const firstEditable = manifest.layers.find((layer) => !layer.locked)
-      ?? manifest.layers[0]
-      ?? null
+    const firstEditable = manifest.layers.find((layer) => !layer.locked) ?? null
     setActiveLayerId(firstEditable?.id ?? null)
+    activeLayerRef.current = firstEditable?.id ?? null
     return manifest.version
   }, [services])
 
   useEffect(() => {
     let active = true
     let unsubscribe: () => void = () => undefined
+    latestStateRef.current = null
+    pendingSignatureRef.current = '[]'
     setInitializing(true)
     setError(null)
     setOperationStatus('Opening annotation workspace…')
@@ -387,9 +454,7 @@ export function AnnotationWorkspace({
           layers: manifest.layers,
           annotations: items,
         })
-        const firstEditable = manifest.layers.find((layer) => !layer.locked)
-          ?? manifest.layers[0]
-          ?? null
+        const firstEditable = manifest.layers.find((layer) => !layer.locked) ?? null
         setActiveLayerId(firstEditable?.id ?? null)
         activeLayerRef.current = firstEditable?.id ?? null
 
@@ -406,10 +471,10 @@ export function AnnotationWorkspace({
           ...storeHooks,
           onReload: async () => {
             const version = await loadRemote(store)
-            await services.discardDraft()
+            await discardPersistedDraft()
             return version
           },
-          onSaveAsDuplicate: async (operations) => {
+          onSaveAsDuplicate: async (operations, currentVersion) => {
             const creates = operations.flatMap((operation) => {
               const id = operation.type === 'create' ? operation.item.id : operation.id
               const record = store.getState().annotations.get(id)
@@ -428,27 +493,28 @@ export function AnnotationWorkspace({
                 },
               }]
             })
-            if (creates.length === 0) return store.getState().version
+            if (creates.length === 0) return currentVersion
             const result = await services.batch({
               mutationId: crypto.randomUUID(),
-              baseVersion: store.getState().version,
+              baseVersion: currentVersion,
               operations: creates,
             })
             await loadRemote(store)
-            await services.acknowledgeDraft()
+            await acknowledgePersistedDraft()
             return result.version
           },
           onChange: (snapshot) => {
             if (!active) return
             setAutosave(snapshot)
             if (snapshot.status === 'saved' && snapshot.dirtyCount === 0) {
-              void services.acknowledgeDraft().catch(() => undefined)
+              void acknowledgePersistedDraft().catch(() => undefined)
             }
           },
         })
         autosaveRef.current = saver
         unsubscribe = store.subscribe((next) => {
           if (!active) return
+          latestStateRef.current = next
           setStoreState(next)
           const signature = JSON.stringify(next.pendingMutations)
           if (signature !== pendingSignatureRef.current) {
@@ -456,14 +522,19 @@ export function AnnotationWorkspace({
             saver.replacePending(next.pendingMutations)
           }
           if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current)
-          draftTimerRef.current = window.setTimeout(() => {
-            void services.saveDraft(stateDraft(slideId, next)).catch((caught) => {
-              if (active) {
-                setError(caught instanceof Error ? caught.message : 'Local draft could not be saved')
-              }
-            })
-          }, 250)
+          draftTimerRef.current = null
+          if (next.recoveryMutations.length > 0) {
+            draftTimerRef.current = window.setTimeout(() => {
+              draftTimerRef.current = null
+              void persistDraft(next).catch((caught) => {
+                if (active) {
+                  setError(caught instanceof Error ? caught.message : 'Local draft could not be saved')
+                }
+              })
+            }, 250)
+          }
         })
+        latestStateRef.current = store.getState()
         setStoreState(store.getState())
         const draft = await services.loadDraft()
         if (!active) return
@@ -483,6 +554,10 @@ export function AnnotationWorkspace({
     })()
 
     return () => {
+      const latest = latestStateRef.current
+      if (latest?.recoveryMutations.length) {
+        void persistDraft(latest).catch(() => undefined)
+      }
       active = false
       unsubscribe()
       autosaveRef.current?.dispose()
@@ -494,7 +569,15 @@ export function AnnotationWorkspace({
         draftTimerRef.current = null
       }
     }
-  }, [loadRemote, resetKey, services, slideId])
+  }, [
+    acknowledgePersistedDraft,
+    discardPersistedDraft,
+    loadRemote,
+    persistDraft,
+    resetKey,
+    services,
+    slideId,
+  ])
 
   useEffect(() => {
     if (!attachmentReady || error) {
@@ -515,6 +598,7 @@ export function AnnotationWorkspace({
           text: () => textRef.current,
           onCoordinate: setCoordinate,
           onDensity: setDensityPrompt,
+          onNotice: setOperationStatus,
           onError: (message) => {
             setError(message)
             setOperationStatus('Annotation overlay paused; pan and zoom restored')
@@ -536,6 +620,70 @@ export function AnnotationWorkspace({
     return () => onAttachmentChange(undefined)
   }, [attachmentReady, error, onAttachmentChange])
 
+  useEffect(() => {
+    const updateMobile = () => setIsMobile(window.innerWidth <= 760)
+    window.addEventListener('resize', updateMobile)
+    return () => window.removeEventListener('resize', updateMobile)
+  }, [])
+
+  useEffect(() => {
+    const inspector = inspectorRef.current
+    if (!isMobile || !inspectorOpen || !inspector) return
+    const trigger = inspectorTriggerRef.current
+    const focusable = focusableElements(inspector)
+    focusable[0]?.focus()
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const current = focusableElements(inspector)
+      const first = current[0]
+      const last = current.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    inspector.addEventListener('keydown', trap)
+    return () => {
+      inspector.removeEventListener('keydown', trap)
+      trigger?.focus()
+    }
+  }, [inspectorOpen, isMobile])
+
+  const conflictOpen = Boolean(autosave.conflict)
+  useEffect(() => {
+    const dialog = conflictRef.current
+    if (!conflictOpen || !dialog) return
+    conflictReturnFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const focusable = focusableElements(dialog)
+    focusable[0]?.focus()
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const current = focusableElements(dialog)
+      const first = current[0]
+      const last = current.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    dialog.addEventListener('keydown', trap)
+    return () => {
+      dialog.removeEventListener('keydown', trap)
+      conflictReturnFocusRef.current?.focus()
+      conflictReturnFocusRef.current = null
+    }
+  }, [conflictOpen])
+
   const store = storeRef.current
   const selected = selectionRecords(storeState)
   const primary = selected[0] ?? null
@@ -553,6 +701,20 @@ export function AnnotationWorkspace({
         .flatMap((record) => record.metadata.tags),
     )].sort((left, right) => left.localeCompare(right))
   ), [storeState])
+  const visibleRecords = store?.visibleAnnotations() ?? []
+  const visibleListRecords = visibleRecords.slice(0, listLimit)
+  const filterSignature = storeState
+    ? [
+      storeState.filter.search,
+      [...storeState.filter.layerIds].join(','),
+      [...(storeState.filter.classifications ?? [])].join(','),
+      [...(storeState.filter.tags ?? [])].join(','),
+      String(storeState.filter.includeDeleted),
+    ].join('|')
+    : ''
+  useEffect(() => {
+    setListLimit(OBJECT_REGISTER_PAGE_SIZE)
+  }, [filterSignature])
 
   const setTool = useCallback((tool: AnnotationTool) => {
     storeRef.current?.setTool(tool)
@@ -663,7 +825,7 @@ export function AnnotationWorkspace({
     try {
       const version = await loadRemote(localStore)
       autosaveRef.current?.reset(version)
-      await services.discardDraft()
+      await discardPersistedDraft()
       setOperationStatus('Annotations reloaded from server')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Reload failed')
@@ -725,70 +887,141 @@ export function AnnotationWorkspace({
 
   const createLayer = async () => {
     if (!storeState) return
-    try {
-      const baseVersion = await prepareVersionedOperation()
-      const layer = await services.createLayer({
-        mutationId: crypto.randomUUID(),
-        baseVersion,
-        name: `Layer ${storeState.layers.size + 1}`,
-        sortOrder: storeState.layers.size,
-      })
-      const localStore = storeRef.current
-      if (!localStore) return
-      const version = await loadRemote(localStore)
-      autosaveRef.current?.reset(version)
-      setActiveLayerId(layer.id)
-      setOperationStatus(`${layer.name} created`)
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Layer could not be created')
-    }
+    await serializeLayerMutation(async () => {
+      try {
+        const baseVersion = await prepareVersionedOperation()
+        const layer = await services.createLayer({
+          mutationId: crypto.randomUUID(),
+          baseVersion,
+          name: `Layer ${(storeRef.current?.getState().layers.size ?? 0) + 1}`,
+          sortOrder: storeRef.current?.getState().layers.size ?? 0,
+        })
+        const localStore = storeRef.current
+        if (!localStore) return
+        const version = await loadRemote(localStore)
+        autosaveRef.current?.reset(version)
+        if (!layer.locked) {
+          setActiveLayerId(layer.id)
+          activeLayerRef.current = layer.id
+        }
+        setOperationStatus(`${layer.name} created`)
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Layer could not be created')
+      }
+    })
   }
 
-  const updateLayer = async (
+  const persistLayerPatch = async (
     layer: AnnotationLayer,
-    patch: Partial<Pick<AnnotationLayer, 'name' | 'sortOrder' | 'visible' | 'locked' | 'opacity'>>,
+    patch: Partial<Pick<AnnotationLayer, 'name' | 'visible' | 'locked' | 'opacity'>>,
   ) => {
-    if (!storeState) return
+    await serializeLayerMutation(async () => {
+      try {
+        const baseVersion = await prepareVersionedOperation()
+        storeRef.current?.updateLayer(layer.id, patch)
+        await services.updateLayer(layer.id, {
+          mutationId: crypto.randomUUID(),
+          baseVersion,
+          ...patch,
+        })
+        const localStore = storeRef.current
+        if (!localStore) return
+        const version = await loadRemote(localStore)
+        autosaveRef.current?.reset(version)
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Layer update failed')
+        await reload()
+      }
+    })
+  }
+
+  const reorderLayer = async (layerId: string, direction: -1 | 1) => {
+    await serializeLayerMutation(async () => {
+      try {
+        const baseVersion = await prepareVersionedOperation()
+        const localStore = storeRef.current
+        if (!localStore) return
+        const ordered = [...localStore.getState().layers.values()]
+          .sort((left, right) => left.sortOrder - right.sortOrder)
+        const index = ordered.findIndex((layer) => layer.id === layerId)
+        const destination = index + direction
+        if (index < 0 || destination < 0 || destination >= ordered.length) return
+        const [moved] = ordered.splice(index, 1)
+        ordered.splice(destination, 0, moved)
+        const normalized = ordered.map((layer, sortOrder) => ({ ...layer, sortOrder }))
+        localStore.setLayers(normalized)
+        let version = baseVersion
+        for (const layer of normalized) {
+          const previous = storeState?.layers.get(layer.id)
+          if (previous?.sortOrder === layer.sortOrder) continue
+          const result = await services.updateLayer(layer.id, {
+            mutationId: crypto.randomUUID(),
+            baseVersion: version,
+            sortOrder: layer.sortOrder,
+          })
+          version = result.version
+        }
+        const loadedVersion = await loadRemote(localStore)
+        autosaveRef.current?.reset(loadedVersion)
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Layer reorder failed')
+        await reload()
+      }
+    })
+  }
+
+  const stageLayerOpacity = (layer: AnnotationLayer, opacity: number) => {
+    layerOpacityDraftRef.current.set(layer.id, opacity)
+    storeRef.current?.updateLayer(layer.id, { opacity })
+  }
+
+  const commitLayerOpacity = async (layer: AnnotationLayer) => {
+    const opacity = layerOpacityDraftRef.current.get(layer.id)
+    if (opacity === undefined) return
+    layerOpacityDraftRef.current.delete(layer.id)
+    await persistLayerPatch(layer, { opacity })
+  }
+
+  const browseRevisions = async () => {
+    if (!primary || !storeState) {
+      setOperationStatus('Select an annotation to browse revisions')
+      return
+    }
     try {
-      const baseVersion = await prepareVersionedOperation()
-      storeRef.current?.updateLayer(layer.id, patch)
-      await services.updateLayer(layer.id, {
-        mutationId: crypto.randomUUID(),
-        baseVersion,
-        ...patch,
-      })
-      const localStore = storeRef.current
-      if (!localStore) return
-      const version = await loadRemote(localStore)
-      autosaveRef.current?.reset(version)
-      setActiveLayerId((current) => current ?? layer.id)
+      await prepareVersionedOperation()
+      const current = storeRef.current?.getState().annotations.get(primary.id)
+      if (!current) throw new Error('Selected annotation is no longer available')
+      const history = await services.revisions(current.id)
+      const bounded = history.items.slice(0, 25)
+      setRevisions(bounded)
+      setSelectedRevisionId('')
+      if (bounded.length === 0) {
+        setOperationStatus('No earlier revision is available')
+        return
+      }
+      setOperationStatus(`Loaded ${bounded.length} revisions; choose one to preview`)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Layer update failed')
-      await reload()
+      setError(caught instanceof Error ? caught.message : 'Revision history failed')
     }
   }
 
-  const restoreRevision = async () => {
-    if (!primary || !storeState) {
-      setOperationStatus('Select an annotation to restore a revision')
+  const restoreSelectedRevision = async () => {
+    if (!primary || !selectedRevisionId) {
+      setOperationStatus('Choose a revision before restoring')
       return
     }
     try {
       const baseVersion = await prepareVersionedOperation()
       const current = storeRef.current?.getState().annotations.get(primary.id)
       if (!current) throw new Error('Selected annotation is no longer available')
-      const revisions = await services.revisions(current.id)
-      const revision = revisions.items[0]
-      if (!revision) {
-        setOperationStatus('No earlier revision is available')
-        return
-      }
-      await services.restoreRevision(current.id, revision.id, {
+      await services.restoreRevision(current.id, selectedRevisionId, {
         mutationId: crypto.randomUUID(),
         baseVersion,
         version: current.version,
       })
       await reload()
+      setRevisions([])
+      setSelectedRevisionId('')
       setOperationStatus('Annotation revision restored')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Revision restore failed')
@@ -798,7 +1031,10 @@ export function AnnotationWorkspace({
   const importFile = async (file: File | undefined) => {
     if (!file || !store || !storeState) return
     try {
-      const baseVersion = await prepareVersionedOperation()
+      setPendingImport(null)
+      if (file.size > MAX_IMPORT_FILE_BYTES) {
+        throw new Error('Import exceeds the 8 MiB limit')
+      }
       const text = await file.text()
       const data = JSON.parse(text) as Record<string, unknown>
       const preview = store.previewImport(data)
@@ -808,26 +1044,47 @@ export function AnnotationWorkspace({
       if (!preview.valid || preview.format === 'unknown') {
         throw new Error(preview.errors[0] ?? 'Import is not valid')
       }
-      await services.importDocument({
-        mutationId: crypto.randomUUID(),
-        baseVersion,
+      setPendingImport({
         format: preview.format,
         layerName: file.name.replace(/\.[^.]+$/, '').slice(0, 160) || 'Imported annotations',
         data,
       })
-      await reload()
-      setOperationStatus('Import completed in a new layer')
+      setOperationStatus('Import preview ready; confirm to create a new layer')
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Import failed')
+      const message = caught instanceof Error ? caught.message : 'Import failed'
+      setImportPreview(message)
+      setOperationStatus(message)
     } finally {
       if (importRef.current) importRef.current.value = ''
     }
   }
 
+  const confirmImport = async () => {
+    if (!pendingImport) return
+    try {
+      const baseVersion = await prepareVersionedOperation()
+      await services.importDocument({
+        mutationId: crypto.randomUUID(),
+        baseVersion,
+        ...pendingImport,
+      })
+      setPendingImport(null)
+      setImportPreview(null)
+      await reload()
+      setOperationStatus('Import completed in a new layer')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Import failed')
+    }
+  }
+
   const exportDocument = async (format: 'pathlab' | 'geojson' | 'csv') => {
     try {
+      await prepareVersionedOperation()
       const response = await services.exportDocument(format)
-      triggerDownload(response, `${slideName}-annotations.${format === 'pathlab' ? 'json' : format}`)
+      await triggerDownload(
+        response,
+        `${slideName}-annotations.${format === 'pathlab' ? 'json' : format}`,
+      )
       setOperationStatus(`${format.toUpperCase()} export ready`)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Export failed')
@@ -835,6 +1092,7 @@ export function AnnotationWorkspace({
   }
 
   const measurement = primary && store ? store.measure(primary.id) : null
+  const selectedRevision = revisions.find((revision) => revision.id === selectedRevisionId) ?? null
 
   return (
     <AnnotationErrorBoundary resetKey={resetKey} onRetry={retry}>
@@ -915,7 +1173,7 @@ export function AnnotationWorkspace({
               <span className="annotation-kicker">OBJECT REGISTER</span>
               <strong>Annotations</strong>
             </div>
-            <span>{store?.visibleAnnotations().length.toLocaleString() ?? 0}</span>
+            <span>{visibleRecords.length.toLocaleString()}</span>
           </div>
           <div className="annotation-filterbar" aria-label="Annotation filters">
             <select
@@ -950,12 +1208,12 @@ export function AnnotationWorkspace({
             </label>
           </div>
           <div className="annotation-list-scroll">
-            {store?.visibleAnnotations().map((record, index) => (
+            {visibleListRecords.map((record, index) => (
               <button
                 type="button"
                 key={record.id}
                 className={storeState?.selection.has(record.id) ? 'is-selected' : ''}
-                onClick={(event) => store.select([record.id], event.shiftKey)}
+                onClick={(event) => store?.select([record.id], event.shiftKey)}
                 onDoubleClick={() => zoomTo(record)}
               >
                 <span>{String(index + 1).padStart(3, '0')}</span>
@@ -966,14 +1224,35 @@ export function AnnotationWorkspace({
                 <i style={{ background: record.style.strokeColor }} />
               </button>
             ))}
-            {!initializing && store?.visibleAnnotations().length === 0 ? (
+            {visibleRecords.length > visibleListRecords.length ? (
+              <button
+                type="button"
+                className="annotation-list-more"
+                onClick={() => setListLimit((limit) => Math.min(
+                  limit + OBJECT_REGISTER_PAGE_SIZE,
+                  visibleRecords.length,
+                ))}
+              >
+                Show {Math.min(
+                  OBJECT_REGISTER_PAGE_SIZE,
+                  visibleRecords.length - visibleListRecords.length,
+                )} more annotations
+              </button>
+            ) : null}
+            {!initializing && visibleRecords.length === 0 ? (
               <p className="annotation-empty">Choose a tool and mark the slide.</p>
             ) : null}
           </div>
         </div>
 
         {inspectorOpen ? (
-          <aside className="annotation-inspector" role="region" aria-label="Annotation inspector">
+          <aside
+            ref={inspectorRef}
+            className="annotation-inspector"
+            role={isMobile ? 'dialog' : 'region'}
+            aria-modal={isMobile ? true : undefined}
+            aria-label="Annotation inspector"
+          >
             <div className="annotation-panel-heading">
               <div>
                 <span className="annotation-kicker">CONTROL SURFACE</span>
@@ -982,10 +1261,7 @@ export function AnnotationWorkspace({
               <button
                 type="button"
                 aria-label="Close annotation inspector"
-                onClick={() => {
-                  setInspectorOpen(false)
-                  window.setTimeout(() => inspectorTriggerRef.current?.focus(), 0)
-                }}
+                onClick={() => setInspectorOpen(false)}
               >
                 <X />
               </button>
@@ -1025,12 +1301,16 @@ export function AnnotationWorkspace({
                     value={primary?.layerId ?? activeLayerId ?? ''}
                     onChange={(event) => {
                       const layerId = event.target.value
+                      const targetLayer = storeState?.layers.get(layerId)
+                      if (!layerId || targetLayer?.locked) return
                       setActiveLayerId(layerId)
+                      activeLayerRef.current = layerId
                       if (store && selected.length > 0) {
                         store.bulkUpdate(selected.map((record) => record.id), { layerId })
                       }
                     }}
                   >
+                    <option value="">No editable layer</option>
                     {[...(storeState?.layers.values() ?? [])]
                       .sort((left, right) => left.sortOrder - right.sortOrder)
                       .map((layer) => (
@@ -1150,7 +1430,11 @@ export function AnnotationWorkspace({
                         <button
                           type="button"
                           className="annotation-layer-name"
-                          onClick={() => setActiveLayerId(layer.id)}
+                          disabled={layer.locked}
+                          onClick={() => {
+                            setActiveLayerId(layer.id)
+                            activeLayerRef.current = layer.id
+                          }}
                         >
                           {layer.name}
                         </button>
@@ -1158,7 +1442,7 @@ export function AnnotationWorkspace({
                           type="button"
                           aria-label={`Move ${layer.name} up`}
                           disabled={index === 0}
-                          onClick={() => void updateLayer(layer, { sortOrder: Math.max(0, layer.sortOrder - 1) })}
+                          onClick={() => void reorderLayer(layer.id, -1)}
                         >
                           <CaretUp />
                         </button>
@@ -1166,7 +1450,7 @@ export function AnnotationWorkspace({
                           type="button"
                           aria-label={`Move ${layer.name} down`}
                           disabled={index === layers.length - 1}
-                          onClick={() => void updateLayer(layer, { sortOrder: layer.sortOrder + 1 })}
+                          onClick={() => void reorderLayer(layer.id, 1)}
                         >
                           <CaretDown />
                         </button>
@@ -1175,7 +1459,10 @@ export function AnnotationWorkspace({
                             type="checkbox"
                             aria-label={`Show ${layer.name}`}
                             checked={layer.visible}
-                            onChange={(event) => void updateLayer(layer, { visible: event.target.checked })}
+                            onChange={(event) => void persistLayerPatch(
+                              layer,
+                              { visible: event.target.checked },
+                            )}
                           />
                         </label>
                         <label title="Locked">
@@ -1183,7 +1470,10 @@ export function AnnotationWorkspace({
                             type="checkbox"
                             aria-label={`Lock ${layer.name}`}
                             checked={layer.locked}
-                            onChange={(event) => void updateLayer(layer, { locked: event.target.checked })}
+                            onChange={(event) => void persistLayerPatch(
+                              layer,
+                              { locked: event.target.checked },
+                            )}
                           />
                         </label>
                         <label className="annotation-layer-opacity">
@@ -1195,7 +1485,10 @@ export function AnnotationWorkspace({
                             max="1"
                             step="0.05"
                             value={layer.opacity}
-                            onChange={(event) => void updateLayer(layer, { opacity: Number(event.target.value) })}
+                            onChange={(event) => stageLayerOpacity(layer, Number(event.target.value))}
+                            onPointerUp={() => void commitLayerOpacity(layer)}
+                            onKeyUp={() => void commitLayerOpacity(layer)}
+                            onBlur={() => void commitLayerOpacity(layer)}
                           />
                         </label>
                       </div>
@@ -1249,14 +1542,68 @@ export function AnnotationWorkspace({
                   </button>
                 </div>
                 {importPreview ? <p className="annotation-muted">{importPreview}</p> : null}
+                {pendingImport ? (
+                  <div className="annotation-confirm-row">
+                    <button
+                      type="button"
+                      aria-label="Confirm annotation import"
+                      onClick={() => void confirmImport()}
+                    >
+                      Confirm import
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingImport(null)
+                        setImportPreview(null)
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className="annotation-restore-revision"
-                  aria-label="Restore annotation revision"
-                  onClick={() => void restoreRevision()}
+                  aria-label="Browse annotation revisions"
+                  onClick={() => void browseRevisions()}
                 >
-                  <FolderOpen /> Restore revision
+                  <FolderOpen /> Revision history
                 </button>
+                {revisions.length > 0 ? (
+                  <div className="annotation-revision-browser">
+                    <label>
+                      <span>Revision</span>
+                      <select
+                        aria-label="Annotation revisions"
+                        value={selectedRevisionId}
+                        onChange={(event) => setSelectedRevisionId(event.target.value)}
+                      >
+                        <option value="">Choose a revision</option>
+                        {revisions.map((revision) => (
+                          <option key={revision.id} value={revision.id}>
+                            v{revision.version} · {new Date(revision.createdAt).toLocaleString()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {selectedRevision ? (
+                      <div className="annotation-revision-preview" aria-live="polite">
+                        <strong>{selectedRevision.metadata.title || 'Untitled annotation'}</strong>
+                        <span>{selectedRevision.metadata.classification || selectedRevision.geometry.type}</span>
+                        <small>Version {selectedRevision.version}</small>
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label="Restore selected revision"
+                      disabled={!selectedRevision}
+                      onClick={() => void restoreSelectedRevision()}
+                    >
+                      Restore selected revision
+                    </button>
+                  </div>
+                ) : null}
               </section>
             </div>
           </aside>
@@ -1280,7 +1627,13 @@ export function AnnotationWorkspace({
         ) : null}
 
         {autosave.conflict ? (
-          <div className="annotation-conflict" role="alertdialog" aria-label="Annotation save conflict">
+          <div
+            ref={conflictRef}
+            className="annotation-conflict"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Annotation save conflict"
+          >
             <strong>Server changes detected</strong>
             <span>Choose how to resolve the version conflict.</span>
             <button type="button" onClick={() => void resolveConflict('reload')}>Reload server</button>

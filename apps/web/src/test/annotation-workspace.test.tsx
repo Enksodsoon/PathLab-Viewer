@@ -117,7 +117,7 @@ it('exposes the complete accessible Canvas Focus tool and workflow surface', asy
   expect(screen.getByRole('button', { name: 'Export PathLab JSON' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Export GeoJSON' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Export measurements CSV' })).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Restore annotation revision' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Browse annotation revisions' })).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Drawing layer' })).toHaveValue(layerId)
   expect(screen.getByRole('combobox', { name: 'Filter by classification' })).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Filter by tag' })).toBeVisible()

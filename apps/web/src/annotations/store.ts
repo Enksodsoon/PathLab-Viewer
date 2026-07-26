@@ -7,6 +7,7 @@ import {
 import type { BooleanWorkerClient } from './boolean'
 import { createBooleanWorkerClient } from './boolean'
 import {
+  asPolygon,
   duplicateAnnotation,
   editVertex as editGeometryVertex,
   geometryBounds,
@@ -67,6 +68,7 @@ export interface AnnotationStoreState {
   selection: Set<string>
   filter: AnnotationFilter
   pendingMutations: AnnotationMutation[]
+  recoveryMutations: AnnotationMutation[]
   autosaveStatus: string
   overlayError: string | null
 }
@@ -152,6 +154,11 @@ export interface AnnotationStore {
   copy(): void
   paste(offset?: { x: number; y: number }): string[]
   boolean(operation: PolygonBooleanOperation, ids: Iterable<string>): Promise<string[]>
+  brush(
+    operation: 'add' | 'subtract',
+    id: string,
+    geometry: PolygonGeometry,
+  ): Promise<string[]>
   delete(ids: Iterable<string>): void
   restore(ids: Iterable<string>): void
   undo(): void
@@ -305,6 +312,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       tags: internal.filter.tags ? readonlySet(internal.filter.tags) : undefined,
     },
     pendingMutations: sendableEntries().map((entry) => cloneMutation(entry.mutation)),
+    recoveryMutations: pending.map((entry) => cloneMutation(entry.mutation)),
     autosaveStatus: internal.autosaveStatus,
     overlayError: internal.overlayError,
   })
@@ -478,6 +486,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     ids: Iterable<string>,
     patch: Partial<Pick<AnnotationInput, 'layerId' | 'geometry' | 'style' | 'metadata'>>,
   ) => {
+    if (patch.layerId && internal.layers.get(patch.layerId)?.locked) return
     if (patch.geometry && geometryVertexCount(patch.geometry) > MAX_VERTICES_PER_SHAPE) {
       throw new RangeError('Annotation shapes cannot exceed 8,192 vertices')
     }
@@ -512,6 +521,124 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         })
       }
     })
+  }
+
+  const applyBooleanResults = (
+    sources: AnnotationRecord[],
+    results: PolygonGeometry[],
+  ): string[] => {
+    if (results.some((geometry) => geometryVertexCount(geometry) > MAX_VERTICES_PER_SHAPE)) {
+      throw new RangeError('Boolean results cannot exceed 8,192 vertices per shape')
+    }
+    const deletedSourceCount = results.length > 0 ? sources.length - 1 : sources.length
+    if (results.length + deletedSourceCount > MAX_BATCH_OPERATIONS) {
+      throw new RangeError('Boolean result exceeds the 50-operation transaction limit')
+    }
+    const resultingActive = activeCount - sources.length + results.length
+    if (resultingActive > maxAnnotations) {
+      throw new RangeError('Active annotation limit exceeded')
+    }
+    const newIds = results.slice(1).map(() => idFactory())
+    const reserved = new Set([...internal.annotations.keys(), ...sources.map((record) => record.id)])
+    for (const id of newIds) {
+      if (reserved.has(id)) throw new Error(`Annotation ${id} already exists`)
+      reserved.add(id)
+    }
+    const affected = [...sources.map((record) => record.id), ...newIds]
+    const timestamp = now().toISOString()
+    const mutations: AnnotationMutation[] = []
+    if (results.length > 0) {
+      mutations.push({
+        type: 'update',
+        id: sources[0].id,
+        version: Math.max(1, sources[0].version),
+        geometry: structuredClone(results[0]),
+      })
+      results.slice(1).forEach((geometry, index) => {
+        mutations.push({
+          type: 'create',
+          item: {
+            id: newIds[index],
+            layerId: sources[0].layerId,
+            geometry: structuredClone(geometry),
+            style: structuredClone(sources[0].style),
+            metadata: structuredClone(sources[0].metadata),
+          },
+        })
+      })
+    }
+    const deletedSources = results.length > 0 ? sources.slice(1) : sources
+    mutations.push(...deletedSources.map((record) => ({
+      type: 'delete' as const,
+      id: record.id,
+      version: Math.max(1, record.version),
+    })))
+    if (
+      annotationBatchRequestBytes(
+        '00000000-0000-4000-8000-000000000000',
+        internal.version,
+        mutations,
+      ) > MAX_ANNOTATION_BATCH_BYTES
+    ) {
+      throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE')
+    }
+    recordCommand(affected, mutations, () => {
+      if (results.length > 0) {
+        const geometry = structuredClone(results[0])
+        setRecord(sources[0].id, {
+          ...cloneRecord(sources[0]),
+          geometry,
+          bounds: geometryBounds(geometry),
+          measurements: measureGeometry(
+            geometry,
+            options.calibration,
+          ).values as Record<string, string | number>,
+          updatedAt: timestamp,
+        })
+        results.slice(1).forEach((resultGeometry, index) => {
+          setRecord(newIds[index], {
+            id: newIds[index],
+            layerId: sources[0].layerId,
+            geometry: structuredClone(resultGeometry),
+            style: structuredClone(sources[0].style),
+            metadata: structuredClone(sources[0].metadata),
+            version: 0,
+            deletedAt: null,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            bounds: geometryBounds(resultGeometry),
+            measurements: measureGeometry(
+              resultGeometry,
+              options.calibration,
+            ).values as Record<string, string | number>,
+          })
+        })
+      }
+      for (const source of deletedSources) {
+        if (source.version === 0) setRecord(source.id, null)
+        else setRecord(source.id, { ...cloneRecord(source), deletedAt: timestamp })
+        internal.selection.delete(source.id)
+      }
+    })
+    const selected = results.length > 0 ? [sources[0].id, ...newIds] : []
+    internal.selection = new Set(selected)
+    emit()
+    return selected
+  }
+
+  const runBoolean = async (
+    operation: PolygonBooleanOperation,
+    sources: AnnotationRecord[],
+    geometries: PolygonGeometry[],
+  ): Promise<string[]> => {
+    if (pending.length > 0) {
+      throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN')
+    }
+    const results = await booleanClient.run(operation, geometries)
+    if (pending.length > 0) {
+      throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN')
+    }
+    return applyBooleanResults(sources, results)
   }
 
   const store: AnnotationStore = {
@@ -593,6 +720,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       }).map(cloneRecord)
     },
     create(input) {
+      if (internal.layers.get(input.layerId)?.locked) return
       if (internal.annotations.has(input.id)) throw new Error(`Annotation ${input.id} already exists`)
       if (activeCount >= maxAnnotations) throw new RangeError('Active annotation limit exceeded')
       if (geometryVertexCount(input.geometry) > MAX_VERTICES_PER_SHAPE) {
@@ -647,7 +775,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       const created: string[] = []
       for (const id of ids) {
         const source = internal.annotations.get(id)
-        if (!source) continue
+        if (!source || !layerEditable(source)) continue
         const newId = idFactory()
         const copy = duplicateAnnotation(source, newId, offset)
         store.create(inputFromRecord(copy))
@@ -664,6 +792,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     paste(offset = { x: 12, y: 12 }) {
       const ids: string[] = []
       for (const source of clipboard) {
+        if (!layerEditable(source)) continue
         const id = idFactory()
         const copy = duplicateAnnotation(source, id, offset)
         store.create(inputFromRecord(copy))
@@ -682,113 +811,25 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
           && layerEditable(record),
       ))
       if (sources.length === 0) return []
-      if (pending.length > 0) {
-        throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN')
-      }
-      const results = await booleanClient.run(
+      return runBoolean(
         operation,
+        sources,
         sources.map((record) => record.geometry as PolygonGeometry),
       )
-      if (pending.length > 0) {
-        throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_QUEUE_NOT_CLEAN')
-      }
-      if (results.some((geometry) => geometryVertexCount(geometry) > MAX_VERTICES_PER_SHAPE)) {
-        throw new RangeError('Boolean results cannot exceed 8,192 vertices per shape')
-      }
-      const deletedSourceCount = results.length > 0 ? sources.length - 1 : sources.length
-      if (results.length + deletedSourceCount > MAX_BATCH_OPERATIONS) {
-        throw new RangeError('Boolean result exceeds the 50-operation transaction limit')
-      }
-      const resultingActive = activeCount - sources.length + results.length
-      if (resultingActive > maxAnnotations) {
-        throw new RangeError('Active annotation limit exceeded')
-      }
-      const newIds = results.slice(1).map(() => idFactory())
-      const reserved = new Set([...internal.annotations.keys(), ...sources.map((record) => record.id)])
-      for (const id of newIds) {
-        if (reserved.has(id)) throw new Error(`Annotation ${id} already exists`)
-        reserved.add(id)
-      }
-      const affected = [...sources.map((record) => record.id), ...newIds]
-      const timestamp = now().toISOString()
-      const mutations: AnnotationMutation[] = []
-      if (results.length > 0) {
-        mutations.push({
-          type: 'update',
-          id: sources[0].id,
-          version: Math.max(1, sources[0].version),
-          geometry: structuredClone(results[0]),
-        })
-        results.slice(1).forEach((geometry, index) => {
-          mutations.push({
-            type: 'create',
-            item: {
-              id: newIds[index],
-              layerId: sources[0].layerId,
-              geometry: structuredClone(geometry),
-              style: structuredClone(sources[0].style),
-              metadata: structuredClone(sources[0].metadata),
-            },
-          })
-        })
-      }
-      const deletedSources = results.length > 0 ? sources.slice(1) : sources
-      mutations.push(...deletedSources.map((record) => ({
-        type: 'delete' as const,
-        id: record.id,
-        version: Math.max(1, record.version),
-      })))
+    },
+    async brush(operation, id, geometry) {
+      const source = internal.annotations.get(id)
       if (
-        annotationBatchRequestBytes(
-          '00000000-0000-4000-8000-000000000000',
-          internal.version,
-          mutations,
-        ) > MAX_ANNOTATION_BATCH_BYTES
-      ) {
-        throw new AnnotationBooleanAtomicityError('ANNOTATION_BOOLEAN_REQUEST_TOO_LARGE')
-      }
-      recordCommand(affected, mutations, () => {
-        if (results.length > 0) {
-          const geometry = structuredClone(results[0])
-          setRecord(sources[0].id, {
-            ...cloneRecord(sources[0]),
-            geometry,
-            bounds: geometryBounds(geometry),
-            measurements: measureGeometry(
-              geometry,
-              options.calibration,
-            ).values as Record<string, string | number>,
-            updatedAt: timestamp,
-          })
-          results.slice(1).forEach((geometry, index) => {
-            setRecord(newIds[index], {
-              id: newIds[index],
-              layerId: sources[0].layerId,
-              geometry: structuredClone(geometry),
-              style: structuredClone(sources[0].style),
-              metadata: structuredClone(sources[0].metadata),
-              version: 0,
-              deletedAt: null,
-              createdAt: timestamp,
-              updatedAt: timestamp,
-              bounds: geometryBounds(geometry),
-              measurements: measureGeometry(
-                geometry,
-                options.calibration,
-              ).values as Record<string, string | number>,
-            })
-          })
-        }
-        for (const source of deletedSources) {
-          if (source.version === 0) setRecord(source.id, null)
-          else setRecord(source.id, { ...cloneRecord(source), deletedAt: timestamp })
-          internal.selection.delete(source.id)
-        }
-      })
-      const selected = results.length > 0 ? [sources[0].id, ...newIds] : []
-      internal.selection = new Set(selected)
-      emit()
-      return selected
+        !source
+        || source.deletedAt
+        || !layerEditable(source)
+      ) return []
+      const sourcePolygon = asPolygon(source.geometry)
+      return runBoolean(
+        operation === 'add' ? 'union' : 'subtract',
+        [source],
+        [sourcePolygon, structuredClone(geometry)],
+      )
     },
     delete(ids) {
       const records = [...new Set(ids)]
@@ -816,7 +857,9 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     restore(ids) {
       const records = [...new Set(ids)]
         .map((id) => internal.annotations.get(id))
-        .filter((record): record is AnnotationRecord => Boolean(record?.deletedAt))
+        .filter((record): record is AnnotationRecord => Boolean(
+          record?.deletedAt && layerEditable(record),
+        ))
       if (activeCount + records.length > maxAnnotations) {
         throw new RangeError('Active annotation limit exceeded')
       }
