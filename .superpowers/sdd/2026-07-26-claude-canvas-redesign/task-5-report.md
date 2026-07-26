@@ -51,9 +51,8 @@ was not counted as acceptance evidence.
 
 ## Screenshot matrix and visual inspection
 
-Sixteen fixture-labeled captures were saved under:
-
-`C:\Users\enkso\.codex\visualizations\2026\07\26\019f9d09-a69c-7c51-be44-712a0bf52cde\claude-canvas-final`
+Sixteen fixture-labeled captures were saved outside the repository in the QA
+artifact directory `claude-canvas-final/`.
 
 The matrix contains auth, admin, private viewer, and shared viewer at 1440×900
 and 390×844 in both light and dark themes. Each capture was reviewed at rendered
