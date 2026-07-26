@@ -237,3 +237,43 @@ test('keeps private and individual public imagery invariant across themes and wi
     }
   }
 })
+
+test('keeps mobile offline status clear of the loading control', async ({ page }) => {
+  const routes = [
+    { path: '/s/public-1', title: 'HER2 control' },
+    { path: '/admin/preview/private-1', title: 'Private teaching slide' },
+  ]
+
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  for (const route of routes) {
+    await page.goto(route.path)
+    await expect(page.getByText(route.title, { exact: true })).toBeVisible()
+    await expect(page.getByRole('alert')).toHaveText(/Slide tiles could not be loaded/)
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+
+    const loadingMode = page.locator('.viewer-loading-mode')
+    const connectionStatus = page.getByRole('status')
+    await expect(connectionStatus).toHaveText(/Offline/)
+
+    const [loadingBox, statusBox] = await Promise.all([
+      loadingMode.boundingBox(),
+      connectionStatus.boundingBox(),
+    ])
+    if (!loadingBox || !statusBox) throw new Error(`Missing viewer overlay geometry on ${route.path}`)
+
+    const rectanglesIntersect = (
+      loadingBox.x < statusBox.x + statusBox.width
+      && loadingBox.x + loadingBox.width > statusBox.x
+      && loadingBox.y < statusBox.y + statusBox.height
+      && loadingBox.y + loadingBox.height > statusBox.y
+    )
+
+    expect(loadingBox.y + loadingBox.height).toBeLessThanOrEqual(statusBox.y)
+    expect(rectanglesIntersect).toBe(false)
+    expect(statusBox.x).toBeGreaterThanOrEqual(0)
+    expect(statusBox.y).toBeGreaterThanOrEqual(0)
+    expect(statusBox.x + statusBox.width).toBeLessThanOrEqual(390)
+    expect(statusBox.y + statusBox.height).toBeLessThanOrEqual(844)
+  }
+})

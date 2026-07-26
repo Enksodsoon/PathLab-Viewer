@@ -33,7 +33,8 @@ changed.
 | Focused viewer/shared unit suite | PASS: 24/24 |
 | Full unit suite, one worker | PASS: 16 files / 90 tests |
 | Chromium route/theme matrix | PASS: 5/5 |
-| Full responsive Playwright matrix | PASS: 20/20 across Chromium, Firefox, WebKit, and mobile Chromium |
+| Offline-status geometry matrix | PASS: 4/4 across Chromium, Firefox, WebKit, and mobile Chromium |
+| Full repository Playwright matrix | PASS: 84/84 across Chromium, Firefox, WebKit, and mobile Chromium |
 | Lint | PASS |
 | Production build | PASS: 4,637 modules transformed |
 | `git diff --check` | PASS |
@@ -86,9 +87,39 @@ The independent finish reviewer then found one actionable P2: at 390px the
 single-slide viewer buttons measured 40×40px and Loading mode measured 30px
 high. A new rendered Chromium assertion failed RED at 40px. Mobile-only CSS now
 raises Zoom in, Zoom out, Home view, Fullscreen, and Loading mode to the 44px
-floor. The focused regression passed, followed by the final 20/20 all-project
-matrix. The reviewer reported no other visual, responsive, accessibility,
-clinical-imagery, contract, or scope finding.
+floor. The focused regression passed before the follow-up review below.
+
+## Fix round 1: mobile connection status
+
+The follow-up finish review found that the new 44px mobile Loading mode control
+made its container 58px tall while the Offline status remained at `top:56px`.
+New rendered coverage sets a 390×844 viewport on both `/s/public-1` and
+`/admin/preview/private-1`, dispatches the existing `offline` event, measures
+the complete loading/status rectangles, and requires vertical separation, no
+rectangle intersection, and a status box fully inside the viewport.
+
+RED Chromium evidence measured the loading container bottom at y=128 and the
+status top at y=116 (`Expected <= 116; Received 128`). The minimal responsive
+fix changes only `.viewer-connection-status` from `top:56px` to `top:76px`,
+leaving an 8px gap below the 58px loading container. Connection handling, the
+OpenSeadragon instance, and the stage were not changed.
+
+GREEN evidence:
+
+- focused rendered Chromium regression: 1/1;
+- offline-status regression across all configured engines: 4/4;
+- focused viewer unit suite: 18/18;
+- full unit suite: 16 files / 90 tests;
+- full repository E2E suite: 84/84 across Chromium, Firefox, WebKit, and mobile
+  Chromium;
+- lint, production build (4,637 modules), and `git diff --check`: PASS.
+
+A post-fix in-app sanity check also reopened an authenticated real private slide
+successfully with its WSI, theme control, loading selector, scale bar, and
+viewer controls visible. Console output contained only the existing React
+Router future-flag warnings. The exact 390×844 Offline geometry is evidenced by
+the reproducible Playwright coverage because the in-app browser check remained
+at its desktop viewport.
 
 ## Limitations
 

@@ -132,7 +132,7 @@ h1,h2,h3,.brand { font-family:var(--font-ui); }
   .viewer-loading-mode { top:10px; right:10px; }
   .viewer-loading-mode select { min-height:44px; }
   .viewer-loading-mode span { display:none; }
-  .viewer-connection-status { top:56px; max-width:calc(100% - 20px); white-space:nowrap; }
+  .viewer-connection-status { top:76px; max-width:calc(100% - 20px); white-space:nowrap; }
   .login-card,.security-dialog { padding:24px 20px; }
   .auth-actions { flex-direction:column-reverse; }
   .auth-actions .button { width:100%; }
