@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
 import {
   applyResolvedTheme,
@@ -19,20 +19,29 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(getStoredThemePreference)
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(preference))
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => (
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  ))
+  const resolvedTheme = resolveTheme(preference, systemPrefersDark)
 
   useEffect(() => {
     const colorScheme = window.matchMedia('(prefers-color-scheme: dark)')
-    const updateResolvedTheme = () => setResolvedTheme(resolveTheme(preference, colorScheme.matches))
+    const updateSystemPreference = () => {
+      const nextSystemPrefersDark = colorScheme.matches
+      setSystemPrefersDark(nextSystemPrefersDark)
+      if (preference === 'system') {
+        applyResolvedTheme(resolveTheme('system', nextSystemPrefersDark))
+      }
+    }
 
-    updateResolvedTheme()
+    updateSystemPreference()
     if (preference !== 'system') return undefined
 
-    colorScheme.addEventListener('change', updateResolvedTheme)
-    return () => colorScheme.removeEventListener('change', updateResolvedTheme)
+    colorScheme.addEventListener('change', updateSystemPreference)
+    return () => colorScheme.removeEventListener('change', updateSystemPreference)
   }, [preference])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyResolvedTheme(resolvedTheme)
   }, [resolvedTheme])
 
@@ -40,6 +49,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     preference,
     resolvedTheme,
     setPreference(nextPreference) {
+      const nextResolvedTheme = resolveTheme(
+        nextPreference,
+        window.matchMedia('(prefers-color-scheme: dark)').matches,
+      )
+      applyResolvedTheme(nextResolvedTheme)
       persistThemePreference(nextPreference)
       setPreferenceState(nextPreference)
     },
