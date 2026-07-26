@@ -273,3 +273,92 @@ pnpm --dir apps/web exec vitest run `
   - PASS; only Windows LF-to-CRLF checkout notices were emitted.
 
 No push, pull request, merge, deployment, or infrastructure change was performed.
+
+## Fix Round 2: rapid editing, slide isolation, and bounded persistence
+
+Fix Round 2 is complete and included in the current task commit. It preserves the
+private-admin-only boundary and the existing Canvas Focus design language.
+
+### Stability corrections
+
+- Rapid brush strokes against the same ROI now run through a per-target worker
+  pipeline. Each stroke reads the latest optimistic geometry, subsequent strokes wait
+  for the active worker result, same-target updates coalesce, and a failed worker call
+  leaves the local geometry and pending mutation available for retry.
+- Workspace async work is generation-scoped. Slide changes replace the layer pipeline,
+  clear slide-bound import/revision/opacity/list/coordinate state, and prevent stale
+  layer, revision, import, export, reload, and conflict callbacks from mutating the new
+  slide. Draft-store read failure remains fail-open for remote annotations.
+- Pointer-coordinate updates write directly to the small coordinate output instead of
+  setting React workspace state. They no longer clone, filter, or rerender 25,000
+  records on every move.
+- The object register is a true 200-row window. Next/previous navigation replaces the
+  rendered page instead of permanently growing the DOM toward 25,000 rows.
+
+### Touch, drafts, and import limits
+
+- Selected vertex and resize controls now expose semantic button roles, descriptive
+  accessible names, compact visible glyphs, and transparent 44×44 screen-pixel hit
+  targets. Real touch-pointer vertex editing is covered in component and Playwright
+  tests.
+- New drafts contain only the base version and recovery mutation journal. Legacy
+  snapshot-bearing drafts remain readable, while a one-record edit at the 25,000-object
+  ceiling remains below 2 kB and far below the five MiB draft cap.
+- Dirty drafts load before the remote manifest so an offline failure can truthfully
+  report that the unsaved journal is retained. No acknowledgement or discard occurs
+  without server success or explicit reload.
+- Import preflight now measures the exact serialized API request, including mutation
+  ID, base version, format, layer name, and wrapper fields. An exact eight MiB source
+  that overflows after wrapping is rejected before network I/O; a valid near-boundary
+  request is accepted.
+
+### Fix-round TDD evidence
+
+The focused regression command was:
+
+```powershell
+pnpm --dir apps/web exec vitest run `
+  src/test/annotation-store.test.ts `
+  src/test/annotation-overlay.test.ts `
+  src/test/annotation-drafts.test.ts `
+  src/test/annotation-workspace-stability.test.tsx
+```
+
+- RED: 35/44 passed and 9 failed for concurrent brush execution, undersized/unlabelled
+  handles, missing compact draft builder, permanently growing register pages,
+  25,000-record coordinate cloning, stale slide completions, offline draft reporting,
+  and serialized import-boundary handling.
+- The first implementation run reached 40/44. Remaining failures isolated the
+  cross-slide callbacks, offline load order, and a test fixture that was not valid
+  PathLab interchange data.
+- GREEN: 4/4 files and 44/44 tests.
+- The first full-unit run exposed one existing private-viewer regression: IndexedDB
+  absence in the test/browser environment blocked remote initialization after draft
+  load moved earlier. Draft storage failure was made nonfatal; the targeted viewer
+  regression and fresh full suite then passed.
+
+### Final verification after Fix Round 2
+
+- `pnpm test`
+  - PASS: 25 files, 175 tests.
+- `pnpm lint`
+  - PASS with `--max-warnings 0`.
+- `pnpm build`
+  - PASS: TypeScript project build and 4,661 Vite modules transformed.
+  - Lazy annotation JavaScript: 119.19 kB raw / 35.23 kB gzip.
+  - Lazy annotation CSS: 17.31 kB raw / 3.68 kB gzip.
+  - Boolean worker: 27.52 kB raw.
+- `PLAYWRIGHT_PORT=5201 pnpm --dir apps/web exec playwright test
+  e2e/annotation-responsive.spec.ts --project=chromium`
+  - PASS: 5/5, including an actual touch-pointer drag through a 44×44 vertex target.
+- `PLAYWRIGHT_PORT=5202 pnpm test:e2e`
+  - PASS: 113 passed, 3 expected skips, 0 failed across Chromium, Firefox, WebKit,
+    and mobile Chromium.
+- `pnpm audit --prod --audit-level high`
+  - PASS at the requested threshold: zero high and zero critical findings.
+  - Three pre-existing moderate advisories remain.
+- `git diff --check`
+  - PASS; only Windows LF-to-CRLF checkout notices were emitted.
+
+No push, pull request, merge, deployment, OCI change, or live-environment acceptance
+was performed.

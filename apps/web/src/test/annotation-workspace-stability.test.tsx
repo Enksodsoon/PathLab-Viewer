@@ -523,7 +523,14 @@ it('bounds the object register and offers an accessible continuation', async () 
   const register = await screen.findByLabelText('Annotation list')
   await within(register).findByText('Finding 0')
   expect(within(register).getAllByRole('button', { name: /Finding/ })).toHaveLength(200)
-  expect(within(register).getByRole('button', { name: /Show 200 more annotations/i })).toBeVisible()
+  fireEvent.click(within(register).getByRole('button', { name: /Show 200 more annotations/i }))
+  expect(within(register).getAllByRole('button', { name: /Finding/ })).toHaveLength(200)
+  expect(within(register).queryByText('Finding 0')).toBeNull()
+  expect(within(register).getByText('Finding 200')).toBeVisible()
+  fireEvent.click(within(register).getByRole('button', { name: /Show 100 more annotations/i }))
+  expect(within(register).getAllByRole('button', { name: /Finding/ })).toHaveLength(100)
+  expect(within(register).queryByText('Finding 200')).toBeNull()
+  expect(within(register).getByText('Finding 400')).toBeVisible()
 })
 
 it('treats the mobile inspector and conflict surface as focus-trapped modal dialogs', async () => {
@@ -551,3 +558,283 @@ it('treats the mobile inspector and conflict surface as focus-trapped modal dial
   fireEvent.click(close)
   expect(trigger).toHaveFocus()
 })
+
+it('does not rerender or clone/filter 25,000 records for pointer coordinate updates', async () => {
+  const records = Array.from({ length: 25_000 }, (_, index) => record(index))
+  const onAttachmentChange = vi.fn()
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Large private slide"
+      services={services({}, records, [layerA])}
+      onAttachmentChange={onAttachmentChange}
+    />,
+  )
+  await screen.findByRole('toolbar', { name: 'Annotation tools' }, { timeout: 20_000 })
+  await waitFor(() => expect(onAttachmentChange.mock.calls.some(
+    ([attachment]) => typeof attachment === 'function',
+  )).toBe(true), { timeout: 20_000 })
+  const attachment = [...onAttachmentChange.mock.calls]
+    .reverse()
+    .find((call: unknown[]) => typeof call[0] === 'function')?.[0]
+  const viewer = mockViewer()
+  act(() => attachment(viewer))
+  const originalClone = globalThis.structuredClone
+  const cloneCounter = vi.fn(<T,>(value: T) => originalClone(value))
+  vi.stubGlobal('structuredClone', cloneCounter)
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+
+  for (let index = 0; index < 50; index += 1) {
+    overlay.dispatchEvent(new MouseEvent('pointermove', {
+      bubbles: true,
+      clientX: 100 + index,
+      clientY: 200 + index,
+    }))
+  }
+
+  await waitFor(() => expect(screen.getByText(/X 149\.0\s+Y 249\.0/)).toBeVisible())
+  expect(cloneCounter).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Annotation list').querySelectorAll(
+    ':scope > .annotation-list-scroll > button[data-annotation-row]',
+  ).length).toBeLessThanOrEqual(200)
+}, 30_000)
+
+it('ignores a slide A layer completion after slide B has replaced the workspace', async () => {
+  const slideALayer = { ...layerA, name: 'Slide A layer' }
+  const slideBLayer = { ...layerA, id: layerB.id, name: 'Slide B layer' }
+  const update = deferred<Awaited<ReturnType<AnnotationWorkspaceServices['updateLayer']>>>()
+  const slideA = services({
+    updateLayer: vi.fn(() => update.promise),
+  }, [], [slideALayer])
+  const slideB = services({}, [], [slideBLayer])
+  const view = render(
+    <AnnotationWorkspace
+      slideId="slide-a"
+      slideName="Slide A"
+      services={slideA}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  const visible = await screen.findByRole('checkbox', { name: 'Show Slide A layer' })
+  fireEvent.click(visible)
+  await waitFor(() => expect(slideA.updateLayer).toHaveBeenCalledOnce())
+
+  view.rerender(
+    <AnnotationWorkspace
+      slideId="slide-b"
+      slideName="Slide B"
+      services={slideB}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Slide B layer' })
+  update.resolve({
+    version: 2,
+    layer: { ...slideALayer, visible: false },
+  })
+  await act(async () => {
+    await update.promise
+    await Promise.resolve()
+  })
+
+  expect(screen.getByRole('button', { name: 'Slide B layer' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Slide A layer' })).toBeNull()
+  expect(slideA.getManifest).toHaveBeenCalledOnce()
+  expect(slideB.getManifest).toHaveBeenCalledOnce()
+})
+
+it('clears slide-bound import and revision work and ignores stale completions', async () => {
+  const source = record(1)
+  const importResult = deferred<AnnotationBatchResult>()
+  const revisionResult = deferred<Awaited<ReturnType<AnnotationWorkspaceServices['revisions']>>>()
+  const slideA = services({
+    importDocument: vi.fn(() => importResult.promise),
+    revisions: vi.fn(() => revisionResult.promise),
+  }, [source], [layerA])
+  const slideBLayer = { ...layerB, name: 'Slide B layer' }
+  const slideB = services({}, [], [slideBLayer])
+  const view = render(
+    <AnnotationWorkspace
+      slideId="slide-a"
+      slideName="Slide A"
+      services={slideA}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await screen.findByRole('button', { name: /Finding 1/ })
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+  const documentJson = {
+    schema: 'pathlab-annotations/v1',
+    slide: { id: 'slide-a', width: 2048, height: 1024, annotationVersion: 1 },
+    layers: [],
+    annotations: [],
+  }
+  const valid = new File(['{}'], 'slide-a.json')
+  Object.defineProperty(valid, 'text', {
+    configurable: true,
+    value: vi.fn(async () => JSON.stringify(documentJson)),
+  })
+  fireEvent.change(input, { target: { files: [valid] } })
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm annotation import' }))
+  await waitFor(() => expect(slideA.importDocument).toHaveBeenCalledOnce())
+  fireEvent.click(screen.getByRole('button', { name: /Finding 1/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Browse annotation revisions' }))
+  await waitFor(() => expect(slideA.revisions).toHaveBeenCalledOnce())
+
+  view.rerender(
+    <AnnotationWorkspace
+      slideId="slide-b"
+      slideName="Slide B"
+      services={slideB}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Slide B layer' })
+  expect(screen.queryByRole('button', { name: 'Confirm annotation import' })).toBeNull()
+  importResult.resolve({
+    mutationId: 'import-a',
+    version: 2,
+    results: [],
+    purged: 0,
+  })
+  revisionResult.resolve({
+    items: [{
+      id: 'revision-a',
+      version: 1,
+      layerId: layerA.id,
+      geometry: source.geometry,
+      style: source.style,
+      metadata: { ...source.metadata, title: 'Stale A revision' },
+      deletedAt: null,
+      createdAt: '2026-07-26T01:00:00Z',
+    }],
+  })
+  await act(async () => {
+    await Promise.all([importResult.promise, revisionResult.promise])
+    await Promise.resolve()
+  })
+
+  expect(screen.queryByText('Stale A revision')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Slide B layer' })).toBeVisible()
+  expect(slideA.getManifest).toHaveBeenCalledOnce()
+})
+
+it('reports an offline dirty draft as retained without acknowledging or discarding it', async () => {
+  const workflow = services({
+    getManifest: vi.fn(async () => {
+      throw new TypeError('offline')
+    }),
+    loadDraft: vi.fn(async (): Promise<AnnotationDraft> => ({
+      schema: 'pathlab-annotation-draft/v1',
+      slideId: 'slide-1',
+      baseVersion: 1,
+      mutations: [{
+        type: 'update',
+        id: 'annotation-1',
+        version: 1,
+        metadata: {
+          title: 'Unsaved diagnosis',
+          classification: '',
+          tags: [],
+          notes: '',
+        },
+      }],
+      savedAt: 100,
+      dirty: true,
+      byteSize: 400,
+    })),
+  })
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Offline slide"
+      services={workflow}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+
+  expect(await screen.findAllByText(/unsaved local draft.*retained/i))
+    .not.toHaveLength(0)
+  expect(workflow.loadDraft).toHaveBeenCalledOnce()
+  expect(workflow.acknowledgeDraft).not.toHaveBeenCalled()
+  expect(workflow.discardDraft).not.toHaveBeenCalled()
+})
+
+it('preflights the exact 8 MiB serialized import request and accepts a near-boundary request', async () => {
+  const workflow = services({}, [], [layerA])
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Boundary slide"
+      services={workflow}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await screen.findByRole('button', { name: 'Import annotations' })
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+  const boundaryText = (targetBytes: number) => {
+    const documentJson = {
+      schema: 'pathlab-annotations/v1',
+      slide: { id: 'slide-1', width: 2048, height: 1024, annotationVersion: 1 },
+      layers: [{
+        id: layerA.id,
+        name: 'Boundary',
+        sortOrder: 0,
+        visible: true,
+        locked: false,
+        opacity: 1,
+      }],
+      annotations: Array.from({ length: 1_950 }, (_, index) => ({
+        id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        layerId: layerA.id,
+        geometry: { type: 'point', x: 1, y: 1 },
+        style: record(0).style,
+        metadata: {
+          title: '',
+          classification: '',
+          tags: [],
+          notes: 'x'.repeat(4_000),
+        },
+      })),
+    }
+    let overflow = new TextEncoder().encode(JSON.stringify(documentJson)).byteLength - targetBytes
+    for (let index = documentJson.annotations.length - 1; overflow > 0; index -= 1) {
+      const reduction = Math.min(4_000, overflow)
+      documentJson.annotations[index].metadata.notes = 'x'.repeat(4_000 - reduction)
+      overflow -= reduction
+    }
+    return JSON.stringify(documentJson)
+  }
+  const exactText = boundaryText(8 * 1024 * 1024)
+  expect(new TextEncoder().encode(exactText)).toHaveLength(8 * 1024 * 1024)
+  const importFile = (text: string, name: string) => {
+    const file = new File(['{}'], name)
+    Object.defineProperties(file, {
+      size: {
+        configurable: true,
+        value: new TextEncoder().encode(text).byteLength,
+      },
+      text: {
+        configurable: true,
+        value: vi.fn(async () => text),
+      },
+    })
+    return file
+  }
+  fireEvent.change(input, {
+    target: { files: [importFile(exactText, 'exact-limit.json')] },
+  })
+  expect(await screen.findAllByText(/serialized import request exceeds the 8 MiB limit/i))
+    .not.toHaveLength(0)
+  expect(workflow.importDocument).not.toHaveBeenCalled()
+
+  const nearText = boundaryText(8 * 1024 * 1024 - 1024)
+  fireEvent.change(input, {
+    target: { files: [importFile(nearText, 'near-limit.json')] },
+  })
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirm annotation import' }))
+  await waitFor(() => expect(workflow.importDocument).toHaveBeenCalledOnce())
+  const request = vi.mocked(workflow.importDocument).mock.calls[0][0]
+  expect(new TextEncoder().encode(JSON.stringify(request)).byteLength)
+    .toBeLessThanOrEqual(8 * 1024 * 1024)
+}, 30_000)

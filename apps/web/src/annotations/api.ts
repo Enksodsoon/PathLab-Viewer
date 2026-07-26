@@ -11,7 +11,7 @@ import { csrfFetch } from '../api'
 
 const BASE = '/api/v2/admin/annotations/slides'
 const NORMAL_REQUEST_BYTES = 256 * 1024
-const IMPORT_REQUEST_BYTES = 8 * 1024 * 1024
+export const MAX_ANNOTATION_IMPORT_REQUEST_BYTES = 8 * 1024 * 1024
 
 type AnnotationFetcher = (
   input: RequestInfo | URL,
@@ -80,6 +80,16 @@ function slideRoute(slideId: string): string {
 
 function encodedBytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength
+}
+
+export function annotationImportRequestBytes(request: {
+  mutationId: string
+  baseVersion: number
+  format: 'pathlab' | 'geojson'
+  layerName?: string
+  data: Record<string, unknown>
+}): number {
+  return encodedBytes(request)
 }
 
 export class AnnotationApiClient {
@@ -214,7 +224,7 @@ export class AnnotationApiClient {
       `${slideRoute(slideId)}/import`,
       'POST',
       request,
-      IMPORT_REQUEST_BYTES,
+      MAX_ANNOTATION_IMPORT_REQUEST_BYTES,
     )
   }
 

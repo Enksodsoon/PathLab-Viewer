@@ -255,6 +255,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
   const undoStack: HistoryEntry[] = []
   const redoStack: HistoryEntry[] = []
   const pending: PendingEntry[] = []
+  const brushPipelines = new Map<string, Promise<void>>()
   let nextPendingToken = 1
   let clipboard: AnnotationRecord[] = []
   let overlay: AnnotationOverlayAttachment | null = null
@@ -641,6 +642,25 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     return applyBooleanResults(sources, results)
   }
 
+  const serializeBrush = <T>(
+    id: string,
+    operation: () => Promise<T>,
+  ): Promise<T> => {
+    const previous = brushPipelines.get(id)
+    const result = previous
+      ? previous.catch(() => undefined).then(operation)
+      : operation()
+    const settled = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    brushPipelines.set(id, settled)
+    void settled.then(() => {
+      if (brushPipelines.get(id) === settled) brushPipelines.delete(id)
+    })
+    return result
+  }
+
   const store: AnnotationStore = {
     getState: () => snapshot,
     subscribe(listener) {
@@ -818,18 +838,29 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       )
     },
     async brush(operation, id, geometry) {
-      const source = internal.annotations.get(id)
-      if (
-        !source
-        || source.deletedAt
-        || !layerEditable(source)
-      ) return []
-      const sourcePolygon = asPolygon(source.geometry)
-      return runBoolean(
-        operation === 'add' ? 'union' : 'subtract',
-        [source],
-        [sourcePolygon, structuredClone(geometry)],
-      )
+      return serializeBrush(id, async () => {
+        while (true) {
+          const source = internal.annotations.get(id)
+          if (
+            !source
+            || source.deletedAt
+            || !layerEditable(source)
+          ) return []
+          const sourcePolygon = asPolygon(source.geometry)
+          const results = await booleanClient.run(
+            operation === 'add' ? 'union' : 'subtract',
+            [sourcePolygon, structuredClone(geometry)],
+          )
+          const current = internal.annotations.get(id)
+          if (
+            !current
+            || current.deletedAt
+            || !layerEditable(current)
+          ) return []
+          if (!equal(current.geometry, source.geometry)) continue
+          return applyBooleanResults([source], results)
+        }
+      })
     },
     delete(ids) {
       const records = [...new Set(ids)]

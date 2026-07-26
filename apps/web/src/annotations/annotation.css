@@ -798,12 +798,22 @@
 }
 
 .annotation-canvas-handle {
+  cursor:move;
+  pointer-events:all;
+}
+
+.annotation-canvas-handle-hit {
+  fill:transparent;
+  stroke:none;
+  pointer-events:all;
+}
+
+.annotation-canvas-handle-glyph {
   fill:var(--annotation-accent);
   stroke:#17130b;
   stroke-width:1.5px;
   vector-effect:non-scaling-stroke;
-  cursor:move;
-  pointer-events:all;
+  pointer-events:none;
 }
 
 .annotation-density-cell {

@@ -303,6 +303,108 @@ describe('framework-neutral annotation editing store', () => {
     })
   })
 
+  it('serializes rapid same-target brush strokes, composes one pending update, and recovers after failure', async () => {
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const added = {
+      type: 'polygon' as const,
+      points: [
+        { x: 0, y: 0 },
+        { x: 40, y: 0 },
+        { x: 40, y: 40 },
+        { x: 0, y: 40 },
+      ],
+    }
+    const subtracted = {
+      type: 'polygon' as const,
+      points: [
+        { x: 5, y: 5 },
+        { x: 30, y: 5 },
+        { x: 30, y: 30 },
+        { x: 5, y: 30 },
+      ],
+    }
+    const recovered = {
+      type: 'polygon' as const,
+      points: [
+        { x: 0, y: 0 },
+        { x: 45, y: 0 },
+        { x: 45, y: 45 },
+        { x: 0, y: 45 },
+      ],
+    }
+    const worker = {
+      run: vi.fn()
+        .mockImplementationOnce(async () => {
+          await firstGate
+          return [added]
+        })
+        .mockImplementationOnce(async (_operation, geometries) => {
+          expect(geometries[0]).toEqual(added)
+          return [subtracted]
+        })
+        .mockRejectedValueOnce(new Error('worker unavailable'))
+        .mockImplementationOnce(async (_operation, geometries) => {
+          expect(geometries[0]).toEqual(subtracted)
+          return [recovered]
+        }),
+    }
+    const roi = {
+      ...structuredClone(annotation),
+      geometry: {
+        type: 'polygon' as const,
+        points: [
+          { x: 0, y: 0 },
+          { x: 20, y: 0 },
+          { x: 20, y: 20 },
+          { x: 0, y: 20 },
+        ],
+      },
+      bounds: { minX: 0, minY: 0, maxX: 20, maxY: 20 },
+    }
+    const stroke = {
+      type: 'polygon' as const,
+      points: [
+        { x: 10, y: 10 },
+        { x: 25, y: 10 },
+        { x: 25, y: 25 },
+        { x: 10, y: 25 },
+      ],
+    }
+    const store = createAnnotationStore({ slideId: 'slide-1', booleanClient: worker })
+    store.load({ version: 1, layers: [layer], annotations: [roi] })
+
+    const first = store.brush('add', roi.id, stroke)
+    const second = store.brush('subtract', roi.id, stroke)
+    expect(worker.run).toHaveBeenCalledOnce()
+    releaseFirst()
+    await Promise.all([first, second])
+
+    expect(worker.run).toHaveBeenCalledTimes(2)
+    expect(store.peekPendingMutations()).toEqual([
+      expect.objectContaining({
+        type: 'update',
+        id: roi.id,
+        geometry: subtracted,
+      }),
+    ])
+    await expect(store.brush('add', roi.id, stroke)).rejects.toThrow('worker unavailable')
+    expect(store.getState().annotations.get(roi.id)?.geometry).toEqual(subtracted)
+    expect(store.peekPendingMutations()).toHaveLength(1)
+
+    await expect(store.brush('add', roi.id, stroke)).resolves.toEqual([roi.id])
+    expect(store.getState().annotations.get(roi.id)?.geometry).toEqual(recovered)
+    expect(store.peekPendingMutations()).toEqual([
+      expect.objectContaining({
+        type: 'update',
+        id: roi.id,
+        geometry: recovered,
+      }),
+    ])
+  })
+
   it('reconciles a version-zero create and preserves a newer edit made while create is in flight', () => {
     const store = createAnnotationStore({ slideId: 'slide-1' })
     store.load({ version: 0, layers: [layer], annotations: [] })

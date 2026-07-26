@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   AnnotationDraftRepository,
+  createCompactAnnotationDraft,
   DraftCapacityError,
   type AnnotationDraft,
   type DraftStorage,
 } from '../annotations/drafts'
+import { createAnnotationStore } from '../annotations/store'
+import { MAX_DRAFT_BYTES, type AnnotationLayer, type AnnotationRecord } from '../annotations/types'
 
 class MemoryDraftStorage implements DraftStorage {
   readonly records = new Map<string, AnnotationDraft>()
@@ -102,5 +105,70 @@ describe('durable annotation drafts', () => {
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
     expect(storage.records).toHaveLength(1)
+  })
+
+  it('keeps a minimal dirty edit compact at the 25,000 annotation ceiling', async () => {
+    const layer: AnnotationLayer = {
+      id: 'layer-1',
+      slideId: 'large-slide',
+      name: 'Findings',
+      sortOrder: 0,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      createdAt: '2026-07-26T00:00:00Z',
+      updatedAt: '2026-07-26T00:00:00Z',
+    }
+    const records: AnnotationRecord[] = Array.from({ length: 25_000 }, (_, index) => ({
+      id: `remote-${index}`,
+      layerId: layer.id,
+      geometry: { type: 'point', x: index % 500, y: Math.floor(index / 500) },
+      style: {
+        strokeColor: '#bf3c32',
+        fillColor: '#bf3c32',
+        strokeWidth: 2,
+        opacity: 0.8,
+        labelVisible: true,
+      },
+      metadata: {
+        title: `Remote ${index}`,
+        classification: 'Finding',
+        tags: [],
+        notes: '',
+      },
+      version: 1,
+      deletedAt: null,
+      createdAt: '2026-07-26T00:00:00Z',
+      updatedAt: '2026-07-26T00:00:00Z',
+      bounds: {
+        minX: index % 500,
+        minY: Math.floor(index / 500),
+        maxX: index % 500,
+        maxY: Math.floor(index / 500),
+      },
+      measurements: {},
+    }))
+    const store = createAnnotationStore({ slideId: 'large-slide' })
+    store.load({ version: 42, layers: [layer], annotations: records })
+    store.update('remote-1', {
+      metadata: { ...records[1].metadata, title: 'Unsaved local diagnosis' },
+    })
+    const state = store.getState()
+    const repository = new AnnotationDraftRepository({
+      storage: new MemoryDraftStorage(),
+      maxBytes: MAX_DRAFT_BYTES,
+    })
+
+    const saved = await repository.save(createCompactAnnotationDraft({
+      slideId: state.slideId,
+      baseVersion: state.version,
+      mutations: state.recoveryMutations,
+      savedAt: 100,
+    }))
+
+    expect(saved.byteSize).toBeLessThan(MAX_DRAFT_BYTES)
+    expect(saved.byteSize).toBeLessThan(2_000)
+    expect(saved.mutations).toHaveLength(1)
+    expect(JSON.stringify(saved)).not.toContain('Remote 24999')
   })
 })

@@ -208,21 +208,30 @@ it('renders visible labels and supports real canvas vertex and resize handles', 
   const vertex = overlay.querySelector<SVGElement>(
     '[data-annotation-handle="vertex"][data-vertex-index="0"]',
   )!
-  vertex.dispatchEvent(new MouseEvent('pointerdown', {
+  expect(vertex).toHaveAttribute('role', 'button')
+  expect(vertex).toHaveAttribute('aria-label', 'Move vertex 1 of Tumour boundary')
+  expect(vertex.querySelector('.annotation-canvas-handle-hit')).toHaveAttribute('r', '22')
+  const touchDown = new MouseEvent('pointerdown', {
     bubbles: true,
     clientX: 10,
     clientY: 10,
-  }))
-  overlay.dispatchEvent(new MouseEvent('pointermove', {
+  })
+  Object.defineProperty(touchDown, 'pointerType', { value: 'touch' })
+  vertex.dispatchEvent(touchDown)
+  const touchMove = new MouseEvent('pointermove', {
     bubbles: true,
     clientX: 20,
     clientY: 25,
-  }))
-  overlay.dispatchEvent(new MouseEvent('pointerup', {
+  })
+  Object.defineProperty(touchMove, 'pointerType', { value: 'touch' })
+  overlay.dispatchEvent(touchMove)
+  const touchUp = new MouseEvent('pointerup', {
     bubbles: true,
     clientX: 20,
     clientY: 25,
-  }))
+  })
+  Object.defineProperty(touchUp, 'pointerType', { value: 'touch' })
+  overlay.dispatchEvent(touchUp)
   const edited = store.getState().annotations.get(record.id)?.geometry
   expect(edited?.type).toBe('polygon')
   if (edited?.type !== 'polygon') throw new Error('Expected the selected polygon to remain a polygon')
@@ -236,6 +245,13 @@ it('renders visible labels and supports real canvas vertex and resize handles', 
   const resize = overlay.querySelector<SVGElement>(
     '[data-annotation-handle="resize-se"]',
   )!
+  expect(resize).toHaveAttribute('role', 'button')
+  expect(resize).toHaveAttribute('aria-label', 'Resize Tumour boundary from bottom right')
+  expect(resize.querySelector('.annotation-canvas-handle-hit')).toMatchObject({
+    tagName: 'rect',
+  })
+  expect(resize.querySelector('.annotation-canvas-handle-hit')).toHaveAttribute('width', '44')
+  expect(resize.querySelector('.annotation-canvas-handle-hit')).toHaveAttribute('height', '44')
   resize.dispatchEvent(new MouseEvent('pointerdown', {
     bubbles: true,
     clientX: 110,

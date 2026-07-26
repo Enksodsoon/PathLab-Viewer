@@ -51,6 +51,34 @@ const layer = {
   updatedAt: '2026-07-26T00:00:00Z',
 }
 
+const touchPolygon = {
+  id: '22222222-2222-4222-8222-222222222222',
+  layerId: layer.id,
+  geometry: {
+    type: 'polygon',
+    points: [{ x: 640, y: 320 }, { x: 880, y: 320 }, { x: 760, y: 520 }],
+  },
+  style: {
+    strokeColor: '#ffb400',
+    fillColor: '#ffb400',
+    strokeWidth: 2,
+    opacity: 0.9,
+    labelVisible: true,
+  },
+  metadata: {
+    title: 'Touch polygon',
+    classification: 'Tumour',
+    tags: [],
+    notes: '',
+  },
+  version: 1,
+  deletedAt: null,
+  createdAt: '2026-07-26T00:00:00Z',
+  updatedAt: '2026-07-26T00:00:00Z',
+  bounds: { minX: 640, minY: 320, maxX: 880, maxY: 520 },
+  measurements: {},
+}
+
 async function mockSlides(page: Page) {
   await page.route('**/api/v1/admin/slides/private-1', (route) => route.fulfill({
     contentType: 'application/json',
@@ -67,7 +95,7 @@ async function mockSlides(page: Page) {
       version: 0,
       bounds: { width: 2048, height: 1024 },
       calibration: { x: 0.5, y: 0.75, unit: 'µm' },
-      activeCount: 0,
+      activeCount: 1,
       trashedCount: 0,
       layers: [layer],
       limits: {
@@ -81,7 +109,7 @@ async function mockSlides(page: Page) {
   }))
   await page.route('**/api/v2/admin/annotations/slides/private-1/items?**', (route) => route.fulfill({
     contentType: 'application/json',
-    body: JSON.stringify({ items: [], total: 0, nextOffset: null }),
+    body: JSON.stringify({ items: [touchPolygon], total: 1, nextOffset: null }),
   }))
   await page.route('**/api/v2/admin/annotations/slides/private-1/batch', async (route) => {
     const request = route.request().postDataJSON() as {
@@ -213,6 +241,48 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
   await expect.poll(() => page.evaluate(() => (
     document.documentElement.scrollWidth <= document.documentElement.clientWidth
   ))).toBe(true)
+})
+
+test('edits a polygon vertex through a 44px touch handle on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+
+  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  await page.getByRole('button', { name: /Touch polygon/ }).click()
+  const handle = page.locator(
+    '[data-annotation-handle="vertex"][data-vertex-index="0"]',
+  )
+  await expect(handle).toHaveAttribute('role', 'button')
+  await expect(handle).toHaveAttribute('aria-label', 'Move vertex 1 of Touch polygon')
+  const handleBox = await handle.boundingBox()
+  expect(handleBox?.width).toBeGreaterThanOrEqual(43.5)
+  expect(handleBox?.height).toBeGreaterThanOrEqual(43.5)
+  const glyph = handle.locator('.annotation-canvas-handle-glyph')
+  const initialX = Number(await glyph.getAttribute('cx'))
+  const overlay = page.locator('.annotation-svg-overlay')
+  const pointer = {
+    pointerId: 17,
+    pointerType: 'touch',
+    clientX: handleBox!.x + handleBox!.width / 2,
+    clientY: handleBox!.y + handleBox!.height / 2,
+  }
+  await handle.dispatchEvent('pointerdown', pointer)
+  await overlay.dispatchEvent('pointermove', {
+    ...pointer,
+    clientX: pointer.clientX + 28,
+    clientY: pointer.clientY + 18,
+  })
+  await overlay.dispatchEvent('pointerup', {
+    ...pointer,
+    clientX: pointer.clientX + 28,
+    clientY: pointer.clientY + 18,
+  })
+
+  await expect.poll(async () => Number(await glyph.getAttribute('cx')))
+    .toBeGreaterThan(initialX)
 })
 
 test('tracks light and dark application themes without filtering the pathology canvas', async ({ page }) => {

@@ -193,15 +193,30 @@ function shapeFor(
   }
 
   if (selected) {
+    const accessibleName = record.metadata.title
+      || record.metadata.classification
+      || 'annotation'
     if ('points' in record.geometry) {
       record.geometry.points.forEach((point, index) => {
         const screen = screenPoint(viewer, point)
-        const handle = svgElement('circle')
-        setAttributes(handle, { cx: screen.x, cy: screen.y, r: 6 })
+        const handle = svgElement('g')
         handle.setAttribute('data-annotation-id', record.id)
         handle.setAttribute('data-annotation-handle', 'vertex')
         handle.setAttribute('data-vertex-index', String(index))
+        handle.setAttribute('role', 'button')
+        handle.setAttribute('tabindex', '0')
+        handle.setAttribute(
+          'aria-label',
+          `Move vertex ${index + 1} of ${accessibleName}`,
+        )
         handle.classList.add('annotation-canvas-handle')
+        const hit = svgElement('circle')
+        setAttributes(hit, { cx: screen.x, cy: screen.y, r: 22 })
+        hit.classList.add('annotation-canvas-handle-hit')
+        const glyph = svgElement('circle')
+        setAttributes(glyph, { cx: screen.x, cy: screen.y, r: 6 })
+        glyph.classList.add('annotation-canvas-handle-glyph')
+        handle.append(hit, glyph)
         root.append(handle)
       })
     }
@@ -215,19 +230,42 @@ function shapeFor(
         ['resize-se', record.bounds.maxX, record.bounds.maxY],
         ['resize-sw', record.bounds.minX, record.bounds.maxY],
       ] as const
+      const cornerNames = {
+        'resize-nw': 'top left',
+        'resize-ne': 'top right',
+        'resize-se': 'bottom right',
+        'resize-sw': 'bottom left',
+      } as const
       for (const [kind, x, y] of corners) {
         const screen = screenPoint(viewer, { x, y })
-        const handle = svgElement('rect')
-        setAttributes(handle, {
+        const handle = svgElement('g')
+        handle.setAttribute('data-annotation-id', record.id)
+        handle.setAttribute('data-annotation-handle', kind)
+        handle.setAttribute('role', 'button')
+        handle.setAttribute('tabindex', '0')
+        handle.setAttribute(
+          'aria-label',
+          `Resize ${accessibleName} from ${cornerNames[kind]}`,
+        )
+        handle.classList.add('annotation-canvas-handle')
+        const hit = svgElement('rect')
+        setAttributes(hit, {
+          x: screen.x - 22,
+          y: screen.y - 22,
+          width: 44,
+          height: 44,
+        })
+        hit.classList.add('annotation-canvas-handle-hit')
+        const glyph = svgElement('rect')
+        setAttributes(glyph, {
           x: screen.x - 5,
           y: screen.y - 5,
           width: 10,
           height: 10,
           rx: 2,
         })
-        handle.setAttribute('data-annotation-id', record.id)
-        handle.setAttribute('data-annotation-handle', kind)
-        handle.classList.add('annotation-canvas-handle')
+        glyph.classList.add('annotation-canvas-handle-glyph')
+        handle.append(hit, glyph)
         root.append(handle)
       }
     }

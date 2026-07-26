@@ -36,10 +36,31 @@ export interface AnnotationDraft {
   slideId: string
   baseVersion: number
   mutations: AnnotationMutation[]
-  snapshot: unknown
+  snapshot?: unknown
   savedAt: number
   dirty: boolean
   byteSize: number
+}
+
+export function createCompactAnnotationDraft({
+  slideId,
+  baseVersion,
+  mutations,
+  savedAt = Date.now(),
+}: {
+  slideId: string
+  baseVersion: number
+  mutations: readonly AnnotationMutation[]
+  savedAt?: number
+}): Omit<AnnotationDraft, 'byteSize'> {
+  return {
+    schema: 'pathlab-annotation-draft/v1',
+    slideId,
+    baseVersion,
+    mutations: structuredClone([...mutations]),
+    savedAt,
+    dirty: mutations.length > 0,
+  }
 }
 
 export interface DraftStorage {
