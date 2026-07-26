@@ -307,7 +307,7 @@ h1,h2,h3,.brand { font-family:var(--font-ui); }
   z-index:-2;
   inset:0 auto 0 0;
   width:48%;
-  background:url('./assets/auth-histology.webp') 46% bottom/cover no-repeat;
+  background:none;
   content:'';
   opacity:1;
 }
