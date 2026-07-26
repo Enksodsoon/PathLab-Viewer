@@ -28,11 +28,36 @@ const profiles = {
   smoke: {
     viewers: { executor: 'constant-vus', vus: 2, duration: '30s' },
   },
+  staged: {
+    viewers: {
+      executor: 'ramping-vus',
+      startVUs: 0,
+      stages: [
+        {
+          duration: __ENV.TARGET_RAMP_DURATION || '1m',
+          target: Number(__ENV.TARGET_VUS || 0),
+        },
+        {
+          duration: __ENV.TARGET_DURATION || '2m',
+          target: Number(__ENV.TARGET_VUS || 0),
+        },
+        { duration: '30s', target: 0 },
+      ],
+    },
+  },
 }
 
 const profile = __ENV.PROFILE || 'acceptance'
 if (!(profile in profiles)) {
-  throw new Error('PROFILE must be smoke, acceptance, or capacity300')
+  throw new Error('PROFILE must be smoke, staged, acceptance, or capacity300')
+}
+if (
+  profile === 'staged' &&
+  (!Number.isInteger(profiles.staged.viewers.stages[0].target) ||
+    profiles.staged.viewers.stages[0].target < 1 ||
+    profiles.staged.viewers.stages[0].target > 300)
+) {
+  throw new Error('TARGET_VUS must be an integer from 1 to 300 for the staged profile')
 }
 
 export const options = {
@@ -77,24 +102,35 @@ export default function () {
       metadataBody && typeof metadataBody === 'object' ? metadataBody.tileSource : null
     const thumbnailUrl =
       metadataBody && typeof metadataBody === 'object' ? metadataBody.thumbnailUrl : null
-    if (
-      typeof tileSource !== 'string' ||
-      !tileSource.endsWith('/slide.dzi') ||
-      typeof thumbnailUrl !== 'string'
-    ) {
+    if (typeof tileSource !== 'string' || !tileSource.endsWith('/slide.dzi')) {
       tileFailures.add(true)
       sleep(1)
       return
     }
-    const opening = http.batch([
-      ['GET', `${base}${thumbnailUrl}`, null, { tags: { resource: 'poster' } }],
+    const hasPoster = typeof thumbnailUrl === 'string'
+    const openingRequests = [
       ['GET', `${base}${tileSource}`, null, { tags: { resource: 'descriptor' } }],
-    ])
+    ]
+    if (hasPoster) {
+      openingRequests.unshift([
+        'GET',
+        `${base}${thumbnailUrl}`,
+        null,
+        { tags: { resource: 'poster' } },
+      ])
+    }
+    const opening = http.batch(openingRequests)
+    const poster = hasPoster ? opening[0] : null
+    const descriptor = opening[hasPoster ? 1 : 0]
     const openingFailed = opening.some((response) => response.status !== 200)
     tileFailures.add(openingFailed)
-    posterLatency.add(metadata.timings.duration + opening[0].timings.duration)
-    check(opening[0], { 'poster 200': (response) => response.status === 200 })
-    check(opening[1], { 'descriptor 200': (response) => response.status === 200 })
+    posterLatency.add(
+      metadata.timings.duration + (poster ?? descriptor).timings.duration,
+    )
+    if (poster) {
+      check(poster, { 'poster 200': (response) => response.status === 200 })
+    }
+    check(descriptor, { 'descriptor 200': (response) => response.status === 200 })
     if (openingFailed) {
       sleep(1)
       return

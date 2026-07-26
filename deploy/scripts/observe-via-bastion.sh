@@ -45,7 +45,7 @@ SESSION_ID="$(
     --target-private-ip "${OCI_TARGET_PRIVATE_IP}" \
     --target-port 22 \
     --target-os-username "${TARGET_USER}" \
-    --session-ttl 1200 \
+    --session-ttl 1800 \
     --query 'data.id' \
     --raw-output
 )"
