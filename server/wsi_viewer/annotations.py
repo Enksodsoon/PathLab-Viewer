@@ -13,7 +13,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    FiniteFloat,
+    StrictBool,
     StrictFloat,
     StrictInt,
     TypeAdapter,
@@ -21,7 +21,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session as OrmSession
 
 from .models import Annotation, AnnotationLayer, AnnotationRevision, AuditEvent, Slide
@@ -57,6 +58,13 @@ def _plain_text(value: str) -> str:
     if _CONTROL_CHARACTER.search(value) or _HTML_TAG.search(value):
         raise ValueError("plain text is required")
     return value
+
+
+def _nonblank_plain_text(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("non-blank plain text is required")
+    return _plain_text(normalized)
 
 
 class AnnotationModel(BaseModel):
@@ -145,9 +153,14 @@ class AnnotationStyle(AnnotationModel):
         alias="fillColor",
         pattern=r"^#[0-9a-fA-F]{6}$",
     )
-    stroke_width: FiniteFloat = Field(default=2, alias="strokeWidth", ge=0.25, le=64)
-    opacity: FiniteFloat = Field(default=0.35, ge=0, le=1)
-    label_visible: bool = Field(default=True, alias="labelVisible")
+    stroke_width: StrictFiniteFloat = Field(
+        default=2,
+        alias="strokeWidth",
+        ge=0.25,
+        le=64,
+    )
+    opacity: StrictFiniteFloat = Field(default=0.35, ge=0, le=1)
+    label_visible: StrictBool = Field(default=True, alias="labelVisible")
 
 
 class AnnotationMetadata(AnnotationModel):
@@ -234,27 +247,27 @@ class LayerMutationRequest(AnnotationModel):
     mutation_id: UUID = Field(alias="mutationId")
     base_version: StrictInt = Field(alias="baseVersion", ge=0)
     name: str = Field(min_length=1, max_length=160)
-    sort_order: int = Field(default=0, alias="sortOrder", ge=0)
-    visible: bool = True
-    locked: bool = False
-    opacity: FiniteFloat = Field(default=1.0, ge=0, le=1)
+    sort_order: StrictInt = Field(default=0, alias="sortOrder", ge=0)
+    visible: StrictBool = True
+    locked: StrictBool = False
+    opacity: StrictFiniteFloat = Field(default=1.0, ge=0, le=1)
 
-    _validate_name = field_validator("name")(_plain_text)
+    _validate_name = field_validator("name")(_nonblank_plain_text)
 
 
 class LayerUpdateRequest(AnnotationModel):
     mutation_id: UUID = Field(alias="mutationId")
     base_version: StrictInt = Field(alias="baseVersion", ge=0)
     name: str | None = Field(default=None, min_length=1, max_length=160)
-    sort_order: int | None = Field(default=None, alias="sortOrder", ge=0)
-    visible: bool | None = None
-    locked: bool | None = None
-    opacity: FiniteFloat | None = Field(default=None, ge=0, le=1)
+    sort_order: StrictInt | None = Field(default=None, alias="sortOrder", ge=0)
+    visible: StrictBool | None = None
+    locked: StrictBool | None = None
+    opacity: StrictFiniteFloat | None = Field(default=None, ge=0, le=1)
 
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str | None) -> str | None:
-        return _plain_text(value) if value is not None else None
+        return _nonblank_plain_text(value) if value is not None else None
 
     @model_validator(mode="after")
     def require_change(self) -> "LayerUpdateRequest":
@@ -372,23 +385,25 @@ class AnnotationImportRequest(VersionedMutationRequest):
     @field_validator("layer_name")
     @classmethod
     def validate_layer_name(cls, value: str | None) -> str | None:
-        return _plain_text(value) if value is not None else None
+        return _nonblank_plain_text(value) if value is not None else None
 
 
 class PathLabSlide(AnnotationModel):
     id: str
-    width: FiniteFloat = Field(gt=0)
-    height: FiniteFloat = Field(gt=0)
-    annotation_version: int = Field(alias="annotationVersion", ge=0)
+    width: StrictFiniteFloat = Field(gt=0)
+    height: StrictFiniteFloat = Field(gt=0)
+    annotation_version: StrictInt = Field(alias="annotationVersion", ge=0)
 
 
 class PathLabLayer(AnnotationModel):
     id: UUID
     name: str = Field(min_length=1, max_length=160)
-    sort_order: int = Field(alias="sortOrder", ge=0)
-    visible: bool
-    locked: bool
-    opacity: FiniteFloat = Field(ge=0, le=1)
+    sort_order: StrictInt = Field(alias="sortOrder", ge=0)
+    visible: StrictBool
+    locked: StrictBool
+    opacity: StrictFiniteFloat = Field(ge=0, le=1)
+
+    _validate_name = field_validator("name")(_nonblank_plain_text)
 
 
 class PathLabDocument(AnnotationModel):
@@ -412,10 +427,12 @@ class GeoJsonProperties(AnnotationModel):
     style: AnnotationStyle = Field(default_factory=AnnotationStyle)
     text: str | None = Field(default=None, max_length=2_000)
 
-    @field_validator("name", "notes", "layer_name")
+    @field_validator("name", "notes")
     @classmethod
     def validate_text_fields(cls, value: str) -> str:
         return _plain_text(value)
+
+    _validate_layer_name = field_validator("layer_name")(_nonblank_plain_text)
 
     @field_validator("text")
     @classmethod
@@ -442,6 +459,8 @@ class GeoJsonPolygon(AnnotationModel):
 
     @model_validator(mode="after")
     def validate_outer_ring(self) -> "GeoJsonPolygon":
+        if len(self.coordinates) != 1:
+            raise ValueError("polygon interior rings are not supported")
         ring = self.coordinates[0]
         if len(ring) < 4 or len(ring) > MAX_VERTICES_PER_SHAPE + 1:
             raise ValueError("polygon outer ring has an invalid vertex count")
@@ -765,6 +784,51 @@ def _ensure_version(slide: Slide, base_version: int) -> None:
         )
 
 
+def lock_annotation_mutation(
+    database: OrmSession,
+    slide: Slide,
+    base_version: int,
+) -> Slide:
+    """Serialize a slide mutation before rechecking its optimistic version."""
+    slide_id = slide.id
+    observed_version = slide.annotation_version
+    bind = database.get_bind()
+    if bind.dialect.name == "sqlite":
+        database.rollback()
+        try:
+            database.execute(text("BEGIN IMMEDIATE"))
+        except OperationalError as error:
+            database.rollback()
+            if "database is locked" not in str(error).lower():
+                raise
+            raise AnnotationError(
+                "ANNOTATION_CONFLICT",
+                status_code=409,
+                detail={"currentVersion": observed_version},
+            ) from error
+        locked_slide = database.get(Slide, slide_id, populate_existing=True)
+    else:
+        locked_slide = database.scalar(
+            select(Slide)
+            .where(Slide.id == slide_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    if locked_slide is None:
+        database.rollback()
+        raise AnnotationError(
+            "ANNOTATION_CONFLICT",
+            status_code=409,
+            detail={"currentVersion": observed_version},
+        )
+    try:
+        _ensure_version(locked_slide, base_version)
+    except AnnotationError:
+        database.rollback()
+        raise
+    return locked_slide
+
+
 def _record_revision(
     database: OrmSession,
     annotation: Annotation,
@@ -831,7 +895,7 @@ def apply_batch(
     actor_user_id: str,
 ) -> dict[str, Any]:
     started = perf_counter()
-    _ensure_version(slide, payload.base_version)
+    slide = lock_annotation_mutation(database, slide, payload.base_version)
     seen: set[str] = set()
     active_count = int(
         database.scalar(
@@ -1007,7 +1071,23 @@ def restore_revision(
     actor_user_id: str,
 ) -> dict[str, Any]:
     started = perf_counter()
-    _ensure_version(slide, payload.base_version)
+    annotation_id = annotation.id
+    revision_id = revision.id
+    slide = lock_annotation_mutation(database, slide, payload.base_version)
+    locked_annotation = database.get(
+        Annotation,
+        annotation_id,
+        populate_existing=True,
+    )
+    locked_revision = database.get(
+        AnnotationRevision,
+        revision_id,
+        populate_existing=True,
+    )
+    if locked_annotation is None or locked_revision is None:
+        raise AnnotationError("ANNOTATION_REVISION_NOT_FOUND", status_code=404)
+    annotation = locked_annotation
+    revision = locked_revision
     if annotation.slide_id != slide.id or revision.annotation_id != annotation.id:
         raise AnnotationError("ANNOTATION_REVISION_NOT_FOUND", status_code=404)
     if annotation.version != payload.version:
@@ -1020,6 +1100,18 @@ def restore_revision(
         raise AnnotationError("ANNOTATION_LAYER_NOT_FOUND", status_code=404)
     geometry = GEOMETRY_ADAPTER.validate_python(revision.geometry)
     validate_geometry_bounds(geometry, slide)
+    if annotation.deleted_at is not None:
+        active_count = int(
+            database.scalar(
+                select(func.count(Annotation.id)).where(
+                    Annotation.slide_id == slide.id,
+                    Annotation.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+        if active_count >= MAX_ACTIVE_ANNOTATIONS:
+            raise AnnotationError("ANNOTATION_ACTIVE_LIMIT")
 
     now = utcnow()
     purged = purge_expired_tombstones(database, now)
@@ -1340,7 +1432,7 @@ def import_annotations(
     actor_user_id: str,
 ) -> dict[str, Any]:
     started = perf_counter()
-    _ensure_version(slide, payload.base_version)
+    slide = lock_annotation_mutation(database, slide, payload.base_version)
     layer_count = int(
         database.scalar(
             select(func.count(AnnotationLayer.id)).where(

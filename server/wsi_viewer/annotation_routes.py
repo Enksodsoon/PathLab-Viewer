@@ -36,6 +36,7 @@ from .annotations import (
     export_pathlab,
     import_annotations,
     layer_json,
+    lock_annotation_mutation,
     purge_expired_tombstones,
     restore_revision,
     revision_json,
@@ -147,11 +148,14 @@ def register_annotation_routes(
     ) -> dict[str, Any]:
         started = perf_counter()
         slide = get_slide(database, slide_id)
-        if slide.annotation_version != payload.base_version:
-            raise HTTPException(
-                status_code=409,
-                detail={"code": "ANNOTATION_CONFLICT"},
+        try:
+            slide = lock_annotation_mutation(
+                database,
+                slide,
+                payload.base_version,
             )
+        except AnnotationError as error:
+            raise annotation_error(error) from error
         layer_count = int(
             database.scalar(
                 select(func.count(AnnotationLayer.id)).where(
@@ -161,6 +165,7 @@ def register_annotation_routes(
             or 0
         )
         if layer_count >= MAX_LAYERS_PER_SLIDE:
+            database.rollback()
             raise HTTPException(
                 status_code=422,
                 detail={"code": "ANNOTATION_LAYER_LIMIT"},
@@ -169,7 +174,7 @@ def register_annotation_routes(
         purged = purge_expired_tombstones(database, now)
         layer = AnnotationLayer(
             slide_id=slide_id,
-            name=payload.name.strip(),
+            name=payload.name,
             sort_order=payload.sort_order,
             visible=payload.visible,
             locked=payload.locked,
@@ -235,22 +240,23 @@ def register_annotation_routes(
     ) -> dict[str, Any]:
         started = perf_counter()
         slide = get_slide(database, slide_id)
-        if slide.annotation_version != payload.base_version:
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "code": "ANNOTATION_CONFLICT",
-                    "currentVersion": slide.annotation_version,
-                },
+        try:
+            slide = lock_annotation_mutation(
+                database,
+                slide,
+                payload.base_version,
             )
+        except AnnotationError as error:
+            raise annotation_error(error) from error
         layer = database.get(AnnotationLayer, layer_id)
         if layer is None or layer.slide_id != slide_id:
+            database.rollback()
             raise HTTPException(
                 status_code=404,
                 detail={"code": "ANNOTATION_LAYER_NOT_FOUND"},
             )
         if payload.name is not None:
-            layer.name = payload.name.strip()
+            layer.name = payload.name
         if payload.sort_order is not None:
             layer.sort_order = payload.sort_order
         if payload.visible is not None:
@@ -300,16 +306,17 @@ def register_annotation_routes(
     ) -> dict[str, Any]:
         started = perf_counter()
         slide = get_slide(database, slide_id)
-        if slide.annotation_version != payload.base_version:
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "code": "ANNOTATION_CONFLICT",
-                    "currentVersion": slide.annotation_version,
-                },
+        try:
+            slide = lock_annotation_mutation(
+                database,
+                slide,
+                payload.base_version,
             )
+        except AnnotationError as error:
+            raise annotation_error(error) from error
         layer = database.get(AnnotationLayer, layer_id)
         if layer is None or layer.slide_id != slide_id:
+            database.rollback()
             raise HTTPException(
                 status_code=404,
                 detail={"code": "ANNOTATION_LAYER_NOT_FOUND"},
@@ -317,6 +324,7 @@ def register_annotation_routes(
         if database.scalar(
             select(Annotation.id).where(Annotation.layer_id == layer_id).limit(1)
         ):
+            database.rollback()
             raise HTTPException(
                 status_code=409,
                 detail={"code": "ANNOTATION_LAYER_NOT_EMPTY"},

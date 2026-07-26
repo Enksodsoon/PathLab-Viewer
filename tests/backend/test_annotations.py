@@ -1,7 +1,9 @@
 import json
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Barrier
 from typing import Any
 
 import pytest
@@ -153,6 +155,288 @@ def _batch(
             "operations": operations,
         },
     )
+
+
+def test_concurrent_batches_with_the_same_base_version_allow_one_commit(
+    tmp_path: Path,
+) -> None:
+    from wsi_viewer.annotations import (
+        AnnotationBatchRequest,
+        AnnotationError,
+        apply_batch,
+    )
+
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client, slide_id="annotation-race")
+        layer = _create_layer(client, slide.id, headers)
+        first = _item_payload(layer["id"])
+        second = _item_payload(layer["id"])
+        created = _batch(
+            client,
+            slide.id,
+            headers,
+            base_version=1,
+            operations=[
+                {"type": "create", "item": first},
+                {"type": "create", "item": second},
+            ],
+        )
+        assert created.status_code == 200
+
+        settings = client.app.state.settings
+        with session_factory(settings)() as database:
+            actor_user_id = str(
+                database.scalar(select(User.id).where(User.username == "admin"))
+            )
+
+        ready = Barrier(2)
+
+        def update_item(item_id: str, title: str) -> tuple[Any, ...]:
+            with session_factory(settings)() as database:
+                current_slide = database.get(Slide, slide.id)
+                assert current_slide is not None
+                ready.wait(timeout=5)
+                payload = AnnotationBatchRequest.model_validate(
+                    {
+                        "mutationId": str(uuid.uuid4()),
+                        "baseVersion": 2,
+                        "operations": [
+                            {
+                                "type": "update",
+                                "id": item_id,
+                                "version": 1,
+                                "metadata": {
+                                    "title": title,
+                                    "classification": "",
+                                    "tags": [],
+                                    "notes": "",
+                                },
+                            }
+                        ],
+                    }
+                )
+                try:
+                    result = apply_batch(
+                        database,
+                        current_slide,
+                        payload,
+                        actor_user_id=actor_user_id,
+                    )
+                except AnnotationError as error:
+                    database.rollback()
+                    return (
+                        "conflict",
+                        error.status_code,
+                        error.code,
+                        error.detail.get("currentVersion"),
+                    )
+                except Exception as error:  # pragma: no cover - assertion reports type
+                    database.rollback()
+                    return ("unexpected", type(error).__name__, str(error))
+                return ("success", result["version"])
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            outcomes = [
+                future.result(timeout=10)
+                for future in (
+                    executor.submit(update_item, first["id"], "First winner"),
+                    executor.submit(update_item, second["id"], "Second winner"),
+                )
+            ]
+
+        assert sum(outcome[0] == "success" for outcome in outcomes) == 1
+        assert [
+            outcome[1:]
+            for outcome in outcomes
+            if outcome[0] == "conflict"
+        ] == [(409, "ANNOTATION_CONFLICT", 3)]
+        with session_factory(settings)() as database:
+            stored_slide = database.get(Slide, slide.id)
+            assert stored_slide is not None
+            assert stored_slide.annotation_version == 3
+            titles = list(
+                database.scalars(
+                    select(Annotation.annotation_metadata).where(
+                        Annotation.id.in_([first["id"], second["id"]])
+                    )
+                )
+            )
+        assert sum(
+            title["title"] in {"First winner", "Second winner"}
+            for title in titles
+        ) == 1
+
+
+def test_style_and_layer_mutations_reject_coercible_scalars_and_blank_names(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client, slide_id="strict-annotation-inputs")
+        layer_url = f"/api/v2/admin/annotations/slides/{slide.id}/layers"
+
+        for field, value in (
+            ("sortOrder", "1"),
+            ("visible", "true"),
+            ("locked", "false"),
+            ("opacity", "0.8"),
+        ):
+            payload = _layer_payload()
+            payload[field] = value
+            response = client.post(layer_url, headers=headers, json=payload)
+            assert response.status_code == 422, field
+
+        blank_name = client.post(
+            layer_url,
+            headers=headers,
+            json=_layer_payload(name="   "),
+        )
+        assert blank_name.status_code == 422
+        assert client.get(layer_url).json() == {"items": []}
+
+        layer = _create_layer(client, slide.id, headers)
+        for field, value in (
+            ("strokeWidth", "2"),
+            ("opacity", "0.35"),
+            ("labelVisible", "true"),
+        ):
+            item = _item_payload(layer["id"])
+            item["style"][field] = value
+            response = _batch(
+                client,
+                slide.id,
+                headers,
+                base_version=1,
+                operations=[{"type": "create", "item": item}],
+            )
+            assert response.status_code == 422, field
+
+        manifest = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/manifest"
+        )
+        assert manifest.json()["version"] == 1
+        assert manifest.json()["activeCount"] == 0
+
+
+def test_historical_revision_restore_enforces_the_active_annotation_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from wsi_viewer import annotations as annotation_service
+
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client, slide_id="revision-restore-limit")
+        layer = _create_layer(client, slide.id, headers)
+        trashed = _item_payload(layer["id"])
+        active = _item_payload(layer["id"])
+        assert (
+            _batch(
+                client,
+                slide.id,
+                headers,
+                base_version=1,
+                operations=[
+                    {"type": "create", "item": trashed},
+                    {"type": "create", "item": active},
+                ],
+            ).status_code
+            == 200
+        )
+        deleted = _batch(
+            client,
+            slide.id,
+            headers,
+            base_version=2,
+            operations=[
+                {
+                    "type": "delete",
+                    "id": trashed["id"],
+                    "version": 1,
+                }
+            ],
+        )
+        assert deleted.status_code == 200
+        revision_id = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/items/"
+            f"{trashed['id']}/revisions"
+        ).json()["items"][0]["id"]
+
+        monkeypatch.setattr(annotation_service, "MAX_ACTIVE_ANNOTATIONS", 1)
+        restored = client.post(
+            f"/api/v2/admin/annotations/slides/{slide.id}/items/{trashed['id']}"
+            f"/revisions/{revision_id}/restore",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 3,
+                "version": 2,
+            },
+        )
+        assert restored.status_code == 422
+        assert restored.json() == {
+            "detail": {"code": "ANNOTATION_ACTIVE_LIMIT"}
+        }
+        manifest = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/manifest"
+        ).json()
+        assert manifest["version"] == 3
+        assert manifest["activeCount"] == 1
+        assert manifest["trashedCount"] == 1
+
+
+def test_geojson_import_rejects_polygon_interior_rings_before_commit(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client, slide_id="geojson-interior-ring")
+        imported = client.post(
+            f"/api/v2/admin/annotations/slides/{slide.id}/import",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "format": "geojson",
+                "data": {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": [
+                                    [
+                                        [10, 10],
+                                        [100, 10],
+                                        [100, 100],
+                                        [10, 10],
+                                    ],
+                                    [
+                                        [20, 20],
+                                        [30, 20],
+                                        [30, 30],
+                                        [20, 20],
+                                    ],
+                                ],
+                            },
+                            "properties": {"name": "Polygon with a hole"},
+                        }
+                    ],
+                },
+            },
+        )
+        assert imported.status_code == 422
+        assert imported.json() == {
+            "detail": {"code": "ANNOTATION_IMPORT_INVALID"}
+        }
+        manifest = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/manifest"
+        ).json()
+        assert manifest["version"] == 0
+        assert manifest["activeCount"] == 0
+        assert manifest["layers"] == []
 
 
 def test_feature_flag_session_csrf_and_admin_public_serialization(tmp_path: Path) -> None:
