@@ -46,6 +46,21 @@ class FakeImage:
         Path(output).write_bytes(b"thumbnail")
 
 
+class SinglePassImage(FakeImage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.consumed = False
+
+    def dzsave(self, output: str, **options: object) -> None:
+        super().dzsave(output, **options)
+        self.consumed = True
+
+    def thumbnail_image(self, edge: int) -> "FakeImage":
+        if self.consumed:
+            raise RuntimeError("sequential image cannot restart at line zero")
+        return super().thumbnail_image(edge)
+
+
 def install_fake_pyvips(
     monkeypatch: pytest.MonkeyPatch, image: FakeImage
 ) -> SimpleNamespace:
@@ -109,6 +124,20 @@ def test_conversion_generates_one_bounded_cached_thumbnail(
     assert result.tile_count == 1
 
 
+def test_dzi_and_thumbnail_use_independent_sequential_readers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.ome.tif"
+    source.write_bytes(b"source")
+    fake = install_fake_pyvips(monkeypatch, SinglePassImage())
+    fake.Image.new_from_file.side_effect = lambda *_args, **_kwargs: SinglePassImage()
+
+    result = generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
+
+    assert result.descriptor.read_bytes() == b"<Image />"
+    assert (tmp_path / "private" / "thumbnail.jpg").read_bytes() == b"thumbnail"
+
+
 def test_unexpected_derivative_file_is_rejected(tmp_path: Path) -> None:
     (tmp_path / "slide.dzi").write_text("<Image />", encoding="utf-8")
     (tmp_path / "secret.xml").write_text("no", encoding="utf-8")
@@ -154,8 +183,6 @@ def test_old_pid_staging_directory_is_removed_before_conversion(
     fake.Image.new_from_file.side_effect = load_image
 
     generate_dzi(source, destination, series_index=0, bits=8)
-
-    fake.Image.new_from_file.assert_called_once()
 
 
 def test_multiple_old_pid_staging_directories_are_removed(
