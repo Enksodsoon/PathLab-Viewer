@@ -241,6 +241,57 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
   await expect(page.locator('.annotation-save-status')).toHaveText(/Saved|No changes/)
 })
 
+test('shows selected annotations moving with the pointer before release', async ({ page }) => {
+  await page.setViewportSize({ width: 1584, height: 992 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  await page.getByRole('button', { name: 'Open annotations' }).click()
+  await page.getByRole('button', { name: /Touch polygon/ }).click()
+
+  const overlay = page.locator('.annotation-svg-overlay')
+  const shape = page.locator(
+    `[data-annotation-id="${touchPolygon.id}"] > polygon`,
+  )
+  const before = await shape.boundingBox()
+  expect(before).not.toBeNull()
+  const startX = before!.x + before!.width / 2
+  const startY = before!.y + before!.height / 2
+
+  await shape.dispatchEvent('pointerdown', {
+    clientX: startX,
+    clientY: startY,
+    pointerId: 17,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointermove', {
+    clientX: startX + 36,
+    clientY: startY + 24,
+    pointerId: 17,
+    pointerType: 'mouse',
+  })
+
+  await expect(overlay).toHaveClass(/is-moving-annotation/)
+  await expect(page.locator('.annotation-move-preview')).toHaveCSS(
+    'transform',
+    /matrix\(1, 0, 0, 1, 36, 24\)/,
+  )
+  const during = await shape.boundingBox()
+  expect(during!.x).toBeCloseTo(before!.x + 36, 0)
+  expect(during!.y).toBeCloseTo(before!.y + 24, 0)
+
+  await overlay.dispatchEvent('pointerup', {
+    clientX: startX + 36,
+    clientY: startY + 24,
+    pointerId: 17,
+    pointerType: 'mouse',
+  })
+  await expect(overlay).not.toHaveClass(/is-moving-annotation/)
+  await expect(page.locator('.annotation-move-preview')).toHaveCount(0)
+})
+
 test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and below', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/admin/preview/private-1')

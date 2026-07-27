@@ -214,6 +214,64 @@ it('renders the latest rectangle draft on one animation frame before committing 
   cleanupOverlay()
 })
 
+it('moves the selected annotation with the pointer before committing once on release', () => {
+  let pendingFrame: FrameRequestCallback | null = null
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    pendingFrame = callback
+    return 37
+  })
+  const record = polygonRecord()
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 1, layers: [layer], annotations: [record] })
+  store.select([record.id])
+  store.setTool('select')
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => record.style,
+    metadata: () => record.metadata,
+    text: () => 'Callout',
+  })
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+  const shape = overlay.querySelector<SVGElement>(
+    `[data-annotation-id="${record.id}"] > polygon`,
+  )!
+
+  shape.dispatchEvent(new MouseEvent('pointerdown', {
+    bubbles: true,
+    clientX: 30,
+    clientY: 30,
+  }))
+  overlay.dispatchEvent(new MouseEvent('pointermove', {
+    bubbles: true,
+    clientX: 70,
+    clientY: 60,
+  }))
+
+  expect(store.getState().annotations.get(record.id)?.bounds).toEqual(record.bounds)
+  pendingFrame!(0)
+  expect(overlay).toHaveClass('is-moving-annotation')
+  expect(overlay.querySelector('.annotation-move-preview')).toHaveStyle({
+    transform: 'translate3d(40px, 30px, 0)',
+  })
+
+  overlay.dispatchEvent(new MouseEvent('pointerup', {
+    bubbles: true,
+    clientX: 70,
+    clientY: 60,
+  }))
+  expect(overlay).not.toHaveClass('is-moving-annotation')
+  expect(overlay.querySelector('.annotation-move-preview')).toBeNull()
+  expect(store.getState().annotations.get(record.id)?.bounds).toEqual({
+    minX: record.bounds.minX + 40,
+    minY: record.bounds.minY + 30,
+    maxX: record.bounds.maxX + 40,
+    maxY: record.bounds.maxY + 30,
+  })
+  cleanupOverlay()
+})
+
 it('rubber-bands polygon points and cancels construction without creating an annotation', () => {
   let pendingFrame: FrameRequestCallback | null = null
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {

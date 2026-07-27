@@ -1008,6 +1008,26 @@
   pointer-events:none;
 }
 
+.annotation-move-preview {
+  pointer-events:none;
+  transform-box:view-box;
+  transform-origin:0 0;
+  will-change:transform;
+}
+
+.annotation-move-preview [data-annotation-id] {
+  opacity:.78;
+}
+
+.annotation-move-preview [data-annotation-id] > :first-child {
+  stroke-dasharray:8 5;
+  animation:annotation-move-dash .55s linear infinite;
+}
+
+.annotation-svg-overlay.is-moving-annotation {
+  cursor:grabbing;
+}
+
 .annotation-draft-shape {
   stroke-dasharray:7 5;
   stroke-linecap:round;
@@ -1031,6 +1051,10 @@
 
 @keyframes annotation-draft-march {
   to { stroke-dashoffset:-12; }
+}
+
+@keyframes annotation-move-dash {
+  to { stroke-dashoffset:-13; }
 }
 
 @keyframes annotation-focus-in {
@@ -1245,7 +1269,8 @@
 @media (prefers-reduced-motion:reduce) {
   .annotation-focus-rail,
   .annotation-inspector,
-  .annotation-draft-shape {
+  .annotation-draft-shape,
+  .annotation-move-preview [data-annotation-id] > :first-child {
     animation:none!important;
   }
 

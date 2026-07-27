@@ -442,8 +442,10 @@ export function attachAnnotationOverlay(
   const draftPolyline = svgElement('polyline')
   const draftCursor = svgElement('circle')
   const draftMeasurement = svgElement('text')
+  const movePreviewRoot = svgElement('g')
 
   draftRoot.classList.add('annotation-draft')
+  movePreviewRoot.classList.add('annotation-move-preview')
   draftMeasurement.classList.add('annotation-draft-measurement')
   draftMeasurement.setAttribute('text-anchor', 'middle')
   draftMeasurement.setAttribute('aria-hidden', 'true')
@@ -643,6 +645,41 @@ export function attachAnnotationOverlay(
     }
   }
 
+  const clearMovePreview = () => {
+    for (const node of [...movePreviewRoot.children]) svg.append(node)
+    movePreviewRoot.style.removeProperty('transform')
+    movePreviewRoot.remove()
+    svg.classList.remove('is-moving-annotation')
+  }
+
+  const renderMovePreview = () => {
+    if (
+      state.tool !== 'select'
+      || !gestureStart
+      || !gestureLast
+      || !gestureTarget
+      || gestureHandle
+    ) {
+      clearMovePreview()
+      return
+    }
+    const start = screenPoint(viewer, gestureStart)
+    const end = screenPoint(viewer, gestureLast)
+    const deltaX = end.x - start.x
+    const deltaY = end.y - start.y
+    if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) {
+      clearMovePreview()
+      return
+    }
+    if (!movePreviewRoot.isConnected) svg.append(movePreviewRoot)
+    for (const id of state.selection) {
+      const node = shapeNodes.get(id)
+      if (node && node.parentNode !== movePreviewRoot) movePreviewRoot.append(node)
+    }
+    movePreviewRoot.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
+    svg.classList.add('is-moving-annotation')
+  }
+
   const project = () => {
     if (disposed) return
     try {
@@ -660,6 +697,7 @@ export function attachAnnotationOverlay(
           r: Math.min(10, 2 + Math.log2(cell.count + 1)),
         })
       }
+      renderMovePreview()
       setNavigation()
     } catch (caught) {
       failOpen(caught)
@@ -834,6 +872,7 @@ export function attachAnnotationOverlay(
   }
 
   const clearGesture = () => {
+    clearMovePreview()
     gestureStart = null
     gestureLast = null
     gestureTarget = null
@@ -961,6 +1000,7 @@ export function attachAnnotationOverlay(
         && gestureTarget
         && (gestureLast.x !== gestureStart.x || gestureLast.y !== gestureStart.y)
       ) {
+        clearMovePreview()
         store.move(state.selection, gestureLast.x - gestureStart.x, gestureLast.y - gestureStart.y)
       } else if (
         state.tool === 'freehand'
@@ -1132,6 +1172,7 @@ export function attachAnnotationOverlay(
     viewer.removeHandler('animation-finish', onViewerSettled)
     viewer.removeHandler('resize', onViewerSettled)
     viewer.removeHandler('open', onViewerSettled)
+    clearMovePreview()
     svg.remove()
     viewer.setMouseNavEnabled(true)
     viewer.setKeyboardNavEnabled(true)
