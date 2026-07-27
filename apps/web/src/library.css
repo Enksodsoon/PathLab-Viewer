@@ -901,6 +901,102 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   gap: 16px;
 }
 
+.library-folder-section {
+  margin-bottom: 24px;
+}
+
+.library-folder-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.library-folder-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.library-folder-heading > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.library-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.library-folder-card {
+  min-width: 0;
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-elevated);
+  color: var(--body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-folder-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  background: var(--surface);
+}
+
+.library-folder-card > svg {
+  color: var(--muted);
+}
+
+.library-folder-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  color: var(--primary);
+}
+
+.library-folder-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.library-folder-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.library-folder-copy strong,
+.library-folder-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-folder-copy strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 550;
+}
+
+.library-folder-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .library-slide-grid.processing-view {
   grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
 }
@@ -2246,6 +2342,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     gap: 10px;
   }
 
+  .library-folder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
   .library-slide-grid.processing-view {
     grid-template-columns: 1fr;
   }
@@ -2298,7 +2399,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 @media (max-width: 390px) {
-  .library-slide-grid {
+  .library-slide-grid,
+  .library-folder-grid {
     grid-template-columns: 1fr;
   }
 
