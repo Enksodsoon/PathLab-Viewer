@@ -214,6 +214,64 @@ it('renders the latest rectangle draft on one animation frame before committing 
   cleanupOverlay()
 })
 
+it('shows calibrated ruler length and angle values while drawing', () => {
+  let pendingFrame: FrameRequestCallback | null = null
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    pendingFrame = callback
+    return 35
+  })
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+    calibration: () => ({ x: 0.5, y: 0.75, unit: 'µm' }),
+  })
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+
+  store.setTool('ruler')
+  overlay.dispatchEvent(new MouseEvent('pointerdown', {
+    bubbles: true,
+    clientX: 20,
+    clientY: 40,
+  }))
+  overlay.dispatchEvent(new MouseEvent('pointermove', {
+    bubbles: true,
+    clientX: 120,
+    clientY: 40,
+  }))
+  pendingFrame!(0)
+  expect(overlay.querySelector('.annotation-draft-measurement')).toHaveTextContent('50 µm')
+  overlay.dispatchEvent(new MouseEvent('pointercancel', { bubbles: true }))
+
+  store.setTool('angle')
+  for (const [x, y] of [[20, 40], [120, 40]]) {
+    overlay.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true,
+      clientX: x,
+      clientY: y,
+    }))
+    overlay.dispatchEvent(new MouseEvent('pointerup', {
+      bubbles: true,
+      clientX: x,
+      clientY: y,
+    }))
+  }
+  overlay.dispatchEvent(new MouseEvent('pointermove', {
+    bubbles: true,
+    clientX: 120,
+    clientY: 140,
+  }))
+  pendingFrame!(0)
+  expect(overlay.querySelector('.annotation-draft-measurement')).toHaveTextContent('90°')
+
+  cleanupOverlay()
+})
+
 it('moves the selected annotation with the pointer before committing once on release', () => {
   let pendingFrame: FrameRequestCallback | null = null
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {

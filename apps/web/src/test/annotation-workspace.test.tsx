@@ -141,6 +141,52 @@ it('keeps the canvas simple until advanced tools, annotations, or details are re
   expect(screen.getByRole('button', { name: 'Findings' })).toBeVisible()
 })
 
+it('enables erase when exactly one editable closed ROI is available', async () => {
+  const rectangle = {
+    id: '22222222-2222-4222-8222-222222222222',
+    layerId,
+    geometry: { type: 'rectangle' as const, x: 10, y: 20, width: 80, height: 60 },
+    style: {
+      strokeColor: '#bf3c32',
+      fillColor: '#bf3c32',
+      strokeWidth: 2,
+      opacity: 0.8,
+      labelVisible: true,
+    },
+    metadata: { title: 'ROI', classification: '', tags: [], notes: '' },
+    version: 1,
+    deletedAt: null,
+    createdAt: '2026-07-26T00:00:00Z',
+    updatedAt: '2026-07-26T00:00:00Z',
+    bounds: { minX: 10, minY: 20, maxX: 90, maxY: 80 },
+    measurements: {},
+  }
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({
+        getItems: vi.fn(async () => ({
+          items: [rectangle],
+          total: 1,
+          nextOffset: null,
+        })),
+      })}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+
+  expect(await screen.findByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  const eraseTool = screen.getByRole('button', { name: 'Erase from selected ROI' })
+  expect(eraseTool).toHaveAttribute('aria-disabled', 'false')
+  fireEvent.click(eraseTool)
+  expect(screen.getByText('Erase from selected ROI active')).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  expect(screen.getByRole('button', { name: 'Erase from selected ROI' }))
+    .toHaveAttribute('aria-pressed', 'true')
+})
+
 it('supports focus-safe keyboard shortcuts and creates a point through the attachment bridge', async () => {
   const onAttachmentChange = vi.fn()
   const workflow = services()

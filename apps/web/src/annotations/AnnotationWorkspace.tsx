@@ -66,6 +66,7 @@ import { createAnnotationStore, type AnnotationStore, type AnnotationStoreState 
 import type {
   AnnotationBatchRequest,
   AnnotationBatchResult,
+  AnnotationCalibration,
   AnnotationGeometry,
   AnnotationItemsPage,
   AnnotationLayer,
@@ -298,17 +299,26 @@ function selectionRecords(state: AnnotationStoreState | null): AnnotationRecord[
     .filter((record): record is AnnotationRecord => Boolean(record))
 }
 
-function hasEditableClosedSelection(state: AnnotationStoreState | null): boolean {
-  if (!state) return false
-  return selectionRecords(state).some((record) => (
+function editableClosedTarget(state: AnnotationStoreState | null): AnnotationRecord | null {
+  if (!state) return null
+  const isEligible = (record: AnnotationRecord) => (
     !record.deletedAt
     && !state.layers.get(record.layerId)?.locked
+    && state.layers.get(record.layerId)?.visible !== false
     && (
       record.geometry.type === 'polygon'
       || record.geometry.type === 'rectangle'
       || record.geometry.type === 'ellipse'
     )
-  ))
+  )
+  const selected = selectionRecords(state).find(isEligible)
+  if (selected) return selected
+  const candidates = [...state.annotations.values()].filter(isEligible)
+  return candidates.length === 1 ? candidates[0] : null
+}
+
+function hasEditableClosedSelection(state: AnnotationStoreState | null): boolean {
+  return editableClosedTarget(state) !== null
 }
 
 function hasEditablePoints(
@@ -375,6 +385,7 @@ export function AnnotationWorkspace({
   const autosaveRef = useRef<AnnotationAutosave | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const activeLayerRef = useRef<string | null>(null)
+  const calibrationRef = useRef<AnnotationCalibration | null>(null)
   const styleRef = useRef<AnnotationStyle>(DEFAULT_STYLE)
   const metadataRef = useRef<AnnotationMetadata>(DEFAULT_METADATA)
   const textRef = useRef('Callout')
@@ -539,6 +550,7 @@ export function AnnotationWorkspace({
     setAutosave(EMPTY_AUTOSAVE)
     setActiveLayerId(null)
     activeLayerRef.current = null
+    calibrationRef.current = null
     setPendingImport(null)
     setImportPreview(null)
     setRevisions([])
@@ -568,6 +580,7 @@ export function AnnotationWorkspace({
         if (!active) return
         const manifest = await services.getManifest()
         if (!active) return
+        calibrationRef.current = manifest.calibration
         const store = createAnnotationStore({
           slideId,
           bounds: manifest.bounds,
@@ -758,6 +771,7 @@ export function AnnotationWorkspace({
           style: () => structuredClone(styleRef.current),
           metadata: () => structuredClone(metadataRef.current),
           text: () => textRef.current,
+          calibration: () => calibrationRef.current,
           onCoordinate: updateCoordinate,
           onDensity: setDensityPrompt,
           onNotice: setOperationStatus,
@@ -896,9 +910,14 @@ export function AnnotationWorkspace({
   }, [filterSignature])
 
   const setTool = useCallback((tool: AnnotationTool) => {
-    if (tool === 'brush-subtract' && !hasEditableClosedSelection(storeRef.current?.getState() ?? null)) {
-      setOperationStatus('Select an unlocked polygon, rectangle, or ellipse before erasing')
-      return
+    if (tool === 'brush-subtract') {
+      const localStore = storeRef.current
+      const target = editableClosedTarget(localStore?.getState() ?? null)
+      if (!localStore || !target) {
+        setOperationStatus('Select an unlocked polygon, rectangle, or ellipse before erasing')
+        return
+      }
+      if (!localStore.getState().selection.has(target.id)) localStore.select([target.id])
     }
     storeRef.current?.setTool(tool)
     setOperationStatus(`${TOOLS.find((item) => item.tool === tool)?.label ?? tool} active`)

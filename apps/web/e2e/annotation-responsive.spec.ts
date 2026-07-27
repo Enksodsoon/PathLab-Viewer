@@ -292,6 +292,75 @@ test('shows selected annotations moving with the pointer before release', async 
   await expect(page.locator('.annotation-move-preview')).toHaveCount(0)
 })
 
+test('resolves a single ROI and previews calibrated ruler and angle measurements', async ({ page }) => {
+  await page.setViewportSize({ width: 1584, height: 992 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  const overlay = page.locator('.annotation-svg-overlay')
+
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+  await expect(page.getByRole('button', { name: 'Erase from selected ROI' }))
+    .toHaveAttribute('aria-disabled', 'false')
+
+  await page.getByRole('button', { name: 'Ruler' }).click()
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 300,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 400,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+  const liveMeasurement = page.locator('.annotation-draft-measurement')
+  await expect(liveMeasurement).toHaveText(/^\d+(?:\.\d+)? µm$/)
+  const shorterLength = Number((await liveMeasurement.textContent())!.split(' ')[0])
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 500,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+  await expect.poll(async () => (
+    Number((await liveMeasurement.textContent())!.split(' ')[0])
+  )).toBeGreaterThan(shorterLength)
+  await overlay.dispatchEvent('pointercancel', {
+    clientX: 500,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+  await page.getByRole('button', { name: 'Three-point angle' }).click()
+  for (const [clientX, clientY, pointerId] of [[300, 400, 22], [400, 400, 23]]) {
+    await overlay.dispatchEvent('pointerdown', {
+      clientX,
+      clientY,
+      pointerId,
+      pointerType: 'mouse',
+    })
+    await overlay.dispatchEvent('pointerup', {
+      clientX,
+      clientY,
+      pointerId,
+      pointerType: 'mouse',
+    })
+  }
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 400,
+    clientY: 500,
+    pointerId: 24,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('.annotation-draft-measurement')).toHaveText('90°')
+})
+
 test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and below', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/admin/preview/private-1')

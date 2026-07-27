@@ -1,10 +1,12 @@
 import OpenSeadragon from 'openseadragon'
 
 import { createGeometryForTool } from './geometry'
+import { measureGeometry } from './measurement'
 import { AnnotationSpatialIndex, type DensityCell } from './spatialIndex'
 import type { AnnotationStore } from './store'
 import type {
   AnnotationBounds,
+  AnnotationCalibration,
   AnnotationGeometry,
   AnnotationInput,
   AnnotationMetadata,
@@ -22,6 +24,7 @@ export interface AnnotationOverlayOptions {
   style: () => AnnotationStyle
   metadata: () => AnnotationMetadata
   text: () => string
+  calibration?: () => AnnotationCalibration | null
   onCoordinate?: (point: AnnotationPoint | null) => void
   onDensity?: (prompt: string | null) => void
   onNotice?: (message: string) => void
@@ -54,6 +57,12 @@ function normalizeBounds(start: AnnotationPoint, end: AnnotationPoint): Annotati
     maxX: Math.max(start.x, end.x),
     maxY: Math.max(start.y, end.y),
   }
+}
+
+function formatMeasurement(value: unknown, unit: unknown): string {
+  if (typeof value !== 'number' || typeof unit !== 'string') return ''
+  const precision = Math.abs(value) >= 100 ? 0 : Math.abs(value) >= 10 ? 1 : 2
+  return `${Number(value.toFixed(precision))}${unit === '°' ? '' : ' '}${unit}`
 }
 
 function imagePoint(
@@ -613,8 +622,12 @@ export function attachAnnotationOverlay(
       const to = screenPoint(viewer, end)
       setAttributes(draftLine, { x1: from.x, y1: from.y, x2: to.x, y2: to.y })
       showDraftShape(draftLine)
+      const measurement = measureGeometry(
+        { type: 'polyline', points: [start, end] },
+        options.calibration?.(),
+      ).values
       showMeasurement(
-        `${Math.round(Math.hypot(end.x - start.x, end.y - start.y))} px`,
+        formatMeasurement(measurement.length, measurement.lengthUnit),
         { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
       )
       return
@@ -634,6 +647,19 @@ export function attachAnnotationOverlay(
         projected.map((point) => `${point.x},${point.y}`).join(' '),
       )
       showDraftShape(draftPolyline)
+    }
+    if (state.tool === 'angle' && points.length === 3) {
+      const measurement = measureGeometry(
+        {
+          type: 'angle',
+          points: [points[0], points[1], points[2]],
+        },
+        options.calibration?.(),
+      ).values
+      showMeasurement(
+        formatMeasurement(measurement.angle, measurement.angleUnit),
+        points[1],
+      )
     }
     if (
       draftCursorPoint
