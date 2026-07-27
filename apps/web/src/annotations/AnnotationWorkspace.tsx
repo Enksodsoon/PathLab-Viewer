@@ -1,19 +1,35 @@
 import '@fontsource-variable/sofia-sans'
 import OpenSeadragon from 'openseadragon'
 import {
+  Angle,
   ArrowClockwise,
   CaretDown,
   CaretUp,
+  Circle,
   Copy,
+  Crosshair,
+  Cursor,
+  DotsThree,
   DownloadSimple,
   FloppyDisk,
   FolderOpen,
+  Hand,
+  LineSegment,
   MagnifyingGlass,
+  MinusCircle,
+  PlusCircle,
   Plus,
+  Polygon,
+  Rectangle,
+  Ruler,
+  Scribble,
+  Selection,
   SidebarSimple,
+  TextT,
   Trash,
   UploadSimple,
   X,
+  type Icon,
 } from '@phosphor-icons/react'
 import {
   Component,
@@ -92,23 +108,23 @@ const OBJECT_REGISTER_PAGE_SIZE = 200
 const TOOLS: Array<{
   tool: AnnotationTool
   label: string
-  glyph: string
+  icon: Icon
   shortcut: string
 }> = [
-  { tool: 'hand', label: 'Pan', glyph: 'H', shortcut: 'H' },
-  { tool: 'select', label: 'Select', glyph: 'V', shortcut: 'V' },
-  { tool: 'marquee', label: 'Marquee select', glyph: 'M', shortcut: 'M' },
-  { tool: 'point', label: 'Point marker', glyph: '•', shortcut: 'P' },
-  { tool: 'ruler', label: 'Ruler', glyph: '↔', shortcut: 'R' },
-  { tool: 'polyline', label: 'Polyline', glyph: '⌁', shortcut: 'L' },
-  { tool: 'angle', label: 'Three-point angle', glyph: '∠', shortcut: 'A' },
-  { tool: 'rectangle', label: 'Rectangle', glyph: '□', shortcut: 'B' },
-  { tool: 'ellipse', label: 'Ellipse', glyph: '○', shortcut: 'E' },
-  { tool: 'polygon', label: 'Polygon', glyph: '⬡', shortcut: 'G' },
-  { tool: 'freehand', label: 'Freehand ROI', glyph: '∿', shortcut: 'F' },
-  { tool: 'brush-add', label: 'Brush add', glyph: '+', shortcut: ']' },
-  { tool: 'brush-subtract', label: 'Brush subtract', glyph: '−', shortcut: '[' },
-  { tool: 'text', label: 'Text callout', glyph: 'T', shortcut: 'T' },
+  { tool: 'hand', label: 'Pan', icon: Hand, shortcut: 'H' },
+  { tool: 'select', label: 'Select', icon: Cursor, shortcut: 'V' },
+  { tool: 'marquee', label: 'Marquee select', icon: Selection, shortcut: 'M' },
+  { tool: 'point', label: 'Point marker', icon: Crosshair, shortcut: 'P' },
+  { tool: 'ruler', label: 'Ruler', icon: Ruler, shortcut: 'R' },
+  { tool: 'polyline', label: 'Polyline', icon: LineSegment, shortcut: 'L' },
+  { tool: 'angle', label: 'Three-point angle', icon: Angle, shortcut: 'A' },
+  { tool: 'rectangle', label: 'Rectangle', icon: Rectangle, shortcut: 'B' },
+  { tool: 'ellipse', label: 'Ellipse', icon: Circle, shortcut: 'E' },
+  { tool: 'polygon', label: 'Polygon', icon: Polygon, shortcut: 'G' },
+  { tool: 'freehand', label: 'Freehand ROI', icon: Scribble, shortcut: 'F' },
+  { tool: 'brush-add', label: 'Brush add', icon: PlusCircle, shortcut: ']' },
+  { tool: 'brush-subtract', label: 'Brush subtract', icon: MinusCircle, shortcut: '[' },
+  { tool: 'text', label: 'Text callout', icon: TextT, shortcut: 'T' },
 ]
 
 const TOOL_BY_ID = new Map(TOOLS.map((item) => [item.tool, item]))
@@ -1331,28 +1347,35 @@ export function AnnotationWorkspace({
         aria-label="Annotations"
       >
         <div className="annotation-toolstrip" role="toolbar" aria-label="Annotation tools">
-          {CORE_TOOLS.map((item) => (
-            <button
-              type="button"
-              key={item.tool}
-              aria-label={item.label}
-              aria-pressed={currentTool === item.tool}
-              title={`${item.label} (${item.shortcut})`}
-              onClick={() => setTool(item.tool)}
-            >
-              <span aria-hidden="true">{item.glyph}</span>
-              <strong>{item.label}</strong>
-            </button>
-          ))}
+          {CORE_TOOLS.map((item) => {
+            const ToolIcon = item.icon
+            const active = currentTool === item.tool
+            return (
+              <button
+                type="button"
+                key={item.tool}
+                aria-label={item.label}
+                aria-pressed={active}
+                title={`${item.label} (${item.shortcut})`}
+                onClick={() => setTool(item.tool)}
+              >
+                <span aria-hidden="true">
+                  <ToolIcon size={18} weight={active ? 'fill' : 'regular'} />
+                </span>
+                <strong>{item.label}</strong>
+              </button>
+            )
+          })}
           <button
             type="button"
             className="annotation-more-trigger"
             aria-label="More annotation tools"
+            aria-pressed={MORE_TOOLS.some((item) => item.tool === currentTool)}
             aria-expanded={moreToolsOpen}
             aria-controls="annotation-more-tools"
             onClick={() => setMoreToolsOpen((open) => !open)}
           >
-            <span aria-hidden="true">•••</span>
+            <span aria-hidden="true"><DotsThree size={19} weight="bold" /></span>
             <strong>More</strong>
           </button>
           {moreToolsOpen ? (
@@ -1362,19 +1385,25 @@ export function AnnotationWorkspace({
               role="group"
               aria-label="More annotation tools"
             >
-              {MORE_TOOLS.map((item) => (
-                <button
-                  type="button"
-                  key={item.tool}
-                  aria-label={item.label}
-                  aria-pressed={currentTool === item.tool}
-                  title={`${item.label} (${item.shortcut})`}
-                  onClick={() => setTool(item.tool)}
-                >
-                  <span aria-hidden="true">{item.glyph}</span>
-                  <strong>{item.label}</strong>
-                </button>
-              ))}
+              {MORE_TOOLS.map((item) => {
+                const ToolIcon = item.icon
+                const active = currentTool === item.tool
+                return (
+                  <button
+                    type="button"
+                    key={item.tool}
+                    aria-label={item.label}
+                    aria-pressed={active}
+                    title={`${item.label} (${item.shortcut})`}
+                    onClick={() => setTool(item.tool)}
+                  >
+                    <span aria-hidden="true">
+                      <ToolIcon size={18} weight={active ? 'fill' : 'regular'} />
+                    </span>
+                    <strong>{item.label}</strong>
+                  </button>
+                )
+              })}
             </div>
           ) : null}
         </div>

@@ -99,7 +99,9 @@ it('keeps the canvas simple until advanced tools, annotations, or details are re
     'Freehand ROI',
     'Ruler',
   ]) {
-    expect(screen.getByRole('button', { name })).toBeVisible()
+    const tool = screen.getByRole('button', { name })
+    expect(tool).toBeVisible()
+    expect(tool.querySelector('svg')).toBeInTheDocument()
   }
   expect(screen.queryByRole('button', { name: 'Point marker' })).not.toBeInTheDocument()
   expect(screen.queryByRole('searchbox', { name: 'Search annotations' })).not.toBeInTheDocument()
@@ -142,6 +144,10 @@ it('supports focus-safe keyboard shortcuts and creates a point through the attac
   await screen.findByRole('toolbar', { name: 'Annotation tools' })
 
   fireEvent.keyDown(window, { key: 'p' })
+  expect(screen.getByRole('button', { name: 'More annotation tools' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
   expect(screen.getByRole('button', { name: 'Point marker' })).toHaveAttribute('aria-pressed', 'true')
 
@@ -203,6 +209,8 @@ it('keeps touch targets, responsive dock, theme tokens, and reduced motion in th
   expect(css).toContain("--annotation-font:'Sofia Sans Variable','Sofia Sans',Arial,sans-serif")
   expect(css).not.toContain('ui-monospace')
   expect(css).toContain('font-weight:450')
+  expect(css).toContain('border-radius:24px')
+  expect(css).toContain("background:var(--ink)")
   expect(css).toMatch(/min-(?:width|height):44px/)
   expect(css).toMatch(/@media\s*\(max-width:760px\)/)
   expect(css).toMatch(/\.annotation-toolstrip[\s\S]*bottom:/)

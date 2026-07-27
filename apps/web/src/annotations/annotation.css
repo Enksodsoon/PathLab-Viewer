@@ -845,26 +845,73 @@
 }
 
 .annotation-toolstrip {
-  width:136px;
+  width:156px;
   max-height:calc(100% - 92px);
   grid-template-columns:1fr;
+  gap:3px;
   overflow:visible;
+  padding:8px;
+  border-color:color-mix(in srgb,var(--ink) 10%,transparent);
+  border-radius:24px;
+  background:color-mix(in srgb,var(--surface-elevated) 98%,var(--canvas));
+  box-shadow:0 16px 40px #00000014;
 }
 
 .annotation-toolstrip button {
   width:100%;
-  height:42px;
-  grid-template-columns:26px minmax(0,1fr);
+  height:46px;
+  position:relative;
+  grid-template-columns:24px minmax(0,1fr);
   justify-items:start;
-  gap:8px;
-  padding:0 10px;
+  gap:9px;
+  padding:0 13px;
+  border-radius:999px;
   font:500 12px/1 var(--annotation-font);
+  letter-spacing:-.01em;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.annotation-toolstrip button:hover {
+  border-color:color-mix(in srgb,var(--ink) 14%,transparent);
+  background:var(--surface);
+}
+
+.annotation-toolstrip button:active {
+  transform:scale(.98);
+}
+
+.annotation-toolstrip button[aria-pressed='true'] {
+  border-color:var(--ink);
+  color:var(--canvas);
+  background:var(--ink);
+  box-shadow:none;
+}
+
+.annotation-toolstrip button[aria-pressed='true']::after {
+  content:'';
+  position:absolute;
+  right:12px;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:var(--annotation-accent);
 }
 
 .annotation-toolstrip button > span {
-  width:26px;
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
   text-align:center;
-  font:700 15px/1 var(--annotation-font);
+}
+
+.annotation-toolstrip button > span svg {
+  width:18px;
+  height:18px;
 }
 
 .annotation-toolstrip button > strong {
@@ -882,16 +929,17 @@
   gap:4px;
   padding:7px;
   border:1px solid var(--annotation-line);
-  border-radius:10px;
-  background:var(--annotation-panel-strong);
-  box-shadow:var(--annotation-shadow);
+  border-color:color-mix(in srgb,var(--ink) 10%,transparent);
+  border-radius:24px;
+  background:color-mix(in srgb,var(--surface-elevated) 98%,var(--canvas));
+  box-shadow:0 16px 40px #00000014;
 }
 
 .annotation-commandbar {
-  left:168px;
+  left:188px;
   right:16px;
   width:max-content;
-  max-width:calc(100% - 184px);
+  max-width:calc(100% - 204px);
   margin-inline:auto;
 }
 
@@ -914,7 +962,7 @@
 }
 
 .annotation-list {
-  left:168px;
+  left:188px;
   width:min(320px,calc(100% - 544px));
   min-width:260px;
   max-height:min(460px,calc(100% - 132px));
@@ -957,7 +1005,7 @@
 }
 
 .viewer-stage--annotations .viewer-tools {
-  left:168px;
+  left:188px;
 }
 
 @keyframes annotation-draft-march {
