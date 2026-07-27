@@ -181,6 +181,7 @@ it('fails open to pan and zoom when rendering throws', () => {
     throw new Error('overlay render fault')
   })
   store.setTool('select')
+  viewer.raiseEvent('animation-finish', {})
 
   expect(onError).toHaveBeenCalledWith('overlay render fault')
   expect(viewer.setMouseNavEnabled).toHaveBeenLastCalledWith(true)
@@ -342,6 +343,70 @@ it('maps touch pointers through the rotated viewport transform in image coordina
   const marker = overlay.querySelector('circle')
   expect(marker).toHaveAttribute('cx', '120')
   expect(marker).toHaveAttribute('cy', '80')
+  cleanupOverlay()
+})
+
+it('coalesces animation frames and preserves mounted SVG child identity', () => {
+  let pendingFrame: FrameRequestCallback | null = null
+  const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    pendingFrame = callback
+    return 17
+  })
+  const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame')
+  const project = vi.fn((point: { x: number; y: number }) => point)
+  const record = polygonRecord()
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 1, layers: [layer], annotations: [record] })
+  const viewer = mockViewer({ toViewer: project })
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => record.style,
+    metadata: () => record.metadata,
+    text: () => 'Callout',
+  })
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+  const mounted = overlay.querySelector<SVGGElement>(`[data-annotation-id="${record.id}"]`)!
+  const shape = mounted.firstElementChild
+  project.mockClear()
+
+  viewer.raiseEvent('animation', {})
+  viewer.raiseEvent('animation', {})
+  viewer.raiseEvent('animation', {})
+
+  expect(requestFrame).toHaveBeenCalledOnce()
+  expect(project).not.toHaveBeenCalled()
+  expect(pendingFrame).not.toBeNull()
+  pendingFrame!(0)
+  expect(project).toHaveBeenCalled()
+  expect(overlay.querySelector(`[data-annotation-id="${record.id}"]`)).toBe(mounted)
+  expect(mounted.firstElementChild).toBe(shape)
+
+  viewer.raiseEvent('animation', {})
+  cleanupOverlay()
+  expect(cancelFrame).toHaveBeenCalledWith(17)
+})
+
+it('updates tool selection handles without rebuilding the spatial render plan', () => {
+  const plan = vi.spyOn(AnnotationSpatialIndex.prototype, 'plan')
+  const record = polygonRecord()
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 1, layers: [layer], annotations: [record] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => record.style,
+    metadata: () => record.metadata,
+    text: () => 'Callout',
+  })
+  plan.mockClear()
+
+  store.setTool('select')
+  store.select([record.id])
+
+  expect(plan).not.toHaveBeenCalled()
+  expect(viewer.canvas.querySelectorAll('[data-annotation-handle="vertex"]')).toHaveLength(4)
   cleanupOverlay()
 })
 

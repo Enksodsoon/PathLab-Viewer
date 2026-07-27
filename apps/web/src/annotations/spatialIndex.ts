@@ -16,6 +16,8 @@ export interface DensityCell {
   x: number
   y: number
   count: number
+  imageX: number
+  imageY: number
 }
 
 export interface AnnotationRenderPlan {
@@ -52,10 +54,19 @@ function densityCells(
     )))
     const key = `${x}:${y}`
     const existing = counts.get(key)
-    if (existing) existing.count += 1
-    else counts.set(key, { x, y, count: 1 })
+    if (existing) {
+      existing.count += 1
+      existing.imageX += centreX
+      existing.imageY += centreY
+    } else {
+      counts.set(key, { x, y, count: 1, imageX: centreX, imageY: centreY })
+    }
   }
-  return [...counts.values()]
+  return [...counts.values()].map((cell) => ({
+    ...cell,
+    imageX: cell.imageX / cell.count,
+    imageY: cell.imageY / cell.count,
+  }))
 }
 
 export class AnnotationSpatialIndex {
@@ -97,9 +108,10 @@ export class AnnotationSpatialIndex {
   ): AnnotationRenderPlan {
     const visible = this.tree.search(viewport)
       .filter((item) => predicate(item.annotation))
-    for (const item of visible) {
-      this.cache.delete(item.id)
-      this.cache.set(item.id, item.annotation)
+    for (const item of visible.slice(0, MAX_CACHED_ANNOTATIONS)) {
+      if (this.cache.get(item.id) !== item.annotation) {
+        this.cache.set(item.id, item.annotation)
+      }
     }
     while (this.cache.size > MAX_CACHED_ANNOTATIONS) {
       const oldest = this.cache.keys().next().value as string | undefined

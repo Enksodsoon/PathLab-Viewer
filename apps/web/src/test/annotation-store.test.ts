@@ -672,6 +672,40 @@ describe('framework-neutral annotation editing store', () => {
     expect(store.peekPendingMutations()).toEqual(operations)
   })
 
+  it('structurally shares unchanged annotation state and cached visibility results', () => {
+    const other = {
+      ...structuredClone(annotation),
+      id: 'a-2',
+      metadata: { ...annotation.metadata, title: 'Unchanged finding' },
+    }
+    const store = createAnnotationStore({ slideId: 'slide-1' })
+    store.load({ version: 1, layers: [layer], annotations: [annotation, other] })
+
+    const loaded = store.getState()
+    const visible = store.visibleAnnotations()
+    expect(store.visibleAnnotations()).toBe(visible)
+
+    store.setTool('select')
+    const afterTool = store.getState()
+    expect(afterTool.annotations).toBe(loaded.annotations)
+    expect(afterTool.annotations.get(other.id)).toBe(loaded.annotations.get(other.id))
+    expect(store.visibleAnnotations()).toBe(visible)
+
+    store.select([annotation.id])
+    const afterSelection = store.getState()
+    expect(afterSelection.annotations).toBe(loaded.annotations)
+    expect(store.visibleAnnotations()).toBe(visible)
+
+    store.update(annotation.id, {
+      metadata: { ...annotation.metadata, title: 'Changed finding' },
+    })
+    const afterUpdate = store.getState()
+    expect(afterUpdate.annotations).not.toBe(loaded.annotations)
+    expect(afterUpdate.annotations.get(other.id)).toBe(loaded.annotations.get(other.id))
+    expect(loaded.annotations.get(annotation.id)?.metadata.title).not.toBe('Changed finding')
+    expect(store.visibleAnnotations()).not.toBe(visible)
+  })
+
   it('enforces the active cap on restore without changing state or pending work', () => {
     const deleted = { ...structuredClone(annotation), id: 'deleted', deletedAt: '2026-07-26' }
     const store = createAnnotationStore({ slideId: 'slide-1', maxAnnotations: 1 })
