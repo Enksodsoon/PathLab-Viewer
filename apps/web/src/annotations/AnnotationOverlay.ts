@@ -186,6 +186,21 @@ function shapeFor(
   shape.setAttribute('stroke-opacity', String(style.opacity))
   root.append(shape)
 
+  if (style.labelVisible && record.geometry.type === 'angle') {
+    const labelText = formatMeasurement(
+      record.measurements.angle,
+      record.measurements.angleUnit,
+    )
+    if (labelText) {
+      const vertex = screenPoint(viewer, record.geometry.points[1])
+      const label = svgElement('text')
+      setAttributes(label, { x: vertex.x + 12, y: vertex.y - 12 })
+      label.setAttribute('data-annotation-label', 'measurement')
+      label.textContent = labelText
+      root.append(label)
+    }
+  }
+
   if (
     style.labelVisible
     && record.geometry.type !== 'text'
@@ -339,6 +354,13 @@ function projectShape(
       y: record.bounds.minY,
     })
     setAttributes(label, { x: anchor.x + 8, y: anchor.y - 8 })
+  }
+  const measurementLabel = root.querySelector<SVGElement>(
+    '[data-annotation-label="measurement"]',
+  )
+  if (measurementLabel && record.geometry.type === 'angle') {
+    const vertex = screenPoint(viewer, record.geometry.points[1])
+    setAttributes(measurementLabel, { x: vertex.x + 12, y: vertex.y - 12 })
   }
   for (const handle of root.querySelectorAll<SVGElement>('[data-annotation-handle="vertex"]')) {
     const index = Number(handle.dataset.vertexIndex)

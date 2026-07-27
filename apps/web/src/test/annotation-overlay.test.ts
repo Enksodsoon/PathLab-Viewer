@@ -214,6 +214,37 @@ it('renders the latest rectangle draft on one animation frame before committing 
   cleanupOverlay()
 })
 
+it('keeps a completed angle measurement visible at its vertex', () => {
+  const base = polygonRecord()
+  const angle: AnnotationRecord = {
+    ...base,
+    geometry: {
+      type: 'angle',
+      points: [{ x: 20, y: 40 }, { x: 120, y: 40 }, { x: 120, y: 140 }],
+    },
+    bounds: { minX: 20, minY: 40, maxX: 120, maxY: 140 },
+    measurements: { angle: 90, angleUnit: '°' },
+  }
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 1, layers: [layer], annotations: [angle] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => angle.style,
+    metadata: () => angle.metadata,
+    text: () => 'Callout',
+  })
+  const label = viewer.canvas.querySelector<SVGElement>(
+    '[data-annotation-label="measurement"]',
+  )
+
+  expect(label).toHaveTextContent('90°')
+  expect(label).toHaveAttribute('x', '132')
+  expect(label).toHaveAttribute('y', '28')
+  cleanupOverlay()
+})
+
 it('shows calibrated ruler length and angle values while drawing', () => {
   let pendingFrame: FrameRequestCallback | null = null
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {

@@ -359,6 +359,20 @@ test('resolves a single ROI and previews calibrated ruler and angle measurements
     pointerType: 'mouse',
   })
   await expect(page.locator('.annotation-draft-measurement')).toHaveText('90°')
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 400,
+    clientY: 500,
+    pointerId: 24,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointerup', {
+    clientX: 400,
+    clientY: 500,
+    pointerId: 24,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('.annotation-draft-measurement')).toHaveCount(0)
+  await expect(page.locator('[data-annotation-label="measurement"]')).toHaveText('90°')
 })
 
 test('keeps desktop panels compact, separated, and lets the annotation list move', async ({ page }) => {
