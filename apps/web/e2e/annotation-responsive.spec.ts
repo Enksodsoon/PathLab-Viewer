@@ -361,6 +361,63 @@ test('resolves a single ROI and previews calibrated ruler and angle measurements
   await expect(page.locator('.annotation-draft-measurement')).toHaveText('90°')
 })
 
+test('keeps desktop panels compact, separated, and lets the annotation list move', async ({ page }) => {
+  await page.setViewportSize({ width: 1134, height: 824 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Open annotations' }).click()
+  await page.getByRole('button', { name: 'Open annotation inspector' }).click()
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+
+  const commandbar = page.locator('.annotation-commandbar')
+  const moreTools = page.locator('.annotation-more-tools')
+  const commandBounds = await commandbar.boundingBox()
+  const moreBounds = await moreTools.boundingBox()
+  expect(commandBounds).not.toBeNull()
+  expect(moreBounds).not.toBeNull()
+  const panelsOverlap = !(
+    moreBounds!.x + moreBounds!.width <= commandBounds!.x
+    || commandBounds!.x + commandBounds!.width <= moreBounds!.x
+    || moreBounds!.y + moreBounds!.height <= commandBounds!.y
+    || commandBounds!.y + commandBounds!.height <= moreBounds!.y
+  )
+  expect(panelsOverlap).toBe(false)
+
+  const inspector = page.locator('.annotation-inspector')
+  const compactInspector = await inspector.boundingBox()
+  expect(compactInspector?.height).toBeLessThan(430)
+
+  const list = page.locator('.annotation-list')
+  const moveHandle = page.getByRole('button', { name: 'Move annotation list' })
+  const before = await list.boundingBox()
+  const handleBounds = await moveHandle.boundingBox()
+  expect(before).not.toBeNull()
+  expect(handleBounds).not.toBeNull()
+  await page.mouse.move(
+    handleBounds!.x + handleBounds!.width / 2,
+    handleBounds!.y + handleBounds!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    handleBounds!.x + handleBounds!.width / 2 + 260,
+    handleBounds!.y + handleBounds!.height / 2 - 180,
+    { steps: 5 },
+  )
+  await page.mouse.up()
+  const after = await list.boundingBox()
+  expect(after!.x).toBeGreaterThan(before!.x + 200)
+  expect(after!.y).toBeLessThan(before!.y - 120)
+  await expect(list).not.toHaveAttribute('data-dragging')
+
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  const expandedInspector = await inspector.boundingBox()
+  expect(expandedInspector!.height).toBeGreaterThan(compactInspector!.height)
+  await expect(page.getByRole('button', { name: 'Hide advanced annotation details' }))
+    .toHaveAttribute('aria-expanded', 'true')
+})
+
 test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and below', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/admin/preview/private-1')

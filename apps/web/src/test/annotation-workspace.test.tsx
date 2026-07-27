@@ -125,6 +125,7 @@ it('keeps the canvas simple until advanced tools, annotations, or details are re
 
   fireEvent.click(screen.getByRole('button', { name: 'Open annotations' }))
   expect(screen.getByRole('searchbox', { name: 'Search annotations' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Move annotation list' })).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Filter by classification' })).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Filter by tag' })).toBeVisible()
 

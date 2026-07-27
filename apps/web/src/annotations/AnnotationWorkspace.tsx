@@ -10,6 +10,7 @@ import {
   Copy,
   Crosshair,
   Cursor,
+  DotsSixVertical,
   DotsThree,
   DownloadSimple,
   FloppyDisk,
@@ -34,6 +35,8 @@ import {
 } from '@phosphor-icons/react'
 import {
   Component,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useCallback,
   useDeferredValue,
@@ -402,6 +405,19 @@ export function AnnotationWorkspace({
   const recoverySignatureRef = useRef('[]')
   const inspectorTriggerRef = useRef<HTMLButtonElement>(null)
   const inspectorRef = useRef<HTMLElement>(null)
+  const workspaceRef = useRef<HTMLElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const listDragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    originX: number
+    originY: number
+    minX: number
+    maxX: number
+    minY: number
+    maxY: number
+  } | null>(null)
   const conflictRef = useRef<HTMLDivElement>(null)
   const conflictReturnFocusRef = useRef<HTMLElement | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
@@ -427,6 +443,8 @@ export function AnnotationWorkspace({
   const [revisions, setRevisions] = useState<AnnotationRevision[]>([])
   const [selectedRevisionId, setSelectedRevisionId] = useState('')
   const [listOffset, setListOffset] = useState(0)
+  const [listPosition, setListPosition] = useState({ x: 0, y: 0 })
+  const [listDragging, setListDragging] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const deferredSearch = useDeferredValue(searchInput)
   const attachmentReady = Boolean(storeState)
@@ -435,6 +453,77 @@ export function AnnotationWorkspace({
   styleRef.current = style
   metadataRef.current = metadata
   textRef.current = calloutText
+
+  const moveListBy = useCallback((deltaX: number, deltaY: number) => {
+    const workspace = workspaceRef.current
+    const list = listRef.current
+    if (!workspace || !list || isMobile) return
+    const workspaceBounds = workspace.getBoundingClientRect()
+    const listBounds = list.getBoundingClientRect()
+    const boundedX = Math.max(
+      workspaceBounds.left + 8 - listBounds.left,
+      Math.min(workspaceBounds.right - 8 - listBounds.right, deltaX),
+    )
+    const boundedY = Math.max(
+      workspaceBounds.top + 8 - listBounds.top,
+      Math.min(workspaceBounds.bottom - 8 - listBounds.bottom, deltaY),
+    )
+    setListPosition((position) => ({
+      x: position.x + boundedX,
+      y: position.y + boundedY,
+    }))
+  }, [isMobile])
+
+  const beginListDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (isMobile || event.button !== 0) return
+    const workspace = workspaceRef.current
+    const list = listRef.current
+    if (!workspace || !list) return
+    const workspaceBounds = workspace.getBoundingClientRect()
+    const listBounds = list.getBoundingClientRect()
+    listDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: listPosition.x,
+      originY: listPosition.y,
+      minX: listPosition.x + workspaceBounds.left + 8 - listBounds.left,
+      maxX: listPosition.x + workspaceBounds.right - 8 - listBounds.right,
+      minY: listPosition.y + workspaceBounds.top + 8 - listBounds.top,
+      maxY: listPosition.y + workspaceBounds.bottom - 8 - listBounds.bottom,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setListDragging(true)
+    event.preventDefault()
+  }, [isMobile, listPosition])
+
+  const dragList = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = listDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    setListPosition({
+      x: Math.max(drag.minX, Math.min(drag.maxX, drag.originX + event.clientX - drag.startX)),
+      y: Math.max(drag.minY, Math.min(drag.maxY, drag.originY + event.clientY - drag.startY)),
+    })
+  }, [])
+
+  const endListDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (listDragRef.current?.pointerId !== event.pointerId) return
+    listDragRef.current = null
+    setListDragging(false)
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }, [])
+
+  const moveListWithKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const movement = {
+      ArrowLeft: [-24, 0],
+      ArrowRight: [24, 0],
+      ArrowUp: [0, -24],
+      ArrowDown: [0, 24],
+    }[event.key]
+    if (!movement) return
+    event.preventDefault()
+    moveListBy(movement[0], movement[1])
+  }, [moveListBy])
 
   const updateCoordinate = useCallback((point: { x: number; y: number } | null) => {
     if (coordinateOutputRef.current) {
@@ -557,6 +646,9 @@ export function AnnotationWorkspace({
     setSelectedRevisionId('')
     setDensityPrompt(null)
     setListOffset(0)
+    setListPosition({ x: 0, y: 0 })
+    setListDragging(false)
+    listDragRef.current = null
     setSearchInput('')
     setInspectorOpen(false)
     setListOpen(false)
@@ -1381,6 +1473,7 @@ export function AnnotationWorkspace({
   return (
     <AnnotationErrorBoundary resetKey={resetKey} onRetry={retry}>
       <section
+        ref={workspaceRef}
         className={`annotation-workspace${inspectorOpen ? ' annotation-workspace--inspector' : ''}`}
         aria-label="Annotations"
       >
@@ -1514,13 +1607,40 @@ export function AnnotationWorkspace({
         </div>
 
         {listOpen ? (
-          <div className="annotation-list" aria-label="Annotation list">
-            <div className="annotation-panel-heading">
+          <div
+            ref={listRef}
+            className="annotation-list"
+            aria-label="Annotation list"
+            data-dragging={listDragging ? 'true' : undefined}
+            style={{
+              transform: isMobile
+                ? undefined
+                : `translate3d(${listPosition.x}px, ${listPosition.y}px, 0)`,
+            }}
+          >
+            <div
+              className="annotation-panel-heading annotation-list-drag-handle"
+              role="button"
+              tabIndex={isMobile ? -1 : 0}
+              aria-label="Move annotation list"
+              aria-describedby="annotation-list-move-hint"
+              onPointerDown={beginListDrag}
+              onPointerMove={dragList}
+              onPointerUp={endListDrag}
+              onPointerCancel={endListDrag}
+              onKeyDown={moveListWithKeyboard}
+            >
               <div>
                 <span className="annotation-kicker">Annotations</span>
                 <strong>{slideName}</strong>
               </div>
-              <span>{activeAnnotationCount.toLocaleString()}</span>
+              <div className="annotation-panel-heading-actions">
+                <span>{activeAnnotationCount.toLocaleString()}</span>
+                <DotsSixVertical aria-hidden="true" />
+              </div>
+              <span id="annotation-list-move-hint" className="visually-hidden">
+                Drag this header or use the arrow keys to move the annotation list.
+              </span>
             </div>
             {hiddenLayerCount > 0 ? (
               <p className="annotation-hidden-notice">
@@ -1706,7 +1826,7 @@ export function AnnotationWorkspace({
                 </section>
               ) : null}
 
-              <section>
+              <section className="annotation-details-section">
                 <h2>Details</h2>
                 <label>
                   <span>{primary ? 'Annotation layer' : 'Drawing layer'}</span>

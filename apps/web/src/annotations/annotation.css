@@ -276,6 +276,27 @@
   text-align:center;
 }
 
+.annotation-panel-heading > .annotation-panel-heading-actions {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:var(--muted);
+}
+
+.annotation-panel-heading-actions > span {
+  min-width:28px;
+  padding:4px 6px;
+  border:1px solid var(--annotation-line);
+  border-radius:5px;
+  font:700 10px/1 var(--annotation-font);
+  text-align:center;
+}
+
+.annotation-panel-heading-actions svg {
+  width:18px;
+  height:18px;
+}
+
 .annotation-kicker {
   color:var(--muted);
   font:700 8px/1 var(--annotation-font);
@@ -392,8 +413,9 @@
   position:absolute;
   top:12px;
   right:12px;
-  bottom:12px;
+  bottom:auto;
   width:334px;
+  max-height:calc(100% - 24px);
   display:grid;
   grid-template-rows:auto minmax(0,1fr);
   overflow:hidden;
@@ -413,6 +435,16 @@
   overflow:auto;
   overscroll-behavior:contain;
   padding:0 12px 24px;
+}
+
+.annotation-details-section {
+  gap:7px!important;
+  padding-block:12px!important;
+}
+
+.annotation-details-section input:not([type='checkbox']),
+.annotation-details-section select {
+  min-height:38px;
 }
 
 .annotation-inspector-scroll > section {
@@ -937,7 +969,7 @@
 
 .annotation-more-tools {
   position:absolute;
-  top:0;
+  top:56px;
   left:calc(100% + 8px);
   width:120px;
   display:grid;
@@ -989,6 +1021,22 @@
   max-height:min(460px,calc(100% - 132px));
   display:flex;
   flex-direction:column;
+}
+
+.annotation-list-drag-handle {
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+}
+
+.annotation-list-drag-handle:active,
+.annotation-list[data-dragging='true'] .annotation-list-drag-handle {
+  cursor:grabbing;
+}
+
+.annotation-list[data-dragging='true'] {
+  will-change:transform;
+  box-shadow:0 22px 54px #0007;
 }
 
 .annotation-hidden-notice {
@@ -1174,10 +1222,17 @@
     left:8px;
     width:calc(100% - 16px);
     max-height:min(46svh,390px);
+    transform:none!important;
+    will-change:auto;
   }
 
   .annotation-list .annotation-panel-heading {
     min-height:44px;
+  }
+
+  .annotation-list-drag-handle {
+    cursor:default;
+    touch-action:auto;
   }
 
   .annotation-inspector {
