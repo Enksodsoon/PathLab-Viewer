@@ -1,21 +1,42 @@
 import OpenSeadragon from 'openseadragon'
 import {
+  Angle,
+  ArrowCounterClockwise,
   ArrowClockwise,
   CaretDown,
   CaretUp,
+  Circle,
+  ClipboardText,
   Copy,
+  Crosshair,
+  Cursor,
+  DotsSixVertical,
+  DotsThree,
   DownloadSimple,
   FloppyDisk,
   FolderOpen,
+  Hand,
+  LineSegment,
   MagnifyingGlass,
+  MinusCircle,
+  PlusCircle,
   Plus,
+  Polygon,
+  Rectangle,
+  Ruler,
+  Scribble,
+  Selection,
   SidebarSimple,
+  TextT,
   Trash,
   UploadSimple,
   X,
+  type Icon,
 } from '@phosphor-icons/react'
 import {
   Component,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useCallback,
   useDeferredValue,
@@ -48,6 +69,7 @@ import { createAnnotationStore, type AnnotationStore, type AnnotationStoreState 
 import type {
   AnnotationBatchRequest,
   AnnotationBatchResult,
+  AnnotationCalibration,
   AnnotationGeometry,
   AnnotationItemsPage,
   AnnotationLayer,
@@ -58,11 +80,12 @@ import type {
   AnnotationTool,
   PolygonBooleanOperation,
 } from './types'
+import { ANNOTATION_ACCENT } from './palette'
 import './annotation.css'
 
 const DEFAULT_STYLE: AnnotationStyle = {
-  strokeColor: '#ffb400',
-  fillColor: '#ffb400',
+  strokeColor: ANNOTATION_ACCENT,
+  fillColor: ANNOTATION_ACCENT,
   strokeWidth: 2,
   opacity: 0.9,
   labelVisible: true,
@@ -90,24 +113,35 @@ const OBJECT_REGISTER_PAGE_SIZE = 200
 const TOOLS: Array<{
   tool: AnnotationTool
   label: string
-  glyph: string
+  icon: Icon
   shortcut: string
 }> = [
-  { tool: 'hand', label: 'Pan', glyph: 'H', shortcut: 'H' },
-  { tool: 'select', label: 'Select', glyph: 'V', shortcut: 'V' },
-  { tool: 'marquee', label: 'Marquee select', glyph: 'M', shortcut: 'M' },
-  { tool: 'point', label: 'Point marker', glyph: '•', shortcut: 'P' },
-  { tool: 'ruler', label: 'Ruler', glyph: '↔', shortcut: 'R' },
-  { tool: 'polyline', label: 'Polyline', glyph: '⌁', shortcut: 'L' },
-  { tool: 'angle', label: 'Three-point angle', glyph: '∠', shortcut: 'A' },
-  { tool: 'rectangle', label: 'Rectangle', glyph: '□', shortcut: 'B' },
-  { tool: 'ellipse', label: 'Ellipse', glyph: '○', shortcut: 'E' },
-  { tool: 'polygon', label: 'Polygon', glyph: '⬡', shortcut: 'G' },
-  { tool: 'freehand', label: 'Freehand ROI', glyph: '∿', shortcut: 'F' },
-  { tool: 'brush-add', label: 'Brush add', glyph: '+', shortcut: ']' },
-  { tool: 'brush-subtract', label: 'Brush subtract', glyph: '−', shortcut: '[' },
-  { tool: 'text', label: 'Text callout', glyph: 'T', shortcut: 'T' },
+  { tool: 'hand', label: 'Pan', icon: Hand, shortcut: 'H' },
+  { tool: 'select', label: 'Select', icon: Cursor, shortcut: 'V' },
+  { tool: 'marquee', label: 'Marquee select', icon: Selection, shortcut: 'M' },
+  { tool: 'point', label: 'Point marker', icon: Crosshair, shortcut: 'P' },
+  { tool: 'ruler', label: 'Ruler', icon: Ruler, shortcut: 'R' },
+  { tool: 'polyline', label: 'Polyline', icon: LineSegment, shortcut: 'L' },
+  { tool: 'angle', label: 'Three-point angle', icon: Angle, shortcut: 'A' },
+  { tool: 'rectangle', label: 'Rectangle', icon: Rectangle, shortcut: 'B' },
+  { tool: 'ellipse', label: 'Ellipse', icon: Circle, shortcut: 'E' },
+  { tool: 'polygon', label: 'Polygon', icon: Polygon, shortcut: 'G' },
+  { tool: 'freehand', label: 'Freehand ROI', icon: Scribble, shortcut: 'F' },
+  { tool: 'brush-add', label: 'Paint ROI or add to selected ROI', icon: PlusCircle, shortcut: ']' },
+  { tool: 'brush-subtract', label: 'Erase from selected ROI', icon: MinusCircle, shortcut: '[' },
+  { tool: 'text', label: 'Text callout', icon: TextT, shortcut: 'T' },
 ]
+
+const TOOL_BY_ID = new Map(TOOLS.map((item) => [item.tool, item]))
+const CORE_TOOLS = ([
+  'hand',
+  'select',
+  'rectangle',
+  'polygon',
+  'freehand',
+  'ruler',
+] as AnnotationTool[]).map((tool) => TOOL_BY_ID.get(tool)!)
+const MORE_TOOLS = TOOLS.filter((item) => !CORE_TOOLS.includes(item))
 
 const SHORTCUT_TO_TOOL = new Map(
   TOOLS.map((item) => [item.shortcut.toLowerCase(), item.tool]),
@@ -268,6 +302,28 @@ function selectionRecords(state: AnnotationStoreState | null): AnnotationRecord[
     .filter((record): record is AnnotationRecord => Boolean(record))
 }
 
+function editableClosedTarget(state: AnnotationStoreState | null): AnnotationRecord | null {
+  if (!state) return null
+  const isEligible = (record: AnnotationRecord) => (
+    !record.deletedAt
+    && !state.layers.get(record.layerId)?.locked
+    && state.layers.get(record.layerId)?.visible !== false
+    && (
+      record.geometry.type === 'polygon'
+      || record.geometry.type === 'rectangle'
+      || record.geometry.type === 'ellipse'
+    )
+  )
+  const selected = selectionRecords(state).find(isEligible)
+  if (selected) return selected
+  const candidates = [...state.annotations.values()].filter(isEligible)
+  return candidates.length === 1 ? candidates[0] : null
+}
+
+function hasEditableClosedSelection(state: AnnotationStoreState | null): boolean {
+  return editableClosedTarget(state) !== null
+}
+
 function hasEditablePoints(
   record: AnnotationRecord,
 ): record is AnnotationRecord & {
@@ -276,6 +332,25 @@ function hasEditablePoints(
   }
 } {
   return 'points' in record.geometry
+}
+
+function prepareLayers(layers: AnnotationLayer[]): {
+  layers: AnnotationLayer[]
+  activeLayer: AnnotationLayer | null
+  revealed: boolean
+} {
+  const activeLayer = layers.find((layer) => !layer.locked) ?? null
+  if (!activeLayer || activeLayer.visible) {
+    return { layers, activeLayer, revealed: false }
+  }
+  const prepared = layers.map((layer) => (
+    layer.id === activeLayer.id ? { ...layer, visible: true } : layer
+  ))
+  return {
+    layers: prepared,
+    activeLayer: prepared.find((layer) => layer.id === activeLayer.id) ?? activeLayer,
+    revealed: true,
+  }
 }
 
 async function triggerDownload(response: Response, filename: string): Promise<void> {
@@ -313,6 +388,7 @@ export function AnnotationWorkspace({
   const autosaveRef = useRef<AnnotationAutosave | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const activeLayerRef = useRef<string | null>(null)
+  const calibrationRef = useRef<AnnotationCalibration | null>(null)
   const styleRef = useRef<AnnotationStyle>(DEFAULT_STYLE)
   const metadataRef = useRef<AnnotationMetadata>(DEFAULT_METADATA)
   const textRef = useRef('Callout')
@@ -329,6 +405,19 @@ export function AnnotationWorkspace({
   const recoverySignatureRef = useRef('[]')
   const inspectorTriggerRef = useRef<HTMLButtonElement>(null)
   const inspectorRef = useRef<HTMLElement>(null)
+  const workspaceRef = useRef<HTMLElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const listDragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    originX: number
+    originY: number
+    minX: number
+    maxX: number
+    minY: number
+    maxY: number
+  } | null>(null)
   const conflictRef = useRef<HTMLDivElement>(null)
   const conflictReturnFocusRef = useRef<HTMLElement | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
@@ -342,7 +431,10 @@ export function AnnotationWorkspace({
   const [initializing, setInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [densityPrompt, setDensityPrompt] = useState<string | null>(null)
-  const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth > 760)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 760)
   const [resetKey, setResetKey] = useState(0)
   const [operationStatus, setOperationStatus] = useState('Opening annotation workspace…')
@@ -351,6 +443,8 @@ export function AnnotationWorkspace({
   const [revisions, setRevisions] = useState<AnnotationRevision[]>([])
   const [selectedRevisionId, setSelectedRevisionId] = useState('')
   const [listOffset, setListOffset] = useState(0)
+  const [listPosition, setListPosition] = useState({ x: 0, y: 0 })
+  const [listDragging, setListDragging] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const deferredSearch = useDeferredValue(searchInput)
   const attachmentReady = Boolean(storeState)
@@ -359,6 +453,77 @@ export function AnnotationWorkspace({
   styleRef.current = style
   metadataRef.current = metadata
   textRef.current = calloutText
+
+  const moveListBy = useCallback((deltaX: number, deltaY: number) => {
+    const workspace = workspaceRef.current
+    const list = listRef.current
+    if (!workspace || !list || isMobile) return
+    const workspaceBounds = workspace.getBoundingClientRect()
+    const listBounds = list.getBoundingClientRect()
+    const boundedX = Math.max(
+      workspaceBounds.left + 8 - listBounds.left,
+      Math.min(workspaceBounds.right - 8 - listBounds.right, deltaX),
+    )
+    const boundedY = Math.max(
+      workspaceBounds.top + 8 - listBounds.top,
+      Math.min(workspaceBounds.bottom - 8 - listBounds.bottom, deltaY),
+    )
+    setListPosition((position) => ({
+      x: position.x + boundedX,
+      y: position.y + boundedY,
+    }))
+  }, [isMobile])
+
+  const beginListDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (isMobile || event.button !== 0) return
+    const workspace = workspaceRef.current
+    const list = listRef.current
+    if (!workspace || !list) return
+    const workspaceBounds = workspace.getBoundingClientRect()
+    const listBounds = list.getBoundingClientRect()
+    listDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: listPosition.x,
+      originY: listPosition.y,
+      minX: listPosition.x + workspaceBounds.left + 8 - listBounds.left,
+      maxX: listPosition.x + workspaceBounds.right - 8 - listBounds.right,
+      minY: listPosition.y + workspaceBounds.top + 8 - listBounds.top,
+      maxY: listPosition.y + workspaceBounds.bottom - 8 - listBounds.bottom,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setListDragging(true)
+    event.preventDefault()
+  }, [isMobile, listPosition])
+
+  const dragList = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = listDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    setListPosition({
+      x: Math.max(drag.minX, Math.min(drag.maxX, drag.originX + event.clientX - drag.startX)),
+      y: Math.max(drag.minY, Math.min(drag.maxY, drag.originY + event.clientY - drag.startY)),
+    })
+  }, [])
+
+  const endListDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (listDragRef.current?.pointerId !== event.pointerId) return
+    listDragRef.current = null
+    setListDragging(false)
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }, [])
+
+  const moveListWithKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const movement = {
+      ArrowLeft: [-24, 0],
+      ArrowRight: [24, 0],
+      ArrowUp: [0, -24],
+      ArrowDown: [0, 24],
+    }[event.key]
+    if (!movement) return
+    event.preventDefault()
+    moveListBy(movement[0], movement[1])
+  }, [moveListBy])
 
   const updateCoordinate = useCallback((point: { x: number; y: number } | null) => {
     if (coordinateOutputRef.current) {
@@ -445,15 +610,15 @@ export function AnnotationWorkspace({
       if (page.nextOffset === null) break
       offset = page.nextOffset
     } while (items.length < manifest.limits.activeAnnotations + manifest.trashedCount)
+    const prepared = prepareLayers(manifest.layers)
     store.load({
       version: manifest.version,
-      layers: manifest.layers,
+      layers: prepared.layers,
       annotations: items,
     })
     requireCurrentWorkspace(generation, store)
-    const firstEditable = manifest.layers.find((layer) => !layer.locked) ?? null
-    setActiveLayerId(firstEditable?.id ?? null)
-    activeLayerRef.current = firstEditable?.id ?? null
+    setActiveLayerId(prepared.activeLayer?.id ?? null)
+    activeLayerRef.current = prepared.activeLayer?.id ?? null
     return manifest.version
   }, [requireCurrentWorkspace, services])
 
@@ -474,13 +639,21 @@ export function AnnotationWorkspace({
     setAutosave(EMPTY_AUTOSAVE)
     setActiveLayerId(null)
     activeLayerRef.current = null
+    calibrationRef.current = null
     setPendingImport(null)
     setImportPreview(null)
     setRevisions([])
     setSelectedRevisionId('')
     setDensityPrompt(null)
     setListOffset(0)
+    setListPosition({ x: 0, y: 0 })
+    setListDragging(false)
+    listDragRef.current = null
     setSearchInput('')
+    setInspectorOpen(false)
+    setListOpen(false)
+    setMoreToolsOpen(false)
+    setAdvancedOpen(false)
     layerOpacityDraftRef.current.clear()
     if (coordinateOutputRef.current) {
       coordinateOutputRef.current.textContent = `SLIDE ${slideId.slice(0, 8).toUpperCase()}`
@@ -499,6 +672,7 @@ export function AnnotationWorkspace({
         if (!active) return
         const manifest = await services.getManifest()
         if (!active) return
+        calibrationRef.current = manifest.calibration
         const store = createAnnotationStore({
           slideId,
           bounds: manifest.bounds,
@@ -516,14 +690,14 @@ export function AnnotationWorkspace({
           if (page.nextOffset === null) break
           offset = page.nextOffset
         } while (items.length < manifest.limits.activeAnnotations + manifest.trashedCount)
+        const prepared = prepareLayers(manifest.layers)
         store.load({
           version: manifest.version,
-          layers: manifest.layers,
+          layers: prepared.layers,
           annotations: items,
         })
-        const firstEditable = manifest.layers.find((layer) => !layer.locked) ?? null
-        setActiveLayerId(firstEditable?.id ?? null)
-        activeLayerRef.current = firstEditable?.id ?? null
+        setActiveLayerId(prepared.activeLayer?.id ?? null)
+        activeLayerRef.current = prepared.activeLayer?.id ?? null
 
         const storeHooks = store.autosaveHooks()
         const saver = new AnnotationAutosave({
@@ -624,7 +798,9 @@ export function AnnotationWorkspace({
         } else {
           setOperationStatus(draftLoadFailed
             ? 'Annotations ready; local draft recovery unavailable'
-            : 'Annotations ready')
+            : prepared.revealed
+              ? 'Annotations ready; active layer shown'
+              : 'Annotations ready')
         }
         setInitializing(false)
       } catch (caught) {
@@ -687,6 +863,7 @@ export function AnnotationWorkspace({
           style: () => structuredClone(styleRef.current),
           metadata: () => structuredClone(metadataRef.current),
           text: () => textRef.current,
+          calibration: () => calibrationRef.current,
           onCoordinate: updateCoordinate,
           onDensity: setDensityPrompt,
           onNotice: setOperationStatus,
@@ -781,7 +958,34 @@ export function AnnotationWorkspace({
   }, [deferredSearch, store])
   const selected = selectionRecords(storeState)
   const primary = selected[0] ?? null
+  const selectedLayer = primary ? storeState?.layers.get(primary.layerId) : null
+  const selectionTitle = selected.length === 1
+    ? primary?.metadata.title
+      || primary?.metadata.classification
+      || `${primary?.geometry.type ?? 'Annotation'} annotation`
+    : `${selected.length} annotations`
+  const selectionKind = selected.length === 1
+    ? `${primary?.geometry.type.replace('-', ' ') ?? 'Annotation'}${selectedLayer ? ` · ${selectedLayer.name}` : ''}`
+    : 'Multiple selection'
+  const hasActiveSelection = selected.some((record) => !record.deletedAt)
+  const hasDeletedSelection = selected.some((record) => Boolean(record.deletedAt))
+  const booleanReady = selected.length >= 2 && selected.every((record) => (
+    !record.deletedAt
+    && record.geometry.type === 'polygon'
+    && !storeState?.layers.get(record.layerId)?.locked
+  ))
+  const brushSubtractReady = hasEditableClosedSelection(storeState)
   const currentTool = storeState?.tool ?? 'hand'
+  const activeAnnotationCount = useMemo(() => (
+    [...(storeState?.annotations.values() ?? [])]
+      .filter((record) => !record.deletedAt)
+      .length
+  ), [storeState?.annotations])
+  const hiddenLayerCount = useMemo(() => (
+    [...(storeState?.layers.values() ?? [])]
+      .filter((layer) => !layer.visible)
+      .length
+  ), [storeState?.layers])
   const classifications = useMemo(() => (
     [...new Set(
       [...(storeState?.annotations.values() ?? [])]
@@ -814,9 +1018,23 @@ export function AnnotationWorkspace({
   }, [filterSignature])
 
   const setTool = useCallback((tool: AnnotationTool) => {
+    if (tool === 'brush-subtract') {
+      const localStore = storeRef.current
+      const target = editableClosedTarget(localStore?.getState() ?? null)
+      if (!localStore || !target) {
+        setOperationStatus('Select an unlocked polygon, rectangle, or ellipse before erasing')
+        return
+      }
+      if (!localStore.getState().selection.has(target.id)) localStore.select([target.id])
+    }
     storeRef.current?.setTool(tool)
     setOperationStatus(`${TOOLS.find((item) => item.tool === tool)?.label ?? tool} active`)
+    setMoreToolsOpen(false)
   }, [])
+
+  useEffect(() => {
+    if ((storeState?.selection.size ?? 0) > 0) setInspectorOpen(true)
+  }, [storeState?.selection])
 
   const flush = useCallback(async (
     generation = workspaceGenerationRef.current,
@@ -899,6 +1117,9 @@ export function AnnotationWorkspace({
       } else if (event.key === 'Escape') {
         setTool('hand')
         setInspectorOpen(false)
+        setListOpen(false)
+        setMoreToolsOpen(false)
+        setAdvancedOpen(false)
       } else if (event.key.startsWith('Arrow')) {
         const distance = event.shiftKey ? 10 : 1
         const delta = {
@@ -1268,38 +1489,101 @@ export function AnnotationWorkspace({
   return (
     <AnnotationErrorBoundary resetKey={resetKey} onRetry={retry}>
       <section
+        ref={workspaceRef}
         className={`annotation-workspace${inspectorOpen ? ' annotation-workspace--inspector' : ''}`}
         aria-label="Annotations"
       >
-        <div className="annotation-focus-rail" aria-hidden="true">
-          <span>CANVAS FOCUS</span>
-          <i />
-          <span>{storeState?.annotations.size.toLocaleString() ?? '0'} OBJECTS</span>
-        </div>
-
         <div className="annotation-toolstrip" role="toolbar" aria-label="Annotation tools">
-          {TOOLS.map((item) => (
-            <button
-              type="button"
-              key={item.tool}
-              aria-label={item.label}
-              aria-pressed={currentTool === item.tool}
-              title={`${item.label} (${item.shortcut})`}
-              onClick={() => setTool(item.tool)}
+          {CORE_TOOLS.map((item) => {
+            const ToolIcon = item.icon
+            const active = currentTool === item.tool
+            return (
+              <button
+                type="button"
+                key={item.tool}
+                aria-label={item.label}
+                aria-pressed={active}
+                title={`${item.label} (${item.shortcut})`}
+                onClick={() => setTool(item.tool)}
+              >
+                <span aria-hidden="true">
+                  <ToolIcon size={18} weight={active ? 'fill' : 'regular'} />
+                </span>
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            className="annotation-more-trigger"
+            aria-label="More annotation tools"
+            aria-pressed={MORE_TOOLS.some((item) => item.tool === currentTool)}
+            aria-expanded={moreToolsOpen}
+            aria-controls="annotation-more-tools"
+            onClick={() => setMoreToolsOpen((open) => !open)}
+          >
+            <span aria-hidden="true"><DotsThree size={19} weight="bold" /></span>
+          </button>
+          {moreToolsOpen ? (
+            <div
+              id="annotation-more-tools"
+              className="annotation-more-tools"
+              role="group"
+              aria-label="More annotation tools"
             >
-              <span aria-hidden="true">{item.glyph}</span>
-            </button>
-          ))}
+              {MORE_TOOLS.map((item) => {
+                const ToolIcon = item.icon
+                const active = currentTool === item.tool
+                const unavailable = item.tool === 'brush-subtract' && !brushSubtractReady
+                return (
+                  <button
+                    type="button"
+                    key={item.tool}
+                    aria-label={item.label}
+                    aria-pressed={active}
+                    aria-disabled={unavailable}
+                    title={unavailable
+                      ? 'Select an unlocked polygon, rectangle, or ellipse before erasing'
+                      : `${item.label} (${item.shortcut})`}
+                    onClick={() => setTool(item.tool)}
+                  >
+                    <span aria-hidden="true">
+                      <ToolIcon size={18} weight={active ? 'fill' : 'regular'} />
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
         </div>
 
         <div className="annotation-commandbar" aria-label="Annotation commands">
           <div className="annotation-save-cluster">
-            <button type="button" aria-label="Save annotations" onClick={() => void flush()}>
+            <button
+              type="button"
+              aria-label="Undo"
+              disabled={!store?.canUndo()}
+              onClick={() => store?.undo()}
+            >
+              <ArrowCounterClockwise aria-hidden="true" />
+              Undo
+            </button>
+            <button
+              type="button"
+              aria-label="Redo"
+              disabled={!store?.canRedo()}
+              onClick={() => store?.redo()}
+            >
+              <ArrowClockwise aria-hidden="true" />
+              Redo
+            </button>
+            <button
+              type="button"
+              aria-label="Save annotations"
+              disabled={initializing || autosave.dirtyCount === 0}
+              onClick={() => void flush()}
+            >
               <FloppyDisk />
               <span>Save</span>
-            </button>
-            <button type="button" aria-label="Reload annotations" onClick={() => void reload()}>
-              <ArrowClockwise />
             </button>
             <output
               className={`annotation-save-status annotation-save-status--${autosave.status}`}
@@ -1315,119 +1599,167 @@ export function AnnotationWorkspace({
                     : 'No changes'}
             </output>
           </div>
-          <label className="annotation-search">
+          <button
+            type="button"
+            className="annotation-list-toggle"
+            aria-label={listOpen ? 'Close annotations' : 'Open annotations'}
+            aria-expanded={listOpen}
+            onClick={() => setListOpen((open) => !open)}
+          >
             <MagnifyingGlass aria-hidden="true" />
-            <span className="visually-hidden">Search annotations</span>
-            <input
-              type="search"
-              aria-label="Search annotations"
-              placeholder="Search title, class, tag…"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-            />
-          </label>
+            <span>Annotations</span>
+            <strong>{activeAnnotationCount.toLocaleString()}</strong>
+          </button>
           <button
             ref={inspectorTriggerRef}
             type="button"
             className="annotation-inspector-toggle"
             aria-label={inspectorOpen ? 'Close annotation inspector' : 'Open annotation inspector'}
             aria-expanded={inspectorOpen}
-            onClick={() => setInspectorOpen((open) => !open)}
+            onClick={() => {
+              if (inspectorOpen) setAdvancedOpen(false)
+              setInspectorOpen((open) => !open)
+            }}
           >
             <SidebarSimple />
           </button>
         </div>
 
-        <div className="annotation-list" aria-label="Annotation list">
-          <div className="annotation-panel-heading">
-            <div>
-              <span className="annotation-kicker">OBJECT REGISTER</span>
-              <strong>Annotations</strong>
+        {listOpen ? (
+          <div
+            ref={listRef}
+            className="annotation-list"
+            aria-label="Annotation list"
+            data-dragging={listDragging ? 'true' : undefined}
+            style={{
+              transform: isMobile
+                ? undefined
+                : `translate3d(${listPosition.x}px, ${listPosition.y}px, 0)`,
+            }}
+          >
+            <div
+              className="annotation-panel-heading annotation-list-drag-handle"
+              role="button"
+              tabIndex={isMobile ? -1 : 0}
+              aria-label="Move annotation list"
+              aria-describedby="annotation-list-move-hint"
+              onPointerDown={beginListDrag}
+              onPointerMove={dragList}
+              onPointerUp={endListDrag}
+              onPointerCancel={endListDrag}
+              onKeyDown={moveListWithKeyboard}
+            >
+              <div>
+                <span className="annotation-kicker">Annotations</span>
+                <strong>{slideName}</strong>
+              </div>
+              <div className="annotation-panel-heading-actions">
+                <span>{activeAnnotationCount.toLocaleString()}</span>
+                <DotsSixVertical aria-hidden="true" />
+              </div>
+              <span id="annotation-list-move-hint" className="visually-hidden">
+                Drag this header or use the arrow keys to move the annotation list.
+              </span>
             </div>
-            <span>{visibleRecords.length.toLocaleString()}</span>
-          </div>
-          <div className="annotation-filterbar" aria-label="Annotation filters">
-            <select
-              aria-label="Filter by classification"
-              value={[...(storeState?.filter.classifications ?? [])][0] ?? ''}
-              onChange={(event) => store?.setFilter({
-                classifications: new Set(event.target.value ? [event.target.value] : []),
-              })}
-            >
-              <option value="">All classes</option>
-              {classifications.map((classification) => (
-                <option key={classification} value={classification}>{classification}</option>
-              ))}
-            </select>
-            <select
-              aria-label="Filter by tag"
-              value={[...(storeState?.filter.tags ?? [])][0] ?? ''}
-              onChange={(event) => store?.setFilter({
-                tags: new Set(event.target.value ? [event.target.value] : []),
-              })}
-            >
-              <option value="">All tags</option>
-              {tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
-            </select>
-            <label>
+            {hiddenLayerCount > 0 ? (
+              <p className="annotation-hidden-notice">
+                {hiddenLayerCount} hidden {hiddenLayerCount === 1 ? 'layer' : 'layers'}
+              </p>
+            ) : null}
+            <label className="annotation-search">
+              <MagnifyingGlass aria-hidden="true" />
+              <span className="visually-hidden">Search annotations</span>
               <input
-                type="checkbox"
-                checked={storeState?.filter.includeDeleted ?? false}
-                onChange={(event) => store?.setFilter({ includeDeleted: event.target.checked })}
+                type="search"
+                aria-label="Search annotations"
+                placeholder="Search title, class, tag…"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
               />
-              <span>Trash</span>
             </label>
-          </div>
-          <div className="annotation-list-scroll">
-            {visibleListRecords.map((record, index) => (
-              <button
-                type="button"
-                key={record.id}
-                data-annotation-row=""
-                className={storeState?.selection.has(record.id) ? 'is-selected' : ''}
-                onClick={(event) => store?.select([record.id], event.shiftKey)}
-                onDoubleClick={() => zoomTo(record)}
+            <div className="annotation-filterbar" aria-label="Annotation filters">
+              <select
+                aria-label="Filter by classification"
+                value={[...(storeState?.filter.classifications ?? [])][0] ?? ''}
+                onChange={(event) => store?.setFilter({
+                  classifications: new Set(event.target.value ? [event.target.value] : []),
+                })}
               >
-                <span>{String(listOffset + index + 1).padStart(3, '0')}</span>
-                <span>
-                  <strong>{record.metadata.title || `${record.geometry.type} annotation`}</strong>
-                  <small>{record.metadata.classification || record.geometry.type}</small>
-                </span>
-                <i style={{ background: record.style.strokeColor }} />
-              </button>
-            ))}
-            {listOffset > 0 ? (
-              <button
-                type="button"
-                className="annotation-list-more"
-                onClick={() => setListOffset((offset) => Math.max(
-                  0,
-                  offset - OBJECT_REGISTER_PAGE_SIZE,
+                <option value="">All classes</option>
+                {classifications.map((classification) => (
+                  <option key={classification} value={classification}>{classification}</option>
                 ))}
+              </select>
+              <select
+                aria-label="Filter by tag"
+                value={[...(storeState?.filter.tags ?? [])][0] ?? ''}
+                onChange={(event) => store?.setFilter({
+                  tags: new Set(event.target.value ? [event.target.value] : []),
+                })}
               >
-                Show previous annotations
-              </button>
-            ) : null}
-            {listOffset + visibleListRecords.length < visibleRecords.length ? (
-              <button
-                type="button"
-                className="annotation-list-more"
-                onClick={() => setListOffset((offset) => Math.min(
-                  offset + OBJECT_REGISTER_PAGE_SIZE,
-                  Math.max(0, visibleRecords.length - 1),
-                ))}
-              >
-                Show {Math.min(
-                  OBJECT_REGISTER_PAGE_SIZE,
-                  visibleRecords.length - listOffset - visibleListRecords.length,
-                )} more annotations
-              </button>
-            ) : null}
-            {!initializing && visibleRecords.length === 0 ? (
-              <p className="annotation-empty">Choose a tool and mark the slide.</p>
-            ) : null}
+                <option value="">All tags</option>
+                {tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+              </select>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={storeState?.filter.includeDeleted ?? false}
+                  onChange={(event) => store?.setFilter({ includeDeleted: event.target.checked })}
+                />
+                <span>Trash</span>
+              </label>
+            </div>
+            <div className="annotation-list-scroll">
+              {visibleListRecords.map((record, index) => (
+                <button
+                  type="button"
+                  key={record.id}
+                  data-annotation-row=""
+                  className={storeState?.selection.has(record.id) ? 'is-selected' : ''}
+                  onClick={(event) => store?.select([record.id], event.shiftKey)}
+                  onDoubleClick={() => zoomTo(record)}
+                >
+                  <span>{String(listOffset + index + 1).padStart(3, '0')}</span>
+                  <span>
+                    <strong>{record.metadata.title || `${record.geometry.type} annotation`}</strong>
+                    <small>{record.metadata.classification || record.geometry.type}</small>
+                  </span>
+                  <i style={{ background: record.style.strokeColor }} />
+                </button>
+              ))}
+              {listOffset > 0 ? (
+                <button
+                  type="button"
+                  className="annotation-list-more"
+                  onClick={() => setListOffset((offset) => Math.max(
+                    0,
+                    offset - OBJECT_REGISTER_PAGE_SIZE,
+                  ))}
+                >
+                  Show previous annotations
+                </button>
+              ) : null}
+              {listOffset + visibleListRecords.length < visibleRecords.length ? (
+                <button
+                  type="button"
+                  className="annotation-list-more"
+                  onClick={() => setListOffset((offset) => Math.min(
+                    offset + OBJECT_REGISTER_PAGE_SIZE,
+                    Math.max(0, visibleRecords.length - 1),
+                  ))}
+                >
+                  Show {Math.min(
+                    OBJECT_REGISTER_PAGE_SIZE,
+                    visibleRecords.length - listOffset - visibleListRecords.length,
+                  )} more annotations
+                </button>
+              ) : null}
+              {!initializing && visibleRecords.length === 0 ? (
+                <p className="annotation-empty">Choose a tool and mark the slide.</p>
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {inspectorOpen ? (
           <aside
@@ -1445,39 +1777,133 @@ export function AnnotationWorkspace({
               <button
                 type="button"
                 aria-label="Close annotation inspector"
-                onClick={() => setInspectorOpen(false)}
+                onClick={() => {
+                  setAdvancedOpen(false)
+                  setInspectorOpen(false)
+                }}
               >
                 <X />
               </button>
             </div>
 
             <div className="annotation-inspector-scroll">
-              <section>
-                <div className="annotation-section-heading">
-                  <h2>Selection</h2>
-                  <span>{selected.length}</span>
-                </div>
-                <div className="annotation-action-grid">
-                  <button type="button" aria-label="Undo" onClick={() => store?.undo()}>Undo</button>
-                  <button type="button" aria-label="Redo" onClick={() => store?.redo()}>Redo</button>
-                  <button type="button" onClick={() => store?.duplicate(storeState?.selection ?? [])}>Duplicate</button>
-                  <button type="button" onClick={() => store?.copy()}><Copy /> Copy</button>
-                  <button type="button" onClick={() => store?.paste()}>Paste</button>
-                  <button type="button" onClick={() => primary && zoomTo(primary)}>Zoom to</button>
-                  <button type="button" onClick={() => store?.delete(storeState?.selection ?? [])}><Trash /> Delete</button>
-                  <button type="button" onClick={() => store?.restore(storeState?.selection ?? [])}>Restore</button>
-                </div>
-                <div className="annotation-boolean-grid" aria-label="Boolean operations">
-                  {(['union', 'subtract', 'intersection', 'split'] as const).map((operation) => (
-                    <button type="button" key={operation} onClick={() => void applyBoolean(operation)}>
-                      {operation}
+              {selected.length > 0 ? (
+                <section className="annotation-selection-card">
+                  <div className="annotation-selection-summary">
+                    <span className="annotation-selection-icon" aria-hidden="true">
+                      <Selection />
+                    </span>
+                    <div>
+                      <h2>Selected</h2>
+                      <strong>{selectionTitle}</strong>
+                      <small>{selectionKind}</small>
+                    </div>
+                    <span className="annotation-selection-count">{selected.length}</span>
+                  </div>
+                  <div className="annotation-quick-actions" aria-label="Selection actions">
+                    <button
+                      type="button"
+                      className="is-primary"
+                      aria-label="Zoom to selected annotation"
+                      disabled={!primary}
+                      onClick={() => primary && zoomTo(primary)}
+                    >
+                      <Crosshair />
+                      <span>Zoom</span>
                     </button>
-                  ))}
-                </div>
-              </section>
+                    <button
+                      type="button"
+                      aria-label="Duplicate selected annotations"
+                      disabled={!hasActiveSelection}
+                      onClick={() => store?.duplicate(storeState?.selection ?? [])}
+                    >
+                      <Plus />
+                      <span>Duplicate</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="is-danger"
+                      aria-label="Delete selected annotations"
+                      disabled={!hasActiveSelection}
+                      onClick={() => store?.delete(storeState?.selection ?? [])}
+                    >
+                      <Trash />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                  <div className="annotation-clipboard-actions" aria-label="Clipboard actions">
+                    <button
+                      type="button"
+                      aria-label="Copy selected annotations"
+                      disabled={!hasActiveSelection}
+                      onClick={() => store?.copy()}
+                    >
+                      <Copy /> Copy
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Paste annotations"
+                      disabled={!store?.canPaste()}
+                      onClick={() => store?.paste()}
+                    >
+                      <ClipboardText /> Paste
+                    </button>
+                    {hasDeletedSelection ? (
+                      <button
+                        type="button"
+                        aria-label="Restore selected annotations"
+                        onClick={() => store?.restore(storeState?.selection ?? [])}
+                      >
+                        Restore
+                      </button>
+                    ) : null}
+                  </div>
+                  {booleanReady ? (
+                    <div className="annotation-shape-operations">
+                      <div>
+                        <strong>Combine polygons</strong>
+                        <small>Apply one operation to the selected shapes.</small>
+                      </div>
+                      <div className="annotation-boolean-grid" aria-label="Boolean operations">
+                        {(['union', 'subtract', 'intersection', 'split'] as const).map((operation) => (
+                          <button
+                            type="button"
+                            key={operation}
+                            onClick={() => void applyBoolean(operation)}
+                          >
+                            {operation === 'intersection' ? 'Intersect' : operation}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
 
-              <section>
-                <h2>Details</h2>
+              <section className="annotation-inspector-card annotation-details-section">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><TextT /></span>
+                  <div>
+                    <h2>Annotation details</h2>
+                    <p>Name and organize this annotation.</p>
+                  </div>
+                </div>
+                <label>
+                  <span>Title</span>
+                  <input
+                    value={primary?.metadata.title ?? metadata.title}
+                    maxLength={200}
+                    onChange={(event) => updateMetadata({ title: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span>Classification</span>
+                  <input
+                    value={primary?.metadata.classification ?? metadata.classification}
+                    maxLength={120}
+                    onChange={(event) => updateMetadata({ classification: event.target.value })}
+                  />
+                </label>
                 <label>
                   <span>{primary ? 'Annotation layer' : 'Drawing layer'}</span>
                   <select
@@ -1504,22 +1930,31 @@ export function AnnotationWorkspace({
                       ))}
                   </select>
                 </label>
-                <label>
-                  <span>Title</span>
-                  <input
-                    value={primary?.metadata.title ?? metadata.title}
-                    maxLength={200}
-                    onChange={(event) => updateMetadata({ title: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>Classification</span>
-                  <input
-                    value={primary?.metadata.classification ?? metadata.classification}
-                    maxLength={120}
-                    onChange={(event) => updateMetadata({ classification: event.target.value })}
-                  />
-                </label>
+              </section>
+
+              <button
+                type="button"
+                className="annotation-advanced-toggle"
+                aria-label={advancedOpen
+                  ? 'Hide advanced annotation details'
+                  : 'Show advanced annotation details'}
+                aria-expanded={advancedOpen}
+                onClick={() => setAdvancedOpen((open) => !open)}
+              >
+                <span>Advanced details</span>
+                <CaretDown aria-hidden="true" />
+              </button>
+
+              {advancedOpen ? (
+                <div className="annotation-advanced-content">
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><MagnifyingGlass /></span>
+                  <div>
+                    <h2>Metadata</h2>
+                    <p>Search terms and clinical notes.</p>
+                  </div>
+                </div>
                 <label>
                   <span>Tags</span>
                   <input
@@ -1547,8 +1982,14 @@ export function AnnotationWorkspace({
                 </label>
               </section>
 
-              <section>
-                <h2>Style</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><Scribble /></span>
+                  <div>
+                    <h2>Appearance</h2>
+                    <p>Color, outline and label visibility.</p>
+                  </div>
+                </div>
                 <div className="annotation-color-grid">
                   <label>
                     <span>Stroke</span>
@@ -1599,9 +2040,13 @@ export function AnnotationWorkspace({
                 </label>
               </section>
 
-              <section>
-                <div className="annotation-section-heading">
-                  <h2>Layers</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-section-heading annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><FolderOpen /></span>
+                  <div>
+                    <h2>Layers</h2>
+                    <p>Visibility, order and locking.</p>
+                  </div>
                   <button type="button" aria-label="Add annotation layer" onClick={() => void createLayer()}>
                     <Plus /> Add
                   </button>
@@ -1680,13 +2125,30 @@ export function AnnotationWorkspace({
                 </div>
               </section>
 
-              <section>
-                <h2>Measurements</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><Ruler /></span>
+                  <div>
+                    <h2>Geometry &amp; measurements</h2>
+                    <p>Calibrated values and precise coordinates.</p>
+                  </div>
+                </div>
                 {measurement ? (
                   <dl className="annotation-measurements">
-                    {Object.entries(measurement.values).map(([name, value]) => (
-                      <div key={name}><dt>{name}</dt><dd>{String(value)}</dd></div>
-                    ))}
+                    {Object.entries(measurement.values)
+                      .filter(([name]) => !name.endsWith('Unit'))
+                      .map(([name, value]) => {
+                        const unit = (measurement.values as Record<string, string | number>)[`${name}Unit`]
+                        const label = name
+                          .replace(/([A-Z])/g, ' $1')
+                          .replace(/^./, (character) => character.toUpperCase())
+                        return (
+                          <div key={name}>
+                            <dt>{label}</dt>
+                            <dd>{String(value)}{unit ? ` ${String(unit)}` : ''}</dd>
+                          </div>
+                        )
+                      })}
                   </dl>
                 ) : <p className="annotation-muted">Select an annotation to inspect calibrated values.</p>}
                 {measurement?.warning ? <p className="annotation-calibration-warning">{measurement.warning}</p> : null}
@@ -1702,8 +2164,14 @@ export function AnnotationWorkspace({
                 {primary && store ? <BoundsEditor record={primary} store={store} /> : null}
               </section>
 
-              <section>
-                <h2>Interchange</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><DownloadSimple /></span>
+                  <div>
+                    <h2>Data &amp; history</h2>
+                    <p>Import, export, reload or restore.</p>
+                  </div>
+                </div>
                 <input
                   ref={importRef}
                   className="visually-hidden"
@@ -1711,7 +2179,7 @@ export function AnnotationWorkspace({
                   accept=".json,.geojson,application/json,application/geo+json"
                   onChange={(event) => void importFile(event.target.files?.[0])}
                 />
-                <div className="annotation-action-grid">
+                <div className="annotation-data-actions">
                   <button type="button" aria-label="Import annotations" onClick={() => importRef.current?.click()}>
                     <UploadSimple /> Import
                   </button>
@@ -1746,14 +2214,24 @@ export function AnnotationWorkspace({
                     </button>
                   </div>
                 ) : null}
-                <button
-                  type="button"
-                  className="annotation-restore-revision"
-                  aria-label="Browse annotation revisions"
-                  onClick={() => void browseRevisions()}
-                >
-                  <FolderOpen /> Revision history
-                </button>
+                <div className="annotation-history-actions">
+                  <button
+                    type="button"
+                    className="annotation-restore-revision"
+                    aria-label="Browse annotation revisions"
+                    onClick={() => void browseRevisions()}
+                  >
+                    <FolderOpen /> Revision history
+                  </button>
+                  <button
+                    type="button"
+                    className="annotation-reload"
+                    aria-label="Reload annotations"
+                    onClick={() => void reload()}
+                  >
+                    <ArrowClockwise /> Reload
+                  </button>
+                </div>
                 {revisions.length > 0 ? (
                   <div className="annotation-revision-browser">
                     <label>
@@ -1789,6 +2267,8 @@ export function AnnotationWorkspace({
                   </div>
                 ) : null}
               </section>
+                </div>
+              ) : null}
             </div>
           </aside>
         ) : null}
@@ -1797,7 +2277,9 @@ export function AnnotationWorkspace({
           <output ref={coordinateOutputRef}>
             {`SLIDE ${slideId.slice(0, 8).toUpperCase()}`}
           </output>
-          <span>{densityPrompt ?? `${currentTool.toUpperCase()} · IMAGE PX`}</span>
+          <span>
+            {densityPrompt ?? `${currentTool.toUpperCase()} · HOLD SPACE TO PAN · IMAGE PX`}
+          </span>
         </div>
 
         {error ? (

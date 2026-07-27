@@ -17,6 +17,9 @@ importers:
       '@fontsource-variable/cormorant-garamond':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource-variable/sofia-sans':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource-variable/source-sans-3':
         specifier: ^5.3.0
         version: 5.3.0
@@ -419,6 +422,9 @@ packages:
 
   '@fontsource-variable/cormorant-garamond@5.3.0':
     resolution: {integrity: sha512-rgZJ/5w3hi60swAPnrOXpZf5wEH6NTrvm4H8D9Y4b1QIFUqlX14eM3QTMU/eAznjfh0eXpO1QUqsFhiy58aoMg==}
+
+  '@fontsource-variable/sofia-sans@5.3.0':
+    resolution: {integrity: sha512-lVLpBgrjxSMjrrBF70Jr9qBLdFac5tDAvVn9oHlS+vAaVyhUN6dWmr0nNjWzwTh6tYIECP45h4zDfllQbXtqtA==}
 
   '@fontsource-variable/source-sans-3@5.3.0':
     resolution: {integrity: sha512-dpi0GZk7EQe2tYpg6Q0Fx0OmUgnuGu+0rHPgtXqtKhglYmJuP7jZ12Mu1uN+NfRaJRY1Emn8AQJEWzmoZ4wa9g==}
@@ -1943,6 +1949,8 @@ snapshots:
       levn: 0.4.1
 
   '@fontsource-variable/cormorant-garamond@5.3.0': {}
+
+  '@fontsource-variable/sofia-sans@5.3.0': {}
 
   '@fontsource-variable/source-sans-3@5.3.0': {}
 

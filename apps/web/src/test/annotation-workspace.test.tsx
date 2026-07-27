@@ -80,7 +80,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-it('exposes the complete accessible Canvas Focus tool and workflow surface', async () => {
+it('keeps the canvas simple until advanced tools, annotations, or details are requested', async () => {
   render(
     <AnnotationWorkspace
       slideId="slide-1"
@@ -94,24 +94,44 @@ it('exposes the complete accessible Canvas Focus tool and workflow surface', asy
   for (const name of [
     'Pan',
     'Select',
-    'Marquee select',
-    'Point marker',
-    'Ruler',
-    'Polyline',
-    'Three-point angle',
     'Rectangle',
-    'Ellipse',
     'Polygon',
     'Freehand ROI',
-    'Brush add',
-    'Brush subtract',
-    'Text callout',
+    'Ruler',
   ]) {
-    expect(screen.getByRole('button', { name })).toBeVisible()
+    const tool = screen.getByRole('button', { name })
+    expect(tool).toBeVisible()
+    expect(tool.querySelector('svg')).toBeInTheDocument()
+    expect(tool.textContent).toBe('')
   }
-  expect(screen.getByRole('searchbox', { name: 'Search annotations' })).toBeVisible()
-  expect(screen.getByRole('region', { name: 'Annotation inspector' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Point marker' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('searchbox', { name: 'Search annotations' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Annotation inspector' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save annotations' })).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  expect(screen.getByRole('button', { name: 'Point marker' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Ellipse' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Point marker' }).textContent).toBe('')
+  const eraseTool = screen.getByRole('button', { name: 'Erase from selected ROI' })
+  expect(eraseTool).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  )
+  fireEvent.click(eraseTool)
+  expect(screen.getByText(
+    'Select an unlocked polygon, rectangle, or ellipse before erasing',
+  )).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotations' }))
+  expect(screen.getByRole('searchbox', { name: 'Search annotations' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Move annotation list' })).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Filter by classification' })).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Filter by tag' })).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotation inspector' }))
+  expect(screen.getByRole('region', { name: 'Annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
   expect(screen.getByRole('button', { name: 'Reload annotations' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Import annotations' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Export PathLab JSON' })).toBeVisible()
@@ -119,9 +139,53 @@ it('exposes the complete accessible Canvas Focus tool and workflow surface', asy
   expect(screen.getByRole('button', { name: 'Export measurements CSV' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Browse annotation revisions' })).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Drawing layer' })).toHaveValue(layerId)
-  expect(screen.getByRole('combobox', { name: 'Filter by classification' })).toBeVisible()
-  expect(screen.getByRole('combobox', { name: 'Filter by tag' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Findings' })).toBeVisible()
+})
+
+it('enables erase when exactly one editable closed ROI is available', async () => {
+  const rectangle = {
+    id: '22222222-2222-4222-8222-222222222222',
+    layerId,
+    geometry: { type: 'rectangle' as const, x: 10, y: 20, width: 80, height: 60 },
+    style: {
+      strokeColor: '#bf3c32',
+      fillColor: '#bf3c32',
+      strokeWidth: 2,
+      opacity: 0.8,
+      labelVisible: true,
+    },
+    metadata: { title: 'ROI', classification: '', tags: [], notes: '' },
+    version: 1,
+    deletedAt: null,
+    createdAt: '2026-07-26T00:00:00Z',
+    updatedAt: '2026-07-26T00:00:00Z',
+    bounds: { minX: 10, minY: 20, maxX: 90, maxY: 80 },
+    measurements: {},
+  }
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({
+        getItems: vi.fn(async () => ({
+          items: [rectangle],
+          total: 1,
+          nextOffset: null,
+        })),
+      })}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+
+  expect(await screen.findByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  const eraseTool = screen.getByRole('button', { name: 'Erase from selected ROI' })
+  expect(eraseTool).toHaveAttribute('aria-disabled', 'false')
+  fireEvent.click(eraseTool)
+  expect(screen.getByText('Erase from selected ROI active')).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  expect(screen.getByRole('button', { name: 'Erase from selected ROI' }))
+    .toHaveAttribute('aria-pressed', 'true')
 })
 
 it('supports focus-safe keyboard shortcuts and creates a point through the attachment bridge', async () => {
@@ -138,6 +202,11 @@ it('supports focus-safe keyboard shortcuts and creates a point through the attac
   await screen.findByRole('toolbar', { name: 'Annotation tools' })
 
   fireEvent.keyDown(window, { key: 'p' })
+  expect(screen.getByRole('button', { name: 'More annotation tools' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
   expect(screen.getByRole('button', { name: 'Point marker' })).toHaveAttribute('aria-pressed', 'true')
 
   const attachment = onAttachmentChange.mock.calls.at(-1)?.[0]
@@ -151,10 +220,57 @@ it('supports focus-safe keyboard shortcuts and creates a point through the attac
   expect(onAttachmentChange).toHaveBeenLastCalledWith(undefined)
 })
 
+it('reveals the active editable layer locally without writing a visibility mutation', async () => {
+  const updateLayer = vi.fn()
+  const hiddenManifest: AnnotationManifest = {
+    ...manifest,
+    activeCount: 12,
+    layers: [
+      { ...manifest.layers[0], visible: false },
+      {
+        ...manifest.layers[0],
+        id: '22222222-2222-4222-8222-222222222222',
+        name: 'Reference',
+        sortOrder: 1,
+        visible: false,
+      },
+    ],
+  }
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({
+        getManifest: vi.fn(async () => hiddenManifest),
+        updateLayer,
+      })}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+
+  await screen.findByRole('toolbar', { name: 'Annotation tools' })
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotations' }))
+  expect(screen.getByText('1 hidden layer')).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotation inspector' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
+  expect(screen.getByRole('checkbox', { name: 'Show Findings' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Show Reference' })).not.toBeChecked()
+  expect(updateLayer).not.toHaveBeenCalled()
+})
+
 it('keeps touch targets, responsive dock, theme tokens, and reduced motion in the stylesheet', () => {
   const css = readFileSync('src/annotations/annotation.css', 'utf8')
 
-  expect(css).toContain('--annotation-accent:')
+  expect(css).toContain('--annotation-accent:#f37338')
+  expect(css).toContain('--annotation-accent-ink:#141413')
+  expect(css).toContain("--annotation-font:'Sofia Sans Variable','Sofia Sans',Arial,sans-serif")
+  expect(css).toContain('sofia-sans-latin-wght-normal.woff2')
+  expect(css).not.toContain('sofia-sans-cyrillic')
+  expect(css).not.toContain('ui-monospace')
+  expect(css).toContain('font-weight:450')
+  expect(css).toContain('border-radius:24px')
+  expect(css).toContain("background:var(--ink)")
   expect(css).toMatch(/min-(?:width|height):44px/)
   expect(css).toMatch(/@media\s*\(max-width:760px\)/)
   expect(css).toMatch(/\.annotation-toolstrip[\s\S]*bottom:/)

@@ -458,7 +458,10 @@ it('loads annotation code and APIs only for an enabled private admin slide', asy
   renderViewerPage('/admin/preview/private-1')
 
   expect(await screen.findByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
   expect(screen.getByRole('button', { name: 'Point marker' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotation inspector' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
   expect(await screen.findByRole('button', { name: 'Findings' })).toBeVisible()
   expect(fetch.mock.calls.some(([input]) => String(input).endsWith('/manifest'))).toBe(true)
   expect(fetch.mock.calls.some(([input]) => String(input).includes('/items?'))).toBe(true)

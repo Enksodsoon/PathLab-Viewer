@@ -180,8 +180,12 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
     timeout: 30_000,
   })
-  await expect(page.getByRole('region', { name: 'Annotation inspector' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Annotation inspector' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Open annotations' }).click()
   await expect(page.getByRole('searchbox', { name: 'Search annotations' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open annotation inspector' }).click()
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
   await expect(page.getByRole('button', { name: 'Point marker' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Findings', exact: true })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (
@@ -195,14 +199,306 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
   }
 
   await page.getByRole('button', { name: 'Point marker' }).click()
-  await expect(page.getByRole('button', { name: 'Point marker' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.annotation-data-cue')).toContainText('POINT')
   const overlay = page.locator('.annotation-svg-overlay')
   await expect(overlay).toBeAttached()
   await overlay.click({ position: { x: 720, y: 420 } })
   await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
 
+  await page.getByRole('button', { name: 'Rectangle' }).click()
+  await page.keyboard.down('Space')
+  await expect(page.locator('.annotation-operation-status')).toHaveText(
+    'Pan active; release Space to continue Rectangle',
+  )
+  await expect(overlay).toHaveCSS('pointer-events', 'none')
+  await page.keyboard.up('Space')
+  await expect(page.locator('.annotation-operation-status')).toHaveText('Rectangle active')
+  await expect(overlay).toHaveCSS('pointer-events', 'auto')
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 420,
+    clientY: 300,
+    pointerId: 11,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 620,
+    clientY: 440,
+    pointerId: 11,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('rect.annotation-draft-shape')).toBeVisible()
+  await expect(page.locator('.annotation-draft-measurement')).toContainText('px')
+  await overlay.dispatchEvent('pointerup', {
+    clientX: 620,
+    clientY: 440,
+    pointerId: 11,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('.annotation-draft-shape')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /rectangle annotation/i })).toBeVisible()
+
   await page.keyboard.press('Control+s')
   await expect(page.locator('.annotation-save-status')).toHaveText(/Saved|No changes/)
+})
+
+test('shows selected annotations moving with the pointer before release', async ({ page }) => {
+  await page.setViewportSize({ width: 1584, height: 992 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  await page.getByRole('button', { name: 'Open annotations' }).click()
+  await page.getByRole('button', { name: /Touch polygon/ }).click()
+
+  const overlay = page.locator('.annotation-svg-overlay')
+  const shape = page.locator(
+    `[data-annotation-id="${touchPolygon.id}"] > polygon`,
+  )
+  const before = await shape.boundingBox()
+  expect(before).not.toBeNull()
+  const startX = before!.x + before!.width / 2
+  const startY = before!.y + before!.height / 2
+
+  await shape.dispatchEvent('pointerdown', {
+    clientX: startX,
+    clientY: startY,
+    pointerId: 17,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointermove', {
+    clientX: startX + 36,
+    clientY: startY + 24,
+    pointerId: 17,
+    pointerType: 'mouse',
+  })
+
+  await expect(overlay).toHaveClass(/is-moving-annotation/)
+  await expect(page.locator('.annotation-move-preview')).toHaveCSS(
+    'transform',
+    /matrix\(1, 0, 0, 1, 36, 24\)/,
+  )
+  const during = await shape.boundingBox()
+  expect(Math.abs(during!.x - (before!.x + 36))).toBeLessThanOrEqual(3)
+  expect(Math.abs(during!.y - (before!.y + 24))).toBeLessThanOrEqual(3)
+
+  await overlay.dispatchEvent('pointerup', {
+    clientX: startX + 36,
+    clientY: startY + 24,
+    pointerId: 17,
+    pointerType: 'mouse',
+  })
+  await expect(overlay).not.toHaveClass(/is-moving-annotation/)
+  await expect(page.locator('.annotation-move-preview')).toHaveCount(0)
+})
+
+test('resolves a single ROI and previews calibrated ruler and angle measurements', async ({ page }) => {
+  await page.setViewportSize({ width: 1584, height: 992 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  const overlay = page.locator('.annotation-svg-overlay')
+
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+  await expect(page.getByRole('button', { name: 'Erase from selected ROI' }))
+    .toHaveAttribute('aria-disabled', 'false')
+
+  await page.getByRole('button', { name: 'Ruler' }).click()
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 300,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 400,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+  const liveMeasurement = page.locator('.annotation-draft-measurement')
+  await expect(liveMeasurement).toHaveText(/^\d+(?:\.\d+)? µm$/)
+  const shorterLength = Number((await liveMeasurement.textContent())!.split(' ')[0])
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 500,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+  await expect.poll(async () => (
+    Number((await liveMeasurement.textContent())!.split(' ')[0])
+  )).toBeGreaterThan(shorterLength)
+  await overlay.dispatchEvent('pointercancel', {
+    clientX: 500,
+    clientY: 400,
+    pointerId: 21,
+    pointerType: 'mouse',
+  })
+
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+  await page.getByRole('button', { name: 'Three-point angle' }).click()
+  for (const [clientX, clientY, pointerId] of [[300, 400, 22], [400, 400, 23]]) {
+    await overlay.dispatchEvent('pointerdown', {
+      clientX,
+      clientY,
+      pointerId,
+      pointerType: 'mouse',
+    })
+    await overlay.dispatchEvent('pointerup', {
+      clientX,
+      clientY,
+      pointerId,
+      pointerType: 'mouse',
+    })
+  }
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 400,
+    clientY: 500,
+    pointerId: 24,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('.annotation-draft-measurement')).toHaveText('90°')
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 400,
+    clientY: 500,
+    pointerId: 24,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointerup', {
+    clientX: 400,
+    clientY: 500,
+    pointerId: 24,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('.annotation-draft-measurement')).toHaveCount(0)
+  await expect(page.locator('[data-annotation-label="measurement"]')).toHaveText('90°')
+})
+
+test('keeps desktop panels compact, separated, and lets the annotation list move', async ({ page }) => {
+  await page.setViewportSize({ width: 1134, height: 824 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Open annotations' }).click()
+  await page.getByRole('button', { name: 'Open annotation inspector' }).click()
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+
+  const commandbar = page.locator('.annotation-commandbar')
+  const moreTools = page.locator('.annotation-more-tools')
+  const commandBounds = await commandbar.boundingBox()
+  const moreBounds = await moreTools.boundingBox()
+  expect(commandBounds).not.toBeNull()
+  expect(moreBounds).not.toBeNull()
+  const panelsOverlap = !(
+    moreBounds!.x + moreBounds!.width <= commandBounds!.x
+    || commandBounds!.x + commandBounds!.width <= moreBounds!.x
+    || moreBounds!.y + moreBounds!.height <= commandBounds!.y
+    || commandBounds!.y + commandBounds!.height <= moreBounds!.y
+  )
+  expect(panelsOverlap).toBe(false)
+
+  const inspector = page.locator('.annotation-inspector')
+  const compactInspector = await inspector.boundingBox()
+  expect(compactInspector?.height).toBeLessThan(430)
+
+  const list = page.locator('.annotation-list')
+  const moveHandle = page.getByRole('button', { name: 'Move annotation list' })
+  const before = await list.boundingBox()
+  const handleBounds = await moveHandle.boundingBox()
+  expect(before).not.toBeNull()
+  expect(handleBounds).not.toBeNull()
+  await page.mouse.move(
+    handleBounds!.x + handleBounds!.width / 2,
+    handleBounds!.y + handleBounds!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    handleBounds!.x + handleBounds!.width / 2 + 260,
+    handleBounds!.y + handleBounds!.height / 2 - 180,
+    { steps: 5 },
+  )
+  await page.mouse.up()
+  const after = await list.boundingBox()
+  expect(after!.x).toBeGreaterThan(before!.x + 200)
+  expect(after!.y).toBeLessThan(before!.y - 120)
+  await expect(list).not.toHaveAttribute('data-dragging')
+
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  const expandedInspector = await inspector.boundingBox()
+  expect(expandedInspector!.height).toBeGreaterThan(compactInspector!.height)
+  await expect(page.getByRole('button', { name: 'Hide advanced annotation details' }))
+    .toHaveAttribute('aria-expanded', 'true')
+})
+
+test('presents selected annotation actions with clear progressive disclosure', async ({ page }) => {
+  await page.setViewportSize({ width: 1134, height: 824 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Open annotations' }).click()
+  await page.getByRole('button', { name: /Touch polygon/ }).click()
+
+  const inspector = page.getByRole('region', { name: 'Annotation inspector' })
+  await expect(inspector).toBeVisible()
+  await expect(inspector.locator('.annotation-selection-summary')).toContainText('Touch polygon')
+  await expect(inspector.locator('.annotation-selection-summary')).toContainText('polygon · Findings')
+  await expect(page.getByRole('button', { name: 'Zoom to selected annotation' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Duplicate selected annotations' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Delete selected annotations' })).toBeVisible()
+  await expect(page.getByLabel('Boolean operations')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Restore selected annotations' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Show advanced annotation details' }))
+    .toHaveAttribute('aria-expanded', 'false')
+  await expect(inspector.getByRole('heading', { name: 'Annotation details' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  for (const heading of [
+    'Metadata',
+    'Appearance',
+    'Layers',
+    'Geometry & measurements',
+    'Data & history',
+  ]) {
+    await expect(inspector.getByRole('heading', { name: heading })).toBeVisible()
+  }
+  await expect(page.getByRole('button', { name: 'Import annotations' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export PathLab JSON' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Browse annotation revisions' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reload annotations' })).toBeVisible()
+  const overflowingControls = await inspector.evaluate((element) => {
+    const boundary = element.getBoundingClientRect()
+    return [...element.querySelectorAll<HTMLElement>('*')].flatMap((candidate) => {
+      const box = candidate.getBoundingClientRect()
+      if (
+        candidate.classList.contains('visually-hidden')
+        || box.width === 0
+        || box.height === 0
+        || box.right <= boundary.right + 0.5
+      ) return []
+      return [{
+        className: candidate.className,
+        overflow: Math.round((box.right - boundary.right) * 10) / 10,
+        tag: candidate.tagName,
+      }]
+    })
+  })
+  expect(overflowingControls).toEqual([])
+
+  await page.getByRole('button', { name: 'Copy selected annotations' }).click()
+  await expect(page.getByRole('button', { name: 'Paste annotations' })).toBeEnabled()
+
+  await page.getByRole('button', { name: 'Duplicate selected annotations' }).click()
+  await expect(page.locator('.annotation-list-toggle strong')).toHaveText('2')
+  const annotationRows = page.getByRole('button', { name: /Touch polygon/ })
+  await annotationRows.nth(1).click({ modifiers: ['Shift'] })
+  await expect(page.getByLabel('Boolean operations')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Intersect', exact: true })).toBeVisible()
+  await annotationRows.first().click()
+  await page.getByRole('button', { name: 'Delete selected annotations' }).click()
+  await expect(page.locator('.annotation-list-toggle strong')).toHaveText('1')
 })
 
 test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and below', async ({ page }) => {
@@ -216,6 +512,7 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
   const toolbarBox = await toolbar.boundingBox()
   expect(toolbarBox).not.toBeNull()
   expect(toolbarBox!.y + toolbarBox!.height).toBeGreaterThan(780)
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
   const pointBox = await page.getByRole('button', { name: 'Point marker' }).boundingBox()
   expect(pointBox?.width).toBeGreaterThanOrEqual(44)
   expect(pointBox?.height).toBeGreaterThanOrEqual(44)
@@ -265,6 +562,7 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
     pointerId: 7,
     pointerType: 'touch',
   })
+  await page.getByRole('button', { name: 'Open annotations' }).click()
   await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (
     document.documentElement.scrollWidth <= document.documentElement.clientWidth
@@ -278,8 +576,12 @@ test('edits a polygon vertex through a 44px touch handle on mobile', async ({ pa
     timeout: 30_000,
   })
 
+  await page.getByRole('button', { name: 'Open annotations' }).click()
   await page.getByRole('button', { name: 'Select', exact: true }).click()
   await page.getByRole('button', { name: /Touch polygon/ }).click()
+  await page.getByRole('dialog', { name: 'Annotation inspector' })
+    .getByRole('button', { name: 'Close annotation inspector' })
+    .click()
   const handle = page.locator(
     '[data-annotation-handle="vertex"][data-vertex-index="0"]',
   )
