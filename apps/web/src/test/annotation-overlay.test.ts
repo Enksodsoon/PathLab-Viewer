@@ -305,6 +305,44 @@ it('finishes a multi-click polygon with Enter', () => {
   cleanupOverlay()
 })
 
+it('temporarily pans while Space is held without changing the drawing tool', () => {
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const onNotice = vi.fn()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+    onNotice,
+  })
+  const overlay = viewer.canvas.querySelector<SVGElement>('.annotation-svg-overlay')!
+  store.setTool('rectangle')
+
+  window.dispatchEvent(new KeyboardEvent('keydown', {
+    key: ' ',
+    code: 'Space',
+    bubbles: true,
+  }))
+  expect(store.getState().tool).toBe('rectangle')
+  expect(viewer.setMouseNavEnabled).toHaveBeenLastCalledWith(true)
+  expect(overlay.style.pointerEvents).toBe('none')
+  expect(onNotice).toHaveBeenCalledWith('Pan active; release Space to continue Rectangle')
+
+  window.dispatchEvent(new KeyboardEvent('keyup', {
+    key: ' ',
+    code: 'Space',
+    bubbles: true,
+  }))
+  expect(store.getState().tool).toBe('rectangle')
+  expect(viewer.setMouseNavEnabled).toHaveBeenLastCalledWith(false)
+  expect(overlay.style.pointerEvents).toBe('auto')
+  expect(onNotice).toHaveBeenLastCalledWith('Rectangle active')
+  cleanupOverlay()
+})
+
 it('fails open to pan and zoom when rendering throws', () => {
   const store = createAnnotationStore({ slideId: 'slide-1' })
   store.load({ version: 0, layers: [layer], annotations: [] })

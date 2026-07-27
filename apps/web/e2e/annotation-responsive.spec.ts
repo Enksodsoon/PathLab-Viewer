@@ -206,6 +206,14 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
   await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
 
   await page.getByRole('button', { name: 'Rectangle' }).click()
+  await page.keyboard.down('Space')
+  await expect(page.locator('.annotation-operation-status')).toHaveText(
+    'Pan active; release Space to continue Rectangle',
+  )
+  await expect(overlay).toHaveCSS('pointer-events', 'none')
+  await page.keyboard.up('Space')
+  await expect(page.locator('.annotation-operation-status')).toHaveText('Rectangle active')
+  await expect(overlay).toHaveCSS('pointer-events', 'auto')
   await overlay.dispatchEvent('pointerdown', {
     clientX: 420,
     clientY: 300,

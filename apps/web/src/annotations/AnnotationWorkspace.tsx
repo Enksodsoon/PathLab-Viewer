@@ -1984,7 +1984,9 @@ export function AnnotationWorkspace({
           <output ref={coordinateOutputRef}>
             {`SLIDE ${slideId.slice(0, 8).toUpperCase()}`}
           </output>
-          <span>{densityPrompt ?? `${currentTool.toUpperCase()} · IMAGE PX`}</span>
+          <span>
+            {densityPrompt ?? `${currentTool.toUpperCase()} · HOLD SPACE TO PAN · IMAGE PX`}
+          </span>
         </div>
 
         {error ? (

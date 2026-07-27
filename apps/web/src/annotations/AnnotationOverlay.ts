@@ -427,6 +427,7 @@ export function attachAnnotationOverlay(
   let disposed = false
   let frameId: number | null = null
   let draftCursorPoint: AnnotationPoint | null = null
+  let temporaryPan = false
   const indexedRecords = new Map<string, AnnotationRecord>()
   const shapeNodes = new Map<string, SVGGElement>()
   const densityNodes = new Map<string, SVGCircleElement>()
@@ -505,11 +506,18 @@ export function attachAnnotationOverlay(
   syncIndex(state, true)
 
   const setNavigation = () => {
-    const navigation = state.tool === 'hand'
+    const navigation = state.tool === 'hand' || temporaryPan
     viewer.setMouseNavEnabled(navigation)
     viewer.setKeyboardNavEnabled(navigation)
     svg.style.pointerEvents = navigation ? 'none' : 'auto'
   }
+
+  const activeToolLabel = () => (
+    state.tool
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  )
 
   const failOpen = (caught: unknown) => {
     const message = caught instanceof Error ? caught.message : 'Annotation overlay failed'
@@ -1000,6 +1008,24 @@ export function attachAnnotationOverlay(
       target instanceof Element
       && target.matches('input, textarea, select, [contenteditable="true"]')
     ) return
+    if (
+      (event.code === 'Space' || event.key === ' ')
+      && state.tool !== 'hand'
+      && !gestureStart
+    ) {
+      if (!temporaryPan) {
+        temporaryPan = true
+        draftCursorPoint = null
+        renderDraft()
+        setNavigation()
+        options.onNotice?.(
+          `Pan active; release Space to continue ${activeToolLabel()}`,
+        )
+      }
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      return
+    }
     if (event.key === 'Escape' && (construction.length > 0 || gestureStart || draftCursorPoint)) {
       construction = []
       draftCursorPoint = null
@@ -1025,6 +1051,25 @@ export function attachAnnotationOverlay(
     }
   }
 
+  const onKeyUp = (event: KeyboardEvent) => {
+    if (
+      temporaryPan
+      && (event.code === 'Space' || event.key === ' ')
+    ) {
+      temporaryPan = false
+      setNavigation()
+      options.onNotice?.(`${activeToolLabel()} active`)
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    }
+  }
+
+  const onWindowBlur = () => {
+    if (!temporaryPan) return
+    temporaryPan = false
+    setNavigation()
+  }
+
   const onPointerLeave = () => {
     options.onCoordinate?.(null)
     if (!gestureStart) {
@@ -1041,6 +1086,8 @@ export function attachAnnotationOverlay(
   svg.addEventListener('pointerleave', onPointerLeave)
   svg.addEventListener('dblclick', onDoubleClick)
   window.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('keyup', onKeyUp, true)
+  window.addEventListener('blur', onWindowBlur)
   viewer.addHandler('animation', onViewerUpdate)
   viewer.addHandler('animation-finish', onViewerSettled)
   viewer.addHandler('resize', onViewerSettled)
@@ -1078,6 +1125,8 @@ export function attachAnnotationOverlay(
     svg.removeEventListener('pointerleave', onPointerLeave)
     svg.removeEventListener('dblclick', onDoubleClick)
     window.removeEventListener('keydown', onKeyDown, true)
+    window.removeEventListener('keyup', onKeyUp, true)
+    window.removeEventListener('blur', onWindowBlur)
     viewer.removeHandler('animation', onViewerUpdate)
     viewer.removeHandler('animation-finish', onViewerSettled)
     viewer.removeHandler('resize', onViewerSettled)
