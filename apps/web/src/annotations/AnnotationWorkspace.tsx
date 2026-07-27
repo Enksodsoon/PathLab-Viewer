@@ -2,6 +2,7 @@ import '@fontsource-variable/sofia-sans'
 import OpenSeadragon from 'openseadragon'
 import {
   Angle,
+  ArrowCounterClockwise,
   ArrowClockwise,
   CaretDown,
   CaretUp,
@@ -122,8 +123,8 @@ const TOOLS: Array<{
   { tool: 'ellipse', label: 'Ellipse', icon: Circle, shortcut: 'E' },
   { tool: 'polygon', label: 'Polygon', icon: Polygon, shortcut: 'G' },
   { tool: 'freehand', label: 'Freehand ROI', icon: Scribble, shortcut: 'F' },
-  { tool: 'brush-add', label: 'Brush add', icon: PlusCircle, shortcut: ']' },
-  { tool: 'brush-subtract', label: 'Brush subtract', icon: MinusCircle, shortcut: '[' },
+  { tool: 'brush-add', label: 'Paint ROI or add to selected ROI', icon: PlusCircle, shortcut: ']' },
+  { tool: 'brush-subtract', label: 'Erase from selected ROI', icon: MinusCircle, shortcut: '[' },
   { tool: 'text', label: 'Text callout', icon: TextT, shortcut: 'T' },
 ]
 
@@ -295,6 +296,19 @@ function selectionRecords(state: AnnotationStoreState | null): AnnotationRecord[
   return [...state.selection]
     .map((id) => state.annotations.get(id))
     .filter((record): record is AnnotationRecord => Boolean(record))
+}
+
+function hasEditableClosedSelection(state: AnnotationStoreState | null): boolean {
+  if (!state) return false
+  return selectionRecords(state).some((record) => (
+    !record.deletedAt
+    && !state.layers.get(record.layerId)?.locked
+    && (
+      record.geometry.type === 'polygon'
+      || record.geometry.type === 'rectangle'
+      || record.geometry.type === 'ellipse'
+    )
+  ))
 }
 
 function hasEditablePoints(
@@ -838,6 +852,7 @@ export function AnnotationWorkspace({
   }, [deferredSearch, store])
   const selected = selectionRecords(storeState)
   const primary = selected[0] ?? null
+  const brushSubtractReady = hasEditableClosedSelection(storeState)
   const currentTool = storeState?.tool ?? 'hand'
   const activeAnnotationCount = useMemo(() => (
     [...(storeState?.annotations.values() ?? [])]
@@ -881,6 +896,10 @@ export function AnnotationWorkspace({
   }, [filterSignature])
 
   const setTool = useCallback((tool: AnnotationTool) => {
+    if (tool === 'brush-subtract' && !hasEditableClosedSelection(storeRef.current?.getState() ?? null)) {
+      setOperationStatus('Select an unlocked polygon, rectangle, or ellipse before erasing')
+      return
+    }
     storeRef.current?.setTool(tool)
     setOperationStatus(`${TOOLS.find((item) => item.tool === tool)?.label ?? tool} active`)
     setMoreToolsOpen(false)
@@ -1362,7 +1381,6 @@ export function AnnotationWorkspace({
                 <span aria-hidden="true">
                   <ToolIcon size={18} weight={active ? 'fill' : 'regular'} />
                 </span>
-                <strong>{item.label}</strong>
               </button>
             )
           })}
@@ -1376,7 +1394,6 @@ export function AnnotationWorkspace({
             onClick={() => setMoreToolsOpen((open) => !open)}
           >
             <span aria-hidden="true"><DotsThree size={19} weight="bold" /></span>
-            <strong>More</strong>
           </button>
           {moreToolsOpen ? (
             <div
@@ -1388,19 +1405,22 @@ export function AnnotationWorkspace({
               {MORE_TOOLS.map((item) => {
                 const ToolIcon = item.icon
                 const active = currentTool === item.tool
+                const unavailable = item.tool === 'brush-subtract' && !brushSubtractReady
                 return (
                   <button
                     type="button"
                     key={item.tool}
                     aria-label={item.label}
                     aria-pressed={active}
-                    title={`${item.label} (${item.shortcut})`}
+                    aria-disabled={unavailable}
+                    title={unavailable
+                      ? 'Select an unlocked polygon, rectangle, or ellipse before erasing'
+                      : `${item.label} (${item.shortcut})`}
                     onClick={() => setTool(item.tool)}
                   >
                     <span aria-hidden="true">
                       <ToolIcon size={18} weight={active ? 'fill' : 'regular'} />
                     </span>
-                    <strong>{item.label}</strong>
                   </button>
                 )
               })}
@@ -1416,6 +1436,7 @@ export function AnnotationWorkspace({
               disabled={!store?.canUndo()}
               onClick={() => store?.undo()}
             >
+              <ArrowCounterClockwise aria-hidden="true" />
               Undo
             </button>
             <button
@@ -1424,6 +1445,7 @@ export function AnnotationWorkspace({
               disabled={!store?.canRedo()}
               onClick={() => store?.redo()}
             >
+              <ArrowClockwise aria-hidden="true" />
               Redo
             </button>
             <button

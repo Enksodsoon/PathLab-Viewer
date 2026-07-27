@@ -102,6 +102,7 @@ it('keeps the canvas simple until advanced tools, annotations, or details are re
     const tool = screen.getByRole('button', { name })
     expect(tool).toBeVisible()
     expect(tool.querySelector('svg')).toBeInTheDocument()
+    expect(tool.textContent).toBe('')
   }
   expect(screen.queryByRole('button', { name: 'Point marker' })).not.toBeInTheDocument()
   expect(screen.queryByRole('searchbox', { name: 'Search annotations' })).not.toBeInTheDocument()
@@ -111,6 +112,16 @@ it('keeps the canvas simple until advanced tools, annotations, or details are re
   fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
   expect(screen.getByRole('button', { name: 'Point marker' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Ellipse' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Point marker' }).textContent).toBe('')
+  const eraseTool = screen.getByRole('button', { name: 'Erase from selected ROI' })
+  expect(eraseTool).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  )
+  fireEvent.click(eraseTool)
+  expect(screen.getByText(
+    'Select an unlocked polygon, rectangle, or ellipse before erasing',
+  )).toBeVisible()
 
   fireEvent.click(screen.getByRole('button', { name: 'Open annotations' }))
   expect(screen.getByRole('searchbox', { name: 'Search annotations' })).toBeVisible()
