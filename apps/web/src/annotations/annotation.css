@@ -1,6 +1,6 @@
 .annotation-workspace {
-  --annotation-accent:#ffb400;
-  --annotation-accent-ink:#251900;
+  --annotation-accent:#f37338;
+  --annotation-accent-ink:#141413;
   --annotation-panel:color-mix(in srgb,var(--surface-elevated) 96%,transparent);
   --annotation-panel-strong:color-mix(in srgb,var(--surface-elevated) 99%,transparent);
   --annotation-line:color-mix(in srgb,var(--border) 88%,transparent);

@@ -198,7 +198,8 @@ it('reveals the active editable layer locally without writing a visibility mutat
 it('keeps touch targets, responsive dock, theme tokens, and reduced motion in the stylesheet', () => {
   const css = readFileSync('src/annotations/annotation.css', 'utf8')
 
-  expect(css).toContain('--annotation-accent:')
+  expect(css).toContain('--annotation-accent:#f37338')
+  expect(css).toContain('--annotation-accent-ink:#141413')
   expect(css).toMatch(/min-(?:width|height):44px/)
   expect(css).toMatch(/@media\s*\(max-width:760px\)/)
   expect(css).toMatch(/\.annotation-toolstrip[\s\S]*bottom:/)

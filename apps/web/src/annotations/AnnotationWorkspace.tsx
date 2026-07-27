@@ -58,11 +58,12 @@ import type {
   AnnotationTool,
   PolygonBooleanOperation,
 } from './types'
+import { ANNOTATION_ACCENT } from './palette'
 import './annotation.css'
 
 const DEFAULT_STYLE: AnnotationStyle = {
-  strokeColor: '#ffb400',
-  fillColor: '#ffb400',
+  strokeColor: ANNOTATION_ACCENT,
+  fillColor: ANNOTATION_ACCENT,
   strokeWidth: 2,
   opacity: 0.9,
   labelVisible: true,

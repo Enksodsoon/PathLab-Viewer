@@ -12,6 +12,7 @@ import type {
   AnnotationRecord,
   AnnotationStyle,
 } from './types'
+import { ANNOTATION_ACCENT } from './palette'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -167,7 +168,7 @@ function shapeFor(
     shape = path
   }
   shape.setAttribute('vector-effect', 'non-scaling-stroke')
-  shape.setAttribute('stroke', selected ? '#ffb400' : style.strokeColor)
+  shape.setAttribute('stroke', selected ? ANNOTATION_ACCENT : style.strokeColor)
   shape.setAttribute('stroke-width', String(selected ? Math.max(3, style.strokeWidth) : style.strokeWidth))
   shape.setAttribute('fill', record.geometry.type === 'polyline' || record.geometry.type === 'angle'
     ? 'none'
