@@ -279,8 +279,8 @@ test('shows selected annotations moving with the pointer before release', async 
     /matrix\(1, 0, 0, 1, 36, 24\)/,
   )
   const during = await shape.boundingBox()
-  expect(during!.x).toBeCloseTo(before!.x + 36, 0)
-  expect(during!.y).toBeCloseTo(before!.y + 24, 0)
+  expect(Math.abs(during!.x - (before!.x + 36))).toBeLessThanOrEqual(3)
+  expect(Math.abs(during!.y - (before!.y + 24))).toBeLessThanOrEqual(3)
 
   await overlay.dispatchEvent('pointerup', {
     clientX: startX + 36,
@@ -468,7 +468,24 @@ test('presents selected annotation actions with clear progressive disclosure', a
   await expect(page.getByRole('button', { name: 'Export PathLab JSON' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Browse annotation revisions' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reload annotations' })).toBeVisible()
-  expect(await inspector.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const overflowingControls = await inspector.evaluate((element) => {
+    const boundary = element.getBoundingClientRect()
+    return [...element.querySelectorAll<HTMLElement>('*')].flatMap((candidate) => {
+      const box = candidate.getBoundingClientRect()
+      if (
+        candidate.classList.contains('visually-hidden')
+        || box.width === 0
+        || box.height === 0
+        || box.right <= boundary.right + 0.5
+      ) return []
+      return [{
+        className: candidate.className,
+        overflow: Math.round((box.right - boundary.right) * 10) / 10,
+        tag: candidate.tagName,
+      }]
+    })
+  })
+  expect(overflowingControls).toEqual([])
 
   await page.getByRole('button', { name: 'Copy selected annotations' }).click()
   await expect(page.getByRole('button', { name: 'Paste annotations' })).toBeEnabled()

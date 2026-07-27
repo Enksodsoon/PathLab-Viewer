@@ -1101,6 +1101,18 @@
 }
 
 /* Simplified annotation workspace: primary actions stay visible; depth is requested. */
+@font-face {
+  font-family:'Sofia Sans Variable';
+  font-style:normal;
+  font-display:swap;
+  font-weight:1 1000;
+  src:url('@fontsource-variable/sofia-sans/files/sofia-sans-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,
+    U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,
+    U+FEFF,U+FFFD;
+}
+
 .annotation-workspace {
   --annotation-shadow:0 8px 24px #0003;
 }
@@ -1295,20 +1307,6 @@
   display:grid;
   gap:10px;
   padding-top:10px;
-}
-
-.annotation-advanced-content > .annotation-inspector-card {
-  animation:annotation-inspector-card-in 160ms ease-out both;
-}
-
-.annotation-advanced-content > .annotation-inspector-card:nth-child(2) { animation-delay:25ms; }
-.annotation-advanced-content > .annotation-inspector-card:nth-child(3) { animation-delay:50ms; }
-.annotation-advanced-content > .annotation-inspector-card:nth-child(4) { animation-delay:75ms; }
-.annotation-advanced-content > .annotation-inspector-card:nth-child(5) { animation-delay:100ms; }
-
-@keyframes annotation-inspector-card-in {
-  from { opacity:0; transform:translateY(-4px); }
-  to { opacity:1; transform:translateY(0); }
 }
 
 .annotation-draft {
@@ -1583,7 +1581,6 @@
 @media (prefers-reduced-motion:reduce) {
   .annotation-focus-rail,
   .annotation-inspector,
-  .annotation-advanced-content > .annotation-inspector-card,
   .annotation-draft-shape,
   .annotation-move-preview [data-annotation-id] > :first-child {
     animation:none!important;

@@ -265,6 +265,8 @@ it('keeps touch targets, responsive dock, theme tokens, and reduced motion in th
   expect(css).toContain('--annotation-accent:#f37338')
   expect(css).toContain('--annotation-accent-ink:#141413')
   expect(css).toContain("--annotation-font:'Sofia Sans Variable','Sofia Sans',Arial,sans-serif")
+  expect(css).toContain('sofia-sans-latin-wght-normal.woff2')
+  expect(css).not.toContain('sofia-sans-cyrillic')
   expect(css).not.toContain('ui-monospace')
   expect(css).toContain('font-weight:450')
   expect(css).toContain('border-radius:24px')
