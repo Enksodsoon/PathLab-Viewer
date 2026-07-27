@@ -426,12 +426,36 @@ export function attachAnnotationOverlay(
   let construction: AnnotationPoint[] = []
   let disposed = false
   let frameId: number | null = null
+  let draftCursorPoint: AnnotationPoint | null = null
   const indexedRecords = new Map<string, AnnotationRecord>()
   const shapeNodes = new Map<string, SVGGElement>()
   const densityNodes = new Map<string, SVGCircleElement>()
   const mountedRecords = new Map<string, AnnotationRecord>()
   const mountedSelection = new Map<string, boolean>()
   const densityCells = new Map<string, DensityCell>()
+  const draftRoot = svgElement('g')
+  const draftRect = svgElement('rect')
+  const draftEllipse = svgElement('ellipse')
+  const draftLine = svgElement('line')
+  const draftPolyline = svgElement('polyline')
+  const draftCursor = svgElement('circle')
+  const draftMeasurement = svgElement('text')
+
+  draftRoot.classList.add('annotation-draft')
+  draftMeasurement.classList.add('annotation-draft-measurement')
+  draftMeasurement.setAttribute('text-anchor', 'middle')
+  draftMeasurement.setAttribute('aria-hidden', 'true')
+  for (const element of [
+    draftRect,
+    draftEllipse,
+    draftLine,
+    draftPolyline,
+    draftCursor,
+    draftMeasurement,
+  ]) {
+    element.setAttribute('display', 'none')
+    draftRoot.append(element)
+  }
 
   viewer.canvas.append(svg)
 
@@ -493,6 +517,121 @@ export function attachAnnotationOverlay(
     viewer.setMouseNavEnabled(true)
     viewer.setKeyboardNavEnabled(true)
     svg.style.pointerEvents = 'none'
+  }
+
+  const draftElements = [draftRect, draftEllipse, draftLine, draftPolyline, draftCursor]
+
+  const hideDraft = () => {
+    for (const element of draftElements) {
+      element.setAttribute('display', 'none')
+      element.classList.remove('annotation-draft-shape')
+    }
+    draftMeasurement.setAttribute('display', 'none')
+    draftMeasurement.textContent = ''
+    draftRoot.remove()
+  }
+
+  const showDraftShape = (element: SVGElement) => {
+    if (!draftRoot.isConnected) svg.append(draftRoot)
+    element.removeAttribute('display')
+    element.classList.add('annotation-draft-shape')
+    const style = options.style()
+    element.setAttribute('stroke', style.strokeColor)
+    element.setAttribute('stroke-width', String(Math.max(1, style.strokeWidth)))
+    element.setAttribute('fill', style.fillColor)
+    element.setAttribute('fill-opacity', String(Math.min(0.16, style.opacity * 0.3)))
+    element.setAttribute('vector-effect', 'non-scaling-stroke')
+    draftRoot.append(element)
+    draftRoot.append(draftMeasurement)
+  }
+
+  const showMeasurement = (label: string, point: AnnotationPoint) => {
+    const projected = screenPoint(viewer, point)
+    setAttributes(draftMeasurement, { x: projected.x, y: projected.y - 10 })
+    draftMeasurement.textContent = label
+    draftMeasurement.removeAttribute('display')
+  }
+
+  const renderDraft = () => {
+    hideDraft()
+    const start = gestureStart
+    const end = gestureLast
+    if (
+      start
+      && end
+      && (state.tool === 'rectangle' || state.tool === 'marquee')
+    ) {
+      const bounds = normalizeBounds(start, end)
+      const topLeft = screenPoint(viewer, { x: bounds.minX, y: bounds.minY })
+      const bottomRight = screenPoint(viewer, { x: bounds.maxX, y: bounds.maxY })
+      setAttributes(draftRect, {
+        x: topLeft.x,
+        y: topLeft.y,
+        width: bottomRight.x - topLeft.x,
+        height: bottomRight.y - topLeft.y,
+      })
+      showDraftShape(draftRect)
+      showMeasurement(
+        `${Math.round(bounds.maxX - bounds.minX)} × ${Math.round(bounds.maxY - bounds.minY)} px`,
+        { x: (bounds.minX + bounds.maxX) / 2, y: bounds.minY },
+      )
+      return
+    }
+    if (start && end && state.tool === 'ellipse') {
+      const bounds = normalizeBounds(start, end)
+      const center = screenPoint(viewer, {
+        x: (bounds.minX + bounds.maxX) / 2,
+        y: (bounds.minY + bounds.maxY) / 2,
+      })
+      const edge = screenPoint(viewer, { x: bounds.maxX, y: bounds.maxY })
+      setAttributes(draftEllipse, {
+        cx: center.x,
+        cy: center.y,
+        rx: Math.abs(edge.x - center.x),
+        ry: Math.abs(edge.y - center.y),
+      })
+      showDraftShape(draftEllipse)
+      showMeasurement(
+        `${Math.round(bounds.maxX - bounds.minX)} × ${Math.round(bounds.maxY - bounds.minY)} px`,
+        { x: (bounds.minX + bounds.maxX) / 2, y: bounds.minY },
+      )
+      return
+    }
+    if (start && end && state.tool === 'ruler') {
+      const from = screenPoint(viewer, start)
+      const to = screenPoint(viewer, end)
+      setAttributes(draftLine, { x1: from.x, y1: from.y, x2: to.x, y2: to.y })
+      showDraftShape(draftLine)
+      showMeasurement(
+        `${Math.round(Math.hypot(end.x - start.x, end.y - start.y))} px`,
+        { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+      )
+      return
+    }
+    const points = [...construction]
+    if (
+      (state.tool === 'polygon' || state.tool === 'polyline' || state.tool === 'angle')
+      && draftCursorPoint
+      && points.length > 0
+    ) {
+      points.push(draftCursorPoint)
+    }
+    if (points.length > 0) {
+      const projected = points.map((point) => screenPoint(viewer, point))
+      draftPolyline.setAttribute(
+        'points',
+        projected.map((point) => `${point.x},${point.y}`).join(' '),
+      )
+      showDraftShape(draftPolyline)
+    }
+    if (
+      draftCursorPoint
+      && (state.tool === 'brush-add' || state.tool === 'brush-subtract')
+    ) {
+      const projected = screenPoint(viewer, draftCursorPoint)
+      setAttributes(draftCursor, { cx: projected.x, cy: projected.y, r: 8 })
+      showDraftShape(draftCursor)
+    }
   }
 
   const project = () => {
@@ -591,6 +730,7 @@ export function attachAnnotationOverlay(
     frameId = window.requestAnimationFrame(() => {
       frameId = null
       project()
+      renderDraft()
     })
   }
 
@@ -646,11 +786,14 @@ export function attachAnnotationOverlay(
       const geometry = createGeometryForTool(state.tool, construction, {
         text: options.text(),
       })
-      if (geometry) create(geometry)
+      if (!geometry) return
+      create(geometry)
+      construction = []
+      draftCursorPoint = null
+      renderDraft()
     } catch {
       // Incomplete multi-click constructions remain editable until enough points exist.
     }
-    construction = []
   }
 
   const finishBrush = async (tool: 'brush-add' | 'brush-subtract') => {
@@ -693,6 +836,7 @@ export function attachAnnotationOverlay(
     if (state.tool === 'hand') return
     const point = imagePoint(viewer, event)
     options.onCoordinate?.(point)
+    draftCursorPoint = point
     gestureStart = point
     gestureLast = point
     const eventElement = event.target as Element | null
@@ -714,6 +858,11 @@ export function attachAnnotationOverlay(
       if (geometry) create(geometry)
     } else if (state.tool === 'angle' || state.tool === 'polygon' || state.tool === 'polyline') {
       construction.push(point)
+      options.onNotice?.(
+        state.tool === 'angle'
+          ? 'Angle: click 3 points; press Escape to cancel'
+          : `${state.tool === 'polygon' ? 'Polygon' : 'Line'}: click next point; double-click or press Enter to finish`,
+      )
       if (state.tool === 'angle' && construction.length === 3) finishConstruction()
     } else if (
       state.tool === 'freehand'
@@ -723,13 +872,18 @@ export function attachAnnotationOverlay(
       construction = [point]
     }
     svg.setPointerCapture?.(event.pointerId)
+    scheduleProjection()
     event.preventDefault()
   }
 
   const onPointerMove = (event: PointerEvent) => {
     const point = imagePoint(viewer, event)
     options.onCoordinate?.(point)
-    if (!gestureStart) return
+    draftCursorPoint = point
+    if (!gestureStart) {
+      if (construction.length > 0) scheduleProjection()
+      return
+    }
     if (
       state.tool === 'freehand'
       || state.tool === 'brush-add'
@@ -741,6 +895,7 @@ export function attachAnnotationOverlay(
       }
     }
     gestureLast = point
+    scheduleProjection()
   }
 
   const onPointerUp = (event: PointerEvent) => {
@@ -809,13 +964,23 @@ export function attachAnnotationOverlay(
       options.onError?.(caught instanceof Error ? caught.message : 'Annotation gesture failed')
     } finally {
       clearGesture()
+      if (
+        state.tool !== 'polygon'
+        && state.tool !== 'polyline'
+        && state.tool !== 'angle'
+      ) {
+        draftCursorPoint = null
+      }
+      renderDraft()
       svg.releasePointerCapture?.(event.pointerId)
     }
   }
 
   const onPointerCancel = (event: PointerEvent) => {
     construction = []
+    draftCursorPoint = null
     clearGesture()
+    renderDraft()
     svg.releasePointerCapture?.(event.pointerId)
   }
 
@@ -829,7 +994,44 @@ export function attachAnnotationOverlay(
     }
   }
 
-  const onPointerLeave = () => options.onCoordinate?.(null)
+  const onKeyDown = (event: KeyboardEvent) => {
+    const target = event.target
+    if (
+      target instanceof Element
+      && target.matches('input, textarea, select, [contenteditable="true"]')
+    ) return
+    if (event.key === 'Escape' && (construction.length > 0 || gestureStart || draftCursorPoint)) {
+      construction = []
+      draftCursorPoint = null
+      clearGesture()
+      renderDraft()
+      options.onNotice?.('Drawing cancelled')
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    } else if (event.key === 'Backspace' && construction.length > 0) {
+      construction.pop()
+      renderDraft()
+      options.onNotice?.('Last point removed')
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    } else if (
+      event.key === 'Enter'
+      && construction.length > 0
+      && (state.tool === 'polygon' || state.tool === 'polyline' || state.tool === 'angle')
+    ) {
+      finishConstruction()
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    }
+  }
+
+  const onPointerLeave = () => {
+    options.onCoordinate?.(null)
+    if (!gestureStart) {
+      draftCursorPoint = null
+      scheduleProjection()
+    }
+  }
   const onViewerUpdate = () => scheduleProjection()
   const onViewerSettled = () => renderPlan()
   svg.addEventListener('pointerdown', onPointerDown)
@@ -838,6 +1040,7 @@ export function attachAnnotationOverlay(
   svg.addEventListener('pointercancel', onPointerCancel)
   svg.addEventListener('pointerleave', onPointerLeave)
   svg.addEventListener('dblclick', onDoubleClick)
+  window.addEventListener('keydown', onKeyDown, true)
   viewer.addHandler('animation', onViewerUpdate)
   viewer.addHandler('animation-finish', onViewerSettled)
   viewer.addHandler('resize', onViewerSettled)
@@ -848,9 +1051,15 @@ export function attachAnnotationOverlay(
     const filterChanged = filterKey(next) !== filterKey(previous)
     const layersChanged = layerRenderKey(next) !== layerRenderKey(previous)
     if (annotationsChanged) syncIndex(next)
+    if (next.tool !== previous.tool) {
+      construction = []
+      draftCursorPoint = null
+      clearGesture()
+    }
     state = next
     if (annotationsChanged || filterChanged || layersChanged) renderPlan()
     else refreshSelection(previous, next)
+    if (next.tool !== previous.tool) renderDraft()
   })
   renderPlan()
 
@@ -868,6 +1077,7 @@ export function attachAnnotationOverlay(
     svg.removeEventListener('pointercancel', onPointerCancel)
     svg.removeEventListener('pointerleave', onPointerLeave)
     svg.removeEventListener('dblclick', onDoubleClick)
+    window.removeEventListener('keydown', onKeyDown, true)
     viewer.removeHandler('animation', onViewerUpdate)
     viewer.removeHandler('animation-finish', onViewerSettled)
     viewer.removeHandler('resize', onViewerSettled)

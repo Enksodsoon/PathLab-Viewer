@@ -329,6 +329,9 @@ async function attachAndDrawPoint(
     attachment(viewer)
   })
   beforeDraw?.()
+  if (!screen.queryByRole('button', { name: 'Point marker' })) {
+    fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  }
   fireEvent.click(screen.getByRole('button', { name: 'Point marker' }))
   const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
   overlay.dispatchEvent(new MouseEvent('pointerdown', {
@@ -337,6 +340,22 @@ async function attachAndDrawPoint(
     clientY: y,
   }))
   return viewer
+}
+
+async function openInspector(advanced = false) {
+  await screen.findByRole('toolbar', { name: 'Annotation tools' })
+  const trigger = screen.queryByRole('button', { name: 'Open annotation inspector' })
+  if (trigger) fireEvent.click(trigger)
+  if (advanced) {
+    const details = await screen.findByRole('button', { name: 'Show advanced annotation details' })
+    fireEvent.click(details)
+  }
+}
+
+async function openAnnotationList() {
+  await screen.findByRole('toolbar', { name: 'Annotation tools' })
+  const trigger = screen.queryByRole('button', { name: 'Open annotations' })
+  if (trigger) fireEvent.click(trigger)
 }
 
 beforeEach(() => {
@@ -390,6 +409,7 @@ it('persists queued and in-flight mutations on unmount and recovers them on remo
       onAttachmentChange={remountAttachment}
     />,
   )
+  await openAnnotationList()
   expect(await screen.findByText('point annotation')).toBeVisible()
   pending.resolve(successfulBatch(vi.mocked(workflow.batch).mock.calls[0][0]))
 })
@@ -440,7 +460,7 @@ it('rebases save-as-duplicate to the server conflict version', async () => {
     />,
   )
   await attachAndDrawPoint(onAttachmentChange, 120, 80, () => vi.useFakeTimers())
-  const previousFocus = screen.getByRole('button', { name: 'Save annotations' })
+  const previousFocus = screen.getByRole('button', { name: 'Open annotations' })
   previousFocus.focus()
   await act(() => vi.advanceTimersByTimeAsync(750))
   vi.useRealTimers()
@@ -480,6 +500,7 @@ it('serializes layer reorder with unique indices and commits opacity once per ge
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openInspector(true)
   await screen.findByRole('button', { name: 'Move Review up' })
   fireEvent.click(screen.getByRole('button', { name: 'Move Review up' }))
   await waitFor(() => expect(layerCalls).toHaveLength(2))
@@ -512,6 +533,7 @@ it('never permits a locked layer to become the active drawing target', async () 
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openInspector(true)
   const drawingLayer = await screen.findByRole('combobox', { name: 'Drawing layer' })
   expect(drawingLayer).toHaveValue('')
   expect(screen.getByRole('button', { name: 'Locked reference' })).toBeDisabled()
@@ -538,6 +560,7 @@ it('previews bounded imports before confirmation and flushes before export', asy
       onAttachmentChange={onAttachmentChange}
     />,
   )
+  await openInspector(true)
   await screen.findByRole('button', { name: 'Import annotations' })
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
   const oversized = new File(['{}'], 'oversized.json', { type: 'application/json' })
@@ -610,7 +633,9 @@ it('lists bounded revision history for explicit preview and restore selection', 
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openAnnotationList()
   fireEvent.click(await screen.findByRole('button', { name: /Finding 1/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
   fireEvent.click(screen.getByRole('button', { name: 'Browse annotation revisions' }))
   await waitFor(() => expect(workflow.revisions).toHaveBeenCalledWith(source.id))
   const revisionList = await screen.findByRole('combobox', { name: 'Annotation revisions' })
@@ -638,6 +663,7 @@ it('bounds the object register and offers an accessible continuation', async () 
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openAnnotationList()
   const register = await screen.findByLabelText('Annotation list')
   await within(register).findByText('Finding 0')
   expect(within(register).getAllByRole('button', { name: /Finding/ })).toHaveLength(200)
@@ -697,6 +723,7 @@ it('does not rerender or clone/filter 25,000 records for pointer coordinate upda
     .find((call: unknown[]) => typeof call[0] === 'function')?.[0]
   const viewer = mockViewer()
   act(() => attachment(viewer))
+  await openAnnotationList()
   const originalClone = globalThis.structuredClone
   const cloneCounter = vi.fn(<T,>(value: T) => originalClone(value))
   vi.stubGlobal('structuredClone', cloneCounter)
@@ -733,6 +760,7 @@ it('ignores a slide A layer completion after slide B has replaced the workspace'
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openInspector(true)
   const visible = await screen.findByRole('checkbox', { name: 'Show Slide A layer' })
   fireEvent.click(visible)
   await waitFor(() => expect(slideA.updateLayer).toHaveBeenCalledOnce())
@@ -745,6 +773,7 @@ it('ignores a slide A layer completion after slide B has replaced the workspace'
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openInspector(true)
   await screen.findByRole('button', { name: 'Slide B layer' })
   update.resolve({
     version: 2,
@@ -779,7 +808,10 @@ it('clears slide-bound import and revision work and ignores stale completions', 
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openAnnotationList()
   await screen.findByRole('button', { name: /Finding 1/ })
+  fireEvent.click(screen.getByRole('button', { name: /Finding 1/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
   const documentJson = {
     schema: 'pathlab-annotations/v1',
@@ -795,7 +827,6 @@ it('clears slide-bound import and revision work and ignores stale completions', 
   fireEvent.change(input, { target: { files: [valid] } })
   fireEvent.click(await screen.findByRole('button', { name: 'Confirm annotation import' }))
   await waitFor(() => expect(slideA.importDocument).toHaveBeenCalledOnce())
-  fireEvent.click(screen.getByRole('button', { name: /Finding 1/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Browse annotation revisions' }))
   await waitFor(() => expect(slideA.revisions).toHaveBeenCalledOnce())
 
@@ -807,6 +838,7 @@ it('clears slide-bound import and revision work and ignores stale completions', 
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openInspector(true)
   await screen.findByRole('button', { name: 'Slide B layer' })
   expect(screen.queryByRole('button', { name: 'Confirm annotation import' })).toBeNull()
   importResult.resolve({
@@ -888,6 +920,7 @@ it('preflights the exact 8 MiB serialized import request and accepts a near-boun
       onAttachmentChange={vi.fn()}
     />,
   )
+  await openInspector(true)
   await screen.findByRole('button', { name: 'Import annotations' })
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
   const boundaryText = (targetBytes: number) => {

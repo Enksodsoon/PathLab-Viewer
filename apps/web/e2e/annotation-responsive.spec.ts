@@ -180,8 +180,12 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
     timeout: 30_000,
   })
-  await expect(page.getByRole('region', { name: 'Annotation inspector' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Annotation inspector' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Open annotations' }).click()
   await expect(page.getByRole('searchbox', { name: 'Search annotations' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open annotation inspector' }).click()
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
   await expect(page.getByRole('button', { name: 'Point marker' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Findings', exact: true })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (
@@ -195,11 +199,35 @@ test('keeps the full private Canvas Focus workspace usable on desktop', async ({
   }
 
   await page.getByRole('button', { name: 'Point marker' }).click()
-  await expect(page.getByRole('button', { name: 'Point marker' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.annotation-data-cue')).toContainText('POINT')
   const overlay = page.locator('.annotation-svg-overlay')
   await expect(overlay).toBeAttached()
   await overlay.click({ position: { x: 720, y: 420 } })
   await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Rectangle' }).click()
+  await overlay.dispatchEvent('pointerdown', {
+    clientX: 420,
+    clientY: 300,
+    pointerId: 11,
+    pointerType: 'mouse',
+  })
+  await overlay.dispatchEvent('pointermove', {
+    clientX: 620,
+    clientY: 440,
+    pointerId: 11,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('rect.annotation-draft-shape')).toBeVisible()
+  await expect(page.locator('.annotation-draft-measurement')).toContainText('px')
+  await overlay.dispatchEvent('pointerup', {
+    clientX: 620,
+    clientY: 440,
+    pointerId: 11,
+    pointerType: 'mouse',
+  })
+  await expect(page.locator('.annotation-draft-shape')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /rectangle annotation/i })).toBeVisible()
 
   await page.keyboard.press('Control+s')
   await expect(page.locator('.annotation-save-status')).toHaveText(/Saved|No changes/)
@@ -216,6 +244,7 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
   const toolbarBox = await toolbar.boundingBox()
   expect(toolbarBox).not.toBeNull()
   expect(toolbarBox!.y + toolbarBox!.height).toBeGreaterThan(780)
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
   const pointBox = await page.getByRole('button', { name: 'Point marker' }).boundingBox()
   expect(pointBox?.width).toBeGreaterThanOrEqual(44)
   expect(pointBox?.height).toBeGreaterThanOrEqual(44)
@@ -265,6 +294,7 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
     pointerId: 7,
     pointerType: 'touch',
   })
+  await page.getByRole('button', { name: 'Open annotations' }).click()
   await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (
     document.documentElement.scrollWidth <= document.documentElement.clientWidth
@@ -278,8 +308,12 @@ test('edits a polygon vertex through a 44px touch handle on mobile', async ({ pa
     timeout: 30_000,
   })
 
+  await page.getByRole('button', { name: 'Open annotations' }).click()
   await page.getByRole('button', { name: 'Select', exact: true }).click()
   await page.getByRole('button', { name: /Touch polygon/ }).click()
+  await page.getByRole('dialog', { name: 'Annotation inspector' })
+    .getByRole('button', { name: 'Close annotation inspector' })
+    .click()
   const handle = page.locator(
     '[data-annotation-handle="vertex"][data-vertex-index="0"]',
   )

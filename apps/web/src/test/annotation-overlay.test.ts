@@ -157,6 +157,154 @@ it('maps pointer gestures into image-pixel annotations and restores navigation o
   expect(viewer.setKeyboardNavEnabled).toHaveBeenLastCalledWith(true)
 })
 
+it('renders the latest rectangle draft on one animation frame before committing it', () => {
+  let pendingFrame: FrameRequestCallback | null = null
+  const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    pendingFrame = callback
+    return 31
+  })
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+  })
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+
+  store.setTool('rectangle')
+  overlay.dispatchEvent(new MouseEvent('pointerdown', {
+    bubbles: true,
+    clientX: 100,
+    clientY: 120,
+  }))
+  overlay.dispatchEvent(new MouseEvent('pointermove', {
+    bubbles: true,
+    clientX: 220,
+    clientY: 200,
+  }))
+  overlay.dispatchEvent(new MouseEvent('pointermove', {
+    bubbles: true,
+    clientX: 240,
+    clientY: 210,
+  }))
+
+  expect(store.getState().annotations.size).toBe(0)
+  expect(requestFrame).toHaveBeenCalledOnce()
+  pendingFrame!(0)
+  expect(overlay.querySelector('.annotation-draft-shape')).toMatchObject({
+    tagName: 'rect',
+  })
+  expect(overlay.querySelector('.annotation-draft-shape')).toHaveAttribute('x', '100')
+  expect(overlay.querySelector('.annotation-draft-shape')).toHaveAttribute('y', '120')
+  expect(overlay.querySelector('.annotation-draft-shape')).toHaveAttribute('width', '140')
+  expect(overlay.querySelector('.annotation-draft-shape')).toHaveAttribute('height', '90')
+  expect(overlay.querySelector('.annotation-draft-measurement')).toHaveTextContent('140 × 90 px')
+
+  overlay.dispatchEvent(new MouseEvent('pointerup', {
+    bubbles: true,
+    clientX: 240,
+    clientY: 210,
+  }))
+  expect(store.getState().annotations.size).toBe(1)
+  expect(overlay.querySelector('.annotation-draft-shape')).toBeNull()
+  cleanupOverlay()
+})
+
+it('rubber-bands polygon points and cancels construction without creating an annotation', () => {
+  let pendingFrame: FrameRequestCallback | null = null
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    pendingFrame = callback
+    return 41
+  })
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const onNotice = vi.fn()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+    onNotice,
+  })
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+  store.setTool('polygon')
+
+  overlay.dispatchEvent(new MouseEvent('pointerdown', {
+    bubbles: true,
+    clientX: 20,
+    clientY: 30,
+  }))
+  overlay.dispatchEvent(new MouseEvent('pointerup', {
+    bubbles: true,
+    clientX: 20,
+    clientY: 30,
+  }))
+  overlay.dispatchEvent(new MouseEvent('pointermove', {
+    bubbles: true,
+    clientX: 80,
+    clientY: 90,
+  }))
+  pendingFrame!(0)
+
+  expect(overlay.querySelector('.annotation-draft-shape')).toMatchObject({
+    tagName: 'polyline',
+  })
+  expect(overlay.querySelector('.annotation-draft-shape')).toHaveAttribute(
+    'points',
+    '20,30 80,90',
+  )
+  expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('double-click or press Enter'))
+  expect(store.getState().annotations.size).toBe(0)
+
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  expect(overlay.querySelector('.annotation-draft-shape')).toBeNull()
+  expect(store.getState().annotations.size).toBe(0)
+  cleanupOverlay()
+})
+
+it('finishes a multi-click polygon with Enter', () => {
+  const store = createAnnotationStore({ slideId: 'slide-1' })
+  store.load({ version: 0, layers: [layer], annotations: [] })
+  const viewer = mockViewer()
+  const cleanupOverlay = attachAnnotationOverlay(viewer, {
+    store,
+    activeLayerId: () => layer.id,
+    style: () => polygonRecord().style,
+    metadata: () => polygonRecord().metadata,
+    text: () => 'Callout',
+  })
+  const overlay = viewer.canvas.querySelector('.annotation-svg-overlay')!
+  store.setTool('polygon')
+
+  for (const [clientX, clientY] of [[20, 30], [80, 30], [60, 90]]) {
+    overlay.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true,
+      clientX,
+      clientY,
+    }))
+    overlay.dispatchEvent(new MouseEvent('pointerup', {
+      bubbles: true,
+      clientX,
+      clientY,
+    }))
+  }
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+
+  expect(store.getState().annotations.size).toBe(1)
+  expect([...store.getState().annotations.values()][0].geometry).toEqual({
+    type: 'polygon',
+    points: [{ x: 20, y: 30 }, { x: 80, y: 30 }, { x: 60, y: 90 }],
+  })
+  expect(overlay.querySelector('.annotation-draft-shape')).toBeNull()
+  cleanupOverlay()
+})
+
 it('fails open to pan and zoom when rendering throws', () => {
   const store = createAnnotationStore({ slideId: 'slide-1' })
   store.load({ version: 0, layers: [layer], annotations: [] })

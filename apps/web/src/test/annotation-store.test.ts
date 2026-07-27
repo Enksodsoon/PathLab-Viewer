@@ -108,8 +108,10 @@ describe('framework-neutral annotation editing store', () => {
       idFactory: () => 'a-copy',
     })
     store.load({ version: 1, layers: [layer], annotations: [annotation] })
+    expect(store.canPaste()).toBe(false)
     store.select(['a-1'])
     store.copy()
+    expect(store.canPaste()).toBe(true)
     expect(store.paste({ x: 5, y: 5 })).toEqual(['a-copy'])
     expect(store.getState().annotations.get('a-copy')?.geometry).toMatchObject({
       x: 15,

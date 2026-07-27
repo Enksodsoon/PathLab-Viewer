@@ -156,6 +156,7 @@ export interface AnnotationStore {
   editVertex(id: string, vertexIndex: number, point: { x: number; y: number }): void
   duplicate(ids: Iterable<string>, offset?: { x: number; y: number }): string[]
   copy(): void
+  canPaste(): boolean
   paste(offset?: { x: number; y: number }): string[]
   boolean(operation: PolygonBooleanOperation, ids: Iterable<string>): Promise<string[]>
   brush(
@@ -988,6 +989,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         .filter((record): record is AnnotationRecord => Boolean(record))
         .map(cloneRecord)
     },
+    canPaste: () => clipboard.some(layerEditable),
     paste(offset = { x: 12, y: 12 }) {
       const ids: string[] = []
       for (const source of clipboard) {

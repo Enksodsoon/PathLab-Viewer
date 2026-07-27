@@ -204,6 +204,7 @@
 
 .annotation-list {
   position:absolute;
+  z-index:6;
   left:16px;
   bottom:50px;
   width:270px;
@@ -832,6 +833,131 @@
   bottom:48px;
 }
 
+/* Simplified annotation workspace: primary actions stay visible; depth is requested. */
+.annotation-workspace {
+  --annotation-shadow:0 8px 24px #0003;
+}
+
+.annotation-toolstrip {
+  width:136px;
+  max-height:calc(100% - 92px);
+  grid-template-columns:1fr;
+  overflow:visible;
+}
+
+.annotation-toolstrip button {
+  width:100%;
+  height:42px;
+  grid-template-columns:26px minmax(0,1fr);
+  justify-items:start;
+  gap:8px;
+  padding:0 10px;
+  font:600 12px/1 var(--font-ui);
+}
+
+.annotation-toolstrip button > span {
+  width:26px;
+  text-align:center;
+  font:700 15px/1 ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+
+.annotation-toolstrip button > strong {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.annotation-more-tools {
+  position:absolute;
+  top:0;
+  left:calc(100% + 8px);
+  width:168px;
+  display:grid;
+  gap:4px;
+  padding:7px;
+  border:1px solid var(--annotation-line);
+  border-radius:10px;
+  background:var(--annotation-panel-strong);
+  box-shadow:var(--annotation-shadow);
+}
+
+.annotation-commandbar {
+  left:168px;
+  right:16px;
+  width:max-content;
+  max-width:calc(100% - 184px);
+  margin-inline:auto;
+}
+
+.annotation-workspace--inspector .annotation-commandbar {
+  right:360px;
+}
+
+.annotation-save-cluster,
+.annotation-list-toggle {
+  flex:0 0 auto;
+}
+
+.annotation-list-toggle strong {
+  min-width:22px;
+  padding:3px 6px;
+  border-radius:999px;
+  color:var(--annotation-accent-ink);
+  background:var(--annotation-accent);
+  font-size:10px;
+}
+
+.annotation-list {
+  left:168px;
+  width:min(320px,calc(100% - 544px));
+  min-width:260px;
+  max-height:min(460px,calc(100% - 132px));
+  display:flex;
+  flex-direction:column;
+}
+
+.annotation-hidden-notice {
+  margin:0;
+  padding:7px 12px;
+  color:var(--muted);
+  border-bottom:1px solid var(--annotation-line);
+  font-size:11px;
+}
+
+.annotation-advanced-toggle {
+  width:100%;
+  justify-content:space-between;
+}
+
+.annotation-draft {
+  pointer-events:none;
+}
+
+.annotation-draft-shape {
+  stroke-dasharray:7 5;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  animation:annotation-draft-march .55s linear infinite;
+}
+
+.annotation-draft-measurement {
+  fill:#fff;
+  stroke:#111;
+  stroke-width:3px;
+  paint-order:stroke;
+  font:700 12px/1 var(--font-ui);
+  letter-spacing:.02em;
+  pointer-events:none;
+}
+
+.viewer-stage--annotations .viewer-tools {
+  left:168px;
+}
+
+@keyframes annotation-draft-march {
+  to { stroke-dashoffset:-12; }
+}
+
 @keyframes annotation-focus-in {
   from { transform:scaleX(0); transform-origin:left; }
   to { transform:scaleX(1); transform-origin:left; }
@@ -839,15 +965,16 @@
 
 @media (max-width:1100px) {
   .annotation-commandbar {
+    right:12px;
+  }
+
+  .annotation-workspace--inspector .annotation-commandbar {
     right:348px;
   }
 
-  .annotation-commandbar button span {
-    display:none;
-  }
-
   .annotation-list {
-    width:235px;
+    width:270px;
+    min-width:0;
   }
 
   .annotation-data-cue {
@@ -877,10 +1004,23 @@
   }
 
   .annotation-toolstrip button {
-    min-width:44px;
+    width:auto;
+    min-width:max-content;
     min-height:44px;
-    flex:0 0 44px;
+    flex:0 0 auto;
     scroll-snap-align:start;
+  }
+
+  .annotation-more-tools {
+    position:fixed;
+    top:auto;
+    right:8px;
+    bottom:66px;
+    left:8px;
+    width:auto;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    max-height:50svh;
+    overflow:auto;
   }
 
   .annotation-commandbar {
@@ -932,8 +1072,8 @@
     top:66px;
     bottom:auto;
     left:8px;
-    width:min(230px,calc(100% - 78px));
-    max-height:152px;
+    width:calc(100% - 16px);
+    max-height:min(46svh,390px);
   }
 
   .annotation-list .annotation-panel-heading {
@@ -1013,7 +1153,12 @@
   }
 
   .annotation-list {
-    width:min(200px,calc(100% - 70px));
+    width:calc(100% - 16px);
+  }
+
+  .annotation-commandbar .annotation-save-cluster button span,
+  .annotation-list-toggle span {
+    display:none;
   }
 
   .annotation-data-cue {
@@ -1023,7 +1168,8 @@
 
 @media (prefers-reduced-motion:reduce) {
   .annotation-focus-rail,
-  .annotation-inspector {
+  .annotation-inspector,
+  .annotation-draft-shape {
     animation:none!important;
   }
 
