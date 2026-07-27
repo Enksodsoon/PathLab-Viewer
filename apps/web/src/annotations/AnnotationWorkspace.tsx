@@ -1,3 +1,4 @@
+import '@fontsource-variable/sofia-sans'
 import OpenSeadragon from 'openseadragon'
 import {
   ArrowClockwise,
