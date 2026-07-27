@@ -988,6 +988,7 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
         .map((id) => internal.annotations.get(id))
         .filter((record): record is AnnotationRecord => Boolean(record))
         .map(cloneRecord)
+      emit()
     },
     canPaste: () => clipboard.some(layerEditable),
     paste(offset = { x: 12, y: 12 }) {

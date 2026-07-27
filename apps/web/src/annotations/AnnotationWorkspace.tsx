@@ -7,6 +7,7 @@ import {
   CaretDown,
   CaretUp,
   Circle,
+  ClipboardText,
   Copy,
   Crosshair,
   Cursor,
@@ -958,6 +959,22 @@ export function AnnotationWorkspace({
   }, [deferredSearch, store])
   const selected = selectionRecords(storeState)
   const primary = selected[0] ?? null
+  const selectedLayer = primary ? storeState?.layers.get(primary.layerId) : null
+  const selectionTitle = selected.length === 1
+    ? primary?.metadata.title
+      || primary?.metadata.classification
+      || `${primary?.geometry.type ?? 'Annotation'} annotation`
+    : `${selected.length} annotations`
+  const selectionKind = selected.length === 1
+    ? `${primary?.geometry.type.replace('-', ' ') ?? 'Annotation'}${selectedLayer ? ` · ${selectedLayer.name}` : ''}`
+    : 'Multiple selection'
+  const hasActiveSelection = selected.some((record) => !record.deletedAt)
+  const hasDeletedSelection = selected.some((record) => Boolean(record.deletedAt))
+  const booleanReady = selected.length >= 2 && selected.every((record) => (
+    !record.deletedAt
+    && record.geometry.type === 'polygon'
+    && !storeState?.layers.get(record.layerId)?.locked
+  ))
   const brushSubtractReady = hasEditableClosedSelection(storeState)
   const currentTool = storeState?.tool ?? 'hand'
   const activeAnnotationCount = useMemo(() => (
@@ -1600,7 +1617,10 @@ export function AnnotationWorkspace({
             className="annotation-inspector-toggle"
             aria-label={inspectorOpen ? 'Close annotation inspector' : 'Open annotation inspector'}
             aria-expanded={inspectorOpen}
-            onClick={() => setInspectorOpen((open) => !open)}
+            onClick={() => {
+              if (inspectorOpen) setAdvancedOpen(false)
+              setInspectorOpen((open) => !open)
+            }}
           >
             <SidebarSimple />
           </button>
@@ -1758,7 +1778,10 @@ export function AnnotationWorkspace({
               <button
                 type="button"
                 aria-label="Close annotation inspector"
-                onClick={() => setInspectorOpen(false)}
+                onClick={() => {
+                  setAdvancedOpen(false)
+                  setInspectorOpen(false)
+                }}
               >
                 <X />
               </button>
@@ -1766,63 +1789,95 @@ export function AnnotationWorkspace({
 
             <div className="annotation-inspector-scroll">
               {selected.length > 0 ? (
-                <section>
-                  <div className="annotation-section-heading">
-                    <h2>Selection</h2>
-                    <span>{selected.length}</span>
+                <section className="annotation-selection-card">
+                  <div className="annotation-selection-summary">
+                    <span className="annotation-selection-icon" aria-hidden="true">
+                      <Selection />
+                    </span>
+                    <div>
+                      <h2>Selected</h2>
+                      <strong>{selectionTitle}</strong>
+                      <small>{selectionKind}</small>
+                    </div>
+                    <span className="annotation-selection-count">{selected.length}</span>
                   </div>
-                  <div className="annotation-action-grid">
+                  <div className="annotation-quick-actions" aria-label="Selection actions">
                     <button
                       type="button"
-                      disabled={selected.length === 0}
-                      onClick={() => store?.duplicate(storeState?.selection ?? [])}
+                      className="is-primary"
+                      aria-label="Zoom to selected annotation"
+                      disabled={!primary}
+                      onClick={() => primary && zoomTo(primary)}
                     >
-                      Duplicate
+                      <Crosshair />
+                      <span>Zoom</span>
                     </button>
                     <button
                       type="button"
-                      disabled={selected.length === 0}
+                      aria-label="Duplicate selected annotations"
+                      disabled={!hasActiveSelection}
+                      onClick={() => store?.duplicate(storeState?.selection ?? [])}
+                    >
+                      <Plus />
+                      <span>Duplicate</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="is-danger"
+                      aria-label="Delete selected annotations"
+                      disabled={!hasActiveSelection}
+                      onClick={() => store?.delete(storeState?.selection ?? [])}
+                    >
+                      <Trash />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                  <div className="annotation-clipboard-actions" aria-label="Clipboard actions">
+                    <button
+                      type="button"
+                      aria-label="Copy selected annotations"
+                      disabled={!hasActiveSelection}
                       onClick={() => store?.copy()}
                     >
                       <Copy /> Copy
                     </button>
                     <button
                       type="button"
+                      aria-label="Paste annotations"
                       disabled={!store?.canPaste()}
                       onClick={() => store?.paste()}
                     >
-                      Paste
+                      <ClipboardText /> Paste
                     </button>
-                    <button type="button" disabled={!primary} onClick={() => primary && zoomTo(primary)}>
-                      Zoom to
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!selected.some((record) => !record.deletedAt)}
-                      onClick={() => store?.delete(storeState?.selection ?? [])}
-                    >
-                      <Trash /> Delete
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!selected.some((record) => Boolean(record.deletedAt))}
-                      onClick={() => store?.restore(storeState?.selection ?? [])}
-                    >
-                      Restore
-                    </button>
-                  </div>
-                  <div className="annotation-boolean-grid" aria-label="Boolean operations">
-                    {(['union', 'subtract', 'intersection', 'split'] as const).map((operation) => (
+                    {hasDeletedSelection ? (
                       <button
                         type="button"
-                        key={operation}
-                        disabled={selected.length < 2}
-                        onClick={() => void applyBoolean(operation)}
+                        aria-label="Restore selected annotations"
+                        onClick={() => store?.restore(storeState?.selection ?? [])}
                       >
-                        {operation}
+                        Restore
                       </button>
-                    ))}
+                    ) : null}
                   </div>
+                  {booleanReady ? (
+                    <div className="annotation-shape-operations">
+                      <div>
+                        <strong>Combine polygons</strong>
+                        <small>Apply one operation to the selected shapes.</small>
+                      </div>
+                      <div className="annotation-boolean-grid" aria-label="Boolean operations">
+                        {(['union', 'subtract', 'intersection', 'split'] as const).map((operation) => (
+                          <button
+                            type="button"
+                            key={operation}
+                            onClick={() => void applyBoolean(operation)}
+                          >
+                            {operation === 'intersection' ? 'Intersect' : operation}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -1881,7 +1936,7 @@ export function AnnotationWorkspace({
                 aria-expanded={advancedOpen}
                 onClick={() => setAdvancedOpen((open) => !open)}
               >
-                <span>Advanced</span>
+                <span>Advanced details</span>
                 <CaretDown aria-hidden="true" />
               </button>
 

@@ -432,6 +432,41 @@ test('keeps desktop panels compact, separated, and lets the annotation list move
     .toHaveAttribute('aria-expanded', 'true')
 })
 
+test('presents selected annotation actions with clear progressive disclosure', async ({ page }) => {
+  await page.setViewportSize({ width: 1134, height: 824 })
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Open annotations' }).click()
+  await page.getByRole('button', { name: /Touch polygon/ }).click()
+
+  const inspector = page.getByRole('region', { name: 'Annotation inspector' })
+  await expect(inspector).toBeVisible()
+  await expect(inspector.locator('.annotation-selection-summary')).toContainText('Touch polygon')
+  await expect(inspector.locator('.annotation-selection-summary')).toContainText('polygon · Findings')
+  await expect(page.getByRole('button', { name: 'Zoom to selected annotation' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Duplicate selected annotations' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Delete selected annotations' })).toBeVisible()
+  await expect(page.getByLabel('Boolean operations')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Restore selected annotations' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Show advanced annotation details' }))
+    .toHaveAttribute('aria-expanded', 'false')
+
+  await page.getByRole('button', { name: 'Copy selected annotations' }).click()
+  await expect(page.getByRole('button', { name: 'Paste annotations' })).toBeEnabled()
+
+  await page.getByRole('button', { name: 'Duplicate selected annotations' }).click()
+  await expect(page.locator('.annotation-list-toggle strong')).toHaveText('2')
+  const annotationRows = page.getByRole('button', { name: /Touch polygon/ })
+  await annotationRows.nth(1).click({ modifiers: ['Shift'] })
+  await expect(page.getByLabel('Boolean operations')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Intersect', exact: true })).toBeVisible()
+  await annotationRows.first().click()
+  await page.getByRole('button', { name: 'Delete selected annotations' }).click()
+  await expect(page.locator('.annotation-list-toggle strong')).toHaveText('1')
+})
+
 test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and below', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/admin/preview/private-1')
