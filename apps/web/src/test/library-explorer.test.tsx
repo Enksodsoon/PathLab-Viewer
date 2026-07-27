@@ -411,6 +411,7 @@ describe('Canvas Focus library explorer', () => {
 
   it('uses neutral messaging when the current folder is empty', async () => {
     api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    api.getFolderChildren.mockResolvedValue([])
     render(
       <MemoryRouter initialEntries={['/admin?location=folder%3Afolder-organs']}>
         <AdminPage />
@@ -420,6 +421,28 @@ describe('Canvas Focus library explorer', () => {
     expect(await screen.findByRole('heading', { name: 'No files in this folder' })).toBeVisible()
     expect(screen.getByText('This folder is currently empty.')).toBeVisible()
     expect(screen.queryByRole('button', { name: /^upload slide$/i })).not.toBeInTheDocument()
+  })
+
+  it('shows and opens child folders instead of showing an empty-folder message', async () => {
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    render(
+      <MemoryRouter initialEntries={['/admin?location=folder%3Afolder-organs']}>
+        <AdminPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(api.getFolderChildren).toHaveBeenCalledWith('folder-organs'))
+    const childFolder = await screen.findByRole('button', { name: 'Open folder GI' })
+    expect(screen.queryByRole('heading', { name: 'No files in this folder' }))
+      .not.toBeInTheDocument()
+    expect(screen.getByText('1 folder · 0 slides')).toBeVisible()
+
+    await userEvent.click(childFolder)
+
+    expect(await screen.findByRole('heading', { name: 'GI' })).toBeVisible()
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(
+      expect.objectContaining({ location: 'folder:folder-gi' }),
+    ))
   })
 
   it('presents the OME-TIFF chooser with the library design system', async () => {

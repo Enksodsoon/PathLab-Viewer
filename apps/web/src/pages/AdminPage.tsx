@@ -61,6 +61,7 @@ import {
   LibraryToolbar,
   type LibraryViewMode,
 } from '../components/library/LibraryToolbar'
+import { FolderViews } from '../components/library/FolderViews'
 import { SelectionActionBar } from '../components/library/SelectionActionBar'
 import { PublishConfirmationDialog } from '../components/library/PublishConfirmationDialog'
 import { ShareDialog } from '../components/library/ShareDialog'
@@ -227,6 +228,9 @@ export function AdminPage() {
   const [facetsLoading, setFacetsLoading] = useState(false)
   const [folderChildren, setFolderChildren] = useState(
     () => new Map<string, LibraryFolder[]>(),
+  )
+  const [folderChildrenErrors, setFolderChildrenErrors] = useState(
+    () => new Set<string>(),
   )
   const [expandedFolders, setExpandedFolders] = useState(() => new Set<string>())
   const [selected, setSelected] = useState(() => new Set<string>())
@@ -465,6 +469,62 @@ export function AdminPage() {
     })
     return map
   }, [folderChildren, navigation.folders])
+
+  const currentFolderId = location.startsWith('folder:')
+    ? location.slice('folder:'.length)
+    : null
+  const currentFolder = currentFolderId ? foldersById.get(currentFolderId) : undefined
+  const hasCurrentFolderChildren = currentFolderId
+    ? folderChildren.has(currentFolderId)
+    : true
+  const currentFolderChildrenFailed = currentFolderId
+    ? folderChildrenErrors.has(currentFolderId)
+    : false
+
+  useEffect(() => {
+    if (!authorized || !currentFolderId || hasCurrentFolderChildren) return
+
+    if (currentFolder?.hasChildren === false) {
+      setFolderChildren((current) => new Map(current).set(currentFolderId, []))
+      return
+    }
+
+    let cancelled = false
+    setFolderChildrenErrors((current) => {
+      if (!current.has(currentFolderId)) return current
+      const next = new Set(current)
+      next.delete(currentFolderId)
+      return next
+    })
+    void getFolderChildren(currentFolderId)
+      .then((children) => {
+        if (cancelled) return
+        setFolderChildren((current) => new Map(current).set(currentFolderId, children))
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFolderChildrenErrors((current) => new Set(current).add(currentFolderId))
+        setError('Subfolders could not load. Try opening this folder again.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    authorized,
+    currentFolder?.hasChildren,
+    currentFolderId,
+    hasCurrentFolderChildren,
+  ])
+
+  const currentFolderChildren = currentFolderId
+    ? folderChildren.get(currentFolderId) ?? []
+    : []
+  const folderContentsLoading = Boolean(
+    currentFolderId
+    && !hasCurrentFolderChildren
+    && !currentFolderChildrenFailed,
+  )
+  const contentLoading = loading || folderContentsLoading
 
   const breadcrumbs = useMemo(() => {
     if (location.startsWith('folder:')) {
@@ -1227,7 +1287,14 @@ export function AdminPage() {
           <div className="library-content-heading">
             <div>
               <h2>{currentTitle}</h2>
-              <span>{page.total} slides</span>
+              <span>
+                {currentFolderChildren.length > 0
+                  ? `${currentFolderChildren.length} ${
+                    currentFolderChildren.length === 1 ? 'folder' : 'folders'
+                  } · `
+                  : ''}
+                {page.total} {page.total === 1 ? 'slide' : 'slides'}
+              </span>
             </div>
             <div className="library-heading-actions">
               <label className="select-visible">
@@ -1278,8 +1345,21 @@ export function AdminPage() {
           {notice && dialog === null ? (
             <div className="library-notice" role="status">{notice}</div>
           ) : null}
-          {loading ? <div className="library-loading" role="status">Loading slides…</div> : null}
-          {!loading && page.items.length === 0 ? (
+          {contentLoading ? (
+            <div className="library-loading" role="status">
+              {currentFolderId ? 'Loading folder…' : 'Loading slides…'}
+            </div>
+          ) : null}
+          {!contentLoading && currentFolderChildren.length > 0 ? (
+            <FolderViews
+              folders={currentFolderChildren}
+              onOpen={(folder) => chooseLocation(`folder:${folder.id}`)}
+            />
+          ) : null}
+          {!contentLoading
+            && page.items.length === 0
+            && currentFolderChildren.length === 0
+            && !currentFolderChildrenFailed ? (
             <div className="library-empty">
               {location === 'trash' ? (
                 <>
@@ -1317,7 +1397,7 @@ export function AdminPage() {
               )}
             </div>
           ) : null}
-          {!loading && page.items.length ? (
+          {!contentLoading && page.items.length ? (
             <SlideViews
               view={view}
               slides={page.items}
