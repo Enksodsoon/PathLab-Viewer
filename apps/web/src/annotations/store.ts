@@ -200,8 +200,18 @@ const EMPTY_FILTER: AnnotationFilter = {
   includeDeleted: false,
 }
 
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      deepFreeze(child)
+    }
+    Object.freeze(value)
+  }
+  return value
+}
+
 function cloneRecord(record: AnnotationRecord): AnnotationRecord {
-  return structuredClone(record)
+  return deepFreeze(structuredClone(record))
 }
 
 function cloneMutation(mutation: AnnotationMutation): AnnotationMutation {
@@ -281,6 +291,11 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     autosaveStatus: 'idle',
     overlayError: null,
   }
+  let annotationsDirty = true
+  let annotationSnapshot = readonlyMap<string, AnnotationRecord>([])
+  let visibleRevision = 0
+  let cachedVisibleRevision = -1
+  let cachedVisibleAnnotations: AnnotationRecord[] = []
 
   const sendableBatches = (): Array<{
     atomic: boolean
@@ -331,9 +346,13 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     slideId: internal.slideId,
     version: internal.version,
     tool: internal.tool,
-    annotations: readonlyMap(
-      [...internal.annotations].map(([id, record]) => [id, cloneRecord(record)] as const),
-    ),
+    annotations: (() => {
+      if (annotationsDirty) {
+        annotationSnapshot = readonlyMap(internal.annotations)
+        annotationsDirty = false
+      }
+      return annotationSnapshot
+    })(),
     layers: readonlyMap(
       [...internal.layers].map(([id, layer]) => [id, structuredClone(layer)] as const),
     ),
@@ -369,6 +388,8 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     if (wasActive !== willBeActive) activeCount += willBeActive ? 1 : -1
     if (record) internal.annotations.set(id, cloneRecord(record))
     else internal.annotations.delete(id)
+    annotationsDirty = true
+    visibleRevision += 1
   }
 
   const layerEditable = (record: AnnotationRecord): boolean => (
@@ -828,6 +849,8 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       internal.annotations = new Map(
         payload.annotations.map((annotation) => [annotation.id, cloneRecord(annotation)]),
       )
+      annotationsDirty = true
+      visibleRevision += 1
       activeCount = loadedActive
       internal.selection.clear()
       pending.length = 0
@@ -860,11 +883,13 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
           : internal.filter.classifications,
         tags: filter.tags ? new Set(filter.tags) : internal.filter.tags,
       }
+      visibleRevision += 1
       emit()
     },
     visibleAnnotations() {
+      if (cachedVisibleRevision === visibleRevision) return cachedVisibleAnnotations
       const search = internal.filter.search.trim().toLocaleLowerCase()
-      return [...internal.annotations.values()].filter((record) => {
+      cachedVisibleAnnotations = [...internal.annotations.values()].filter((record) => {
         if (record.deletedAt && !internal.filter.includeDeleted) return false
         const layer = internal.layers.get(record.layerId)
         if (layer && !layer.visible) return false
@@ -889,7 +914,9 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
           record.metadata.notes,
           ...record.metadata.tags,
         ].some((value) => value.toLocaleLowerCase().includes(search))
-      }).map(cloneRecord)
+      })
+      cachedVisibleRevision = visibleRevision
+      return cachedVisibleAnnotations
     },
     create(input) {
       if (internal.layers.get(input.layerId)?.locked) return
@@ -1077,12 +1104,14 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
     setLayers(layers) {
       if (layers.length > maxLayers) throw new RangeError('Annotation layer limit exceeded')
       internal.layers = new Map(layers.map((layer) => [layer.id, structuredClone(layer)]))
+      visibleRevision += 1
       emit()
     },
     updateLayer(id, patch) {
       const layer = internal.layers.get(id)
       if (!layer) return
       internal.layers.set(id, { ...structuredClone(layer), ...structuredClone(patch) })
+      visibleRevision += 1
       emit()
     },
     zoomTarget(id) {

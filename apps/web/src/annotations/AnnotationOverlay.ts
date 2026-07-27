@@ -1,7 +1,7 @@
 import OpenSeadragon from 'openseadragon'
 
 import { createGeometryForTool } from './geometry'
-import { AnnotationSpatialIndex } from './spatialIndex'
+import { AnnotationSpatialIndex, type DensityCell } from './spatialIndex'
 import type { AnnotationStore } from './store'
 import type {
   AnnotationBounds,
@@ -273,6 +273,96 @@ function shapeFor(
   return root
 }
 
+function projectShape(
+  viewer: OpenSeadragon.Viewer,
+  record: AnnotationRecord,
+  root: SVGGElement,
+): void {
+  const shape = root.firstElementChild as SVGElement | null
+  if (!shape) return
+  if (record.geometry.type === 'point') {
+    const point = screenPoint(viewer, record.geometry)
+    setAttributes(shape, { cx: point.x, cy: point.y })
+  } else if (record.geometry.type === 'text') {
+    const point = screenPoint(viewer, record.geometry)
+    const marker = shape.querySelector('circle')
+    if (marker) setAttributes(marker, { cx: point.x, cy: point.y })
+    const label = shape.querySelector('[data-annotation-label="callout"]')
+    if (label) setAttributes(label, { x: point.x + 9, y: point.y - 9 })
+  } else if (record.geometry.type === 'rectangle') {
+    const [start, end] = geometryPoints(record.geometry).map((point) => screenPoint(viewer, point))
+    setAttributes(shape, {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      width: Math.abs(end.x - start.x),
+      height: Math.abs(end.y - start.y),
+    })
+  } else if (record.geometry.type === 'ellipse') {
+    const centre = screenPoint(viewer, {
+      x: record.geometry.cx,
+      y: record.geometry.cy,
+    })
+    const edge = screenPoint(viewer, {
+      x: record.geometry.cx + record.geometry.rx,
+      y: record.geometry.cy + record.geometry.ry,
+    })
+    setAttributes(shape, {
+      cx: centre.x,
+      cy: centre.y,
+      rx: Math.abs(edge.x - centre.x),
+      ry: Math.abs(edge.y - centre.y),
+    })
+  } else {
+    shape.setAttribute(
+      'points',
+      geometryPoints(record.geometry)
+        .map((point) => screenPoint(viewer, point))
+        .map((point) => `${point.x},${point.y}`)
+        .join(' '),
+    )
+  }
+
+  const label = root.querySelector<SVGElement>('[data-annotation-label="ordinary"]')
+  if (label) {
+    const anchor = screenPoint(viewer, {
+      x: record.bounds.minX,
+      y: record.bounds.minY,
+    })
+    setAttributes(label, { x: anchor.x + 8, y: anchor.y - 8 })
+  }
+  for (const handle of root.querySelectorAll<SVGElement>('[data-annotation-handle="vertex"]')) {
+    const index = Number(handle.dataset.vertexIndex)
+    if (!('points' in record.geometry) || !Number.isInteger(index)) continue
+    const point = record.geometry.points[index]
+    if (!point) continue
+    const screen = screenPoint(viewer, point)
+    const hit = handle.querySelector<SVGElement>('.annotation-canvas-handle-hit')
+    const glyph = handle.querySelector<SVGElement>('.annotation-canvas-handle-glyph')
+    if (hit) setAttributes(hit, { cx: screen.x, cy: screen.y })
+    if (glyph) setAttributes(glyph, { cx: screen.x, cy: screen.y })
+  }
+  for (const handle of root.querySelectorAll<SVGElement>('[data-annotation-handle^="resize-"]')) {
+    const kind = handle.dataset.annotationHandle ?? ''
+    const x = kind.endsWith('w') ? record.bounds.minX : record.bounds.maxX
+    const y = kind.includes('-n') ? record.bounds.minY : record.bounds.maxY
+    const screen = screenPoint(viewer, { x, y })
+    const hit = handle.querySelector<SVGElement>('.annotation-canvas-handle-hit')
+    const glyph = handle.querySelector<SVGElement>('.annotation-canvas-handle-glyph')
+    if (hit) {
+      setAttributes(hit, {
+        x: screen.x - 22,
+        y: screen.y - 22,
+      })
+    }
+    if (glyph) {
+      setAttributes(glyph, {
+        x: screen.x - 5,
+        y: screen.y - 5,
+      })
+    }
+  }
+}
+
 function recordVisible(record: AnnotationRecord, state: ReturnType<AnnotationStore['getState']>) {
   if (record.deletedAt && !state.filter.includeDeleted) return false
   const layer = state.layers.get(record.layerId)
@@ -335,9 +425,13 @@ export function attachAnnotationOverlay(
   let gestureVertexIndex: number | null = null
   let construction: AnnotationPoint[] = []
   let disposed = false
+  let frameId: number | null = null
   const indexedRecords = new Map<string, AnnotationRecord>()
   const shapeNodes = new Map<string, SVGGElement>()
   const densityNodes = new Map<string, SVGCircleElement>()
+  const mountedRecords = new Map<string, AnnotationRecord>()
+  const mountedSelection = new Map<string, boolean>()
+  const densityCells = new Map<string, DensityCell>()
 
   viewer.canvas.append(svg)
 
@@ -393,7 +487,38 @@ export function attachAnnotationOverlay(
     svg.style.pointerEvents = navigation ? 'none' : 'auto'
   }
 
-  const render = () => {
+  const failOpen = (caught: unknown) => {
+    const message = caught instanceof Error ? caught.message : 'Annotation overlay failed'
+    options.onError?.(message)
+    viewer.setMouseNavEnabled(true)
+    viewer.setKeyboardNavEnabled(true)
+    svg.style.pointerEvents = 'none'
+  }
+
+  const project = () => {
+    if (disposed) return
+    try {
+      for (const [id, record] of mountedRecords) {
+        const node = shapeNodes.get(id)
+        if (node) projectShape(viewer, record, node)
+      }
+      for (const [key, cell] of densityCells) {
+        const marker = densityNodes.get(key)
+        if (!marker) continue
+        const point = screenPoint(viewer, { x: cell.imageX, y: cell.imageY })
+        setAttributes(marker, {
+          cx: point.x,
+          cy: point.y,
+          r: Math.min(10, 2 + Math.log2(cell.count + 1)),
+        })
+      }
+      setNavigation()
+    } catch (caught) {
+      failOpen(caught)
+    }
+  }
+
+  const renderPlan = () => {
     if (disposed) return
     try {
       const plan = index.plan(
@@ -406,18 +531,24 @@ export function attachAnnotationOverlay(
         if (!mounted.has(id)) {
           node.remove()
           shapeNodes.delete(id)
+          mountedRecords.delete(id)
+          mountedSelection.delete(id)
         }
       }
       for (const record of plan.mounted) {
         const layer = state.layers.get(record.layerId)
         const existing = shapeNodes.get(record.id)
-        const group = shapeFor(
-          viewer,
-          record,
-          selected.has(record.id) && state.tool === 'select',
-          existing,
+        const isSelected = selected.has(record.id) && state.tool === 'select'
+        const group = (
+          !existing
+          || mountedRecords.get(record.id) !== record
+          || mountedSelection.get(record.id) !== isSelected
         )
+          ? shapeFor(viewer, record, isSelected, existing)
+          : existing
         group.style.opacity = String(layer?.opacity ?? 1)
+        mountedRecords.set(record.id, record)
+        mountedSelection.set(record.id, isSelected)
         if (!existing) {
           shapeNodes.set(record.id, group)
           svg.append(group)
@@ -429,11 +560,7 @@ export function attachAnnotationOverlay(
           const key = `${cell.x}:${cell.y}`
           cells.add(key)
           const marker = densityNodes.get(key) ?? svgElement('circle')
-          setAttributes(marker, {
-            cx: ((cell.x + 0.5) / 32) * Math.max(1, viewer.canvas.clientWidth),
-            cy: ((cell.y + 0.5) / 32) * Math.max(1, viewer.canvas.clientHeight),
-            r: Math.min(10, 2 + Math.log2(cell.count + 1)),
-          })
+          densityCells.set(key, cell)
           marker.classList.add('annotation-density-cell')
           if (!densityNodes.has(key)) {
             densityNodes.set(key, marker)
@@ -444,25 +571,60 @@ export function attachAnnotationOverlay(
           if (!cells.has(key)) {
             node.remove()
             densityNodes.delete(key)
+            densityCells.delete(key)
           }
         }
       } else {
         for (const node of densityNodes.values()) node.remove()
         densityNodes.clear()
-      }
-      if (!plan.density.enabled) {
-        for (const node of densityNodes.values()) node.remove()
-        densityNodes.clear()
+        densityCells.clear()
       }
       options.onDensity?.(plan.prompt)
-      setNavigation()
+      project()
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Annotation overlay failed'
-      options.onError?.(message)
-      viewer.setMouseNavEnabled(true)
-      viewer.setKeyboardNavEnabled(true)
-      svg.style.pointerEvents = 'none'
+      failOpen(caught)
     }
+  }
+
+  const scheduleProjection = () => {
+    if (disposed || frameId !== null) return
+    frameId = window.requestAnimationFrame(() => {
+      frameId = null
+      project()
+    })
+  }
+
+  const filterKey = (next: ReturnType<AnnotationStore['getState']>) => [
+    next.filter.search,
+    [...next.filter.layerIds].sort().join(','),
+    [...(next.filter.classifications ?? [])].sort().join(','),
+    [...(next.filter.tags ?? [])].sort().join(','),
+    String(next.filter.includeDeleted),
+  ].join('|')
+
+  const layerRenderKey = (next: ReturnType<AnnotationStore['getState']>) => (
+    [...next.layers.values()]
+      .map((layer) => `${layer.id}:${layer.visible}:${layer.opacity}`)
+      .sort()
+      .join('|')
+  )
+
+  const refreshSelection = (
+    previous: ReturnType<AnnotationStore['getState']>,
+    next: ReturnType<AnnotationStore['getState']>,
+  ) => {
+    const candidates = new Set([...previous.selection, ...next.selection])
+    for (const id of candidates) {
+      const wasSelected = previous.tool === 'select' && previous.selection.has(id)
+      const isSelected = next.tool === 'select' && next.selection.has(id)
+      if (wasSelected === isSelected) continue
+      const record = mountedRecords.get(id)
+      const node = shapeNodes.get(id)
+      if (!record || !node) continue
+      shapeFor(viewer, record, isSelected, node)
+      mountedSelection.set(id, isSelected)
+    }
+    setNavigation()
   }
 
   const create = (geometry: AnnotationGeometry) => {
@@ -668,7 +830,8 @@ export function attachAnnotationOverlay(
   }
 
   const onPointerLeave = () => options.onCoordinate?.(null)
-  const onViewerUpdate = () => render()
+  const onViewerUpdate = () => scheduleProjection()
+  const onViewerSettled = () => renderPlan()
   svg.addEventListener('pointerdown', onPointerDown)
   svg.addEventListener('pointermove', onPointerMove)
   svg.addEventListener('pointerup', onPointerUp)
@@ -676,18 +839,28 @@ export function attachAnnotationOverlay(
   svg.addEventListener('pointerleave', onPointerLeave)
   svg.addEventListener('dblclick', onDoubleClick)
   viewer.addHandler('animation', onViewerUpdate)
-  viewer.addHandler('resize', onViewerUpdate)
-  viewer.addHandler('open', onViewerUpdate)
+  viewer.addHandler('animation-finish', onViewerSettled)
+  viewer.addHandler('resize', onViewerSettled)
+  viewer.addHandler('open', onViewerSettled)
   const unsubscribe = store.subscribe((next) => {
-    syncIndex(next)
+    const previous = state
+    const annotationsChanged = next.annotations !== previous.annotations
+    const filterChanged = filterKey(next) !== filterKey(previous)
+    const layersChanged = layerRenderKey(next) !== layerRenderKey(previous)
+    if (annotationsChanged) syncIndex(next)
     state = next
-    render()
+    if (annotationsChanged || filterChanged || layersChanged) renderPlan()
+    else refreshSelection(previous, next)
   })
-  render()
+  renderPlan()
 
   return () => {
     if (disposed) return
     disposed = true
+    if (frameId !== null) {
+      window.cancelAnimationFrame(frameId)
+      frameId = null
+    }
     unsubscribe()
     svg.removeEventListener('pointerdown', onPointerDown)
     svg.removeEventListener('pointermove', onPointerMove)
@@ -696,8 +869,9 @@ export function attachAnnotationOverlay(
     svg.removeEventListener('pointerleave', onPointerLeave)
     svg.removeEventListener('dblclick', onDoubleClick)
     viewer.removeHandler('animation', onViewerUpdate)
-    viewer.removeHandler('resize', onViewerUpdate)
-    viewer.removeHandler('open', onViewerUpdate)
+    viewer.removeHandler('animation-finish', onViewerSettled)
+    viewer.removeHandler('resize', onViewerSettled)
+    viewer.removeHandler('open', onViewerSettled)
     svg.remove()
     viewer.setMouseNavEnabled(true)
     viewer.setKeyboardNavEnabled(true)

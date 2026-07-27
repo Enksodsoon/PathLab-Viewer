@@ -18,6 +18,7 @@ import {
   Component,
   type ReactNode,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -325,6 +326,7 @@ export function AnnotationWorkspace({
   }>({ generation: 0, promise: Promise.resolve() })
   const layerOpacityDraftRef = useRef(new Map<string, number>())
   const pendingSignatureRef = useRef('[]')
+  const recoverySignatureRef = useRef('[]')
   const inspectorTriggerRef = useRef<HTMLButtonElement>(null)
   const inspectorRef = useRef<HTMLElement>(null)
   const conflictRef = useRef<HTMLDivElement>(null)
@@ -349,6 +351,8 @@ export function AnnotationWorkspace({
   const [revisions, setRevisions] = useState<AnnotationRevision[]>([])
   const [selectedRevisionId, setSelectedRevisionId] = useState('')
   const [listOffset, setListOffset] = useState(0)
+  const [searchInput, setSearchInput] = useState('')
+  const deferredSearch = useDeferredValue(searchInput)
   const attachmentReady = Boolean(storeState)
 
   activeLayerRef.current = activeLayerId
@@ -463,6 +467,7 @@ export function AnnotationWorkspace({
     let draftLoadFailed = false
     latestStateRef.current = null
     pendingSignatureRef.current = '[]'
+    recoverySignatureRef.current = '[]'
     storeRef.current = null
     autosaveRef.current = null
     setStoreState(null)
@@ -475,6 +480,7 @@ export function AnnotationWorkspace({
     setSelectedRevisionId('')
     setDensityPrompt(null)
     setListOffset(0)
+    setSearchInput('')
     layerOpacityDraftRef.current.clear()
     if (coordinateOutputRef.current) {
       coordinateOutputRef.current.textContent = `SLIDE ${slideId.slice(0, 8).toUpperCase()}`
@@ -587,17 +593,21 @@ export function AnnotationWorkspace({
             pendingSignatureRef.current = signature
             saver.replacePendingBatches(next.pendingMutationBatches)
           }
-          if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current)
-          draftTimerRef.current = null
-          if (next.recoveryMutations.length > 0) {
-            draftTimerRef.current = window.setTimeout(() => {
-              draftTimerRef.current = null
-              void persistDraft(next).catch((caught) => {
-                if (active) {
-                  setError(caught instanceof Error ? caught.message : 'Local draft could not be saved')
-                }
-              })
-            }, 250)
+          const recoverySignature = JSON.stringify(next.recoveryMutations)
+          if (recoverySignature !== recoverySignatureRef.current) {
+            recoverySignatureRef.current = recoverySignature
+            if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current)
+            draftTimerRef.current = null
+            if (next.recoveryMutations.length > 0) {
+              draftTimerRef.current = window.setTimeout(() => {
+                draftTimerRef.current = null
+                void persistDraft(next).catch((caught) => {
+                  if (active) {
+                    setError(caught instanceof Error ? caught.message : 'Local draft could not be saved')
+                  }
+                })
+              }, 250)
+            }
           }
         })
         latestStateRef.current = store.getState()
@@ -766,6 +776,9 @@ export function AnnotationWorkspace({
   }, [conflictOpen])
 
   const store = storeRef.current
+  useEffect(() => {
+    store?.setFilter({ search: deferredSearch })
+  }, [deferredSearch, store])
   const selected = selectionRecords(storeState)
   const primary = selected[0] ?? null
   const currentTool = storeState?.tool ?? 'hand'
@@ -775,13 +788,13 @@ export function AnnotationWorkspace({
         .map((record) => record.metadata.classification)
         .filter(Boolean),
     )].sort((left, right) => left.localeCompare(right))
-  ), [storeState])
+  ), [storeState?.annotations])
   const tags = useMemo(() => (
     [...new Set(
       [...(storeState?.annotations.values() ?? [])]
         .flatMap((record) => record.metadata.tags),
     )].sort((left, right) => left.localeCompare(right))
-  ), [storeState])
+  ), [storeState?.annotations])
   const visibleRecords = store?.visibleAnnotations() ?? []
   const visibleListRecords = visibleRecords.slice(
     listOffset,
@@ -1309,8 +1322,8 @@ export function AnnotationWorkspace({
               type="search"
               aria-label="Search annotations"
               placeholder="Search title, class, tag…"
-              value={storeState?.filter.search ?? ''}
-              onChange={(event) => store?.setFilter({ search: event.target.value })}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
             />
           </label>
           <button

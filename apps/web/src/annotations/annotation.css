@@ -55,7 +55,6 @@
   border:1px solid var(--annotation-line);
   background:var(--annotation-panel);
   box-shadow:var(--annotation-shadow);
-  backdrop-filter:blur(14px);
   pointer-events:auto;
 }
 
