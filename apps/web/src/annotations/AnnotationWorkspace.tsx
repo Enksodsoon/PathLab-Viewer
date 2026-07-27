@@ -1881,8 +1881,30 @@ export function AnnotationWorkspace({
                 </section>
               ) : null}
 
-              <section className="annotation-details-section">
-                <h2>Details</h2>
+              <section className="annotation-inspector-card annotation-details-section">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><TextT /></span>
+                  <div>
+                    <h2>Annotation details</h2>
+                    <p>Name and organize this annotation.</p>
+                  </div>
+                </div>
+                <label>
+                  <span>Title</span>
+                  <input
+                    value={primary?.metadata.title ?? metadata.title}
+                    maxLength={200}
+                    onChange={(event) => updateMetadata({ title: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span>Classification</span>
+                  <input
+                    value={primary?.metadata.classification ?? metadata.classification}
+                    maxLength={120}
+                    onChange={(event) => updateMetadata({ classification: event.target.value })}
+                  />
+                </label>
                 <label>
                   <span>{primary ? 'Annotation layer' : 'Drawing layer'}</span>
                   <select
@@ -1909,22 +1931,6 @@ export function AnnotationWorkspace({
                       ))}
                   </select>
                 </label>
-                <label>
-                  <span>Title</span>
-                  <input
-                    value={primary?.metadata.title ?? metadata.title}
-                    maxLength={200}
-                    onChange={(event) => updateMetadata({ title: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>Classification</span>
-                  <input
-                    value={primary?.metadata.classification ?? metadata.classification}
-                    maxLength={120}
-                    onChange={(event) => updateMetadata({ classification: event.target.value })}
-                  />
-                </label>
               </section>
 
               <button
@@ -1941,9 +1947,15 @@ export function AnnotationWorkspace({
               </button>
 
               {advancedOpen ? (
-                <>
-              <section>
-                <h2>More details</h2>
+                <div className="annotation-advanced-content">
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><MagnifyingGlass /></span>
+                  <div>
+                    <h2>Metadata</h2>
+                    <p>Search terms and clinical notes.</p>
+                  </div>
+                </div>
                 <label>
                   <span>Tags</span>
                   <input
@@ -1971,8 +1983,14 @@ export function AnnotationWorkspace({
                 </label>
               </section>
 
-              <section>
-                <h2>Style</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><Scribble /></span>
+                  <div>
+                    <h2>Appearance</h2>
+                    <p>Color, outline and label visibility.</p>
+                  </div>
+                </div>
                 <div className="annotation-color-grid">
                   <label>
                     <span>Stroke</span>
@@ -2023,9 +2041,13 @@ export function AnnotationWorkspace({
                 </label>
               </section>
 
-              <section>
-                <div className="annotation-section-heading">
-                  <h2>Layers</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-section-heading annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><FolderOpen /></span>
+                  <div>
+                    <h2>Layers</h2>
+                    <p>Visibility, order and locking.</p>
+                  </div>
                   <button type="button" aria-label="Add annotation layer" onClick={() => void createLayer()}>
                     <Plus /> Add
                   </button>
@@ -2104,13 +2126,30 @@ export function AnnotationWorkspace({
                 </div>
               </section>
 
-              <section>
-                <h2>Measurements</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><Ruler /></span>
+                  <div>
+                    <h2>Geometry &amp; measurements</h2>
+                    <p>Calibrated values and precise coordinates.</p>
+                  </div>
+                </div>
                 {measurement ? (
                   <dl className="annotation-measurements">
-                    {Object.entries(measurement.values).map(([name, value]) => (
-                      <div key={name}><dt>{name}</dt><dd>{String(value)}</dd></div>
-                    ))}
+                    {Object.entries(measurement.values)
+                      .filter(([name]) => !name.endsWith('Unit'))
+                      .map(([name, value]) => {
+                        const unit = (measurement.values as Record<string, string | number>)[`${name}Unit`]
+                        const label = name
+                          .replace(/([A-Z])/g, ' $1')
+                          .replace(/^./, (character) => character.toUpperCase())
+                        return (
+                          <div key={name}>
+                            <dt>{label}</dt>
+                            <dd>{String(value)}{unit ? ` ${String(unit)}` : ''}</dd>
+                          </div>
+                        )
+                      })}
                   </dl>
                 ) : <p className="annotation-muted">Select an annotation to inspect calibrated values.</p>}
                 {measurement?.warning ? <p className="annotation-calibration-warning">{measurement.warning}</p> : null}
@@ -2126,8 +2165,14 @@ export function AnnotationWorkspace({
                 {primary && store ? <BoundsEditor record={primary} store={store} /> : null}
               </section>
 
-              <section>
-                <h2>Interchange</h2>
+              <section className="annotation-inspector-card">
+                <div className="annotation-card-heading">
+                  <span className="annotation-card-icon" aria-hidden="true"><DownloadSimple /></span>
+                  <div>
+                    <h2>Data &amp; history</h2>
+                    <p>Import, export, reload or restore.</p>
+                  </div>
+                </div>
                 <input
                   ref={importRef}
                   className="visually-hidden"
@@ -2135,7 +2180,7 @@ export function AnnotationWorkspace({
                   accept=".json,.geojson,application/json,application/geo+json"
                   onChange={(event) => void importFile(event.target.files?.[0])}
                 />
-                <div className="annotation-action-grid">
+                <div className="annotation-data-actions">
                   <button type="button" aria-label="Import annotations" onClick={() => importRef.current?.click()}>
                     <UploadSimple /> Import
                   </button>
@@ -2170,22 +2215,24 @@ export function AnnotationWorkspace({
                     </button>
                   </div>
                 ) : null}
-                <button
-                  type="button"
-                  className="annotation-restore-revision"
-                  aria-label="Browse annotation revisions"
-                  onClick={() => void browseRevisions()}
-                >
-                  <FolderOpen /> Revision history
-                </button>
-                <button
-                  type="button"
-                  className="annotation-reload"
-                  aria-label="Reload annotations"
-                  onClick={() => void reload()}
-                >
-                  <ArrowClockwise /> Reload from server
-                </button>
+                <div className="annotation-history-actions">
+                  <button
+                    type="button"
+                    className="annotation-restore-revision"
+                    aria-label="Browse annotation revisions"
+                    onClick={() => void browseRevisions()}
+                  >
+                    <FolderOpen /> Revision history
+                  </button>
+                  <button
+                    type="button"
+                    className="annotation-reload"
+                    aria-label="Reload annotations"
+                    onClick={() => void reload()}
+                  >
+                    <ArrowClockwise /> Reload
+                  </button>
+                </div>
                 {revisions.length > 0 ? (
                   <div className="annotation-revision-browser">
                     <label>
@@ -2221,7 +2268,7 @@ export function AnnotationWorkspace({
                   </div>
                 ) : null}
               </section>
-                </>
+                </div>
               ) : null}
             </div>
           </aside>

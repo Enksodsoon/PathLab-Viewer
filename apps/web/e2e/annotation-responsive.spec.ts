@@ -452,6 +452,23 @@ test('presents selected annotation actions with clear progressive disclosure', a
   await expect(page.getByRole('button', { name: 'Restore selected annotations' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Show advanced annotation details' }))
     .toHaveAttribute('aria-expanded', 'false')
+  await expect(inspector.getByRole('heading', { name: 'Annotation details' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  for (const heading of [
+    'Metadata',
+    'Appearance',
+    'Layers',
+    'Geometry & measurements',
+    'Data & history',
+  ]) {
+    await expect(inspector.getByRole('heading', { name: heading })).toBeVisible()
+  }
+  await expect(page.getByRole('button', { name: 'Import annotations' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export PathLab JSON' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Browse annotation revisions' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reload annotations' })).toBeVisible()
+  expect(await inspector.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 
   await page.getByRole('button', { name: 'Copy selected annotations' }).click()
   await expect(page.getByRole('button', { name: 'Paste annotations' })).toBeEnabled()
