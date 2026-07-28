@@ -4,6 +4,7 @@ import type { FormEvent, SyntheticEvent } from 'react'
 
 import { ApiError, changePassword } from '../api'
 import { Loader } from './Loader'
+import { StatusMessage } from './StatusMessage'
 
 const MIN_NEW_PASSWORD_LENGTH = 12
 const MAX_NEW_PASSWORD_LENGTH = 128
@@ -135,7 +136,7 @@ export function AccountSecurityDialog({
           Confirm new password
           <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" />
         </label>
-        {error ? <p className="form-error" role="alert">{error}</p> : null}
+        {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
         <div className="auth-actions">
           <button className="button" type="button" onClick={close} disabled={busy}>Cancel</button>
           <button className="button primary" type="submit" disabled={busy}>

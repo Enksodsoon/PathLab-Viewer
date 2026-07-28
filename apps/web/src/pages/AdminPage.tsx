@@ -20,6 +20,7 @@ import {
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
+import { StatusMessage } from '../components/StatusMessage'
 import {
   ApiError,
   addCollectionSlides,
@@ -48,6 +49,7 @@ import {
   updateCollection,
   updateFolder,
   updateSavedView,
+  type UploadReservation,
 } from '../api'
 import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
 import { Loader } from '../components/Loader'
@@ -72,6 +74,10 @@ import { PublishConfirmationDialog } from '../components/library/PublishConfirma
 import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
+import {
+  UploadWorkspace,
+  type UploadQueueItemView,
+} from '../components/library/UploadWorkspace'
 import type {
   AdminSlide,
   LibraryFacets,
@@ -118,6 +124,30 @@ const ACTIVE_STATES = new Set<SlideState>([
   'converting',
   'deleting',
 ])
+const MAX_UPLOAD_BYTES = 5 * 1024 ** 3
+let uploadQueueSequence = 0
+
+interface UploadQueueItem extends UploadQueueItemView {
+  folderId: string | null
+  reservation?: UploadReservation
+}
+
+function uploadFailureMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.code === 'STORAGE_CAPACITY_EXCEEDED' || error.status === 507) {
+      return 'Not enough usable storage remains for this file.'
+    }
+    return 'The upload could not be reserved. Review the file and try again.'
+  }
+  const raw = error instanceof Error ? error.message : String(error)
+  if (
+    /unexpected response while creating upload/i.test(raw)
+    || /failed to fetch|networkerror|econnrefused/i.test(raw)
+  ) {
+    return 'The upload service is unavailable. Start the local tus service, then retry.'
+  }
+  return 'Upload paused. Check the connection, then retry this file.'
+}
 
 type DialogName =
   | 'upload'
@@ -265,10 +295,11 @@ export function AdminPage() {
   const [savedEditTarget, setSavedEditTarget] = useState<SavedView | null>(null)
   const [tagValue, setTagValue] = useState('')
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM)
-  const [file, setFile] = useState<File | null>(null)
-  const [uploadName, setUploadName] = useState('')
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
+  const uploadQueueRef = useRef<UploadQueueItem[]>([])
+  const [uploadQueueRunning, setUploadQueueRunning] = useState(false)
+  const uploadQueueRunningRef = useRef(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
-  const [preparingUpload, setPreparingUpload] = useState(false)
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
@@ -749,7 +780,7 @@ export function AdminPage() {
         setSelected(new Set())
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
-          : 'Slide unpublished.')
+          : 'Slide is now private.')
         void loadNavigation()
       } else if (action === 'trash' || action === 'restore') {
         await mutateLibrarySlide(slide.id, action)
@@ -913,8 +944,12 @@ export function AdminPage() {
     }))
     setSelected(new Set())
     const skipped = selectedSlides.length - eligible.length
-    const verb = action === 'retry' ? 'queued' : action === 'publish' ? 'published' : 'unpublished'
-    setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${verb}${
+    const result = action === 'retry'
+      ? 'queued'
+      : action === 'publish'
+        ? 'made public'
+        : 'made private'
+    setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${result}${
       skipped ? `; ${skipped} skipped because their state was not eligible.` : '.'
     }`)
     void loadNavigation()
@@ -1076,45 +1111,119 @@ export function AdminPage() {
     setSelected(new Set())
   }
 
-  async function startUpload() {
-    if (!file || preparingUpload) return
-    if (!/\.ome\.tiff?$/i.test(file.name)) {
-      setNotice('Choose a file ending in .ome.tif or .ome.tiff.')
-      return
-    }
+  function replaceUploadQueue(next: UploadQueueItem[]) {
+    uploadQueueRef.current = next
+    setUploadQueue(next)
+  }
+
+  function updateUploadItem(
+    id: string,
+    changes: Partial<Omit<UploadQueueItem, 'id' | 'file' | 'folderId'>>,
+  ) {
+    replaceUploadQueue(uploadQueueRef.current.map((item) => (
+      item.id === id ? { ...item, ...changes } : item
+    )))
+  }
+
+  function addUploadFiles(files: File[]) {
     const folderId = location.startsWith('folder:')
       ? location.slice('folder:'.length)
       : null
-    setPreparingUpload(true)
+    const existing = new Set(uploadQueueRef.current.map(
+      (item) => `${item.file.name}:${item.file.size}:${item.file.lastModified}`,
+    ))
+    const accepted: UploadQueueItem[] = []
+    let skipped = 0
+    files.forEach((next) => {
+      const fingerprint = `${next.name}:${next.size}:${next.lastModified}`
+      if (
+        !/\.ome\.tiff?$/i.test(next.name)
+        || next.size > MAX_UPLOAD_BYTES
+        || existing.has(fingerprint)
+      ) {
+        skipped += 1
+        return
+      }
+      existing.add(fingerprint)
+      accepted.push({
+        id: `upload-${Date.now()}-${uploadQueueSequence += 1}`,
+        file: next,
+        displayName: next.name.replace(/\.ome\.tiff?$/i, ''),
+        phase: 'queued',
+        progress: 0,
+        error: '',
+        folderId,
+      })
+    })
+    if (accepted.length) replaceUploadQueue([...uploadQueueRef.current, ...accepted])
+    setNotice(skipped
+      ? `${skipped} duplicate, unsupported, or oversized ${skipped === 1 ? 'file was' : 'files were'} skipped.`
+      : '')
+  }
+
+  async function startUploadQueue() {
+    if (uploadQueueRunningRef.current) return
+    uploadQueueRunningRef.current = true
+    setUploadQueueRunning(true)
     setNotice('')
     try {
-      const reservation = await reserveUpload(
-        file,
-        uploadName.trim() || file.name.replace(/\.ome\.tiff?$/i, ''),
-        folderId,
-      )
-      setActiveUploadId(reservation.slide.id)
-      setPage((current) => ({
-        ...current,
-        items: [uploadSlide(reservation.slide, folderId), ...current.items],
-        total: current.total + 1,
-      }))
-      void loadNavigation()
-      setUploadProgress(0)
-      setNotice('Upload prepared — it will resume automatically if interrupted.')
-      await startTusUpload(file, reservation.uploadUrl, reservation.uploadToken, {
-        progress: setUploadProgress,
-        success: () => {
-          setUploadProgress(100)
-          setNotice('Upload complete. Processing is queued.')
-        },
-        error: (message) => setNotice(`Upload paused: ${message}`),
-      })
-    } catch {
-      setNotice('Upload could not start. Check the file and available storage.')
+      while (true) {
+        const item = uploadQueueRef.current.find((entry) => entry.phase === 'queued')
+        if (!item) break
+        updateUploadItem(item.id, { phase: 'preparing', error: '' })
+        try {
+          let reservation = item.reservation
+          if (!reservation) {
+            reservation = await reserveUpload(
+              item.file,
+              item.displayName.trim() || item.file.name.replace(/\.ome\.tiff?$/i, ''),
+              item.folderId,
+            )
+            updateUploadItem(item.id, { reservation })
+            const reservedSlide = reservation.slide
+            setPage((current) => ({
+              ...current,
+              items: [uploadSlide(reservedSlide, item.folderId), ...current.items],
+              total: current.total + 1,
+            }))
+            void loadNavigation()
+          }
+          setActiveUploadId(reservation.slide.id)
+          setUploadProgress(0)
+          updateUploadItem(item.id, { phase: 'uploading', progress: 0 })
+          await startTusUpload(item.file, reservation.uploadUrl, reservation.uploadToken, {
+            progress: (progress) => {
+              setUploadProgress(progress)
+              updateUploadItem(item.id, { progress })
+            },
+            success: () => {
+              setUploadProgress(100)
+              updateUploadItem(item.id, { phase: 'complete', progress: 100, error: '' })
+            },
+            error: () => undefined,
+          })
+          const completed = uploadQueueRef.current.filter(
+            (entry) => entry.phase === 'complete',
+          ).length
+          setNotice(`${completed} ${completed === 1 ? 'file' : 'files'} uploaded. Processing is queued.`)
+        } catch (caught) {
+          updateUploadItem(item.id, {
+            phase: 'error',
+            error: uploadFailureMessage(caught),
+          })
+          setNotice('Upload queue paused. Retry the failed file when the service is available.')
+          break
+        }
+      }
     } finally {
-      setPreparingUpload(false)
+      uploadQueueRunningRef.current = false
+      setUploadQueueRunning(false)
     }
+  }
+
+  function retryUploadItem(id: string) {
+    updateUploadItem(id, { phase: 'queued', error: '', progress: 0 })
+    void startUploadQueue()
   }
 
   function endSession(message = '') {
@@ -1403,9 +1512,14 @@ export function AdminPage() {
               ) : null}
             </div>
           </div>
-          {error ? <div className="library-error" role="alert">{error}</div> : null}
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
           {notice && dialog === null ? (
-            <div className="library-notice" role="status">{notice}</div>
+            <StatusMessage
+              tone="success"
+              label={notice.toLowerCase().includes('queued') ? 'Queued' : 'Update'}
+            >
+              {notice}
+            </StatusMessage>
           ) : null}
           {contentLoading ? (
             <div className="library-loading">
@@ -1559,41 +1673,22 @@ export function AdminPage() {
         title="Upload OME-TIFF"
         description={location.startsWith('folder:') ? `Target: ${currentTitle}` : 'Target: Unfiled'}
         onClose={() => setDialog(null)}
+        wide
       >
-        <div className="library-dialog-form">
-          <label className={`upload-drop${file ? ' has-file' : ''}`}>
-            <span className="upload-drop-icon" aria-hidden="true"><Upload /></span>
-            <span className="upload-drop-copy">
-              <strong>{file ? 'OME-TIFF selected' : 'Choose OME-TIFF'}</strong>
-              <span className="upload-drop-hint">Up to 5 GiB · resumable</span>
-            </span>
-            <span className="upload-file-button">{file ? 'Choose another file' : 'Browse files'}</span>
-            <span className="upload-file-name" title={file?.name}>
-              {file?.name ?? 'No file selected'}
-            </span>
-            <input
-              className="upload-file-input"
-              type="file"
-              accept=".ome.tif,.ome.tiff,image/tiff"
-              aria-label="Choose OME-TIFF"
-              onChange={(event) => {
-                const next = event.target.files?.[0] ?? null
-                setFile(next)
-                if (next) setUploadName(next.name.replace(/\.ome\.tiff?$/i, ''))
-              }}
-            />
-          </label>
-          <label>Display name<input value={uploadName} onChange={(event) => setUploadName(event.target.value)} /></label>
-          {uploadProgress !== null ? (
-            <div className="library-upload-progress"><span style={{ width: `${uploadProgress}%` }} /></div>
-          ) : null}
-          {preparingUpload ? (
-            <Loader label="Preparing resumable upload…" size="small" inline />
-          ) : notice ? <p role="status">{notice}</p> : null}
-          <button type="button" className="primary" disabled={!file || preparingUpload} onClick={() => void startUpload()}>
-            Upload slide
-          </button>
-        </div>
+        <UploadWorkspace
+          items={uploadQueue}
+          running={uploadQueueRunning}
+          onFilesAdded={addUploadFiles}
+          onDisplayNameChange={(id, displayName) => updateUploadItem(id, { displayName })}
+          onRemove={(id) => replaceUploadQueue(
+            uploadQueueRef.current.filter((item) => item.id !== id),
+          )}
+          onRetry={retryUploadItem}
+          onStart={() => void startUploadQueue()}
+        />
+        {notice ? (
+          <StatusMessage tone="success" label="Queued">{notice}</StatusMessage>
+        ) : null}
       </LibraryDialog>
 
       <LibraryDialog

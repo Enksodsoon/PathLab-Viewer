@@ -44,7 +44,7 @@ describe('slide publication details', () => {
       />,
     )
 
-    expect(screen.getByText('Published').closest('dd')?.querySelector('[data-lock-state="open"]')).not.toBeNull()
-    expect(screen.getByText('Published').closest('dd')?.querySelector('[data-lock-state="closed"]')).toBeNull()
+    expect(screen.getByText('Public').closest('dd')?.querySelector('[data-lock-state="open"]')).not.toBeNull()
+    expect(screen.getByText('Public').closest('dd')?.querySelector('[data-lock-state="closed"]')).toBeNull()
   })
 })

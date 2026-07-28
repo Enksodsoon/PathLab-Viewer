@@ -83,7 +83,7 @@ export function FilterPanel({
             <option value="validating">Validating</option>
             <option value="converting">Processing</option>
             <option value="ready_private">Ready private</option>
-            <option value="published">Published</option>
+            <option value="published">Public</option>
             <option value="failed">Failed</option>
           </select>
         </label>

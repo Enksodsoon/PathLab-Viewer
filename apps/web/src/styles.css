@@ -6,6 +6,56 @@ button, a { -webkit-tap-highlight-color: transparent; }
 h1,h2,h3,p { margin: 0; }
 h1,h2,h3,.brand { font-family:var(--font-ui); }
 .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.pathlab-status-message {
+  --status-color: var(--primary);
+  width: fit-content;
+  max-width: 100%;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 4px 11px 4px 4px;
+  border: 1px solid color-mix(in srgb, var(--status-color) 36%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-elevated) 91%, var(--status-color));
+  color: var(--body);
+  box-shadow: 0 8px 22px color-mix(in srgb, black 9%, transparent);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.pathlab-status-message--success { --status-color: var(--success); }
+.pathlab-status-message--warning { --status-color: var(--warning); }
+.pathlab-status-message--error { --status-color: var(--danger); }
+.pathlab-status-message__badge {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--status-color);
+  color: var(--surface-elevated);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.pathlab-status-message__badge svg {
+  width: 12px;
+  height: 12px;
+}
+.pathlab-status-message__copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .pathlab-status-message {
+    align-items: flex-start;
+    border-radius: 12px;
+  }
+}
 .brand { display:flex; align-items:center; gap:8px; color:var(--ink); font-weight:700; letter-spacing:-.02em; }
 .brand-mark { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; color:var(--primary); background:var(--surface); }
 .brand-mark svg { width:20px; height:20px; }

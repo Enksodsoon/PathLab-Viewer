@@ -88,7 +88,7 @@ export function AppRail({
         <section
           className="library-storage-meter"
           aria-label={`Storage, ${storageLabel}`}
-          title={storageLabel}
+          title={`${storageLabel}. Safe capacity after active conversion reservations.`}
         >
           <div className="library-storage-copy">
             <span>Storage</span>

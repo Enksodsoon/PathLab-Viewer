@@ -29,7 +29,7 @@ export function PublishConfirmationDialog({
     <LibraryDialog
       open={open}
       title="Confirm deidentification"
-      description="Published slides and their public teaching details can be opened by anyone with the link."
+      description="Public slides and their teaching details can be opened by anyone with the link."
       onClose={() => { if (!busy) onClose() }}
     >
       <div className="library-dialog-form">

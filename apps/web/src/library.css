@@ -240,7 +240,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-storage-copy span,
-.library-storage-copy strong {
+.library-storage-copy strong,
+.library-storage-copy small {
   overflow: hidden;
   font-size: 10px;
   line-height: 1.2;
@@ -256,6 +257,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-storage-copy strong {
   color: var(--ink);
   font-weight: 600;
+}
+
+.library-storage-copy small {
+  color: var(--muted);
+  font-size: 9px;
 }
 
 .library-storage-track {
@@ -1382,25 +1388,49 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .card-actions {
   position: absolute;
-  inset: 10px 10px auto;
-  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  z-index: 4;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 5px;
 }
 
 .card-actions label span,
-.card-actions > button {
-  width: 40px;
-  height: 40px;
+.slide-actions-trigger {
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--canvas) 58%, transparent);
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--ink) 86%, transparent);
-  color: var(--canvas);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  box-shadow: 0 5px 14px -10px var(--shadow-color);
+  color: var(--ink);
   cursor: pointer;
+}
+
+.card-actions label span:hover,
+.slide-actions-trigger:hover {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
+  background: var(--surface);
+}
+
+.card-actions label input:focus-visible + span,
+.slide-actions-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.card-actions label span svg,
+.slide-actions-trigger svg {
+  width: 15px;
+  height: 15px;
+}
+
+.library-table .slide-actions-trigger {
+  margin-inline: auto;
 }
 
 .card-actions label {
@@ -1470,6 +1500,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-slide-thumbnail img {
   width: 100%;
   height: 100%;
+  image-rendering: auto;
   object-fit: cover;
 }
 
@@ -1586,11 +1617,16 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .card-facts {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   margin-top: 9px;
+  padding-right: 68px;
   color: var(--muted);
   font-size: 10px;
+}
+
+.card-facts span:last-child {
+  margin-left: auto;
 }
 
 .card-facts span {
@@ -1813,6 +1849,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-table td:nth-child(2) button {
+  width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1824,9 +1862,48 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   cursor: pointer;
 }
 
+.table-slide-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .library-table .processing-progress {
-  width: 290px;
-  margin-top: 7px;
+  width: 100%;
+  max-width: 220px;
+  margin-top: 4px;
+  padding: 7px 8px;
+}
+
+.processing-table .library-state {
+  display: none;
+}
+
+.library-table .processing-progress-heading strong {
+  font-size: 10px;
+}
+
+.library-table .processing-progress-heading span {
+  font-size: 9px;
+}
+
+.library-table .processing-progress > p {
+  margin: 2px 0 6px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-table .processing-stage-track > span {
+  height: 4px;
+}
+
+.library-table .processing-stage-labels,
+.library-table .processing-parameters {
+  display: none;
 }
 
 .table-mini-thumb {
@@ -1862,9 +1939,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-empty,
-.library-loading,
-.library-error,
-.library-notice {
+.library-loading {
   min-height: 100px;
   display: grid;
   place-items: center;
@@ -1934,17 +2009,6 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   cursor: pointer;
-}
-
-.library-error {
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
-  color: var(--danger);
-}
-
-.library-notice {
-  margin-bottom: 16px;
-  border-color: color-mix(in srgb, var(--success) 36%, var(--border));
-  color: var(--body);
 }
 
 .library-pagination {
@@ -2328,32 +2392,57 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   line-height: 1.45;
 }
 
-.upload-drop {
-  min-height: 190px !important;
-  position: relative;
-  display: grid !important;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  place-items: initial !important;
+.upload-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.upload-workspace-drop {
+  min-height: 176px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px !important;
-  padding: 22px !important;
-  border: 1px dashed color-mix(in srgb, var(--primary) 54%, var(--border)) !important;
+  gap: 12px;
+  padding: 20px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 52%, var(--border));
   border-radius: var(--radius-card);
-  background: var(--surface);
-  color: var(--body);
-  text-align: left !important;
-  cursor: pointer;
+  background: color-mix(in srgb, var(--primary) 3%, var(--surface));
+  transition: border-color 160ms ease, background 160ms ease;
 }
 
-.upload-drop:hover,
-.upload-drop:focus-within {
-  border-color: var(--primary) !important;
-  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+.upload-workspace-drop.is-dragging {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface));
 }
 
-.upload-drop-icon {
-  width: 44px;
-  height: 44px;
+.upload-workspace-drop.is-compact {
+  min-height: 0;
+  padding: 14px;
+}
+
+.upload-workspace-drop strong,
+.upload-workspace-file strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.upload-workspace-drop p,
+.upload-workspace-drop small,
+.upload-workspace-file span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.upload-workspace-drop p {
+  margin: 3px 0 0;
+}
+
+.upload-workspace-drop small {
+  grid-column: 2 / -1;
+}
+
+.upload-workspace-icon,
+.upload-workspace-file-icon {
   display: grid;
   place-items: center;
   border-radius: var(--radius-control);
@@ -2361,44 +2450,168 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   color: var(--primary);
 }
 
-.upload-drop-copy {
+.upload-workspace-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.upload-workspace-icon svg,
+.upload-workspace-file-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.upload-workspace-choose {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.upload-workspace-file {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.upload-workspace-file.has-error {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+
+.upload-workspace-file.is-complete {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+
+.upload-workspace-file-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.upload-workspace-file.has-error .upload-workspace-file-icon {
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface-card));
+  color: var(--danger);
+}
+
+.upload-workspace-file.is-complete .upload-workspace-file-icon {
+  background: color-mix(in srgb, var(--success) 12%, var(--surface-card));
+  color: var(--success);
+}
+
+.upload-workspace-file-copy {
   min-width: 0;
   display: grid;
+  gap: 3px;
+}
+
+.upload-workspace-file-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-workspace-queue {
+  max-height: min(44vh, 390px);
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.upload-workspace-file-actions {
+  display: flex;
   gap: 4px;
 }
 
-.upload-drop-copy strong {
-  color: var(--ink);
-  font-size: 14px;
+.upload-workspace-file-actions button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted);
 }
 
-.upload-drop-hint,
-.upload-file-name {
+.upload-workspace-file-actions button:hover {
+  background: var(--surface-card);
+  color: var(--ink);
+}
+
+.upload-workspace-name {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.upload-workspace-name input {
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.upload-workspace-progress {
+  grid-column: 1 / -1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.upload-workspace-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 180ms ease;
+}
+
+.upload-workspace-progress.is-indeterminate span {
+  animation: upload-workspace-progress 1.2s ease-in-out infinite;
+}
+
+.upload-workspace-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger);
+  font-size: 11px;
+}
+
+.upload-workspace-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.upload-workspace-footer > span {
   color: var(--muted);
   font-size: 11px;
 }
 
-.upload-file-button {
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  border-radius: var(--radius-control);
-  background: var(--primary);
-  color: var(--on-primary);
-  font-size: 12px;
-  font-weight: 700;
+.upload-workspace-footer .primary {
+  min-height: 36px;
 }
 
-.upload-file-name {
-  grid-column: 1 / -1;
-  min-width: 0;
-  overflow: hidden;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+@keyframes upload-workspace-progress {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(300%); }
 }
 
 .upload-file-input {
@@ -2414,19 +2627,6 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   clip-path: inset(50%) !important;
   opacity: 0 !important;
   white-space: nowrap !important;
-}
-
-.library-upload-progress {
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--border);
-}
-
-.library-upload-progress span {
-  display: block;
-  height: 100%;
-  background: var(--primary);
 }
 
 .share-check {
@@ -2554,16 +2754,6 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   color: var(--danger);
 }
 
-.share-auto-warning {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
-  border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
-  color: var(--body);
-  font-size: 12px;
-}
-
 /* Responsive Canvas Focus */
 
 @media (max-width: 1050px) {
@@ -2605,6 +2795,47 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
   .filter-grid {
     grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .library-table {
+    min-width: 700px;
+    table-layout: fixed;
+  }
+
+  .library-table th:nth-child(3),
+  .library-table td:nth-child(3),
+  .library-table th:nth-child(4),
+  .library-table td:nth-child(4),
+  .library-table th:nth-child(5),
+  .library-table td:nth-child(5),
+  .library-table th:nth-child(6),
+  .library-table td:nth-child(6) {
+    display: none;
+  }
+
+  .library-table th:nth-child(1),
+  .library-table td:nth-child(1) {
+    width: 42px;
+  }
+
+  .library-table th:nth-child(7),
+  .library-table td:nth-child(7) {
+    width: 72px;
+  }
+
+  .library-table th:nth-child(8),
+  .library-table td:nth-child(8) {
+    width: 240px;
+  }
+
+  .library-table th:nth-child(9),
+  .library-table td:nth-child(9) {
+    width: 82px;
+  }
+
+  .library-table th:nth-child(10),
+  .library-table td:nth-child(10) {
+    width: 48px;
   }
 }
 
@@ -2876,9 +3107,13 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   }
 
   .card-actions label span,
-  .card-actions > button {
+  .slide-actions-trigger {
     width: 44px;
     height: 44px;
+  }
+
+  .card-facts {
+    padding-right: 102px;
   }
 
   .filter-panel-heading button,
@@ -2909,12 +3144,25 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     grid-template-columns: 1fr;
   }
 
-  .upload-drop {
-    grid-template-columns: auto minmax(0, 1fr);
+  .upload-workspace-drop {
+    grid-template-columns: 40px minmax(0, 1fr);
   }
 
-  .upload-file-button {
+  .upload-workspace-choose {
     grid-column: 1 / -1;
+  }
+
+  .upload-workspace-drop small {
+    grid-column: 1 / -1;
+  }
+
+  .upload-workspace-name {
+    grid-column: 1 / -1;
+  }
+
+  .upload-workspace-footer {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

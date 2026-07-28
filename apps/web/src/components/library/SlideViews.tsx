@@ -28,7 +28,7 @@ const STATUS: Record<LibrarySlide['state'], string> = {
   validating: 'Validating',
   converting: 'Processing',
   ready_private: 'Ready private',
-  published: 'Published',
+  published: 'Public',
   failed: 'Failed',
   deleting: 'Deleting',
 }
@@ -208,6 +208,7 @@ function SlideActions({
   return (
     <ContextMenu
       label={`More actions for ${slide.displayName}`}
+      buttonClassName="slide-actions-trigger"
       buttonContent={<MoreVertical />}
     >
       {(close) => {
@@ -306,7 +307,6 @@ function SlideCard({
   const immersive = slide.state === 'ready_private' || slide.state === 'published'
   const description = slide.description
     || [slide.organSite, slide.stain].filter(Boolean).join(' · ')
-    || 'Metadata pending'
 
   return (
     <article
@@ -349,14 +349,14 @@ function SlideCard({
           <Status slide={slide} />
         </div>
         <div className="card-content-details">
-          <p className="card-description">{description}</p>
+          {description ? <p className="card-description">{description}</p> : null}
           <div className="card-tags">
             {[slide.diagnosis, ...slide.tags].filter(Boolean).slice(0, 2).map((tag) => (
               <span key={tag}>{tag}</span>
             ))}
           </div>
           <div className="card-facts">
-            <span>Case {slide.caseId || '—'}</span>
+            {slide.caseId ? <span>Case {slide.caseId}</span> : null}
             <span>{formatBytes(slide.sourceBytes)}</span>
           </div>
           {showProcessingProgress ? (
@@ -385,7 +385,7 @@ function SlideTable(props: CommonProps) {
   } = props
   return (
     <div className="library-table-wrap">
-      <table className="library-table">
+      <table className={`library-table ${showProcessingProgress ? 'processing-table' : ''}`}>
         <thead>
           <tr>
             <th><span className="visually-hidden">Select</span></th>
@@ -413,7 +413,7 @@ function SlideTable(props: CommonProps) {
               <td>
                 <button type="button" onClick={() => onOpen(slide)}>
                   <span className="table-mini-thumb"><Thumbnail slide={slide} /></span>
-                  {slide.displayName}
+                  <span className="table-slide-name">{slide.displayName}</span>
                 </button>
               </td>
               <td>{slide.organSite || '—'}</td><td>{slide.stain || '—'}</td>

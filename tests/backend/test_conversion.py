@@ -118,8 +118,8 @@ def test_conversion_generates_one_bounded_cached_thumbnail(
     result = generate_dzi(source, tmp_path / "private", series_index=0, bits=8)
 
     assert (tmp_path / "private" / "thumbnail.jpg").read_bytes() == b"thumbnail"
-    assert image.thumbnail_edge == 384
-    assert image.thumbnail_options == {"Q": 80, "strip": True, "optimize_coding": True}
+    assert image.thumbnail_edge == 640
+    assert image.thumbnail_options == {"Q": 82, "strip": True, "optimize_coding": True}
     assert result.derivative_file_count == 3
     assert result.tile_count == 1
 
