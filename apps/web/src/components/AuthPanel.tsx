@@ -5,15 +5,13 @@ import {
   Key,
   ShieldCheck,
 } from '@phosphor-icons/react'
+import { Brand, ThemeControl, useTheme } from '@enksodsoon/pathlab-ui'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { ApiError, login, recoverPassword } from '../api'
 import darkArtwork from '../assets/auth-histology-solace-dark.webp'
 import lightArtwork from '../assets/auth-histology-solace-light.webp'
-import { ThemeControl } from '../theme/ThemeControl'
-import { useTheme } from '../theme/ThemeProvider'
-import { Brand } from './Brand'
 import { Loader } from './Loader'
 import { StatusMessage } from './StatusMessage'
 

@@ -1,4 +1,5 @@
 import { ArrowsOut as Expand, House as Home, Info, Minus, Plus } from '@phosphor-icons/react'
+import { Brand, ThemeControl } from '@enksodsoon/pathlab-ui'
 import {
   type ComponentType,
   useCallback,
@@ -9,14 +10,12 @@ import {
 import { useParams } from 'react-router-dom'
 
 import { getPrivateSlide, getPublicSlide } from '../api'
-import { Brand } from '../components/Brand'
 import { Loader } from '../components/Loader'
 import {
   OpenSeadragonViewer,
   type ViewerAttachmentCallback,
   type ViewerHandle,
 } from '../components/OpenSeadragonViewer'
-import { ThemeControl } from '../theme/ThemeControl'
 import type { AdminSlide, PublicSlide } from '../types'
 
 export function ViewerPage() {

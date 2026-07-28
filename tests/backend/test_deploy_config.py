@@ -374,6 +374,15 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     assert web.startswith("FROM --platform=$BUILDPLATFORM node:")
 
 
+def test_web_container_includes_workspace_packages_before_install() -> None:
+    dockerfile = Path("deploy/Dockerfile.web").read_text(encoding="utf-8")
+
+    assert "COPY packages ./packages" in dockerfile
+    assert dockerfile.index("COPY packages ./packages") < dockerfile.index(
+        "RUN pnpm install --frozen-lockfile"
+    )
+
+
 def test_public_infrastructure_defaults_limit_operator_attack_surface() -> None:
     variables = Path("deploy/terraform/variables.tf").read_text(encoding="utf-8")
     duckdns = Path("deploy/scripts/duckdns.sh").read_text(encoding="utf-8")

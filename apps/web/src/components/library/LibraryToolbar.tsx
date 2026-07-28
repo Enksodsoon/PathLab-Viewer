@@ -15,8 +15,8 @@ import {
   Table as Table2,
   UploadSimple as Upload,
 } from '@phosphor-icons/react'
+import { ThemeControl } from '@enksodsoon/pathlab-ui'
 import { ContextMenu } from './ContextMenu'
-import { ThemeControl } from '../../theme/ThemeControl'
 
 export type LibraryViewMode = 'grid' | 'list' | 'table'
 export interface BreadcrumbItem {

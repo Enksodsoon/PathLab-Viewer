@@ -6,10 +6,10 @@ import {
   SignOut,
   UploadSimple as Upload,
 } from '@phosphor-icons/react'
+import { Brand } from '@enksodsoon/pathlab-ui'
 import type { Ref } from 'react'
 
 import type { LibraryNavigation } from '../../types'
-import { Brand } from '../Brand'
 import { formatBytes } from './format'
 
 interface AppRailProps {
