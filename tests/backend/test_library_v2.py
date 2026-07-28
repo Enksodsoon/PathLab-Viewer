@@ -113,8 +113,11 @@ def test_v2_navigation_requires_auth_and_returns_bounded_sections(tmp_path: Path
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"counts", "folders", "collections", "savedViews"}
+    assert set(payload) == {"counts", "folders", "collections", "savedViews", "storage"}
     assert payload["counts"]["all"] == 0
+    assert payload["storage"]["usedBytes"] == 0
+    assert payload["storage"]["usableBytes"] > 0
+    assert payload["storage"]["effectiveCapacityBytes"] == payload["storage"]["usableBytes"]
     assert len(response.content) <= 256 * 1024
 
 

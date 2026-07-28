@@ -96,6 +96,7 @@ const EMPTY_NAVIGATION: LibraryNavigation = {
   folders: [],
   collections: [],
   savedViews: [],
+  storage: { usedBytes: 0, usableBytes: 0, effectiveCapacityBytes: 0 },
 }
 const EMPTY_PAGE: LibraryItemsPage = { items: [], nextCursor: null, total: 0 }
 const EMPTY_FILTERS: LibraryFilters = {
@@ -168,7 +169,10 @@ const EMPTY_EDIT_FORM: SlideEditForm = {
 
 function safeNavigation(value: LibraryNavigation): LibraryNavigation {
   if (!value || Array.isArray(value) || !value.counts) return EMPTY_NAVIGATION
-  return value
+  return {
+    ...value,
+    storage: value.storage ?? EMPTY_NAVIGATION.storage,
+  }
 }
 
 function safePage(value: LibraryItemsPage): LibraryItemsPage {
@@ -1214,6 +1218,7 @@ export function AdminPage() {
         isInert={navigatorOpen}
         navigatorOpen={navigatorOpen}
         navigatorButtonRef={navigatorToggleRef}
+        storage={navigation.storage}
         onToggleExpanded={() => setRailExpanded((current) => {
           persistRailExpanded(!current)
           return !current

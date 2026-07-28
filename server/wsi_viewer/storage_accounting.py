@@ -46,6 +46,13 @@ class ReconciliationSummary:
     active_reservation_count: int
 
 
+@dataclass(frozen=True)
+class StorageCapacitySnapshot:
+    used_bytes: int
+    usable_bytes: int
+    effective_capacity_bytes: int
+
+
 def _begin_immediate(database: OrmSession) -> None:
     database.connection().exec_driver_sql("BEGIN IMMEDIATE")
 
@@ -59,6 +66,21 @@ def _accounted_bytes(database: OrmSession, *, exclude_slide_id: str | None = Non
     if exclude_slide_id is not None:
         statement = statement.where(Slide.id != exclude_slide_id)
     return int(database.scalar(statement) or 0)
+
+
+def storage_capacity_snapshot(
+    database: OrmSession,
+    layout: StorageLayout,
+) -> StorageCapacitySnapshot:
+    used_bytes = _accounted_bytes(database)
+    application_free = max(layout.cap_bytes - used_bytes, 0)
+    physical_free = max(int(shutil.disk_usage(layout.root).free), 0)
+    usable_bytes = min(application_free, physical_free)
+    return StorageCapacitySnapshot(
+        used_bytes=used_bytes,
+        usable_bytes=usable_bytes,
+        effective_capacity_bytes=used_bytes + usable_bytes,
+    )
 
 
 def _require_physical_space(root: Path, required: int) -> None:

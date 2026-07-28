@@ -29,12 +29,54 @@ from wsi_viewer.storage_accounting import (
     reconcile_storage,
     reserve_new_slide,
     reserve_retry,
+    storage_capacity_snapshot,
 )
 
 
 def test_upload_admission_reserves_conversion_and_safety_headroom() -> None:
     gib = 1024**3
     assert admission_required(5 * gib) == 25 * gib
+
+
+def test_storage_capacity_uses_stricter_disk_and_application_limits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'capacity.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    with factory() as database:
+        database.add(
+            Slide(
+                display_name="Stored",
+                original_filename="stored.ome.tif",
+                source_bytes=100,
+                derivative_bytes=50,
+                state=SlideState.READY_PRIVATE,
+            )
+        )
+        database.commit()
+        monkeypatch.setattr(
+            "wsi_viewer.storage_accounting.shutil.disk_usage",
+            Mock(return_value=SimpleNamespace(free=500)),
+        )
+
+        disk_limited = storage_capacity_snapshot(
+            database,
+            StorageLayout(settings.data_root, cap_bytes=1000),
+        )
+        application_limited = storage_capacity_snapshot(
+            database,
+            StorageLayout(settings.data_root, cap_bytes=200),
+        )
+
+    assert disk_limited.used_bytes == 150
+    assert disk_limited.usable_bytes == 500
+    assert disk_limited.effective_capacity_bytes == 650
+    assert application_limited.usable_bytes == 50
+    assert application_limited.effective_capacity_bytes == 200
 
 
 def test_storage_rejects_when_disk_or_app_cap_is_too_small(tmp_path: Path) -> None:

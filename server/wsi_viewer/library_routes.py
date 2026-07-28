@@ -57,6 +57,7 @@ from .sharing import (
     write_share_delivery_manifest,
 )
 from .storage import StorageLayout
+from .storage_accounting import storage_capacity_snapshot
 
 
 class FolderCreate(BaseModel):
@@ -290,6 +291,7 @@ def register_library_routes(
             .order_by(Collection.sort_order, Collection.normalized_name)
         ).all()
         views = database.scalars(select(SavedView).order_by(SavedView.normalized_name)).all()
+        capacity = storage_capacity_snapshot(database, storage)
         result = {
             "counts": {
                 "all": int(state_counts[0]),
@@ -311,6 +313,11 @@ def register_library_routes(
                 collection_json(collection, int(count)) for collection, count in collections
             ],
             "savedViews": [saved_view_json(view) for view in views],
+            "storage": {
+                "usedBytes": capacity.used_bytes,
+                "usableBytes": capacity.usable_bytes,
+                "effectiveCapacityBytes": capacity.effective_capacity_bytes,
+            },
         }
         if folder_id:
             result["folderPath"] = [

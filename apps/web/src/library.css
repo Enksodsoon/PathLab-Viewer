@@ -225,6 +225,64 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   margin-top: auto;
 }
 
+.library-storage-meter {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  padding: 8px 7px 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+.library-storage-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.library-storage-copy span,
+.library-storage-copy strong {
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-storage-copy span {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.library-storage-copy strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.library-storage-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-card);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.library-storage-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 180ms ease;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-meter {
+  gap: 0;
+  padding: 8px 5px 10px;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-copy {
+  display: none;
+}
+
 .library-toolbar-utilities {
   display: flex;
   align-items: center;
@@ -2292,6 +2350,10 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     flex: 0 0 96px;
     gap: 2px;
     margin: 0;
+  }
+
+  .library-storage-meter {
+    display: none;
   }
 
   .library-rail-primary > button,

@@ -8,13 +8,16 @@ import {
 } from '@phosphor-icons/react'
 import type { Ref } from 'react'
 
+import type { LibraryNavigation } from '../../types'
 import { Brand } from '../Brand'
+import { formatBytes } from './format'
 
 interface AppRailProps {
   expanded: boolean
   isInert: boolean
   navigatorOpen: boolean
   navigatorButtonRef: Ref<HTMLButtonElement>
+  storage: LibraryNavigation['storage']
   onToggleExpanded: () => void
   onNavigator: () => void
   onUpload: () => void
@@ -27,12 +30,21 @@ export function AppRail({
   isInert,
   navigatorOpen,
   navigatorButtonRef,
+  storage,
   onToggleExpanded,
   onNavigator,
   onUpload,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
+  const capacity = storage.effectiveCapacityBytes
+  const remainingPercent = capacity > 0
+    ? Math.round((storage.usableBytes / capacity) * 100)
+    : 0
+  const storageLabel = capacity > 0
+    ? `${formatBytes(storage.usableBytes)} available`
+    : 'Storage unavailable'
+
   return (
     <aside
       className="library-app-rail"
@@ -73,6 +85,27 @@ export function AppRail({
         </button>
       </nav>
       <div className="library-rail-utilities" aria-label="Account actions">
+        <section
+          className="library-storage-meter"
+          aria-label={`Storage, ${storageLabel}`}
+          title={storageLabel}
+        >
+          <div className="library-storage-copy">
+            <span>Storage</span>
+            <strong>{storageLabel}</strong>
+          </div>
+          <div
+            className="library-storage-track"
+            role="meter"
+            aria-label="Usable storage remaining"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={remainingPercent}
+            aria-valuetext={storageLabel}
+          >
+            <span style={{ width: `${remainingPercent}%` }} />
+          </div>
+        </section>
         <button type="button" aria-label="Account" onClick={onSecurity}>
           <Key aria-hidden="true" />
           <span>Account</span>

@@ -118,6 +118,11 @@ export interface LibraryNavigation {
   folderPath?: LibraryFolder[]
   collections: LibraryCollection[]
   savedViews: SavedView[]
+  storage: {
+    usedBytes: number
+    usableBytes: number
+    effectiveCapacityBytes: number
+  }
 }
 
 export interface LibraryItemsPage {

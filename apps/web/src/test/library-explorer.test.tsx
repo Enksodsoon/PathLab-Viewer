@@ -53,6 +53,11 @@ const navigation: LibraryNavigation = {
     updatedAt: '2026-07-23T00:00:00Z',
   }],
   savedViews: [],
+  storage: {
+    usedBytes: 30 * 1024 ** 3,
+    usableBytes: 90 * 1024 ** 3,
+    effectiveCapacityBytes: 120 * 1024 ** 3,
+  },
 }
 
 const items: LibraryItemsPage = {
@@ -200,6 +205,15 @@ describe('Canvas Focus library explorer', () => {
     expect(screen.getByRole('group', { name: /theme preference/i })).toBeVisible()
     expect(within(rail).getByRole('button', { name: /^account$/i })).toBeVisible()
     expect(within(rail).getByRole('button', { name: /^sign out$/i })).toBeVisible()
+    const storage = within(rail).getByRole('meter', {
+      name: /usable storage remaining/i,
+    })
+    expect(storage).toHaveAttribute('aria-valuenow', '75')
+    expect(storage).toHaveAttribute('aria-valuetext', '90.00 GB available')
+    expect(storage.closest('.library-storage-meter')).toHaveAttribute(
+      'aria-label',
+      'Storage, 90.00 GB available',
+    )
 
     const toggle = within(rail).getByRole('button', { name: /expand navigation rail/i })
     expect(document.querySelector('.library-shell')).not.toHaveClass('rail-expanded')
