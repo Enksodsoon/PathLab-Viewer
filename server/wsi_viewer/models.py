@@ -400,6 +400,7 @@ class LibraryShare(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     include_descendants: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     auto_include_new: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    folder_paths: Mapped[list[list[str]]] = mapped_column(JSON, nullable=False, default=list)
     privacy_status: Mapped[str] = mapped_column(
         String(30), nullable=False, default="pending"
     )
@@ -426,6 +427,7 @@ class ShareSlide(Base):
     slide_id: Mapped[str] = mapped_column(
         ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
     )
+    folder_path: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

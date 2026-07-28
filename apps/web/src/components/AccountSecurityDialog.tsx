@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, SyntheticEvent } from 'react'
 
 import { ApiError, changePassword } from '../api'
+import { Loader } from './Loader'
 
 const MIN_NEW_PASSWORD_LENGTH = 12
 const MAX_NEW_PASSWORD_LENGTH = 128
@@ -137,7 +138,11 @@ export function AccountSecurityDialog({
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="auth-actions">
           <button className="button" type="button" onClick={close} disabled={busy}>Cancel</button>
-          <button className="button primary" type="submit" disabled={busy}>Change password</button>
+          <button className="button primary" type="submit" disabled={busy}>
+            {busy
+              ? <Loader label="Changing password…" size="small" inline />
+              : 'Change password'}
+          </button>
         </div>
       </form>
     </dialog>

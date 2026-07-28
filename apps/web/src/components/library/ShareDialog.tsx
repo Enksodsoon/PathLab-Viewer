@@ -16,6 +16,7 @@ import {
   revokeLibraryShare,
   rotateLibraryShare,
 } from '../../api'
+import { Loader } from '../Loader'
 import type { LibraryShare, SharePreview } from '../../types'
 import { LibraryDialog } from './LibraryDialog'
 
@@ -28,12 +29,13 @@ interface Props {
 }
 
 export function ShareDialog({ open, targetType, targetId, targetName, onClose }: Props) {
-  const [includeDescendants, setIncludeDescendants] = useState(false)
+  const [includeDescendants, setIncludeDescendants] = useState(targetType === 'folder')
   const [autoIncludeNew, setAutoIncludeNew] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [expiresAt, setExpiresAt] = useState('')
   const [preview, setPreview] = useState<SharePreview | null>(null)
   const [share, setShare] = useState<LibraryShare | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [messageIsError, setMessageIsError] = useState(false)
@@ -41,7 +43,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
 
   useEffect(() => {
     if (!open) return
-    setIncludeDescendants(false)
+    setIncludeDescendants(targetType === 'folder')
     setAutoIncludeNew(false)
     setExpiresAt('')
     setConfirmed(false)
@@ -57,6 +59,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
     setConfirmRevoke(false)
     setPreview(null)
     setShare(null)
+    setPreviewLoading(true)
     void Promise.all([
       previewLibraryShare(targetType, targetId, includeDescendants),
       listLibraryShares(),
@@ -70,6 +73,8 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
         setMessageIsError(true)
         setMessage('Unable to load the share preview.')
       }
+    }).finally(() => {
+      if (active) setPreviewLoading(false)
     })
     return () => { active = false }
   }, [includeDescendants, open, targetId, targetType])
@@ -96,8 +101,8 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
       setMessage('Shared link created.')
     } catch (caught) {
       setMessageIsError(true)
-      setMessage(caught instanceof ApiError && caught.code === 'PRIVACY_SCANNER_REQUIRED'
-        ? 'Multi-slide sharing stays disabled until the automated privacy scanner is available.'
+      setMessage(caught instanceof ApiError && caught.code === 'MULTI_SHARE_DISABLED'
+        ? 'Folder and collection sharing is disabled by the server administrator.'
         : 'Unable to create the shared link.')
     } finally {
       setBusy(false)
@@ -148,7 +153,9 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   return (
     <LibraryDialog open={open} title={`Share ${targetName}`} description={`${targetType === 'folder' ? 'Folder' : 'Collection'} sharing preview`} onClose={onClose}>
       <div className="share-dialog-content">
-        {share ? <>
+        {previewLoading ? (
+          <Loader label="Loading sharing preview…" size="small" inline />
+        ) : share ? <>
           <div className="share-active-summary"><Link2 /><div><strong>Active shared link</strong><span>{share.includedCount} slides · {share.expiresAt ? `expires ${new Date(share.expiresAt).toLocaleDateString()}` : 'no expiration'}</span></div></div>
           <input aria-label="Shared link" readOnly value={`${window.location.origin}${publicPath}`} />
           <div className="share-dialog-actions">
@@ -171,7 +178,8 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             <label className="share-check">
               <input className="share-checkbox-input" type="checkbox" checked={includeDescendants} onChange={(event) => setIncludeDescendants(event.target.checked)} />
               <span className="share-checkbox-indicator" aria-hidden="true"><Check /></span>
-              <span>Include slides in descendant folders</span>
+              <span>Include subfolders and their slides</span>
+              <small>Subfolder names and slides will appear in the shared viewer.</small>
             </label>
           ) : null}
           <label className="share-check">
@@ -187,9 +195,20 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
           ) : null}
           <label>Expiration (optional)<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
           <div className="share-preview-list">
-            <strong>{preview?.included.length ?? 0} slides ready</strong>
-            {preview?.included.slice(0, 6).map((item) => <span key={item.id}><Check /> {item.displayName}</span>)}
-            {preview?.excluded.length ? <small>{preview.excluded.length} slides excluded because they are not ready or privacy-reviewed.</small> : null}
+            <strong>{preview?.included.length ?? 0} slides ready for review</strong>
+            {preview?.included.slice(0, 6).map((item) => (
+              <span key={item.id}>
+                <Check /> {item.displayName}
+                {item.folderPath?.length || item.privacyReviewRequired ? (
+                  <small>
+                    {[item.folderPath?.join(' / '), item.privacyReviewRequired ? 'Review required' : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </small>
+                ) : null}
+              </span>
+            ))}
+            {preview?.excluded.length ? <small>{preview.excluded.length} slides excluded because they are not ready.</small> : null}
           </div>
           <label className="share-check privacy">
             <input className="share-checkbox-input" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
@@ -199,6 +218,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
           </label>
           <button type="button" className="primary" disabled={busy || !confirmed || !preview?.included.length} onClick={() => void create()}>Create shared link</button>
         </>}
+        {busy ? <Loader label="Updating shared link…" size="small" inline /> : null}
         {message ? <p role={messageIsError ? 'alert' : 'status'}>{message}</p> : null}
       </div>
     </LibraryDialog>

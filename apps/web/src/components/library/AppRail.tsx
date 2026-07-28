@@ -1,24 +1,24 @@
 import {
-  CircleDashed,
+  CaretDoubleLeft,
+  CaretDoubleRight,
   Key,
   List as Menu,
-  SignOut as LogOut,
-  SquaresFour as Grid2X2,
-  Trash as Trash2,
+  SignOut,
   UploadSimple as Upload,
-  XCircle as CircleX,
 } from '@phosphor-icons/react'
 import type { Ref } from 'react'
 
+import type { LibraryNavigation } from '../../types'
 import { Brand } from '../Brand'
-import { ThemeControl } from '../../theme/ThemeControl'
+import { formatBytes } from './format'
 
 interface AppRailProps {
-  location: string
+  expanded: boolean
   isInert: boolean
   navigatorOpen: boolean
   navigatorButtonRef: Ref<HTMLButtonElement>
-  onLocation: (location: string) => void
+  storage: LibraryNavigation['storage']
+  onToggleExpanded: () => void
   onNavigator: () => void
   onUpload: () => void
   onSecurity: () => void
@@ -26,16 +26,25 @@ interface AppRailProps {
 }
 
 export function AppRail({
-  location,
+  expanded,
   isInert,
   navigatorOpen,
   navigatorButtonRef,
-  onLocation,
+  storage,
+  onToggleExpanded,
   onNavigator,
   onUpload,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
+  const capacity = storage.effectiveCapacityBytes
+  const remainingPercent = capacity > 0
+    ? Math.round((storage.usableBytes / capacity) * 100)
+    : 0
+  const storageLabel = capacity > 0
+    ? `${formatBytes(storage.usableBytes)} available`
+    : 'Storage unavailable'
+
   return (
     <aside
       className="library-app-rail"
@@ -47,68 +56,62 @@ export function AppRail({
       <div className="library-rail-brand">
         <Brand variant="library" />
       </div>
+      <button
+        type="button"
+        className="library-rail-toggle"
+        aria-label={expanded ? 'Collapse navigation rail' : 'Expand navigation rail'}
+        aria-expanded={expanded}
+        onClick={onToggleExpanded}
+      >
+        {expanded ? <CaretDoubleLeft aria-hidden="true" /> : <CaretDoubleRight aria-hidden="true" />}
+        <span>{expanded ? 'Collapse' : 'Expand'}</span>
+      </button>
       <nav className="library-rail-primary" aria-label="Library destinations">
-        <button
-          type="button"
-          className={location === 'all' ? 'active' : ''}
-          aria-current={location === 'all' ? 'page' : undefined}
-          onClick={() => onLocation('all')}
-        >
-          <Grid2X2 aria-hidden="true" />
-          <span>All slides</span>
-        </button>
         <button
           ref={navigatorButtonRef}
           type="button"
-          className="mobile-navigator-toggle"
-          aria-label="Open library navigator"
+          className={navigatorOpen ? 'active mobile-navigator-toggle' : 'mobile-navigator-toggle'}
+          aria-label="Slide library"
           aria-controls="library-navigator"
           aria-expanded={navigatorOpen}
           onClick={onNavigator}
         >
           <Menu aria-hidden="true" />
-          <span>Navigator</span>
+          <span>Slide library</span>
         </button>
-        <button type="button" onClick={onUpload}>
+        <button type="button" aria-label="Upload" onClick={onUpload}>
           <Upload aria-hidden="true" />
           <span>Upload</span>
         </button>
-        <button
-          type="button"
-          className={location === 'processing' ? 'active' : ''}
-          aria-current={location === 'processing' ? 'page' : undefined}
-          onClick={() => onLocation('processing')}
-        >
-          <CircleDashed aria-hidden="true" />
-          <span>Processing</span>
-        </button>
-        <button
-          type="button"
-          className={location === 'failed' ? 'active' : ''}
-          aria-current={location === 'failed' ? 'page' : undefined}
-          onClick={() => onLocation('failed')}
-        >
-          <CircleX aria-hidden="true" />
-          <span>Failed</span>
-        </button>
-        <button
-          type="button"
-          className={location === 'trash' ? 'active' : ''}
-          aria-current={location === 'trash' ? 'page' : undefined}
-          onClick={() => onLocation('trash')}
-        >
-          <Trash2 aria-hidden="true" />
-          <span>Trash</span>
-        </button>
       </nav>
-      <div className="library-rail-utilities">
-        <ThemeControl compact className="library-theme-control" />
-        <button type="button" className="account-action account-start" onClick={onSecurity}>
+      <div className="library-rail-utilities" aria-label="Account actions">
+        <section
+          className="library-storage-meter"
+          aria-label={`Storage, ${storageLabel}`}
+          title={storageLabel}
+        >
+          <div className="library-storage-copy">
+            <span>Storage</span>
+            <strong>{storageLabel}</strong>
+          </div>
+          <div
+            className="library-storage-track"
+            role="meter"
+            aria-label="Usable storage remaining"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={remainingPercent}
+            aria-valuetext={storageLabel}
+          >
+            <span style={{ width: `${remainingPercent}%` }} />
+          </div>
+        </section>
+        <button type="button" aria-label="Account" onClick={onSecurity}>
           <Key aria-hidden="true" />
           <span>Account</span>
         </button>
-        <button type="button" className="account-action" onClick={onSignOut}>
-          <LogOut aria-hidden="true" />
+        <button type="button" aria-label="Sign out" onClick={onSignOut}>
+          <SignOut aria-hidden="true" />
           <span>Sign out</span>
         </button>
       </div>

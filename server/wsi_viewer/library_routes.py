@@ -57,6 +57,7 @@ from .sharing import (
     write_share_delivery_manifest,
 )
 from .storage import StorageLayout
+from .storage_accounting import storage_capacity_snapshot
 
 
 class FolderCreate(BaseModel):
@@ -227,6 +228,7 @@ def register_library_routes(
     csrf_dependency: Callable[..., Any],
 ) -> None:
     def navigation(
+        folder_id: str | None = Query(default=None, alias="folderId", max_length=64),
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
@@ -269,6 +271,16 @@ def register_library_routes(
             .order_by(Folder.sort_order, Folder.normalized_name)
         ).all()
         item_counts, child_counts = _folder_counts(database, list(roots))
+        folder_path: list[Folder] = []
+        if folder_id:
+            current = database.get(Folder, folder_id)
+            seen: set[str] = set()
+            while current is not None and current.trashed_at is None and current.id not in seen:
+                seen.add(current.id)
+                folder_path.append(current)
+                current = database.get(Folder, current.parent_id) if current.parent_id else None
+            folder_path.reverse()
+        path_item_counts, path_child_counts = _folder_counts(database, folder_path)
         collections = database.execute(
             select(Collection, func.count(CollectionSlide.id))
             .outerjoin(
@@ -279,7 +291,8 @@ def register_library_routes(
             .order_by(Collection.sort_order, Collection.normalized_name)
         ).all()
         views = database.scalars(select(SavedView).order_by(SavedView.normalized_name)).all()
-        return {
+        capacity = storage_capacity_snapshot(database, storage)
+        result = {
             "counts": {
                 "all": int(state_counts[0]),
                 "unfiled": int(state_counts[1]),
@@ -300,7 +313,22 @@ def register_library_routes(
                 collection_json(collection, int(count)) for collection, count in collections
             ],
             "savedViews": [saved_view_json(view) for view in views],
+            "storage": {
+                "usedBytes": capacity.used_bytes,
+                "usableBytes": capacity.usable_bytes,
+                "effectiveCapacityBytes": capacity.effective_capacity_bytes,
+            },
         }
+        if folder_id:
+            result["folderPath"] = [
+                folder_json(
+                    folder,
+                    item_count=path_item_counts.get(folder.id, 0),
+                    child_count=path_child_counts.get(folder.id, 0),
+                )
+                for folder in folder_path
+            ]
+        return result
 
     app.add_api_route(
         "/api/v2/admin/library/navigation",
@@ -1183,7 +1211,7 @@ def register_library_routes(
         if not app.state.settings.multi_share_enabled:
             raise HTTPException(
                 status_code=409,
-                detail={"code": "PRIVACY_SCANNER_REQUIRED"},
+                detail={"code": "MULTI_SHARE_DISABLED"},
             )
         if not payload.deidentified_confirmed:
             raise HTTPException(

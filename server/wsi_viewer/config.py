@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     worker_heartbeat_stale_seconds: PositiveInt = 45
     serve_public_tiles: bool = False
     internal_file_redirects: bool = False
-    multi_share_enabled: bool = False
+    multi_share_enabled: bool = True
     annotations_enabled: bool = False
     libvips_concurrency: PositiveInt = 1
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2

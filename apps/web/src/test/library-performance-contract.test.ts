@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const libraryCss = readFileSync('src/library.css', 'utf8')
+const globalCss = readFileSync('src/styles.css', 'utf8')
 
 describe('library rendering performance contract', () => {
   it('avoids persistent blur layers and isolates off-screen slide cards', () => {
@@ -28,5 +29,63 @@ describe('library rendering performance contract', () => {
     expect(mobileCss).toContain(
       '.filter-panel-heading button, .filter-clear, .state-page-actions button, .load-more, .library-menu button, .library-menu a, .selection-action-bar button { min-width: 44px; min-height: 44px; }',
     )
+  })
+
+  it('uses neutral black elevation shadows in every theme', () => {
+    expect(libraryCss).not.toMatch(/box-shadow:[^;]*var\(--ink\)/)
+    expect(libraryCss).toContain('var(--shadow-color)')
+  })
+
+  it('dims the open navigator with a dark neutral backdrop', () => {
+    expect(libraryCss).toContain(
+      'background: color-mix(in srgb, var(--shadow-color) 58%, transparent);',
+    )
+    expect(libraryCss).not.toContain(
+      'background: color-mix(in srgb, var(--ink) 38%, transparent);',
+    )
+  })
+
+  it('uses dark neutral backdrops and shadows for dialogs in every theme', () => {
+    expect(libraryCss).toContain(
+      '.library-dialog::backdrop {\n  background: color-mix(in srgb, var(--shadow-color) 58%, transparent);',
+    )
+    expect(globalCss).toContain(
+      'background:color-mix(in srgb,var(--shadow-color) 58%,transparent);',
+    )
+    expect(globalCss).toContain(
+      'box-shadow:0 24px 70px color-mix(in srgb,var(--shadow-color) 48%,transparent);',
+    )
+    expect(globalCss).not.toContain(
+      'background:color-mix(in srgb,var(--ink) 52%,transparent);',
+    )
+  })
+
+  it('uses the theme primary color for the shared motion-safe loader', () => {
+    expect(globalCss).toContain(
+      '.pathlab-loader { --pathlab-loader-size:32px;',
+    )
+    expect(globalCss).toContain('color:var(--primary);')
+    expect(globalCss).toContain('stroke:currentColor;')
+    expect(globalCss).toContain('@keyframes pathlab-loader-boxes')
+    expect(globalCss).toContain(
+      '.pathlab-loader__boxes {\n    animation:none;',
+    )
+  })
+
+  it('keeps the navigator close control compact on desktop and touch-safe on mobile', () => {
+    const closeControl = libraryCss
+      .slice(
+        libraryCss.indexOf('.mobile-navigator-close {'),
+        libraryCss.indexOf('.library-navigator {'),
+      )
+      .replace(/\s+/g, ' ')
+    const mobileCss = libraryCss
+      .slice(libraryCss.indexOf('@media (max-width: 600px)'))
+      .replace(/\s+/g, ' ')
+
+    expect(closeControl).toContain('width: 32px; height: 32px;')
+    expect(closeControl).toContain('right: 20px;')
+    expect(libraryCss).toContain('scrollbar-gutter: stable;')
+    expect(mobileCss).toContain('.mobile-navigator-close { width: 44px; height: 44px; }')
   })
 })

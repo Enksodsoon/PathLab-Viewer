@@ -1,5 +1,6 @@
 import { X } from '@phosphor-icons/react'
 
+import { Loader } from '../Loader'
 import type { LibraryFacets } from '../../types'
 
 export interface LibraryFilters {
@@ -44,7 +45,7 @@ export function FilterPanel({
         <h2>Filters</h2>
         <button type="button" aria-label="Close filters" onClick={onClose}><X /></button>
       </div>
-      {loading ? <p role="status">Loading filter values…</p> : null}
+      {loading ? <Loader label="Loading filter values…" size="small" inline /> : null}
       <div className="filter-grid">
         {fields.map(([key, label, options]) => (
           <label key={key}>

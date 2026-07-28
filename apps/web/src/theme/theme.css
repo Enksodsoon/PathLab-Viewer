@@ -5,6 +5,7 @@
   --surface: #f5f0e8;
   --surface-card: #efe9de;
   --surface-elevated: #ffffff;
+  --navigator-surface: #ffffff;
   --ink: #141413;
   --body: #3d3d3a;
   --muted: #6c6a64;
@@ -17,6 +18,7 @@
   --success: #3f7d4d;
   --warning: #936b00;
   --danger: #a33f35;
+  --shadow-color: #000000;
   --font-display: 'Cormorant Garamond Variable', Georgia, serif;
   --font-ui: 'Source Sans 3 Variable', 'Segoe UI', sans-serif;
   --radius-control: 8px;
@@ -29,6 +31,7 @@
   --surface: #1f1e1b;
   --surface-card: #252320;
   --surface-elevated: #2d2b27;
+  --navigator-surface: #141310;
   --ink: #faf9f5;
   --body: #dedad2;
   --muted: #a09d96;

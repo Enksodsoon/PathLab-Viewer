@@ -60,17 +60,23 @@ authentication and use private caching plus an ETag. A published thumbnail is
 hardlinked through the existing publication boundary and removed with the
 public alias after the final grant disappears.
 
-## Publication grants and dormant sharing
+## Publication grants and reviewed sharing
 
 An individual grant represents the existing `/s/{publicId}` publication. A
 share grant will represent one active folder or collection share. The first
 grant creates the hardlinked public alias; later grants add database rows.
 Removing the final grant removes the alias.
 
-Multi-slide share activation is disabled by default. The schema is forward
-compatible, but creation fails with `PRIVACY_SCANNER_REQUIRED` until a later
-automated privacy scanner has evidence. Routine folder and collection
-organization never creates a publication grant.
+Multi-slide share activation requires an explicit administrator confirmation
+covering public names, teaching metadata, and visible pixels. Ready slides are
+marked privacy-reviewed only inside that confirmed activation transaction.
+For folder shares, each membership stores a relative public folder path and the
+share stores the selected folder tree. These name-only snapshots preserve nested
+and empty subfolders without exposing database identifiers or silently reflecting
+later private reorganization.
+`PATHLAB_MULTI_SHARE_ENABLED=false` disables new activation without changing
+existing links. Routine folder and collection organization never creates a
+publication grant.
 
 ## Migration and rollback
 

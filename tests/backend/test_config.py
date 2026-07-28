@@ -49,6 +49,17 @@ def test_annotations_are_disabled_by_default_and_accept_an_explicit_override(
     assert Settings(_env_file=None).annotations_enabled is True
 
 
+def test_multi_share_is_enabled_by_default_and_accepts_the_kill_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_MULTI_SHARE_ENABLED", raising=False)
+
+    assert Settings(_env_file=None).multi_share_enabled is True
+
+    monkeypatch.setenv("PATHLAB_MULTI_SHARE_ENABLED", "false")
+    assert Settings(_env_file=None).multi_share_enabled is False
+
+
 @pytest.mark.parametrize(
     "field",
     (

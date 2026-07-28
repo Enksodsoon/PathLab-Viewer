@@ -132,6 +132,52 @@ def target_slides(
     raise ShareConflict("SHARE_TARGET_NOT_FOUND")
 
 
+def relative_folder_path(
+    database: OrmSession,
+    *,
+    root_id: str,
+    folder_id: str | None,
+) -> list[str]:
+    if folder_id is None or folder_id == root_id:
+        return []
+    path: list[str] = []
+    current_id: str | None = folder_id
+    seen: set[str] = set()
+    while current_id is not None and current_id != root_id:
+        if current_id in seen:
+            raise ShareConflict("SHARE_TARGET_NOT_FOUND")
+        seen.add(current_id)
+        current = database.get(Folder, current_id)
+        if current is None or current.trashed_at is not None:
+            raise ShareConflict("SHARE_TARGET_NOT_FOUND")
+        path.append(current.name)
+        current_id = current.parent_id
+    if current_id != root_id:
+        raise ShareConflict("SHARE_TARGET_NOT_FOUND")
+    path.reverse()
+    return path
+
+
+def shared_folder_paths(
+    database: OrmSession,
+    *,
+    root_id: str,
+    include_descendants: bool,
+) -> list[list[str]]:
+    if not include_descendants:
+        return []
+    folder_ids = folder_subtree_ids(database, root_id)
+    paths = [
+        relative_folder_path(database, root_id=root_id, folder_id=folder_id)
+        for folder_id in folder_ids
+        if folder_id != root_id
+    ]
+    return sorted(
+        paths,
+        key=lambda path: (len(path), tuple(part.casefold() for part in path)),
+    )
+
+
 def preview_share(
     database: OrmSession,
     *,
@@ -147,22 +193,40 @@ def preview_share(
     )
     ready_states = {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
     included = [
-        {"id": slide.id, "displayName": slide.display_name}
+        {
+            "id": slide.id,
+            "displayName": slide.display_name,
+            "privacyReviewRequired": slide.privacy_status != "passed",
+            "folderPath": (
+                relative_folder_path(
+                    database,
+                    root_id=target_id,
+                    folder_id=slide.folder_id,
+                )
+                if target_type == "folder"
+                else []
+            ),
+        }
         for slide in slides
-        if slide.state in ready_states and slide.privacy_status == "passed"
+        if slide.state in ready_states
     ]
     excluded = [
         {
             "id": slide.id,
             "displayName": slide.display_name,
-            "reason": (
-                "PRIVACY_REVIEW_REQUIRED"
-                if slide.privacy_status != "passed"
-                else "SLIDE_NOT_READY"
+            "reason": "SLIDE_NOT_READY",
+            "folderPath": (
+                relative_folder_path(
+                    database,
+                    root_id=target_id,
+                    folder_id=slide.folder_id,
+                )
+                if target_type == "folder"
+                else []
             ),
         }
         for slide in slides
-        if slide.state not in ready_states or slide.privacy_status != "passed"
+        if slide.state not in ready_states
     ]
     return {
         "targetType": target_type,
@@ -239,6 +303,15 @@ def activate_share(
         target_id=target_id,
         include_descendants=include_descendants,
         auto_include_new=auto_include_new,
+        folder_paths=(
+            shared_folder_paths(
+                database,
+                root_id=target_id,
+                include_descendants=include_descendants,
+            )
+            if target_type == "folder"
+            else []
+        ),
         privacy_status="passed",
         confirmed_at=utcnow(),
         expires_at=expires_at,
@@ -252,7 +325,20 @@ def activate_share(
     for order, slide_id in enumerate(selected_ids):
         slide = slides[slide_id]
         database.add(
-            ShareSlide(share_id=share.id, slide_id=slide.id, sort_order=order)
+            ShareSlide(
+                share_id=share.id,
+                slide_id=slide.id,
+                folder_path=(
+                    relative_folder_path(
+                        database,
+                        root_id=target_id,
+                        folder_id=slide.folder_id,
+                    )
+                    if target_type == "folder"
+                    else []
+                ),
+                sort_order=order,
+            )
         )
         ensure_grant(database, storage, slide, SHARE, share.id)
     database.commit()
@@ -294,13 +380,13 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
         target_id=share.target_id,
         include_descendants=share.include_descendants,
     )
-    slides = list(
-        database.scalars(
-            select(Slide)
+    rows = list(
+        database.execute(
+            select(Slide, ShareSlide)
             .join(ShareSlide, ShareSlide.slide_id == Slide.id)
             .where(ShareSlide.share_id == share.id)
             .order_by(ShareSlide.sort_order, Slide.id)
-        )
+        ).all()
     )
     route = "folders" if share.target_type == "folder" else "collections"
     return {
@@ -309,9 +395,11 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
         "name": name,
         "description": description,
         "expiresAt": share.expires_at.isoformat() if share.expires_at else None,
+        "folders": share.folder_paths or [],
         "slides": [
             {
                 "position": position,
+                "folderPath": membership.folder_path or [],
                 "displayName": slide.display_name,
                 "organSite": slide.organ_site,
                 "stain": slide.stain,
@@ -328,7 +416,7 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
                 ),
                 "scale": (slide.slide_metadata or {}).get("physicalSizeX"),
             }
-            for position, slide in enumerate(slides)
+            for position, (slide, membership) in enumerate(rows)
         ],
     }
 

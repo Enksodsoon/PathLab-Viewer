@@ -16,6 +16,7 @@ import {
   UploadSimple as Upload,
 } from '@phosphor-icons/react'
 import { ContextMenu } from './ContextMenu'
+import { ThemeControl } from '../../theme/ThemeControl'
 
 export type LibraryViewMode = 'grid' | 'list' | 'table'
 export interface BreadcrumbItem {
@@ -88,6 +89,9 @@ export function LibraryToolbar({
             </span>
           ))}
         </nav>
+        <div className="library-toolbar-utilities">
+          <ThemeControl compact className="library-theme-control" />
+        </div>
       </div>
       <div className="library-command-row">
         <label className="library-search">

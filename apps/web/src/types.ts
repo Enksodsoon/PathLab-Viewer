@@ -115,8 +115,14 @@ export interface LibraryNavigation {
     trash: number
   }
   folders: LibraryFolder[]
+  folderPath?: LibraryFolder[]
   collections: LibraryCollection[]
   savedViews: SavedView[]
+  storage: {
+    usedBytes: number
+    usableBytes: number
+    effectiveCapacityBytes: number
+  }
 }
 
 export interface LibraryItemsPage {
@@ -145,6 +151,7 @@ export interface SlideStatusItem {
 
 export interface SharedSlide {
   position: number
+  folderPath: string[]
   displayName: string
   organSite: string
   stain: string
@@ -162,6 +169,7 @@ export interface SharedManifest {
   name: string
   description: string
   expiresAt: string | null
+  folders: string[][]
   slides: SharedSlide[]
 }
 
@@ -169,6 +177,8 @@ export interface SharePreviewItem {
   id: string
   displayName: string
   reason?: string
+  privacyReviewRequired?: boolean
+  folderPath?: string[]
 }
 
 export interface SharePreview {

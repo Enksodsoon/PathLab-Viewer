@@ -10,6 +10,7 @@ import { useParams } from 'react-router-dom'
 
 import { getPrivateSlide, getPublicSlide } from '../api'
 import { Brand } from '../components/Brand'
+import { Loader } from '../components/Loader'
 import {
   OpenSeadragonViewer,
   type ViewerAttachmentCallback,
@@ -88,7 +89,7 @@ export function ViewerPage() {
     robots.content = 'noindex, nofollow, noarchive'
   }, [])
   if (missing) return <main className="viewer-message"><Brand /><div><h1>This slide is unavailable</h1><p>The link may be incorrect, unpublished, or removed.</p></div></main>
-  if (!slide) return <div className="center-state dark">Opening slide…</div>
+  if (!slide) return <Loader label="Opening slide…" size="large" fullscreen />
   const scale = slide.metadata?.physicalSizeX
   const annotationsEnabled = Boolean(
     slideId
@@ -123,8 +124,8 @@ export function ViewerPage() {
         />
       ) : null}
       {annotationsEnabled && !AnnotationWorkspace && !annotationLoadError ? (
-        <div className="annotation-private-loading" role="status">
-          Opening annotation tools…
+        <div className="annotation-private-loading">
+          <Loader label="Opening annotation tools…" size="small" inline />
         </div>
       ) : null}
       {annotationsEnabled && annotationLoadError ? (

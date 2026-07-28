@@ -2,6 +2,7 @@ import {
   ArrowsOut as Expand,
   CaretLeft as ChevronLeft,
   CaretRight as ChevronRight,
+  FolderSimple,
   House as Home,
   List as Menu,
   Minus,
@@ -12,11 +13,103 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
+import { Loader } from '../components/Loader'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
-import type { SharedManifest } from '../types'
+import type { SharedManifest, SharedSlide } from '../types'
 import '../shared-viewer.css'
 import '../shared-message.css'
+
+interface SharedFolderNode {
+  key: string
+  name: string
+  slides: SharedSlide[]
+  children: SharedFolderNode[]
+}
+
+function folderKey(path: string[]) {
+  return JSON.stringify(path)
+}
+
+function buildFolderTree(
+  rootName: string,
+  folders: string[][],
+  slides: SharedSlide[],
+): SharedFolderNode {
+  const root: SharedFolderNode = { key: 'root', name: rootName, slides: [], children: [] }
+  const nodes = new Map<string, SharedFolderNode>([[folderKey([]), root]])
+
+  function ensurePath(path: string[]) {
+    let parent = root
+    for (let depth = 1; depth <= path.length; depth += 1) {
+      const currentPath = path.slice(0, depth)
+      const key = folderKey(currentPath)
+      let current = nodes.get(key)
+      if (!current) {
+        current = { key, name: currentPath.at(-1) ?? '', slides: [], children: [] }
+        nodes.set(key, current)
+        parent.children.push(current)
+      }
+      parent = current
+    }
+    return parent
+  }
+
+  folders.forEach((path) => ensurePath(path))
+  slides.forEach((slide) => ensurePath(slide.folderPath ?? []).slides.push(slide))
+  nodes.forEach((node) => node.children.sort((left, right) => left.name.localeCompare(right.name)))
+  return root
+}
+
+function folderSlideCount(node: SharedFolderNode): number {
+  return node.slides.length
+    + node.children.reduce((total, child) => total + folderSlideCount(child), 0)
+}
+
+function SharedSlideButton({
+  item,
+  position,
+  select,
+}: {
+  item: SharedSlide
+  position: number
+  select: (position: number) => void
+}) {
+  return (
+    <button type="button" className={item.position === position ? 'active' : ''} onClick={() => select(item.position)}>
+      <img src={item.thumbnailUrl} alt="" loading="lazy" />
+      <span><strong>{item.displayName}</strong><small>{[item.organSite, item.stain].filter(Boolean).join(' · ')}</small></span>
+    </button>
+  )
+}
+
+function SharedFolderBranch({
+  node,
+  position,
+  select,
+}: {
+  node: SharedFolderNode
+  position: number
+  select: (position: number) => void
+}) {
+  return (
+    <details className="share-folder-node" open>
+      <summary>
+        <FolderSimple />
+        <span>{node.name}</span>
+        <small>{folderSlideCount(node)}</small>
+      </summary>
+      <div className="share-folder-contents">
+        {node.slides.map((item) => (
+          <SharedSlideButton key={item.position} item={item} position={position} select={select} />
+        ))}
+        {node.children.map((child) => (
+          <SharedFolderBranch key={child.key} node={child} position={position} select={select} />
+        ))}
+      </div>
+    </details>
+  )
+}
 
 export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'collection' }) {
   const { publicId = '' } = useParams()
@@ -95,7 +188,9 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       </main>
     )
   }
-  if (!manifest) return <div className="center-state dark">Opening shared library…</div>
+  if (!manifest) {
+    return <Loader label="Opening shared library…" size="large" fullscreen />
+  }
   if (!manifest.slides.length) {
     return <main className="share-message"><h1>No slides are available</h1><p>This shared library is currently empty.</p></main>
   }
@@ -105,6 +200,11 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       .toLocaleLowerCase()
       .includes(search.toLocaleLowerCase())
   ))
+  const folderTree = buildFolderTree(
+    manifest.name,
+    search ? [] : (manifest.folders ?? []),
+    filtered,
+  )
   return (
     <div className={`shared-viewer-shell ${drawerOpen ? 'drawer-open' : ''}`}>
       <header className="shared-viewer-header">
@@ -121,11 +221,11 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
         </div>
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this set" aria-label="Search shared slides" />
         <div className="share-slide-list">
-          {filtered.map((item) => (
-            <button key={item.position} type="button" className={item.position === position ? 'active' : ''} onClick={() => select(item.position)}>
-              <img src={item.thumbnailUrl} alt="" loading="lazy" />
-              <span><strong>{item.displayName}</strong><small>{[item.organSite, item.stain].filter(Boolean).join(' · ')}</small></span>
-            </button>
+          {folderTree.slides.map((item) => (
+            <SharedSlideButton key={item.position} item={item} position={position} select={select} />
+          ))}
+          {folderTree.children.map((child) => (
+            <SharedFolderBranch key={child.key} node={child} position={position} select={select} />
           ))}
         </div>
       </aside>

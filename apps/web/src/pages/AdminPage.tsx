@@ -50,7 +50,12 @@ import {
   updateSavedView,
 } from '../api'
 import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
+import { Loader } from '../components/Loader'
 import { AppRail } from '../components/library/AppRail'
+import {
+  getStoredRailExpanded,
+  persistRailExpanded,
+} from '../components/library/libraryShellPreferences'
 import {
   FilterPanel,
   type LibraryFilters,
@@ -91,6 +96,7 @@ const EMPTY_NAVIGATION: LibraryNavigation = {
   folders: [],
   collections: [],
   savedViews: [],
+  storage: { usedBytes: 0, usableBytes: 0, effectiveCapacityBytes: 0 },
 }
 const EMPTY_PAGE: LibraryItemsPage = { items: [], nextCursor: null, total: 0 }
 const EMPTY_FILTERS: LibraryFilters = {
@@ -163,7 +169,10 @@ const EMPTY_EDIT_FORM: SlideEditForm = {
 
 function safeNavigation(value: LibraryNavigation): LibraryNavigation {
   if (!value || Array.isArray(value) || !value.counts) return EMPTY_NAVIGATION
-  return value
+  return {
+    ...value,
+    storage: value.storage ?? EMPTY_NAVIGATION.storage,
+  }
 }
 
 function safePage(value: LibraryItemsPage): LibraryItemsPage {
@@ -202,6 +211,9 @@ export function AdminPage() {
   const location = url.get('location') || 'all'
   const sort = url.get('sort') || 'updated_desc'
   const view = (url.get('view') as LibraryViewMode | null) || 'grid'
+  const navigationFolderId = location.startsWith('folder:')
+    ? location.slice('folder:'.length)
+    : undefined
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [navigation, setNavigation] = useState(EMPTY_NAVIGATION)
   const [page, setPage] = useState(EMPTY_PAGE)
@@ -238,6 +250,7 @@ export function AdminPage() {
   const [dialog, setDialog] = useState<DialogName>(null)
   const [securityOpen, setSecurityOpen] = useState(false)
   const [navigatorOpen, setNavigatorOpen] = useState(false)
+  const [railExpanded, setRailExpanded] = useState(getStoredRailExpanded)
   const [notice, setNotice] = useState('')
   const [authNotice, setAuthNotice] = useState('')
   const [signingOut, setSigningOut] = useState(false)
@@ -255,6 +268,7 @@ export function AdminPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploadName, setUploadName] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [preparingUpload, setPreparingUpload] = useState(false)
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
@@ -296,7 +310,7 @@ export function AdminPage() {
   const loadNavigation = useCallback(async () => {
     const epoch = authEpoch.current
     try {
-      const value = safeNavigation(await getLibraryNavigation())
+      const value = safeNavigation(await getLibraryNavigation(navigationFolderId))
       if (epoch !== authEpoch.current) return
       setNavigation(value)
       setAuthorized(true)
@@ -310,11 +324,49 @@ export function AdminPage() {
         setError('Library navigation could not load.')
       }
     }
-  }, [])
+  }, [navigationFolderId])
 
   useEffect(() => {
     void loadNavigation()
   }, [loadNavigation])
+
+  useEffect(() => {
+    const path = navigation.folderPath ?? []
+    if (!authorized || path.length === 0) return
+
+    setExpandedFolders((current) => {
+      const next = new Set(current)
+      path.filter((folder) => folder.hasChildren).forEach((folder) => next.add(folder.id))
+      return next
+    })
+
+    const ancestors = path.slice(0, -1)
+    if (ancestors.length === 0) return
+
+    let cancelled = false
+    void Promise.allSettled(ancestors.map(async (folder) => ({
+      folderId: folder.id,
+      children: await getFolderChildren(folder.id),
+    }))).then((results) => {
+      if (cancelled) return
+      setFolderChildren((current) => {
+        const next = new Map(current)
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            next.set(result.value.folderId, result.value.children)
+          }
+        })
+        return next
+      })
+      if (results.some((result) => result.status === 'rejected')) {
+        setError('Some folders could not load in the navigator. Try opening it again.')
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [authorized, navigation.folderPath])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -464,11 +516,12 @@ export function AdminPage() {
   const foldersById = useMemo(() => {
     const map = new Map<string, LibraryFolder>()
     navigation.folders.forEach((folder) => map.set(folder.id, folder))
+    navigation.folderPath?.forEach((folder) => map.set(folder.id, folder))
     folderChildren.forEach((children) => {
       children.forEach((folder) => map.set(folder.id, folder))
     })
     return map
-  }, [folderChildren, navigation.folders])
+  }, [folderChildren, navigation.folderPath, navigation.folders])
 
   const currentFolderId = location.startsWith('folder:')
     ? location.slice('folder:'.length)
@@ -715,7 +768,7 @@ export function AdminPage() {
   }
 
   async function refreshNavigation() {
-    setNavigation(safeNavigation(await getLibraryNavigation()))
+    setNavigation(safeNavigation(await getLibraryNavigation(navigationFolderId)))
   }
 
   async function handleFolderAction(
@@ -1024,7 +1077,7 @@ export function AdminPage() {
   }
 
   async function startUpload() {
-    if (!file) return
+    if (!file || preparingUpload) return
     if (!/\.ome\.tiff?$/i.test(file.name)) {
       setNotice('Choose a file ending in .ome.tif or .ome.tiff.')
       return
@@ -1032,7 +1085,8 @@ export function AdminPage() {
     const folderId = location.startsWith('folder:')
       ? location.slice('folder:'.length)
       : null
-    setNotice('Preparing resumable upload…')
+    setPreparingUpload(true)
+    setNotice('')
     try {
       const reservation = await reserveUpload(
         file,
@@ -1058,6 +1112,8 @@ export function AdminPage() {
       })
     } catch {
       setNotice('Upload could not start. Check the file and available storage.')
+    } finally {
+      setPreparingUpload(false)
     }
   }
 
@@ -1133,10 +1189,10 @@ export function AdminPage() {
     await refreshNavigation()
   }
 
-  if (signingOut) return <div className="center-state dark">Signing out…</div>
+  if (signingOut) return <Loader label="Signing out…" size="large" fullscreen />
   if (authorized === false) {
     return (
-      <Suspense fallback={<div className="center-state">Opening secure sign in…</div>}>
+      <Suspense fallback={<Loader label="Opening secure sign in…" size="large" fullscreen />}>
         <AuthPanel
           notice={authNotice}
           onSuccess={() => {
@@ -1148,19 +1204,25 @@ export function AdminPage() {
       </Suspense>
     )
   }
-  if (authorized === null) return <div className="center-state dark">Loading secure library…</div>
+  if (authorized === null) {
+    return <Loader label="Loading secure library…" size="large" fullscreen />
+  }
 
   return (
     <div
-      className={`library-shell ${navigatorOpen ? 'navigator-open' : ''}`}
+      className={`library-shell ${navigatorOpen ? 'navigator-open' : ''} ${railExpanded ? 'rail-expanded' : ''}`}
       data-layout="canvas-focus"
     >
       <AppRail
-        location={location}
+        expanded={railExpanded}
         isInert={navigatorOpen}
         navigatorOpen={navigatorOpen}
         navigatorButtonRef={navigatorToggleRef}
-        onLocation={chooseLocation}
+        storage={navigation.storage}
+        onToggleExpanded={() => setRailExpanded((current) => {
+          persistRailExpanded(!current)
+          return !current
+        })}
         onNavigator={() => setNavigatorOpen((current) => !current)}
         onUpload={() => openNamedDialog('upload')}
         onSecurity={() => setSecurityOpen(true)}
@@ -1346,13 +1408,16 @@ export function AdminPage() {
             <div className="library-notice" role="status">{notice}</div>
           ) : null}
           {contentLoading ? (
-            <div className="library-loading" role="status">
-              {currentFolderId ? 'Loading folder…' : 'Loading slides…'}
+            <div className="library-loading">
+              <Loader
+                label={currentFolderId ? 'Loading folder…' : 'Loading slides…'}
+              />
             </div>
           ) : null}
           {!contentLoading && currentFolderChildren.length > 0 ? (
             <FolderViews
               folders={currentFolderChildren}
+              view={view}
               onOpen={(folder) => chooseLocation(`folder:${folder.id}`)}
             />
           ) : null}
@@ -1424,7 +1489,9 @@ export function AdminPage() {
                   disabled={loadingMore}
                   onClick={() => runAction(loadNextPage, 'Next page')}
                 >
-                  {loadingMore ? 'Loading…' : 'Next page'}
+                  {loadingMore
+                    ? <Loader label="Loading next page…" size="small" inline />
+                    : 'Next page'}
                 </button>
               ) : null}
             </div>
@@ -1520,8 +1587,10 @@ export function AdminPage() {
           {uploadProgress !== null ? (
             <div className="library-upload-progress"><span style={{ width: `${uploadProgress}%` }} /></div>
           ) : null}
-          {notice ? <p role="status">{notice}</p> : null}
-          <button type="button" className="primary" disabled={!file} onClick={() => void startUpload()}>
+          {preparingUpload ? (
+            <Loader label="Preparing resumable upload…" size="small" inline />
+          ) : notice ? <p role="status">{notice}</p> : null}
+          <button type="button" className="primary" disabled={!file || preparingUpload} onClick={() => void startUpload()}>
             Upload slide
           </button>
         </div>

@@ -2,12 +2,12 @@
 THESIS: Canvas Focus keeps slide work central and replaces permanent sidebars with intentional overlays.
 OWN-WORLD: Warm semantic canvas, paper-like surfaces, coral action voltage, serif display type, and precise icon controls.
 STORY: Administrators can orient, find, review, select, publish, share, restore, and organize without losing the slide canvas.
-FIRST VIEWPORT: A 72px icon rail anchors a centered content canvas; navigator and inspector wait outside the grid until invoked.
+FIRST VIEWPORT: A compact collapsible rail anchors a centered content canvas; navigator and inspector wait outside the grid until invoked.
 FORM: Brief-pinned operating workspace, ranked first for task clarity; concept roll and seed are not applicable to this precise approved direction.
 */
 
 .library-shell {
-  --library-rail-width: 72px;
+  --library-rail-width: 46px;
   --library-content-max: 1560px;
   min-height: 100vh;
   min-height: 100dvh;
@@ -17,12 +17,23 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-ui);
+  font-size: 14px;
+  transition: grid-template-columns 180ms ease;
+}
+
+.library-shell.rail-expanded {
+  --library-rail-width: 156px;
 }
 
 .library-shell *,
 .library-dialog *,
 .library-menu * {
   box-sizing: border-box;
+}
+
+.library-dialog,
+.library-menu {
+  font-size: 14px;
 }
 
 .library-shell button,
@@ -67,8 +78,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-shell svg,
 .library-dialog svg,
 .library-menu svg {
-  width: 19px;
-  height: 19px;
+  width: 17px;
+  height: 17px;
   flex: 0 0 auto;
   color: currentColor;
 }
@@ -85,18 +96,18 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 12px 8px;
+  padding: 6px 4px;
   border-right: 1px solid var(--border);
   background: var(--surface);
   scrollbar-width: thin;
 }
 
 .library-rail-brand {
-  width: 54px;
-  height: 54px;
+  width: 38px;
+  height: 38px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -112,8 +123,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-rail-brand .brand-mark {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
@@ -121,31 +132,46 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-rail-brand .brand-mark svg {
-  width: 25px;
-  height: 25px;
+  width: 20px;
+  height: 20px;
 }
 
-.library-rail-primary,
-.library-rail-utilities {
+.rail-expanded .library-rail-brand {
+  width: 100%;
+}
+
+.rail-expanded .library-rail-brand .brand {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.rail-expanded .library-rail-brand .brand > span:not(.brand-mark) {
+  display: inline;
+}
+
+.rail-expanded .library-rail-brand .brand-product {
+  display: none !important;
+}
+
+.library-rail-primary {
   width: 100%;
   display: grid;
   gap: 4px;
 }
 
-.library-rail-utilities {
-  margin-top: auto;
-}
-
 .library-rail-primary > button,
-.library-rail-utilities > button {
+.library-rail-utilities > button,
+.library-rail-toggle {
   width: 100%;
   min-width: 0;
-  min-height: 50px;
+  min-height: 38px;
   display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 3px;
-  padding: 4px 2px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -154,7 +180,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-rail-primary > button:hover,
-.library-rail-utilities > button:hover {
+.library-rail-utilities > button:hover,
+.library-rail-toggle:hover {
   background: var(--surface-card);
   color: var(--ink);
 }
@@ -165,32 +192,112 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-rail-primary > button span,
-.library-rail-utilities > button span {
+.library-rail-utilities > button span,
+.library-rail-toggle span {
   max-width: 100%;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
   line-height: 1.05;
-  text-align: center;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.library-theme-control {
-  width: 100%;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border: 0;
-  background: transparent;
+.library-shell:not(.rail-expanded) .library-rail-primary > button,
+.library-shell:not(.rail-expanded) .library-rail-utilities > button,
+.library-shell:not(.rail-expanded) .library-rail-toggle {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding-inline: 4px;
 }
 
-.library-theme-control .theme-control__option {
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
+.library-shell:not(.rail-expanded) .library-rail-primary > button span,
+.library-shell:not(.rail-expanded) .library-rail-utilities > button span,
+.library-shell:not(.rail-expanded) .library-rail-toggle span {
+  display: none;
+}
+
+.library-rail-utilities {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.library-storage-meter {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  padding: 8px 7px 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+.library-storage-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.library-storage-copy span,
+.library-storage-copy strong {
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-storage-copy span {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.library-storage-copy strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.library-storage-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-card);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.library-storage-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 180ms ease;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-meter {
+  gap: 0;
+  padding: 8px 5px 10px;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-copy {
+  display: none;
+}
+
+.library-toolbar-utilities {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.library-toolbar-utilities .library-theme-control {
+  flex-direction: row;
+}
+
+.library-toolbar-utilities .theme-control__option {
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
 }
 
 /* Overlay navigator */
@@ -200,7 +307,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   inset: 0;
   z-index: 60;
   border: 0;
-  background: color-mix(in srgb, var(--ink) 38%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 58%, transparent);
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease-out;
@@ -212,13 +319,13 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-navigator-wrap {
-  width: min(360px, calc(100vw - var(--library-rail-width) - 16px));
+  width: min(320px, calc(100vw - var(--library-rail-width) - 16px));
   position: fixed;
   inset: 0 auto 0 var(--library-rail-width);
   z-index: 61;
   overflow: hidden;
-  background: var(--surface-elevated);
-  box-shadow: 18px 0 46px color-mix(in srgb, var(--ink) 18%, transparent);
+  background: var(--navigator-surface);
+  box-shadow: 18px 0 46px color-mix(in srgb, var(--shadow-color) 42%, transparent);
   visibility: hidden;
   pointer-events: none;
   transform: translateX(calc(-100% - 28px));
@@ -235,11 +342,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .mobile-navigator-close {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 10px;
+  right: 20px;
   z-index: 2;
   display: grid;
   place-items: center;
@@ -254,16 +361,17 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-navigator {
   height: 100%;
   overflow-y: auto;
-  padding: 22px 16px 40px;
+  padding: 16px 12px 30px;
+  scrollbar-gutter: stable;
   scrollbar-color: var(--border) transparent;
   overscroll-behavior: contain;
 }
 
 .navigator-heading {
-  min-height: 48px;
+  min-height: 40px;
   display: flex;
   align-items: center;
-  padding: 0 56px 18px 4px;
+  padding: 0 48px 12px 4px;
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -271,7 +379,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   margin: 0;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 25px;
   font-weight: 500;
   letter-spacing: -.025em;
   line-height: 1.08;
@@ -288,17 +396,17 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .navigator-special {
-  padding-top: 16px;
+  padding-top: 11px;
 }
 
 .navigator-special button,
 .navigator-list-row > button:first-child {
   width: 100%;
-  min-height: 42px;
+  min-height: 36px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 7px 9px;
+  gap: 7px;
+  padding: 5px 8px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -338,12 +446,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .navigator-section-title {
-  min-height: 36px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 22px 4px 5px;
+  margin: 16px 4px 4px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
@@ -373,14 +481,14 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .navigator-list-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px;
+  grid-template-columns: minmax(0, 1fr) 32px;
   align-items: center;
 }
 
 .folder-tree-row {
-  min-height: 42px;
+  min-height: 36px;
   display: grid;
-  grid-template-columns: 32px 18px minmax(0, 1fr) auto 36px;
+  grid-template-columns: 28px 17px minmax(0, 1fr) auto 32px;
   align-items: center;
   gap: 4px;
   border-radius: var(--radius-control);
@@ -411,14 +519,14 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .folder-name {
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .library-quick-views {
-  margin-top: 28px;
-  padding-top: 18px;
+  margin-top: 20px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
@@ -426,7 +534,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   margin: 0 4px 12px;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 23px;
+  font-size: 20px;
   font-weight: 500;
   letter-spacing: -.02em;
 }
@@ -453,11 +561,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .library-quick-views section button {
   width: 100%;
-  min-height: 42px;
+  min-height: 36px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 7px 9px;
+  gap: 7px;
+  padding: 5px 8px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -501,7 +609,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   position: sticky;
   top: 0;
   z-index: 20;
-  padding: 18px clamp(18px, 2.2vw, 34px) 16px;
+  padding: 7px clamp(12px, 1.5vw, 18px);
   border-bottom: 1px solid var(--border);
   background: var(--canvas);
 }
@@ -514,9 +622,9 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-breadcrumb-row {
-  min-height: 40px;
-  gap: 7px;
-  margin-bottom: 12px;
+  min-height: 36px;
+  gap: 5px;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -526,10 +634,10 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .view-switcher button,
 .toolbar-create > button {
   min-width: 40px;
-  min-height: 40px;
+  min-height: 36px;
   display: inline-grid;
   place-items: center;
-  padding: 0 11px;
+  padding: 0 9px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-elevated);
@@ -590,7 +698,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-command-row {
-  gap: 12px;
+  gap: 8px;
 }
 
 .library-search {
@@ -609,12 +717,13 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .library-search input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 14px 0 42px;
+  min-height: 36px;
+  padding: 0 12px 0 38px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-elevated);
   color: var(--ink);
+  font-size: 13px;
 }
 
 .library-search input::placeholder {
@@ -651,12 +760,13 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .toolbar-select select,
 .mobile-view-select select {
-  min-height: 40px;
-  padding: 0 32px 0 11px;
+  min-height: 36px;
+  padding: 0 28px 0 9px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-elevated);
   color: var(--body);
+  font-size: 13px;
 }
 
 .mobile-view-select {
@@ -673,8 +783,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .view-switcher button {
-  min-width: 34px;
-  min-height: 34px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -781,22 +891,22 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .library-content {
   min-width: 0;
-  padding: clamp(24px, 2.8vw, 42px) clamp(18px, 2.2vw, 34px) 120px;
+  padding: clamp(14px, 1.6vw, 20px) clamp(12px, 1.5vw, 18px) 80px;
 }
 
 .library-content-heading {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: 18px;
+  margin-bottom: 14px;
 }
 
 .library-content-heading h2 {
   margin: 0 0 3px;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: clamp(34px, 3.2vw, 50px);
+  font-size: clamp(26px, 2.2vw, 34px);
   font-weight: 500;
   letter-spacing: -.03em;
   line-height: 1.05;
@@ -934,12 +1044,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .library-folder-card {
   min-width: 0;
-  min-height: 84px;
+  min-height: 82px;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  grid-template-columns: 58px minmax(0, 1fr) 20px;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
+  gap: 13px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
@@ -957,19 +1067,172 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   color: var(--muted);
 }
 
-.library-folder-icon {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
-  color: var(--primary);
+.folder-artwork {
+  --folder-back: color-mix(in srgb, var(--primary) 64%, var(--surface-elevated));
+  --folder-back-deep: color-mix(in srgb, var(--primary) 78%, var(--ink));
+  --folder-front: color-mix(in srgb, var(--primary) 54%, var(--surface-elevated));
+  --folder-front-deep: color-mix(in srgb, var(--primary) 82%, var(--surface));
+  --folder-paper: color-mix(in srgb, var(--surface-elevated) 88%, white);
+  --folder-paper-line: color-mix(in srgb, var(--muted) 22%, var(--folder-paper));
+  width: 56px;
+  height: 46px;
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  perspective: 120px;
+  transform: translateZ(0);
+  transition: transform 220ms cubic-bezier(.22, .61, .36, 1);
 }
 
-.library-folder-icon svg {
-  width: 23px;
-  height: 23px;
+.folder-artwork__back {
+  position: absolute;
+  inset: 8px 1px 2px;
+  border: 1px solid color-mix(in srgb, var(--folder-back-deep) 52%, transparent);
+  border-radius: 4px 9px 9px 9px;
+  background: linear-gradient(145deg, var(--folder-back), var(--folder-back-deep));
+}
+
+.folder-artwork__back::before {
+  content: "";
+  width: 25px;
+  height: 9px;
+  position: absolute;
+  top: -7px;
+  left: -1px;
+  border-radius: 4px 4px 0 0;
+  background: var(--folder-back);
+  clip-path: polygon(0 0, 78% 0, 100% 100%, 0 100%);
+}
+
+.folder-artwork__papers {
+  position: absolute;
+  inset: 4px 6px 6px;
+  z-index: 2;
+}
+
+.folder-artwork__paper {
+  width: 82%;
+  height: 73%;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--muted) 18%, transparent);
+  border-radius: 4px;
+  background: var(--folder-paper);
+  box-shadow: 0 3px 7px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+  transform: translateX(-50%);
+  transition: transform 220ms cubic-bezier(.22, .61, .36, 1);
+}
+
+.folder-artwork__paper::before,
+.folder-artwork__paper::after {
+  content: "";
+  height: 2px;
+  position: absolute;
+  right: 22%;
+  left: 14%;
+  border-radius: 2px;
+  background: var(--folder-paper-line);
+}
+
+.folder-artwork__paper::before {
+  top: 27%;
+}
+
+.folder-artwork__paper::after {
+  top: 45%;
+  right: 40%;
+}
+
+.folder-artwork__paper--1 {
+  width: 72%;
+  opacity: .72;
+}
+
+.folder-artwork__paper--2 {
+  width: 77%;
+  opacity: .86;
+}
+
+.folder-artwork__front {
+  position: absolute;
+  inset: 19px 1px 1px;
+  z-index: 3;
+  border: 1px solid color-mix(in srgb, var(--folder-front-deep) 60%, transparent);
+  border-radius: 9px;
+  background:
+    linear-gradient(125deg, color-mix(in srgb, white 18%, transparent), transparent 48%),
+    linear-gradient(150deg, var(--folder-front), var(--folder-front-deep));
+  box-shadow:
+    inset 0 1px color-mix(in srgb, white 34%, transparent),
+    0 8px 12px -9px color-mix(in srgb, var(--shadow-color) 55%, transparent);
+  transform-origin: bottom center;
+  transition: transform 220ms cubic-bezier(.22, .61, .36, 1);
+}
+
+.folder-artwork--compact {
+  width: 30px;
+  height: 25px;
+}
+
+.folder-artwork--compact .folder-artwork__back {
+  inset: 5px 1px 1px;
+  border-radius: 3px 5px 5px;
+}
+
+.folder-artwork--compact .folder-artwork__back::before {
+  width: 14px;
+  height: 5px;
+  top: -4px;
+}
+
+.folder-artwork--compact .folder-artwork__papers {
+  inset: 3px 4px 3px;
+}
+
+.folder-artwork--compact .folder-artwork__paper::before,
+.folder-artwork--compact .folder-artwork__paper::after {
+  display: none;
+}
+
+.folder-artwork--compact .folder-artwork__front {
+  inset: 11px 1px 1px;
+  border-radius: 5px;
+}
+
+@media (hover: hover) {
+  .library-folder-card:hover .folder-artwork,
+  .library-folder-table button:hover .folder-artwork {
+    transform: translateY(-2px);
+  }
+
+  .library-folder-card:hover .folder-artwork__front,
+  .library-folder-table button:hover .folder-artwork__front {
+    transform: rotateX(-27deg);
+  }
+
+  .library-folder-card:hover .folder-artwork__paper--1 {
+    transform: translate(-60%, -5px) rotate(-5deg);
+  }
+
+  .library-folder-card:hover .folder-artwork__paper--2 {
+    transform: translate(-40%, -6px) rotate(5deg);
+  }
+
+  .library-folder-card:hover .folder-artwork__paper--3 {
+    transform: translate(-50%, -7px);
+  }
+}
+
+.library-folder-card:focus-visible .folder-artwork__front,
+.library-folder-table button:focus-visible .folder-artwork__front {
+  transform: rotateX(-27deg);
+}
+
+.library-folder-card:focus-visible .folder-artwork__paper--3,
+.library-folder-table button:focus-visible .folder-artwork__paper--3 {
+  transform: translate(-50%, -6px);
 }
 
 .library-folder-copy {
@@ -988,13 +1251,76 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-folder-copy strong {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 550;
 }
 
 .library-folder-copy span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.library-folder-grid.list-view {
+  grid-template-columns: 1fr;
+}
+
+.library-folder-grid.list-view .library-folder-card {
+  grid-template-columns: 58px minmax(0, 1fr) 20px;
+}
+
+.library-folder-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-elevated);
+}
+
+.library-folder-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  color: var(--body);
+  font-size: 11px;
+}
+
+.library-folder-table th,
+.library-folder-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.library-folder-table th {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.library-folder-table tbody tr:hover {
+  background: var(--surface);
+}
+
+.library-folder-table td:first-child button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folder-artwork,
+  .folder-artwork__front,
+  .folder-artwork__paper {
+    transition: none;
+  }
 }
 
 .library-slide-grid.processing-view {
@@ -1021,6 +1347,23 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 
+.library-slide-card--immersive {
+  height: 276px;
+  isolation: isolate;
+  background: var(--surface-card);
+  box-shadow: 0 12px 28px -22px color-mix(in srgb, var(--shadow-color) 70%, transparent);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.library-slide-card--immersive:hover,
+.library-slide-card--immersive:focus-within {
+  box-shadow: 0 18px 34px -24px color-mix(in srgb, var(--shadow-color) 82%, transparent);
+  transform: translateY(-2px);
+}
+
 .library-slide-card.selected {
   border-color: var(--primary);
   box-shadow: inset 0 0 0 1px var(--primary);
@@ -1029,6 +1372,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-slide-grid.list-view .library-slide-card {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
+}
+
+.library-slide-grid.list-view .library-slide-card--immersive {
+  height: auto;
+  min-height: 196px;
+  transform: none;
 }
 
 .card-actions {
@@ -1082,6 +1431,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   cursor: pointer;
 }
 
+.library-slide-card--immersive .card-preview {
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+
 .library-slide-thumbnail {
   width: 100%;
   aspect-ratio: 16 / 10;
@@ -1089,6 +1444,27 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   display: grid;
   place-items: center;
   background: var(--surface-card);
+}
+
+.library-slide-card--immersive .library-slide-thumbnail {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.library-slide-card--immersive .library-slide-thumbnail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 40%,
+    color-mix(in srgb, var(--shadow-color) 16%, transparent) 100%
+  );
+  pointer-events: none;
+}
+
+.library-slide-card--immersive .library-slide-thumbnail {
+  position: relative;
 }
 
 .library-slide-thumbnail img {
@@ -1110,8 +1486,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .thumbnail-fallback svg {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 
 .thumbnail-fallback span {
@@ -1121,6 +1497,40 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .card-content {
   padding: 15px 15px 18px;
+}
+
+.library-slide-card--immersive .card-content {
+  width: 100%;
+  min-height: 158px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  padding: 13px 14px 14px;
+  border-top: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--surface-elevated);
+  box-shadow: 0 -14px 30px -26px color-mix(in srgb, var(--shadow-color) 82%, transparent);
+  transition: transform 360ms cubic-bezier(.22, .61, .36, 1);
+}
+
+@media (hover: hover) {
+  .library-slide-card--immersive:hover .card-content {
+    transform: translateY(calc(100% - 68px));
+  }
+}
+
+.library-slide-card--immersive:focus-within .card-content {
+  transform: translateY(calc(100% - 68px));
+}
+
+.card-content-heading {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
 }
 
 .card-content h3 {
@@ -1140,12 +1550,51 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   -webkit-line-clamp: 2;
 }
 
+.card-content-heading .library-state {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, var(--border));
+  border-radius: 999px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.card-content-heading .library-state svg {
+  width: 11px;
+  height: 11px;
+}
+
+.card-content-details {
+  min-width: 0;
+}
+
 .card-content p {
   overflow: hidden;
   margin: 6px 0;
   color: var(--body);
   font-size: 12px;
   line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-content .card-description {
+  margin-top: 0;
+}
+
+.card-facts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.card-facts span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1430,12 +1879,36 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-empty {
-  min-height: 300px;
+  min-height: 220px;
+}
+
+.library-slide-grid.list-view .library-slide-card--immersive .card-preview,
+.library-slide-grid.list-view .library-slide-card--immersive .card-content {
+  height: auto;
+  position: static;
+  transform: none;
+}
+
+.library-slide-grid.list-view .library-slide-card--immersive .library-slide-thumbnail {
+  height: 100%;
+  min-height: 194px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-slide-card--immersive,
+  .library-slide-card--immersive .card-content {
+    transition: none;
+  }
+
+  .library-slide-card--immersive:hover,
+  .library-slide-card--immersive:focus-within {
+    transform: none;
+  }
 }
 
 .library-empty > svg {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   color: var(--primary);
 }
 
@@ -1447,17 +1920,17 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-empty h3 {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 25px;
+  font-size: 21px;
   font-weight: 500;
 }
 
 .library-empty button {
-  min-height: 44px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-  padding: 0 16px;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 0 13px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   cursor: pointer;
@@ -1497,14 +1970,14 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
-  box-shadow: 0 14px 36px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 32%, transparent);
   color: var(--body);
   font-family: var(--font-ui);
 }
 
 .library-menu button,
 .library-menu a {
-  min-height: 42px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1541,7 +2014,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   padding: 8px;
   border-radius: var(--radius-card);
   background: var(--ink);
-  box-shadow: 0 14px 38px color-mix(in srgb, var(--ink) 28%, transparent);
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--shadow-color) 36%, transparent);
   color: var(--canvas);
   transform: translateX(-50%);
 }
@@ -1590,7 +2063,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   overflow-y: auto;
   padding: 24px 20px 36px;
   background: var(--surface-elevated);
-  box-shadow: -18px 0 46px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: -18px 0 46px color-mix(in srgb, var(--shadow-color) 42%, transparent);
   color: var(--body);
   overscroll-behavior: contain;
 }
@@ -1741,12 +2214,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
-  box-shadow: 0 26px 72px color-mix(in srgb, var(--ink) 26%, transparent);
+  box-shadow: 0 26px 72px color-mix(in srgb, var(--shadow-color) 48%, transparent);
   color: var(--ink);
 }
 
 .library-dialog::backdrop {
-  background: color-mix(in srgb, var(--ink) 42%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 58%, transparent);
 }
 
 .library-dialog-wide {
@@ -2093,7 +2566,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 /* Responsive Canvas Focus */
 
-@media (max-width: 1250px) {
+@media (max-width: 1050px) {
   .library-command-row {
     align-items: stretch;
     flex-direction: column;
@@ -2136,7 +2609,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 @media (max-width: 600px) {
-  .library-shell {
+  .library-shell,
+  .library-shell.rail-expanded {
     --library-rail-width: 0px;
     grid-template-columns: minmax(0, 1fr);
     padding-bottom: 72px;
@@ -2162,42 +2636,65 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     display: none;
   }
 
-  .library-rail-primary,
-  .library-rail-utilities {
+  .library-rail-toggle {
+    display: none;
+  }
+
+  .library-rail-primary {
     width: auto;
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 70%;
     gap: 2px;
     margin: 0;
   }
 
-  .library-rail-primary > button,
-  .library-rail-utilities > button {
-    width: 54px;
-    min-width: 54px;
-    min-height: 58px;
-    flex: 0 0 54px;
-  }
-
-  .library-rail-primary > button span,
-  .library-rail-utilities > button span {
-    font-size: 10px;
-  }
-
-  .library-theme-control {
+  .library-rail-utilities {
     width: auto;
-    flex-direction: row;
-    flex: 0 0 auto;
-    padding-inline: 2px;
+    display: flex;
+    flex: 0 0 96px;
+    gap: 2px;
+    margin: 0;
   }
 
-  .library-theme-control .theme-control__option {
-    flex: 0 0 44px;
+  .library-storage-meter {
+    display: none;
+  }
+
+  .library-rail-primary > button,
+  .library-shell:not(.rail-expanded) .library-rail-primary > button {
+    width: auto;
+    min-width: 0;
+    min-height: 58px;
+    flex: 1 1 50%;
+    grid-template-columns: 24px auto;
+    justify-content: center;
+    justify-items: initial;
+    gap: 7px;
+  }
+
+  .library-rail-utilities > button,
+  .library-shell:not(.rail-expanded) .library-rail-utilities > button {
+    width: 46px;
+    min-width: 46px;
+    min-height: 58px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 4px;
+  }
+
+  .library-shell:not(.rail-expanded) .library-rail-primary > button span {
+    display: inline;
+    font-size: 11px;
   }
 
   .library-navigator-wrap {
     width: min(360px, calc(100vw - 12px));
     inset: 0 auto 0 0;
+  }
+
+  .mobile-navigator-close {
+    width: 44px;
+    height: 44px;
   }
 
   .library-toolbar {
@@ -2206,7 +2703,26 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
   .library-breadcrumb-row {
     min-height: 44px;
-    overflow-x: auto;
+    overflow: hidden;
+  }
+
+  .library-breadcrumb-row nav {
+    display: none;
+  }
+
+  .library-toolbar-utilities {
+    flex: 0 0 auto;
+    gap: 3px;
+  }
+
+  .library-toolbar-utilities .theme-control__option {
+    min-width: 36px;
+    width: 36px;
+  }
+
+  .library-toolbar-utilities > button {
+    width: 40px;
+    flex-basis: 40px;
   }
 
   .library-breadcrumb-row > button {
@@ -2254,6 +2770,10 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   .library-command-actions > button span,
   .toolbar-create > button span,
   .library-upload-button span {
+    display: none;
+  }
+
+  .library-command-actions > .library-upload-button {
     display: none;
   }
 
@@ -2431,6 +2951,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .library-shell,
   .library-navigator-wrap,
   .mobile-navigator-backdrop {
     transition: none;

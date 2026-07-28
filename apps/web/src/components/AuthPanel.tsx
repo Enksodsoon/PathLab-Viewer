@@ -14,6 +14,7 @@ import lightArtwork from '../assets/auth-histology-solace-light.webp'
 import { ThemeControl } from '../theme/ThemeControl'
 import { useTheme } from '../theme/ThemeProvider'
 import { Brand } from './Brand'
+import { Loader } from './Loader'
 
 const MIN_NEW_PASSWORD_LENGTH = 12
 const MAX_NEW_PASSWORD_LENGTH = 128
@@ -186,8 +187,14 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                     </div>
                     {error ? <p className="form-error" role="alert">{error}</p> : null}
                     <button className="button primary auth-submit" type="submit" disabled={busy}>
-                      <span>Enter workspace</span>
-                      <ArrowRight aria-hidden="true" color="currentColor" />
+                      {busy ? (
+                        <Loader label="Signing in…" size="small" inline />
+                      ) : (
+                        <>
+                          <span>Enter workspace</span>
+                          <ArrowRight aria-hidden="true" color="currentColor" />
+                        </>
+                      )}
                     </button>
                     <button
                       className="auth-link"
@@ -235,7 +242,11 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                     {error ? <p className="form-error" role="alert">{error}</p> : null}
                     <div className="auth-actions">
                       <button className="button auth-secondary" type="button" onClick={returnToLogin} disabled={busy}>Back to sign in</button>
-                      <button className="button primary" type="submit" disabled={busy}>Reset password</button>
+                      <button className="button primary" type="submit" disabled={busy}>
+                        {busy
+                          ? <Loader label="Resetting password…" size="small" inline />
+                          : 'Reset password'}
+                      </button>
                     </div>
                   </>
                 )}
