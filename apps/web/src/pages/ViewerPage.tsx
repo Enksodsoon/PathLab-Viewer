@@ -88,7 +88,7 @@ export function ViewerPage() {
     if (!robots) { robots = document.createElement('meta'); robots.name = 'robots'; document.head.append(robots) }
     robots.content = 'noindex, nofollow, noarchive'
   }, [])
-  if (missing) return <main className="viewer-message"><Brand /><div><h1>This slide is unavailable</h1><p>The link may be incorrect, unpublished, or removed.</p></div></main>
+  if (missing) return <main className="viewer-message"><Brand /><div><h1>This slide is unavailable</h1><p>The link may be incorrect, private, or removed.</p></div></main>
   if (!slide) return <Loader label="Opening slide…" size="large" fullscreen />
   const scale = slide.metadata?.physicalSizeX
   const annotationsEnabled = Boolean(

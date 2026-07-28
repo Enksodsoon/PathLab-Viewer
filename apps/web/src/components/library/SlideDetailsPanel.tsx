@@ -53,9 +53,9 @@ export function SlideDetailsPanel({
           <dt>Publication</dt>
           <dd
             className={`publication-state ${isPublished ? 'is-published' : 'is-private'}`}
-            aria-label={`Publication: ${isPublished ? 'Published' : 'Private'}`}
+            aria-label={`Publication: ${isPublished ? 'Public' : 'Private'}`}
           >
-            <span>{isPublished ? 'Published' : 'Private'}</span>
+            <span>{isPublished ? 'Public' : 'Private'}</span>
             {isPublished
               ? <LockOpen aria-hidden="true" color="currentColor" data-lock-state="open" />
               : <Lock aria-hidden="true" color="currentColor" data-lock-state="closed" />}

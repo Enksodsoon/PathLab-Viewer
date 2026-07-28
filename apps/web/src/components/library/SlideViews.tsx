@@ -28,7 +28,7 @@ const STATUS: Record<LibrarySlide['state'], string> = {
   validating: 'Validating',
   converting: 'Processing',
   ready_private: 'Ready private',
-  published: 'Published',
+  published: 'Public',
   failed: 'Failed',
   deleting: 'Deleting',
 }
@@ -208,6 +208,7 @@ function SlideActions({
   return (
     <ContextMenu
       label={`More actions for ${slide.displayName}`}
+      buttonClassName="slide-actions-trigger"
       buttonContent={<MoreVertical />}
     >
       {(close) => {

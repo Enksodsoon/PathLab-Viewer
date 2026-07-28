@@ -749,7 +749,7 @@ export function AdminPage() {
         setSelected(new Set())
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
-          : 'Slide unpublished.')
+          : 'Slide is now private.')
         void loadNavigation()
       } else if (action === 'trash' || action === 'restore') {
         await mutateLibrarySlide(slide.id, action)
@@ -913,8 +913,12 @@ export function AdminPage() {
     }))
     setSelected(new Set())
     const skipped = selectedSlides.length - eligible.length
-    const verb = action === 'retry' ? 'queued' : action === 'publish' ? 'published' : 'unpublished'
-    setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${verb}${
+    const result = action === 'retry'
+      ? 'queued'
+      : action === 'publish'
+        ? 'made public'
+        : 'made private'
+    setNotice(`${changed.length} slide${changed.length === 1 ? '' : 's'} ${result}${
       skipped ? `; ${skipped} skipped because their state was not eligible.` : '.'
     }`)
     void loadNavigation()

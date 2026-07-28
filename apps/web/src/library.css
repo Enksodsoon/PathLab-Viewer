@@ -1397,7 +1397,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .card-actions label span,
-.card-actions > button {
+.slide-actions-trigger {
   width: 28px;
   height: 28px;
   display: grid;
@@ -1412,21 +1412,25 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .card-actions label span:hover,
-.card-actions > button:hover {
+.slide-actions-trigger:hover {
   border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
   background: var(--surface);
 }
 
 .card-actions label input:focus-visible + span,
-.card-actions > button:focus-visible {
+.slide-actions-trigger:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
 .card-actions label span svg,
-.card-actions > button svg {
+.slide-actions-trigger svg {
   width: 15px;
   height: 15px;
+}
+
+.library-table .slide-actions-trigger {
+  margin-inline: auto;
 }
 
 .card-actions label {
@@ -2908,7 +2912,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   }
 
   .card-actions label span,
-  .card-actions > button {
+  .slide-actions-trigger {
     width: 44px;
     height: 44px;
   }

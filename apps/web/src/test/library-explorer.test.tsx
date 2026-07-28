@@ -964,6 +964,7 @@ describe('Canvas Focus library explorer', () => {
     })
     render(<AdminPage />, { wrapper: MemoryRouter })
     await screen.findAllByText('Colon adenocarcinoma')
+    expect(screen.getByText('Public')).toBeVisible()
 
     await userEvent.click(screen.getByRole('button', {
       name: /more actions for colon adenocarcinoma/i,
@@ -983,7 +984,7 @@ describe('Canvas Focus library explorer', () => {
     await userEvent.click(screen.getByRole('button', { name: /table view/i }))
     expect(screen.getByRole('button', {
       name: /more actions for colon adenocarcinoma/i,
-    })).toBeVisible()
+    })).toHaveClass('slide-actions-trigger')
   })
 
   it('keeps failed mutations visible instead of leaving a dead control', async () => {
