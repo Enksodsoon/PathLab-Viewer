@@ -70,6 +70,10 @@ Removing the final grant removes the alias.
 Multi-slide share activation requires an explicit administrator confirmation
 covering public names, teaching metadata, and visible pixels. Ready slides are
 marked privacy-reviewed only inside that confirmed activation transaction.
+For folder shares, each membership stores a relative public folder path and the
+share stores the selected folder tree. These name-only snapshots preserve nested
+and empty subfolders without exposing database identifiers or silently reflecting
+later private reorganization.
 `PATHLAB_MULTI_SHARE_ENABLED=false` disables new activation without changing
 existing links. Routine folder and collection organization never creates a
 publication grant.

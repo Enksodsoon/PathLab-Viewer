@@ -565,6 +565,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         headers = _headers(client)
         root = _create_folder(client, headers, "GI")
         child = _create_folder(client, headers, "Colon", root["id"])
+        _create_folder(client, headers, "Empty teaching subset", child["id"])
         _seed_share_ready_slide(client, slide_id="direct", folder_id=root["id"])
         _seed_share_ready_slide(client, slide_id="descendant", folder_id=child["id"])
         with session_factory(client.app.state.settings)() as database:
@@ -585,6 +586,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         assert direct.status_code == 200
         assert [item["displayName"] for item in direct.json()["included"]] == ["Safe direct"]
         assert direct.json()["included"][0]["privacyReviewRequired"] is True
+        assert direct.json()["included"][0]["folderPath"] == []
 
         descendant = client.get(
             "/api/v2/admin/shares/preview",
@@ -597,6 +599,13 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         assert {item["displayName"] for item in descendant.json()["included"]} == {
             "Safe direct",
             "Safe descendant",
+        }
+        assert {
+            item["displayName"]: item["folderPath"]
+            for item in descendant.json()["included"]
+        } == {
+            "Safe direct": [],
+            "Safe descendant": ["Colon"],
         }
 
         unconfirmed = client.post(
@@ -642,14 +651,23 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         manifest = client.get(f"/api/v2/public/folders/{created.json()['publicId']}")
         assert manifest.status_code == 200
         payload = manifest.json()
+        assert payload["folders"] == [
+            ["Colon"],
+            ["Colon", "Empty teaching subset"],
+        ]
         assert [item["displayName"] for item in payload["slides"]] == [
             "Safe descendant",
             "Safe direct",
+        ]
+        assert [item["folderPath"] for item in payload["slides"]] == [
+            ["Colon"],
+            [],
         ]
         assert all(
             set(item)
             == {
                 "position",
+                "folderPath",
                 "displayName",
                 "organSite",
                 "stain",

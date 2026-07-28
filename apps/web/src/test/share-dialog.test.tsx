@@ -27,6 +27,7 @@ beforeEach(() => {
       id: 'slide-1',
       displayName: 'Colon adenocarcinoma',
       privacyReviewRequired: true,
+      folderPath: ['Colon'],
     }],
     excluded: [{ id: 'slide-2', displayName: 'Pending slide', reason: 'SLIDE_NOT_READY' }],
   })
@@ -55,14 +56,15 @@ describe('share activation dialog', () => {
     render(<ShareDialog open targetType="folder" targetId="folder-1" targetName="GI teaching set" onClose={vi.fn()} />)
 
     expect(await screen.findByText('Colon adenocarcinoma')).toBeVisible()
-    expect(screen.getByText('Review required')).toBeVisible()
-    const descendantOption = screen.getByRole('checkbox', { name: /include slides in descendant folders/i })
+    expect(screen.getByText('Colon · Review required')).toBeVisible()
+    const descendantOption = screen.getByRole('checkbox', { name: /include subfolders and their slides/i })
     const futureOption = screen.getByRole('checkbox', { name: /automatically include future additions/i })
     const privacyOption = screen.getByRole('checkbox', { name: /I confirm public names/i })
     for (const option of [descendantOption, futureOption, privacyOption]) {
       expect(option).toHaveClass('share-checkbox-input')
       expect(option.nextElementSibling).toHaveClass('share-checkbox-indicator')
     }
+    expect(descendantOption).toBeChecked()
 
     const create = screen.getByRole('button', { name: 'Create shared link' })
     expect(create).toBeDisabled()
@@ -73,6 +75,7 @@ describe('share activation dialog', () => {
     expect(api.createLibraryShare).toHaveBeenCalledWith(expect.objectContaining({
       targetType: 'folder',
       targetId: 'folder-1',
+      includeDescendants: true,
       autoIncludeNew: false,
       slideIds: ['slide-1'],
       deidentifiedConfirmed: true,

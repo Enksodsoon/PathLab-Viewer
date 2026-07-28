@@ -29,7 +29,7 @@ interface Props {
 }
 
 export function ShareDialog({ open, targetType, targetId, targetName, onClose }: Props) {
-  const [includeDescendants, setIncludeDescendants] = useState(false)
+  const [includeDescendants, setIncludeDescendants] = useState(targetType === 'folder')
   const [autoIncludeNew, setAutoIncludeNew] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [expiresAt, setExpiresAt] = useState('')
@@ -43,7 +43,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
 
   useEffect(() => {
     if (!open) return
-    setIncludeDescendants(false)
+    setIncludeDescendants(targetType === 'folder')
     setAutoIncludeNew(false)
     setExpiresAt('')
     setConfirmed(false)
@@ -178,7 +178,8 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             <label className="share-check">
               <input className="share-checkbox-input" type="checkbox" checked={includeDescendants} onChange={(event) => setIncludeDescendants(event.target.checked)} />
               <span className="share-checkbox-indicator" aria-hidden="true"><Check /></span>
-              <span>Include slides in descendant folders</span>
+              <span>Include subfolders and their slides</span>
+              <small>Subfolder names and slides will appear in the shared viewer.</small>
             </label>
           ) : null}
           <label className="share-check">
@@ -198,7 +199,13 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             {preview?.included.slice(0, 6).map((item) => (
               <span key={item.id}>
                 <Check /> {item.displayName}
-                {item.privacyReviewRequired ? <small>Review required</small> : null}
+                {item.folderPath?.length || item.privacyReviewRequired ? (
+                  <small>
+                    {[item.folderPath?.join(' / '), item.privacyReviewRequired ? 'Review required' : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </small>
+                ) : null}
               </span>
             ))}
             {preview?.excluded.length ? <small>{preview.excluded.length} slides excluded because they are not ready.</small> : null}

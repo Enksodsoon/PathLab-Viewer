@@ -439,3 +439,86 @@ def test_admin_annotation_migration_is_additive_and_round_trips_existing_slides(
                 "(SELECT COUNT(*) FROM annotation_revisions)"
             )
         ).one() == (0, 0, 0)
+
+
+def test_share_folder_path_migration_preserves_existing_memberships(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "share-folder-path.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260726_0009")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+
+    with session_factory(settings)() as database:
+        database.execute(
+            text(
+                "INSERT INTO slides "
+                "(id, public_id, display_name, original_filename, source_bytes, state, "
+                "created_at, updated_at) VALUES "
+                "('slide-1', 'public-1', 'Existing slide', 'private.ome.tiff', 1, "
+                "'ready_private', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO library_shares "
+                "(id, public_id, target_type, target_id, created_at, updated_at) VALUES "
+                "('share-1', 'public-share-1', 'folder', 'folder-1', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO share_slides "
+                "(id, share_id, slide_id, created_at) VALUES "
+                "('membership-1', 'share-1', 'slide-1', CURRENT_TIMESTAMP)"
+            )
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        share_slide_columns = {
+            column["name"]
+            for column in inspect(database.connection()).get_columns("share_slides")
+        }
+        library_share_columns = {
+            column["name"]
+            for column in inspect(database.connection()).get_columns("library_shares")
+        }
+        assert "folder_path" in share_slide_columns
+        assert "folder_paths" in library_share_columns
+        assert database.execute(
+            text("SELECT folder_path FROM share_slides WHERE id = 'membership-1'")
+        ).scalar_one() == "[]"
+        assert database.execute(
+            text("SELECT folder_paths FROM library_shares WHERE id = 'share-1'")
+        ).scalar_one() == "[]"
+
+    command.downgrade(config, "20260726_0009")
+    with session_factory(settings)() as database:
+        share_slide_columns = {
+            column["name"]
+            for column in inspect(database.connection()).get_columns("share_slides")
+        }
+        library_share_columns = {
+            column["name"]
+            for column in inspect(database.connection()).get_columns("library_shares")
+        }
+        assert "folder_path" not in share_slide_columns
+        assert "folder_paths" not in library_share_columns
+        assert database.execute(
+            text("SELECT slide_id FROM share_slides WHERE id = 'membership-1'")
+        ).scalar_one() == "slide-1"
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text("SELECT folder_path FROM share_slides WHERE id = 'membership-1'")
+        ).scalar_one() == "[]"
+        assert database.execute(
+            text("SELECT folder_paths FROM library_shares WHERE id = 'share-1'")
+        ).scalar_one() == "[]"

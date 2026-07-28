@@ -151,6 +151,7 @@ export interface SlideStatusItem {
 
 export interface SharedSlide {
   position: number
+  folderPath: string[]
   displayName: string
   organSite: string
   stain: string
@@ -168,6 +169,7 @@ export interface SharedManifest {
   name: string
   description: string
   expiresAt: string | null
+  folders: string[][]
   slides: SharedSlide[]
 }
 
@@ -176,6 +178,7 @@ export interface SharePreviewItem {
   displayName: string
   reason?: string
   privacyReviewRequired?: boolean
+  folderPath?: string[]
 }
 
 export interface SharePreview {

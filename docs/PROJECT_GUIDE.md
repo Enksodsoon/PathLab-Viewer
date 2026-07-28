@@ -106,6 +106,9 @@ teaching metadata, and visible pixels are de-identified before a share can be
 created. `PATHLAB_MULTI_SHARE_ENABLED=false` remains an operational kill switch.
 The `/f/{publicId}` and `/c/{publicId}` viewer routes expose only explicitly safe
 teaching fields and reuse one OpenSeadragon instance while switching slides.
+Folder shares include subfolders by default. Relative subfolder names are
+snapshotted at activation and rendered as an expandable public tree, including
+empty selected subfolders, without exposing internal folder identifiers.
 Routine folder and collection mutations never publish, and public metadata edits
 remain blocked while any publication grant is active. Individual
 `/s/{publicId}` publication remains compatible.

@@ -32,9 +32,11 @@ const MANIFEST = {
   name: 'GI teaching set',
   description: 'Safe slides',
   expiresAt: null,
+  folders: [['Normal mucosa'], ['Normal mucosa', 'Empty subset']],
   slides: [
     {
       position: 0,
+      folderPath: [],
       displayName: 'Colon adenocarcinoma',
       organSite: 'Colon',
       stain: 'H&E',
@@ -47,6 +49,7 @@ const MANIFEST = {
     },
     {
       position: 1,
+      folderPath: ['Normal mucosa'],
       displayName: 'Normal colon',
       organSite: 'Colon',
       stain: 'H&E',
@@ -151,6 +154,15 @@ describe('shared library viewer', () => {
     expect(container.querySelector('.shared-viewer-shell')).toHaveClass('drawer-open')
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search shared slides' }), 'normal')
     expect(screen.queryByRole('button', { name: /Colon adenocarcinoma/ })).not.toBeInTheDocument()
+  })
+
+  it('shows descendant slides inside their shared subfolders', async () => {
+    renderShare()
+    await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })
+
+    expect(screen.getByText('Normal mucosa')).toBeVisible()
+    expect(screen.getByText('Empty subset')).toBeVisible()
+    expect(screen.getByRole('button', { name: /Normal colon/ })).toBeVisible()
   })
 
   it('uses the same privacy-safe state for unknown, expired, or revoked links', async () => {
