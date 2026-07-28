@@ -29,4 +29,9 @@ describe('library rendering performance contract', () => {
       '.filter-panel-heading button, .filter-clear, .state-page-actions button, .load-more, .library-menu button, .library-menu a, .selection-action-bar button { min-width: 44px; min-height: 44px; }',
     )
   })
+
+  it('uses neutral black elevation shadows in every theme', () => {
+    expect(libraryCss).not.toMatch(/box-shadow:[^;]*var\(--ink\)/)
+    expect(libraryCss).toContain('var(--shadow-color)')
+  })
 })

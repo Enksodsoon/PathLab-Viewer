@@ -257,7 +257,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   z-index: 61;
   overflow: hidden;
   background: var(--surface-elevated);
-  box-shadow: 18px 0 46px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: 18px 0 46px color-mix(in srgb, var(--shadow-color) 42%, transparent);
   visibility: hidden;
   pointer-events: none;
   transform: translateX(calc(-100% - 28px));
@@ -1595,7 +1595,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
-  box-shadow: 0 14px 36px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 32%, transparent);
   color: var(--body);
   font-family: var(--font-ui);
 }
@@ -1639,7 +1639,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   padding: 8px;
   border-radius: var(--radius-card);
   background: var(--ink);
-  box-shadow: 0 14px 38px color-mix(in srgb, var(--ink) 28%, transparent);
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--shadow-color) 36%, transparent);
   color: var(--canvas);
   transform: translateX(-50%);
 }
@@ -1688,7 +1688,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   overflow-y: auto;
   padding: 24px 20px 36px;
   background: var(--surface-elevated);
-  box-shadow: -18px 0 46px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: -18px 0 46px color-mix(in srgb, var(--shadow-color) 42%, transparent);
   color: var(--body);
   overscroll-behavior: contain;
 }
@@ -1839,7 +1839,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
-  box-shadow: 0 26px 72px color-mix(in srgb, var(--ink) 26%, transparent);
+  box-shadow: 0 26px 72px color-mix(in srgb, var(--shadow-color) 48%, transparent);
   color: var(--ink);
 }
 
