@@ -173,6 +173,85 @@ test.beforeEach(async ({ page }) => {
   await mockSlides(page)
 })
 
+test('draws immediately on a virtual Layer 1 and saves layer plus annotation together', async ({
+  page,
+}) => {
+  let savedRequest: {
+    ensureLayer?: { id: string; name: string }
+    operations: Array<{ type: string; item?: { id: string; layerId: string } }>
+  } | null = null
+  await page.unroute('**/api/v2/admin/annotations/slides/private-1/manifest')
+  await page.unroute('**/api/v2/admin/annotations/slides/private-1/items?**')
+  await page.unroute('**/api/v2/admin/annotations/slides/private-1/batch')
+  await page.route('**/api/v2/admin/annotations/slides/private-1/manifest', (route) => (
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        slideId: 'private-1',
+        version: 0,
+        bounds: { width: 2048, height: 1024 },
+        calibration: { x: 0.5, y: 0.75, unit: 'µm' },
+        activeCount: 0,
+        trashedCount: 0,
+        layers: [],
+        limits: {
+          activeAnnotations: 25_000,
+          layers: 100,
+          verticesPerShape: 8192,
+          verticesPerImport: 250_000,
+          batchOperations: 50,
+        },
+      }),
+    })
+  ))
+  await page.route('**/api/v2/admin/annotations/slides/private-1/items?**', (route) => (
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], total: 0, nextOffset: null }),
+    })
+  ))
+  await page.route('**/api/v2/admin/annotations/slides/private-1/batch', async (route) => {
+    const request = route.request().postDataJSON() as {
+      mutationId: string
+      ensureLayer?: { id: string; name: string }
+      operations: Array<{ type: string; item?: { id: string; layerId: string } }>
+    }
+    savedRequest = request
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        mutationId: request.mutationId,
+        version: 1,
+        results: request.operations.map((operation) => ({
+          id: operation.item?.id,
+          operation: operation.type,
+          version: 1,
+          deleted: false,
+        })),
+        purged: 0,
+      }),
+    })
+  })
+
+  await page.goto('/admin/preview/private-1')
+  await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await page.getByRole('button', { name: 'Open annotation inspector' }).click()
+  await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
+  await expect(page.getByRole('button', { name: 'Layer 1', exact: true })).toBeVisible()
+  expect(savedRequest).toBeNull()
+
+  await page.getByRole('button', { name: 'More annotation tools' }).click()
+  await page.getByRole('button', { name: 'Point marker' }).click()
+  await page.locator('.annotation-svg-overlay').click({ position: { x: 720, y: 420 } })
+  await expect(page.locator('.annotation-list-toggle strong')).toHaveText('1')
+  await page.getByRole('button', { name: 'Save annotations' }).click()
+  await expect.poll(() => savedRequest).not.toBeNull()
+  expect(savedRequest!.ensureLayer).toMatchObject({ name: 'Layer 1' })
+  expect(savedRequest!.ensureLayer!.id).toBe(savedRequest!.operations[0].item!.layerId)
+})
+
 test('keeps the full private Canvas Focus workspace usable on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1584, height: 992 })
   await page.goto('/admin/preview/private-1')

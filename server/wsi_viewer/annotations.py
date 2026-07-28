@@ -234,13 +234,35 @@ AnnotationOperation = Annotated[
 ]
 
 
+class EnsuredLayerInput(AnnotationModel):
+    id: UUID
+    name: str = Field(min_length=1, max_length=160)
+    sort_order: StrictInt = Field(default=0, alias="sortOrder", ge=0)
+    visible: StrictBool = True
+    locked: StrictBool = False
+    opacity: StrictFiniteFloat = Field(default=1.0, ge=0, le=1)
+
+    _validate_name = field_validator("name")(_nonblank_plain_text)
+
+
 class AnnotationBatchRequest(AnnotationModel):
     mutation_id: UUID = Field(alias="mutationId")
     base_version: StrictInt = Field(alias="baseVersion", ge=0)
+    ensure_layer: EnsuredLayerInput | None = Field(default=None, alias="ensureLayer")
     operations: list[AnnotationOperation] = Field(
         min_length=1,
         max_length=MAX_BATCH_OPERATIONS,
     )
+
+    @model_validator(mode="after")
+    def require_ensured_layer_use(self) -> "AnnotationBatchRequest":
+        if self.ensure_layer is not None and not any(
+            isinstance(operation, CreateOperation)
+            and operation.item.layer_id == self.ensure_layer.id
+            for operation in self.operations
+        ):
+            raise ValueError("ensureLayer must be used by a create operation")
+        return self
 
 
 class LayerMutationRequest(AnnotationModel):
@@ -905,6 +927,36 @@ def apply_batch(
 ) -> dict[str, Any]:
     started = perf_counter()
     slide = lock_annotation_mutation(database, slide, payload.base_version)
+    ensured_layer = payload.ensure_layer
+    if ensured_layer is not None:
+        layer_id = str(ensured_layer.id)
+        if database.get(AnnotationLayer, layer_id) is not None:
+            raise AnnotationError("ANNOTATION_CONFLICT", status_code=409)
+        layer_count = int(
+            database.scalar(
+                select(func.count(AnnotationLayer.id)).where(
+                    AnnotationLayer.slide_id == slide.id
+                )
+            )
+            or 0
+        )
+        if layer_count >= MAX_LAYERS_PER_SLIDE:
+            raise AnnotationError("ANNOTATION_LAYER_LIMIT")
+        now = utcnow()
+        database.add(
+            AnnotationLayer(
+                id=layer_id,
+                slide_id=slide.id,
+                name=ensured_layer.name,
+                sort_order=ensured_layer.sort_order,
+                visible=ensured_layer.visible,
+                locked=ensured_layer.locked,
+                opacity=ensured_layer.opacity,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        database.flush()
     seen: set[str] = set()
     active_count = int(
         database.scalar(

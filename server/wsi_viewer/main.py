@@ -36,7 +36,6 @@ from .publication import (
     delete_all_slide_grants,
     delivery_version,
     ensure_grant,
-    remove_grant,
 )
 from .readiness import schema_is_current
 from .request_limits import AuthBodyLimitMiddleware
@@ -48,6 +47,7 @@ from .security import (
     random_token,
     verify_upload_token,
 )
+from .sharing import detach_slide_from_shares, write_share_delivery_manifest
 from .storage import (
     InsufficientStorage,
     PublicationError,
@@ -650,7 +650,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        remove_grant(db, storage, slide, INDIVIDUAL, slide.id)
+        share_updates = detach_slide_from_shares(db, storage, slide)
+        delete_all_slide_grants(db, storage, slide)
+        if slide.state == SlideState.PUBLISHED:
+            slide.state = SlideState.READY_PRIVATE
         db.add(
             AuditEvent(
                 actor_user_id=authenticated.user_id,
@@ -659,6 +662,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         )
         db.commit()
+        for share, slides in share_updates:
+            write_share_delivery_manifest(storage, share, slides)
         return _slide_json(slide, annotations_enabled=current.annotations_enabled)
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)

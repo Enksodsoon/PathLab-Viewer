@@ -1,3 +1,4 @@
+import type OpenSeadragon from 'openseadragon'
 import { readFileSync } from 'node:fs'
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -42,6 +43,43 @@ const manifest: AnnotationManifest = {
   },
 }
 
+function mockViewer(): OpenSeadragon.Viewer {
+  const canvas = document.createElement('div')
+  document.body.append(canvas)
+  Object.defineProperties(canvas, {
+    clientWidth: { configurable: true, value: 1000 },
+    clientHeight: { configurable: true, value: 600 },
+  })
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    right: 1000,
+    bottom: 600,
+    width: 1000,
+    height: 600,
+    toJSON: () => ({}),
+  })
+  return {
+    canvas,
+    viewport: {
+      viewerElementToImageCoordinates: (point: { x: number; y: number }) => point,
+      imageToViewerElementCoordinates: (point: { x: number; y: number }) => point,
+      getBounds: () => ({ x: 0, y: 0, width: 1000, height: 600 }),
+    },
+    world: {
+      getItemAt: vi.fn(() => ({
+        viewportToImageRectangle: (rectangle: unknown) => rectangle,
+      })),
+    },
+    setMouseNavEnabled: vi.fn(),
+    setKeyboardNavEnabled: vi.fn(),
+    addHandler: vi.fn(),
+    removeHandler: vi.fn(),
+  } as unknown as OpenSeadragon.Viewer
+}
+
 function services(overrides: Partial<AnnotationWorkspaceServices> = {}): AnnotationWorkspaceServices {
   return {
     getManifest: vi.fn(async () => manifest),
@@ -78,6 +116,77 @@ function services(overrides: Partial<AnnotationWorkspaceServices> = {}): Annotat
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+})
+
+it('loads an unsaved Layer 1 immediately and persists it atomically with the first annotation', async () => {
+  const onAttachmentChange = vi.fn()
+  const createLayer = vi.fn()
+  const batch = vi.fn(async (request: AnnotationBatchRequest) => ({
+    mutationId: request.mutationId,
+    version: 1,
+    results: request.operations.map((operation) => ({
+      id: operation.type === 'create' ? operation.item.id : operation.id,
+      operation: operation.type,
+      version: 1,
+      deleted: operation.type === 'delete',
+    })),
+    purged: 0,
+  }))
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({
+        getManifest: vi.fn(async () => ({ ...manifest, layers: [] })),
+        createLayer,
+        batch,
+      })}
+      onAttachmentChange={onAttachmentChange}
+    />,
+  )
+
+  await screen.findByRole('toolbar', { name: 'Annotation tools' })
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotation inspector' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
+  expect(screen.getByRole('combobox', { name: 'Drawing layer' })).not.toHaveValue('')
+  expect(screen.getByRole('button', { name: 'Layer 1' })).toBeVisible()
+  expect(createLayer).not.toHaveBeenCalled()
+  expect(batch).not.toHaveBeenCalled()
+
+  const attachment = onAttachmentChange.mock.calls.at(-1)?.[0]
+  const viewer = mockViewer()
+  const detach = attachment(viewer)
+  fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Point marker' }))
+  viewer.canvas.querySelector('.annotation-svg-overlay')!.dispatchEvent(new MouseEvent(
+    'pointerdown',
+    { bubbles: true, clientX: 120, clientY: 80 },
+  ))
+
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Open annotations' })).toHaveTextContent('1')
+  })
+  expect(createLayer).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Save annotations' }))
+  await waitFor(() => expect(batch).toHaveBeenCalledOnce())
+  const request = batch.mock.calls[0]?.[0]
+  expect(request).toBeDefined()
+  expect(request).toMatchObject({
+    baseVersion: 0,
+    ensureLayer: {
+      name: 'Layer 1',
+      sortOrder: 0,
+      visible: true,
+      locked: false,
+      opacity: 1,
+    },
+  })
+  const operation = request!.operations[0]
+  expect(operation?.type).toBe('create')
+  if (operation?.type !== 'create') throw new Error('Expected a create operation')
+  expect(request!.ensureLayer?.id).toBe(operation.item.layerId)
+  expect(createLayer).not.toHaveBeenCalled()
+  detach()
 })
 
 it('keeps the canvas simple until advanced tools, annotations, or details are requested', async () => {
