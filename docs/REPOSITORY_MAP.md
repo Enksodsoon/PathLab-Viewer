@@ -21,18 +21,19 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 
 | Change | Primary files |
 |---|---|
-| Upload admission, tus callbacks, and finalization | `server/wsi_viewer/api.py`, `storage.py`, `worker.py` |
+| Upload admission, tus callbacks, and finalization | `server/wsi_viewer/main.py`, `storage.py`, `storage_accounting.py`, and `worker.py` |
 | OME-TIFF acceptance and stable failure codes | `server/wsi_viewer/ome.py`, `tests/backend/test_ome.py` |
-| DZI and JPEG conversion | `server/wsi_viewer/conversion.py`, conversion tests |
+| DZI, cached thumbnail, and JPEG conversion | `server/wsi_viewer/conversion.py`, conversion tests |
+| Prepared-package contract and ingest | Proposed focused `server/wsi_viewer/prepared/` modules, desktop routes/auth modules, `storage_accounting.py`, `worker.py`, and prepared-ingest tests |
 | Authentication, sessions, CSRF, password change, and recovery | `server/wsi_viewer/auth.py`, `security.py`, API routes, `apps/web/src/components/AuthPanels.tsx` |
-| Slide state transitions and publication | domain and API modules plus `server/wsi_viewer/storage.py` |
+| Slide state transitions and publication | domain and API modules plus `server/wsi_viewer/publication.py` and `storage.py` |
 | Library folders, collections, saved views, bounded queries, and serializers | `server/wsi_viewer/library.py`, `library_routes.py`, `models.py`, migration `20260723_0006` |
 | Privacy-gated folder/collection shares and public manifests | `server/wsi_viewer/sharing.py`, `library_routes.py`, migration `20260723_0007` |
 | Publication grant retention | `server/wsi_viewer/publication.py`, `storage.py` |
 | Dark library explorer shell, navigator, grid/table, details, bulk actions, and dialogs | `apps/web/src/pages/AdminPage.tsx`, `apps/web/src/components/library/`, `apps/web/src/library.css`, and `apps/web/src/test/library-explorer.test.tsx` |
 | Dormant shared-set viewer and persistent slide switching | `apps/web/src/pages/SharedViewerPage.tsx`, `apps/web/src/shared-viewer.css`, and `apps/web/src/test/shared-viewer.test.tsx` |
 | Public OpenSeadragon viewer | `apps/web/src/pages/ViewerPage.tsx`, `components/OpenSeadragonViewer.tsx` |
-| OCI service topology | `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/terraform` |
+| OCI service topology | `deploy/compose.yaml`, `deploy/Caddyfile`, and `deploy/terraform` |
 | Backups and recovery | `deploy/scripts`, `deploy/README.md` |
 | Continuous integration | `.github/workflows/ci.yml` |
 
@@ -41,6 +42,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 - [`../README.md`](../README.md): project overview, supported contract, setup, and verification commands.
 - [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md): product scope, architecture, lifecycle, and operational boundaries.
 - [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): input validation, processing, publication, and privacy architecture.
+- [`architecture/PREPARED_SLIDE_INGEST.md`](architecture/PREPARED_SLIDE_INGEST.md): proposed local-prepared package, storage, worker, library, and desktop API integration.
 - [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md): folder, collection, saved-view, Trash, search, pagination, thumbnail, and grant contracts.
 - [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): administrator credential lifecycle and abuse controls.
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): branch, testing, review, documentation, and privacy standards.
