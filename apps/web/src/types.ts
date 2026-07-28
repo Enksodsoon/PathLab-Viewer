@@ -175,6 +175,7 @@ export interface SharePreviewItem {
   id: string
   displayName: string
   reason?: string
+  privacyReviewRequired?: boolean
 }
 
 export interface SharePreview {

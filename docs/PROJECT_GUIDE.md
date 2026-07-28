@@ -100,13 +100,15 @@ See [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md).
 
 Original files are stored under generated identifiers in a private storage root. Public links expose only an unlisted public identifier, display metadata required by the viewer, one DZI descriptor, and sanitized JPEG tiles.
 
-Multi-slide sharing schema is present for forward compatibility but activation
-is fail-closed. `PATHLAB_MULTI_SHARE_ENABLED` defaults to `false`, and share
-creation returns `PRIVACY_SCANNER_REQUIRED` until a later automated scanner
-phase. The dormant `/f/{publicId}` and `/c/{publicId}` viewer routes expose only
-explicitly safe teaching fields and reuse one OpenSeadragon instance while
-switching slides. Routine folder and collection mutations never publish.
-Individual `/s/{publicId}` publication remains compatible.
+Folder and collection sharing is enabled by default and remains fail-closed at
+the review boundary. An administrator must explicitly confirm that public names,
+teaching metadata, and visible pixels are de-identified before a share can be
+created. `PATHLAB_MULTI_SHARE_ENABLED=false` remains an operational kill switch.
+The `/f/{publicId}` and `/c/{publicId}` viewer routes expose only explicitly safe
+teaching fields and reuse one OpenSeadragon instance while switching slides.
+Routine folder and collection mutations never publish, and public metadata edits
+remain blocked while any publication grant is active. Individual
+`/s/{publicId}` publication remains compatible.
 
 Administrator annotations are isolated under `/api/v2/admin/annotations` and load
 only in `/admin/preview/{slideId}` when `PATHLAB_ANNOTATIONS_ENABLED=true`.

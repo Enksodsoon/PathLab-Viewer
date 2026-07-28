@@ -101,8 +101,8 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
       setMessage('Shared link created.')
     } catch (caught) {
       setMessageIsError(true)
-      setMessage(caught instanceof ApiError && caught.code === 'PRIVACY_SCANNER_REQUIRED'
-        ? 'Multi-slide sharing stays disabled until the automated privacy scanner is available.'
+      setMessage(caught instanceof ApiError && caught.code === 'MULTI_SHARE_DISABLED'
+        ? 'Folder and collection sharing is disabled by the server administrator.'
         : 'Unable to create the shared link.')
     } finally {
       setBusy(false)
@@ -194,9 +194,14 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
           ) : null}
           <label>Expiration (optional)<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
           <div className="share-preview-list">
-            <strong>{preview?.included.length ?? 0} slides ready</strong>
-            {preview?.included.slice(0, 6).map((item) => <span key={item.id}><Check /> {item.displayName}</span>)}
-            {preview?.excluded.length ? <small>{preview.excluded.length} slides excluded because they are not ready or privacy-reviewed.</small> : null}
+            <strong>{preview?.included.length ?? 0} slides ready for review</strong>
+            {preview?.included.slice(0, 6).map((item) => (
+              <span key={item.id}>
+                <Check /> {item.displayName}
+                {item.privacyReviewRequired ? <small>Review required</small> : null}
+              </span>
+            ))}
+            {preview?.excluded.length ? <small>{preview.excluded.length} slides excluded because they are not ready.</small> : null}
           </div>
           <label className="share-check privacy">
             <input className="share-checkbox-input" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />

@@ -1211,7 +1211,7 @@ def register_library_routes(
         if not app.state.settings.multi_share_enabled:
             raise HTTPException(
                 status_code=409,
-                detail={"code": "PRIVACY_SCANNER_REQUIRED"},
+                detail={"code": "MULTI_SHARE_DISABLED"},
             )
         if not payload.deidentified_confirmed:
             raise HTTPException(

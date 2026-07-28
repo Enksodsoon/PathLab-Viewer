@@ -147,22 +147,22 @@ def preview_share(
     )
     ready_states = {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
     included = [
-        {"id": slide.id, "displayName": slide.display_name}
+        {
+            "id": slide.id,
+            "displayName": slide.display_name,
+            "privacyReviewRequired": slide.privacy_status != "passed",
+        }
         for slide in slides
-        if slide.state in ready_states and slide.privacy_status == "passed"
+        if slide.state in ready_states
     ]
     excluded = [
         {
             "id": slide.id,
             "displayName": slide.display_name,
-            "reason": (
-                "PRIVACY_REVIEW_REQUIRED"
-                if slide.privacy_status != "passed"
-                else "SLIDE_NOT_READY"
-            ),
+            "reason": "SLIDE_NOT_READY",
         }
         for slide in slides
-        if slide.state not in ready_states or slide.privacy_status != "passed"
+        if slide.state not in ready_states
     ]
     return {
         "targetType": target_type,

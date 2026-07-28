@@ -510,7 +510,7 @@ def test_empty_trash_refuses_to_race_an_active_conversion(tmp_path: Path) -> Non
             ) is None
 
 
-def test_multi_share_activation_is_blocked_without_privacy_scanner(tmp_path: Path) -> None:
+def test_multi_share_activation_honors_administrative_kill_switch(tmp_path: Path) -> None:
     with _client(tmp_path, multi_share_enabled=False) as client:
         headers = _headers(client)
         folder = _create_folder(client, headers, "Teaching")
@@ -520,7 +520,7 @@ def test_multi_share_activation_is_blocked_without_privacy_scanner(tmp_path: Pat
             json={"targetType": "folder", "targetId": folder["id"]},
         )
         assert response.status_code == 409
-        assert response.json()["detail"]["code"] == "PRIVACY_SCANNER_REQUIRED"
+        assert response.json()["detail"]["code"] == "MULTI_SHARE_DISABLED"
 
 
 def _seed_share_ready_slide(
@@ -567,6 +567,12 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         child = _create_folder(client, headers, "Colon", root["id"])
         _seed_share_ready_slide(client, slide_id="direct", folder_id=root["id"])
         _seed_share_ready_slide(client, slide_id="descendant", folder_id=child["id"])
+        with session_factory(client.app.state.settings)() as database:
+            direct_slide = database.get(Slide, "direct")
+            assert direct_slide is not None
+            direct_slide.privacy_status = "pending"
+            direct_slide.privacy_scanned_at = None
+            database.commit()
 
         direct = client.get(
             "/api/v2/admin/shares/preview",
@@ -578,6 +584,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         )
         assert direct.status_code == 200
         assert [item["displayName"] for item in direct.json()["included"]] == ["Safe direct"]
+        assert direct.json()["included"][0]["privacyReviewRequired"] is True
 
         descendant = client.get(
             "/api/v2/admin/shares/preview",
@@ -619,6 +626,11 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         assert created.status_code == 201, created.text
         assert created.json()["autoIncludeNew"] is False
         assert created.json()["includedCount"] == 2
+        with session_factory(client.app.state.settings)() as database:
+            reviewed = database.get(Slide, "direct")
+            assert reviewed is not None
+            assert reviewed.privacy_status == "passed"
+            assert reviewed.privacy_scanned_at is not None
         delivery_manifest = (
             client.app.state.settings.data_root
             / "delivery"

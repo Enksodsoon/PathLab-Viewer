@@ -23,8 +23,12 @@ beforeEach(() => {
     targetId: 'folder-1',
     name: 'GI teaching set',
     description: '',
-    included: [{ id: 'slide-1', displayName: 'Colon adenocarcinoma' }],
-    excluded: [{ id: 'slide-2', displayName: 'Pending slide', reason: 'privacy_pending' }],
+    included: [{
+      id: 'slide-1',
+      displayName: 'Colon adenocarcinoma',
+      privacyReviewRequired: true,
+    }],
+    excluded: [{ id: 'slide-2', displayName: 'Pending slide', reason: 'SLIDE_NOT_READY' }],
   })
   api.listLibraryShares.mockResolvedValue([])
 })
@@ -51,6 +55,7 @@ describe('share activation dialog', () => {
     render(<ShareDialog open targetType="folder" targetId="folder-1" targetName="GI teaching set" onClose={vi.fn()} />)
 
     expect(await screen.findByText('Colon adenocarcinoma')).toBeVisible()
+    expect(screen.getByText('Review required')).toBeVisible()
     const descendantOption = screen.getByRole('checkbox', { name: /include slides in descendant folders/i })
     const futureOption = screen.getByRole('checkbox', { name: /automatically include future additions/i })
     const privacyOption = screen.getByRole('checkbox', { name: /I confirm public names/i })
