@@ -37,6 +37,22 @@ describe('library rendering performance contract', () => {
     expect(libraryCss).toContain('var(--shadow-color)')
   })
 
+  it('keeps the selection toolbar on the active theme surface', () => {
+    const selectionCss = libraryCss.slice(
+      libraryCss.indexOf('.selection-action-bar {'),
+      libraryCss.indexOf('/* Right overlay inspector */'),
+    )
+
+    expect(selectionCss).toContain(
+      'background: color-mix(in srgb, var(--surface-elevated) 94%, var(--primary));',
+    )
+    expect(selectionCss).toContain('border: 1px solid var(--border);')
+    expect(selectionCss).toContain('color: var(--ink);')
+    expect(selectionCss).toContain('color: var(--body);')
+    expect(selectionCss).not.toContain('background: var(--ink);')
+    expect(selectionCss).not.toContain('color: var(--canvas);')
+  })
+
   it('dims the open navigator with a dark neutral backdrop', () => {
     expect(libraryCss).toContain(
       'background: color-mix(in srgb, var(--shadow-color) 58%, transparent);',
