@@ -1175,6 +1175,8 @@ export function AdminPage() {
         })}
         onNavigator={() => setNavigatorOpen((current) => !current)}
         onUpload={() => openNamedDialog('upload')}
+        onSecurity={() => setSecurityOpen(true)}
+        onSignOut={() => void signOut()}
       />
       <div
         className="mobile-navigator-backdrop"
@@ -1253,8 +1255,6 @@ export function AdminPage() {
           onNewCollection={() => openNamedDialog('collection')}
           onNewSavedView={() => openNamedDialog('saved')}
           onUpload={() => openNamedDialog('upload')}
-          onSecurity={() => setSecurityOpen(true)}
-          onSignOut={() => void signOut()}
           onShare={shareTarget ? () => openNamedDialog('share') : undefined}
         />
         {filtersOpen ? (

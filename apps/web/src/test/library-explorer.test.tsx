@@ -184,7 +184,7 @@ function AdminPage() {
 }
 
 describe('Canvas Focus library explorer', () => {
-  it('uses a collapsible two-action rail and top-right utilities', async () => {
+  it('uses a compact rail with two destinations and account utilities', async () => {
     renderCanvasFocusAdmin()
 
     await screen.findAllByText('Colon adenocarcinoma')
@@ -198,8 +198,8 @@ describe('Canvas Focus library explorer', () => {
     expect(within(rail).queryByRole('button', { name: /^trash$/i })).not.toBeInTheDocument()
     expect(within(rail).queryByRole('group', { name: /theme preference/i })).not.toBeInTheDocument()
     expect(screen.getByRole('group', { name: /theme preference/i })).toBeVisible()
-    expect(screen.getByRole('button', { name: /^account$/i })).toBeVisible()
-    expect(screen.getByRole('button', { name: /^sign out$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^account$/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /^sign out$/i })).toBeVisible()
 
     const toggle = within(rail).getByRole('button', { name: /expand navigation rail/i })
     expect(document.querySelector('.library-shell')).not.toHaveClass('rail-expanded')

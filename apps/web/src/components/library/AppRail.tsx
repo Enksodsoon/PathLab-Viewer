@@ -1,7 +1,9 @@
 import {
   CaretDoubleLeft,
   CaretDoubleRight,
+  Key,
   List as Menu,
+  SignOut,
   UploadSimple as Upload,
 } from '@phosphor-icons/react'
 import type { Ref } from 'react'
@@ -16,6 +18,8 @@ interface AppRailProps {
   onToggleExpanded: () => void
   onNavigator: () => void
   onUpload: () => void
+  onSecurity: () => void
+  onSignOut: () => void
 }
 
 export function AppRail({
@@ -26,6 +30,8 @@ export function AppRail({
   onToggleExpanded,
   onNavigator,
   onUpload,
+  onSecurity,
+  onSignOut,
 }: AppRailProps) {
   return (
     <aside
@@ -66,6 +72,16 @@ export function AppRail({
           <span>Upload</span>
         </button>
       </nav>
+      <div className="library-rail-utilities" aria-label="Account actions">
+        <button type="button" aria-label="Account" onClick={onSecurity}>
+          <Key aria-hidden="true" />
+          <span>Account</span>
+        </button>
+        <button type="button" aria-label="Sign out" onClick={onSignOut}>
+          <SignOut aria-hidden="true" />
+          <span>Sign out</span>
+        </button>
+      </div>
     </aside>
   )
 }
