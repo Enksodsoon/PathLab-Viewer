@@ -47,6 +47,7 @@ import {
 } from 'react'
 
 import type { ViewerAttachmentCallback } from '../components/OpenSeadragonViewer'
+import { Loader } from '../components/Loader'
 import {
   AnnotationApiClient,
   MAX_ANNOTATION_IMPORT_REQUEST_BYTES,
@@ -1585,19 +1586,23 @@ export function AnnotationWorkspace({
               <FloppyDisk />
               <span>Save</span>
             </button>
-            <output
-              className={`annotation-save-status annotation-save-status--${autosave.status}`}
-              role="status"
-              aria-live="polite"
-            >
-              {initializing
-                ? 'Opening…'
-                : autosave.status === 'saved'
+            {initializing ? (
+              <span className="annotation-save-status">
+                <Loader label="Opening…" size="small" inline />
+              </span>
+            ) : (
+              <output
+                className={`annotation-save-status annotation-save-status--${autosave.status}`}
+                role="status"
+                aria-live="polite"
+              >
+                {autosave.status === 'saved'
                   ? 'Saved'
                   : autosave.dirtyCount > 0
                     ? `${autosave.dirtyCount} unsaved`
                     : 'No changes'}
-            </output>
+              </output>
+            )}
           </div>
           <button
             type="button"
@@ -2307,9 +2312,11 @@ export function AnnotationWorkspace({
           </div>
         ) : null}
 
-        <output className="annotation-operation-status" aria-live="polite">
-          {operationStatus}
-        </output>
+        {!initializing ? (
+          <output className="annotation-operation-status" aria-live="polite">
+            {operationStatus}
+          </output>
+        ) : null}
       </section>
     </AnnotationErrorBoundary>
   )

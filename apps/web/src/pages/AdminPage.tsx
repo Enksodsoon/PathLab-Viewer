@@ -50,6 +50,7 @@ import {
   updateSavedView,
 } from '../api'
 import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
+import { Loader } from '../components/Loader'
 import { AppRail } from '../components/library/AppRail'
 import {
   getStoredRailExpanded,
@@ -263,6 +264,7 @@ export function AdminPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploadName, setUploadName] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [preparingUpload, setPreparingUpload] = useState(false)
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
@@ -1071,7 +1073,7 @@ export function AdminPage() {
   }
 
   async function startUpload() {
-    if (!file) return
+    if (!file || preparingUpload) return
     if (!/\.ome\.tiff?$/i.test(file.name)) {
       setNotice('Choose a file ending in .ome.tif or .ome.tiff.')
       return
@@ -1079,7 +1081,8 @@ export function AdminPage() {
     const folderId = location.startsWith('folder:')
       ? location.slice('folder:'.length)
       : null
-    setNotice('Preparing resumable upload…')
+    setPreparingUpload(true)
+    setNotice('')
     try {
       const reservation = await reserveUpload(
         file,
@@ -1105,6 +1108,8 @@ export function AdminPage() {
       })
     } catch {
       setNotice('Upload could not start. Check the file and available storage.')
+    } finally {
+      setPreparingUpload(false)
     }
   }
 
@@ -1180,10 +1185,10 @@ export function AdminPage() {
     await refreshNavigation()
   }
 
-  if (signingOut) return <div className="center-state dark">Signing out…</div>
+  if (signingOut) return <Loader label="Signing out…" size="large" fullscreen />
   if (authorized === false) {
     return (
-      <Suspense fallback={<div className="center-state">Opening secure sign in…</div>}>
+      <Suspense fallback={<Loader label="Opening secure sign in…" size="large" fullscreen />}>
         <AuthPanel
           notice={authNotice}
           onSuccess={() => {
@@ -1195,7 +1200,9 @@ export function AdminPage() {
       </Suspense>
     )
   }
-  if (authorized === null) return <div className="center-state dark">Loading secure library…</div>
+  if (authorized === null) {
+    return <Loader label="Loading secure library…" size="large" fullscreen />
+  }
 
   return (
     <div
@@ -1396,8 +1403,10 @@ export function AdminPage() {
             <div className="library-notice" role="status">{notice}</div>
           ) : null}
           {contentLoading ? (
-            <div className="library-loading" role="status">
-              {currentFolderId ? 'Loading folder…' : 'Loading slides…'}
+            <div className="library-loading">
+              <Loader
+                label={currentFolderId ? 'Loading folder…' : 'Loading slides…'}
+              />
             </div>
           ) : null}
           {!contentLoading && currentFolderChildren.length > 0 ? (
@@ -1475,7 +1484,9 @@ export function AdminPage() {
                   disabled={loadingMore}
                   onClick={() => runAction(loadNextPage, 'Next page')}
                 >
-                  {loadingMore ? 'Loading…' : 'Next page'}
+                  {loadingMore
+                    ? <Loader label="Loading next page…" size="small" inline />
+                    : 'Next page'}
                 </button>
               ) : null}
             </div>
@@ -1571,8 +1582,10 @@ export function AdminPage() {
           {uploadProgress !== null ? (
             <div className="library-upload-progress"><span style={{ width: `${uploadProgress}%` }} /></div>
           ) : null}
-          {notice ? <p role="status">{notice}</p> : null}
-          <button type="button" className="primary" disabled={!file} onClick={() => void startUpload()}>
+          {preparingUpload ? (
+            <Loader label="Preparing resumable upload…" size="small" inline />
+          ) : notice ? <p role="status">{notice}</p> : null}
+          <button type="button" className="primary" disabled={!file || preparingUpload} onClick={() => void startUpload()}>
             Upload slide
           </button>
         </div>

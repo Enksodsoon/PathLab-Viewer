@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { Loader } from '../Loader'
 import { LibraryDialog } from './LibraryDialog'
 
 interface PublishConfirmationDialogProps {
@@ -49,7 +50,9 @@ export function PublishConfirmationDialog({
           disabled={!confirmed || busy || count < 1}
           onClick={onConfirm}
         >
-          {busy ? 'Publishing…' : label}
+          {busy
+            ? <Loader label="Publishing slides…" size="small" inline />
+            : label}
         </button>
       </div>
     </LibraryDialog>

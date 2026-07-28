@@ -60,6 +60,18 @@ describe('library rendering performance contract', () => {
     )
   })
 
+  it('uses the theme primary color for the shared motion-safe loader', () => {
+    expect(globalCss).toContain(
+      '.pathlab-loader { --pathlab-loader-size:32px;',
+    )
+    expect(globalCss).toContain('color:var(--primary);')
+    expect(globalCss).toContain('stroke:currentColor;')
+    expect(globalCss).toContain('@keyframes pathlab-loader-boxes')
+    expect(globalCss).toContain(
+      '.pathlab-loader__boxes {\n    animation:none;',
+    )
+  })
+
   it('keeps the navigator close control compact on desktop and touch-safe on mobile', () => {
     const closeControl = libraryCss
       .slice(

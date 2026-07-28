@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, SyntheticEvent } from 'react'
 
+import { Loader } from './Loader'
+
 interface DeleteSlideDialogProps {
   slideName: string | null
   onClose: () => void
@@ -82,7 +84,9 @@ export function DeleteSlideDialog({ slideName, onClose, onConfirm }: DeleteSlide
             Cancel
           </button>
           <button className="button danger" type="submit" disabled={busy}>
-            {busy ? 'Deleting…' : 'Delete slide'}
+            {busy
+              ? <Loader label="Deleting slide…" size="small" inline />
+              : 'Delete slide'}
           </button>
         </div>
       </form>

@@ -16,6 +16,7 @@ import {
   revokeLibraryShare,
   rotateLibraryShare,
 } from '../../api'
+import { Loader } from '../Loader'
 import type { LibraryShare, SharePreview } from '../../types'
 import { LibraryDialog } from './LibraryDialog'
 
@@ -34,6 +35,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   const [expiresAt, setExpiresAt] = useState('')
   const [preview, setPreview] = useState<SharePreview | null>(null)
   const [share, setShare] = useState<LibraryShare | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [messageIsError, setMessageIsError] = useState(false)
@@ -57,6 +59,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
     setConfirmRevoke(false)
     setPreview(null)
     setShare(null)
+    setPreviewLoading(true)
     void Promise.all([
       previewLibraryShare(targetType, targetId, includeDescendants),
       listLibraryShares(),
@@ -70,6 +73,8 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
         setMessageIsError(true)
         setMessage('Unable to load the share preview.')
       }
+    }).finally(() => {
+      if (active) setPreviewLoading(false)
     })
     return () => { active = false }
   }, [includeDescendants, open, targetId, targetType])
@@ -148,7 +153,9 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   return (
     <LibraryDialog open={open} title={`Share ${targetName}`} description={`${targetType === 'folder' ? 'Folder' : 'Collection'} sharing preview`} onClose={onClose}>
       <div className="share-dialog-content">
-        {share ? <>
+        {previewLoading ? (
+          <Loader label="Loading sharing preview…" size="small" inline />
+        ) : share ? <>
           <div className="share-active-summary"><Link2 /><div><strong>Active shared link</strong><span>{share.includedCount} slides · {share.expiresAt ? `expires ${new Date(share.expiresAt).toLocaleDateString()}` : 'no expiration'}</span></div></div>
           <input aria-label="Shared link" readOnly value={`${window.location.origin}${publicPath}`} />
           <div className="share-dialog-actions">
@@ -199,6 +206,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
           </label>
           <button type="button" className="primary" disabled={busy || !confirmed || !preview?.included.length} onClick={() => void create()}>Create shared link</button>
         </>}
+        {busy ? <Loader label="Updating shared link…" size="small" inline /> : null}
         {message ? <p role={messageIsError ? 'alert' : 'status'}>{message}</p> : null}
       </div>
     </LibraryDialog>

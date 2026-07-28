@@ -12,6 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
+import { Loader } from '../components/Loader'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
 import type { SharedManifest } from '../types'
@@ -95,7 +96,9 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       </main>
     )
   }
-  if (!manifest) return <div className="center-state dark">Opening shared library…</div>
+  if (!manifest) {
+    return <Loader label="Opening shared library…" size="large" fullscreen />
+  }
   if (!manifest.slides.length) {
     return <main className="share-message"><h1>No slides are available</h1><p>This shared library is currently empty.</p></main>
   }
