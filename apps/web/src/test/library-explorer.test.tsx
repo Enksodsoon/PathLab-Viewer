@@ -606,7 +606,7 @@ describe('Canvas Focus library explorer', () => {
     expect(api.getFolderChildren).toHaveBeenCalledWith(child.id)
   })
 
-  it('presents the OME-TIFF chooser with the library design system', async () => {
+  it('combines OME-TIFF selection and upload details in one workspace', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 
     await screen.findByRole('heading', { name: /all slides/i })
@@ -616,13 +616,16 @@ describe('Canvas Focus library explorer', () => {
 
     const fileInput = screen.getByLabelText('Choose OME-TIFF')
     expect(fileInput).toHaveClass('upload-file-input')
-    expect(screen.getByText('Browse files')).toBeVisible()
-    expect(screen.getByText('No file selected')).toBeVisible()
+    expect(screen.getByText('Drop an OME-TIFF here')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Choose file' })).toBeVisible()
     expect(fileInput).toHaveAttribute('accept', '.ome.tif,.ome.tiff,image/tiff')
 
     await userEvent.upload(fileInput, new File(['slide'], 'sample.ome.tiff', { type: 'image/tiff' }))
-    expect(screen.getByText('Choose another file')).toBeVisible()
     expect(screen.getByText('sample.ome.tiff')).toBeVisible()
+    expect(screen.getByText(/Ready to upload/)).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveValue('sample')
+    expect(screen.getByRole('button', { name: 'Upload slide' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Remove sample.ome.tiff' })).toBeVisible()
   })
 
   it('shows only functional destinations and lazily expands folders', async () => {

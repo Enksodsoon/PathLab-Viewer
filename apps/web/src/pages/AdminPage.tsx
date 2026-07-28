@@ -72,6 +72,7 @@ import { PublishConfirmationDialog } from '../components/library/PublishConfirma
 import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
+import { UploadWorkspace } from '../components/library/UploadWorkspace'
 import type {
   AdminSlide,
   LibraryFacets,
@@ -270,6 +271,7 @@ export function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [preparingUpload, setPreparingUpload] = useState(false)
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState('')
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
   const navigatorToggleRef = useRef<HTMLButtonElement>(null)
@@ -1090,6 +1092,7 @@ export function AdminPage() {
       ? location.slice('folder:'.length)
       : null
     setPreparingUpload(true)
+    setUploadError('')
     setNotice('')
     try {
       const reservation = await reserveUpload(
@@ -1112,13 +1115,25 @@ export function AdminPage() {
           setUploadProgress(100)
           setNotice('Upload complete. Processing is queued.')
         },
-        error: (message) => setNotice(`Upload paused: ${message}`),
+        error: (message) => {
+          setUploadError(message)
+          setNotice('')
+        },
       })
     } catch {
-      setNotice('Upload could not start. Check the file and available storage.')
+      setUploadError('Upload could not start. Check the file and available storage.')
     } finally {
       setPreparingUpload(false)
     }
+  }
+
+  function chooseUploadFile(next: File | null) {
+    setFile(next)
+    setUploadProgress(null)
+    setUploadError('')
+    setActiveUploadId(null)
+    setNotice('')
+    setUploadName(next ? next.name.replace(/\.ome\.tiff?$/i, '') : '')
   }
 
   function endSession(message = '') {
@@ -1564,40 +1579,17 @@ export function AdminPage() {
         description={location.startsWith('folder:') ? `Target: ${currentTitle}` : 'Target: Unfiled'}
         onClose={() => setDialog(null)}
       >
-        <div className="library-dialog-form">
-          <label className={`upload-drop${file ? ' has-file' : ''}`}>
-            <span className="upload-drop-icon" aria-hidden="true"><Upload /></span>
-            <span className="upload-drop-copy">
-              <strong>{file ? 'OME-TIFF selected' : 'Choose OME-TIFF'}</strong>
-              <span className="upload-drop-hint">Up to 5 GiB · resumable</span>
-            </span>
-            <span className="upload-file-button">{file ? 'Choose another file' : 'Browse files'}</span>
-            <span className="upload-file-name" title={file?.name}>
-              {file?.name ?? 'No file selected'}
-            </span>
-            <input
-              className="upload-file-input"
-              type="file"
-              accept=".ome.tif,.ome.tiff,image/tiff"
-              aria-label="Choose OME-TIFF"
-              onChange={(event) => {
-                const next = event.target.files?.[0] ?? null
-                setFile(next)
-                if (next) setUploadName(next.name.replace(/\.ome\.tiff?$/i, ''))
-              }}
-            />
-          </label>
-          <label>Display name<input value={uploadName} onChange={(event) => setUploadName(event.target.value)} /></label>
-          {uploadProgress !== null ? (
-            <div className="library-upload-progress"><span style={{ width: `${uploadProgress}%` }} /></div>
-          ) : null}
-          {preparingUpload ? (
-            <Loader label="Preparing resumable upload…" size="small" inline />
-          ) : notice ? <p role="status">{notice}</p> : null}
-          <button type="button" className="primary" disabled={!file || preparingUpload} onClick={() => void startUpload()}>
-            Upload slide
-          </button>
-        </div>
+        <UploadWorkspace
+          file={file}
+          displayName={uploadName}
+          progress={uploadProgress}
+          preparing={preparingUpload}
+          error={uploadError}
+          onFileChange={chooseUploadFile}
+          onDisplayNameChange={setUploadName}
+          onUpload={() => void startUpload()}
+        />
+        {notice ? <p className="upload-workspace-notice" role="status">{notice}</p> : null}
       </LibraryDialog>
 
       <LibraryDialog
