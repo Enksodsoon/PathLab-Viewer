@@ -54,11 +54,11 @@ copy/move a DZI tree.
 ## Thumbnails
 
 The existing serial conversion job generates one stripped JPEG thumbnail with
-a 384-pixel longest edge and quality 80 from the already-open libvips image.
-Browsing never decodes a WSI. Private thumbnails require administrator
-authentication and use private caching plus an ETag. A published thumbnail is
-hardlinked through the existing publication boundary and removed with the
-public alias after the final grant disappears.
+a 640-pixel longest edge and quality 82 from the same source image used for the
+DZI conversion. Browsing never decodes a WSI. Private thumbnails require
+administrator authentication and use private caching plus an ETag. A published
+thumbnail is hardlinked through the existing publication boundary and removed
+with the public alias after the final grant disappears.
 
 ## Publication grants and reviewed sharing
 
