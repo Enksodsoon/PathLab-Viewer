@@ -35,6 +35,15 @@ describe('library rendering performance contract', () => {
     expect(libraryCss).toContain('var(--shadow-color)')
   })
 
+  it('dims the open navigator with a dark neutral backdrop', () => {
+    expect(libraryCss).toContain(
+      'background: color-mix(in srgb, var(--shadow-color) 58%, transparent);',
+    )
+    expect(libraryCss).not.toContain(
+      'background: color-mix(in srgb, var(--ink) 38%, transparent);',
+    )
+  })
+
   it('keeps the navigator close control compact on desktop and touch-safe on mobile', () => {
     const closeControl = libraryCss
       .slice(

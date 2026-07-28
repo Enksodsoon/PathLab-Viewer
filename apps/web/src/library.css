@@ -249,7 +249,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   inset: 0;
   z-index: 60;
   border: 0;
-  background: color-mix(in srgb, var(--ink) 38%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 58%, transparent);
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease-out;
