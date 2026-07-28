@@ -2387,6 +2387,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   background: color-mix(in srgb, var(--primary) 9%, var(--surface));
 }
 
+.upload-workspace-drop.is-compact {
+  min-height: 0;
+  padding: 14px;
+}
+
 .upload-workspace-drop strong,
 .upload-workspace-file strong {
   color: var(--ink);
@@ -2441,7 +2446,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .upload-workspace-file {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 30px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 13px;
@@ -2485,7 +2490,21 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   white-space: nowrap;
 }
 
-.upload-workspace-remove {
+.upload-workspace-queue {
+  max-height: min(44vh, 390px);
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.upload-workspace-file-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.upload-workspace-file-actions button {
   width: 30px;
   height: 30px;
   display: grid;
@@ -2497,9 +2516,25 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   color: var(--muted);
 }
 
-.upload-workspace-remove:hover {
+.upload-workspace-file-actions button:hover {
   background: var(--surface-card);
   color: var(--ink);
+}
+
+.upload-workspace-name {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.upload-workspace-name input {
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 11px;
 }
 
 .upload-workspace-progress {
@@ -2529,20 +2564,21 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   font-size: 11px;
 }
 
-.upload-workspace-details {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+.upload-workspace-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  padding-top: 2px;
 }
 
-.upload-workspace-details label {
-  display: grid;
-  gap: 6px;
+.upload-workspace-footer > span {
+  color: var(--muted);
+  font-size: 11px;
 }
 
-.upload-workspace-details .primary {
-  min-height: 38px;
+.upload-workspace-footer .primary {
+  min-height: 36px;
 }
 
 .upload-workspace-notice {
@@ -3067,8 +3103,13 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     grid-column: 1 / -1;
   }
 
-  .upload-workspace-details {
-    grid-template-columns: 1fr;
+  .upload-workspace-name {
+    grid-column: 1 / -1;
+  }
+
+  .upload-workspace-footer {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

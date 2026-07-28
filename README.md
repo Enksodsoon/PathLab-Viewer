@@ -52,6 +52,7 @@ scan, decode, or duplicate a slide or its tile tree. See
 - Python 3.12
 - Node.js 24
 - pnpm 11
+- tusd 2.9.2 for resumable local uploads
 - native libvips for complete conversion runs
 
 ### Setup
@@ -61,6 +62,7 @@ python -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 pnpm install
 alembic upgrade head
+go install github.com/tus/tusd/v2/cmd/tusd@v2.9.2
 ```
 
 Start the services in separate terminals:
@@ -71,6 +73,15 @@ pathlab-api
 pathlab-worker
 pnpm --dir apps/web dev
 ```
+
+On Windows, start the resumable upload service in another PowerShell terminal:
+
+```powershell
+.\scripts\start-local-tusd.ps1
+```
+
+The web development proxy expects tusd on `127.0.0.1:8080`. Uploads cannot
+start if only the API and Vite processes are running.
 
 Open `http://127.0.0.1:5173/admin`. Published local slides use `/s/{publicId}`.
 

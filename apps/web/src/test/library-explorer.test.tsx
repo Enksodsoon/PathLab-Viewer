@@ -23,12 +23,19 @@ const api = vi.hoisted(() => ({
   emptyLibraryTrash: vi.fn(),
   mutateFolder: vi.fn(),
   listSlides: vi.fn(),
+  reserveUpload: vi.fn(),
 }))
 
 vi.mock('../api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../api')>(),
   ...api,
 }))
+
+const tusUpload = vi.hoisted(() => ({
+  startTusUpload: vi.fn(),
+}))
+
+vi.mock('../upload', () => tusUpload)
 
 const navigation: LibraryNavigation = {
   counts: { all: 2, unfiled: 0, shared: 0, processing: 1, failed: 0, trash: 0 },
@@ -162,6 +169,29 @@ beforeEach(() => {
   api.emptyLibraryTrash.mockResolvedValue({ scheduled: 2 })
   api.mutateFolder.mockResolvedValue(undefined)
   api.listSlides.mockResolvedValue([])
+  api.reserveUpload.mockImplementation(async (file: File) => ({
+    slide: {
+      ...items.items[0],
+      id: `reserved-${file.name}`,
+      displayName: file.name.replace(/\.ome\.tiff?$/i, ''),
+      state: 'uploading',
+      sourceBytes: file.size,
+      thumbnailUrl: null,
+    },
+    uploadUrl: '/api/v1/uploads/',
+    uploadToken: `token-${file.name}`,
+    expiresIn: 3600,
+  }))
+  tusUpload.startTusUpload.mockImplementation(async (
+    _file: File,
+    _endpoint: string,
+    _token: string,
+    callbacks: { progress: (value: number) => void; success: () => void },
+  ) => {
+    callbacks.progress(100)
+    callbacks.success()
+    return {}
+  })
 })
 
 afterEach(() => {
@@ -614,18 +644,70 @@ describe('Canvas Focus library explorer', () => {
       name: /product navigation/i,
     })).getByRole('button', { name: /^upload$/i }))
 
-    const fileInput = screen.getByLabelText('Choose OME-TIFF')
+    const fileInput = screen.getByLabelText('Choose OME-TIFF files')
     expect(fileInput).toHaveClass('upload-file-input')
-    expect(screen.getByText('Drop an OME-TIFF here')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Choose file' })).toBeVisible()
+    expect(screen.getByText('Drop OME-TIFF files here')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Choose files' })).toBeVisible()
     expect(fileInput).toHaveAttribute('accept', '.ome.tif,.ome.tiff,image/tiff')
+    expect(fileInput).toHaveAttribute('multiple')
 
     await userEvent.upload(fileInput, new File(['slide'], 'sample.ome.tiff', { type: 'image/tiff' }))
     expect(screen.getByText('sample.ome.tiff')).toBeVisible()
-    expect(screen.getByText(/Ready to upload/)).toBeVisible()
+    expect(screen.getByText(/Queued/)).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveValue('sample')
-    expect(screen.getByRole('button', { name: 'Upload slide' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Upload 1 file' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Remove sample.ome.tiff' })).toBeVisible()
+  })
+
+  it('uploads a multi-file selection sequentially', async () => {
+    let finishFirst: (() => void) | undefined
+    tusUpload.startTusUpload
+      .mockImplementationOnce((
+        _file: File,
+        _endpoint: string,
+        _token: string,
+        callbacks: { progress: (value: number) => void; success: () => void },
+      ) => new Promise((resolve) => {
+        callbacks.progress(40)
+        finishFirst = () => {
+          callbacks.success()
+          resolve({})
+        }
+      }))
+      .mockImplementationOnce(async (
+        _file: File,
+        _endpoint: string,
+        _token: string,
+        callbacks: { progress: (value: number) => void; success: () => void },
+      ) => {
+        callbacks.progress(100)
+        callbacks.success()
+        return {}
+      })
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findByRole('heading', { name: /all slides/i })
+    await userEvent.click(within(screen.getByRole('complementary', {
+      name: /product navigation/i,
+    })).getByRole('button', { name: /^upload$/i }))
+
+    await userEvent.upload(screen.getByLabelText('Choose OME-TIFF files'), [
+      new File(['one'], 'one.ome.tiff', { type: 'image/tiff' }),
+      new File(['two'], 'two.ome.tiff', { type: 'image/tiff' }),
+    ])
+    await userEvent.click(screen.getByRole('button', { name: 'Upload 2 files' }))
+
+    await waitFor(() => expect(tusUpload.startTusUpload).toHaveBeenCalledTimes(1))
+    expect(api.reserveUpload).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/Uploading 40%/)).toBeVisible()
+    expect(screen.getByText(/Queued · 1 ahead/)).toBeVisible()
+
+    await act(async () => finishFirst?.())
+
+    await waitFor(() => {
+      expect(tusUpload.startTusUpload).toHaveBeenCalledTimes(2)
+      expect(api.reserveUpload).toHaveBeenCalledTimes(2)
+    })
+    expect(await screen.findAllByText(/Upload complete/)).toHaveLength(2)
   })
 
   it('shows only functional destinations and lazily expands folders', async () => {

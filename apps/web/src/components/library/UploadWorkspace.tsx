@@ -1,4 +1,5 @@
 import {
+  ArrowClockwise,
   CheckCircle,
   FileArrowUp,
   UploadSimple,
@@ -9,149 +10,198 @@ import { useRef, useState, type DragEvent } from 'react'
 
 import { formatBytes } from './format'
 
-const ACCEPTED_FILE_PATTERN = /\.ome\.tiff?$/i
+export type UploadQueuePhase = 'queued' | 'preparing' | 'uploading' | 'complete' | 'error'
+
+export interface UploadQueueItemView {
+  id: string
+  file: File
+  displayName: string
+  phase: UploadQueuePhase
+  progress: number
+  error: string
+}
 
 interface UploadWorkspaceProps {
-  file: File | null
-  displayName: string
-  progress: number | null
-  preparing: boolean
-  error: string
-  onFileChange: (file: File | null) => void
-  onDisplayNameChange: (name: string) => void
-  onUpload: () => void
+  items: UploadQueueItemView[]
+  running: boolean
+  onFilesAdded: (files: File[]) => void
+  onDisplayNameChange: (id: string, name: string) => void
+  onRemove: (id: string) => void
+  onRetry: (id: string) => void
+  onStart: () => void
+}
+
+function itemStatus(item: UploadQueueItemView) {
+  if (item.phase === 'error') return 'Upload paused'
+  if (item.phase === 'complete') return 'Upload complete'
+  if (item.phase === 'preparing') return 'Preparing resumable upload'
+  if (item.phase === 'uploading') return `Uploading ${item.progress}%`
+  return 'Queued'
 }
 
 export function UploadWorkspace({
-  file,
-  displayName,
-  progress,
-  preparing,
-  error,
-  onFileChange,
+  items,
+  running,
+  onFilesAdded,
   onDisplayNameChange,
-  onUpload,
+  onRemove,
+  onRetry,
+  onStart,
 }: UploadWorkspaceProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
-  const uploading = progress !== null && progress < 100 && !error
-  const complete = progress === 100 && !error
-  const locked = preparing || uploading
-  const percent = Math.min(100, Math.max(0, Math.round(progress ?? 0)))
+  const queuedCount = items.filter((item) => item.phase === 'queued').length
+  const errorCount = items.filter((item) => item.phase === 'error').length
+  const activeIndex = items.findIndex(
+    (item) => item.phase === 'preparing' || item.phase === 'uploading',
+  )
 
-  function chooseFile(next: File | null) {
-    if (locked) return
-    onFileChange(next)
+  function addFiles(next: File[]) {
+    if (next.length) onFilesAdded(next)
     if (inputRef.current) inputRef.current.value = ''
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     setDragging(false)
-    chooseFile(event.dataTransfer.files?.[0] ?? null)
+    addFiles(Array.from(event.dataTransfer.files))
   }
 
   return (
-    <section className="upload-workspace" aria-label="Upload slide">
-      {!file ? (
-        <div
-          className={`upload-workspace-drop${dragging ? ' is-dragging' : ''}`}
-          onDragEnter={(event) => {
-            event.preventDefault()
-            setDragging(true)
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
-          }}
-          onDrop={handleDrop}
-        >
-          <span className="upload-workspace-icon" aria-hidden="true"><UploadSimple /></span>
-          <div>
-            <strong>Drop an OME-TIFF here</strong>
-            <p>or choose a file from this device</p>
-          </div>
-          <button type="button" className="upload-workspace-choose" onClick={() => inputRef.current?.click()}>
-            Choose file
-          </button>
-          <small>OME-TIFF only · up to 5 GiB · resumable</small>
+    <section className="upload-workspace" aria-label="Upload slides">
+      <div
+        className={`upload-workspace-drop${dragging ? ' is-dragging' : ''}${items.length ? ' is-compact' : ''}`}
+        onDragEnter={(event) => {
+          event.preventDefault()
+          setDragging(true)
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
+        }}
+        onDrop={handleDrop}
+      >
+        <span className="upload-workspace-icon" aria-hidden="true"><UploadSimple /></span>
+        <div>
+          <strong>Drop OME-TIFF files here</strong>
+          <p>Files upload one at a time to protect server capacity.</p>
         </div>
-      ) : (
-        <div className={`upload-workspace-file${error ? ' has-error' : complete ? ' is-complete' : ''}`}>
-          <span className="upload-workspace-file-icon" aria-hidden="true">
-            {error ? <WarningCircle /> : complete ? <CheckCircle /> : <FileArrowUp />}
-          </span>
-          <div className="upload-workspace-file-copy">
-            <strong title={file.name}>{file.name}</strong>
-            <span>
-              {formatBytes(file.size)}
-              {' · '}
-              {error
-                ? 'Upload paused'
-                : complete
-                  ? 'Upload complete'
-                  : preparing
-                    ? 'Preparing resumable upload'
-                    : uploading
-                      ? `Uploading ${percent}%`
-                      : 'Ready to upload'}
-            </span>
-          </div>
-          {!locked ? (
-            <button
-              type="button"
-              className="upload-workspace-remove"
-              aria-label={`Remove ${file.name}`}
-              onClick={() => chooseFile(null)}
-            >
-              <X />
-            </button>
-          ) : null}
-          {(preparing || uploading || complete) ? (
-            <div
-              className={`upload-workspace-progress${preparing ? ' is-indeterminate' : ''}`}
-              role="progressbar"
-              aria-label={`${file.name} upload progress`}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={preparing ? undefined : percent}
-              aria-valuetext={preparing ? 'Preparing upload' : `${percent}%`}
-            >
-              <span style={{ width: preparing ? '34%' : `${percent}%` }} />
-            </div>
-          ) : null}
-          {error ? <p className="upload-workspace-error" role="alert">{error}</p> : null}
-        </div>
-      )}
+        <button type="button" className="upload-workspace-choose" onClick={() => inputRef.current?.click()}>
+          {items.length ? 'Add files' : 'Choose files'}
+        </button>
+        <small>OME-TIFF only · up to 5 GiB each · resumable</small>
+      </div>
 
       <input
         ref={inputRef}
         className="upload-file-input"
         type="file"
+        multiple
         accept=".ome.tif,.ome.tiff,image/tiff"
-        aria-label="Choose OME-TIFF"
-        onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
+        aria-label="Choose OME-TIFF files"
+        onChange={(event) => addFiles(Array.from(event.target.files ?? []))}
       />
 
-      {file ? (
-        <div className="upload-workspace-details">
-          <label>
-            Display name
-            <input
-              value={displayName}
-              disabled={locked}
-              onChange={(event) => onDisplayNameChange(event.target.value)}
-            />
-          </label>
+      {items.length ? (
+        <div className="upload-workspace-queue" aria-label="Upload queue">
+          {items.map((item, index) => {
+            const active = item.phase === 'preparing' || item.phase === 'uploading'
+            const percent = Math.min(100, Math.max(0, Math.round(item.progress)))
+            return (
+              <article
+                key={item.id}
+                className={[
+                  'upload-workspace-file',
+                  item.phase === 'error' ? 'has-error' : '',
+                  item.phase === 'complete' ? 'is-complete' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                <span className="upload-workspace-file-icon" aria-hidden="true">
+                  {item.phase === 'error'
+                    ? <WarningCircle />
+                    : item.phase === 'complete'
+                      ? <CheckCircle />
+                      : <FileArrowUp />}
+                </span>
+                <div className="upload-workspace-file-copy">
+                  <strong title={item.file.name}>{item.file.name}</strong>
+                  <span>
+                    {formatBytes(item.file.size)} · {itemStatus(item)}
+                    {activeIndex >= 0 && index > activeIndex && item.phase === 'queued'
+                      ? ` · ${index - activeIndex} ahead`
+                      : ''}
+                  </span>
+                </div>
+                <div className="upload-workspace-file-actions">
+                  {item.phase === 'error' ? (
+                    <button
+                      type="button"
+                      aria-label={`Retry ${item.file.name}`}
+                      onClick={() => onRetry(item.id)}
+                    >
+                      <ArrowClockwise />
+                    </button>
+                  ) : null}
+                  {!active ? (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${item.file.name}`}
+                      onClick={() => onRemove(item.id)}
+                    >
+                      <X />
+                    </button>
+                  ) : null}
+                </div>
+                <label className="upload-workspace-name">
+                  <span>Display name</span>
+                  <input
+                    value={item.displayName}
+                    disabled={item.phase !== 'queued'}
+                    onChange={(event) => onDisplayNameChange(item.id, event.target.value)}
+                  />
+                </label>
+                {active || item.phase === 'complete' ? (
+                  <div
+                    className={`upload-workspace-progress${item.phase === 'preparing' ? ' is-indeterminate' : ''}`}
+                    role="progressbar"
+                    aria-label={`${item.file.name} upload progress`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={item.phase === 'preparing' ? undefined : percent}
+                    aria-valuetext={item.phase === 'preparing' ? 'Preparing upload' : `${percent}%`}
+                  >
+                    <span style={{ width: item.phase === 'preparing' ? '34%' : `${percent}%` }} />
+                  </div>
+                ) : null}
+                {item.error ? <p className="upload-workspace-error" role="alert">{item.error}</p> : null}
+              </article>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {items.length ? (
+        <footer className="upload-workspace-footer">
+          <span>
+            {running
+              ? 'Sequential upload active'
+              : errorCount
+                ? 'Queue paused'
+              : queuedCount
+                ? `${queuedCount} ${queuedCount === 1 ? 'file' : 'files'} ready`
+                : 'Queue complete'}
+          </span>
           <button
             type="button"
             className="primary"
-            disabled={locked || complete || !ACCEPTED_FILE_PATTERN.test(file.name)}
-            onClick={onUpload}
+            disabled={running || queuedCount === 0}
+            onClick={onStart}
           >
-            {error ? 'Resume upload' : complete ? 'Uploaded' : uploading ? `Uploading ${percent}%` : 'Upload slide'}
+            {running
+              ? 'Uploading…'
+              : `Upload ${queuedCount || ''} ${queuedCount === 1 ? 'file' : 'files'}`.replace('  ', ' ')}
           </button>
-        </div>
+        </footer>
       ) : null}
     </section>
   )
