@@ -40,7 +40,13 @@ def test_empty_database_is_not_ready_and_readiness_does_not_mutate_it(tmp_path: 
 
 @pytest.mark.parametrize(
     "revision",
-    ["20260719_0001", "20260719_0003", "20260719_0004", "20260724_0008"],
+    [
+        "20260719_0001",
+        "20260719_0003",
+        "20260719_0004",
+        "20260724_0008",
+        "20260726_0009",
+    ],
 )
 def test_stale_migration_is_not_ready(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, revision: str
