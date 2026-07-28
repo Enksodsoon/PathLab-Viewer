@@ -456,6 +456,25 @@ describe('Canvas Focus library explorer', () => {
     ))
   })
 
+  it('renders child folders in grid, list, and table modes with working navigation', async () => {
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    renderCanvasFocusAdmin('/admin?location=folder%3Afolder-organs')
+
+    const region = await screen.findByRole('region', { name: 'Folders' })
+    expect(region).toHaveAttribute('data-view', 'grid')
+
+    await userEvent.click(screen.getByRole('button', { name: /list view/i }))
+    expect(region).toHaveAttribute('data-view', 'list')
+    expect(region.querySelector('.library-folder-grid')).toHaveClass('list-view')
+
+    await userEvent.click(screen.getByRole('button', { name: /table view/i }))
+    expect(screen.getByRole('table', { name: 'Folders' })).toBeVisible()
+    expect(screen.getByRole('columnheader', { name: 'Subfolders' })).toBeVisible()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open folder GI' }))
+    expect(await screen.findByRole('heading', { name: 'GI' })).toBeVisible()
+  })
+
   it('presents the OME-TIFF chooser with the library design system', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 
@@ -479,7 +498,6 @@ describe('Canvas Focus library explorer', () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 
     expect(await screen.findByRole('heading', { name: /all slides/i })).toBeVisible()
-    expect(screen.getByRole('button', { name: /^all slides$/i })).toBeVisible()
     expect(within(screen.getByRole('complementary', {
       name: /product navigation/i,
     })).getByRole('button', { name: /^upload$/i })).toBeVisible()
@@ -487,8 +505,9 @@ describe('Canvas Focus library explorer', () => {
     expect(screen.queryByText('Annotations')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', {
-      name: /open library navigator/i,
+      name: /slide library/i,
     }))
+    expect(screen.getByRole('button', { name: /^all slides 2$/i })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: /expand organ systems/i }))
     expect(api.getFolderChildren).toHaveBeenCalledWith('folder-organs')
     expect(await screen.findByRole('treeitem', { name: /gi/i })).toBeVisible()
@@ -567,7 +586,7 @@ describe('Canvas Focus library explorer', () => {
     expect(api.getSlideStatuses).toHaveBeenCalledWith(['slide-2'])
     expect(api.getLibraryNavigation).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByRole('button', {
-      name: /open library navigator/i,
+      name: /slide library/i,
     }))
     expect(screen.getByRole('button', { name: /shared 1/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /processing 0/i })).toBeVisible()
@@ -617,7 +636,7 @@ describe('Canvas Focus library explorer', () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
     await screen.findAllByText('Colon adenocarcinoma')
 
-    const toggle = screen.getByRole('button', { name: /open library navigator/i })
+    const toggle = screen.getByRole('button', { name: /slide library/i })
     const main = screen.getByRole('main')
     const productNavigation = screen.getByRole('complementary', {
       name: /product navigation/i,
@@ -740,7 +759,7 @@ describe('Canvas Focus library explorer', () => {
     await screen.findAllByText('Colon adenocarcinoma')
 
     await userEvent.click(screen.getByRole('button', {
-      name: /open library navigator/i,
+      name: /slide library/i,
     }))
     await userEvent.click(screen.getByRole('button', {
       name: /more actions for organ systems/i,
@@ -797,7 +816,7 @@ describe('Canvas Focus library explorer', () => {
       ['slide-1'],
     ))
     await userEvent.click(screen.getByRole('button', {
-      name: /open library navigator/i,
+      name: /slide library/i,
     }))
     expect((await screen.findAllByRole('button', {
       name: /week 5 teaching set 3/i,

@@ -1361,6 +1361,7 @@ export function AdminPage() {
           {!contentLoading && currentFolderChildren.length > 0 ? (
             <FolderViews
               folders={currentFolderChildren}
+              view={view}
               onOpen={(folder) => chooseLocation(`folder:${folder.id}`)}
             />
           ) : null}
