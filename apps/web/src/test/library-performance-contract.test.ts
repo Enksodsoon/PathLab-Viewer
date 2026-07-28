@@ -34,4 +34,19 @@ describe('library rendering performance contract', () => {
     expect(libraryCss).not.toMatch(/box-shadow:[^;]*var\(--ink\)/)
     expect(libraryCss).toContain('var(--shadow-color)')
   })
+
+  it('keeps the navigator close control compact on desktop and touch-safe on mobile', () => {
+    const closeControl = libraryCss
+      .slice(
+        libraryCss.indexOf('.mobile-navigator-close {'),
+        libraryCss.indexOf('.library-navigator {'),
+      )
+      .replace(/\s+/g, ' ')
+    const mobileCss = libraryCss
+      .slice(libraryCss.indexOf('@media (max-width: 600px)'))
+      .replace(/\s+/g, ' ')
+
+    expect(closeControl).toContain('width: 32px; height: 32px;')
+    expect(mobileCss).toContain('.mobile-navigator-close { width: 44px; height: 44px; }')
+  })
 })
