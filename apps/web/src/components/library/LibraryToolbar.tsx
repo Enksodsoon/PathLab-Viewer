@@ -7,15 +7,18 @@ import {
   Funnel as Filter,
   FolderPlus,
   GridFour as Grid2X2Plus,
+  Key,
   List,
   MagnifyingGlass as Search,
   Plus,
   ShareNetwork as Share2,
+  SignOut,
   SquaresFour as Grid2X2,
   Table as Table2,
   UploadSimple as Upload,
 } from '@phosphor-icons/react'
 import { ContextMenu } from './ContextMenu'
+import { ThemeControl } from '../../theme/ThemeControl'
 
 export type LibraryViewMode = 'grid' | 'list' | 'table'
 export interface BreadcrumbItem {
@@ -41,6 +44,8 @@ interface LibraryToolbarProps {
   onNewCollection: () => void
   onNewSavedView: () => void
   onUpload: () => void
+  onSecurity: () => void
+  onSignOut: () => void
   onShare?: () => void
 }
 
@@ -62,6 +67,8 @@ export function LibraryToolbar({
   onNewCollection,
   onNewSavedView,
   onUpload,
+  onSecurity,
+  onSignOut,
   onShare,
 }: LibraryToolbarProps) {
   return (
@@ -88,6 +95,15 @@ export function LibraryToolbar({
             </span>
           ))}
         </nav>
+        <div className="library-toolbar-utilities">
+          <ThemeControl compact className="library-theme-control" />
+          <button type="button" aria-label="Account" onClick={onSecurity}>
+            <Key aria-hidden="true" />
+          </button>
+          <button type="button" aria-label="Sign out" onClick={onSignOut}>
+            <SignOut aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <div className="library-command-row">
         <label className="library-search">

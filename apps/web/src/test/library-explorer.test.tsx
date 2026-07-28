@@ -107,6 +107,7 @@ const items: LibraryItemsPage = {
 }
 
 beforeEach(() => {
+  localStorage.clear()
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: false,
     media: query,
@@ -183,29 +184,36 @@ function AdminPage() {
 }
 
 describe('Canvas Focus library explorer', () => {
-  it('composes the Canvas Focus rail with theme and every persistent destination', async () => {
+  it('uses a collapsible two-action rail and top-right utilities', async () => {
     renderCanvasFocusAdmin()
 
     await screen.findAllByText('Colon adenocarcinoma')
     const rail = screen.getByRole('complementary', { name: /product navigation/i })
 
     expect(rail).toHaveAttribute('data-canvas-region', 'icon-rail')
-    expect(within(rail).getByRole('button', { name: /^all slides$/i })).toBeVisible()
-    expect(within(rail).getByRole('button', { name: /open library navigator/i })).toBeVisible()
+    expect(within(rail).getByRole('button', { name: /slide library/i })).toBeVisible()
     expect(within(rail).getByRole('button', { name: /^upload$/i })).toBeVisible()
-    expect(within(rail).getByRole('button', { name: /^processing$/i })).toBeVisible()
-    expect(within(rail).getByRole('button', { name: /^failed$/i })).toBeVisible()
-    expect(within(rail).getByRole('button', { name: /^trash$/i })).toBeVisible()
-    expect(within(rail).getByRole('button', { name: /^account$/i })).toBeVisible()
-    expect(within(rail).getByRole('button', { name: /^sign out$/i })).toBeVisible()
-    expect(within(rail).getByRole('group', { name: /theme preference/i })).toBeVisible()
+    expect(within(rail).queryByRole('button', { name: /^processing$/i })).not.toBeInTheDocument()
+    expect(within(rail).queryByRole('button', { name: /^failed$/i })).not.toBeInTheDocument()
+    expect(within(rail).queryByRole('button', { name: /^trash$/i })).not.toBeInTheDocument()
+    expect(within(rail).queryByRole('group', { name: /theme preference/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /theme preference/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /^account$/i })).toBeVisible()
+    expect(screen.getByRole('button', { name: /^sign out$/i })).toBeVisible()
+
+    const toggle = within(rail).getByRole('button', { name: /expand navigation rail/i })
+    expect(document.querySelector('.library-shell')).not.toHaveClass('rail-expanded')
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(document.querySelector('.library-shell')).toHaveClass('rail-expanded')
+    expect(localStorage.getItem('pathlab-library-rail:v1')).toBe('expanded')
   })
 
   it('integrates quick views inside the Canvas Focus navigator overlay', async () => {
     renderCanvasFocusAdmin()
     await screen.findAllByText('Colon adenocarcinoma')
 
-    const toggle = screen.getByRole('button', { name: /open library navigator/i })
+    const toggle = screen.getByRole('button', { name: /slide library/i })
     const main = screen.getByRole('main')
     const productNavigation = screen.getByRole('complementary', {
       name: /product navigation/i,
@@ -218,6 +226,9 @@ describe('Canvas Focus library explorer', () => {
     expect(overlay).toHaveAttribute('data-overlay', 'navigator')
     expect(overlay).toHaveAttribute('aria-hidden', 'false')
     expect(quickViews).toBeVisible()
+    expect(within(navigator).getByRole('button', { name: /processing 1/i })).toBeVisible()
+    expect(within(navigator).getByRole('button', { name: /failed 0/i })).toBeVisible()
+    expect(within(navigator).getByRole('button', { name: /trash 0/i })).toBeVisible()
     expect(within(quickViews).getByRole('button', {
       name: /week 5 teaching set 2/i,
     })).toBeVisible()

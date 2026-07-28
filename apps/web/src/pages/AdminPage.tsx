@@ -52,6 +52,10 @@ import {
 import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
 import { AppRail } from '../components/library/AppRail'
 import {
+  getStoredRailExpanded,
+  persistRailExpanded,
+} from '../components/library/libraryShellPreferences'
+import {
   FilterPanel,
   type LibraryFilters,
 } from '../components/library/FilterPanel'
@@ -238,6 +242,7 @@ export function AdminPage() {
   const [dialog, setDialog] = useState<DialogName>(null)
   const [securityOpen, setSecurityOpen] = useState(false)
   const [navigatorOpen, setNavigatorOpen] = useState(false)
+  const [railExpanded, setRailExpanded] = useState(getStoredRailExpanded)
   const [notice, setNotice] = useState('')
   const [authNotice, setAuthNotice] = useState('')
   const [signingOut, setSigningOut] = useState(false)
@@ -1152,19 +1157,20 @@ export function AdminPage() {
 
   return (
     <div
-      className={`library-shell ${navigatorOpen ? 'navigator-open' : ''}`}
+      className={`library-shell ${navigatorOpen ? 'navigator-open' : ''} ${railExpanded ? 'rail-expanded' : ''}`}
       data-layout="canvas-focus"
     >
       <AppRail
-        location={location}
+        expanded={railExpanded}
         isInert={navigatorOpen}
         navigatorOpen={navigatorOpen}
         navigatorButtonRef={navigatorToggleRef}
-        onLocation={chooseLocation}
+        onToggleExpanded={() => setRailExpanded((current) => {
+          persistRailExpanded(!current)
+          return !current
+        })}
         onNavigator={() => setNavigatorOpen((current) => !current)}
         onUpload={() => openNamedDialog('upload')}
-        onSecurity={() => setSecurityOpen(true)}
-        onSignOut={() => void signOut()}
       />
       <div
         className="mobile-navigator-backdrop"
@@ -1243,6 +1249,8 @@ export function AdminPage() {
           onNewCollection={() => openNamedDialog('collection')}
           onNewSavedView={() => openNamedDialog('saved')}
           onUpload={() => openNamedDialog('upload')}
+          onSecurity={() => setSecurityOpen(true)}
+          onSignOut={() => void signOut()}
           onShare={shareTarget ? () => openNamedDialog('share') : undefined}
         />
         {filtersOpen ? (
