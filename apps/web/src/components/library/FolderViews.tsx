@@ -1,4 +1,4 @@
-import { CaretRight as ChevronRight, Folder } from '@phosphor-icons/react'
+import { CaretRight as ChevronRight } from '@phosphor-icons/react'
 import { memo } from 'react'
 
 import type { LibraryFolder } from '../../types'
@@ -8,6 +8,23 @@ interface FolderViewsProps {
   folders: LibraryFolder[]
   view: LibraryViewMode
   onOpen: (folder: LibraryFolder) => void
+}
+
+function FolderArtwork({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={`folder-artwork${compact ? ' folder-artwork--compact' : ''}`}
+      aria-hidden="true"
+    >
+      <span className="folder-artwork__back" />
+      <span className="folder-artwork__papers">
+        <span className="folder-artwork__paper folder-artwork__paper--1" />
+        <span className="folder-artwork__paper folder-artwork__paper--2" />
+        <span className="folder-artwork__paper folder-artwork__paper--3" />
+      </span>
+      <span className="folder-artwork__front" />
+    </span>
+  )
 }
 
 function countLabel(folder: LibraryFolder) {
@@ -51,7 +68,7 @@ export const FolderViews = memo(function FolderViews({
                       aria-label={`Open folder ${folder.name}`}
                       onClick={() => onOpen(folder)}
                     >
-                      <Folder aria-hidden="true" />
+                      <FolderArtwork compact />
                       <span>{folder.name}</span>
                     </button>
                   </td>
@@ -73,9 +90,7 @@ export const FolderViews = memo(function FolderViews({
               aria-label={`Open folder ${folder.name}`}
               onClick={() => onOpen(folder)}
             >
-              <span className="library-folder-icon" aria-hidden="true">
-                <Folder />
-              </span>
+              <FolderArtwork />
               <span className="library-folder-copy">
                 <strong>{folder.name}</strong>
                 <span>{countLabel(folder)}</span>

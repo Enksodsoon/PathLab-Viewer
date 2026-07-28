@@ -480,6 +480,7 @@ describe('Canvas Focus library explorer', () => {
 
     const region = await screen.findByRole('region', { name: 'Folders' })
     expect(region).toHaveAttribute('data-view', 'grid')
+    expect(region.querySelectorAll('.folder-artwork__paper')).toHaveLength(3)
 
     await userEvent.click(screen.getByRole('button', { name: /list view/i }))
     expect(region).toHaveAttribute('data-view', 'list')
@@ -488,6 +489,7 @@ describe('Canvas Focus library explorer', () => {
     await userEvent.click(screen.getByRole('button', { name: /table view/i }))
     expect(screen.getByRole('table', { name: 'Folders' })).toBeVisible()
     expect(screen.getByRole('columnheader', { name: 'Subfolders' })).toBeVisible()
+    expect(region.querySelector('.folder-artwork--compact')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Open folder GI' }))
     expect(await screen.findByRole('heading', { name: 'GI' })).toBeVisible()
