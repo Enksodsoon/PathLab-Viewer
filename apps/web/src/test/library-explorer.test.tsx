@@ -500,6 +500,49 @@ describe('Canvas Focus library explorer', () => {
     expect(api.getLibraryNavigation).toHaveBeenCalledWith('folder-gi')
   })
 
+  it('hydrates and expands the active folder path in the navigator', async () => {
+    const root = navigation.folders[0]
+    const child = {
+      ...root,
+      id: 'folder-gi',
+      parentId: root.id,
+      name: 'GI',
+      hasChildren: true,
+      childCount: 3,
+    }
+    const grandchildren = ['Test 1.1.1', '1', 'Hello'].map((name, index) => ({
+      ...child,
+      id: `nested-${index}`,
+      parentId: child.id,
+      name,
+      hasChildren: false,
+      childCount: 0,
+    }))
+    api.getLibraryNavigation.mockResolvedValue({
+      ...navigation,
+      folderPath: [root, child],
+    })
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    api.getFolderChildren.mockImplementation(async (folderId) => (
+      folderId === root.id ? [child] : grandchildren
+    ))
+
+    renderCanvasFocusAdmin('/admin?location=folder%3Afolder-gi')
+
+    expect(await screen.findByRole('heading', { name: 'GI' })).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: /slide library/i }))
+
+    const rootItem = await screen.findByRole('treeitem', { name: root.name })
+    const childItem = await screen.findByRole('treeitem', { name: child.name })
+    expect(rootItem).toHaveAttribute('aria-expanded', 'true')
+    expect(childItem).toHaveAttribute('aria-expanded', 'true')
+    for (const folder of grandchildren) {
+      expect(await screen.findByRole('treeitem', { name: folder.name })).toBeVisible()
+    }
+    expect(api.getFolderChildren).toHaveBeenCalledWith(root.id)
+    expect(api.getFolderChildren).toHaveBeenCalledWith(child.id)
+  })
+
   it('presents the OME-TIFF chooser with the library design system', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 

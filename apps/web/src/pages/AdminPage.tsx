@@ -325,6 +325,44 @@ export function AdminPage() {
   }, [loadNavigation])
 
   useEffect(() => {
+    const path = navigation.folderPath ?? []
+    if (!authorized || path.length === 0) return
+
+    setExpandedFolders((current) => {
+      const next = new Set(current)
+      path.filter((folder) => folder.hasChildren).forEach((folder) => next.add(folder.id))
+      return next
+    })
+
+    const ancestors = path.slice(0, -1)
+    if (ancestors.length === 0) return
+
+    let cancelled = false
+    void Promise.allSettled(ancestors.map(async (folder) => ({
+      folderId: folder.id,
+      children: await getFolderChildren(folder.id),
+    }))).then((results) => {
+      if (cancelled) return
+      setFolderChildren((current) => {
+        const next = new Map(current)
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            next.set(result.value.folderId, result.value.children)
+          }
+        })
+        return next
+      })
+      if (results.some((result) => result.status === 'rejected')) {
+        setError('Some folders could not load in the navigator. Try opening it again.')
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [authorized, navigation.folderPath])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch(searchDraft.trim())
       setUrlValues({ q: searchDraft.trim() || null })
@@ -724,7 +762,7 @@ export function AdminPage() {
   }
 
   async function refreshNavigation() {
-    setNavigation(safeNavigation(await getLibraryNavigation()))
+    setNavigation(safeNavigation(await getLibraryNavigation(navigationFolderId)))
   }
 
   async function handleFolderAction(
