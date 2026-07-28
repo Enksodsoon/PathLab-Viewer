@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const libraryCss = readFileSync('src/library.css', 'utf8')
+const globalCss = readFileSync('src/styles.css', 'utf8')
 
 describe('library rendering performance contract', () => {
   it('avoids persistent blur layers and isolates off-screen slide cards', () => {
@@ -41,6 +42,21 @@ describe('library rendering performance contract', () => {
     )
     expect(libraryCss).not.toContain(
       'background: color-mix(in srgb, var(--ink) 38%, transparent);',
+    )
+  })
+
+  it('uses dark neutral backdrops and shadows for dialogs in every theme', () => {
+    expect(libraryCss).toContain(
+      '.library-dialog::backdrop {\n  background: color-mix(in srgb, var(--shadow-color) 58%, transparent);',
+    )
+    expect(globalCss).toContain(
+      'background:color-mix(in srgb,var(--shadow-color) 58%,transparent);',
+    )
+    expect(globalCss).toContain(
+      'box-shadow:0 24px 70px color-mix(in srgb,var(--shadow-color) 48%,transparent);',
+    )
+    expect(globalCss).not.toContain(
+      'background:color-mix(in srgb,var(--ink) 52%,transparent);',
     )
   })
 

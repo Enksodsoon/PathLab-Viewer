@@ -1857,7 +1857,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-dialog::backdrop {
-  background: color-mix(in srgb, var(--ink) 42%, transparent);
+  background: color-mix(in srgb, var(--shadow-color) 58%, transparent);
 }
 
 .library-dialog-wide {
