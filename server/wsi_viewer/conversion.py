@@ -173,9 +173,9 @@ def generate_dzi(
             depth="onepixel",
         )
         del image
-        load_image().thumbnail_image(384).jpegsave(
+        load_image().thumbnail_image(640).jpegsave(
             str(staging / "thumbnail.jpg"),
-            Q=80,
+            Q=82,
             strip=True,
             optimize_coding=True,
         )

@@ -44,6 +44,12 @@ export function AppRail({
   const storageLabel = capacity > 0
     ? `${formatBytes(storage.usableBytes)} available`
     : 'Storage unavailable'
+  const storageDetail = capacity > 0
+    ? `${formatBytes(storage.usedBytes)} used of ${formatBytes(capacity)}`
+    : ''
+  const storageSummary = storageDetail
+    ? `${storageLabel}; ${storageDetail}`
+    : storageLabel
 
   return (
     <aside
@@ -87,12 +93,13 @@ export function AppRail({
       <div className="library-rail-utilities" aria-label="Account actions">
         <section
           className="library-storage-meter"
-          aria-label={`Storage, ${storageLabel}`}
-          title={storageLabel}
+          aria-label={`Storage, ${storageSummary}`}
+          title={`${storageSummary}. Includes original slides and generated viewer tiles.`}
         >
           <div className="library-storage-copy">
             <span>Storage</span>
             <strong>{storageLabel}</strong>
+            {storageDetail ? <small>{storageDetail}</small> : null}
           </div>
           <div
             className="library-storage-track"
@@ -101,7 +108,7 @@ export function AppRail({
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={remainingPercent}
-            aria-valuetext={storageLabel}
+            aria-valuetext={storageSummary}
           >
             <span style={{ width: `${remainingPercent}%` }} />
           </div>

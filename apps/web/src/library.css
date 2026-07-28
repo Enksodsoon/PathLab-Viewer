@@ -240,7 +240,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-storage-copy span,
-.library-storage-copy strong {
+.library-storage-copy strong,
+.library-storage-copy small {
   overflow: hidden;
   font-size: 10px;
   line-height: 1.2;
@@ -256,6 +257,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-storage-copy strong {
   color: var(--ink);
   font-weight: 600;
+}
+
+.library-storage-copy small {
+  color: var(--muted);
+  font-size: 9px;
 }
 
 .library-storage-track {
@@ -1382,25 +1388,45 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .card-actions {
   position: absolute;
-  inset: 10px 10px auto;
-  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  z-index: 4;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 5px;
 }
 
 .card-actions label span,
 .card-actions > button {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--canvas) 58%, transparent);
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--ink) 86%, transparent);
-  color: var(--canvas);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  box-shadow: 0 5px 14px -10px var(--shadow-color);
+  color: var(--ink);
   cursor: pointer;
+}
+
+.card-actions label span:hover,
+.card-actions > button:hover {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
+  background: var(--surface);
+}
+
+.card-actions label input:focus-visible + span,
+.card-actions > button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.card-actions label span svg,
+.card-actions > button svg {
+  width: 15px;
+  height: 15px;
 }
 
 .card-actions label {
@@ -1470,6 +1496,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-slide-thumbnail img {
   width: 100%;
   height: 100%;
+  image-rendering: auto;
   object-fit: cover;
 }
 
@@ -1586,11 +1613,16 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .card-facts {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   margin-top: 9px;
+  padding-right: 68px;
   color: var(--muted);
   font-size: 10px;
+}
+
+.card-facts span:last-child {
+  margin-left: auto;
 }
 
 .card-facts span {
@@ -2879,6 +2911,10 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   .card-actions > button {
     width: 44px;
     height: 44px;
+  }
+
+  .card-facts {
+    padding-right: 102px;
   }
 
   .filter-panel-heading button,

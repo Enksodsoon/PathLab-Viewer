@@ -209,10 +209,13 @@ describe('Canvas Focus library explorer', () => {
       name: /usable storage remaining/i,
     })
     expect(storage).toHaveAttribute('aria-valuenow', '75')
-    expect(storage).toHaveAttribute('aria-valuetext', '90.00 GB available')
+    expect(storage).toHaveAttribute(
+      'aria-valuetext',
+      '90.00 GB available; 30.00 GB used of 120.00 GB',
+    )
     expect(storage.closest('.library-storage-meter')).toHaveAttribute(
       'aria-label',
-      'Storage, 90.00 GB available',
+      'Storage, 90.00 GB available; 30.00 GB used of 120.00 GB',
     )
     const thumbnailCard = screen.getByRole('button', {
       name: 'Open details for Colon adenocarcinoma',
@@ -232,6 +235,35 @@ describe('Canvas Focus library explorer', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(document.querySelector('.library-shell')).toHaveClass('rail-expanded')
     expect(localStorage.getItem('pathlab-library-rail:v1')).toBe('expanded')
+  })
+
+  it('leaves absent card metadata blank instead of showing placeholder copy', async () => {
+    api.getLibraryItems.mockResolvedValue({
+      ...items,
+      items: [{
+        ...items.items[0],
+        id: 'slide-without-metadata',
+        displayName: 'Unlabelled slide',
+        description: '',
+        caseId: '',
+        organSite: '',
+        stain: '',
+        diagnosis: '',
+        tags: [],
+        state: 'published',
+      }],
+      total: 1,
+    })
+
+    renderCanvasFocusAdmin()
+
+    const card = (await screen.findByRole('button', {
+      name: 'Open details for Unlabelled slide',
+    })).closest('.library-slide-card')
+    expect(card).not.toBeNull()
+    expect(card).not.toHaveTextContent('Metadata pending')
+    expect(card).not.toHaveTextContent('Case —')
+    expect(card?.querySelector('.card-description')).not.toBeInTheDocument()
   })
 
   it('integrates quick views inside the Canvas Focus navigator overlay', async () => {
