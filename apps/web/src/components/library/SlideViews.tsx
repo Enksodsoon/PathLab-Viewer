@@ -303,9 +303,14 @@ function SlideCard({
   activeUploadId?: string | null
   uploadProgress?: number | null
 }) {
+  const immersive = slide.state === 'ready_private' || slide.state === 'published'
+  const description = slide.description
+    || [slide.organSite, slide.stain].filter(Boolean).join(' · ')
+    || 'Metadata pending'
+
   return (
     <article
-      className={`library-slide-card ${selected ? 'selected' : ''}`}
+      className={`library-slide-card ${immersive ? 'library-slide-card--immersive' : ''} ${selected ? 'selected' : ''}`}
       draggable
       onDragStart={(event) => {
         const ids = selected ? Array.from(selectedIds) : [slide.id]
@@ -339,23 +344,29 @@ function SlideCard({
         <Thumbnail slide={slide} />
       </button>
       <div className="card-content">
-        <h3>{slide.displayName}</h3>
-        <p>{[slide.organSite, slide.stain].filter(Boolean).join(' · ') || 'Metadata pending'}</p>
-        <div className="card-tags">
-          {[slide.diagnosis, ...slide.tags].filter(Boolean).slice(0, 2).map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
+        <div className="card-content-heading">
+          <h3>{slide.displayName}</h3>
+          <Status slide={slide} />
         </div>
-        <p>Case {slide.caseId || '—'}</p>
-        <p>{formatBytes(slide.sourceBytes)}</p>
-        <Status slide={slide} />
-        {showProcessingProgress ? (
-          <ProcessingProgress
-            slide={slide}
-            uploadPercent={activeUploadId === slide.id ? uploadProgress ?? null : null}
-          />
-        ) : null}
-        <FailureReason slide={slide} />
+        <div className="card-content-details">
+          <p className="card-description">{description}</p>
+          <div className="card-tags">
+            {[slide.diagnosis, ...slide.tags].filter(Boolean).slice(0, 2).map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+          <div className="card-facts">
+            <span>Case {slide.caseId || '—'}</span>
+            <span>{formatBytes(slide.sourceBytes)}</span>
+          </div>
+          {showProcessingProgress ? (
+            <ProcessingProgress
+              slide={slide}
+              uploadPercent={activeUploadId === slide.id ? uploadProgress ?? null : null}
+            />
+          ) : null}
+          <FailureReason slide={slide} />
+        </div>
       </div>
     </article>
   )

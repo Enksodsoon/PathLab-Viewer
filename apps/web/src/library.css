@@ -1347,6 +1347,23 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 
+.library-slide-card--immersive {
+  height: 276px;
+  isolation: isolate;
+  background: var(--surface-card);
+  box-shadow: 0 12px 28px -22px color-mix(in srgb, var(--shadow-color) 70%, transparent);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.library-slide-card--immersive:hover,
+.library-slide-card--immersive:focus-within {
+  box-shadow: 0 18px 34px -24px color-mix(in srgb, var(--shadow-color) 82%, transparent);
+  transform: translateY(-2px);
+}
+
 .library-slide-card.selected {
   border-color: var(--primary);
   box-shadow: inset 0 0 0 1px var(--primary);
@@ -1355,6 +1372,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-slide-grid.list-view .library-slide-card {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
+}
+
+.library-slide-grid.list-view .library-slide-card--immersive {
+  height: auto;
+  min-height: 196px;
+  transform: none;
 }
 
 .card-actions {
@@ -1408,6 +1431,12 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   cursor: pointer;
 }
 
+.library-slide-card--immersive .card-preview {
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+
 .library-slide-thumbnail {
   width: 100%;
   aspect-ratio: 16 / 10;
@@ -1415,6 +1444,27 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   display: grid;
   place-items: center;
   background: var(--surface-card);
+}
+
+.library-slide-card--immersive .library-slide-thumbnail {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.library-slide-card--immersive .library-slide-thumbnail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 40%,
+    color-mix(in srgb, var(--shadow-color) 16%, transparent) 100%
+  );
+  pointer-events: none;
+}
+
+.library-slide-card--immersive .library-slide-thumbnail {
+  position: relative;
 }
 
 .library-slide-thumbnail img {
@@ -1449,6 +1499,40 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   padding: 15px 15px 18px;
 }
 
+.library-slide-card--immersive .card-content {
+  width: 100%;
+  min-height: 158px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  padding: 13px 14px 14px;
+  border-top: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--surface-elevated);
+  box-shadow: 0 -14px 30px -26px color-mix(in srgb, var(--shadow-color) 82%, transparent);
+  transition: transform 360ms cubic-bezier(.22, .61, .36, 1);
+}
+
+@media (hover: hover) {
+  .library-slide-card--immersive:hover .card-content {
+    transform: translateY(calc(100% - 68px));
+  }
+}
+
+.library-slide-card--immersive:focus-within .card-content {
+  transform: translateY(calc(100% - 68px));
+}
+
+.card-content-heading {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
 .card-content h3 {
   min-height: 2.5em;
   display: -webkit-box;
@@ -1466,12 +1550,51 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   -webkit-line-clamp: 2;
 }
 
+.card-content-heading .library-state {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, var(--border));
+  border-radius: 999px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.card-content-heading .library-state svg {
+  width: 11px;
+  height: 11px;
+}
+
+.card-content-details {
+  min-width: 0;
+}
+
 .card-content p {
   overflow: hidden;
   margin: 6px 0;
   color: var(--body);
   font-size: 12px;
   line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-content .card-description {
+  margin-top: 0;
+}
+
+.card-facts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.card-facts span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1757,6 +1880,30 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
 .library-empty {
   min-height: 220px;
+}
+
+.library-slide-grid.list-view .library-slide-card--immersive .card-preview,
+.library-slide-grid.list-view .library-slide-card--immersive .card-content {
+  height: auto;
+  position: static;
+  transform: none;
+}
+
+.library-slide-grid.list-view .library-slide-card--immersive .library-slide-thumbnail {
+  height: 100%;
+  min-height: 194px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-slide-card--immersive,
+  .library-slide-card--immersive .card-content {
+    transition: none;
+  }
+
+  .library-slide-card--immersive:hover,
+  .library-slide-card--immersive:focus-within {
+    transform: none;
+  }
 }
 
 .library-empty > svg {

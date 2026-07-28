@@ -214,6 +214,17 @@ describe('Canvas Focus library explorer', () => {
       'aria-label',
       'Storage, 90.00 GB available',
     )
+    const thumbnailCard = screen.getByRole('button', {
+      name: 'Open details for Colon adenocarcinoma',
+    }).closest('.library-slide-card')
+    expect(thumbnailCard).toHaveClass('library-slide-card--immersive')
+    expect(thumbnailCard?.querySelector('.library-slide-thumbnail img')).toHaveAttribute(
+      'src',
+      '/api/v2/admin/slides/slide-1/thumbnail',
+    )
+    expect(thumbnailCard?.querySelector('.card-content-details')).toHaveTextContent(
+      'Colon · H&E',
+    )
 
     const toggle = within(rail).getByRole('button', { name: /expand navigation rail/i })
     expect(document.querySelector('.library-shell')).not.toHaveClass('rail-expanded')
