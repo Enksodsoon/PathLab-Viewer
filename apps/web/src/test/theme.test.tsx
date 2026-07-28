@@ -185,6 +185,15 @@ it('keeps primary action text at WCAG AA normal-text contrast in both themes', (
   }
 })
 
+it('uses a dedicated near-black navigator surface in dark mode', () => {
+  const themeCss = readFileSync('src/theme/theme.css', 'utf8')
+  const libraryCss = readFileSync('src/library.css', 'utf8')
+  const darkBlock = themeCss.match(/\[data-theme='dark'\]\s*\{([\s\S]*?)\}/)?.[1]
+
+  expect(darkBlock).toContain('--navigator-surface: #141310')
+  expect(libraryCss).toContain('background: var(--navigator-surface)')
+})
+
 it('renders an accessible three-choice theme control', () => {
   installColorScheme(false)
 

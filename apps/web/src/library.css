@@ -266,7 +266,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   inset: 0 auto 0 var(--library-rail-width);
   z-index: 61;
   overflow: hidden;
-  background: var(--surface-elevated);
+  background: var(--navigator-surface);
   box-shadow: 18px 0 46px color-mix(in srgb, var(--shadow-color) 42%, transparent);
   visibility: hidden;
   pointer-events: none;
