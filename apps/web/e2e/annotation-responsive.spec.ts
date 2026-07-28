@@ -241,12 +241,19 @@ test('draws immediately on a virtual Layer 1 and saves layer plus annotation tog
   await page.getByRole('button', { name: 'Show advanced annotation details' }).click()
   await expect(page.getByRole('button', { name: 'Layer 1', exact: true })).toBeVisible()
   expect(savedRequest).toBeNull()
+  await page.locator('.annotation-inspector').getByRole('button', {
+    name: 'Close annotation inspector',
+  }).click()
 
   await page.getByRole('button', { name: 'More annotation tools' }).click()
   await page.getByRole('button', { name: 'Point marker' }).click()
-  await page.locator('.annotation-svg-overlay').click({ position: { x: 720, y: 420 } })
+  const overlay = page.locator('.annotation-svg-overlay')
+  const overlayBox = await overlay.boundingBox()
+  expect(overlayBox).not.toBeNull()
+  await overlay.click({
+    position: { x: overlayBox!.width / 2, y: overlayBox!.height / 2 },
+  })
   await expect(page.locator('.annotation-list-toggle strong')).toHaveText('1')
-  await page.getByRole('button', { name: 'Save annotations' }).click()
   await expect.poll(() => savedRequest).not.toBeNull()
   expect(savedRequest!.ensureLayer).toMatchObject({ name: 'Layer 1' })
   expect(savedRequest!.ensureLayer!.id).toBe(savedRequest!.operations[0].item!.layerId)
