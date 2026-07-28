@@ -9,13 +9,13 @@ import {
   Plus,
   X,
 } from '@phosphor-icons/react'
+import { ThemeControl } from '@enksodsoon/pathlab-ui'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
 import { Loader } from '../components/Loader'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
-import { ThemeControl } from '../theme/ThemeControl'
 import type { SharedManifest, SharedSlide } from '../types'
 import '../shared-viewer.css'
 import '../shared-message.css'
