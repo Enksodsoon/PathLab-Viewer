@@ -223,9 +223,13 @@ describe('Canvas Focus library explorer', () => {
     const navigator = screen.getByRole('complementary', { name: /library navigator/i })
     const overlay = navigator.closest('#library-navigator')
     const quickViews = within(navigator).getByRole('region', { name: /quick views/i })
+    const rootFolder = within(navigator).getByRole('treeitem', {
+      name: navigation.folders[0].name,
+    })
     expect(overlay).toHaveAttribute('data-overlay', 'navigator')
     expect(overlay).toHaveAttribute('aria-hidden', 'false')
     expect(quickViews).toBeVisible()
+    expect(within(rootFolder).getByLabelText('1 subfolder')).toHaveTextContent('1')
     expect(within(navigator).getByRole('button', { name: /processing 1/i })).toBeVisible()
     expect(within(navigator).getByRole('button', { name: /failed 0/i })).toBeVisible()
     expect(within(navigator).getByRole('button', { name: /trash 0/i })).toBeVisible()

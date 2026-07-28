@@ -72,6 +72,9 @@ export function FolderTree({
       {flattened.map(({ folder, level }, index) => {
         const isExpanded = expanded.has(folder.id)
         const isSelected = selectedId === folder.id
+        const subfolderCount = `${folder.childCount} ${
+          folder.childCount === 1 ? 'subfolder' : 'subfolders'
+        }`
         return (
           <div
             key={folder.id}
@@ -142,7 +145,13 @@ export function FolderTree({
             </button>
             {isExpanded ? <FolderOpen /> : <Folder />}
             <span className="folder-name">{folder.name}</span>
-            <span className="navigator-count">{folder.itemCount}</span>
+            <span
+              className="navigator-count"
+              aria-label={subfolderCount}
+              title={subfolderCount}
+            >
+              {folder.childCount}
+            </span>
             <div onClick={(event) => event.stopPropagation()}>
               <ContextMenu
                 label={`More actions for ${folder.name}`}

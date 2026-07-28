@@ -56,6 +56,8 @@ describe('library rendering performance contract', () => {
       .replace(/\s+/g, ' ')
 
     expect(closeControl).toContain('width: 32px; height: 32px;')
+    expect(closeControl).toContain('right: 20px;')
+    expect(libraryCss).toContain('scrollbar-gutter: stable;')
     expect(mobileCss).toContain('.mobile-navigator-close { width: 44px; height: 44px; }')
   })
 })
