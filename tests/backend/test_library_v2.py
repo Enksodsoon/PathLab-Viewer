@@ -177,6 +177,15 @@ def test_folder_children_are_lazy_and_trash_restore_preserves_subtree(tmp_path: 
 
         navigation = client.get("/api/v2/admin/library/navigation").json()
         assert [folder["id"] for folder in navigation["folders"]] == [root["id"]]
+        nested_navigation = client.get(
+            "/api/v2/admin/library/navigation",
+            params={"folderId": child["id"]},
+        ).json()
+        assert [folder["id"] for folder in nested_navigation["folderPath"]] == [
+            root["id"],
+            child["id"],
+        ]
+        assert [folder["id"] for folder in nested_navigation["folders"]] == [root["id"]]
         children = client.get(f"/api/v2/admin/folders/{root['id']}/children").json()
         assert [folder["id"] for folder in children] == [child["id"]]
 

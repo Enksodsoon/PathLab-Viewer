@@ -61,7 +61,7 @@ export function AppRail({
           <Menu aria-hidden="true" />
           <span>Slide library</span>
         </button>
-        <button type="button" onClick={onUpload}>
+        <button type="button" aria-label="Upload" onClick={onUpload}>
           <Upload aria-hidden="true" />
           <span>Upload</span>
         </button>

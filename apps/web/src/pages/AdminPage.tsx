@@ -206,6 +206,9 @@ export function AdminPage() {
   const location = url.get('location') || 'all'
   const sort = url.get('sort') || 'updated_desc'
   const view = (url.get('view') as LibraryViewMode | null) || 'grid'
+  const navigationFolderId = location.startsWith('folder:')
+    ? location.slice('folder:'.length)
+    : undefined
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [navigation, setNavigation] = useState(EMPTY_NAVIGATION)
   const [page, setPage] = useState(EMPTY_PAGE)
@@ -301,7 +304,7 @@ export function AdminPage() {
   const loadNavigation = useCallback(async () => {
     const epoch = authEpoch.current
     try {
-      const value = safeNavigation(await getLibraryNavigation())
+      const value = safeNavigation(await getLibraryNavigation(navigationFolderId))
       if (epoch !== authEpoch.current) return
       setNavigation(value)
       setAuthorized(true)
@@ -315,7 +318,7 @@ export function AdminPage() {
         setError('Library navigation could not load.')
       }
     }
-  }, [])
+  }, [navigationFolderId])
 
   useEffect(() => {
     void loadNavigation()
@@ -469,11 +472,12 @@ export function AdminPage() {
   const foldersById = useMemo(() => {
     const map = new Map<string, LibraryFolder>()
     navigation.folders.forEach((folder) => map.set(folder.id, folder))
+    navigation.folderPath?.forEach((folder) => map.set(folder.id, folder))
     folderChildren.forEach((children) => {
       children.forEach((folder) => map.set(folder.id, folder))
     })
     return map
-  }, [folderChildren, navigation.folders])
+  }, [folderChildren, navigation.folderPath, navigation.folders])
 
   const currentFolderId = location.startsWith('folder:')
     ? location.slice('folder:'.length)

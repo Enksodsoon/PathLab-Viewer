@@ -2305,7 +2305,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   }
 
   .library-breadcrumb-row nav {
-    flex: 1 1 auto;
+    display: none;
   }
 
   .library-toolbar-utilities {
@@ -2368,6 +2368,10 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   .library-command-actions > button span,
   .toolbar-create > button span,
   .library-upload-button span {
+    display: none;
+  }
+
+  .library-command-actions > .library-upload-button {
     display: none;
   }
 

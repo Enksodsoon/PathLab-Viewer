@@ -475,6 +475,31 @@ describe('Canvas Focus library explorer', () => {
     expect(await screen.findByRole('heading', { name: 'GI' })).toBeVisible()
   })
 
+  it('restores a nested folder title and breadcrumb on direct reload', async () => {
+    const child = {
+      ...navigation.folders[0],
+      id: 'folder-gi',
+      parentId: 'folder-organs',
+      name: 'GI',
+      hasChildren: false,
+      childCount: 0,
+    }
+    api.getLibraryNavigation.mockResolvedValue({
+      ...navigation,
+      folderPath: [navigation.folders[0], child],
+    })
+    api.getLibraryItems.mockResolvedValue({ items: [], nextCursor: null, total: 0 })
+    api.getFolderChildren.mockResolvedValue([])
+
+    renderCanvasFocusAdmin('/admin?location=folder%3Afolder-gi')
+
+    expect(await screen.findByRole('heading', { name: 'GI' })).toBeVisible()
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent(
+      'All slidesOrgan systemsGI',
+    )
+    expect(api.getLibraryNavigation).toHaveBeenCalledWith('folder-gi')
+  })
+
   it('presents the OME-TIFF chooser with the library design system', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
 

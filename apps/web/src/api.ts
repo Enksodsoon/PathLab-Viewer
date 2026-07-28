@@ -208,9 +208,10 @@ function csrfHeaders(jsonBody = false): Record<string, string> {
   }
 }
 
-export async function getLibraryNavigation(): Promise<LibraryNavigation> {
+export async function getLibraryNavigation(folderId?: string): Promise<LibraryNavigation> {
+  const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : ''
   return json<LibraryNavigation>(
-    await fetch('/api/v2/admin/library/navigation', { credentials: 'same-origin' }),
+    await fetch(`/api/v2/admin/library/navigation${query}`, { credentials: 'same-origin' }),
   )
 }
 

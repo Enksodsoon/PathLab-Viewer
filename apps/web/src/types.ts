@@ -115,6 +115,7 @@ export interface LibraryNavigation {
     trash: number
   }
   folders: LibraryFolder[]
+  folderPath?: LibraryFolder[]
   collections: LibraryCollection[]
   savedViews: SavedView[]
 }
