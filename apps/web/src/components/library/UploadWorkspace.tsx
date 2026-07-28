@@ -8,6 +8,7 @@ import {
 } from '@phosphor-icons/react'
 import { useRef, useState, type DragEvent } from 'react'
 
+import { StatusMessage } from '../StatusMessage'
 import { formatBytes } from './format'
 
 export type UploadQueuePhase = 'queued' | 'preparing' | 'uploading' | 'complete' | 'error'
@@ -173,7 +174,11 @@ export function UploadWorkspace({
                     <span style={{ width: item.phase === 'preparing' ? '34%' : `${percent}%` }} />
                   </div>
                 ) : null}
-                {item.error ? <p className="upload-workspace-error" role="alert">{item.error}</p> : null}
+                {item.error ? (
+                  <StatusMessage className="upload-workspace-error" tone="error">
+                    {item.error}
+                  </StatusMessage>
+                ) : null}
               </article>
             )
           })}

@@ -385,7 +385,7 @@ function SlideTable(props: CommonProps) {
   } = props
   return (
     <div className="library-table-wrap">
-      <table className="library-table">
+      <table className={`library-table ${showProcessingProgress ? 'processing-table' : ''}`}>
         <thead>
           <tr>
             <th><span className="visually-hidden">Select</span></th>
@@ -413,7 +413,7 @@ function SlideTable(props: CommonProps) {
               <td>
                 <button type="button" onClick={() => onOpen(slide)}>
                   <span className="table-mini-thumb"><Thumbnail slide={slide} /></span>
-                  {slide.displayName}
+                  <span className="table-slide-name">{slide.displayName}</span>
                 </button>
               </td>
               <td>{slide.organSite || '—'}</td><td>{slide.stain || '—'}</td>

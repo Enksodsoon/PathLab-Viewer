@@ -1849,6 +1849,8 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-table td:nth-child(2) button {
+  width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1860,9 +1862,48 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   cursor: pointer;
 }
 
+.table-slide-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .library-table .processing-progress {
-  width: 290px;
-  margin-top: 7px;
+  width: 100%;
+  max-width: 220px;
+  margin-top: 4px;
+  padding: 7px 8px;
+}
+
+.processing-table .library-state {
+  display: none;
+}
+
+.library-table .processing-progress-heading strong {
+  font-size: 10px;
+}
+
+.library-table .processing-progress-heading span {
+  font-size: 9px;
+}
+
+.library-table .processing-progress > p {
+  margin: 2px 0 6px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-table .processing-stage-track > span {
+  height: 4px;
+}
+
+.library-table .processing-stage-labels,
+.library-table .processing-parameters {
+  display: none;
 }
 
 .table-mini-thumb {
@@ -1898,9 +1939,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-empty,
-.library-loading,
-.library-error,
-.library-notice {
+.library-loading {
   min-height: 100px;
   display: grid;
   place-items: center;
@@ -1970,17 +2009,6 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   cursor: pointer;
-}
-
-.library-error {
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
-  color: var(--danger);
-}
-
-.library-notice {
-  margin-bottom: 16px;
-  border-color: color-mix(in srgb, var(--success) 36%, var(--border));
-  color: var(--body);
 }
 
 .library-pagination {
@@ -2581,12 +2609,6 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   min-height: 36px;
 }
 
-.upload-workspace-notice {
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-}
-
 @keyframes upload-workspace-progress {
   from { transform: translateX(-120%); }
   to { transform: translateX(300%); }
@@ -2732,16 +2754,6 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   color: var(--danger);
 }
 
-.share-auto-warning {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
-  border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
-  color: var(--body);
-  font-size: 12px;
-}
-
 /* Responsive Canvas Focus */
 
 @media (max-width: 1050px) {
@@ -2783,6 +2795,47 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 
   .filter-grid {
     grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .library-table {
+    min-width: 700px;
+    table-layout: fixed;
+  }
+
+  .library-table th:nth-child(3),
+  .library-table td:nth-child(3),
+  .library-table th:nth-child(4),
+  .library-table td:nth-child(4),
+  .library-table th:nth-child(5),
+  .library-table td:nth-child(5),
+  .library-table th:nth-child(6),
+  .library-table td:nth-child(6) {
+    display: none;
+  }
+
+  .library-table th:nth-child(1),
+  .library-table td:nth-child(1) {
+    width: 42px;
+  }
+
+  .library-table th:nth-child(7),
+  .library-table td:nth-child(7) {
+    width: 72px;
+  }
+
+  .library-table th:nth-child(8),
+  .library-table td:nth-child(8) {
+    width: 240px;
+  }
+
+  .library-table th:nth-child(9),
+  .library-table td:nth-child(9) {
+    width: 82px;
+  }
+
+  .library-table th:nth-child(10),
+  .library-table td:nth-child(10) {
+    width: 48px;
   }
 }
 

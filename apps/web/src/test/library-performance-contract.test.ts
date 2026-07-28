@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const libraryCss = readFileSync('src/library.css', 'utf8')
-const globalCss = readFileSync('src/styles.css', 'utf8')
+const normalizeNewlines = (source: string) => source.replace(/\r\n/g, '\n')
+const libraryCss = normalizeNewlines(readFileSync('src/library.css', 'utf8'))
+const globalCss = normalizeNewlines(readFileSync('src/styles.css', 'utf8'))
 
 describe('library rendering performance contract', () => {
   it('avoids persistent blur layers and isolates off-screen slide cards', () => {

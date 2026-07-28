@@ -241,11 +241,11 @@ describe('Canvas Focus library explorer', () => {
     expect(storage).toHaveAttribute('aria-valuenow', '75')
     expect(storage).toHaveAttribute(
       'aria-valuetext',
-      '90.00 GB available; 30.00 GB used of 120.00 GB',
+      '90.00 GB available',
     )
     expect(storage.closest('.library-storage-meter')).toHaveAttribute(
       'aria-label',
-      'Storage, 90.00 GB available; 30.00 GB used of 120.00 GB',
+      'Storage, 90.00 GB available',
     )
     const thumbnailCard = screen.getByRole('button', {
       name: 'Open details for Colon adenocarcinoma',

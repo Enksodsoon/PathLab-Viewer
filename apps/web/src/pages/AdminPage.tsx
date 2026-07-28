@@ -20,6 +20,7 @@ import {
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
+import { StatusMessage } from '../components/StatusMessage'
 import {
   ApiError,
   addCollectionSlides,
@@ -1511,9 +1512,14 @@ export function AdminPage() {
               ) : null}
             </div>
           </div>
-          {error ? <div className="library-error" role="alert">{error}</div> : null}
+          {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
           {notice && dialog === null ? (
-            <div className="library-notice" role="status">{notice}</div>
+            <StatusMessage
+              tone="success"
+              label={notice.toLowerCase().includes('queued') ? 'Queued' : 'Update'}
+            >
+              {notice}
+            </StatusMessage>
           ) : null}
           {contentLoading ? (
             <div className="library-loading">
@@ -1680,7 +1686,9 @@ export function AdminPage() {
           onRetry={retryUploadItem}
           onStart={() => void startUploadQueue()}
         />
-        {notice ? <p className="upload-workspace-notice" role="status">{notice}</p> : null}
+        {notice ? (
+          <StatusMessage tone="success" label="Queued">{notice}</StatusMessage>
+        ) : null}
       </LibraryDialog>
 
       <LibraryDialog

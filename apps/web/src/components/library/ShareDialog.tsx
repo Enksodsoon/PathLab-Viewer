@@ -17,6 +17,7 @@ import {
   rotateLibraryShare,
 } from '../../api'
 import { Loader } from '../Loader'
+import { StatusMessage } from '../StatusMessage'
 import type { LibraryShare, SharePreview } from '../../types'
 import { LibraryDialog } from './LibraryDialog'
 
@@ -189,9 +190,9 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             <small>Off by default. Routine moves never publish silently.</small>
           </label>
           {autoIncludeNew ? (
-            <p className="share-auto-warning" role="status">
+            <StatusMessage tone="warning">
               Future additions can only publish after an explicit shared-destination warning.
-            </p>
+            </StatusMessage>
           ) : null}
           <label>Expiration (optional)<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
           <div className="share-preview-list">

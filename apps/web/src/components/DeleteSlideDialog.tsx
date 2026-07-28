@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, SyntheticEvent } from 'react'
 
 import { Loader } from './Loader'
+import { StatusMessage } from './StatusMessage'
 
 interface DeleteSlideDialogProps {
   slideName: string | null
@@ -78,7 +79,7 @@ export function DeleteSlideDialog({ slideName, onClose, onConfirm }: DeleteSlide
         <p id="delete-slide-description" className="delete-dialog-copy">
           This permanently removes <strong>{slideName}</strong> and its stored files. This action cannot be undone.
         </p>
-        {error ? <p className="form-error" role="alert">{error}</p> : null}
+        {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
         <div className="auth-actions">
           <button ref={cancelButton} className="button" type="button" onClick={close} disabled={busy}>
             Cancel

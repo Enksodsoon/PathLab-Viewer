@@ -15,6 +15,7 @@ import { ThemeControl } from '../theme/ThemeControl'
 import { useTheme } from '../theme/ThemeProvider'
 import { Brand } from './Brand'
 import { Loader } from './Loader'
+import { StatusMessage } from './StatusMessage'
 
 const MIN_NEW_PASSWORD_LENGTH = 12
 const MAX_NEW_PASSWORD_LENGTH = 128
@@ -147,7 +148,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                       : 'Use a server-issued recovery code to restore access.'}
                   </p>
                 </header>
-                {message ? <p className="form-notice" role="status">{message}</p> : null}
+                {message ? <StatusMessage tone="info">{message}</StatusMessage> : null}
                 <div className="auth-field">
                   <label htmlFor="auth-username">Username</label>
                   <div className="auth-input">
@@ -185,7 +186,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                         <span className="auth-inline-label" aria-hidden="true">Password</span>
                       </div>
                     </div>
-                    {error ? <p className="form-error" role="alert">{error}</p> : null}
+                    {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
                     <button className="button primary auth-submit" type="submit" disabled={busy}>
                       {busy ? (
                         <Loader label="Signing in…" size="small" inline />
@@ -239,7 +240,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                         <span className="auth-inline-label" aria-hidden="true">Confirm password</span>
                       </div>
                     </div>
-                    {error ? <p className="form-error" role="alert">{error}</p> : null}
+                    {error ? <StatusMessage tone="error">{error}</StatusMessage> : null}
                     <div className="auth-actions">
                       <button className="button auth-secondary" type="button" onClick={returnToLogin} disabled={busy}>Back to sign in</button>
                       <button className="button primary" type="submit" disabled={busy}>
