@@ -85,10 +85,10 @@ def remove_grant(
             PublicationGrant.source_id == source_id,
         )
     )
-    if grant is None:
-        return
     if source_type == INDIVIDUAL:
         unpublish_individual_derivative(storage, slide.public_id)
+    if grant is None:
+        return
     database.delete(grant)
     database.flush()
     remaining = int(
@@ -101,7 +101,7 @@ def remove_grant(
     )
     if remaining == 0:
         unpublish_derivative(storage, slide.public_id)
-        if slide.state is SlideState.PUBLISHED:
+        if slide.state == SlideState.PUBLISHED:
             slide.state = SlideState.READY_PRIVATE
         slide.published_at = None
 

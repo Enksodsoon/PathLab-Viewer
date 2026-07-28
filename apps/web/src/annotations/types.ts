@@ -148,6 +148,14 @@ export type AnnotationMutation =
 export interface AnnotationBatchRequest {
   mutationId: string
   baseVersion: number
+  ensureLayer?: {
+    id: string
+    name: string
+    sortOrder: number
+    visible: boolean
+    locked: boolean
+    opacity: number
+  }
   operations: AnnotationMutation[]
 }
 

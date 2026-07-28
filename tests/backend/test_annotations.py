@@ -158,6 +158,43 @@ def _batch(
     )
 
 
+def test_first_annotation_atomically_materializes_requested_default_layer(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client)
+        layer_id = str(uuid.uuid4())
+        item = _item_payload(layer_id)
+        response = client.post(
+            f"/api/v2/admin/annotations/slides/{slide.id}/batch",
+            headers=headers,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "ensureLayer": {
+                    "id": layer_id,
+                    "name": "Layer 1",
+                    "sortOrder": 0,
+                    "visible": True,
+                    "locked": False,
+                    "opacity": 1,
+                },
+                "operations": [{"type": "create", "item": item}],
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["version"] == 1
+        manifest = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/manifest"
+        ).json()
+        assert [(layer["id"], layer["name"]) for layer in manifest["layers"]] == [
+            (layer_id, "Layer 1")
+        ]
+        assert manifest["activeCount"] == 1
+
+
 def test_concurrent_batches_with_the_same_base_version_allow_one_commit(
     tmp_path: Path,
 ) -> None:

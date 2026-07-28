@@ -788,6 +788,60 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         ).status_code == 404
 
 
+def test_unpublish_removes_slide_from_every_public_delivery(tmp_path: Path) -> None:
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        _seed_share_ready_slide(client, slide_id="unpublish-everywhere")
+        collection = client.post(
+            "/api/v2/admin/collections",
+            headers=headers,
+            json={"name": "Public teaching set"},
+        ).json()
+        client.post(
+            f"/api/v2/admin/collections/{collection['id']}/items",
+            headers=headers,
+            json={"slideIds": ["unpublish-everywhere"]},
+        )
+        share = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "collection",
+                "targetId": collection["id"],
+                "deidentifiedConfirmed": True,
+            },
+        )
+        assert share.status_code == 201
+        public_id = share.json()["publicId"]
+        manifest = client.get(f"/api/v2/public/collections/{public_id}")
+        assert manifest.status_code == 200
+        tile_source = manifest.json()["slides"][0]["tileSource"]
+        assert client.get(tile_source).status_code == 200
+
+        unpublished = client.post(
+            "/api/v1/admin/slides/unpublish-everywhere/unpublish",
+            headers=headers,
+        )
+
+        assert unpublished.status_code == 200
+        assert unpublished.json()["state"] == "ready_private"
+        refreshed = client.get(f"/api/v2/public/collections/{public_id}")
+        assert refreshed.status_code == 200
+        assert refreshed.json()["slides"] == []
+        assert client.get(tile_source).status_code == 404
+        with session_factory(client.app.state.settings)() as database:
+            assert database.scalars(
+                select(PublicationGrant).where(
+                    PublicationGrant.slide_id == "unpublish-everywhere"
+                )
+            ).all() == []
+            assert database.scalars(
+                select(ShareSlide).where(
+                    ShareSlide.slide_id == "unpublish-everywhere"
+                )
+            ).all() == []
+
+
 def test_routine_move_never_auto_publishes_into_shared_folder(tmp_path: Path) -> None:
     with _client(tmp_path, multi_share_enabled=True) as client:
         headers = _headers(client)

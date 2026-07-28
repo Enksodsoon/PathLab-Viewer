@@ -335,14 +335,39 @@ function hasEditablePoints(
   return 'points' in record.geometry
 }
 
-function prepareLayers(layers: AnnotationLayer[]): {
+function prepareLayers(
+  layers: AnnotationLayer[],
+  emptyLayerId?: string,
+  slideId = '',
+): {
   layers: AnnotationLayer[]
   activeLayer: AnnotationLayer | null
   revealed: boolean
+  virtualLayerId: string | null
 } {
+  if (layers.length === 0) {
+    const now = new Date().toISOString()
+    const layer: AnnotationLayer = {
+      id: emptyLayerId ?? crypto.randomUUID(),
+      slideId,
+      name: 'Layer 1',
+      sortOrder: 0,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      createdAt: now,
+      updatedAt: now,
+    }
+    return {
+      layers: [layer],
+      activeLayer: layer,
+      revealed: false,
+      virtualLayerId: layer.id,
+    }
+  }
   const activeLayer = layers.find((layer) => !layer.locked) ?? null
   if (!activeLayer || activeLayer.visible) {
-    return { layers, activeLayer, revealed: false }
+    return { layers, activeLayer, revealed: false, virtualLayerId: null }
   }
   const prepared = layers.map((layer) => (
     layer.id === activeLayer.id ? { ...layer, visible: true } : layer
@@ -351,7 +376,17 @@ function prepareLayers(layers: AnnotationLayer[]): {
     layers: prepared,
     activeLayer: prepared.find((layer) => layer.id === activeLayer.id) ?? activeLayer,
     revealed: true,
+    virtualLayerId: null,
   }
+}
+
+function recoveredLayerId(draft: AnnotationDraft | null): string | undefined {
+  if (!draft?.dirty) return undefined
+  for (const mutation of draft.mutations) {
+    if (mutation.type === 'create') return mutation.item.layerId
+    if (mutation.type === 'update' && mutation.layerId) return mutation.layerId
+  }
+  return undefined
 }
 
 async function triggerDownload(response: Response, filename: string): Promise<void> {
@@ -389,6 +424,7 @@ export function AnnotationWorkspace({
   const autosaveRef = useRef<AnnotationAutosave | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const activeLayerRef = useRef<string | null>(null)
+  const virtualLayerIdRef = useRef<string | null>(null)
   const calibrationRef = useRef<AnnotationCalibration | null>(null)
   const styleRef = useRef<AnnotationStyle>(DEFAULT_STYLE)
   const metadataRef = useRef<AnnotationMetadata>(DEFAULT_METADATA)
@@ -611,7 +647,11 @@ export function AnnotationWorkspace({
       if (page.nextOffset === null) break
       offset = page.nextOffset
     } while (items.length < manifest.limits.activeAnnotations + manifest.trashedCount)
-    const prepared = prepareLayers(manifest.layers)
+    const prepared = prepareLayers(
+      manifest.layers,
+      virtualLayerIdRef.current ?? undefined,
+      slideId,
+    )
     store.load({
       version: manifest.version,
       layers: prepared.layers,
@@ -620,8 +660,9 @@ export function AnnotationWorkspace({
     requireCurrentWorkspace(generation, store)
     setActiveLayerId(prepared.activeLayer?.id ?? null)
     activeLayerRef.current = prepared.activeLayer?.id ?? null
+    virtualLayerIdRef.current = prepared.virtualLayerId
     return manifest.version
-  }, [requireCurrentWorkspace, services])
+  }, [requireCurrentWorkspace, services, slideId])
 
   useEffect(() => {
     const generation = workspaceGenerationRef.current + 1
@@ -640,6 +681,7 @@ export function AnnotationWorkspace({
     setAutosave(EMPTY_AUTOSAVE)
     setActiveLayerId(null)
     activeLayerRef.current = null
+    virtualLayerIdRef.current = null
     calibrationRef.current = null
     setPendingImport(null)
     setImportPreview(null)
@@ -691,7 +733,11 @@ export function AnnotationWorkspace({
           if (page.nextOffset === null) break
           offset = page.nextOffset
         } while (items.length < manifest.limits.activeAnnotations + manifest.trashedCount)
-        const prepared = prepareLayers(manifest.layers)
+        const prepared = prepareLayers(
+          manifest.layers,
+          recoveredLayerId(loadedDraft),
+          slideId,
+        )
         store.load({
           version: manifest.version,
           layers: prepared.layers,
@@ -699,16 +745,37 @@ export function AnnotationWorkspace({
         })
         setActiveLayerId(prepared.activeLayer?.id ?? null)
         activeLayerRef.current = prepared.activeLayer?.id ?? null
+        virtualLayerIdRef.current = prepared.virtualLayerId
 
         const storeHooks = store.autosaveHooks()
         const saver = new AnnotationAutosave({
           baseVersion: manifest.version,
           transport: {
-            save: (mutationId, baseVersion, operations) => services.batch({
-              mutationId,
-              baseVersion,
-              operations,
-            }),
+            save: async (mutationId, baseVersion, operations) => {
+              const virtualLayerId = virtualLayerIdRef.current
+              const ensureLayer = virtualLayerId && operations.some((operation) => (
+                operation.type === 'create' && operation.item.layerId === virtualLayerId
+              ))
+                ? {
+                    id: virtualLayerId,
+                    name: 'Layer 1',
+                    sortOrder: 0,
+                    visible: true,
+                    locked: false,
+                    opacity: 1,
+                  }
+                : undefined
+              const result = await services.batch({
+                mutationId,
+                baseVersion,
+                ...(ensureLayer ? { ensureLayer } : {}),
+                operations,
+              })
+              if (ensureLayer && virtualLayerIdRef.current === ensureLayer.id) {
+                virtualLayerIdRef.current = null
+              }
+              return result
+            },
           },
           ...storeHooks,
           onReload: async () => {

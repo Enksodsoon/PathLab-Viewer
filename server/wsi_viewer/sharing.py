@@ -443,3 +443,42 @@ def revoke_share(
     share.is_active = False
     share.revoked_at = utcnow()
     share.updated_at = utcnow()
+
+
+def detach_slide_from_shares(
+    database: OrmSession,
+    storage: StorageLayout,
+    slide: Slide,
+) -> list[tuple[LibraryShare, list[Slide]]]:
+    memberships = list(
+        database.execute(
+            select(ShareSlide, LibraryShare)
+            .join(LibraryShare, LibraryShare.id == ShareSlide.share_id)
+            .where(ShareSlide.slide_id == slide.id)
+        ).all()
+    )
+    active_shares = {
+        share.id: share
+        for _, share in memberships
+        if share.is_active and share.revoked_at is None
+    }
+    for share in active_shares.values():
+        remove_share_delivery_manifest(storage, share.public_id)
+    for membership, share in memberships:
+        remove_grant(database, storage, slide, SHARE, share.id)
+        database.delete(membership)
+    database.flush()
+    return [
+        (
+            share,
+            list(
+                database.scalars(
+                    select(Slide)
+                    .join(ShareSlide, ShareSlide.slide_id == Slide.id)
+                    .where(ShareSlide.share_id == share.id)
+                    .order_by(ShareSlide.sort_order, Slide.id)
+                )
+            ),
+        )
+        for share in active_shares.values()
+    ]
