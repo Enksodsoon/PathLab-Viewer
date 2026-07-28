@@ -2076,10 +2076,11 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   gap: 5px;
   overflow-x: auto;
   padding: 8px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  background: var(--ink);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, var(--primary));
   box-shadow: 0 14px 38px color-mix(in srgb, var(--shadow-color) 36%, transparent);
-  color: var(--canvas);
+  color: var(--ink);
   transform: translateX(-50%);
 }
 
@@ -2092,7 +2093,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   width: 1px;
   height: 24px;
   flex: 0 0 1px;
-  background: color-mix(in srgb, var(--canvas) 24%, transparent);
+  background: var(--border);
 }
 
 .selection-action-bar button {
@@ -2105,16 +2106,18 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
-  color: var(--canvas);
+  color: var(--body);
   cursor: pointer;
 }
 
-.selection-action-bar button:hover {
-  background: color-mix(in srgb, var(--canvas) 14%, transparent);
+.selection-action-bar button:hover,
+.selection-action-bar button:focus-visible {
+  background: var(--surface-card);
+  color: var(--ink);
 }
 
 .selection-action-bar .danger {
-  color: color-mix(in srgb, var(--danger) 62%, var(--canvas));
+  color: var(--danger);
 }
 
 /* Right overlay inspector */
