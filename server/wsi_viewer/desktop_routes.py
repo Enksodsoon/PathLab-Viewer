@@ -558,11 +558,12 @@ def _finalize_prepared_ingest(
         }
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
+        owning_credential = database.get(DesktopCredential, ingest.credential_id)
+        if owning_credential is None:
+            raise PreparedIngestError("DESKTOP_CREDENTIAL_MISSING")
         database.add(
             AuditEvent(
-                actor_user_id=database.get(
-                    DesktopCredential, ingest.credential_id
-                ).user_id,
+                actor_user_id=owning_credential.user_id,
                 action="desktop_ingest.complete",
                 target_id=slide.id,
             )
