@@ -3,6 +3,7 @@ import hmac
 import os
 import re
 import shutil
+import tarfile
 from collections import defaultdict, deque
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -31,6 +32,7 @@ from .delivery import deliver_file
 from .domain import InvalidTransition, SlideState, transition
 from .library_routes import register_library_routes
 from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
+from .prepared_archive import PreparedArchiveError, validate_prepared_archive
 from .publication import (
     INDIVIDUAL,
     delete_all_slide_grants,
@@ -52,8 +54,9 @@ from .storage import (
     InsufficientStorage,
     PublicationError,
     StorageLayout,
+    measure_derivative,
 )
-from .storage_accounting import reserve_new_slide, reserve_retry
+from .storage_accounting import reserve_new_slide, reserve_prepared_slide, reserve_retry
 
 COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
@@ -94,6 +97,10 @@ class SlideRequest(BaseModel):
     folder_id: str | None = Field(default=None, alias="folderId")
 
 
+class PreparedSlideRequest(SlideRequest):
+    pass
+
+
 class PublishRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -125,6 +132,14 @@ class LoginThrottle:
 
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -488,6 +503,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "expiresIn": 3600,
         }
 
+    @app.post("/api/v1/admin/prepared-slides", status_code=status.HTTP_201_CREATED)
+    def create_prepared_slide(
+        payload: PreparedSlideRequest, authenticated: CsrfSession
+    ) -> dict[str, Any]:
+        if payload.length > current.max_upload_bytes:
+            raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
+        if Path(payload.filename).suffix.lower() != ".plslide":
+            raise HTTPException(status_code=422, detail={"code": "INVALID_PREPARED_FILENAME"})
+        try:
+            slide = reserve_prepared_slide(
+                factory,
+                storage,
+                display_name=payload.display_name,
+                original_filename=Path(payload.filename).name,
+                package_bytes=payload.length,
+                actor_user_id=authenticated.user_id,
+                folder_id=payload.folder_id,
+            )
+        except InsufficientStorage as error:
+            raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"}) from error
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"}) from error
+        token = issue_upload_token(
+            UploadGrant(slide.id, payload.length, "prepared"),
+            current.secret_key,
+            ttl=timedelta(hours=1),
+        )
+        return {
+            "slide": _slide_json(slide, annotations_enabled=current.annotations_enabled),
+            "uploadUrl": current.tus_public_url,
+            "uploadToken": token,
+            "expiresIn": 3600,
+        }
+
     def finalize_upload(
         grant: UploadGrant, upload_path: Path, reported_length: int, db: OrmSession
     ) -> dict[str, str]:
@@ -528,13 +577,79 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db.commit()
         return {"slideId": slide.id, "state": slide.state.value}
 
+    def finalize_prepared_upload(
+        grant: UploadGrant, upload_path: Path, reported_length: int, db: OrmSession
+    ) -> dict[str, str]:
+        upload_root = current.tus_internal_upload_dir.resolve()
+        upload_id = upload_path.name
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", upload_id) is None:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
+        try:
+            source = (upload_root / upload_id).resolve(strict=True)
+        except OSError as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"}) from error
+        if source.parent != upload_root or not source.is_file():
+            raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
+        slide = db.get(Slide, grant.slide_id)
+        if slide is None or slide.state is not SlideState.UPLOADING:
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
+        if reported_length != grant.length or source.stat().st_size != grant.length:
+            raise HTTPException(status_code=400, detail={"code": "UPLOAD_LENGTH_MISMATCH"})
+        try:
+            with source.open("rb") as uploaded:
+                validated = validate_prepared_archive(uploaded)
+        except PreparedArchiveError as error:
+            raise HTTPException(
+                status_code=422, detail={"code": "INVALID_PREPARED_SLIDE"}
+            ) from error
+        paths = storage.for_slide(slide.id)
+        staging = paths.derivative_staging
+        if staging.exists() or paths.private_derivative.exists():
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
+        staging.mkdir(parents=True)
+        try:
+            with tarfile.open(source, mode="r:") as archive:
+                for member in archive.getmembers()[1:]:
+                    relative = Path(member.name).relative_to("derivative")
+                    destination = staging / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    extracted = archive.extractfile(member)
+                    if extracted is None:
+                        raise PreparedArchiveError("archive payload is unreadable")
+                    with extracted, destination.open("xb") as output:
+                        shutil.copyfileobj(extracted, output, length=1024 * 1024)
+            measurement = measure_derivative(staging)
+            paths.private_derivative.parent.mkdir(parents=True, exist_ok=True)
+            staging.replace(paths.private_derivative)
+        except Exception:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+        slide.sha256 = _file_sha256(source)
+        slide.slide_metadata = {"width": validated.width, "height": validated.height}
+        slide.derivative_bytes = measurement.derivative_bytes
+        slide.derivative_file_count = measurement.file_count
+        slide.thumbnail_filename = "thumbnail.jpg"
+        slide.reserved_bytes = 0
+        slide.state = SlideState.READY_PRIVATE
+        db.add(AuditEvent(action="prepared_slide.complete", target_id=slide.id))
+        source.unlink()
+        db.commit()
+        return {"slideId": slide.id, "state": slide.state.value}
+
+    def finalize_granted_upload(
+        grant: UploadGrant, upload_path: Path, reported_length: int, db: OrmSession
+    ) -> dict[str, str]:
+        if grant.kind == "prepared":
+            return finalize_prepared_upload(grant, upload_path, reported_length, db)
+        return finalize_upload(grant, upload_path, reported_length, db)
+
     @app.post("/api/v1/internal/uploads/complete", status_code=status.HTTP_202_ACCEPTED)
     def upload_complete(payload: UploadCompleteRequest, db: Database) -> dict[str, str]:
         try:
             grant = verify_upload_token(payload.token, current.secret_key)
         except InvalidToken as error:
             raise HTTPException(status_code=401, detail={"code": "INVALID_UPLOAD_TOKEN"}) from error
-        return finalize_upload(grant, payload.path, payload.length, db)
+        return finalize_granted_upload(grant, payload.path, payload.length, db)
 
     @app.post("/api/v1/internal/tus/hooks")
     def tus_hook(payload: dict[str, Any], db: Database) -> dict[str, Any]:
@@ -566,7 +681,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             try:
                 grant = verify_upload_token(token, current.secret_key, allow_expired=True)
                 storage_path = Path(str(upload["Storage"]["Path"]))
-                finalize_upload(grant, storage_path, size, db)
+                finalize_granted_upload(grant, storage_path, size, db)
             except (InvalidToken, KeyError, HTTPException) as error:
                 raise HTTPException(
                     status_code=500, detail={"code": "TUS_FINALIZE_FAILED"}

@@ -22,6 +22,7 @@ class InvalidToken(ValueError):
 class UploadGrant:
     slide_id: str
     length: int
+    kind: str = "ome"
 
 
 def validate_password(password: str) -> None:
@@ -83,7 +84,14 @@ def verify_upload_token(
         current = now or datetime.now(UTC)
         if not allow_expired and int(payload["expires_at"]) < int(current.timestamp()):
             raise InvalidToken("Upload token expired")
-        return UploadGrant(slide_id=str(payload["slide_id"]), length=int(payload["length"]))
+        kind = str(payload.get("kind", "ome"))
+        if kind not in {"ome", "prepared"}:
+            raise InvalidToken("Invalid upload kind")
+        return UploadGrant(
+            slide_id=str(payload["slide_id"]),
+            length=int(payload["length"]),
+            kind=kind,
+        )
     except (BadSignature, KeyError, TypeError, ValueError) as error:
         if isinstance(error, InvalidToken):
             raise

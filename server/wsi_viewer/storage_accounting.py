@@ -139,6 +139,48 @@ def reserve_new_slide(
         return slide
 
 
+def reserve_prepared_slide(
+    factory: sessionmaker[OrmSession],
+    layout: StorageLayout,
+    *,
+    display_name: str,
+    original_filename: str,
+    package_bytes: int,
+    actor_user_id: str | None,
+    folder_id: str | None = None,
+) -> Slide:
+    if package_bytes <= 0:
+        raise ValueError("Prepared package length must be positive")
+    required = package_bytes * 2 + 64 * 1024**2
+    _require_physical_space(layout.root, required)
+    with factory() as database:
+        _begin_immediate(database)
+        _require_application_capacity(database, layout, required)
+        if folder_id is not None:
+            folder = database.get(Folder, folder_id)
+            if folder is None or folder.trashed_at is not None:
+                raise LookupError("Folder not found")
+        slide = Slide(
+            display_name=display_name,
+            original_filename=original_filename,
+            source_bytes=package_bytes,
+            reserved_bytes=required,
+            folder_id=folder_id,
+        )
+        database.add(slide)
+        database.flush()
+        database.add(
+            AuditEvent(
+                actor_user_id=actor_user_id,
+                action="prepared_slide.create",
+                target_id=slide.id,
+                detail={"bytes": package_bytes},
+            )
+        )
+        database.commit()
+        return slide
+
+
 def reserve_retry(
     factory: sessionmaker[OrmSession],
     layout: StorageLayout,
