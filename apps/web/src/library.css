@@ -166,7 +166,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-rail-toggle {
   width: 100%;
   min-width: 0;
-  min-height: 38px;
+  min-height: 44px;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;

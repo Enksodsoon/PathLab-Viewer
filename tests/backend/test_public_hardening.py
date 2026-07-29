@@ -158,7 +158,12 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
         }
         assert annotation_paths
         assert all(
-            path.startswith("/api/v2/admin/annotations/")
+            path.startswith(
+                (
+                    "/api/v2/admin/annotations/",
+                    "/api/v1/desktop/slides/",
+                )
+            )
             for path in annotation_paths
         )
         assert not {"annotationsEnabled", "annotationVersion"} & set(body)

@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import json
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ def _client(tmp_path: Path) -> TestClient:
         secret_key="test-secret-that-is-long-enough",
         secure_cookies=False,
         tus_internal_upload_dir=tmp_path / "tus",
+        annotations_enabled=True,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -78,6 +80,197 @@ def test_authenticated_session_can_refresh_its_csrf_token(tmp_path: Path) -> Non
         assert refreshed.status_code == 200
         assert refreshed.json() == {"csrfToken": csrf}
         assert refreshed.headers["cache-control"] == "no-store"
+
+
+def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        started = client.post(
+            "/api/v1/desktop/pairings",
+            json={"deviceName": "PathLab Forge test device"},
+        )
+        assert started.status_code == 201
+        pairing = started.json()
+        assert pairing["verificationUrl"].endswith(
+            f"/admin/connect?code={pairing['userCode']}"
+        )
+
+        pending = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert _has_error(pending, 409, "PAIRING_PENDING")
+
+        csrf = _login(client)
+        approved = client.post(
+            "/api/v1/desktop/pairings/approve",
+            headers={"X-CSRF-Token": csrf},
+            json={"userCode": pairing["userCode"]},
+        )
+        assert approved.status_code == 204
+
+        exchanged = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert exchanged.status_code == 200
+        credential = exchanged.json()
+        assert set(credential["scopes"]) == {
+            "desktop:ingest",
+            "slides:private:read",
+            "annotations:sync",
+        }
+
+        replay = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert _has_error(replay, 409, "PAIRING_ALREADY_EXCHANGED")
+
+        authorization = {"Authorization": f"Bearer {credential['accessToken']}"}
+        assert client.get(
+            "/api/v1/desktop/credential", headers=authorization
+        ).status_code == 200
+        assert client.post(
+            "/api/v1/desktop/credential/revoke", headers=authorization
+        ).status_code == 204
+        assert _has_error(
+            client.get("/api/v1/desktop/credential", headers=authorization),
+            401,
+            "DESKTOP_CREDENTIAL_INVALID",
+        )
+
+
+def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        pairing = client.post(
+            "/api/v1/desktop/pairings",
+            json={"deviceName": "PathLab Forge annotation test"},
+        ).json()
+        assert client.post(
+            "/api/v1/desktop/pairings/approve",
+            headers={"X-CSRF-Token": csrf},
+            json={"userCode": pairing["userCode"]},
+        ).status_code == 204
+        exchanged = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        authorization = {
+            "Authorization": f"Bearer {exchanged.json()['accessToken']}"
+        }
+        settings = client.app.state.settings
+        with session_factory(settings)() as database:
+            slide = Slide(
+                display_name="Prepared desktop slide",
+                original_filename="prepared.plslide",
+                source_bytes=100,
+                state=SlideState.READY_PRIVATE,
+                privacy_status="private",
+                slide_metadata={
+                    "width": 1000,
+                    "height": 500,
+                    "physicalSizeX": 0.25,
+                    "physicalSizeY": 0.25,
+                    "physicalSizeUnit": "µm",
+                },
+            )
+            database.add(slide)
+            database.commit()
+            database.refresh(slide)
+            slide_id = slide.id
+
+        empty = client.get(
+            f"/api/v1/desktop/slides/{slide_id}/annotations",
+            headers=authorization,
+        )
+        assert empty.status_code == 200
+        assert empty.json()["total"] == 0
+
+        layer_id = str(uuid.uuid4())
+        first_id = str(uuid.uuid4())
+        first = client.post(
+            f"/api/v1/desktop/slides/{slide_id}/annotations/batch",
+            headers=authorization,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "ensureLayer": {
+                    "id": layer_id,
+                    "name": "Layer 1",
+                    "sortOrder": 0,
+                    "visible": True,
+                    "locked": False,
+                    "opacity": 1.0,
+                },
+                "operations": [{
+                    "type": "create",
+                    "item": {
+                        "id": first_id,
+                        "layerId": layer_id,
+                        "geometry": {"type": "point", "x": 10.0, "y": 20.0},
+                    },
+                }],
+            },
+        )
+        assert first.status_code == 200
+        assert first.json()["autoMerged"] is False
+
+        disjoint = client.post(
+            f"/api/v1/desktop/slides/{slide_id}/annotations/batch",
+            headers=authorization,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "operations": [{
+                    "type": "create",
+                    "item": {
+                        "id": str(uuid.uuid4()),
+                        "layerId": layer_id,
+                        "geometry": {"type": "point", "x": 30.0, "y": 40.0},
+                    },
+                }],
+            },
+        )
+        assert disjoint.status_code == 200
+        assert disjoint.json()["autoMerged"] is True
+
+        conflict = client.post(
+            f"/api/v1/desktop/slides/{slide_id}/annotations/batch",
+            headers=authorization,
+            json={
+                "mutationId": str(uuid.uuid4()),
+                "baseVersion": 0,
+                "operations": [{
+                    "type": "delete",
+                    "id": first_id,
+                    "version": 99,
+                }],
+            },
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["detail"]["code"] == "ANNOTATION_CONFLICT"
+        assert conflict.json()["detail"]["currentVersion"] == 2
+        persisted = client.get(
+            f"/api/v1/desktop/slides/{slide_id}/annotations",
+            headers=authorization,
+        ).json()
+        assert persisted["total"] == 2
+        assert persisted["layers"][0]["visible"] is True
 
 
 def test_password_route_handlers_are_synchronous(tmp_path: Path) -> None:

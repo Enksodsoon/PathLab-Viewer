@@ -28,6 +28,7 @@ from .auth import (
 from .config import Settings
 from .database import session_factory
 from .delivery import deliver_file
+from .desktop_routes import register_desktop_routes
 from .domain import InvalidTransition, SlideState, transition
 from .library_routes import register_library_routes
 from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
@@ -279,6 +280,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         database_dependency=database,
         admin_dependency=admin_session,
         csrf_dependency=csrf,
+    )
+    register_desktop_routes(
+        app,
+        database_dependency=database,
+        csrf_dependency=csrf,
+        storage=storage,
     )
 
     @app.get("/livez")
