@@ -306,8 +306,18 @@ def register_desktop_routes(
         ingest = database.get(DesktopIngest, ingest_id)
         if ingest is None or ingest.credential_id != authenticated.id:
             raise HTTPException(status_code=404, detail={"code": "INGEST_NOT_FOUND"})
+        target = package_path(ingest.id)
+        if (
+            ingest.status == "finalizing"
+            and ingest.received_bytes == ingest.package_length
+            and target.is_file()
+            and target.stat().st_size == ingest.package_length
+        ):
+            _finalize_prepared_ingest(ingest, target, database, storage)
+            database.refresh(ingest)
         response.headers["Upload-Offset"] = str(ingest.received_bytes)
         response.headers["Upload-Length"] = str(ingest.package_length)
+        response.headers["Upload-Status"] = ingest.status
 
     @app.patch("/api/v1/desktop/ingests/{ingest_id}/content")
     async def upload_prepared_ingest(
