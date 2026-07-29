@@ -10,14 +10,25 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
 
+from .annotations import (
+    AnnotationBatchRequest,
+    AnnotationError,
+    annotation_json,
+    apply_batch,
+    calibration_json,
+    layer_json,
+    slide_bounds,
+)
 from .domain import SlideState
 from .models import (
+    Annotation,
+    AnnotationLayer,
     AuditEvent,
     DesktopCredential,
     DesktopIngest,
@@ -413,6 +424,94 @@ def register_desktop_routes(
             else "image/jpeg",
             headers={"Cache-Control": "private, max-age=86400, immutable"},
         )
+
+    @app.get("/api/v1/desktop/slides/{slide_id}/annotations")
+    def desktop_annotations(
+        slide_id: str,
+        offset: int = Query(default=0, ge=0),
+        limit: int = Query(default=1_000, ge=1, le=5_000),
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "annotations:sync")
+        if not app.state.settings.annotations_enabled:
+            raise HTTPException(status_code=404, detail={"code": "ANNOTATIONS_DISABLED"})
+        slide = database.get(Slide, slide_id)
+        if slide is None or slide.state not in {
+            SlideState.READY_PRIVATE,
+            SlideState.PUBLISHED,
+        }:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        width, height = slide_bounds(slide)
+        total = int(
+            database.scalar(
+                select(func.count(Annotation.id)).where(
+                    Annotation.slide_id == slide.id
+                )
+            )
+            or 0
+        )
+        items = list(
+            database.scalars(
+                select(Annotation)
+                .where(Annotation.slide_id == slide.id)
+                .order_by(Annotation.created_at, Annotation.id)
+                .offset(offset)
+                .limit(limit)
+            )
+        )
+        layers = database.scalars(
+            select(AnnotationLayer)
+            .where(AnnotationLayer.slide_id == slide.id)
+            .order_by(AnnotationLayer.sort_order, AnnotationLayer.created_at)
+        )
+        return {
+            "slideId": slide.id,
+            "version": slide.annotation_version,
+            "bounds": {"width": width, "height": height},
+            "calibration": calibration_json(slide),
+            "layers": [layer_json(layer) for layer in layers],
+            "items": [annotation_json(item, slide) for item in items],
+            "total": total,
+            "nextOffset": offset + len(items)
+            if offset + len(items) < total
+            else None,
+        }
+
+    @app.post("/api/v1/desktop/slides/{slide_id}/annotations/batch")
+    def desktop_annotation_batch(
+        slide_id: str,
+        payload: AnnotationBatchRequest,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "annotations:sync")
+        if not app.state.settings.annotations_enabled:
+            raise HTTPException(status_code=404, detail={"code": "ANNOTATIONS_DISABLED"})
+        slide = database.get(Slide, slide_id)
+        if slide is None or slide.state not in {
+            SlideState.READY_PRIVATE,
+            SlideState.PUBLISHED,
+        }:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        merged = payload.base_version != slide.annotation_version
+        candidate = payload.model_copy(
+            update={"base_version": slide.annotation_version}
+        ) if merged else payload
+        try:
+            result = apply_batch(
+                database,
+                slide,
+                candidate,
+                actor_user_id=authenticated.user_id,
+            )
+        except AnnotationError as error:
+            database.rollback()
+            raise HTTPException(
+                status_code=error.status_code,
+                detail={"code": error.code, **error.detail},
+            ) from error
+        return {**result, "autoMerged": merged}
 
 
 def _finalize_prepared_ingest(
