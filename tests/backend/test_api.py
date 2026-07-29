@@ -1,6 +1,9 @@
 import asyncio
+import hashlib
 import inspect
+import io
 import json
+import tarfile
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +53,50 @@ def _login(client: TestClient) -> str:
 
 def _has_error(response: Response, status_code: int, code: str) -> bool:
     return response.status_code == status_code and response.json() == {"detail": {"code": code}}
+
+
+def _prepared_slide_archive() -> bytes:
+    jpeg = b"\xff\xd8fixture\xff\xd9"
+    dzi = (
+        b'<Image TileSize="512" Overlap="1" Format="jpg" '
+        b'xmlns="http://schemas.microsoft.com/deepzoom/2008">'
+        b'<Size Width="512" Height="512"/></Image>'
+    )
+    payloads = {
+        "derivative/slide.dzi": dzi,
+        "derivative/slide_files/9/0_0.jpg": jpeg,
+        "derivative/thumbnail.jpg": jpeg,
+    }
+    manifest = {
+        "schema": "pathlab-prepared-slide/v1",
+        "slide": {
+            "width": 512,
+            "height": 512,
+            "tileSize": 512,
+            "overlap": 1,
+            "format": "jpg",
+        },
+        "files": [
+            {
+                "path": path,
+                "size": len(content),
+                "sha256": hashlib.sha256(content).hexdigest(),
+            }
+            for path, content in sorted(payloads.items())
+        ],
+    }
+    entries = [("manifest.json", json.dumps(manifest, separators=(",", ":")).encode())]
+    entries.extend(sorted(payloads.items()))
+    output = io.BytesIO()
+    with tarfile.open(fileobj=output, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+        for name, content in entries:
+            info = tarfile.TarInfo(name)
+            info.size = len(content)
+            info.mtime = info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            info.mode = 0o644
+            archive.addfile(info, io.BytesIO(content))
+    return output.getvalue()
 
 
 def test_health_and_readiness(tmp_path: Path) -> None:
@@ -757,6 +804,46 @@ def test_completed_tus_upload_is_signature_checked_and_queued(tmp_path: Path) ->
         assert completed.status_code == 202
         slides = client.get("/api/v1/admin/slides").json()
         assert slides[0]["state"] == "queued"
+
+
+def test_prepared_slide_upload_installs_validated_derivative_without_reconversion(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        settings = client.app.state.settings
+        content = _prepared_slide_archive()
+        upload = settings.tus_internal_upload_dir / "prepared-upload"
+        upload.parent.mkdir(parents=True, exist_ok=True)
+        upload.write_bytes(content)
+        created = client.post(
+            "/api/v1/admin/prepared-slides",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "displayName": "Forge prepared",
+                "filename": "slide.plslide",
+                "length": len(content),
+            },
+        )
+        assert created.status_code == 201
+        completed = client.post(
+            "/api/v1/internal/uploads/complete",
+            json={
+                "token": created.json()["uploadToken"],
+                "path": str(upload),
+                "length": len(content),
+            },
+        )
+        assert completed.status_code == 202
+        slide = client.get(
+            f"/api/v1/admin/slides/{created.json()['slide']['id']}"
+        ).json()
+        assert slide["state"] == "ready_private"
+        assert slide["metadata"] == {"width": 512, "height": 512}
+        assert slide["thumbnailUrl"].endswith("/thumbnail.jpg")
+        derivative = settings.data_root / "private" / slide["id"]
+        assert (derivative / "slide.dzi").is_file()
+        assert not upload.exists()
 
 
 def test_tusd_hooks_authorize_and_finalize_reserved_upload(tmp_path: Path) -> None:
