@@ -1,0 +1,31 @@
+{
+  "name": "@pathlab/viewer-ui",
+  "version": "0.1.0-rc.373ca749",
+  "description": "Shared PathLab Viewer Canvas Focus interface for trusted PathLab clients",
+  "type": "module",
+  "sideEffects": [
+    "./src/styles.css",
+    "./src/theme.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./theme.css": "./src/theme.css"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "react": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "AGPL-3.0-or-later"
+}
