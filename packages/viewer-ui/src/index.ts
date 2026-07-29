@@ -12,3 +12,18 @@ export {
   ViewerCanvasShell,
   type ViewerCanvasShellProps,
 } from './ViewerCanvasShell'
+export type {
+  AccountAdapter,
+  AccountState,
+  AnnotationAdapter,
+  AnnotationDocument,
+  CapabilityAdapter,
+  LibraryCommandAdapter,
+  PathLabTheme,
+  SlideSource,
+  SlideSourceAdapter,
+  ThemeAdapter,
+  ViewerCapabilities,
+  ViewerCommandAdapter,
+  ViewerUiAdapters,
+} from './adapters'
