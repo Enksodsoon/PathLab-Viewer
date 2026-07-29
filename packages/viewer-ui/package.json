@@ -1,6 +1,6 @@
 {
   "name": "@pathlab/viewer-ui",
-  "version": "0.1.0-rc.373ca749",
+  "version": "0.1.0-rc.373ca749.1",
   "description": "Shared PathLab Viewer Canvas Focus interface for trusted PathLab clients",
   "type": "module",
   "sideEffects": [

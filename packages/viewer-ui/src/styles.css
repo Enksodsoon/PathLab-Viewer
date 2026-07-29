@@ -20,6 +20,70 @@
 .pathlab-viewer-inspector { grid-area: inspector; min-width: 0; overflow: auto; border-left: 1px solid var(--border); background: var(--surface-elevated); }
 .pathlab-queue-dock { grid-area: queue; min-width: 0; border-top: 1px solid var(--border); background: var(--surface); }
 
+.library-rail-primary,
+.library-rail-utilities {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+}
+
+.library-rail-utilities { margin-top: auto; }
+
+.library-rail-primary > button,
+.library-rail-utilities > button,
+.library-rail-toggle {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.library-rail-primary > button:hover,
+.library-rail-utilities > button:hover,
+.library-rail-toggle:hover {
+  background: var(--surface-card);
+  color: var(--ink);
+}
+
+.library-rail-primary > button.active {
+  background: var(--surface-card);
+  color: var(--primary);
+}
+
+.library-rail-primary span,
+.library-rail-utilities span,
+.library-rail-toggle span {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:is(.library-shell, .pathlab-canvas-shell):not(.rail-expanded) .library-rail-primary > button,
+:is(.library-shell, .pathlab-canvas-shell):not(.rail-expanded) .library-rail-utilities > button,
+:is(.library-shell, .pathlab-canvas-shell):not(.rail-expanded) .library-rail-toggle {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding-inline: 4px;
+}
+
+:is(.library-shell, .pathlab-canvas-shell):not(.rail-expanded) .library-rail-primary span,
+:is(.library-shell, .pathlab-canvas-shell):not(.rail-expanded) .library-rail-utilities span,
+:is(.library-shell, .pathlab-canvas-shell):not(.rail-expanded) .library-rail-toggle span {
+  display: none;
+}
+
 .pathlab-annotation-toolbar {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

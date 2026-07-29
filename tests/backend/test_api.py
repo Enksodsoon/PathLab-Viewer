@@ -80,6 +80,73 @@ def test_authenticated_session_can_refresh_its_csrf_token(tmp_path: Path) -> Non
         assert refreshed.headers["cache-control"] == "no-store"
 
 
+def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        started = client.post(
+            "/api/v1/desktop/pairings",
+            json={"deviceName": "PathLab Forge test device"},
+        )
+        assert started.status_code == 201
+        pairing = started.json()
+        assert pairing["verificationUrl"].endswith(
+            f"/admin/connect?code={pairing['userCode']}"
+        )
+
+        pending = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert _has_error(pending, 409, "PAIRING_PENDING")
+
+        csrf = _login(client)
+        approved = client.post(
+            "/api/v1/desktop/pairings/approve",
+            headers={"X-CSRF-Token": csrf},
+            json={"userCode": pairing["userCode"]},
+        )
+        assert approved.status_code == 204
+
+        exchanged = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert exchanged.status_code == 200
+        credential = exchanged.json()
+        assert set(credential["scopes"]) == {
+            "desktop:ingest",
+            "slides:private:read",
+            "annotations:sync",
+        }
+
+        replay = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert _has_error(replay, 409, "PAIRING_ALREADY_EXCHANGED")
+
+        authorization = {"Authorization": f"Bearer {credential['accessToken']}"}
+        assert client.get(
+            "/api/v1/desktop/credential", headers=authorization
+        ).status_code == 200
+        assert client.post(
+            "/api/v1/desktop/credential/revoke", headers=authorization
+        ).status_code == 204
+        assert _has_error(
+            client.get("/api/v1/desktop/credential", headers=authorization),
+            401,
+            "DESKTOP_CREDENTIAL_INVALID",
+        )
+
+
 def test_password_route_handlers_are_synchronous(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         for path in ("/api/v1/auth/password", "/api/v1/auth/password/recover"):
