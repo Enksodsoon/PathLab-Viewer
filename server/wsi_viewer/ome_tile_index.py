@@ -45,6 +45,8 @@ class OmeTileIndex:
     source_size: int
     source_mtime_ns: int
     source_sha256: str
+    jpeg_quality: int = 75
+    quality_profile: str = "ome-dynamic-v1-q75"
 
 
 def _sha256(stream: BinaryIO) -> str:

@@ -133,6 +133,7 @@ class DesktopIngest(Base):
     ome_width: Mapped[int | None] = mapped_column(Integer)
     ome_height: Mapped[int | None] = mapped_column(Integer)
     ome_downsample: Mapped[float | None] = mapped_column(Float)
+    ome_jpeg_quality: Mapped[int | None] = mapped_column(Integer)
     derivative_bytes: Mapped[int | None] = mapped_column(Integer)
     derivative_file_count: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="uploading")

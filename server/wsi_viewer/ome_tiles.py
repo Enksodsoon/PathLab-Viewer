@@ -146,6 +146,12 @@ def load_ome_tile_index(path: Path) -> OmeTileIndex:
             source_size=_integer(source["bytes"], "source bytes", minimum=1),
             source_mtime_ns=_integer(source["mtimeNs"], "source mtime"),
             source_sha256=str(source["sha256"]),
+            jpeg_quality=_integer(
+                document.get("jpegQuality", 75), "JPEG quality", minimum=1
+            ),
+            quality_profile=str(
+                document.get("qualityProfile", "ome-dynamic-v1-q75")
+            ),
         )
     except OmeTileError:
         raise
@@ -314,15 +320,8 @@ class OmeTileRenderer:
         output_height = min(512, height - request.row * 512)
         crop_width = output_width * scale
         crop_height = output_height * scale
-        left = request.column * 512 * scale
-        top = request.row * 512 * scale
-        if crop_width * crop_height * 3 > MAX_DECODED_REGION_BYTES:
+        if (crop_width + 16) * (crop_height + 16) * 3 > MAX_DECODED_REGION_BYTES:
             raise OmeTileError("Requested tile exceeds the decoded-region limit")
-        level = index.levels[level_index]
-        crop_width = min(crop_width, level.width - left)
-        crop_height = min(crop_height, level.height - top)
-        if crop_width <= 0 or crop_height <= 0:
-            raise OmeTileError("DZI tile coordinate is out of bounds")
 
         try:
             import pyvips  # type: ignore[import-untyped]
@@ -331,9 +330,15 @@ class OmeTileRenderer:
             if level_index > 0:
                 arguments["subifd"] = level_index - 1
             image = pyvips.Image.tiffload(str(slide.source), **arguments)
-            region = image.crop(left, top, crop_width, crop_height)
             if scale > 1:
-                region = region.resize(1 / scale)
+                image = image.resize(1 / scale)
+            left = request.column * 512
+            top = request.row * 512
+            output_width = min(output_width, image.width - left)
+            output_height = min(output_height, image.height - top)
+            if output_width <= 0 or output_height <= 0:
+                raise OmeTileError("DZI tile coordinate is out of bounds")
+            region = image.crop(left, top, output_width, output_height)
             payload = bytes(
                 region.jpegsave_buffer(
                     Q=slide.quality,

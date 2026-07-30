@@ -110,6 +110,7 @@ class OmeIngestRequest(DesktopModel):
     width: int = Field(gt=0)
     height: int = Field(gt=0)
     downsample: float = Field(gt=0)
+    jpeg_quality: int = Field(default=75, ge=1, le=100)
 
 
 def register_desktop_routes(
@@ -384,6 +385,7 @@ def register_desktop_routes(
             ome_width=payload.width,
             ome_height=payload.height,
             ome_downsample=payload.downsample,
+            ome_jpeg_quality=payload.jpeg_quality,
             status="uploading",
         )
         database.add(ingest)

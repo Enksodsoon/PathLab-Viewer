@@ -21,9 +21,11 @@ def upgrade() -> None:
     op.execute("ALTER TABLE desktop_ingests ADD COLUMN ome_width INTEGER")
     op.execute("ALTER TABLE desktop_ingests ADD COLUMN ome_height INTEGER")
     op.execute("ALTER TABLE desktop_ingests ADD COLUMN ome_downsample FLOAT")
+    op.execute("ALTER TABLE desktop_ingests ADD COLUMN ome_jpeg_quality INTEGER")
 
 
 def downgrade() -> None:
+    op.execute("ALTER TABLE desktop_ingests DROP COLUMN ome_jpeg_quality")
     op.execute("ALTER TABLE desktop_ingests DROP COLUMN ome_downsample")
     op.execute("ALTER TABLE desktop_ingests DROP COLUMN ome_height")
     op.execute("ALTER TABLE desktop_ingests DROP COLUMN ome_width")

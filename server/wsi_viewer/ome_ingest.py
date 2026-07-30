@@ -29,7 +29,12 @@ def desktop_quarantine_path(storage: StorageLayout, ingest_id: str) -> Path:
     return storage.root / "desktop-ingest" / "quarantine" / f"{ingest_id}.ome.tif.failed"
 
 
-def serialize_ome_tile_index(index: OmeTileIndex) -> bytes:
+def serialize_ome_tile_index(
+    index: OmeTileIndex, *, jpeg_quality: int | None = None
+) -> bytes:
+    quality = index.jpeg_quality if jpeg_quality is None else jpeg_quality
+    if not 1 <= quality <= 100:
+        raise OmeIngestError("OME_JPEG_QUALITY_INVALID")
     document: dict[str, Any] = {
         "schema": "pathlab.ome-tile-index/v1",
         "source": {
@@ -44,6 +49,8 @@ def serialize_ome_tile_index(index: OmeTileIndex) -> bytes:
         "codec": index.codec,
         "pyramidFactors": list(index.pyramid_factors),
         "standaloneJpeg": index.standalone_jpeg,
+        "jpegQuality": quality,
+        "qualityProfile": f"ome-dynamic-v1-q{quality}",
         "levels": [],
     }
     levels = document["levels"]
@@ -93,12 +100,14 @@ def _validate_profile(ingest: DesktopIngest, index: OmeTileIndex) -> None:
         raise OmeIngestError("OME_PROFILE_UNSUPPORTED")
     if ingest.ome_width != index.width or ingest.ome_height != index.height:
         raise OmeIngestError("OME_GEOMETRY_MISMATCH")
-    expected_factors = tuple(2**level for level in range(len(index.levels)))
-    if index.pyramid_factors != expected_factors:
-        raise OmeIngestError("OME_PYRAMID_NOT_FACTOR_TWO")
+    pyramid_factor = index.pyramid_factors[1] if len(index.pyramid_factors) > 1 else 2
+    if pyramid_factor not in {2, 4} or index.pyramid_factors != tuple(
+        pyramid_factor**level for level in range(len(index.levels))
+    ):
+        raise OmeIngestError("OME_PYRAMID_FACTOR_UNSUPPORTED")
     if index.tile_width != 512 or index.tile_height != 512:
         raise OmeIngestError("OME_TILE_SIZE_UNSUPPORTED")
-    if max(index.levels[-1].width, index.levels[-1].height) > 512:
+    if max(index.levels[-1].width, index.levels[-1].height) > 512 * pyramid_factor:
         raise OmeIngestError("OME_PYRAMID_INCOMPLETE")
 
 
@@ -121,6 +130,7 @@ def _metadata_json(
             "tileSize": index.tile_width,
             "pyramidFactors": list(index.pyramid_factors),
             "rawFastPath": index.standalone_jpeg,
+            "jpegQuality": ingest.ome_jpeg_quality or 75,
         },
     }
 
@@ -160,7 +170,12 @@ def install_ome_ingest(
         destination = paths.original
         destination.parent.mkdir(parents=True, exist_ok=False)
         os.replace(source, destination)
-        _write_index_atomic(paths.ome_index, serialize_ome_tile_index(index))
+        _write_index_atomic(
+            paths.ome_index,
+            serialize_ome_tile_index(
+                index, jpeg_quality=ingest.ome_jpeg_quality or 75
+            ),
+        )
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
         ingest.error_code = None

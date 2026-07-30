@@ -1,15 +1,20 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import func, select
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.models import DesktopCredential, DesktopIngest, Slide, User
 from wsi_viewer.ome_ingest import (
+    OmeIngestError,
+    _validate_profile,
     desktop_ome_path,
     desktop_quarantine_path,
     install_ome_ingest,
 )
+from wsi_viewer.ome_tile_index import OmeLevel, OmeTileIndex
 from wsi_viewer.storage import StorageLayout
 
 
@@ -65,3 +70,44 @@ def test_hash_mismatch_fails_closed_into_private_quarantine(tmp_path: Path) -> N
         assert database.scalar(select(func.count()).select_from(Slide)) == 0
     assert desktop_quarantine_path(storage, ingest_id).read_bytes() == b"not-an-ome"
     assert not source.exists()
+
+
+def test_profile_accepts_regular_factor_four_for_seam_aligned_virtual_levels() -> None:
+    levels = tuple(
+        OmeLevel(width, height, 1, 1, ())
+        for width, height in ((4096, 3072), (1024, 768), (256, 192))
+    )
+    index = OmeTileIndex(
+        4096,
+        3072,
+        512,
+        512,
+        "jpeg",
+        levels,
+        (1, 4, 16),
+        True,
+        1,
+        1,
+        "a" * 64,
+    )
+    ingest = SimpleNamespace(
+        ome_profile="ome-dynamic-v1", ome_width=4096, ome_height=3072
+    )
+
+    _validate_profile(ingest, index)  # type: ignore[arg-type]
+
+    irregular = OmeTileIndex(
+        4096,
+        3072,
+        512,
+        512,
+        "jpeg",
+        levels,
+        (1, 4, 8),
+        True,
+        1,
+        1,
+        "a" * 64,
+    )
+    with pytest.raises(OmeIngestError, match="FACTOR_UNSUPPORTED"):
+        _validate_profile(ingest, irregular)  # type: ignore[arg-type]

@@ -164,8 +164,8 @@ class TileRouteService:
             sha256=tile.slide_sha256,
             width=index.width,
             height=index.height,
-            quality=95,
-            quality_profile="ome-dynamic-v1-q95",
+            quality=index.jpeg_quality,
+            quality_profile=index.quality_profile,
         )
 
     def close(self) -> None:

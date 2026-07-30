@@ -370,6 +370,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
                 "width": 1024,
                 "height": 1024,
                 "downsample": 1.5,
+                "jpegQuality": 85,
             },
         )
         assert created.status_code == 201
@@ -395,6 +396,9 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
         original_root = client.app.state.settings.data_root / "originals" / slide_id
         assert (original_root / "source.ome.tif").stat().st_size == ome.stat().st_size
         assert (original_root / "tile-index.json").is_file()
+        tile_index = json.loads((original_root / "tile-index.json").read_bytes())
+        assert tile_index["jpegQuality"] == 85
+        assert tile_index["qualityProfile"] == "ome-dynamic-v1-q85"
         assert not (client.app.state.settings.data_root / "private" / slide_id).exists()
         with session_factory(client.app.state.settings)() as database:
             slide = database.get(Slide, slide_id)
@@ -403,6 +407,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
             assert slide.source_bytes == ome.stat().st_size
             assert slide.derivative_bytes == 0
             assert slide.derivative_file_count == 0
+            assert slide.slide_metadata["encoding"]["jpegQuality"] == 85
 
         desktop_descriptor = client.get(
             f"/api/v1/desktop/slides/{slide_id}/preview/slide.dzi",

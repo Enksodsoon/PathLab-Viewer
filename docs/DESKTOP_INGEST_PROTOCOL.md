@@ -45,5 +45,10 @@ resumable content and status contract as prepared ingest. The finalizer hashes
 and validates the complete OME, verifies exact geometry and the dynamic profile,
 builds a bounded immutable tile index, atomically installs the OME, and commits
 the slide with `render_mode=ome_dynamic` and zero stored derivative bytes.
+The request includes `jpegQuality`; it is persisted in the immutable index and
+used for on-demand virtual levels, so Viewer never silently increases or reduces
+the Forge-selected encoding quality. Regular factor-2 and factor-4 pyramids are
+accepted; missing DZI levels are rendered with a globally aligned resize before
+the tile crop to avoid tile-boundary seams.
 Failed OME uploads move to quota-accounted private quarantine for bounded TTL
 cleanup. No endpoint exposes the OME file or arbitrary byte ranges.
