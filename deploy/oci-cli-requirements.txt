@@ -268,14 +268,14 @@ jmespath==1.0.1 \
     --hash=sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980 \
     --hash=sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe
     # via oci-cli
-oci==2.182.0 \
-    --hash=sha256:effdd24f808179cfa15ba1084181cadda8e09332699cdbcd2f78ebbd0a2d072e \
-    --hash=sha256:f8d7d675d1fe75721dac9aa97a11bf8b670a1814afd4969b7023fef8e3ce57d2
+oci==2.182.1 \
+    --hash=sha256:0c616a6bc3bc458464bc3456469d8da63a1a2d2277e9314b41a1c4e76d5df523 \
+    --hash=sha256:9862de221f2abe9cf8319393eec58ea59c014fd9b61afaf0a3cca163e2a508b0
     # via oci-cli
-oci-cli==3.89.2 \
-    --hash=sha256:3ac45f1593e0e3e7c285c4198d4e0464e72591ecc3a512ea5c74459ee4506539 \
-    --hash=sha256:9f3f214a61ef9d999051a3c4cb7f453db4d47245bd34b42011ad28446d26d4c4
-    # via -r deploy/oci-cli-requirements.in
+oci-cli==3.89.3 \
+    --hash=sha256:878c8615ea3b7e072d283253c4e8bcb1b1360d8346f9eb1338e450115b7e0b39 \
+    --hash=sha256:ea37be3821c0f5cc86d5f095661379fcc74c946647584abd08f8d3b465e8c83a
+    # via -r oci-cli-requirements.in
 prompt-toolkit==3.0.43 \
     --hash=sha256:3527b7af26106cbc65a040bcc84839a3566ec1b051bb0bfe953631e704b0ff7d \
     --hash=sha256:a11a29cb3bf0a28a387fe5122cdb649816a957cd9261dcedf8c9f1fef33eacf6
