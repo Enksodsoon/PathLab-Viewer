@@ -9,7 +9,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
+import tifffile
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from httpx import Response
@@ -163,6 +165,33 @@ def _streaming_prepared_package(path: Path) -> tuple[str, str, int, int]:
     )
 
 
+def _dynamic_ome(path: Path) -> str:
+    full = np.zeros((1024, 1024, 3), dtype=np.uint8)
+    with tifffile.TiffWriter(path, ome=True, bigtiff=True) as writer:
+        writer.write(
+            full,
+            metadata={
+                "axes": "YXS",
+                "PhysicalSizeX": 0.375,
+                "PhysicalSizeXUnit": "µm",
+                "PhysicalSizeY": 0.375,
+                "PhysicalSizeYUnit": "µm",
+            },
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subifds=1,
+        )
+        writer.write(
+            full[::2, ::2],
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subfiletype=1,
+        )
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def test_health_and_readiness(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         assert client.get("/livez").json() == {"status": "live"}
@@ -254,6 +283,10 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "manifest-files-v1",
             "ndjson-v1",
         ]
+        assert capabilities.json()["ingestModes"] == [
+            "prepared-v2",
+            "ome-dynamic-v1",
+        ]
         assert client.get(
             "/api/v1/desktop/credential", headers=authorization
         ).status_code == 200
@@ -318,6 +351,58 @@ def test_desktop_ingest_finalizes_streaming_package_in_background(
         time.sleep(0.05)
         with session_factory(client.app.state.settings)() as database:
             assert len(list(database.scalars(select(Slide)))) == 1
+
+
+def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None:
+    ome = tmp_path / "dynamic.ome.tif"
+    ome_sha256 = _dynamic_ome(ome)
+    with _client(tmp_path) as client:
+        authorization = _desktop_authorization(client)
+        created = client.post(
+            "/api/v1/desktop/ome-ingests",
+            headers=authorization,
+            json={
+                "displayName": "Dynamic OME slide",
+                "artifactRevisionId": "artifact-ome-dynamic",
+                "omeLength": ome.stat().st_size,
+                "omeSha256": ome_sha256,
+                "profile": "ome-dynamic-v1",
+                "width": 1024,
+                "height": 1024,
+                "downsample": 1.5,
+            },
+        )
+        assert created.status_code == 201
+        body = created.json()
+        assert body["ingestMode"] == "ome_dynamic_v1"
+        uploaded = client.patch(
+            body["uploadUrl"],
+            headers={**authorization, "Upload-Offset": "0"},
+            content=ome.read_bytes(),
+        )
+        assert uploaded.status_code == 202
+
+        deadline = time.monotonic() + 5
+        current = uploaded
+        while current.json()["status"] == "finalizing" and time.monotonic() < deadline:
+            time.sleep(0.02)
+            current = client.get(
+                f"/api/v1/desktop/ingests/{body['id']}",
+                headers=authorization,
+            )
+        assert current.json()["status"] == "ready_private"
+        slide_id = current.json()["slideId"]
+        original_root = client.app.state.settings.data_root / "originals" / slide_id
+        assert (original_root / "source.ome.tif").stat().st_size == ome.stat().st_size
+        assert (original_root / "tile-index.json").is_file()
+        assert not (client.app.state.settings.data_root / "private" / slide_id).exists()
+        with session_factory(client.app.state.settings)() as database:
+            slide = database.get(Slide, slide_id)
+            assert slide is not None
+            assert slide.render_mode == "ome_dynamic"
+            assert slide.source_bytes == ome.stat().st_size
+            assert slide.derivative_bytes == 0
+            assert slide.derivative_file_count == 0
 
 
 def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(

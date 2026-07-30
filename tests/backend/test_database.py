@@ -271,6 +271,62 @@ def test_ome_dynamic_render_mode_migration_round_trips_existing_slide(
         ).scalar_one() == "static_dzi"
 
 
+def test_desktop_ome_ingest_migration_defaults_existing_ingests(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "desktop-ome-ingest.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260730_0013")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        database.execute(
+            text(
+                "INSERT INTO users (id, username, password_hash, created_at) "
+                "VALUES ('user-ome', 'admin-ome', 'hash', CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO desktop_credentials "
+                "(id, user_id, device_name, scopes, expires_at, created_at) "
+                "VALUES ('credential-ome', 'user-ome', 'Forge', '[]', "
+                "'2027-01-01 00:00:00', CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO desktop_ingests "
+                "(id, credential_id, display_name, artifact_revision_id, package_length, "
+                "received_bytes, package_sha256, manifest_sha256, status, created_at, updated_at) "
+                "VALUES ('ingest-ome', 'credential-ome', 'Existing', 'artifact-ome', 10, 0, "
+                ":hash, :hash, 'uploading', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"hash": "a" * 64},
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text(
+                "SELECT ingest_mode FROM desktop_ingests "
+                "WHERE id = 'ingest-ome'"
+            )
+        ).scalar_one() == "prepared_v2"
+
+    command.downgrade(config, "20260730_0013")
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text(
+                "SELECT ingest_mode FROM desktop_ingests "
+                "WHERE id = 'ingest-ome'"
+            )
+        ).scalar_one() == "prepared_v2"
+
+
 def test_library_v2_migration_preserves_public_ids_and_round_trips(
     tmp_path: Path, monkeypatch
 ) -> None:

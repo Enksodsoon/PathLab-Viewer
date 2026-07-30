@@ -6,6 +6,12 @@ PathLab Forge pairs through `/api/v1/desktop/pairings`, then stores the exchange
 revocable credential in Windows Credential Manager. The credential is limited to
 prepared ingest, private slide reads, and annotation synchronization.
 
+Viewer advertises two compatible ingest modes. `prepared-v2` retains the
+canonical prepared-package workflow. `ome-dynamic-v1` accepts a calibrated,
+factor-2, 512-pixel tiled JPEG OME-TIFF directly and keeps it as the only
+canonical image payload. Forge uses direct OME only after authenticated
+capability negotiation; older Viewer versions continue to receive prepared v2.
+
 Prepared packages use `pathlab-prepared-slide/v2`. A resumable ingest is created
 with the immutable artifact revision ID, package length and SHA-256, and manifest
 SHA-256 plus optional derivative bytes and file count. An authenticated
@@ -33,3 +39,11 @@ Ingest metadata retains the source fingerprint, artifact revision, crop and
 downsample coordinate transform, and output calibration. Viewer remains
 authoritative for private delivery, library state, permissions, and canonical
 annotation revisions.
+
+Direct OME uploads use `POST /api/v1/desktop/ome-ingests`, then the same
+resumable content and status contract as prepared ingest. The finalizer hashes
+and validates the complete OME, verifies exact geometry and the dynamic profile,
+builds a bounded immutable tile index, atomically installs the OME, and commits
+the slide with `render_mode=ome_dynamic` and zero stored derivative bytes.
+Failed OME uploads move to quota-accounted private quarantine for bounded TTL
+cleanup. No endpoint exposes the OME file or arbitrary byte ranges.

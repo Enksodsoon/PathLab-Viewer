@@ -99,10 +99,11 @@ def build_ome_tile_index(
     tile_height: int | None = None
 
     try:
-        with path.open("rb") as stream, tifffile.TiffFile(path) as tif:
+        with path.open("rb") as stream:
             source_sha256 = _sha256(stream)
-            if expected_sha256 is not None and source_sha256 != expected_sha256:
-                raise OmeTileIndexError("OME source hash does not match")
+        if expected_sha256 is not None and source_sha256 != expected_sha256:
+            raise OmeTileIndexError("OME source hash does not match")
+        with path.open("rb") as stream, tifffile.TiffFile(path) as tif:
             if not tif.ome_metadata or not tif.series:
                 raise OmeTileIndexError("A valid OME pyramid is required")
             series = tif.series[0]

@@ -98,6 +98,10 @@ class DesktopCredential(Base):
 class DesktopIngest(Base):
     __tablename__ = "desktop_ingests"
     __table_args__ = (
+        CheckConstraint(
+            "ingest_mode IN ('prepared_v2', 'ome_dynamic_v1')",
+            name="ck_desktop_ingests_mode",
+        ),
         CheckConstraint("package_length > 0", name="ck_desktop_ingests_length_positive"),
         CheckConstraint(
             "received_bytes >= 0 AND received_bytes <= package_length",
@@ -119,6 +123,16 @@ class DesktopIngest(Base):
     received_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     package_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    ingest_mode: Mapped[str] = mapped_column(
+        String(24),
+        nullable=False,
+        default="prepared_v2",
+        server_default="prepared_v2",
+    )
+    ome_profile: Mapped[str | None] = mapped_column(String(40))
+    ome_width: Mapped[int | None] = mapped_column(Integer)
+    ome_height: Mapped[int | None] = mapped_column(Integer)
+    ome_downsample: Mapped[float | None] = mapped_column(Float)
     derivative_bytes: Mapped[int | None] = mapped_column(Integer)
     derivative_file_count: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="uploading")

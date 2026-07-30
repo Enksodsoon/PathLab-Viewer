@@ -25,7 +25,7 @@ from .annotations import (
     layer_json,
     slide_bounds,
 )
-from .desktop_finalizer import PreparedIngestFinalizer, desktop_package_path
+from .desktop_finalizer import PreparedIngestFinalizer, desktop_upload_path
 from .domain import SlideState
 from .models import (
     Annotation,
@@ -36,7 +36,7 @@ from .models import (
     Session,
     Slide,
 )
-from .storage import GIB, StorageLayout
+from .storage import GIB, StorageLayout, admission_required
 
 PAIRING_MINUTES = 10
 CREDENTIAL_DAYS = 90
@@ -45,6 +45,7 @@ MAX_DESKTOP_CHUNK_BYTES = 64 * 1024 * 1024
 LEGACY_DESKTOP_CHUNK_BYTES = 16 * 1024 * 1024
 MAX_DERIVATIVE_FILES = 2_000_000
 MIN_EXTRACTION_HEADROOM = 512 * 1024 * 1024
+MAX_REQUEST_BUFFER_BYTES = 1024 * 1024
 
 
 def _now() -> datetime:
@@ -99,6 +100,17 @@ class PreparedIngestRequest(DesktopModel):
     )
 
 
+class OmeIngestRequest(DesktopModel):
+    display_name: str = Field(min_length=1, max_length=200)
+    artifact_revision_id: str = Field(min_length=1, max_length=100)
+    ome_length: int = Field(gt=0)
+    ome_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+    profile: str = Field(pattern=r"^ome-dynamic-v1$")
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    downsample: float = Field(gt=0)
+
+
 def register_desktop_routes(
     app: FastAPI,
     *,
@@ -131,8 +143,8 @@ def register_desktop_routes(
         if scope not in stored.scopes:
             raise HTTPException(status_code=403, detail={"code": "DESKTOP_SCOPE_REQUIRED"})
 
-    def package_path(ingest_id: str) -> Path:
-        return desktop_package_path(storage, ingest_id)
+    def upload_path(ingest: DesktopIngest) -> Path:
+        return desktop_upload_path(storage, ingest)
 
     def ingest_json(ingest: DesktopIngest) -> dict[str, Any]:
         return {
@@ -143,6 +155,7 @@ def register_desktop_routes(
             "slideId": ingest.slide_id,
             "errorCode": ingest.error_code,
             "uploadUrl": f"/api/v1/desktop/ingests/{ingest.id}/content",
+            "ingestMode": ingest.ingest_mode,
         }
 
     @app.post("/api/v1/desktop/pairings", status_code=status.HTTP_201_CREATED)
@@ -264,6 +277,7 @@ def register_desktop_routes(
         require_scope(authenticated, "desktop:ingest")
         return {
             "desktopApiVersion": "pathlab-desktop-ingest/v1",
+            "ingestModes": ["prepared-v2", "ome-dynamic-v1"],
             "packageSchemas": ["pathlab-prepared-slide/v2"],
             "inventoryFormats": ["manifest-files-v1", "ndjson-v1"],
             "maxChunkBytes": MAX_DESKTOP_CHUNK_BYTES,
@@ -293,7 +307,7 @@ def register_desktop_routes(
         active = database.scalar(
             select(DesktopIngest.id).where(
                 DesktopIngest.credential_id == authenticated.id,
-                DesktopIngest.status.in_(("uploading", "finalizing")),
+                DesktopIngest.status.in_(("uploading", "finalizing", "installing")),
             )
         )
         if active is not None:
@@ -325,12 +339,55 @@ def register_desktop_routes(
             manifest_sha256=payload.manifest_sha256.lower(),
             derivative_bytes=payload.derivative_bytes,
             derivative_file_count=payload.derivative_file_count,
+            ingest_mode="prepared_v2",
             status="uploading",
         )
         database.add(ingest)
         database.commit()
         database.refresh(ingest)
-        target = package_path(ingest.id)
+        target = upload_path(ingest)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("xb"):
+            pass
+        return ingest_json(ingest)
+
+    @app.post("/api/v1/desktop/ome-ingests", status_code=status.HTTP_201_CREATED)
+    def create_ome_ingest(
+        payload: OmeIngestRequest,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "desktop:ingest")
+        active = database.scalar(
+            select(DesktopIngest.id).where(
+                DesktopIngest.credential_id == authenticated.id,
+                DesktopIngest.status.in_(("uploading", "finalizing", "installing")),
+            )
+        )
+        if active is not None:
+            raise HTTPException(status_code=409, detail={"code": "INGEST_ALREADY_ACTIVE"})
+        required = admission_required(payload.ome_length, render_mode="ome_dynamic")
+        free = shutil.disk_usage(storage.root).free
+        if free < required or storage.usage() + required > storage.cap_bytes:
+            raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"})
+        ingest = DesktopIngest(
+            credential_id=authenticated.id,
+            display_name=payload.display_name.strip(),
+            artifact_revision_id=payload.artifact_revision_id.strip(),
+            package_length=payload.ome_length,
+            package_sha256=payload.ome_sha256.lower(),
+            manifest_sha256=payload.ome_sha256.lower(),
+            ingest_mode="ome_dynamic_v1",
+            ome_profile=payload.profile,
+            ome_width=payload.width,
+            ome_height=payload.height,
+            ome_downsample=payload.downsample,
+            status="uploading",
+        )
+        database.add(ingest)
+        database.commit()
+        database.refresh(ingest)
+        target = upload_path(ingest)
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("xb"):
             pass
@@ -380,7 +437,7 @@ def register_desktop_routes(
                     status_code=400, detail={"code": "INVALID_CONTENT_LENGTH"}
                 ) from error
         received = 0
-        target = package_path(ingest.id)
+        target = upload_path(ingest)
         try:
             with target.open("r+b") as output:
                 output.seek(upload_offset)
@@ -393,7 +450,9 @@ def register_desktop_routes(
                         raise HTTPException(
                             status_code=413, detail={"code": "DESKTOP_CHUNK_TOO_LARGE"}
                         )
-                    output.write(block)
+                    view = memoryview(block)
+                    for start in range(0, len(view), MAX_REQUEST_BUFFER_BYTES):
+                        output.write(view[start : start + MAX_REQUEST_BUFFER_BYTES])
                 output.flush()
                 os.fsync(output.fileno())
         except HTTPException:

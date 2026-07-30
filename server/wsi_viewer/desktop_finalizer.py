@@ -11,12 +11,23 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .domain import SlideState
 from .models import AuditEvent, DesktopCredential, DesktopIngest, Slide
+from .ome_ingest import (
+    desktop_ome_path,
+    desktop_quarantine_path,
+    install_ome_ingest,
+)
 from .prepared_ingest import PreparedIngestError, install_prepared_package
 from .storage import StorageLayout
 
 
 def desktop_package_path(storage: StorageLayout, ingest_id: str) -> Path:
     return storage.root / "desktop-ingest" / f"{ingest_id}.plslide.partial"
+
+
+def desktop_upload_path(storage: StorageLayout, ingest: DesktopIngest) -> Path:
+    if ingest.ingest_mode == "ome_dynamic_v1":
+        return desktop_ome_path(storage, ingest.id)
+    return desktop_package_path(storage, ingest.id)
 
 
 class PreparedIngestFinalizer:
@@ -72,7 +83,8 @@ class PreparedIngestFinalizer:
                     - timedelta(hours=_failed_package_ttl_hours()),
                 )
             ):
-                desktop_package_path(self.storage, ingest.id).unlink(missing_ok=True)
+                desktop_upload_path(self.storage, ingest).unlink(missing_ok=True)
+                desktop_quarantine_path(self.storage, ingest.id).unlink(missing_ok=True)
         for ingest_id in recovering:
             self.enqueue(ingest_id)
 
@@ -103,7 +115,7 @@ class PreparedIngestFinalizer:
             ingest = database.get(DesktopIngest, ingest_id)
             if ingest is None:
                 return
-            package = desktop_package_path(self.storage, ingest.id)
+            package = desktop_upload_path(self.storage, ingest)
             if (
                 ingest.received_bytes != ingest.package_length
                 or not package.is_file()
@@ -113,12 +125,24 @@ class PreparedIngestFinalizer:
                 ingest.error_code = "PREPARED_PACKAGE_INCOMPLETE"
                 database.commit()
                 return
-            _install(ingest, package, database, self.storage)
+            if ingest.ingest_mode == "ome_dynamic_v1":
+                install_ome_ingest(ingest, package, database, self.storage)
+            else:
+                _install(ingest, package, database, self.storage)
 
     def _mark_failed(self, ingest_id: str, code: str) -> None:
         with self._database() as database:
             ingest = database.get(DesktopIngest, ingest_id)
             if ingest is not None and ingest.status in {"finalizing", "installing"}:
+                if ingest.ingest_mode == "ome_dynamic_v1":
+                    source = desktop_upload_path(self.storage, ingest)
+                    if source.exists():
+                        quarantine = desktop_quarantine_path(self.storage, ingest.id)
+                        quarantine.parent.mkdir(parents=True, exist_ok=True)
+                        try:
+                            os.replace(source, quarantine)
+                        except OSError:
+                            source.unlink(missing_ok=True)
                 ingest.status = "failed"
                 ingest.error_code = code
                 database.commit()
