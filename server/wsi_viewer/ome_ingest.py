@@ -29,7 +29,7 @@ def desktop_quarantine_path(storage: StorageLayout, ingest_id: str) -> Path:
     return storage.root / "desktop-ingest" / "quarantine" / f"{ingest_id}.ome.tif.failed"
 
 
-def _index_json(index: OmeTileIndex) -> bytes:
+def serialize_ome_tile_index(index: OmeTileIndex) -> bytes:
     document: dict[str, Any] = {
         "schema": "pathlab.ome-tile-index/v1",
         "source": {
@@ -160,7 +160,7 @@ def install_ome_ingest(
         destination = paths.original
         destination.parent.mkdir(parents=True, exist_ok=False)
         os.replace(source, destination)
-        _write_index_atomic(paths.ome_index, _index_json(index))
+        _write_index_atomic(paths.ome_index, serialize_ome_tile_index(index))
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
         ingest.error_code = None
