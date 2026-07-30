@@ -4,7 +4,8 @@ import os
 import re
 import shutil
 from collections import defaultdict, deque
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
@@ -176,7 +177,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     factory = session_factory(current)
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
-    app = FastAPI(title="PathLab Viewer API", version="0.1.0")
+    services: dict[str, Any] = {}
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        finalizer = services.get("desktop_finalizer")
+        finalizer_started = False
+        with factory() as database:
+            schema_ready = schema_is_current(database)
+        if finalizer is not None and schema_ready:
+            finalizer.start()
+            finalizer_started = True
+        try:
+            yield
+        finally:
+            if finalizer is not None and finalizer_started:
+                finalizer.close()
+
+    app = FastAPI(title="PathLab Viewer API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         AuthBodyLimitMiddleware,
         path_limits=(
@@ -281,7 +299,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         admin_dependency=admin_session,
         csrf_dependency=csrf,
     )
-    register_desktop_routes(
+    services["desktop_finalizer"] = register_desktop_routes(
         app,
         database_dependency=database,
         csrf_dependency=csrf,

@@ -163,6 +163,60 @@ def test_storage_accounting_migration_upgrades_and_downgrades(
     } & downgraded
 
 
+def test_desktop_ingest_capacity_migration_round_trips_existing_row(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "desktop-ingest-capacity.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260729_0011")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        database.execute(
+            text(
+                "INSERT INTO users (id, username, password_hash, created_at) "
+                "VALUES ('user-1', 'admin', 'hash', CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO desktop_credentials "
+                "(id, user_id, device_name, scopes, expires_at, created_at) "
+                "VALUES ('credential-1', 'user-1', 'Forge', '[]', "
+                "'2027-01-01 00:00:00', CURRENT_TIMESTAMP)"
+            )
+        )
+        database.execute(
+            text(
+                "INSERT INTO desktop_ingests "
+                "(id, credential_id, display_name, artifact_revision_id, package_length, "
+                "received_bytes, package_sha256, manifest_sha256, status, created_at, updated_at) "
+                "VALUES ('ingest-1', 'credential-1', 'Existing', 'artifact-1', 10, 0, "
+                ":hash, :hash, 'uploading', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"hash": "a" * 64},
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        row = database.execute(
+            text(
+                "SELECT derivative_bytes, derivative_file_count "
+                "FROM desktop_ingests WHERE id = 'ingest-1'"
+            )
+        ).one()
+        assert row == (None, None)
+
+    command.downgrade(config, "20260729_0011")
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text("SELECT display_name FROM desktop_ingests WHERE id = 'ingest-1'")
+        ).scalar_one() == "Existing"
+
+
 def test_library_v2_migration_preserves_public_ids_and_round_trips(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -25,24 +25,26 @@ from .annotations import (
     layer_json,
     slide_bounds,
 )
+from .desktop_finalizer import PreparedIngestFinalizer, desktop_package_path
 from .domain import SlideState
 from .models import (
     Annotation,
     AnnotationLayer,
-    AuditEvent,
     DesktopCredential,
     DesktopIngest,
     DesktopPairing,
     Session,
     Slide,
 )
-from .prepared_ingest import PreparedIngestError, install_prepared_package
 from .storage import GIB, StorageLayout
 
 PAIRING_MINUTES = 10
 CREDENTIAL_DAYS = 90
 DESKTOP_SCOPES = ["desktop:ingest", "slides:private:read", "annotations:sync"]
-MAX_DESKTOP_CHUNK_BYTES = 16 * 1024 * 1024
+MAX_DESKTOP_CHUNK_BYTES = 64 * 1024 * 1024
+LEGACY_DESKTOP_CHUNK_BYTES = 16 * 1024 * 1024
+MAX_DERIVATIVE_FILES = 2_000_000
+MIN_EXTRACTION_HEADROOM = 512 * 1024 * 1024
 
 
 def _now() -> datetime:
@@ -91,6 +93,10 @@ class PreparedIngestRequest(DesktopModel):
     package_length: int = Field(gt=0)
     package_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     manifest_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+    derivative_bytes: int | None = Field(default=None, gt=0)
+    derivative_file_count: int | None = Field(
+        default=None, gt=0, le=MAX_DERIVATIVE_FILES
+    )
 
 
 def register_desktop_routes(
@@ -99,7 +105,10 @@ def register_desktop_routes(
     database_dependency: Callable[[], Iterator[OrmSession]],
     csrf_dependency: Callable[..., Any],
     storage: StorageLayout,
-) -> None:
+) -> PreparedIngestFinalizer:
+    finalizer = PreparedIngestFinalizer(database_dependency, storage)
+    app.state.desktop_ingest_finalizer = finalizer
+
     def credential(
         database: OrmSession = Depends(database_dependency),
         authorization: str | None = Header(default=None),
@@ -113,8 +122,9 @@ def register_desktop_routes(
             raise HTTPException(
                 status_code=401, detail={"code": "DESKTOP_CREDENTIAL_INVALID"}
             )
-        stored.last_used_at = now
-        database.commit()
+        if stored.last_used_at is None or stored.last_used_at <= now - timedelta(minutes=15):
+            stored.last_used_at = now
+            database.commit()
         return stored
 
     def require_scope(stored: DesktopCredential, scope: str) -> None:
@@ -122,12 +132,12 @@ def register_desktop_routes(
             raise HTTPException(status_code=403, detail={"code": "DESKTOP_SCOPE_REQUIRED"})
 
     def package_path(ingest_id: str) -> Path:
-        return storage.root / "desktop-ingest" / f"{ingest_id}.plslide.partial"
+        return desktop_package_path(storage, ingest_id)
 
     def ingest_json(ingest: DesktopIngest) -> dict[str, Any]:
         return {
             "id": ingest.id,
-            "status": ingest.status,
+            "status": "finalizing" if ingest.status == "installing" else ingest.status,
             "receivedBytes": ingest.received_bytes,
             "packageLength": ingest.package_length,
             "slideId": ingest.slide_id,
@@ -247,6 +257,21 @@ def register_desktop_routes(
             "revoked": authenticated.revoked_at is not None,
         }
 
+    @app.get("/api/v1/desktop/capabilities")
+    def desktop_capabilities(
+        authenticated: DesktopCredential = Depends(credential),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "desktop:ingest")
+        return {
+            "desktopApiVersion": "pathlab-desktop-ingest/v1",
+            "packageSchemas": ["pathlab-prepared-slide/v2"],
+            "inventoryFormats": ["manifest-files-v1", "ndjson-v1"],
+            "maxChunkBytes": MAX_DESKTOP_CHUNK_BYTES,
+            "recommendedChunkBytes": MAX_DESKTOP_CHUNK_BYTES,
+            "legacyChunkBytes": LEGACY_DESKTOP_CHUNK_BYTES,
+            "maxDerivativeFiles": MAX_DERIVATIVE_FILES,
+        }
+
     @app.post(
         "/api/v1/desktop/credential/revoke",
         status_code=status.HTTP_204_NO_CONTENT,
@@ -274,7 +299,21 @@ def register_desktop_routes(
         if active is not None:
             raise HTTPException(status_code=409, detail={"code": "INGEST_ALREADY_ACTIVE"})
         free = shutil.disk_usage(storage.root).free
-        required = payload.package_length * 2 + 5 * GIB
+        if (payload.derivative_bytes is None) != (
+            payload.derivative_file_count is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "INVALID_DERIVATIVE_DECLARATION"},
+            )
+        if payload.derivative_bytes is not None:
+            required = (
+                payload.package_length
+                + payload.derivative_bytes
+                + max(MIN_EXTRACTION_HEADROOM, payload.derivative_bytes // 10)
+            )
+        else:
+            required = payload.package_length * 2 + 5 * GIB
         if free < required or storage.usage() + required > storage.cap_bytes:
             raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"})
         ingest = DesktopIngest(
@@ -284,6 +323,8 @@ def register_desktop_routes(
             package_length=payload.package_length,
             package_sha256=payload.package_sha256.lower(),
             manifest_sha256=payload.manifest_sha256.lower(),
+            derivative_bytes=payload.derivative_bytes,
+            derivative_file_count=payload.derivative_file_count,
             status="uploading",
         )
         database.add(ingest)
@@ -306,20 +347,14 @@ def register_desktop_routes(
         ingest = database.get(DesktopIngest, ingest_id)
         if ingest is None or ingest.credential_id != authenticated.id:
             raise HTTPException(status_code=404, detail={"code": "INGEST_NOT_FOUND"})
-        target = package_path(ingest.id)
-        if (
-            ingest.status == "finalizing"
-            and ingest.received_bytes == ingest.package_length
-            and target.is_file()
-            and target.stat().st_size == ingest.package_length
-        ):
-            _finalize_prepared_ingest(ingest, target, database, storage)
-            database.refresh(ingest)
         response.headers["Upload-Offset"] = str(ingest.received_bytes)
         response.headers["Upload-Length"] = str(ingest.package_length)
         response.headers["Upload-Status"] = ingest.status
 
-    @app.patch("/api/v1/desktop/ingests/{ingest_id}/content")
+    @app.patch(
+        "/api/v1/desktop/ingests/{ingest_id}/content",
+        status_code=status.HTTP_202_ACCEPTED,
+    )
     async def upload_prepared_ingest(
         ingest_id: str,
         request: Request,
@@ -370,7 +405,7 @@ def register_desktop_routes(
             ingest.status = "finalizing"
         database.commit()
         if ingest.status == "finalizing":
-            _finalize_prepared_ingest(ingest, target, database, storage)
+            finalizer.enqueue(ingest.id)
         database.refresh(ingest)
         return ingest_json(ingest)
 
@@ -523,69 +558,4 @@ def register_desktop_routes(
             ) from error
         return {**result, "autoMerged": merged}
 
-
-def _finalize_prepared_ingest(
-    ingest: DesktopIngest,
-    package: Path,
-    database: OrmSession,
-    storage: StorageLayout,
-) -> None:
-    slide = Slide(
-        display_name=ingest.display_name,
-        original_filename=f"{ingest.display_name}.plslide",
-        source_bytes=ingest.package_length,
-        reserved_bytes=0,
-        state=SlideState.READY_PRIVATE,
-        privacy_status="private",
-    )
-    database.add(slide)
-    database.flush()
-    destination = storage.for_slide(slide.id).private_derivative
-    try:
-        result = install_prepared_package(
-            package,
-            destination,
-            expected_package_sha256=ingest.package_sha256,
-            expected_artifact_revision_id=ingest.artifact_revision_id,
-            expected_manifest_sha256=ingest.manifest_sha256,
-        )
-        provenance = result.manifest["provenance"]
-        slide_info = result.manifest["slide"]
-        slide.sha256 = ingest.package_sha256
-        slide.derivative_bytes = result.measurement.derivative_bytes
-        slide.derivative_file_count = result.measurement.file_count
-        slide.thumbnail_filename = "thumbnail.jpg"
-        slide.slide_metadata = {
-            "width": slide_info["width"],
-            "height": slide_info["height"],
-            "physicalSizeX": provenance["calibration"]["pixelSizeX"],
-            "physicalSizeY": provenance["calibration"]["pixelSizeY"],
-            "physicalSizeUnit": provenance["calibration"]["unit"],
-            "artifactRevisionId": provenance["artifactRevisionId"],
-            "manifestSha256": result.manifest_sha256,
-            "sourceFingerprint": provenance["sourceFingerprint"],
-            "coordinateTransform": provenance["coordinateTransform"],
-        }
-        ingest.slide_id = slide.id
-        ingest.status = "ready_private"
-        owning_credential = database.get(DesktopCredential, ingest.credential_id)
-        if owning_credential is None:
-            raise PreparedIngestError("DESKTOP_CREDENTIAL_MISSING")
-        database.add(
-            AuditEvent(
-                actor_user_id=owning_credential.user_id,
-                action="desktop_ingest.complete",
-                target_id=slide.id,
-            )
-        )
-        database.commit()
-        package.unlink(missing_ok=True)
-    except (OSError, PreparedIngestError, KeyError, TypeError) as error:
-        database.rollback()
-        shutil.rmtree(destination, ignore_errors=True)
-        failed = database.get(DesktopIngest, ingest.id)
-        if failed is not None:
-            failed.status = "failed"
-            failed.error_code = str(error)[:80] or "PREPARED_INGEST_FAILED"
-            database.commit()
-        package.unlink(missing_ok=True)
+    return finalizer

@@ -119,6 +119,8 @@ class DesktopIngest(Base):
     received_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     package_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    derivative_bytes: Mapped[int | None] = mapped_column(Integer)
+    derivative_file_count: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="uploading")
     error_code: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

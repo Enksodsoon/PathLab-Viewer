@@ -5,16 +5,28 @@ import tarfile
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from wsi_viewer.prepared_ingest import PreparedIngestError, install_prepared_package
 
 
-def _package(path: Path, *, corrupt_tile: bool = False) -> tuple[str, str]:
+def _package(
+    path: Path,
+    *,
+    corrupt_tile: bool = False,
+    ndjson_inventory: bool = False,
+    incomplete_pyramid: bool = False,
+) -> tuple[str, str]:
+    jpeg = io.BytesIO()
+    Image.new("RGB", (1, 1), "white").save(jpeg, format="JPEG", quality=85)
+    jpeg_bytes = jpeg.getvalue()
+    width = 1024 if incomplete_pyramid else 1
     files = {
         "derivative/slide.dzi": (
-            b'<Image TileSize="512"><Size Width="1" Height="1"/></Image>'
+            b'<Image TileSize="512" Overlap="1" Format="jpg">'
+            + f'<Size Width="{width}" Height="1"/></Image>'.encode()
         ),
-        "derivative/slide_files/0/0_0.jpg": b"\xff\xd8\xff\xd9",
-        "derivative/thumbnail.jpg": b"\xff\xd8\xff\xd9",
+        "derivative/slide_files/0/0_0.jpg": jpeg_bytes,
+        "derivative/thumbnail.jpg": jpeg_bytes,
     }
     manifest = {
         "schema": "pathlab-prepared-slide/v2",
@@ -38,21 +50,37 @@ def _package(path: Path, *, corrupt_tile: bool = False) -> tuple[str, str]:
             },
         },
         "slide": {
-            "width": 1,
+            "width": width,
             "height": 1,
             "tileSize": 512,
             "overlap": 1,
             "format": "jpg",
         },
-        "files": [
-            {
-                "path": name,
-                "size": len(value),
-                "sha256": hashlib.sha256(value).hexdigest(),
-            }
-            for name, value in files.items()
-        ],
     }
+    inventory = [
+        {
+            "path": name,
+            "size": len(value),
+            "sha256": hashlib.sha256(value).hexdigest(),
+        }
+        for name, value in files.items()
+    ]
+    controls: dict[str, bytes] = {}
+    if ndjson_inventory:
+        inventory_bytes = b"".join(
+            json.dumps(item, separators=(",", ":")).encode() + b"\n"
+            for item in inventory
+        )
+        manifest["inventory"] = {
+            "format": "ndjson-v1",
+            "path": "inventory.ndjson",
+            "sha256": hashlib.sha256(inventory_bytes).hexdigest(),
+            "fileCount": len(inventory),
+            "derivativeBytes": sum(item["size"] for item in inventory),
+        }
+        controls["inventory.ndjson"] = inventory_bytes
+    else:
+        manifest["files"] = inventory
     manifest_bytes = json.dumps(
         manifest, ensure_ascii=False, separators=(",", ":")
     ).encode()
@@ -61,6 +89,7 @@ def _package(path: Path, *, corrupt_tile: bool = False) -> tuple[str, str]:
         for name, value in {
             "manifest.json": manifest_bytes,
             "manifest.sha256": manifest_sha.encode(),
+            **controls,
             **files,
         }.items():
             if corrupt_tile and name.endswith("0_0.jpg"):
@@ -115,3 +144,51 @@ def test_rejects_stale_artifact_revision(tmp_path: Path) -> None:
             expected_artifact_revision_id="artifact-2",
             expected_manifest_sha256=manifest_sha,
         )
+
+
+def test_rejects_incomplete_dzi_pyramid(tmp_path: Path) -> None:
+    package = tmp_path / "slide.plslide"
+    package_sha, manifest_sha = _package(package, incomplete_pyramid=True)
+
+    with pytest.raises(PreparedIngestError, match="INCOMPLETE_DZI_PYRAMID"):
+        install_prepared_package(
+            package,
+            tmp_path / "private" / "slide-1",
+            expected_package_sha256=package_sha,
+            expected_artifact_revision_id="artifact-1",
+            expected_manifest_sha256=manifest_sha,
+        )
+
+
+def test_installs_streaming_ndjson_inventory_without_member_list(tmp_path: Path) -> None:
+    package = tmp_path / "slide.plslide"
+    package_sha, manifest_sha = _package(package, ndjson_inventory=True)
+
+    result = install_prepared_package(
+        package,
+        tmp_path / "private" / "slide-1",
+        expected_package_sha256=package_sha,
+        expected_artifact_revision_id="artifact-1",
+        expected_manifest_sha256=manifest_sha,
+    )
+
+    assert result.measurement.file_count == 3
+    assert result.manifest["inventory"]["format"] == "ndjson-v1"
+    assert not (tmp_path / "private" / "slide-1" / ".inventory.ndjson").exists()
+
+
+def test_rejects_package_hash_only_after_private_staging(tmp_path: Path) -> None:
+    package = tmp_path / "slide.plslide"
+    _, manifest_sha = _package(package, ndjson_inventory=True)
+    destination = tmp_path / "private" / "slide-1"
+
+    with pytest.raises(PreparedIngestError, match="PACKAGE_HASH_MISMATCH"):
+        install_prepared_package(
+            package,
+            destination,
+            expected_package_sha256="f" * 64,
+            expected_artifact_revision_id="artifact-1",
+            expected_manifest_sha256=manifest_sha,
+        )
+
+    assert not destination.exists()

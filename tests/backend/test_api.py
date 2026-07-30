@@ -1,6 +1,10 @@
 import asyncio
+import hashlib
 import inspect
+import io
 import json
+import tarfile
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -9,6 +13,7 @@ import pytest
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from httpx import Response
+from PIL import Image
 from sqlalchemy import select, text
 from wsi_viewer.auth import issue_recovery_code
 from wsi_viewer.config import Settings
@@ -52,6 +57,110 @@ def _login(client: TestClient) -> str:
 
 def _has_error(response: Response, status_code: int, code: str) -> bool:
     return response.status_code == status_code and response.json() == {"detail": {"code": code}}
+
+
+def _desktop_authorization(client: TestClient) -> dict[str, str]:
+    csrf = _login(client)
+    pairing = client.post(
+        "/api/v1/desktop/pairings",
+        json={"deviceName": "PathLab Forge ingest test"},
+    ).json()
+    assert client.post(
+        "/api/v1/desktop/pairings/approve",
+        headers={"X-CSRF-Token": csrf},
+        json={"userCode": pairing["userCode"]},
+    ).status_code == 204
+    exchanged = client.post(
+        "/api/v1/desktop/pairings/exchange",
+        json={
+            "deviceCode": pairing["deviceCode"],
+            "deviceSecret": pairing["deviceSecret"],
+        },
+    )
+    assert exchanged.status_code == 200
+    return {"Authorization": f"Bearer {exchanged.json()['accessToken']}"}
+
+
+def _streaming_prepared_package(path: Path) -> tuple[str, str, int, int]:
+    jpeg = io.BytesIO()
+    Image.new("RGB", (1, 1), "white").save(jpeg, format="JPEG", quality=85)
+    jpeg_bytes = jpeg.getvalue()
+    files = {
+        "derivative/slide.dzi": (
+            b'<Image TileSize="512" Overlap="1" Format="jpg">'
+            b'<Size Width="1" Height="1"/></Image>'
+        ),
+        "derivative/slide_files/0/0_0.jpg": jpeg_bytes,
+        "derivative/thumbnail.jpg": jpeg_bytes,
+    }
+    inventory = b"".join(
+        json.dumps(
+            {
+                "path": name,
+                "size": len(value),
+                "sha256": hashlib.sha256(value).hexdigest(),
+            },
+            separators=(",", ":"),
+        ).encode()
+        + b"\n"
+        for name, value in files.items()
+    )
+    derivative_bytes = sum(map(len, files.values()))
+    manifest = {
+        "schema": "pathlab-prepared-slide/v2",
+        "producer": {"name": "PathLab Forge", "version": "test"},
+        "provenance": {
+            "artifactRevisionId": "artifact-streaming",
+            "configurationRevision": "a" * 64,
+            "sourceFingerprint": "b" * 64,
+            "series": 0,
+            "crop": {"x": 0, "y": 0, "width": 1, "height": 1},
+            "downsample": 1,
+            "coordinateTransform": {"translateX": 0, "translateY": 0, "scale": 1},
+            "calibration": {"pixelSizeX": 0.25, "pixelSizeY": 0.25, "unit": "µm"},
+        },
+        "slide": {
+            "width": 1,
+            "height": 1,
+            "tileSize": 512,
+            "overlap": 1,
+            "format": "jpg",
+            "encoding": {
+                "codec": "jpeg",
+                "quality": 85,
+                "selector": "quality-gated-v1",
+                "qualityProfile": "pathlab-visual-v1",
+            },
+        },
+        "inventory": {
+            "format": "ndjson-v1",
+            "path": "inventory.ndjson",
+            "sha256": hashlib.sha256(inventory).hexdigest(),
+            "fileCount": len(files),
+            "derivativeBytes": derivative_bytes,
+        },
+    }
+    manifest_bytes = json.dumps(
+        manifest, ensure_ascii=False, separators=(",", ":")
+    ).encode()
+    manifest_sha = hashlib.sha256(manifest_bytes).hexdigest()
+    with tarfile.open(path, "w") as archive:
+        for name, value in {
+            "manifest.json": manifest_bytes,
+            "manifest.sha256": manifest_sha.encode(),
+            "inventory.ndjson": inventory,
+            **files,
+        }.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(value)
+            info.mtime = 0
+            archive.addfile(info, io.BytesIO(value))
+    return (
+        hashlib.sha256(path.read_bytes()).hexdigest(),
+        manifest_sha,
+        derivative_bytes,
+        len(files),
+    )
 
 
 def test_health_and_readiness(tmp_path: Path) -> None:
@@ -136,6 +245,15 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
         assert _has_error(replay, 409, "PAIRING_ALREADY_EXCHANGED")
 
         authorization = {"Authorization": f"Bearer {credential['accessToken']}"}
+        capabilities = client.get(
+            "/api/v1/desktop/capabilities", headers=authorization
+        )
+        assert capabilities.status_code == 200
+        assert capabilities.json()["recommendedChunkBytes"] == 64 * 1024 * 1024
+        assert capabilities.json()["inventoryFormats"] == [
+            "manifest-files-v1",
+            "ndjson-v1",
+        ]
         assert client.get(
             "/api/v1/desktop/credential", headers=authorization
         ).status_code == 200
@@ -147,6 +265,59 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             401,
             "DESKTOP_CREDENTIAL_INVALID",
         )
+
+
+def test_desktop_ingest_finalizes_streaming_package_in_background(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "slide.plslide"
+    package_sha, manifest_sha, derivative_bytes, derivative_files = (
+        _streaming_prepared_package(package)
+    )
+    with _client(tmp_path) as client:
+        authorization = _desktop_authorization(client)
+        created = client.post(
+            "/api/v1/desktop/ingests",
+            headers=authorization,
+            json={
+                "displayName": "Streaming prepared slide",
+                "artifactRevisionId": "artifact-streaming",
+                "packageLength": package.stat().st_size,
+                "packageSha256": package_sha,
+                "manifestSha256": manifest_sha,
+                "derivativeBytes": derivative_bytes,
+                "derivativeFileCount": derivative_files,
+            },
+        )
+        assert created.status_code == 201
+        body = created.json()
+        uploaded = client.patch(
+            body["uploadUrl"],
+            headers={**authorization, "Upload-Offset": "0"},
+            content=package.read_bytes(),
+        )
+        assert uploaded.status_code == 202
+        assert uploaded.json()["status"] in {"finalizing", "ready_private"}
+
+        deadline = time.monotonic() + 5
+        current = uploaded
+        while current.json()["status"] == "finalizing" and time.monotonic() < deadline:
+            time.sleep(0.02)
+            current = client.get(
+                f"/api/v1/desktop/ingests/{body['id']}",
+                headers=authorization,
+            )
+        assert current.json()["status"] == "ready_private"
+        assert current.json()["slideId"]
+        assert client.get(
+            f"/api/v1/desktop/slides/{current.json()['slideId']}",
+            headers=authorization,
+        ).status_code == 200
+        client.app.state.desktop_ingest_finalizer.enqueue(body["id"])
+        client.app.state.desktop_ingest_finalizer.enqueue(body["id"])
+        time.sleep(0.05)
+        with session_factory(client.app.state.settings)() as database:
+            assert len(list(database.scalars(select(Slide)))) == 1
 
 
 def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
