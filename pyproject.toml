@@ -38,6 +38,7 @@ pathlab-api = "wsi_viewer.main:run"
 pathlab-admin = "wsi_viewer.cli:main"
 pathlab-worker = "wsi_viewer.worker:main"
 pathlab-worker-healthcheck = "wsi_viewer.worker_health:main"
+pathlab-tiles = "wsi_viewer.tile_service:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["server/wsi_viewer"]

@@ -22,6 +22,9 @@
 	@internal_api path /api/v1/internal/*
 	respond @internal_api 404
 
+	@direct_dynamic path /_pathlab_ome/*
+	respond @direct_dynamic 404
+
 	@uploads path /api/v1/uploads/*
 	handle @uploads {
 		header Cache-Control "no-store"
@@ -32,6 +35,11 @@
 	handle @backend {
 		header ?Cache-Control "no-store"
 		reverse_proxy api:8000 {
+			@dynamic_delivery header X-Accel-Redirect /_pathlab_ome/*
+			handle_response @dynamic_delivery {
+				rewrite * {rp.header.X-Accel-Redirect}
+				reverse_proxy tile-service:8090
+			}
 			@internal_delivery header X-Accel-Redirect *
 			handle_response @internal_delivery {
 				root * /

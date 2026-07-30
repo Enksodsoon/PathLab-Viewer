@@ -1,3 +1,4 @@
+import httpx
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as OrmSession
@@ -7,6 +8,20 @@ from .models import Base
 ALEMBIC_HEAD = "20260730_0014"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
 ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
+
+
+def tile_service_is_ready(url: str) -> bool:
+    try:
+        response = httpx.get(f"{url.rstrip('/')}/readyz", timeout=2.0)
+        payload = response.json()
+        return (
+            response.status_code == 200
+            and payload.get("status") == "ready"
+            and int(payload.get("cacheBytes", -1))
+            <= int(payload.get("cacheMaxBytes", -2))
+        )
+    except (httpx.HTTPError, TypeError, ValueError):
+        return False
 
 
 def schema_is_current(database: OrmSession) -> bool:

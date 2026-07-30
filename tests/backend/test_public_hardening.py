@@ -304,6 +304,43 @@ def test_dynamic_ome_publish_streams_tiles_without_public_source_or_derivatives(
         assert client.get(public.json()["tileSource"]).status_code == 404
 
 
+def test_production_dynamic_route_authorizes_before_internal_tile_redirect(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, internal_file_redirects=True) as client:
+        csrf = _login(client)
+        slide_id, public_id = _ready_dynamic_slide(client)
+        assert (
+            client.post(
+                f"/api/v1/admin/slides/{slide_id}/publish",
+                headers={"X-CSRF-Token": csrf},
+                json={"deidentifiedConfirmed": True},
+            ).status_code
+            == 200
+        )
+
+        redirected = client.get(
+            f"/api/v1/public/slides/{public_id}/tiles/slide.dzi"
+        )
+        assert redirected.status_code == 200
+        assert redirected.content == b""
+        source = (
+            client.app.state.settings.data_root
+            / "originals"
+            / slide_id
+            / "source.ome.tif"
+        )
+        source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+        assert redirected.headers["x-accel-redirect"] == (
+            f"/_pathlab_ome/{slide_id}/{source_sha256}/slide.dzi"
+        )
+        denied = client.get(
+            "/api/v1/public/slides/not-published/tiles/slide.dzi"
+        )
+        assert denied.status_code == 404
+        assert "x-accel-redirect" not in denied.headers
+
+
 def test_public_fields_cannot_change_while_shared_and_private_edits_reset_review(
     tmp_path: Path,
 ) -> None:

@@ -27,8 +27,13 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      tile-service:
+        condition: service_healthy
       tusd:
         condition: service_started
+    networks:
+      - default
+      - pathlab-internal
     mem_limit: 256m
     cpus: 1.25
     cpu_shares: 1024
@@ -55,6 +60,7 @@ services:
       PATHLAB_MULTI_SHARE_ENABLED: "${PATHLAB_MULTI_SHARE_ENABLED:-true}"
       PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"
       PATHLAB_INTERNAL_FILE_REDIRECTS: "true"
+      PATHLAB_TILE_SERVICE_URL: http://tile-service:8090
     volumes:
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
     healthcheck:
@@ -65,6 +71,47 @@ services:
     mem_limit: 512m
     cpus: 0.50
     cpu_shares: 1024
+
+  tile-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["pathlab-tiles"]
+    expose: ["8090"]
+    environment:
+      <<: *pathlab-environment
+      PATHLAB_TILE_CACHE_ROOT: /cache/ome-tiles
+      PATHLAB_TILE_CACHE_MAX_BYTES: "${PATHLAB_TILE_CACHE_MAX_BYTES:-2147483648}"
+      PATHLAB_TILE_CACHE_LOW_WATER_BYTES: "${PATHLAB_TILE_CACHE_LOW_WATER_BYTES:-1879048192}"
+      PATHLAB_TILE_CACHE_MAX_TEMP_BYTES: "${PATHLAB_TILE_CACHE_MAX_TEMP_BYTES:-8388608}"
+      PATHLAB_TILE_CACHE_MEMORY_BYTES: "${PATHLAB_TILE_CACHE_MEMORY_BYTES:-268435456}"
+      PATHLAB_TILE_RENDER_CONCURRENCY: "${PATHLAB_TILE_RENDER_CONCURRENCY:-2}"
+      PATHLAB_LIBVIPS_CONCURRENCY: "${PATHLAB_LIBVIPS_CONCURRENCY:-1}"
+      PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES: "${PATHLAB_LIBVIPS_CACHE_MAX_MEM_BYTES:-268435456}"
+      PATHLAB_LIBVIPS_CACHE_MAX_FILES: "${PATHLAB_LIBVIPS_CACHE_MAX_FILES:-128}"
+      PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS: "${PATHLAB_LIBVIPS_CACHE_MAX_OPERATIONS:-100}"
+      VIPS_CONCURRENCY: "1"
+      MALLOC_ARENA_MAX: "2"
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/originals:/data/originals:ro
+      - pathlab-tile-cache:/cache/ome-tiles
+    networks:
+      - pathlab-internal
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8090/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    mem_limit: 1g
+    cpus: 1.50
+    cpu_shares: 768
 
   tusd:
     image: tusproject/tusd:v2.9.2@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3
@@ -132,3 +179,8 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  pathlab-tile-cache:
+
+networks:
+  pathlab-internal:
+    internal: true

@@ -30,5 +30,6 @@ with tarfile.open(archive, "r:gz") as stored:
     stored.extractall(destination, filter="data")
 PY
 chown -R 10001:10001 "$data_dir"
+docker compose run --rm --no-deps tile-service pathlab-tiles --purge-cache
 docker compose up -d
 echo "Restored. Previous data remains at $recovery"

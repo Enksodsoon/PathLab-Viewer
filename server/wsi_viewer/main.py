@@ -40,7 +40,7 @@ from .publication import (
     delivery_version,
     ensure_grant,
 )
-from .readiness import schema_is_current
+from .readiness import schema_is_current, tile_service_is_ready
 from .request_limits import AuthBodyLimitMiddleware
 from .security import (
     MAX_VERIFICATION_PASSWORD_LENGTH,
@@ -192,22 +192,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         finalizer = services.get("desktop_finalizer")
         finalizer_started = False
-        cache_root = current.tile_cache_root
-        if not cache_root.is_absolute():
-            cache_root = current.data_root / "cache" / "ome-tiles"
-        tile_routes = TileRouteService(
-            storage,
-            OmeTileRenderer(
-                TileCache(
-                    cache_root,
-                    max_bytes=current.tile_cache_max_bytes,
-                    low_water_bytes=current.tile_cache_low_water_bytes,
-                    max_temp_bytes=current.tile_cache_max_temp_bytes,
+        if current.internal_file_redirects:
+            tile_routes = TileRouteService(
+                storage,
+                None,
+                internal_redirects=True,
+            )
+        else:
+            cache_root = current.tile_cache_root
+            if not cache_root.is_absolute():
+                cache_root = current.data_root / "cache" / "ome-tiles"
+            tile_routes = TileRouteService(
+                storage,
+                OmeTileRenderer(
+                    TileCache(
+                        cache_root,
+                        max_bytes=current.tile_cache_max_bytes,
+                        low_water_bytes=current.tile_cache_low_water_bytes,
+                        max_temp_bytes=current.tile_cache_max_temp_bytes,
+                    ),
+                    memory_cache=MemoryTileCache(current.tile_cache_memory_bytes),
+                    render_concurrency=current.tile_render_concurrency,
                 ),
-                memory_cache=MemoryTileCache(current.tile_cache_memory_bytes),
-                render_concurrency=current.tile_render_concurrency,
-            ),
-        )
+            )
         services["tile_routes"] = tile_routes
         with factory() as database:
             schema_ready = schema_is_current(database)
@@ -351,6 +358,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def readyz(db: Database) -> dict[str, str]:
         if not schema_is_current(db):
             raise HTTPException(status_code=503, detail={"code": "DATABASE_NOT_READY"})
+        if current.internal_file_redirects and not tile_service_is_ready(
+            current.tile_service_url
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "TILE_SERVICE_NOT_READY"},
+            )
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)

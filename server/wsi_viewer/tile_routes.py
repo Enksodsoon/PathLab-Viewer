@@ -57,13 +57,40 @@ def authorize_tile(
 
 
 class TileRouteService:
-    def __init__(self, storage: StorageLayout, renderer: OmeTileRenderer) -> None:
+    def __init__(
+        self,
+        storage: StorageLayout,
+        renderer: OmeTileRenderer | None,
+        *,
+        internal_redirects: bool = False,
+    ) -> None:
+        if not internal_redirects and renderer is None:
+            raise ValueError("Local dynamic tile routing requires a renderer")
         self.storage = storage
         self.renderer = renderer
+        self.internal_redirects = internal_redirects
 
     def dynamic_response(self, tile: AuthorizedTile) -> Response:
         if tile.render_mode != "ome_dynamic":
             raise ValueError("Dynamic tile service received a static slide")
+        self._validate_relative_path(tile.relative_path)
+        if self.internal_redirects:
+            return Response(
+                status_code=200,
+                headers={
+                    "X-Accel-Redirect": (
+                        f"/_pathlab_ome/{tile.slide_id}/"
+                        f"{tile.slide_sha256}/{tile.relative_path}"
+                    ),
+                    "Cache-Control": tile.cache_control,
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        if self.renderer is None:
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "TILE_SERVICE_UNAVAILABLE"},
+            )
         try:
             slide = self._dynamic_slide(tile)
             if tile.relative_path == "slide.dzi":
@@ -119,6 +146,13 @@ class TileRouteService:
             },
         )
 
+    @staticmethod
+    def _validate_relative_path(relative_path: str) -> None:
+        if relative_path in {"slide.dzi", "thumbnail.jpg"}:
+            return
+        if _DZI_TILE.fullmatch(relative_path) is None:
+            raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+
     def _dynamic_slide(self, tile: AuthorizedTile) -> DynamicSlide:
         paths = self.storage.for_slide(tile.slide_id)
         index = load_ome_tile_index(paths.ome_index)
@@ -135,10 +169,11 @@ class TileRouteService:
         )
 
     def close(self) -> None:
-        self.renderer.close()
+        if self.renderer is not None:
+            self.renderer.close()
 
     def purge_slide(self, slide_sha256: str | None) -> int:
-        if slide_sha256 is None:
+        if slide_sha256 is None or self.renderer is None:
             return 0
         return self.renderer.persistent_cache.purge_slide(slide_sha256)
 

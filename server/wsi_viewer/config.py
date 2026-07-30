@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     tile_cache_max_temp_bytes: PositiveInt = 8 * 1024**2
     tile_cache_memory_bytes: PositiveInt = 256 * 1024**2
     tile_render_concurrency: PositiveInt = 2
+    tile_service_url: str = "http://tile-service:8090"
 
     @model_validator(mode="after")
     def validate_production_security(self) -> Self:
