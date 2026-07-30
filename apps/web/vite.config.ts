@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
+const apiTarget = process.env.PATHLAB_DEV_API_URL ?? 'http://127.0.0.1:8000'
+
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -11,10 +13,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/v1/uploads': 'http://127.0.0.1:8080',
-      '/api': 'http://127.0.0.1:8000',
-      '/livez': 'http://127.0.0.1:8000',
-      '/readyz': 'http://127.0.0.1:8000',
-      '/tiles': 'http://127.0.0.1:8000',
+      '/api': apiTarget,
+      '/livez': apiTarget,
+      '/readyz': apiTarget,
+      '/tiles': apiTarget,
     },
   },
 })

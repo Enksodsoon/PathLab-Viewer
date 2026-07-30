@@ -1,0 +1,34 @@
+{
+  "schema": "pathlab-viewer-streaming-ingest-evidence/v1",
+  "measuredAt": "2026-07-30",
+  "input": {
+    "producer": "PathLab Forge",
+    "packageSchema": "pathlab-prepared-slide/v2",
+    "inventoryFormat": "ndjson-v1",
+    "packageBytes": 506711552,
+    "derivativeBytes": 500196832,
+    "derivativeFileCount": 7210,
+    "jpegQuality": 95
+  },
+  "result": {
+    "status": "accepted",
+    "streamingImportMs": 10230,
+    "installedDerivativeBytes": 500196832,
+    "installedDerivativeFileCount": 7210,
+    "archivePasses": 1,
+    "maximumCopyBufferBytes": 1048576
+  },
+  "validation": {
+    "archiveHashThroughPhysicalEof": true,
+    "canonicalOrderAndUstarMetadata": true,
+    "inventoryHashAndSequentialPayloadMatch": true,
+    "completeDziPyramid": true,
+    "deterministicJpegDecodeSamples": true,
+    "privateUntilFullyVerified": true
+  },
+  "comparison": {
+    "previousImportMs": null,
+    "measuredSpeedupPercent": null,
+    "reason": "No like-for-like pre-change package measurement was available."
+  }
+}

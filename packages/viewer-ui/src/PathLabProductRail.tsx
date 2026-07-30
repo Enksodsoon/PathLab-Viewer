@@ -1,0 +1,151 @@
+import {
+  CaretDoubleLeft,
+  CaretDoubleRight,
+  Key,
+  List as Menu,
+  SignOut,
+  UploadSimple as Upload,
+} from '@phosphor-icons/react'
+import type { Ref } from 'react'
+
+export interface ProductRailStorage {
+  usableBytes: number
+  effectiveCapacityBytes: number
+}
+
+export interface PathLabProductRailProps {
+  productName: 'Viewer' | 'Forge'
+  expanded: boolean
+  isInert?: boolean
+  navigatorOpen: boolean
+  navigatorButtonRef?: Ref<HTMLButtonElement>
+  storage: ProductRailStorage
+  onToggleExpanded: () => void
+  onNavigator: () => void
+  onUpload: () => void
+  onSecurity: () => void
+  onSignOut: () => void
+  uploadLabel?: string
+  accountLabel?: string
+  signOutLabel?: string
+}
+
+export function PathLabProductRail({
+  productName,
+  expanded,
+  isInert = false,
+  navigatorOpen,
+  navigatorButtonRef,
+  storage,
+  onToggleExpanded,
+  onNavigator,
+  onUpload,
+  onSecurity,
+  onSignOut,
+  uploadLabel = 'Upload',
+  accountLabel = 'Account',
+  signOutLabel = 'Sign out',
+}: PathLabProductRailProps) {
+  const capacity = storage.effectiveCapacityBytes
+  const remainingPercent = capacity > 0
+    ? Math.round((storage.usableBytes / capacity) * 100)
+    : 0
+  const storageLabel = capacity > 0
+    ? `${formatBytes(storage.usableBytes)} available`
+    : 'Storage unavailable'
+
+  return (
+    <aside
+      className="library-app-rail"
+      aria-label="Product navigation"
+      aria-hidden={isInert || undefined}
+      data-canvas-region="icon-rail"
+      inert={isInert || undefined}
+    >
+      <div className="library-rail-brand">
+        <PathLabBrand productName={productName} />
+      </div>
+      <button
+        type="button"
+        className="library-rail-toggle"
+        aria-label={expanded ? 'Collapse navigation rail' : 'Expand navigation rail'}
+        aria-expanded={expanded}
+        onClick={onToggleExpanded}
+      >
+        {expanded ? <CaretDoubleLeft aria-hidden="true" /> : <CaretDoubleRight aria-hidden="true" />}
+        <span>{expanded ? 'Collapse' : 'Expand'}</span>
+      </button>
+      <nav className="library-rail-primary" aria-label="Library destinations">
+        <button
+          ref={navigatorButtonRef}
+          type="button"
+          className={navigatorOpen ? 'active mobile-navigator-toggle' : 'mobile-navigator-toggle'}
+          aria-label="Slide library"
+          aria-controls="library-navigator"
+          aria-expanded={navigatorOpen}
+          onClick={onNavigator}
+        >
+          <Menu aria-hidden="true" />
+          <span>Slide library</span>
+        </button>
+        <button type="button" aria-label={uploadLabel} onClick={onUpload}>
+          <Upload aria-hidden="true" />
+          <span>{uploadLabel}</span>
+        </button>
+      </nav>
+      <div className="library-rail-utilities" aria-label="Account actions">
+        <section
+          className="library-storage-meter"
+          aria-label={`Storage, ${storageLabel}`}
+          title={`${storageLabel}. Safe capacity after active conversion reservations.`}
+        >
+          <div className="library-storage-copy">
+            <span>Storage</span>
+            <strong>{storageLabel}</strong>
+          </div>
+          <div
+            className="library-storage-track"
+            role="meter"
+            aria-label="Usable storage remaining"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={remainingPercent}
+            aria-valuetext={storageLabel}
+          >
+            <span style={{ width: `${remainingPercent}%` }} />
+          </div>
+        </section>
+        <button type="button" aria-label={accountLabel} onClick={onSecurity}>
+          <Key aria-hidden="true" />
+          <span>{accountLabel}</span>
+        </button>
+        <button type="button" aria-label={signOutLabel} onClick={onSignOut}>
+          <SignOut aria-hidden="true" />
+          <span>{signOutLabel}</span>
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+function PathLabBrand({ productName }: { productName: string }) {
+  return (
+    <div className="brand brand-library" aria-label={`PathLab ${productName}`}>
+      <span className="brand-mark brand-mark-layers">
+        <svg aria-hidden="true" color="currentColor" fill="none" viewBox="0 0 32 32">
+          <path d="M4.5 10.1 16 4.4l11.5 5.7L16 15.8 4.5 10.1Z" fill="currentColor" opacity=".34" />
+          <path d="m4.5 15.9 11.5 5.7 11.5-5.7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+          <path d="m4.5 21.7 11.5 5.7 11.5-5.7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+        </svg>
+      </span>
+      <span>PathLab</span>
+      <span className="brand-product">{productName}</span>
+    </div>
+  )
+}
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
