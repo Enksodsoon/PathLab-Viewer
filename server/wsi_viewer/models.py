@@ -200,6 +200,10 @@ class Slide(Base):
             "derivative_file_count >= 0",
             name="ck_slides_derivative_file_count_nonnegative",
         ),
+        CheckConstraint(
+            "render_mode IN ('static_dzi', 'ome_dynamic')",
+            name="ck_slides_render_mode",
+        ),
         CheckConstraint("sort_order >= 0", name="ck_slides_sort_order_nonnegative"),
         Index("ix_slides_updated_id", "updated_at", "id"),
         Index("ix_slides_created_id", "created_at", "id"),
@@ -215,6 +219,13 @@ class Slide(Base):
     reserved_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     derivative_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     derivative_file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    render_mode: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="static_dzi",
+        server_default="static_dzi",
+        index=True,
+    )
     folder_id: Mapped[str | None] = mapped_column(
         ForeignKey("folders.id", ondelete="SET NULL"), index=True
     )

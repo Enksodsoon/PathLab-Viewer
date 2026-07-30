@@ -17,15 +17,20 @@ class PublicationError(RuntimeError):
     pass
 
 
-def admission_required(source_bytes: int) -> int:
+def admission_required(source_bytes: int, *, render_mode: str = "static_dzi") -> int:
     if source_bytes <= 0:
         raise ValueError("Source length must be positive")
-    return source_bytes + 3 * source_bytes + 5 * GIB
+    if render_mode == "ome_dynamic":
+        return source_bytes + max(512 * 1024**2, (source_bytes + 9) // 10)
+    if render_mode == "static_dzi":
+        return source_bytes + 3 * source_bytes + 5 * GIB
+    raise ValueError("Unsupported render mode")
 
 
 @dataclass(frozen=True)
 class SlidePaths:
     original: Path
+    ome_index: Path
     derivative_staging: Path
     private_derivative: Path
     public_derivative: Path
@@ -48,6 +53,7 @@ class StorageLayout:
             raise ValueError("Invalid generated slide id")
         return SlidePaths(
             original=self.root / "originals" / slide_id / "source.ome.tif",
+            ome_index=self.root / "originals" / slide_id / "tile-index.json",
             derivative_staging=self.root / "staging" / slide_id,
             private_derivative=self.root / "private" / slide_id,
             public_derivative=self.root / "public" / slide_id,
@@ -64,10 +70,11 @@ class StorageLayout:
         self,
         source_bytes: int,
         *,
+        render_mode: str = "static_dzi",
         free_bytes: int | None = None,
         current_usage: int | None = None,
     ) -> int:
-        required = admission_required(source_bytes)
+        required = admission_required(source_bytes, render_mode=render_mode)
         disk_free = free_bytes if free_bytes is not None else shutil.disk_usage(self.root).free
         used = current_usage if current_usage is not None else self.usage()
         if disk_free < required:

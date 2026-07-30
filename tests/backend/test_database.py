@@ -217,6 +217,60 @@ def test_desktop_ingest_capacity_migration_round_trips_existing_row(
         ).scalar_one() == "Existing"
 
 
+def test_ome_dynamic_render_mode_migration_round_trips_existing_slide(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_path = tmp_path / "ome-render-mode.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260730_0012")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        database.execute(
+            text(
+                "INSERT INTO slides "
+                "(id, public_id, display_name, original_filename, source_bytes, state, "
+                "reserved_bytes, derivative_bytes, derivative_file_count, description, "
+                "case_id, organ_site, stain, diagnosis, course, tags, teaching_note, "
+                "admin_notes, sort_order, created_at, updated_at) VALUES "
+                "('slide-before-render-mode', 'public-before-render-mode', 'Existing', "
+                "'existing.ome.tif', 1, 'ready_private', 0, 0, 0, '', '', '', '', '', '', "
+                "'[]', '', '', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        row = database.execute(
+            text(
+                "SELECT render_mode FROM slides "
+                "WHERE id = 'slide-before-render-mode'"
+            )
+        ).scalar_one()
+        assert row == "static_dzi"
+
+    command.downgrade(config, "20260730_0012")
+    with session_factory(settings)() as database:
+        columns = {
+            column["name"] for column in inspect(database.connection()).get_columns("slides")
+        }
+        assert "render_mode" not in columns
+        assert database.execute(
+            text("SELECT display_name FROM slides WHERE id = 'slide-before-render-mode'")
+        ).scalar_one() == "Existing"
+
+    command.upgrade(config, "head")
+    with session_factory(settings)() as database:
+        assert database.execute(
+            text(
+                "SELECT render_mode FROM slides "
+                "WHERE id = 'slide-before-render-mode'"
+            )
+        ).scalar_one() == "static_dzi"
+
+
 def test_library_v2_migration_preserves_public_ids_and_round_trips(
     tmp_path: Path, monkeypatch
 ) -> None:
