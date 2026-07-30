@@ -135,3 +135,17 @@ def test_purge_removes_tiles_but_keeps_cache_usable(tmp_path: Path) -> None:
     assert cache.stats().tile_entries == 0
     assert cache.get_or_create(_key(1), lambda: b"\xff\xd8y\xff\xd9").is_file()
     cache.close()
+
+
+def test_purge_slide_removes_only_matching_slide_hash(tmp_path: Path) -> None:
+    cache = TileCache(tmp_path, max_bytes=1024, low_water_bytes=768, max_temp_bytes=512)
+    first = _key(0)
+    second = TileKey("b" * 64, 17, 0, 0, "ome-dynamic-v1-q95")
+    first_path = cache.get_or_create(first, lambda: b"\xff\xd8a\xff\xd9")
+    second_path = cache.get_or_create(second, lambda: b"\xff\xd8b\xff\xd9")
+
+    assert cache.purge_slide(first.slide_sha256) == 1
+    assert not first_path.exists()
+    assert second_path.is_file()
+    assert cache.get(second) == second_path
+    cache.close()

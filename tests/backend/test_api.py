@@ -404,6 +404,33 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
             assert slide.derivative_bytes == 0
             assert slide.derivative_file_count == 0
 
+        desktop_descriptor = client.get(
+            f"/api/v1/desktop/slides/{slide_id}/preview/slide.dzi",
+            headers=authorization,
+        )
+        assert desktop_descriptor.status_code == 200
+        assert b'Width="1024" Height="1024"' in desktop_descriptor.content
+        desktop_tile = client.get(
+            f"/api/v1/desktop/slides/{slide_id}/preview/slide_files/10/0_0.jpg",
+            headers=authorization,
+        )
+        assert desktop_tile.status_code == 200
+        with Image.open(io.BytesIO(desktop_tile.content)) as decoded:
+            assert decoded.size == (512, 512)
+
+        admin_descriptor = client.get(
+            f"/api/v1/admin/slides/{slide_id}/preview/slide.dzi"
+        )
+        assert admin_descriptor.status_code == 200
+        assert admin_descriptor.content == desktop_descriptor.content
+        assert (
+            client.get(
+                f"/api/v1/admin/slides/{slide_id}/preview/source.ome.tif",
+                headers={"Range": "bytes=0-31"},
+            ).status_code
+            == 404
+        )
+
 
 def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
     tmp_path: Path,

@@ -93,11 +93,20 @@ class TileCache:
             """
             CREATE TABLE IF NOT EXISTS entries (
                 digest TEXT PRIMARY KEY,
+                slide_sha256 TEXT NOT NULL,
                 bytes INTEGER NOT NULL CHECK (bytes > 0),
                 last_access_ns INTEGER NOT NULL
             )
             """
         )
+        columns = {
+            str(row[1])
+            for row in self._database.execute("PRAGMA table_info(entries)").fetchall()
+        }
+        if "slide_sha256" not in columns:
+            self._database.execute(
+                "ALTER TABLE entries ADD COLUMN slide_sha256 TEXT NOT NULL DEFAULT ''"
+            )
         self._database.execute(
             "CREATE INDEX IF NOT EXISTS ix_entries_lru ON entries(last_access_ns, digest)"
         )
@@ -130,6 +139,12 @@ class TileCache:
 
     def _reconcile(self) -> None:
         with self._lock:
+            slide_hashes = {
+                str(row[0]): str(row[1])
+                for row in self._database.execute(
+                    "SELECT digest, slide_sha256 FROM entries"
+                ).fetchall()
+            }
             known: dict[str, int] = {}
             for path in self.root.rglob("*"):
                 if path.name == "index.sqlite3":
@@ -153,8 +168,14 @@ class TileCache:
             self._database.execute("DELETE FROM entries")
             now = time.time_ns()
             self._database.executemany(
-                "INSERT INTO entries(digest, bytes, last_access_ns) VALUES (?, ?, ?)",
-                ((digest, size, now) for digest, size in known.items()),
+                """
+                INSERT INTO entries(digest, slide_sha256, bytes, last_access_ns)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    (digest, slide_hashes.get(digest, ""), size, now)
+                    for digest, size in known.items()
+                ),
             )
             self._database.commit()
             if self._tile_bytes() > self.max_bytes:
@@ -218,7 +239,7 @@ class TileCache:
 
         try:
             payload = producer()
-            path = self._commit(digest, payload)
+            path = self._commit(key, digest, payload)
             flight.path = path
             return path
         except BaseException as error:
@@ -229,7 +250,7 @@ class TileCache:
                 self._flights.pop(digest, None)
                 flight.event.set()
 
-    def _commit(self, digest: str, payload: bytes) -> Path:
+    def _commit(self, key: TileKey, digest: str, payload: bytes) -> Path:
         if not self._is_jpeg(payload):
             raise TileCacheError("Tile producer did not return a complete JPEG")
         if len(payload) > self.max_temp_bytes:
@@ -266,8 +287,12 @@ class TileCache:
                     os.fsync(output.fileno())
                 os.replace(temporary, target)
                 self._database.execute(
-                    "INSERT INTO entries(digest, bytes, last_access_ns) VALUES (?, ?, ?)",
-                    (digest, len(payload), time.time_ns()),
+                    """
+                    INSERT INTO entries(
+                        digest, slide_sha256, bytes, last_access_ns
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (digest, key.slide_sha256, len(payload), time.time_ns()),
                 )
                 self._database.commit()
             except Exception:
@@ -313,6 +338,23 @@ class TileCache:
                     path.unlink(missing_ok=True)
             self._database.execute("DELETE FROM entries")
             self._database.commit()
+
+    def purge_slide(self, slide_sha256: str) -> int:
+        if not HEX_SHA256.fullmatch(slide_sha256):
+            raise TileCacheError("Invalid slide hash")
+        with self._lock:
+            rows = self._database.execute(
+                "SELECT digest FROM entries WHERE slide_sha256 = ?",
+                (slide_sha256,),
+            ).fetchall()
+            for row in rows:
+                self._path(str(row[0])).unlink(missing_ok=True)
+            self._database.execute(
+                "DELETE FROM entries WHERE slide_sha256 = ?",
+                (slide_sha256,),
+            )
+            self._database.commit()
+            return len(rows)
 
     def close(self) -> None:
         with self._lock:

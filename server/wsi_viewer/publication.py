@@ -51,8 +51,13 @@ def ensure_grant(
     if slide.published_at is None:
         slide.published_at = now
     if grant_count == 0:
-        publish_derivative(storage, slide.id, slide.public_id)
-    if source_type == INDIVIDUAL:
+        if slide.render_mode == "ome_dynamic":
+            paths = storage.for_slide(slide.id)
+            if not paths.original.is_file() or not paths.ome_index.is_file():
+                raise FileNotFoundError("Dynamic OME source is not ready")
+        else:
+            publish_derivative(storage, slide.id, slide.public_id)
+    if source_type == INDIVIDUAL and slide.render_mode != "ome_dynamic":
         publish_individual_derivative(
             storage,
             slide.id,
@@ -85,7 +90,7 @@ def remove_grant(
             PublicationGrant.source_id == source_id,
         )
     )
-    if source_type == INDIVIDUAL:
+    if source_type == INDIVIDUAL and slide.render_mode != "ome_dynamic":
         unpublish_individual_derivative(storage, slide.public_id)
     if grant is None:
         return
@@ -100,7 +105,8 @@ def remove_grant(
         or 0
     )
     if remaining == 0:
-        unpublish_derivative(storage, slide.public_id)
+        if slide.render_mode != "ome_dynamic":
+            unpublish_derivative(storage, slide.public_id)
         if slide.state == SlideState.PUBLISHED:
             slide.state = SlideState.READY_PRIVATE
         slide.published_at = None
@@ -116,6 +122,7 @@ def delete_all_slide_grants(
     ).all()
     for grant in grants:
         database.delete(grant)
-    unpublish_individual_derivative(storage, slide.public_id)
-    unpublish_derivative(storage, slide.public_id)
+    if slide.render_mode != "ome_dynamic":
+        unpublish_individual_derivative(storage, slide.public_id)
+        unpublish_derivative(storage, slide.public_id)
     slide.published_at = None

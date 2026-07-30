@@ -159,9 +159,13 @@ class OmeTileRenderer:
         persistent_cache: TileCache,
         *,
         memory_cache: MemoryTileCache,
+        render_concurrency: int = 2,
     ) -> None:
+        if render_concurrency <= 0:
+            raise ValueError("Tile render concurrency must be positive")
         self.persistent_cache = persistent_cache
         self.memory_cache = memory_cache
+        self._render_semaphore = threading.BoundedSemaphore(render_concurrency)
         self._index_cache: OrderedDict[tuple[Path, int], OmeTileIndex] = OrderedDict()
         self._index_lock = threading.Lock()
         self._stats_lock = threading.Lock()
@@ -261,23 +265,24 @@ class OmeTileRenderer:
             return memory
 
         def produce() -> bytes:
-            extent = self._raw_extent(index, factor, width, height, request)
-            if extent is not None:
-                payload = read_indexed_jpeg(slide.source, extent)
+            with self._render_semaphore:
+                extent = self._raw_extent(index, factor, width, height, request)
+                if extent is not None:
+                    payload = read_indexed_jpeg(slide.source, extent)
+                    with self._stats_lock:
+                        self._raw_tiles += 1
+                    return payload
+                payload = self._render_fallback(
+                    slide,
+                    index,
+                    request,
+                    factor,
+                    width,
+                    height,
+                )
                 with self._stats_lock:
-                    self._raw_tiles += 1
+                    self._fallback_tiles += 1
                 return payload
-            payload = self._render_fallback(
-                slide,
-                index,
-                request,
-                factor,
-                width,
-                height,
-            )
-            with self._stats_lock:
-                self._fallback_tiles += 1
-            return payload
 
         path = self.persistent_cache.get_or_create(key, produce)
         payload = path.read_bytes()

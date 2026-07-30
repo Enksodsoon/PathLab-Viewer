@@ -408,7 +408,7 @@ def slide_json(slide: Slide, *, include_details: bool = False) -> dict[str, Any]
         "trashedAt": slide.trashed_at.isoformat() if slide.trashed_at else None,
         "thumbnailUrl": (
             f"/api/v2/admin/slides/{slide.id}/thumbnail"
-            if slide.thumbnail_filename
+            if slide.thumbnail_filename or slide.render_mode == "ome_dynamic"
             else None
         ),
     }

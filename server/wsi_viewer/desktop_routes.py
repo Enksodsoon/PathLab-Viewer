@@ -37,6 +37,7 @@ from .models import (
     Slide,
 )
 from .storage import GIB, StorageLayout, admission_required
+from .tile_routes import TileRouteService, authorize_tile, private_static_target
 
 PAIRING_MINUTES = 10
 CREDENTIAL_DAYS = 90
@@ -117,6 +118,7 @@ def register_desktop_routes(
     database_dependency: Callable[[], Iterator[OrmSession]],
     csrf_dependency: Callable[..., Any],
     storage: StorageLayout,
+    tile_routes: Callable[[], TileRouteService],
 ) -> PreparedIngestFinalizer:
     finalizer = PreparedIngestFinalizer(database_dependency, storage)
     app.state.desktop_ingest_finalizer = finalizer
@@ -500,6 +502,11 @@ def register_desktop_routes(
             "metadata": slide.slide_metadata,
             "annotationVersion": slide.annotation_version,
             "tileSource": f"/api/v1/desktop/slides/{slide.id}/preview/slide.dzi",
+            "thumbnailUrl": (
+                f"/api/v1/desktop/slides/{slide.id}/preview/thumbnail.jpg"
+                if slide.thumbnail_filename or slide.render_mode == "ome_dynamic"
+                else None
+            ),
         }
 
     @app.get("/api/v1/desktop/slides/{slide_id}/preview/{tile_path:path}")
@@ -508,19 +515,25 @@ def register_desktop_routes(
         tile_path: str,
         authenticated: DesktopCredential = Depends(credential),
         database: OrmSession = Depends(database_dependency),
-    ) -> FileResponse:
+    ) -> Response:
         require_scope(authenticated, "slides:private:read")
         slide = database.get(Slide, slide_id)
-        root = storage.for_slide(slide_id).private_derivative.resolve()
-        target = (root / tile_path).resolve()
         if (
             slide is None
             or slide.state not in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
-            or not target.is_relative_to(root)
-            or target.suffix.lower() not in {".dzi", ".jpg", ".jpeg"}
-            or not target.is_file()
+            or slide.trashed_at is not None
         ):
             raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+        authorized = authorize_tile(
+            slide_id=slide.id,
+            slide_sha256=slide.sha256,
+            render_mode=slide.render_mode,
+            relative_path=tile_path,
+            cache_control="private, max-age=86400, immutable",
+        )
+        if authorized.render_mode == "ome_dynamic":
+            return tile_routes().dynamic_response(authorized)
+        target = private_static_target(storage, slide.id, tile_path)
         return FileResponse(
             target,
             media_type="application/xml"
