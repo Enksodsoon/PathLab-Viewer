@@ -63,7 +63,7 @@ export function DesktopConnectPage() {
         ? <button
           className="desktop-connect-approve"
           type="button"
-          disabled={state === 'working' || !code}
+          disabled={state === 'working' || state === 'error' || !code}
           onClick={() => void approve()}
         >
           {state === 'working' ? 'Approving…' : 'Approve this Forge device'}

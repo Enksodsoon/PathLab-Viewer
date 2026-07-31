@@ -36,6 +36,7 @@ from .models import (
     Session,
     Slide,
 )
+from .ome_ingest import desktop_quarantine_path
 from .storage import GIB, StorageLayout, admission_required
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
 
@@ -427,6 +428,31 @@ def register_desktop_routes(
         ingest = database.get(DesktopIngest, ingest_id)
         if ingest is None or ingest.credential_id != authenticated.id:
             raise HTTPException(status_code=404, detail={"code": "INGEST_NOT_FOUND"})
+        retry_failed_finalization = (
+            ingest.status == "failed"
+            and upload_offset == ingest.received_bytes
+            and ingest.received_bytes == ingest.package_length
+        )
+        if retry_failed_finalization:
+            if await request.body():
+                raise HTTPException(
+                    status_code=409, detail={"code": "FINALIZATION_RETRY_MUST_BE_EMPTY"}
+                )
+            target = upload_path(ingest)
+            quarantine = desktop_quarantine_path(storage, ingest.id)
+            if not target.is_file() and quarantine.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(quarantine, target)
+            if not target.is_file() or target.stat().st_size != ingest.package_length:
+                raise HTTPException(
+                    status_code=409, detail={"code": "FAILED_UPLOAD_NOT_RECOVERABLE"}
+                )
+            ingest.status = "finalizing"
+            ingest.error_code = None
+            database.commit()
+            finalizer.enqueue(ingest.id)
+            database.refresh(ingest)
+            return ingest_json(ingest)
         if ingest.status != "uploading" or upload_offset != ingest.received_bytes:
             raise HTTPException(status_code=409, detail={"code": "UPLOAD_OFFSET_MISMATCH"})
         declared = request.headers.get("content-length")

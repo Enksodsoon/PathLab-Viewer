@@ -6,7 +6,40 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
-from wsi_viewer.prepared_ingest import PreparedIngestError, install_prepared_package
+from wsi_viewer.prepared_ingest import (
+    PreparedIngestError,
+    _validate_manifest,
+    install_prepared_package,
+)
+
+
+def test_accepts_forge_compact_visual_v2_encoding() -> None:
+    manifest = {
+        "schema": "pathlab-prepared-slide/v2",
+        "provenance": {
+            "artifactRevisionId": "artifact-1",
+            "configurationRevision": "a" * 64,
+            "sourceFingerprint": "b" * 64,
+            "coordinateTransform": {},
+            "calibration": {},
+        },
+        "slide": {
+            "width": 2048,
+            "height": 1536,
+            "tileSize": 512,
+            "overlap": 1,
+            "format": "jpg",
+            "encoding": {
+                "codec": "jpeg",
+                "quality": 65,
+                "selector": "quality-gated-v2-64-roi",
+                "qualityProfile": "pathlab-compact-visual-v2",
+                "encoderProfile": "compact-420-trellis",
+            },
+        },
+    }
+
+    assert _validate_manifest(manifest, "artifact-1") is manifest
 
 
 def _package(

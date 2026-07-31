@@ -100,7 +100,7 @@ def _validate_profile(ingest: DesktopIngest, index: OmeTileIndex) -> None:
         raise OmeIngestError("OME_PROFILE_UNSUPPORTED")
     if ingest.ome_width != index.width or ingest.ome_height != index.height:
         raise OmeIngestError("OME_GEOMETRY_MISMATCH")
-    pyramid_factor = index.pyramid_factors[1] if len(index.pyramid_factors) > 1 else 2
+    pyramid_factor = index.pyramid_factors[1] if len(index.pyramid_factors) > 1 else 4
     if pyramid_factor not in {2, 4} or index.pyramid_factors != tuple(
         pyramid_factor**level for level in range(len(index.levels))
     ):

@@ -111,3 +111,25 @@ def test_profile_accepts_regular_factor_four_for_seam_aligned_virtual_levels() -
     )
     with pytest.raises(OmeIngestError, match="FACTOR_UNSUPPORTED"):
         _validate_profile(ingest, irregular)  # type: ignore[arg-type]
+
+
+def test_profile_accepts_a_single_level_factor_four_image_up_to_2048_pixels() -> None:
+    level = OmeLevel(2048, 1536, 1, 1, ())
+    index = OmeTileIndex(
+        2048,
+        1536,
+        512,
+        512,
+        "jpeg",
+        (level,),
+        (1,),
+        True,
+        1,
+        1,
+        "a" * 64,
+    )
+    ingest = SimpleNamespace(
+        ome_profile="ome-dynamic-v1", ome_width=2048, ome_height=1536
+    )
+
+    _validate_profile(ingest, index)  # type: ignore[arg-type]

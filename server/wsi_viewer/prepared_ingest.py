@@ -386,14 +386,30 @@ def _validate_manifest(manifest: Any, expected_revision: str) -> dict[str, Any]:
     except (KeyError, TypeError) as error:
         raise PreparedIngestError("INVALID_MANIFEST") from error
     encoding = slide.get("encoding")
-    if encoding is not None and (
-        not isinstance(encoding, dict)
-        or encoding.get("codec") != "jpeg"
-        or encoding.get("quality") not in {85, 90, 95}
-        or encoding.get("selector") != "quality-gated-v1"
-        or encoding.get("qualityProfile") != "pathlab-visual-v1"
-    ):
-        raise PreparedIngestError("INVALID_MANIFEST")
+    if encoding is not None:
+        legacy_encoding = (
+            isinstance(encoding, dict)
+            and encoding.get("codec") == "jpeg"
+            and encoding.get("quality") in {85, 90, 95}
+            and encoding.get("selector") == "quality-gated-v1"
+            and encoding.get("qualityProfile") == "pathlab-visual-v1"
+        )
+        compact_encoding = (
+            isinstance(encoding, dict)
+            and encoding.get("codec") == "jpeg"
+            and encoding.get("quality") in {65, 70, 75, 80, 85, 90, 95}
+            and encoding.get("selector") == "quality-gated-v2-64-roi"
+            and encoding.get("qualityProfile") == "pathlab-compact-visual-v2"
+            and encoding.get("encoderProfile")
+            in {
+                "compact-baseline",
+                "compact-420-trellis",
+                "compact-420-optimized",
+                "compact-444-quality-rescue",
+            }
+        )
+        if not legacy_encoding and not compact_encoding:
+            raise PreparedIngestError("INVALID_MANIFEST")
     if (
         schema != "pathlab-prepared-slide/v2"
         or revision != expected_revision
