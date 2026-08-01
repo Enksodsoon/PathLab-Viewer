@@ -63,6 +63,27 @@ def test_current_alembic_head_is_ready(tmp_path: Path, monkeypatch: pytest.Monke
         assert client.get("/readyz").json() == {"status": "ready"}
 
 
+def test_production_readiness_requires_bounded_internal_tile_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = _settings(tmp_path, "tile-service.sqlite3").model_dump()
+    values["internal_file_redirects"] = True
+    settings = Settings(**values)
+    _upgrade(settings, "head", monkeypatch)
+    monkeypatch.setattr("wsi_viewer.main.tile_service_is_ready", lambda _: False)
+    with TestClient(create_app(settings)) as client:
+        unavailable = client.get("/readyz")
+        assert unavailable.status_code == 503
+        assert unavailable.json() == {
+            "detail": {"code": "TILE_SERVICE_NOT_READY"}
+        }
+
+    monkeypatch.setattr("wsi_viewer.main.tile_service_is_ready", lambda _: True)
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/readyz").json() == {"status": "ready"}
+
+
 def test_falsely_stamped_incomplete_schema_is_not_ready(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

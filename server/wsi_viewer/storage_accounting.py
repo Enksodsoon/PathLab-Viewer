@@ -1,5 +1,6 @@
 import os
 import shutil
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -60,6 +61,7 @@ def _begin_immediate(database: OrmSession) -> None:
 def _accounted_bytes(database: OrmSession, *, exclude_slide_id: str | None = None) -> int:
     contribution = case(
         (Slide.state.in_(ACTIVE_STATES), Slide.reserved_bytes),
+        (Slide.render_mode == "ome_dynamic", Slide.source_bytes),
         else_=Slide.source_bytes + Slide.derivative_bytes,
     )
     statement = select(func.coalesce(func.sum(contribution), 0))
@@ -108,8 +110,9 @@ def reserve_new_slide(
     source_bytes: int,
     actor_user_id: str | None,
     folder_id: str | None = None,
+    render_mode: str = "static_dzi",
 ) -> Slide:
-    required = admission_required(source_bytes)
+    required = admission_required(source_bytes, render_mode=render_mode)
     _require_physical_space(layout.root, required)
     with factory() as database:
         _begin_immediate(database)
@@ -124,6 +127,7 @@ def reserve_new_slide(
             source_bytes=source_bytes,
             reserved_bytes=required,
             folder_id=folder_id,
+            render_mode=render_mode,
         )
         database.add(slide)
         database.flush()
@@ -153,7 +157,7 @@ def reserve_retry(
             raise LookupError("Slide not found")
         if slide.state is not SlideState.FAILED:
             raise InvalidTransition("Slide is not failed")
-        required = admission_required(slide.source_bytes)
+        required = admission_required(slide.source_bytes, render_mode=slide.render_mode)
         _require_physical_space(layout.root, required)
         _require_application_capacity(
             database,
@@ -200,19 +204,32 @@ def reconcile_storage(
         )
         slides = database.scalars(select(Slide).order_by(Slide.id)).all()
         for slide in slides:
-            derivative = layout.for_slide(slide.id).private_derivative
-            if os.path.lexists(derivative):
-                measurement = measure_derivative(derivative)
-                slide.derivative_bytes = measurement.derivative_bytes
-                slide.derivative_file_count = measurement.file_count
-                derivative_count += 1
-            else:
-                if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
-                    raise PublicationError("MISSING_CANONICAL_DERIVATIVE")
+            paths = layout.for_slide(slide.id)
+            if slide.render_mode == "ome_dynamic":
+                if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED} and (
+                    not _is_safe_regular(paths.original)
+                    or not _is_safe_regular(paths.ome_index)
+                ):
+                    raise PublicationError("MISSING_DYNAMIC_OME_INDEX")
                 slide.derivative_bytes = 0
                 slide.derivative_file_count = 0
+            else:
+                derivative = paths.private_derivative
+                if os.path.lexists(derivative):
+                    measurement = measure_derivative(derivative)
+                    slide.derivative_bytes = measurement.derivative_bytes
+                    slide.derivative_file_count = measurement.file_count
+                    derivative_count += 1
+                else:
+                    if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
+                        raise PublicationError("MISSING_CANONICAL_DERIVATIVE")
+                    slide.derivative_bytes = 0
+                    slide.derivative_file_count = 0
             if slide.state in ACTIVE_STATES:
-                slide.reserved_bytes = admission_required(slide.source_bytes)
+                slide.reserved_bytes = admission_required(
+                    slide.source_bytes,
+                    render_mode=slide.render_mode,
+                )
                 active_reservation_count += 1
             else:
                 slide.reserved_bytes = 0
@@ -232,17 +249,19 @@ def reconcile_storage(
             granted_slide = slides_by_id.get(slide_id)
             if granted_slide is None:
                 continue
-            public_deliveries.append((granted_slide.id, granted_slide.public_id))
+            if granted_slide.render_mode == "static_dzi":
+                public_deliveries.append((granted_slide.id, granted_slide.public_id))
             if slide_id in individual_slide_ids:
                 if granted_slide.published_at is None:
                     granted_slide.published_at = utcnow()
-                individual_deliveries.append(
-                    (
-                        granted_slide.id,
-                        granted_slide.public_id,
-                        delivery_version(granted_slide),
+                if granted_slide.render_mode == "static_dzi":
+                    individual_deliveries.append(
+                        (
+                            granted_slide.id,
+                            granted_slide.public_id,
+                            delivery_version(granted_slide),
+                        )
                     )
-                )
 
         active_shares = database.scalars(
             select(LibraryShare).where(
@@ -306,3 +325,10 @@ def reconcile_storage(
         derivative_count=derivative_count,
         active_reservation_count=active_reservation_count,
     )
+
+
+def _is_safe_regular(path: Path) -> bool:
+    try:
+        return stat.S_ISREG(path.lstat().st_mode)
+    except OSError:
+        return False

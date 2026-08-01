@@ -58,6 +58,7 @@ from .sharing import (
 )
 from .storage import StorageLayout
 from .storage_accounting import storage_capacity_snapshot
+from .tile_routes import TileRouteService, authorize_tile
 
 
 class FolderCreate(BaseModel):
@@ -226,6 +227,7 @@ def register_library_routes(
     database_dependency: Callable[[], Iterator[OrmSession]],
     admin_dependency: Callable[..., Any],
     csrf_dependency: Callable[..., Any],
+    tile_routes: Callable[[], TileRouteService],
 ) -> None:
     def navigation(
         folder_id: str | None = Query(default=None, alias="folderId", max_length=64),
@@ -1071,7 +1073,12 @@ def register_library_routes(
     ) -> dict[str, int]:
         candidates = list(
             database.execute(
-                select(Slide.id, Slide.state).where(
+                select(
+                    Slide.id,
+                    Slide.state,
+                    Slide.render_mode,
+                    Slide.sha256,
+                ).where(
                     Slide.trashed_at.is_not(None),
                     Slide.state != SlideState.DELETING,
                 )
@@ -1079,13 +1086,13 @@ def register_library_routes(
         )
         if any(
             slide_state in {SlideState.VALIDATING, SlideState.CONVERTING}
-            for _, slide_state in candidates
+            for _, slide_state, _, _ in candidates
         ):
             raise HTTPException(
                 status_code=409,
                 detail={"code": "TRASH_ITEMS_BUSY"},
             )
-        for _, slide_state in candidates:
+        for _, slide_state, _, _ in candidates:
             try:
                 transition(slide_state, SlideState.DELETING)
             except InvalidTransition as error:
@@ -1093,7 +1100,10 @@ def register_library_routes(
                     status_code=409,
                     detail={"code": "INVALID_STATE"},
                 ) from error
-        slide_ids = [slide_id for slide_id, _ in candidates]
+        for _, _, render_mode, slide_sha256 in candidates:
+            if render_mode == "ome_dynamic":
+                tile_routes().purge_slide(slide_sha256)
+        slide_ids = [slide_id for slide_id, _, _, _ in candidates]
         for offset in range(0, len(slide_ids), 100):
             batch = slide_ids[offset : offset + 100]
             database.execute(
@@ -1128,6 +1138,8 @@ def register_library_routes(
                 status_code=409,
                 detail={"code": "TRASH_REQUIRED"},
             )
+        if slide.render_mode == "ome_dynamic":
+            tile_routes().purge_slide(slide.sha256)
         schedule_slide_deletion(database, slide)
         database.commit()
         return slide_json(slide)
@@ -1145,6 +1157,24 @@ def register_library_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
         slide = _get_slide(database, slide_id)
+        if slide.render_mode == "ome_dynamic":
+            if slide.trashed_at is not None or slide.state not in {
+                SlideState.READY_PRIVATE,
+                SlideState.PUBLISHED,
+            }:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"code": "THUMBNAIL_NOT_FOUND"},
+                )
+            return tile_routes().dynamic_response(
+                authorize_tile(
+                    slide_id=slide.id,
+                    slide_sha256=slide.sha256,
+                    render_mode=slide.render_mode,
+                    relative_path="thumbnail.jpg",
+                    cache_control="private, max-age=86400, immutable",
+                )
+            )
         if not slide.thumbnail_filename:
             raise HTTPException(status_code=404, detail={"code": "THUMBNAIL_NOT_FOUND"})
         root = storage.for_slide(slide.id).private_derivative.resolve()
@@ -1376,6 +1406,26 @@ def register_library_routes(
             )
         except ShareConflict as error:
             raise _share_error(error) from error
+        slide = database.scalar(
+            select(Slide).where(
+                Slide.public_id == slide_public_id,
+                Slide.state == SlideState.PUBLISHED,
+                Slide.privacy_status == "passed",
+                Slide.trashed_at.is_(None),
+            )
+        )
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        if slide.render_mode == "ome_dynamic":
+            return tile_routes().dynamic_response(
+                authorize_tile(
+                    slide_id=slide.id,
+                    slide_sha256=slide.sha256,
+                    render_mode=slide.render_mode,
+                    relative_path="thumbnail.jpg",
+                    cache_control="private, max-age=86400, immutable",
+                )
+            )
         target = storage.public_for(slide_public_id) / "thumbnail.jpg"
         if not target.is_file():
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
@@ -1403,6 +1453,26 @@ def register_library_routes(
             )
         except ShareConflict as error:
             raise _share_error(error) from error
+        slide = database.scalar(
+            select(Slide).where(
+                Slide.public_id == slide_public_id,
+                Slide.state == SlideState.PUBLISHED,
+                Slide.privacy_status == "passed",
+                Slide.trashed_at.is_(None),
+            )
+        )
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
+        if slide.render_mode == "ome_dynamic":
+            return tile_routes().dynamic_response(
+                authorize_tile(
+                    slide_id=slide.id,
+                    slide_sha256=slide.sha256,
+                    render_mode=slide.render_mode,
+                    relative_path=tile_path,
+                    cache_control="private, max-age=86400, immutable",
+                )
+            )
         try:
             target = storage.public_tile(slide_public_id, tile_path)
         except (FileNotFoundError, ValueError):

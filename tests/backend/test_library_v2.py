@@ -1,10 +1,15 @@
+import hashlib
+import io
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
+import tifffile
 import wsi_viewer.library_routes as library_routes_module
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import event, insert, select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
@@ -20,6 +25,8 @@ from wsi_viewer.models import (
     Slide,
     User,
 )
+from wsi_viewer.ome_ingest import serialize_ome_tile_index
+from wsi_viewer.ome_tile_index import build_ome_tile_index
 from wsi_viewer.publication import INDIVIDUAL, SHARE, ensure_grant, remove_grant
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
@@ -555,6 +562,102 @@ def _seed_share_ready_slide(
         (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
         (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"tile")
         (derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
+
+
+def _seed_dynamic_share_slide(client: TestClient, *, slide_id: str) -> None:
+    settings = client.app.state.settings
+    root = StorageLayout(settings.data_root).for_slide(slide_id).original.parent
+    root.mkdir(parents=True)
+    source = root / "source.ome.tif"
+    full = np.zeros((1024, 1024, 3), dtype=np.uint8)
+    with tifffile.TiffWriter(source, ome=True, bigtiff=True) as writer:
+        writer.write(
+            full,
+            metadata={"axes": "YXS"},
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subifds=1,
+        )
+        writer.write(
+            full[::2, ::2],
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subfiletype=1,
+        )
+    index = build_ome_tile_index(source)
+    (root / "tile-index.json").write_bytes(serialize_ome_tile_index(index))
+    with session_factory(settings)() as database:
+        database.add(
+            Slide(
+                id=slide_id,
+                public_id=f"public-{slide_id}",
+                display_name=f"Safe {slide_id}",
+                original_filename=f"{slide_id}.ome.tif",
+                source_bytes=source.stat().st_size,
+                state=SlideState.READY_PRIVATE,
+                render_mode="ome_dynamic",
+                sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+                privacy_status="passed",
+                privacy_scanned_at=datetime.now(UTC).replace(tzinfo=None),
+                slide_metadata={"width": 1024, "height": 1024},
+            )
+        )
+        database.commit()
+
+
+def test_collection_share_serves_dynamic_ome_without_public_derivative(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        _seed_dynamic_share_slide(client, slide_id="dynamic-share")
+        collection = client.post(
+            "/api/v2/admin/collections",
+            headers=headers,
+            json={"name": "Dynamic teaching set"},
+        ).json()
+        assert (
+            client.post(
+                f"/api/v2/admin/collections/{collection['id']}/items",
+                headers=headers,
+                json={"slideIds": ["dynamic-share"]},
+            ).status_code
+            == 200
+        )
+        shared = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "collection",
+                "targetId": collection["id"],
+                "deidentifiedConfirmed": True,
+            },
+        )
+        assert shared.status_code == 201
+        assert not (
+            client.app.state.settings.data_root / "public" / "public-dynamic-share"
+        ).exists()
+
+        manifest = client.get(
+            f"/api/v2/public/collections/{shared.json()['publicId']}"
+        ).json()
+        descriptor = client.get(manifest["slides"][0]["tileSource"])
+        assert descriptor.status_code == 200
+        assert b'Width="1024" Height="1024"' in descriptor.content
+        tile = client.get(
+            manifest["slides"][0]["tileSource"].replace(
+                "slide.dzi",
+                "slide_files/10/0_0.jpg",
+            )
+        )
+        assert tile.status_code == 200
+        with Image.open(io.BytesIO(tile.content)) as decoded:
+            assert decoded.size == (512, 512)
+        thumbnail = client.get(manifest["slides"][0]["thumbnailUrl"])
+        assert thumbnail.status_code == 200
+        assert thumbnail.headers["content-type"].startswith("image/jpeg")
 
 
 def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(

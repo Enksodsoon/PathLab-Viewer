@@ -1,7 +1,12 @@
+import hashlib
+import io
 from pathlib import Path
 
+import numpy as np
 import pytest
+import tifffile
 from fastapi.testclient import TestClient
+from PIL import Image
 from pydantic import ValidationError
 from sqlalchemy import select, text
 from wsi_viewer.config import Settings
@@ -9,6 +14,8 @@ from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
 from wsi_viewer.models import Slide, User
+from wsi_viewer.ome_ingest import serialize_ome_tile_index
+from wsi_viewer.ome_tile_index import build_ome_tile_index
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 
@@ -73,6 +80,52 @@ def _ready_slide(client: TestClient) -> tuple[str, str]:
     (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
     (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"jpeg")
     (derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
+    return slide_id, public_id
+
+
+def _ready_dynamic_slide(client: TestClient) -> tuple[str, str]:
+    settings = client.app.state.settings
+    with session_factory(settings)() as database:
+        slide = Slide(
+            display_name="Deidentified dynamic slide",
+            original_filename="dynamic.ome.tif",
+            source_bytes=1,
+            state=SlideState.READY_PRIVATE,
+            render_mode="ome_dynamic",
+            privacy_status="private",
+            slide_metadata={"width": 1024, "height": 1024, "physicalSizeX": 0.25},
+        )
+        database.add(slide)
+        database.commit()
+        slide_id, public_id = slide.id, slide.public_id
+    root = settings.data_root / "originals" / slide_id
+    root.mkdir(parents=True)
+    source = root / "source.ome.tif"
+    full = np.zeros((1024, 1024, 3), dtype=np.uint8)
+    with tifffile.TiffWriter(source, ome=True, bigtiff=True) as writer:
+        writer.write(
+            full,
+            metadata={"axes": "YXS"},
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subifds=1,
+        )
+        writer.write(
+            full[::2, ::2],
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subfiletype=1,
+        )
+    index = build_ome_tile_index(source)
+    (root / "tile-index.json").write_bytes(serialize_ome_tile_index(index))
+    with session_factory(settings)() as database:
+        slide = database.get(Slide, slide_id)
+        assert slide is not None
+        slide.source_bytes = source.stat().st_size
+        slide.sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+        database.commit()
     return slide_id, public_id
 
 
@@ -158,7 +211,12 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
         }
         assert annotation_paths
         assert all(
-            path.startswith("/api/v2/admin/annotations/")
+            path.startswith(
+                (
+                    "/api/v2/admin/annotations/",
+                    "/api/v1/desktop/slides/",
+                )
+            )
             for path in annotation_paths
         )
         assert not {"annotationsEnabled", "annotationVersion"} & set(body)
@@ -193,6 +251,94 @@ def test_single_slide_publish_requires_explicit_deidentification_and_minimizes_m
             == 200
         )
         assert not (settings.data_root / "delivery" / "individual" / public_id).exists()
+
+
+def test_dynamic_ome_publish_streams_tiles_without_public_source_or_derivatives(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        slide_id, public_id = _ready_dynamic_slide(client)
+        headers = {"X-CSRF-Token": csrf}
+
+        published = client.post(
+            f"/api/v1/admin/slides/{slide_id}/publish",
+            headers=headers,
+            json={"deidentifiedConfirmed": True},
+        )
+        assert published.status_code == 200
+        assert not (client.app.state.settings.data_root / "public" / public_id).exists()
+        assert not (
+            client.app.state.settings.data_root / "delivery" / "individual" / public_id
+        ).exists()
+
+        public = client.get(f"/api/v1/public/slides/{public_id}")
+        assert public.status_code == 200
+        assert public.json()["tileSource"] == (
+            f"/api/v1/public/slides/{public_id}/tiles/slide.dzi"
+        )
+        descriptor = client.get(public.json()["tileSource"])
+        assert descriptor.status_code == 200
+        assert b'Width="1024" Height="1024"' in descriptor.content
+        tile = client.get(
+            f"/api/v1/public/slides/{public_id}/tiles/slide_files/10/0_0.jpeg"
+        )
+        assert tile.status_code == 200
+        with Image.open(io.BytesIO(tile.content)) as decoded:
+            assert decoded.size == (512, 512)
+        assert (
+            client.get(
+                f"/api/v1/public/slides/{public_id}/tiles/source.ome.tif",
+                headers={"Range": "bytes=0-31"},
+            ).status_code
+            == 404
+        )
+
+        assert (
+            client.post(
+                f"/api/v1/admin/slides/{slide_id}/unpublish",
+                headers=headers,
+            ).status_code
+            == 200
+        )
+        assert client.get(public.json()["tileSource"]).status_code == 404
+
+
+def test_production_dynamic_route_authorizes_before_internal_tile_redirect(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, internal_file_redirects=True) as client:
+        csrf = _login(client)
+        slide_id, public_id = _ready_dynamic_slide(client)
+        assert (
+            client.post(
+                f"/api/v1/admin/slides/{slide_id}/publish",
+                headers={"X-CSRF-Token": csrf},
+                json={"deidentifiedConfirmed": True},
+            ).status_code
+            == 200
+        )
+
+        redirected = client.get(
+            f"/api/v1/public/slides/{public_id}/tiles/slide.dzi"
+        )
+        assert redirected.status_code == 200
+        assert redirected.content == b""
+        source = (
+            client.app.state.settings.data_root
+            / "originals"
+            / slide_id
+            / "source.ome.tif"
+        )
+        source_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+        assert redirected.headers["x-accel-redirect"] == (
+            f"/_pathlab_ome/{slide_id}/{source_sha256}/slide.dzi"
+        )
+        denied = client.get(
+            "/api/v1/public/slides/not-published/tiles/slide.dzi"
+        )
+        assert denied.status_code == 404
+        assert "x-accel-redirect" not in denied.headers
 
 
 def test_public_fields_cannot_change_while_shared_and_private_edits_reset_review(

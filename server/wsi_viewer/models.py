@@ -62,6 +62,88 @@ class Session(Base):
     user: Mapped[User] = relationship()
 
 
+class DesktopPairing(Base):
+    __tablename__ = "desktop_pairings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    device_code_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    device_secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    user_code: Mapped[str] = mapped_column(String(12), unique=True, nullable=False, index=True)
+    device_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    exchanged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class DesktopCredential(Base):
+    __tablename__ = "desktop_credentials"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    device_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class DesktopIngest(Base):
+    __tablename__ = "desktop_ingests"
+    __table_args__ = (
+        CheckConstraint(
+            "ingest_mode IN ('prepared_v2', 'ome_dynamic_v1')",
+            name="ck_desktop_ingests_mode",
+        ),
+        CheckConstraint("package_length > 0", name="ck_desktop_ingests_length_positive"),
+        CheckConstraint(
+            "received_bytes >= 0 AND received_bytes <= package_length",
+            name="ck_desktop_ingests_received_range",
+        ),
+        Index("ix_desktop_ingests_credential_status", "credential_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    credential_id: Mapped[str] = mapped_column(
+        ForeignKey("desktop_credentials.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str | None] = mapped_column(
+        ForeignKey("slides.id", ondelete="SET NULL")
+    )
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    artifact_revision_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    package_length: Mapped[int] = mapped_column(Integer, nullable=False)
+    received_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    package_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    ingest_mode: Mapped[str] = mapped_column(
+        String(24),
+        nullable=False,
+        default="prepared_v2",
+        server_default="prepared_v2",
+    )
+    ome_profile: Mapped[str | None] = mapped_column(String(40))
+    ome_width: Mapped[int | None] = mapped_column(Integer)
+    ome_height: Mapped[int | None] = mapped_column(Integer)
+    ome_downsample: Mapped[float | None] = mapped_column(Float)
+    ome_jpeg_quality: Mapped[int | None] = mapped_column(Integer)
+    derivative_bytes: Mapped[int | None] = mapped_column(Integer)
+    derivative_file_count: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="uploading")
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
 class PasswordRecoveryCode(Base):
     __tablename__ = "password_recovery_codes"
 
@@ -133,6 +215,10 @@ class Slide(Base):
             "derivative_file_count >= 0",
             name="ck_slides_derivative_file_count_nonnegative",
         ),
+        CheckConstraint(
+            "render_mode IN ('static_dzi', 'ome_dynamic')",
+            name="ck_slides_render_mode",
+        ),
         CheckConstraint("sort_order >= 0", name="ck_slides_sort_order_nonnegative"),
         Index("ix_slides_updated_id", "updated_at", "id"),
         Index("ix_slides_created_id", "created_at", "id"),
@@ -148,6 +234,13 @@ class Slide(Base):
     reserved_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     derivative_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     derivative_file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    render_mode: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="static_dzi",
+        server_default="static_dzi",
+        index=True,
+    )
     folder_id: Mapped[str | None] = mapped_column(
         ForeignKey("folders.id", ondelete="SET NULL"), index=True
     )

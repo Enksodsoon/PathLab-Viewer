@@ -102,6 +102,14 @@ export async function logout(): Promise<void> {
   sessionStorage.removeItem(CSRF_KEY)
 }
 
+export async function approveDesktopPairing(userCode: string): Promise<void> {
+  await expectOk(await csrfFetch('/api/v1/desktop/pairings/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userCode }),
+  }))
+}
+
 export async function recoverPassword(
   username: string,
   recoveryCode: string,

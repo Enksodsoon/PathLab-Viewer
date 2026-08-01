@@ -73,3 +73,21 @@ def test_multi_share_is_enabled_by_default_and_accepts_the_kill_switch(
 def test_libvips_limits_reject_non_positive_values(field: str, value: int) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **{field: value})
+
+
+def test_tile_cache_limits_are_ordered_and_bounded() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.tile_cache_max_bytes == 2 * 1024**3
+    assert settings.tile_cache_low_water_bytes == 1792 * 1024**2
+    assert settings.tile_cache_memory_bytes == 256 * 1024**2
+
+    with pytest.raises(ValueError, match="low-water"):
+        Settings(
+            _env_file=None,
+            tile_cache_max_bytes=100,
+            tile_cache_low_water_bytes=100,
+        )
+    with pytest.raises(ValueError, match="temporary"):
+        Settings(_env_file=None, tile_cache_max_temp_bytes=8 * 1024**2 + 1)
+    with pytest.raises(ValueError, match="memory"):
+        Settings(_env_file=None, tile_cache_memory_bytes=512 * 1024**2 + 1)

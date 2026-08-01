@@ -40,9 +40,22 @@ class Settings(BaseSettings):
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
     libvips_cache_max_files: PositiveInt = 128
     libvips_cache_max_operations: PositiveInt = 100
+    tile_cache_root: Path = Path("./var/data/cache/ome-tiles")
+    tile_cache_max_bytes: PositiveInt = 2 * 1024**3
+    tile_cache_low_water_bytes: PositiveInt = 1792 * 1024**2
+    tile_cache_max_temp_bytes: PositiveInt = 8 * 1024**2
+    tile_cache_memory_bytes: PositiveInt = 256 * 1024**2
+    tile_render_concurrency: PositiveInt = 2
+    tile_service_url: str = "http://tile-service:8090"
 
     @model_validator(mode="after")
     def validate_production_security(self) -> Self:
+        if self.tile_cache_low_water_bytes >= self.tile_cache_max_bytes:
+            raise ValueError("Tile cache low-water mark must be below its maximum")
+        if self.tile_cache_max_temp_bytes > 8 * 1024**2:
+            raise ValueError("Tile cache temporary files must not exceed 8 MiB")
+        if self.tile_cache_memory_bytes > 512 * 1024**2:
+            raise ValueError("Tile cache memory must not exceed 512 MiB")
         if self.environment != "production":
             return self
         secret = self.secret_key.strip()

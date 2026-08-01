@@ -1,6 +1,6 @@
 from pathlib import Path
 
-EXPECTED_COMPOSE_SERVICES = ("caddy", "api", "tusd", "worker")
+EXPECTED_COMPOSE_SERVICES = ("caddy", "api", "tile-service", "tusd", "worker")
 EXPECTED_LOGGING_LINES = [
     "      driver: json-file",
     "      options:",
@@ -50,12 +50,15 @@ def test_tusd_uses_pathlab_data_owner() -> None:
     assert 'user: "10001:10001"' in tusd_service
 
 
-def test_conversion_resource_limits_are_worker_only() -> None:
+def test_conversion_resource_limits_are_worker_and_tile_service_only() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
         "\n  api:\n", maxsplit=1
     )[0]
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tile-service:\n", maxsplit=1
+    )[0]
+    tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
         "\n  tusd:\n", maxsplit=1
     )[0]
     tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
@@ -75,6 +78,7 @@ def test_conversion_resource_limits_are_worker_only() -> None:
 
     for name in expected:
         assert name in worker_service
+        assert name in tile_service
         assert name not in caddy_service
         assert name not in api_service
         assert name not in tusd_service
@@ -91,7 +95,7 @@ def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
         "\n  api:\n", maxsplit=1
     )[0]
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tusd:\n", maxsplit=1
+        "\n  tile-service:\n", maxsplit=1
     )[0]
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
         "\nvolumes:\n", maxsplit=1
@@ -208,7 +212,7 @@ def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
 def test_api_creates_runtime_directories_before_migrations() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tusd:\n", maxsplit=1
+        "\n  tile-service:\n", maxsplit=1
     )[0]
 
     command = api_service.split("command:", maxsplit=1)[1].split(
@@ -221,7 +225,7 @@ def test_api_creates_runtime_directories_before_migrations() -> None:
 def test_api_reconciles_storage_after_migration_before_startup() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tusd:\n", maxsplit=1
+        "\n  tile-service:\n", maxsplit=1
     )[0]
     command = api_service.split("command:", maxsplit=1)[1].split(
         "environment:", maxsplit=1
@@ -277,6 +281,38 @@ def test_caddy_serves_isolated_individual_tiles_and_preserves_route_cache_header
     assert "reverse_proxy" not in assets
     assert 'header Cache-Control "no-cache"' in spa
     assert caddyfile.index("handle /assets/*") < caddyfile.index("\thandle {\n")
+
+
+def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+
+    assert 'command: ["pathlab-tiles"]' in tile_service
+    assert 'expose: ["8090"]' in tile_service
+    assert "\n    ports:" not in tile_service
+    assert (
+        "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/originals:/data/originals:ro"
+        in tile_service
+    )
+    assert "pathlab-tile-cache:/cache/ome-tiles" in tile_service
+    assert "PATHLAB_TILE_CACHE_MAX_BYTES:-2147483648" in tile_service
+    assert "PATHLAB_TILE_CACHE_LOW_WATER_BYTES:-1879048192" in tile_service
+    assert "PATHLAB_TILE_RENDER_CONCURRENCY:-2" in tile_service
+    assert "pathlab-internal" in tile_service
+    assert "internal: true" in compose
+    assert "pathlab-tile-cache:" in compose
+    assert (
+        "install -d -o pathlab -g pathlab -m 700 /cache/ome-tiles"
+        in Path("deploy/Dockerfile.backend").read_text(encoding="utf-8")
+    )
+
+    assert "@dynamic_delivery header X-Accel-Redirect /_pathlab_ome/*" in caddyfile
+    assert "reverse_proxy tile-service:8090" in caddyfile
+    assert "@direct_dynamic path /_pathlab_ome/*" in caddyfile
+    assert "respond @direct_dynamic 404" in caddyfile
 
 
 def test_production_deploy_is_manual_serial_and_main_only() -> None:
@@ -536,3 +572,13 @@ def test_security_workflow_supports_manual_event_recovery() -> None:
     workflow = Path(".github/workflows/security.yml").read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
+
+
+def test_web_container_includes_shared_viewer_ui_workspace() -> None:
+    dockerfile = Path("deploy/Dockerfile.web").read_text(encoding="utf-8")
+
+    assert "COPY apps/web ./apps/web" in dockerfile
+    assert "COPY packages/viewer-ui ./packages/viewer-ui" in dockerfile
+    assert dockerfile.index("COPY packages/viewer-ui") < dockerfile.index(
+        "pnpm install --frozen-lockfile"
+    )

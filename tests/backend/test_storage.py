@@ -38,6 +38,22 @@ def test_upload_admission_reserves_conversion_and_safety_headroom() -> None:
     assert admission_required(5 * gib) == 25 * gib
 
 
+def test_ome_dynamic_admission_is_source_plus_bounded_headroom() -> None:
+    source_bytes = 433_745_579
+    assert admission_required(source_bytes, render_mode="ome_dynamic") == (
+        source_bytes + 512 * 1024**2
+    )
+    large_source = 6 * 1024**3
+    assert admission_required(large_source, render_mode="ome_dynamic") == (
+        large_source + (large_source + 9) // 10
+    )
+
+
+def test_unknown_render_mode_is_rejected() -> None:
+    with pytest.raises(ValueError, match="render mode"):
+        admission_required(1, render_mode="unknown")
+
+
 def test_storage_capacity_uses_stricter_disk_and_application_limits(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -77,6 +93,32 @@ def test_storage_capacity_uses_stricter_disk_and_application_limits(
     assert disk_limited.effective_capacity_bytes == 650
     assert application_limited.usable_bytes == 50
     assert application_limited.effective_capacity_bytes == 200
+
+
+def test_ready_dynamic_slide_accounts_only_for_canonical_ome(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'dynamic-capacity.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.add(
+            Slide(
+                display_name="Dynamic",
+                original_filename="dynamic.ome.tif",
+                source_bytes=100,
+                derivative_bytes=999,
+                render_mode="ome_dynamic",
+                state=SlideState.READY_PRIVATE,
+            )
+        )
+        database.commit()
+        snapshot = storage_capacity_snapshot(
+            database,
+            StorageLayout(settings.data_root, cap_bytes=1_000),
+        )
+
+    assert snapshot.used_bytes == 100
 
 
 def test_storage_rejects_when_disk_or_app_cap_is_too_small(tmp_path: Path) -> None:
@@ -313,6 +355,70 @@ def test_reconciliation_backfills_derivative_and_active_reservation(
         assert ready.derivative_file_count == 2
         assert active is not None
         assert active.reserved_bytes == admission_required(7)
+
+
+def test_reconciliation_accepts_dynamic_ome_without_dzi(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'dynamic-reconcile.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        slide = Slide(
+            display_name="Dynamic",
+            original_filename="dynamic.ome.tif",
+            source_bytes=3,
+            derivative_bytes=99,
+            derivative_file_count=7,
+            render_mode="ome_dynamic",
+            state=SlideState.READY_PRIVATE,
+        )
+        database.add(slide)
+        database.commit()
+        slide_id = slide.id
+    paths = layout.for_slide(slide_id)
+    paths.original.parent.mkdir(parents=True)
+    paths.original.write_bytes(b"ome")
+    paths.ome_index.write_text("{}", encoding="utf-8")
+
+    summary = reconcile_storage(factory, layout)
+
+    assert summary.derivative_count == 0
+    with factory() as database:
+        stored = database.get(Slide, slide_id)
+        assert stored is not None
+        assert stored.derivative_bytes == 0
+        assert stored.derivative_file_count == 0
+        assert stored.reserved_bytes == 0
+
+
+def test_reconciliation_rejects_ready_dynamic_slide_without_index(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'dynamic-missing-index.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        slide = Slide(
+            display_name="Dynamic",
+            original_filename="dynamic.ome.tif",
+            source_bytes=3,
+            render_mode="ome_dynamic",
+            state=SlideState.READY_PRIVATE,
+        )
+        database.add(slide)
+        database.commit()
+        slide_id = slide.id
+    original = layout.for_slide(slide_id).original
+    original.parent.mkdir(parents=True)
+    original.write_bytes(b"ome")
+
+    with pytest.raises(PublicationError, match="MISSING_DYNAMIC_OME_INDEX"):
+        reconcile_storage(factory, layout)
 
 
 def test_reconciliation_repairs_legacy_invalid_slide_tags(tmp_path: Path) -> None:

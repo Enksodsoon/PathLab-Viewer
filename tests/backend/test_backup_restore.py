@@ -93,6 +93,8 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     assert 'extractall(destination, filter="data")' in restore
     assert "tar --extract" not in restore
     assert ".before-restore-" in restore
+    assert "cache/ome-tiles" not in backup
+    assert "pathlab-tiles --purge-cache" in restore
 
 
 def test_sqlite_backup_preserves_private_annotation_state(tmp_path: Path) -> None:

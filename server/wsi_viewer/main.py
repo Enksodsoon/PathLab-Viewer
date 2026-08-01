@@ -4,7 +4,8 @@ import os
 import re
 import shutil
 from collections import defaultdict, deque
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
@@ -28,16 +29,18 @@ from .auth import (
 from .config import Settings
 from .database import session_factory
 from .delivery import deliver_file
+from .desktop_routes import register_desktop_routes
 from .domain import InvalidTransition, SlideState, transition
 from .library_routes import register_library_routes
 from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
+from .ome_tiles import MemoryTileCache, OmeTileRenderer
 from .publication import (
     INDIVIDUAL,
     delete_all_slide_grants,
     delivery_version,
     ensure_grant,
 )
-from .readiness import schema_is_current
+from .readiness import schema_is_current, tile_service_is_ready
 from .request_limits import AuthBodyLimitMiddleware
 from .security import (
     MAX_VERIFICATION_PASSWORD_LENGTH,
@@ -54,6 +57,8 @@ from .storage import (
     StorageLayout,
 )
 from .storage_accounting import reserve_new_slide, reserve_retry
+from .tile_cache import TileCache
+from .tile_routes import TileRouteService, authorize_tile, private_static_target
 
 COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
@@ -158,10 +163,16 @@ def _slide_json(
         result.pop("errorMessage")
         result.pop("createdAt")
         result["metadata"] = _public_metadata(slide.slide_metadata)
-        delivery_root = f"/tiles/{slide.public_id}/{delivery_version(slide)}"
+        delivery_root = (
+            f"/api/v1/public/slides/{slide.public_id}/tiles"
+            if slide.render_mode == "ome_dynamic"
+            else f"/tiles/{slide.public_id}/{delivery_version(slide)}"
+        )
         result["tileSource"] = f"{delivery_root}/slide.dzi"
-        if slide.thumbnail_filename:
-            result["thumbnailUrl"] = f"{delivery_root}/{slide.thumbnail_filename}"
+        if slide.thumbnail_filename or slide.render_mode == "ome_dynamic":
+            result["thumbnailUrl"] = (
+                f"{delivery_root}/{slide.thumbnail_filename or 'thumbnail.jpg'}"
+            )
     else:
         result["filename"] = slide.original_filename
         result["annotationsEnabled"] = annotations_enabled
@@ -175,7 +186,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     factory = session_factory(current)
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
-    app = FastAPI(title="PathLab Viewer API", version="0.1.0")
+    services: dict[str, Any] = {}
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        finalizer = services.get("desktop_finalizer")
+        finalizer_started = False
+        if current.internal_file_redirects:
+            tile_routes = TileRouteService(
+                storage,
+                None,
+                internal_redirects=True,
+            )
+        else:
+            cache_root = current.tile_cache_root
+            if not cache_root.is_absolute():
+                cache_root = current.data_root / "cache" / "ome-tiles"
+            tile_routes = TileRouteService(
+                storage,
+                OmeTileRenderer(
+                    TileCache(
+                        cache_root,
+                        max_bytes=current.tile_cache_max_bytes,
+                        low_water_bytes=current.tile_cache_low_water_bytes,
+                        max_temp_bytes=current.tile_cache_max_temp_bytes,
+                    ),
+                    memory_cache=MemoryTileCache(current.tile_cache_memory_bytes),
+                    render_concurrency=current.tile_render_concurrency,
+                ),
+            )
+        services["tile_routes"] = tile_routes
+        with factory() as database:
+            schema_ready = schema_is_current(database)
+        if finalizer is not None and schema_ready:
+            finalizer.start()
+            finalizer_started = True
+        try:
+            yield
+        finally:
+            if finalizer is not None and finalizer_started:
+                finalizer.close()
+            services.pop("tile_routes", None)
+            tile_routes.close()
+
+    app = FastAPI(title="PathLab Viewer API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         AuthBodyLimitMiddleware,
         path_limits=(
@@ -193,6 +247,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
     )
     app.state.settings = current
+
+    def tile_routes() -> TileRouteService:
+        service = services.get("tile_routes")
+        if not isinstance(service, TileRouteService):
+            raise HTTPException(status_code=503, detail={"code": "TILE_SERVICE_UNAVAILABLE"})
+        return service
+
     def database() -> Iterator[OrmSession]:
         with factory() as session:
             yield session
@@ -273,12 +334,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         database_dependency=database,
         admin_dependency=admin_session,
         csrf_dependency=csrf,
+        tile_routes=tile_routes,
     )
     register_annotation_routes(
         app,
         database_dependency=database,
         admin_dependency=admin_session,
         csrf_dependency=csrf,
+    )
+    services["desktop_finalizer"] = register_desktop_routes(
+        app,
+        database_dependency=database,
+        csrf_dependency=csrf,
+        storage=storage,
+        tile_routes=tile_routes,
     )
 
     @app.get("/livez")
@@ -289,6 +358,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def readyz(db: Database) -> dict[str, str]:
         if not schema_is_current(db):
             raise HTTPException(status_code=503, detail={"code": "DATABASE_NOT_READY"})
+        if current.internal_file_redirects and not tile_service_is_ready(
+            current.tile_service_url
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "TILE_SERVICE_NOT_READY"},
+            )
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)
@@ -430,27 +506,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         result = _slide_json(slide, annotations_enabled=current.annotations_enabled)
         if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
             result["tileSource"] = f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
-            if slide.thumbnail_filename:
+            if slide.thumbnail_filename or slide.render_mode == "ome_dynamic":
                 result["thumbnailUrl"] = (
-                    f"/api/v1/admin/slides/{slide.id}/preview/{slide.thumbnail_filename}"
+                    f"/api/v1/admin/slides/{slide.id}/preview/"
+                    f"{slide.thumbnail_filename or 'thumbnail.jpg'}"
                 )
         return result
 
     @app.get("/api/v1/admin/slides/{slide_id}/preview/{tile_path:path}")
     def private_tile(slide_id: str, tile_path: str, _: AdminSession, db: Database) -> Response:
         slide = db.get(Slide, slide_id)
-        if slide is None:
+        if (
+            slide is None
+            or slide.trashed_at is not None
+            or slide.state not in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
+        ):
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        root = storage.for_slide(slide.id).private_derivative.resolve()
-        target = (root / tile_path).resolve()
-        if not target.is_relative_to(root) or target.suffix.lower() not in {
-            ".dzi",
-            ".jpg",
-            ".jpeg",
-        }:
-            raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
-        if not target.is_file():
-            raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+        authorized = authorize_tile(
+            slide_id=slide.id,
+            slide_sha256=slide.sha256,
+            render_mode=slide.render_mode,
+            relative_path=tile_path,
+            cache_control="private, max-age=86400, immutable",
+        )
+        if authorized.render_mode == "ome_dynamic":
+            return tile_routes().dynamic_response(authorized)
+        target = private_static_target(storage, slide.id, tile_path)
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
         return deliver_file(
             target,
@@ -672,6 +753,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         delete_all_slide_grants(db, storage, slide)
+        if slide.render_mode == "ome_dynamic":
+            tile_routes().purge_slide(slide.sha256)
         slide = mutate(slide_id, SlideState.DELETING, authenticated, db)
         db.add(Job(slide_id=slide.id, kind="delete"))
         db.commit()
@@ -683,6 +766,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             select(Slide).where(
                 Slide.public_id == public_id,
                 Slide.state == SlideState.PUBLISHED,
+                Slide.trashed_at.is_(None),
                 Slide.privacy_status == "passed",
                 select(PublicationGrant.id)
                 .where(
@@ -703,6 +787,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             select(Slide).where(
                 Slide.public_id == public_id,
                 Slide.state == SlideState.PUBLISHED,
+                Slide.trashed_at.is_(None),
                 Slide.privacy_status == "passed",
                 select(PublicationGrant.id)
                 .where(
@@ -715,6 +800,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        authorized = authorize_tile(
+            slide_id=slide.id,
+            slide_sha256=slide.sha256,
+            render_mode=slide.render_mode,
+            relative_path=tile_path,
+            cache_control="private, max-age=86400, immutable",
+        )
+        if authorized.render_mode == "ome_dynamic":
+            return tile_routes().dynamic_response(authorized)
         try:
             target = storage.public_tile(slide.public_id, tile_path)
         except (FileNotFoundError, ValueError):

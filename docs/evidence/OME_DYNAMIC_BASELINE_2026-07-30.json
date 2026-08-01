@@ -1,0 +1,21 @@
+{
+  "schema": "pathlab.ome-dynamic-evidence/v1",
+  "viewerBaseSha": "373ca749b6442315730ac6de35b08b02328c4977",
+  "preparedIngestBaseSha": "c7d943a048b69ae954c0d3b9e08eefc3ed33844a",
+  "forgeBaseSha": "16a9cf6139f82fac9809b6682543692cccbd5654",
+  "fixture": {
+    "downsample": 1.5,
+    "width": 110563,
+    "height": 60490,
+    "omeBytes": 433745579,
+    "omeSeconds": 56.0,
+    "omeSecondsMeasurement": "midpoint of observed 55-57 second interval",
+    "preparedPackageBytes": 3982018048,
+    "preparedTotalSeconds": 562.0
+  },
+  "quality": {
+    "selectedJpegQuality": 95,
+    "minimumWindowedSsim": 0.989477906,
+    "meanDeltaE00": 0.182981001
+  }
+}
