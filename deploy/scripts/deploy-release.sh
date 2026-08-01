@@ -144,7 +144,7 @@ RUNNING_SERVICES="$(
   cd "${LIVE_DIR}/deploy"
   docker compose ps --status running --services | sort
 )"
-EXPECTED_SERVICES=$'api\ncaddy\ntusd\nworker'
+EXPECTED_SERVICES=$'api\ncaddy\ntile-service\ntusd\nworker'
 [[ "${RUNNING_SERVICES}" == "${EXPECTED_SERVICES}" ]] || \
   fail "not all production services are running"
 [[ "$(cat "${LIVE_DIR}/.pathlab-release")" == "${TARGET_SHA}" ]] || \
