@@ -63,6 +63,9 @@ services:
       PATHLAB_TILE_SERVICE_URL: http://tile-service:8090
     volumes:
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    networks:
+      - default
+      - pathlab-internal
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://127.0.0.1:8000/readyz"]
       interval: 15s

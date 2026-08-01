@@ -286,6 +286,9 @@ def test_caddy_serves_isolated_individual_tiles_and_preserves_route_cache_header
 def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    api = compose.split("\n  api:\n", maxsplit=1)[1].split(
+        "\n  tile-service:\n", maxsplit=1
+    )[0]
     tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
         "\n  tusd:\n", maxsplit=1
     )[0]
@@ -301,6 +304,7 @@ def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> Non
     assert "PATHLAB_TILE_CACHE_MAX_BYTES:-2147483648" in tile_service
     assert "PATHLAB_TILE_CACHE_LOW_WATER_BYTES:-1879048192" in tile_service
     assert "PATHLAB_TILE_RENDER_CONCURRENCY:-2" in tile_service
+    assert "pathlab-internal" in api
     assert "pathlab-internal" in tile_service
     assert "internal: true" in compose
     assert "pathlab-tile-cache:" in compose
@@ -516,6 +520,7 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert "flock" in script
     assert 'cat "${LIVE_DIR}/.pathlab-release"' in script
     assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
+    assert "EXPECTED_SERVICES=$'api\\ncaddy\\ntile-service\\ntusd\\nworker'" in script
 
 
 def test_release_script_preserves_environment_and_never_touches_data() -> None:
