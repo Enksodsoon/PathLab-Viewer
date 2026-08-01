@@ -89,6 +89,15 @@ def test_conversion_resource_limits_are_worker_and_tile_service_only() -> None:
     assert "cpus: 1.50" in worker_service
 
 
+def test_backend_image_smoke_imports_every_production_runtime() -> None:
+    dockerfile = Path("deploy/Dockerfile.backend").read_text(encoding="utf-8")
+    requirements = Path("deploy/backend-requirements.txt").read_text(encoding="utf-8")
+
+    assert "pillow==12.3.0" in requirements
+    assert "from PIL import Image" in dockerfile
+    assert "import wsi_viewer.main, wsi_viewer.tile_service, wsi_viewer.worker" in dockerfile
+
+
 def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
