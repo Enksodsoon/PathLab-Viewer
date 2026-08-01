@@ -344,7 +344,6 @@ class OmeTileRenderer:
                     Q=slide.quality,
                     strip=True,
                     optimize_coding=True,
-                    keep="none",
                 )
             )
         except OmeTileError:

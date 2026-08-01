@@ -1,5 +1,7 @@
 import io
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -113,6 +115,59 @@ def test_missing_ome_level_uses_bounded_fallback(
 
     assert renderer.tile(slide, DziRequest(level=8, column=0, row=0)) == fallback
     assert renderer.stats().fallback_tiles == 1
+    renderer.close()
+
+
+def test_missing_ome_level_encodes_a_compatible_jpeg(tmp_path: Path) -> None:
+    try:
+        import pyvips  # noqa: F401
+    except (ImportError, OSError):
+        pytest.skip("libvips runtime is unavailable")
+    slide, _ = _slide(tmp_path)
+    renderer = _renderer(tmp_path)
+
+    result = renderer.tile(slide, DziRequest(level=8, column=0, row=0))
+
+    with Image.open(io.BytesIO(result)) as image:
+        assert image.size == (256, 256)
+        assert image.mode == "RGB"
+    assert renderer.stats().fallback_tiles == 1
+    renderer.close()
+
+
+def test_fallback_jpeg_uses_debian_libvips_compatible_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    slide, _ = _slide(tmp_path)
+    renderer = _renderer(tmp_path)
+    options: dict[str, object] = {}
+
+    class FakeImage:
+        width = 512
+        height = 512
+
+        def resize(self, _: float) -> "FakeImage":
+            self.width = 256
+            self.height = 256
+            return self
+
+        def crop(self, *_: int) -> "FakeImage":
+            return self
+
+        def jpegsave_buffer(self, **kwargs: object) -> bytes:
+            options.update(kwargs)
+            return b"\xff\xd8fallback\xff\xd9"
+
+    fake_image = FakeImage()
+    fake_pyvips = SimpleNamespace(
+        Image=SimpleNamespace(tiffload=lambda *_args, **_kwargs: fake_image)
+    )
+    monkeypatch.setitem(sys.modules, "pyvips", fake_pyvips)
+
+    assert renderer.tile(slide, DziRequest(level=8, column=0, row=0)).startswith(
+        b"\xff\xd8"
+    )
+    assert options == {"Q": 95, "strip": True, "optimize_coding": True}
     renderer.close()
 
 
