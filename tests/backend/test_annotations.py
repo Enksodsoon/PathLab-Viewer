@@ -71,6 +71,7 @@ def _slide(
             display_name="Annotation source",
             original_filename="annotation-source.ome.tif",
             source_bytes=10,
+            sha256="a" * 64,
             state=state,
             privacy_status="passed",
             slide_metadata={

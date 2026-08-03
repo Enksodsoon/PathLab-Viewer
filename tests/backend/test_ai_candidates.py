@@ -1,8 +1,64 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import json
 from pathlib import Path
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from test_annotations import _client, _login, _slide
+
+
+def _desktop_authorization(client) -> dict[str, str]:
+    csrf = _login(client)
+    pairing = client.post(
+        "/api/v1/desktop/pairings", json={"deviceName": "Forge morphology"}
+    ).json()
+    assert (
+        client.post(
+            "/api/v1/desktop/pairings/approve", headers=csrf, json={"userCode": pairing["userCode"]}
+        ).status_code
+        == 204
+    )
+    exchanged = client.post(
+        "/api/v1/desktop/pairings/exchange",
+        json={"deviceCode": pairing["deviceCode"], "deviceSecret": pairing["deviceSecret"]},
+    )
+    assert exchanged.status_code == 200
+    assert "slides:evidence:write" in exchanged.json()["scopes"]
+    return {"Authorization": f"Bearer {exchanged.json()['accessToken']}"}
+
+
+def _signed_morphology_manifest() -> dict:
+    value = {
+        "ai_lab_schema": "pathlab-ai-result/v2",
+        "job_id": "job-1",
+        "adapter": "morphology",
+        "research_only": True,
+        "not_diagnostic": True,
+        "review_required": True,
+        "official_score_impact": False,
+        "contains_diagnosis": False,
+        "source_fingerprint_sha256": "a" * 64,
+        "artifact": {"sha256": "b" * 64},
+        "model": {"config_sha256": "c" * 64},
+        "code": {"revision": "test"},
+    }
+    private_key = Ed25519PrivateKey.generate()
+    public_der = private_key.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    message = "\n".join(
+        ("pathlab-ai-result/v2", "job-1", "morphology", "a" * 64, "b" * 64, "c" * 64, "test")
+    ).encode()
+    value["signature"] = {
+        "algorithm": "Ed25519",
+        "key_id": hashlib.sha256(public_der).hexdigest(),
+        "public_key_der": base64.urlsafe_b64encode(public_der).decode().rstrip("="),
+        "value": base64.urlsafe_b64encode(private_key.sign(message)).decode().rstrip("="),
+    }
+    return value
 
 
 def _payload() -> dict:
@@ -127,3 +183,41 @@ def test_morphology_candidate_rejects_missing_rank_or_more_than_five(tmp_path: P
             json=payload,
         )
         assert response.status_code == 422
+
+
+def test_paired_forge_submits_signed_temporary_morphology_evidence(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        authorization = _desktop_authorization(client)
+        slide = _slide(client, slide_id="desktop-evidence")
+        payload = _payload()
+        payload.update(
+            {"adapter": "morphology", "modelId": "dino-baseline", "containsDiagnosis": False}
+        )
+        region = payload["regions"][0]
+        region.pop("probability")
+        region.pop("uncertainty")
+        region.update(
+            {
+                "evidenceKind": "similar",
+                "similarity": 0.88,
+                "rank": 1,
+                "crossStain": False,
+                "morphologyTags": ["architecture"],
+            }
+        )
+        manifest = _signed_morphology_manifest()
+        payload["resultManifest"] = manifest
+        payload["resultManifestSha256"] = hashlib.sha256(
+            json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        ).hexdigest()
+        created = client.post(
+            f"/api/v1/desktop/slides/{slide.id}/ai-candidates", headers=authorization, json=payload
+        )
+        assert created.status_code == 201
+        assert created.json()["temporary"] is True
+        tampered = dict(payload)
+        tampered["resultManifest"] = {**manifest, "contains_diagnosis": True}
+        rejected = client.post(
+            f"/api/v1/desktop/slides/{slide.id}/ai-candidates", headers=authorization, json=tampered
+        )
+        assert rejected.status_code == 422

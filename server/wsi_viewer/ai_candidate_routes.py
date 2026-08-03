@@ -1,10 +1,16 @@
 # ruff: noqa: B008
 
+import base64
+import hashlib
+import json
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import (
     BaseModel,
@@ -41,8 +47,7 @@ class EvidenceRegion(CandidateModel):
     uncertainty: StrictFloat | None = Field(default=None, ge=0, le=1)
     abstained: StrictBool = False
     evidence_kind: (
-        Literal["similar", "contrast", "prototype", "artifact", "annotation_candidate"]
-        | None
+        Literal["similar", "contrast", "prototype", "artifact", "annotation_candidate"] | None
     ) = Field(default=None, alias="evidenceKind")
     similarity: StrictFloat | None = Field(default=None, ge=-1, le=1)
     rank: StrictInt | None = Field(default=None, ge=1, le=20)
@@ -69,20 +74,121 @@ class CandidateLayerRequest(CandidateModel):
         if self.adapter == "morphology":
             ranks = [region.rank for region in self.regions]
             if any(
-                region.evidence_kind is None
-                or region.similarity is None
-                or region.rank is None
+                region.evidence_kind is None or region.similarity is None or region.rank is None
                 for region in self.regions
             ):
                 raise ValueError("Morphology regions require evidenceKind, similarity, and rank")
             if ranks != list(range(1, len(self.regions) + 1)):
                 raise ValueError("Morphology ranks must be contiguous and deterministic")
         elif any(
-            region.probability is None or region.uncertainty is None
-            for region in self.regions
+            region.probability is None or region.uncertainty is None for region in self.regions
         ):
             raise ValueError("Prediction candidates require probability and uncertainty")
         return self
+
+
+class DesktopEvidenceLayerRequest(CandidateLayerRequest):
+    result_manifest: dict[str, Any] = Field(alias="resultManifest")
+
+
+def verify_desktop_evidence(payload: DesktopEvidenceLayerRequest) -> None:
+    manifest = payload.result_manifest
+    if (
+        manifest.get("ai_lab_schema") != "pathlab-ai-result/v2"
+        or manifest.get("adapter") != "morphology"
+        or manifest.get("research_only") is not True
+        or manifest.get("not_diagnostic") is not True
+        or manifest.get("review_required") is not True
+        or manifest.get("contains_diagnosis") is not False
+        or manifest.get("official_score_impact", False) is not False
+        or manifest.get("source_fingerprint_sha256") != payload.source_fingerprint_sha256
+    ):
+        raise HTTPException(status_code=422, detail={"code": "AI_RESULT_MANIFEST_INVALID"})
+    rendered = json.dumps(manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    if hashlib.sha256(rendered.encode("utf-8")).hexdigest() != payload.result_manifest_sha256:
+        raise HTTPException(status_code=422, detail={"code": "AI_RESULT_MANIFEST_HASH_MISMATCH"})
+    try:
+        signature = manifest["signature"]
+        if signature.get("algorithm") != "Ed25519":
+            raise ValueError("unsupported signature")
+        public_der = base64.urlsafe_b64decode(
+            str(signature["public_key_der"]) + "=" * (-len(str(signature["public_key_der"])) % 4)
+        )
+        if hashlib.sha256(public_der).hexdigest() != signature.get("key_id"):
+            raise ValueError("key mismatch")
+        public_key = serialization.load_der_public_key(public_der)
+        if not isinstance(public_key, Ed25519PublicKey):
+            raise ValueError("invalid key")
+        message = "\n".join(
+            (
+                "pathlab-ai-result/v2",
+                str(manifest["job_id"]),
+                "morphology",
+                str(manifest["source_fingerprint_sha256"]),
+                str(manifest["artifact"]["sha256"]),
+                str(manifest["model"]["config_sha256"]),
+                str(manifest["code"]["revision"]),
+            )
+        ).encode("utf-8")
+        encoded = base64.urlsafe_b64decode(
+            str(signature["value"]) + "=" * (-len(str(signature["value"])) % 4)
+        )
+        public_key.verify(encoded, message)
+    except (KeyError, TypeError, ValueError, InvalidSignature) as error:
+        raise HTTPException(
+            status_code=422, detail={"code": "AI_RESULT_SIGNATURE_INVALID"}
+        ) from error
+
+
+def store_candidate_layer(
+    store: dict[str, dict[str, Any]],
+    slide: Slide,
+    payload: CandidateLayerRequest,
+) -> dict[str, Any]:
+    if slide.sha256 and payload.source_fingerprint_sha256 != slide.sha256.lower():
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "AI_CANDIDATE_SOURCE_FINGERPRINT_MISMATCH"},
+        )
+    try:
+        width, height = slide_bounds(slide)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail={"code": "SLIDE_BOUNDS_UNAVAILABLE"}) from error
+    for region in payload.regions:
+        geometry = region.geometry
+        points: list[tuple[float, float]] = []
+        if hasattr(geometry, "points"):
+            points.extend((point.x, point.y) for point in geometry.points)
+        for x_name, y_name in (("x", "y"), ("cx", "cy")):
+            if hasattr(geometry, x_name) and hasattr(geometry, y_name):
+                points.append((getattr(geometry, x_name), getattr(geometry, y_name)))
+        if isinstance(geometry, RectangleGeometry):
+            points.append((geometry.x + geometry.width, geometry.y + geometry.height))
+        if isinstance(geometry, EllipseGeometry):
+            points.extend(
+                (
+                    (geometry.cx - geometry.rx, geometry.cy - geometry.ry),
+                    (geometry.cx + geometry.rx, geometry.cy + geometry.ry),
+                )
+            )
+        if any(x < 0 or y < 0 or x > width or y > height for x, y in points):
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "AI_CANDIDATE_COORDINATES_INVALID"},
+            )
+    candidate_id = str(uuid4())
+    now = datetime.now(UTC)
+    value = {
+        "id": candidate_id,
+        "slideId": slide.id,
+        **payload.model_dump(by_alias=True, mode="json"),
+        "temporary": True,
+        "accepted": False,
+        "createdAt": now.isoformat(),
+        "expiresAt": (now + timedelta(minutes=payload.expires_minutes)).isoformat(),
+    }
+    store[candidate_id] = value
+    return value
 
 
 def register_ai_candidate_routes(
@@ -114,47 +220,7 @@ def register_ai_candidate_routes(
         slide = database.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        try:
-            width, height = slide_bounds(slide)
-        except ValueError as error:
-            raise HTTPException(
-                status_code=409, detail={"code": "SLIDE_BOUNDS_UNAVAILABLE"}
-            ) from error
-        for region in payload.regions:
-            geometry = region.geometry
-            points: list[tuple[float, float]] = []
-            if hasattr(geometry, "points"):
-                points.extend((point.x, point.y) for point in geometry.points)
-            for x_name, y_name in (("x", "y"), ("cx", "cy")):
-                if hasattr(geometry, x_name) and hasattr(geometry, y_name):
-                    points.append((getattr(geometry, x_name), getattr(geometry, y_name)))
-            if isinstance(geometry, RectangleGeometry):
-                points.append((geometry.x + geometry.width, geometry.y + geometry.height))
-            if isinstance(geometry, EllipseGeometry):
-                points.extend(
-                    (
-                        (geometry.cx - geometry.rx, geometry.cy - geometry.ry),
-                        (geometry.cx + geometry.rx, geometry.cy + geometry.ry),
-                    )
-                )
-            if any(x < 0 or y < 0 or x > width or y > height for x, y in points):
-                raise HTTPException(
-                    status_code=422,
-                    detail={"code": "AI_CANDIDATE_COORDINATES_INVALID"},
-                )
-        candidate_id = str(uuid4())
-        now = datetime.now(UTC)
-        value = {
-            "id": candidate_id,
-            "slideId": slide_id,
-            **payload.model_dump(by_alias=True, mode="json"),
-            "temporary": True,
-            "accepted": False,
-            "createdAt": now.isoformat(),
-            "expiresAt": (now + timedelta(minutes=payload.expires_minutes)).isoformat(),
-        }
-        store[candidate_id] = value
-        return value
+        return store_candidate_layer(store, slide, payload)
 
     app.add_api_route(
         "/api/v2/admin/ai-candidates/slides/{slide_id}",
