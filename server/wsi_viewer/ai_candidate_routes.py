@@ -6,7 +6,15 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Response
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    model_validator,
+)
 from sqlalchemy.orm import Session as OrmSession
 
 from .annotations import (
@@ -29,9 +37,17 @@ class EvidenceRegion(CandidateModel):
     geometry: AnnotationGeometry
     style: AnnotationStyle = Field(default_factory=AnnotationStyle)
     metadata: AnnotationMetadata = Field(default_factory=AnnotationMetadata)
-    probability: StrictFloat = Field(ge=0, le=1)
-    uncertainty: StrictFloat = Field(ge=0, le=1)
+    probability: StrictFloat | None = Field(default=None, ge=0, le=1)
+    uncertainty: StrictFloat | None = Field(default=None, ge=0, le=1)
     abstained: StrictBool = False
+    evidence_kind: (
+        Literal["similar", "contrast", "prototype", "artifact", "annotation_candidate"]
+        | None
+    ) = Field(default=None, alias="evidenceKind")
+    similarity: StrictFloat | None = Field(default=None, ge=-1, le=1)
+    rank: StrictInt | None = Field(default=None, ge=1, le=20)
+    cross_stain: StrictBool = Field(default=False, alias="crossStain")
+    morphology_tags: list[str] = Field(default_factory=list, alias="morphologyTags", max_length=30)
 
 
 class CandidateLayerRequest(CandidateModel):
@@ -39,13 +55,34 @@ class CandidateLayerRequest(CandidateModel):
         alias="sourceFingerprintSha256", pattern=r"^[0-9a-f]{64}$"
     )
     result_manifest_sha256: str = Field(alias="resultManifestSha256", pattern=r"^[0-9a-f]{64}$")
-    adapter: Literal["bracs", "wsinfer", "foundation", "monai-label"]
+    adapter: Literal["bracs", "wsinfer", "foundation", "monai-label", "morphology"]
     model_id: str = Field(alias="modelId", min_length=1, max_length=200)
     expires_minutes: StrictInt = Field(default=60, alias="expiresMinutes", ge=5, le=240)
     research_only: Literal[True] = Field(alias="researchOnly")
     not_diagnostic: Literal[True] = Field(alias="notDiagnostic")
     review_required: Literal[True] = Field(alias="reviewRequired")
+    contains_diagnosis: Literal[False] = Field(default=False, alias="containsDiagnosis")
     regions: list[EvidenceRegion] = Field(min_length=1, max_length=5)
+
+    @model_validator(mode="after")
+    def validate_adapter_evidence(self) -> "CandidateLayerRequest":
+        if self.adapter == "morphology":
+            ranks = [region.rank for region in self.regions]
+            if any(
+                region.evidence_kind is None
+                or region.similarity is None
+                or region.rank is None
+                for region in self.regions
+            ):
+                raise ValueError("Morphology regions require evidenceKind, similarity, and rank")
+            if ranks != list(range(1, len(self.regions) + 1)):
+                raise ValueError("Morphology ranks must be contiguous and deterministic")
+        elif any(
+            region.probability is None or region.uncertainty is None
+            for region in self.regions
+        ):
+            raise ValueError("Prediction candidates require probability and uncertainty")
+        return self
 
 
 def register_ai_candidate_routes(
