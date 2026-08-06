@@ -33,7 +33,7 @@
   "rawFastPathSupported": true,
   "requiresJpegTableAssembly": false,
   "schema": "pathlab.ome-tile-layout/v1",
-  "source": "C:\\Users\\enkso\\.codex\\worktrees\\pathlab-forge-plan\\forge-f1-1\\build\\real-dzi-benchmark\\input.ome.tif",
+  "source": "input.ome.tif",
   "sourceBytes": 433745579,
   "sourceSha256": "ea6ea3d81af5d2ea9668285e1a0a55d4c8471393a34a067f482e4d71ffc7ceb8",
   "tileHeight": 512,

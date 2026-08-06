@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -10,9 +11,11 @@ from wsi_viewer.ome_tile_index import (
     read_indexed_jpeg,
 )
 
-REAL_FORGE_OME = Path(
-    r"C:\Users\enkso\.codex\worktrees\pathlab-forge-plan"
-    r"\forge-f1-1\build\real-dzi-benchmark\input.ome.tif"
+_REAL_FORGE_OME_PATH = os.environ.get("PATHLAB_REAL_FORGE_OME")
+REAL_FORGE_OME = (
+    Path(_REAL_FORGE_OME_PATH)
+    if _REAL_FORGE_OME_PATH
+    else Path("__pathlab_real_forge_ome_not_configured__")
 )
 
 
@@ -50,7 +53,10 @@ def test_indexes_factor_two_jpeg_pyramid(tmp_path: Path) -> None:
     assert index.pyramid_factors == (1, 2)
 
 
-@pytest.mark.skipif(not REAL_FORGE_OME.is_file(), reason="real Forge OME fixture is unavailable")
+@pytest.mark.skipif(
+    not REAL_FORGE_OME.is_file(),
+    reason="set PATHLAB_REAL_FORGE_OME to run the optional real-file regression",
+)
 def test_indexes_real_forge_factor_four_baseline() -> None:
     index = build_ome_tile_index(REAL_FORGE_OME)
 
