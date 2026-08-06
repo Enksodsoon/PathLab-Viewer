@@ -11,7 +11,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "alembic>=1.16,<2",
   "argon2-cffi>=23.1,<26",
-  "fastapi==0.139.2",
+  "fastapi==0.141.1",
   "httpx>=0.28,<1",
   "itsdangerous>=2.2,<3",
   "lxml>=5,<7",
@@ -20,16 +20,16 @@ dependencies = [
   "pydantic-settings>=2.10,<3",
   "pyvips>=3.0,<4",
   "sqlalchemy>=2.0,<3",
-  "tifffile==2026.7.14",
+  "tifffile==2026.7.31",
   "uvicorn[standard]>=0.35,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
   "imagecodecs>=2025.8,<2027",
-  "mypy>=1.17,<2",
-  "pytest>=8.4,<9",
-  "pytest-cov>=6.2,<7",
+  "mypy>=1.17,<3",
+  "pytest>=8.4,<10",
+  "pytest-cov>=6.2,<8",
   "ruff>=0.12,<1",
 ]
 
