@@ -1,49 +1,90 @@
 # PathLab Viewer
 
-PathLab Viewer is a private-first web application for reviewing and publishing OME-TIFF whole-slide images. An authenticated administrator uploads an original slide, the server validates and converts it into sanitized Deep Zoom JPEG tiles, and anonymous viewers can open an unlisted read-only link. Original slide files remain private.
+**A private-first whole-slide image library and browser viewer for pathology education.**
+
+PathLab Viewer accepts validated OME-TIFF slides, prepares browser-friendly Deep Zoom JPEG tiles, and provides responsive viewing on desktop, tablet, and phone. Source slides remain private. Teaching slides can be published through explicit, unlisted, read-only links after de-identification review.
+
+> **Project status:** active development. Automated checks support development quality, but they do not by themselves establish production readiness, clinical suitability, external load capacity, backup recovery, network performance, or device compatibility.
+
+## How it works
+
+```text
+OME-TIFF upload
+      │
+      ▼
+Bounded validation ──► background conversion ──► private preview
+                                                        │
+                                                        ▼
+                                           explicit publication
+                                                        │
+                                                        ▼
+                                     unlisted read-only viewer
+```
+
+Original files, temporary uploads, private derivatives, databases, and credentials are kept outside the public tile path.
 
 ## Core capabilities
 
+### Slide handling
+
 - Resumable OME-TIFF uploads up to 5 GiB
-- Background validation and Deep Zoom conversion
+- Bounded image and metadata validation
+- Background conversion to sanitized Deep Zoom JPEG tiles
+- Conversion-time thumbnail generation
 - Private preview before publication
-- Unlisted, read-only public slide links
-- Responsive OpenSeadragon viewing on desktop, tablet, and phone
-- Single-administrator authentication with password recovery
-- Storage admission controls, audit records, and atomic publication
-- Nested folders, many-to-many collections, saved views, and restorable Trash
-- Bounded server-side library search, filters, facets, and cursor pagination
-- Conversion-time cached thumbnails for library browsing
-- Dormant, privacy-gated folder and collection share contracts with a reusable
-  multi-slide viewer; production activation remains disabled by default
+
+### Library management
+
+- Nested folders and many-to-many collections
+- Saved views, search, filters, facets, sorting, and cursor pagination
+- Processing, failed, and restorable Trash views
+- Storage admission controls and audit records
+
+### Viewing and sharing
+
+- Responsive OpenSeadragon viewer
+- Desktop, tablet, and phone layouts
+- Explicit publication with de-identification confirmation
+- Unlisted, read-only individual slide links
+- Folder and collection sharing contracts are present but remain disabled by default until their privacy gate is fully evidenced
+
+### Operations
+
+- Single-administrator authentication and password recovery
 - Docker Compose deployment with Caddy HTTPS termination
+- Alembic database migrations
+- Backup, restore, deployment, security, and capacity workflows
 
-## Repository structure
+## Repository map
 
-| Path | Purpose |
+| Path | Responsibility |
 |---|---|
 | `apps/web` | React and TypeScript administration interface and public viewer |
 | `server/wsi_viewer` | FastAPI application, authentication, storage, validation, conversion, and worker |
+| `packages` | Shared frontend packages |
 | `migrations` | Alembic database migrations |
-| `deploy` | Docker Compose, Caddy, Terraform, systemd, backup, restore, and deployment scripts |
+| `deploy` | Compose, Caddy, Terraform, systemd, backup, restore, and deployment assets |
 | `tests/backend` | Backend, security, storage, and conversion tests |
-| `tests/load` | Reproducible viewer load scenario |
-| `docs/architecture` | Durable technical design and security references |
-| `docs/evidence` | Verification ledger and evidence status |
+| `tests/load` | Reproducible viewer load scenarios |
+| `docs/architecture` | Durable technical and security decisions |
+| `docs/evidence` | Verification ledger and current evidence status |
 
 See [`docs/REPOSITORY_MAP.md`](docs/REPOSITORY_MAP.md) for file ownership and common change locations.
 
 ## Supported slide contract
 
-The primary image must be an interleaved two-dimensional RGB OME-TIFF with one Z plane and one timepoint (`SizeZ=1`, `SizeT=1`). Supported storage variants include classic TIFF and BigTIFF, either byte order, flat or SubIFD pyramids, tiled or striped images, unsigned 8-bit or 16-bit samples, and JPEG, LZW, Deflate, or uncompressed payloads.
+The primary image must be an interleaved two-dimensional RGB OME-TIFF with one Z plane and one timepoint (`SizeZ=1`, `SizeT=1`). Supported variants include:
+
+- classic TIFF and BigTIFF;
+- either byte order;
+- flat or SubIFD pyramids;
+- tiled or striped images;
+- unsigned 8-bit or 16-bit samples; and
+- JPEG, LZW, Deflate, or uncompressed payloads.
 
 A bounded compatibility path supports specific legacy ImageJ converter output when the first IFD is independently valid and the metadata still declares one Z plane and one timepoint. Plain non-OME TIFF files, Z-stacks, time series, unsupported pixel formats, malformed metadata, and truncated files are rejected.
 
-The complete processing contract is documented in [`docs/architecture/OME_TIFF_PIPELINE.md`](docs/architecture/OME_TIFF_PIPELINE.md).
-
-Library organization is metadata-only: folders and collections never move,
-scan, decode, or duplicate a slide or its tile tree. See
-[`docs/architecture/LIBRARY_DOMAIN.md`](docs/architecture/LIBRARY_DOMAIN.md).
+The full processing contract is documented in [`docs/architecture/OME_TIFF_PIPELINE.md`](docs/architecture/OME_TIFF_PIPELINE.md). Library organization is metadata-only: folders and collections do not move, scan, decode, or duplicate slide files or tile trees. See [`docs/architecture/LIBRARY_DOMAIN.md`](docs/architecture/LIBRARY_DOMAIN.md).
 
 ## Local development
 
@@ -80,12 +121,13 @@ On Windows, start the resumable upload service in another PowerShell terminal:
 .\scripts\start-local-tusd.ps1
 ```
 
-The web development proxy expects tusd on `127.0.0.1:8080`. Uploads cannot
-start if only the API and Vite processes are running.
+The development proxy expects tusd on `127.0.0.1:8080`. Uploads cannot start when only the API and Vite processes are running.
 
 Open `http://127.0.0.1:5173/admin`. Published local slides use `/s/{publicId}`.
 
 ## Verification
+
+Run the checks relevant to the change:
 
 ```bash
 pytest tests/backend
@@ -97,36 +139,24 @@ pnpm --dir apps/web build
 docker compose -f deploy/compose.yaml config
 ```
 
-Current verification results belong in CI and [`docs/evidence/QA.md`](docs/evidence/QA.md). Static documentation intentionally avoids hard-coded test counts, deployment addresses, commit hashes, or pull-request status because those values become stale.
+Current results belong in CI and [`docs/evidence/QA.md`](docs/evidence/QA.md). Documentation intentionally avoids hard-coded test counts, deployment addresses, commit hashes, and pull-request status because those values become stale.
 
 ## Deployment
 
-Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serves the web application, and proxies authorized tile, API, and tus upload requests. Review [`deploy/README.md`](deploy/README.md) before provisioning, updating, backing up, or restoring an installation.
-
-## Public-repository safeguards
-
-- Production configuration fails closed unless a unique secret and secure cookies are set.
-- Deployment endpoints and infrastructure addresses are supplied through protected settings,
-  not committed source files.
-- Internal upload hook routes are blocked at the public reverse proxy.
-- Publishing requires explicit confirmation that image and public teaching fields are deidentified.
-- CI checks the current tree for common secret and infrastructure disclosures, audits dependencies,
-  and runs CodeQL.
+Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serves the web client, and proxies authorized tile, API, and resumable-upload requests. Review [`deploy/README.md`](deploy/README.md) before provisioning, updating, backing up, or restoring an installation.
 
 ## Security and privacy
 
-- Original slides, temporary uploads, private derivatives, databases, and secrets are never served from the public tile path.
+- Production configuration fails closed unless a unique secret and secure cookies are configured.
+- Infrastructure addresses and deployment endpoints are supplied through protected settings rather than committed source files.
+- Internal upload-hook routes are blocked at the public reverse proxy.
+- Publication requires explicit confirmation that the image and public teaching fields are de-identified.
 - Public links expose only an unlisted identifier, display metadata, a DZI descriptor, and sanitized JPEG tiles.
-- Multi-slide folder and collection sharing remains disabled until an automated privacy scanner is evidenced; existing individual `/s/{publicId}` links are unchanged.
-- Credentials, recovery codes, source slides, generated tiles, databases, and `.env` files must not be committed.
-- Suspected vulnerabilities or patient-data exposure should be reported privately rather than through a public issue.
+- Credentials, recovery codes, source slides, generated tiles, databases, `.env` files, and patient information must never be committed.
+- Suspected vulnerabilities or patient-data exposure must be reported privately rather than through a public issue.
 
-Administrator recovery architecture is documented in [`docs/architecture/PASSWORD_RECOVERY.md`](docs/architecture/PASSWORD_RECOVERY.md).
+Administrator recovery is documented in [`docs/architecture/PASSWORD_RECOVERY.md`](docs/architecture/PASSWORD_RECOVERY.md). General reporting guidance is in [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing code. Keep changes focused, add regression coverage for behavior changes, run the relevant checks, and submit changes through a reviewable pull request.
-
-## Project status
-
-PathLab Viewer is under active development. A green CI run verifies automated checks but does not by itself establish production readiness, external load capacity, backup recovery, network performance, or device compatibility. Use the evidence ledger for the current acceptance status of those operational gates.
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing code. Keep changes focused, preserve privacy and storage boundaries, add regression coverage for behavior changes, and submit work through a reviewable pull request.
