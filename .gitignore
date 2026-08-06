@@ -1,12 +1,13 @@
+# Environment and local configuration
 .env
+.env.*
+!.env.example
 .terraform/
 *.tfstate
 *.tfstate.*
-.env.*
-!.env.example
+
+# Python
 .venv/
-.worktrees/
-.superpowers/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -14,6 +15,8 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# JavaScript and frontend tooling
 node_modules/
 dist/
 coverage/
@@ -22,9 +25,21 @@ test-results/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+
+# Local workspaces and assistant/editor scratch files
+.worktrees/
+.superpowers/
+.claude/
+.codex/
+.cursor/
+docs/superpowers/
+
+# Runtime data
 var/
 data/
 *.sqlite3
 *.sqlite3-*
+
+# Operating-system files
 .DS_Store
 Thumbs.db
