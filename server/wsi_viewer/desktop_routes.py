@@ -16,6 +16,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
 
+from .ai_candidate_routes import (
+    DesktopEvidenceLayerRequest,
+    store_candidate_layer,
+    verify_desktop_evidence,
+)
 from .annotations import (
     AnnotationBatchRequest,
     AnnotationError,
@@ -42,7 +47,12 @@ from .tile_routes import TileRouteService, authorize_tile, private_static_target
 
 PAIRING_MINUTES = 10
 CREDENTIAL_DAYS = 90
-DESKTOP_SCOPES = ["desktop:ingest", "slides:private:read", "annotations:sync"]
+DESKTOP_SCOPES = [
+    "desktop:ingest",
+    "slides:private:read",
+    "annotations:sync",
+    "slides:evidence:write",
+]
 MAX_DESKTOP_CHUNK_BYTES = 64 * 1024 * 1024
 LEGACY_DESKTOP_CHUNK_BYTES = 16 * 1024 * 1024
 MAX_DERIVATIVE_FILES = 2_000_000
@@ -97,9 +107,7 @@ class PreparedIngestRequest(DesktopModel):
     package_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     manifest_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     derivative_bytes: int | None = Field(default=None, gt=0)
-    derivative_file_count: int | None = Field(
-        default=None, gt=0, le=MAX_DERIVATIVE_FILES
-    )
+    derivative_file_count: int | None = Field(default=None, gt=0, le=MAX_DERIVATIVE_FILES)
 
 
 class OmeIngestRequest(DesktopModel):
@@ -135,9 +143,7 @@ def register_desktop_routes(
         stored = database.get(DesktopCredential, _hash(token))
         now = _now()
         if stored is None or stored.revoked_at is not None or stored.expires_at <= now:
-            raise HTTPException(
-                status_code=401, detail={"code": "DESKTOP_CREDENTIAL_INVALID"}
-            )
+            raise HTTPException(status_code=401, detail={"code": "DESKTOP_CREDENTIAL_INVALID"})
         if stored.last_used_at is None or stored.last_used_at <= now - timedelta(minutes=15):
             stored.last_used_at = now
             database.commit()
@@ -171,9 +177,10 @@ def register_desktop_routes(
         device_code = _token()
         device_secret = _token()
         code = _user_code()
-        while database.scalar(
-            select(DesktopPairing.id).where(DesktopPairing.user_code == code)
-        ) is not None:
+        while (
+            database.scalar(select(DesktopPairing.id).where(DesktopPairing.user_code == code))
+            is not None
+        ):
             code = _user_code()
         expires = _now() + timedelta(minutes=PAIRING_MINUTES)
         pairing = DesktopPairing(
@@ -191,9 +198,7 @@ def register_desktop_routes(
             "deviceCode": device_code,
             "deviceSecret": device_secret,
             "userCode": code,
-            "verificationUrl": (
-                str(request.base_url).rstrip("/") + f"/admin/connect?code={code}"
-            ),
+            "verificationUrl": (str(request.base_url).rstrip("/") + f"/admin/connect?code={code}"),
             "expiresAt": expires.replace(tzinfo=UTC).isoformat(),
         }
 
@@ -207,9 +212,7 @@ def register_desktop_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> None:
         pairing = database.scalar(
-            select(DesktopPairing).where(
-                DesktopPairing.user_code == payload.user_code.upper()
-            )
+            select(DesktopPairing).where(DesktopPairing.user_code == payload.user_code.upper())
         )
         if pairing is None or pairing.expires_at <= _now() or pairing.status != "pending":
             raise HTTPException(status_code=404, detail={"code": "PAIRING_NOT_FOUND"})
@@ -230,18 +233,14 @@ def register_desktop_routes(
         )
         if (
             pairing is None
-            or not hmac.compare_digest(
-                pairing.device_secret_hash, _hash(payload.device_secret)
-            )
+            or not hmac.compare_digest(pairing.device_secret_hash, _hash(payload.device_secret))
             or pairing.expires_at <= _now()
         ):
             raise HTTPException(status_code=401, detail={"code": "PAIRING_INVALID"})
         if pairing.status == "pending":
             raise HTTPException(status_code=409, detail={"code": "PAIRING_PENDING"})
         if pairing.status != "approved" or pairing.user_id is None:
-            raise HTTPException(
-                status_code=409, detail={"code": "PAIRING_ALREADY_EXCHANGED"}
-            )
+            raise HTTPException(status_code=409, detail={"code": "PAIRING_ALREADY_EXCHANGED"})
         access_token = _token(48)
         expires = _now() + timedelta(days=CREDENTIAL_DAYS)
         database.add(
@@ -317,9 +316,7 @@ def register_desktop_routes(
         if active is not None:
             raise HTTPException(status_code=409, detail={"code": "INGEST_ALREADY_ACTIVE"})
         free = shutil.disk_usage(storage.root).free
-        if (payload.derivative_bytes is None) != (
-            payload.derivative_file_count is None
-        ):
+        if (payload.derivative_bytes is None) != (payload.derivative_file_count is None):
             raise HTTPException(
                 status_code=400,
                 detail={"code": "INVALID_DERIVATIVE_DECLARATION"},
@@ -459,9 +456,7 @@ def register_desktop_routes(
         if declared is not None:
             try:
                 if int(declared) > MAX_DESKTOP_CHUNK_BYTES:
-                    raise HTTPException(
-                        status_code=413, detail={"code": "DESKTOP_CHUNK_TOO_LARGE"}
-                    )
+                    raise HTTPException(status_code=413, detail={"code": "DESKTOP_CHUNK_TOO_LARGE"})
             except ValueError as error:
                 raise HTTPException(
                     status_code=400, detail={"code": "INVALID_CONTENT_LENGTH"}
@@ -564,9 +559,7 @@ def register_desktop_routes(
         target = private_static_target(storage, slide.id, tile_path)
         return FileResponse(
             target,
-            media_type="application/xml"
-            if target.suffix.lower() == ".dzi"
-            else "image/jpeg",
+            media_type="application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg",
             headers={"Cache-Control": "private, max-age=86400, immutable"},
         )
 
@@ -590,9 +583,7 @@ def register_desktop_routes(
         width, height = slide_bounds(slide)
         total = int(
             database.scalar(
-                select(func.count(Annotation.id)).where(
-                    Annotation.slide_id == slide.id
-                )
+                select(func.count(Annotation.id)).where(Annotation.slide_id == slide.id)
             )
             or 0
         )
@@ -618,10 +609,30 @@ def register_desktop_routes(
             "layers": [layer_json(layer) for layer in layers],
             "items": [annotation_json(item, slide) for item in items],
             "total": total,
-            "nextOffset": offset + len(items)
-            if offset + len(items) < total
-            else None,
+            "nextOffset": offset + len(items) if offset + len(items) < total else None,
         }
+
+    @app.post("/api/v1/desktop/slides/{slide_id}/ai-candidates", status_code=201)
+    def desktop_ai_candidate(
+        slide_id: str,
+        payload: DesktopEvidenceLayerRequest,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "slides:evidence:write")
+        slide = database.get(Slide, slide_id)
+        if slide is None or slide.state not in {
+            SlideState.READY_PRIVATE,
+            SlideState.PUBLISHED,
+        }:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        if not slide.sha256:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "SLIDE_SOURCE_FINGERPRINT_UNAVAILABLE"},
+            )
+        verify_desktop_evidence(payload)
+        return store_candidate_layer(app.state.ai_candidate_layers, slide, payload)
 
     @app.post("/api/v1/desktop/slides/{slide_id}/annotations/batch")
     def desktop_annotation_batch(
@@ -640,9 +651,11 @@ def register_desktop_routes(
         }:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         merged = payload.base_version != slide.annotation_version
-        candidate = payload.model_copy(
-            update={"base_version": slide.annotation_version}
-        ) if merged else payload
+        candidate = (
+            payload.model_copy(update={"base_version": slide.annotation_version})
+            if merged
+            else payload
+        )
         try:
             result = apply_batch(
                 database,

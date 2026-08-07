@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
+from .ai_candidate_routes import register_ai_candidate_routes
 from .annotation_routes import register_annotation_routes
 from .auth import (
     CredentialConflict,
@@ -337,6 +338,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         tile_routes=tile_routes,
     )
     register_annotation_routes(
+        app,
+        database_dependency=database,
+        admin_dependency=admin_session,
+        csrf_dependency=csrf,
+    )
+    register_ai_candidate_routes(
         app,
         database_dependency=database,
         admin_dependency=admin_session,
