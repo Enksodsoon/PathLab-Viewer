@@ -24,6 +24,22 @@ jobs:
           ref: main
           persist-credentials: false
 
+      - name: Mask production infrastructure identifiers
+        env:
+          MASK_OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          MASK_OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          MASK_OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+        run: |
+          for value in \
+            "${MASK_OCI_BASTION_ID}" \
+            "${MASK_OCI_INSTANCE_ID}" \
+            "${MASK_OCI_TARGET_PRIVATE_IP}"
+          do
+            if [[ -n "${value}" ]]; then
+              echo "::add-mask::${value}"
+            fi
+          done
+
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"

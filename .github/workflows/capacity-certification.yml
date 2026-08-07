@@ -36,6 +36,24 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Mask production infrastructure identifiers
+        env:
+          MASK_PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          MASK_OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          MASK_OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          MASK_OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+        run: |
+          for value in \
+            "${MASK_PRODUCTION_BASE_URL}" \
+            "${MASK_OCI_BASTION_ID}" \
+            "${MASK_OCI_INSTANCE_ID}" \
+            "${MASK_OCI_TARGET_PRIVATE_IP}"
+          do
+            if [[ -n "${value}" ]]; then
+              echo "::add-mask::${value}"
+            fi
+          done
+
       - name: Require exact main release and successful checks
         env:
           GH_TOKEN: ${{ github.token }}
