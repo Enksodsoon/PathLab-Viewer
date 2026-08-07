@@ -64,7 +64,7 @@ uploading → queued → validating → converting → ready_private → publish
 3. Finalization verifies declared length, TIFF signature, and SHA-256 before creating a queued job.
 4. The worker claims the job, heartbeats while processing, and can recover stale work.
 5. Validation selects the highest-resolution primary OME series and enforces the supported input contract.
-6. libvips creates one DZI descriptor, 512-pixel JPEG tiles, and one 384-pixel cached JPEG thumbnail in the same bounded conversion.
+6. libvips creates one DZI descriptor, 512-pixel JPEG tiles, and one cached JPEG thumbnail with a 640-pixel longest edge and quality 82 in the same bounded conversion.
 7. Generator metadata and unexpected derivative files are removed or rejected.
 8. The complete derivative becomes available for private preview.
 9. Publishing atomically hardlinks only sanitized derivative files into the public tree and retains the alias until its final publication grant is removed.
