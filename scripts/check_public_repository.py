@@ -53,7 +53,7 @@ DYNAMIC_DNS_PATTERN = re.compile(
 LOCAL_PATH_PATTERNS = (
     re.compile(r"\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+", re.I),
     re.compile(r"(?<![\w/])/Users/[^/\s]+/"),
-    re.compile(r"(?<![\w/])/home/[^/\s]+/"),
+    re.compile(r"(?<![\w/])/home/(?!runner(?:/|$))[^/\s]+/"),
 )
 SENSITIVE_PATH_PARTS = {".claude", ".codex", ".cursor", ".superpowers"}
 ALLOWED_EMAIL_DOMAINS = {
