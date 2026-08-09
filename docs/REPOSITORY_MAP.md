@@ -12,7 +12,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 | `deploy` | Docker Compose, Caddy, systemd, Terraform, DNS, backup, restore, and release assets |
 | `tests/backend` | Backend, worker, security, storage, API, and deployment-contract tests |
 | `tests/load` | k6 public-viewer load scenario |
-| `docs/architecture` | Durable processing and security design references |
+| `docs/architecture` | Durable processing, cloud/network, security, and Diagram-as-Code design references |
 | `docs/design` | Visual references and design assets |
 | `docs/evidence` | QA ledger, browser evidence, real-file verification, and unresolved acceptance gates |
 | `.github/workflows` | Continuous integration and deployment workflows |
@@ -32,6 +32,8 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 | Dark library explorer shell, navigator, grid/table, details, bulk actions, and dialogs | `apps/web/src/pages/AdminPage.tsx`, `apps/web/src/components/library/`, `apps/web/src/library.css`, and `apps/web/src/test/library-explorer.test.tsx` |
 | Dormant shared-set viewer and persistent slide switching | `apps/web/src/pages/SharedViewerPage.tsx`, `apps/web/src/shared-viewer.css`, and `apps/web/src/test/shared-viewer.test.tsx` |
 | Public OpenSeadragon viewer | `apps/web/src/pages/ViewerPage.tsx`, `components/OpenSeadragonViewer.tsx` |
+| Cloud/network architecture decisions and scale-out gates | `docs/architecture/CLOUD_NETWORK_ARCHITECTURE.md` |
+| Eraser Diagram-as-Code architecture source | `docs/architecture/PATHLAB_ERASER_ARCHITECTURE.md` |
 | OCI service topology | `deploy/compose.yaml`, `deploy/Caddyfile`, `deploy/terraform` |
 | Backups and recovery | `deploy/scripts`, `deploy/README.md` |
 | Continuous integration | `.github/workflows/ci.yml` |
@@ -40,6 +42,8 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 
 - [`../README.md`](../README.md): project overview, supported contract, setup, and verification commands.
 - [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md): product scope, architecture, lifecycle, and operational boundaries.
+- [`architecture/CLOUD_NETWORK_ARCHITECTURE.md`](architecture/CLOUD_NETWORK_ARCHITECTURE.md): hybrid deployment classification, lecture-service mapping, trust zones, and evidence-gated scaling decisions.
+- [`architecture/PATHLAB_ERASER_ARCHITECTURE.md`](architecture/PATHLAB_ERASER_ARCHITECTURE.md): paste-ready Eraser Diagram-as-Code source and maintenance rule.
 - [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): input validation, processing, publication, and privacy architecture.
 - [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md): folder, collection, saved-view, Trash, search, pagination, thumbnail, and grant contracts.
 - [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): administrator credential lifecycle and abuse controls.
