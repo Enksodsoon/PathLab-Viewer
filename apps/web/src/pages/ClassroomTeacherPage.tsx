@@ -222,7 +222,9 @@ export function ClassroomTeacherPage() {
     target.viewport.panTo(point, true)
     target.viewport.zoomTo(presenter.viewport.zoom, point, true)
     target.viewport.applyConstraints()
-    window.setTimeout(() => { suppressPublish.current = false }, 0)
+    if (!current?.controller.participantId) {
+      window.setTimeout(() => { suppressPublish.current = false }, 250)
+    }
   }, [classroom])
 
   useEffect(() => {
@@ -232,7 +234,11 @@ export function ClassroomTeacherPage() {
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     setViewer(viewer)
     const publish = () => {
-      if (suppressPublish.current || !classroom || !currentSlide) return
+      if (suppressPublish.current) {
+        suppressPublish.current = false
+        return
+      }
+      if (stateRef.current?.controller.participantId || !classroom || !currentSlide) return
       if (publishTimer.current !== null) window.clearTimeout(publishTimer.current)
       publishTimer.current = window.setTimeout(() => {
         publishTimer.current = null

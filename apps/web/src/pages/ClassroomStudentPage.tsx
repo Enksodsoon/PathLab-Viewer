@@ -16,9 +16,14 @@ import {
 import { ClassroomPinOverlays } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import {
+  StudentDrawingOverlay,
+  type StudentDrawingHandle,
+} from '../classroom/StudentDrawingOverlay'
+import {
   deleteSessionEntries,
-  exportNotebook,
   listEntries,
+  notebookFile,
+  notebookHtml,
   saveEntry,
   storageCapability,
   type NotebookEntry,
@@ -74,7 +79,9 @@ export function ClassroomStudentPage() {
   const [entries, setEntries] = useState<NotebookEntry[]>([])
   const [storage, setStorage] = useState<StorageCapability>({ indexedDb: false })
   const [message, setMessage] = useState('')
+  const [drawing, setDrawing] = useState(false)
   const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
+  const drawingRef = useRef<StudentDrawingHandle | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const suppressPublish = useRef(false)
   const followRef = useRef(follow)
@@ -356,7 +363,10 @@ export function ClassroomStudentPage() {
     try {
       const canvas = largestCanvas(viewerRef.current)
       if (!canvas) throw new Error('The tissue view is not ready')
-      image = (await captureVisibleTissue(canvas)).blob
+      image = (await captureVisibleTissue(
+        canvas,
+        drawingRef.current?.captureCanvas(),
+      )).blob
     } catch (error) {
       if (!note.trim()) {
         setMessage(error instanceof Error ? error.message : 'Screenshot failed.')
@@ -364,6 +374,7 @@ export function ClassroomStudentPage() {
       }
       setMessage('Screenshot failed, but the text note was preserved.')
     }
+    const field = normalizedViewport(viewerRef.current, currentSlide.id)
     const entry: NotebookEntry = {
       id: crypto.randomUUID(),
       sessionId,
@@ -372,21 +383,55 @@ export function ClassroomStudentPage() {
       note: note.trim(),
       createdAt: new Date().toISOString(),
       image,
+      viewport: { x: field.x, y: field.y, zoom: field.zoom },
+      hasDrawing: drawingRef.current?.hasDrawing() ?? false,
     }
     await saveEntry(entry)
     setEntries((current) => [...current, entry])
     setNote('')
+    drawingRef.current?.clear()
+    setDrawing(false)
     if (image) setMessage('Screenshot and note saved on this device only.')
   }
 
-  const exportLocal = async () => {
-    const blob = await exportNotebook('PathLab classroom notebook', entries)
-    const url = URL.createObjectURL(blob)
+  const downloadLocal = (file: File) => {
+    const url = URL.createObjectURL(file)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'pathlab-classroom-notebook.html'
+    anchor.download = file.name
     anchor.click()
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
+  const shareLocal = async () => {
+    const file = await notebookFile('PathLab classroom notebook', entries)
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: 'PathLab classroom notebook',
+          text: 'My private PathLab field notes',
+          files: [file],
+        })
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+      }
+    }
+    downloadLocal(file)
+    setMessage('Notebook exported as an offline file.')
+  }
+
+  const printLocal = async () => {
+    const preview = window.open('', '_blank')
+    if (!preview) {
+      setMessage('Allow pop-ups to print or save this notebook as PDF.')
+      return
+    }
+    preview.document.open()
+    preview.document.write(await notebookHtml('PathLab classroom notebook', entries))
+    preview.document.close()
+    preview.focus()
+    window.setTimeout(() => preview.print(), 250)
   }
 
   if (!sessionId || !csrfToken) return <main className="classroom-entry classroom-join">
@@ -445,10 +490,19 @@ export function ClassroomStudentPage() {
         slideId={currentSlide?.id ?? ''}
         viewer={viewer}
       />
+      <StudentDrawingOverlay
+        ref={drawingRef}
+        active={drawing}
+        onDone={() => setDrawing(false)}
+      />
       <ClassroomSlideNavigator
         activeId={currentSlide?.id ?? ''}
         slides={state?.slides ?? []}
         onSelect={(nextSlideId) => {
+          if (drawingRef.current?.hasDrawing()) {
+            setMessage('Save or clear your private drawing before changing slides.')
+            return
+          }
           setFollow(false)
           setSlideId(nextSlideId)
           if (pin) void removePin()
@@ -483,17 +537,25 @@ export function ClassroomStudentPage() {
       <section>
         <h2>My private notebook</h2>
         {!storage.indexedDb && <p role="alert">Local notebook storage is unavailable.</p>}
+        <button
+          className={drawing ? 'is-active' : ''}
+          type="button"
+          aria-pressed={drawing}
+          onClick={() => setDrawing((current) => !current)}
+        >{drawing ? 'Finish drawing' : 'Draw on slide'}</button>
         <textarea value={note} placeholder="Write a private note…" onChange={(event) => setNote(event.target.value)} />
-        <button type="button" disabled={!storage.indexedDb} onClick={() => void capture()}>Capture tissue + save note</button>
+        <button type="button" disabled={!storage.indexedDb} onClick={() => void capture()}>Save capture + note</button>
         <p className="classroom-storage-note">{entries.length}/100 entries · stored only in this browser</p>
         <div className="classroom-row">
-          <button type="button" disabled={!entries.length} onClick={() => void exportLocal()}>Export HTML</button>
+          <button type="button" disabled={!entries.length} onClick={() => void shareLocal()}>Share / export</button>
+          <button type="button" disabled={!entries.length} onClick={() => void printLocal()}>Print / PDF</button>
           <button type="button" disabled={!entries.length} onClick={() => {
             if (window.confirm('Delete this classroom notebook from this device?')) {
               void deleteSessionEntries(sessionId).then(() => setEntries([]))
             }
           }}>Delete local notes</button>
         </div>
+        <p className="classroom-storage-note">Responsive offline notebook · share to Files or AirDrop on iPhone and iPad.</p>
       </section>
       {message && <p className="classroom-message" role="status">{message}</p>}
     </aside>

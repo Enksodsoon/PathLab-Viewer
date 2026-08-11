@@ -2,6 +2,7 @@ import { CaretDown, FolderSimple, List, X } from '@phosphor-icons/react'
 import { memo, useEffect, useMemo, useState } from 'react'
 
 import type { ClassroomSlide } from './api'
+import { classroomSlideThumbnail } from './classroomThumbnail'
 
 interface FolderNode {
   key: string
@@ -56,8 +57,8 @@ const SlideButton = memo(function SlideButton({
     type="button"
     onClick={() => onSelect(slide.id)}
   >
-    <span>{slide.position + 1}</span>
-    <strong>{slide.displayName}</strong>
+    <img src={classroomSlideThumbnail(slide)} alt="" loading="lazy" />
+    <span><small>Slide {slide.position + 1}</small><strong>{slide.displayName}</strong></span>
   </button>
 })
 

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { classroomSlideThumbnail } from '../classroom/classroomThumbnail'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import type { ClassroomSlide } from '../classroom/api'
 
@@ -41,9 +42,15 @@ describe('ClassroomSlideNavigator', () => {
     expect(screen.getByText('GI')).toBeInTheDocument()
     expect(screen.getByText('Colon')).toBeInTheDocument()
     expect(screen.getByText('Liver')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Colon overview/ })[1].querySelector('img'))
+      .toHaveAttribute('src', '/slide-1_files/8/0_0.jpg')
 
     fireEvent.click(screen.getByRole('button', { name: /Liver overview/ }))
     expect(select).toHaveBeenCalledWith('slide-2')
     expect(screen.queryByRole('dialog', { name: 'Classroom slide navigator' })).not.toBeInTheDocument()
+  })
+
+  it('uses a single bounded DZI tile as the thumbnail', () => {
+    expect(classroomSlideThumbnail(slides[0])).toBe('/slide-1_files/8/0_0.jpg')
   })
 })

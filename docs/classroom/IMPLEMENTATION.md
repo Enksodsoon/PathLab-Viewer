@@ -7,7 +7,9 @@ This implementation is deliberately limited to the active-learning loop:
 - the teacher starts one session from complete published static DZI slides;
 - students join under generated non-identifying aliases;
 - students can follow the teacher, share one live pin, ask a bounded question, request control, and receive a short control lease;
-- screenshots and notes remain in the student's IndexedDB and can be exported as self-contained HTML.
+- screenshots, private drawings, saved field coordinates, and notes remain in the student's
+  IndexedDB. The responsive self-contained notebook can be shared as a file or printed/saved
+  as PDF through the device's native controls.
 
 `PATHLAB_CLASSROOM_ENABLED=false` remains the default. No classroom route is registered
 and the lazy classroom page bundles are not requested during ordinary disabled-mode use.
@@ -75,10 +77,16 @@ slide ID. Image encoding is bounded to 1600 x 1200 and 2 MiB, using WebP with JP
 If capture fails, a non-empty text note is still saved. The browser storage estimate and
 persistence request are best effort; the UI warns that data is local browser data.
 
+Student pen, highlight, erase, undo, and clear operations run entirely in the browser. The
+drawing canvas is composited into the bounded tissue capture only when the student saves a
+note; neither drawing vectors nor the resulting image are sent to a classroom API. The saved
+entry also records the normalized slide field and zoom so the private note retains its context.
+
 HTML export escapes all user text, embeds images as data URLs, includes a restrictive CSP,
-and has no external scripts or network dependency. Explicit deletion is available for
-shared devices. Classroom APIs, pages, and SSE use no-store/no-referrer behavior; DZI cache
-headers remain separate and versioned.
+and has no external scripts or network dependency. Devices supporting Web Share can send the
+notebook to Files or AirDrop; the print path provides the native save-as-PDF workflow. Explicit
+deletion is available for shared devices. Classroom APIs, pages, and SSE use
+no-store/no-referrer behavior; DZI cache headers remain separate and versioned.
 
 ## API outline
 

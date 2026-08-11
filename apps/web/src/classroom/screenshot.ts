@@ -33,7 +33,10 @@ function encode(
   return new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality))
 }
 
-export async function captureVisibleTissue(source: HTMLCanvasElement): Promise<TissueCapture> {
+export async function captureVisibleTissue(
+  source: HTMLCanvasElement,
+  drawing?: HTMLCanvasElement | null,
+): Promise<TissueCapture> {
   const started = performance.now()
   const bounded = boundedCaptureDimensions(source.width, source.height)
   let lastBlob: Blob | null = null
@@ -49,6 +52,9 @@ export async function captureVisibleTissue(source: HTMLCanvasElement): Promise<T
     if (!context) throw new Error('Screenshot canvas is unavailable')
     try {
       context.drawImage(source, 0, 0, width, height)
+      if (drawing?.width && drawing.height) {
+        context.drawImage(drawing, 0, 0, width, height)
+      }
     } catch {
       throw new Error('Screenshot is unavailable for this slide')
     }

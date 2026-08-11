@@ -450,12 +450,12 @@
 .classroom-slide-tree > button,
 .classroom-folder-contents > button {
   width: 100%;
-  min-height: 44px;
+  min-height: 68px;
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-columns: 78px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 11px;
+  padding: 7px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   color: var(--body);
@@ -477,20 +477,42 @@
   border-color: var(--primary);
 }
 
+.classroom-slide-tree button > img,
+.classroom-folder-contents button > img {
+  width: 78px;
+  height: 52px;
+  border-radius: 6px;
+  background: var(--viewer-stage);
+  object-fit: contain;
+}
+
 .classroom-slide-tree button > span,
 .classroom-folder-contents button > span {
+  min-width: 0;
+}
+
+.classroom-slide-tree button small,
+.classroom-slide-tree button strong,
+.classroom-folder-contents button small,
+.classroom-folder-contents button strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classroom-slide-tree button small,
+.classroom-folder-contents button small {
+  margin-bottom: 3px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 
-.classroom-slide-tree button > strong,
-.classroom-folder-contents button > strong {
-  overflow: hidden;
+.classroom-slide-tree button strong,
+.classroom-folder-contents button strong {
   color: inherit;
   font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .classroom-viewer.is-pin-mode {
@@ -532,6 +554,74 @@
   height: 24px;
   background: var(--danger);
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.classroom-drawing {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.classroom-drawing canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.classroom-drawing.is-active canvas {
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.classroom-drawing-tools {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  padding: 6px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 12px;
+  background: rgb(24 23 21 / 92%);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 34%);
+  translate: -50% 0;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+}
+
+.classroom-drawing-tools button {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  color: #f7f3eb;
+  background: #302e2a;
+  font: 650 12px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+.classroom-drawing-tools button:hover,
+.classroom-drawing-tools button.is-active {
+  border-color: var(--primary);
+  background: #443a34;
+}
+
+.classroom-drawing-tools button.primary {
+  border-color: var(--primary);
+  color: var(--on-primary);
+  background: var(--primary);
+}
+
+.classroom-drawing-tools button:disabled {
+  cursor: not-allowed;
+  opacity: .42;
 }
 
 .classroom-panel {
@@ -947,6 +1037,14 @@
 
   .classroom-control-request button {
     width: 100%;
+  }
+
+  .classroom-drawing-tools {
+    bottom: 12px;
+  }
+
+  .classroom-drawing-tools button {
+    min-height: 42px;
   }
 
   .classroom-code-display {
