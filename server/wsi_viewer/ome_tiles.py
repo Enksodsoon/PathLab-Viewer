@@ -12,6 +12,7 @@ from typing import Any
 from .ome_tile_index import (
     OmeLevel,
     OmeTileIndex,
+    OmeTileIndexError,
     TileExtent,
     read_indexed_jpeg,
 )
@@ -274,7 +275,15 @@ class OmeTileRenderer:
             with self._render_semaphore:
                 extent = self._raw_extent(index, factor, width, height, request)
                 if extent is not None:
-                    payload = read_indexed_jpeg(slide.source, extent)
+                    try:
+                        payload = read_indexed_jpeg(
+                            slide.source,
+                            extent,
+                            expected_width=index.tile_width,
+                            expected_height=index.tile_height,
+                        )
+                    except OmeTileIndexError as error:
+                        raise OmeTileError("Indexed native JPEG tile is invalid") from error
                     with self._stats_lock:
                         self._raw_tiles += 1
                     return payload
