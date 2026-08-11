@@ -19,6 +19,7 @@ import {
   type StorageCapability,
 } from '../classroom/notebook'
 import { captureVisibleTissue } from '../classroom/screenshot'
+import { classroomReconnectDelay } from '../classroom/reconnect'
 import { Brand } from '../components/Brand'
 import {
   OpenSeadragonViewer,
@@ -101,9 +102,14 @@ export function ClassroomStudentPage() {
   }, [follow])
 
   useEffect(() => {
-    if (!sessionId || !csrfToken) return
+    const participantId = state?.participant.id
+    if (!sessionId || !csrfToken || !participantId) return
     void refresh(sessionId)
-    const events = new EventSource(`/api/v1/classroom/sessions/${sessionId}/events`)
+    let events: EventSource | null = null
+    let retryTimer: number | null = null
+    let stableTimer: number | null = null
+    let attempt = 0
+    let cancelled = false
     const recover = () => { void refresh(sessionId).catch(() => undefined) }
     const sequence = (event: Event): Record<string, unknown> | null => {
       try {
@@ -129,36 +135,63 @@ export function ClassroomStudentPage() {
         return null
       }
     }
-    events.addEventListener('stream-ready', (event) => { sequence(event); recover() })
-    events.addEventListener('presenter', (event) => {
-      const payload = sequence(event)
-      if (!payload || typeof payload.presenterSequence !== 'number'
-        || typeof payload.slideId !== 'string' || !payload.viewport) return
-      setState((current) => current ? {
-        ...current,
-        presenter: {
-          sequence: payload.presenterSequence as number,
-          slideId: payload.slideId as string,
-          viewport: payload.viewport as { x: number; y: number; zoom: number },
-        },
-      } : current)
-      if (followRef.current) setSlideId(payload.slideId as string)
-    })
-    for (const name of ['control', 'session-ended']) {
-      events.addEventListener(name, (event) => { if (sequence(event)) recover() })
+    const connect = () => {
+      if (cancelled) return
+      const source = new EventSource(`/api/v1/classroom/sessions/${sessionId}/events`)
+      events = source
+      source.addEventListener('stream-ready', (event) => {
+        sequence(event)
+        recover()
+        if (stableTimer !== null) window.clearTimeout(stableTimer)
+        stableTimer = window.setTimeout(() => { attempt = 0 }, 5000)
+      })
+      source.addEventListener('presenter', (event) => {
+        const payload = sequence(event)
+        if (!payload || typeof payload.presenterSequence !== 'number'
+          || typeof payload.slideId !== 'string' || !payload.viewport) return
+        setState((current) => current ? {
+          ...current,
+          presenter: {
+            sequence: payload.presenterSequence as number,
+            slideId: payload.slideId as string,
+            viewport: payload.viewport as { x: number; y: number; zoom: number },
+          },
+        } : current)
+        if (followRef.current) setSlideId(payload.slideId as string)
+      })
+      for (const name of ['control', 'session-ended']) {
+        source.addEventListener(name, (event) => { if (sequence(event)) recover() })
+      }
+      source.addEventListener('question-removed', (event) => {
+        const payload = sequence(event)
+        if (!payload || typeof payload.questionId !== 'string') return
+        setState((current) => current ? {
+          ...current,
+          pendingQuestionIds: current.pendingQuestionIds.filter(
+            (questionId) => questionId !== payload.questionId,
+          ),
+        } : current)
+      })
+      source.addEventListener('error', () => {
+        source.close()
+        if (events === source) events = null
+        if (cancelled || retryTimer !== null) return
+        if (stableTimer !== null) window.clearTimeout(stableTimer)
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null
+          attempt += 1
+          connect()
+        }, classroomReconnectDelay(participantId, attempt))
+      })
     }
-    events.addEventListener('question-removed', (event) => {
-      const payload = sequence(event)
-      if (!payload || typeof payload.questionId !== 'string') return
-      setState((current) => current ? {
-        ...current,
-        pendingQuestionIds: current.pendingQuestionIds.filter(
-          (questionId) => questionId !== payload.questionId,
-        ),
-      } : current)
-    })
-    return () => events.close()
-  }, [csrfToken, refresh, sessionId])
+    connect()
+    return () => {
+      cancelled = true
+      events?.close()
+      if (retryTimer !== null) window.clearTimeout(retryTimer)
+      if (stableTimer !== null) window.clearTimeout(stableTimer)
+    }
+  }, [csrfToken, refresh, sessionId, state?.participant.id])
 
   const currentSlide = useMemo(
     () => state?.slides.find((slide) => slide.id === slideId) ?? state?.slides[0],
