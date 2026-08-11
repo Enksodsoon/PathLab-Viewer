@@ -98,6 +98,7 @@ import { startTusUpload } from '../upload'
 import '../library.css'
 
 const EMPTY_NAVIGATION: LibraryNavigation = {
+  capabilities: { classroom: false },
   counts: { all: 0, unfiled: 0, shared: 0, processing: 0, failed: 0, trash: 0 },
   folders: [],
   collections: [],
@@ -1392,6 +1393,15 @@ export function AdminPage() {
         data-canvas-region="content"
         inert={navigatorOpen || undefined}
       >
+        {navigation.capabilities?.classroom ? (
+          <button
+            type="button"
+            className="classroom-admin-entry"
+            onClick={() => navigate('/admin/classroom')}
+          >
+            Open classroom
+          </button>
+        ) : null}
         <LibraryToolbar
           breadcrumbs={breadcrumbs}
           search={searchDraft}

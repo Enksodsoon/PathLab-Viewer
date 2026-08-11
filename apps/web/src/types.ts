@@ -29,6 +29,7 @@ export interface AdminSlide {
   metadata: SlideMetadata | null
   createdAt: string
   tileSource?: string
+  renderMode?: 'static_dzi' | 'ome_dynamic'
   thumbnailUrl?: string | null
   annotationsEnabled?: boolean
   annotationVersion?: number
@@ -106,6 +107,9 @@ export interface SavedView {
 }
 
 export interface LibraryNavigation {
+  capabilities?: {
+    classroom: boolean
+  }
   counts: {
     all: number
     unfiled: number
