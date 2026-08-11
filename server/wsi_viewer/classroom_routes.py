@@ -5,7 +5,7 @@ import secrets
 import threading
 import unicodedata
 import xml.etree.ElementTree as ElementTree
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
 
 from .classroom_hub import ClassroomHub
+from .classroom_presenter import PresenterRuntime, PresenterSnapshot
 from .config import Settings
 from .domain import SlideState
 from .models import (
@@ -128,14 +129,45 @@ def register_classroom_routes(
     database_dependency: Any,
     admin_dependency: Any,
     csrf_dependency: Any,
-) -> None:
+) -> PresenterRuntime | None:
     if not settings.classroom_enabled:
-        return
+        return None
 
     Database = Annotated[OrmSession, Depends(database_dependency)]
     AdminSession = Annotated[Session, Depends(admin_dependency)]
     CsrfSession = Annotated[Session, Depends(csrf_dependency)]
     mutation_lock = threading.Lock()
+
+    def persist_presenters(
+        snapshots: Sequence[PresenterSnapshot],
+    ) -> None:
+        with mutation_lock, factory() as database:
+            for snapshot in snapshots:
+                classroom = database.get(ClassroomSession, snapshot.session_id)
+                if classroom is None or classroom.status != "active":
+                    continue
+                if snapshot.sequence < classroom.presenter_sequence:
+                    continue
+                classroom.presenter_sequence = snapshot.sequence
+                classroom.current_slide_id = snapshot.slide_id
+                classroom.presenter_viewport = snapshot.viewport
+            database.commit()
+
+    def reserve_presenter_sequence(session_id: str, reserved_until: int) -> int:
+        # update() is called only inside a serialized presenter mutation.
+        with factory() as database:
+            classroom = database.get(ClassroomSession, session_id)
+            if classroom is None or classroom.status != "active":
+                raise RuntimeError("Cannot reserve a sequence for an inactive classroom")
+            if classroom.presenter_sequence_reserved < reserved_until:
+                classroom.presenter_sequence_reserved = reserved_until
+                database.commit()
+            return int(classroom.presenter_sequence_reserved)
+
+    presenter_runtime = PresenterRuntime(
+        persist_presenters,
+        reserve=reserve_presenter_sequence,
+    )
 
     def serialized_mutation() -> Iterator[None]:
         mutation_lock.acquire()
@@ -226,6 +258,20 @@ def register_classroom_routes(
             },
             critical=True,
         )
+
+    def presenter_json(classroom: ClassroomSession) -> dict[str, Any]:
+        current = presenter_runtime.current(classroom.id)
+        if current is None:
+            return {
+                "sequence": classroom.presenter_sequence,
+                "slideId": classroom.current_slide_id,
+                "viewport": classroom.presenter_viewport,
+            }
+        return {
+            "sequence": current.sequence,
+            "slideId": current.slide_id,
+            "viewport": current.viewport,
+        }
 
     @app.post(
         "/api/v1/admin/classroom/sessions",
@@ -456,11 +502,7 @@ def register_classroom_routes(
         return {
             "session": {"id": classroom.id, "status": classroom.status},
             "stateVersion": classroom.state_version,
-            "presenter": {
-                "sequence": classroom.presenter_sequence,
-                "slideId": classroom.current_slide_id,
-                "viewport": classroom.presenter_viewport,
-            },
+            "presenter": presenter_json(classroom),
             "controller": {
                 "participantId": classroom.controller_participant_id,
                 "leaseId": classroom.controller_lease_id,
@@ -503,7 +545,10 @@ def register_classroom_routes(
 
     @app.get("/api/v1/admin/classroom/metrics")
     def operational_metrics(_: AdminSession) -> dict[str, int]:
-        return hub.metrics()
+        return {
+            **hub.metrics(),
+            "presenterPersistenceWrites": presenter_runtime.persistence_writes,
+        }
 
     @app.get("/api/v1/classroom/sessions/{session_id}")
     def student_state(session_id: str, request: Request, db: Database) -> dict[str, Any]:
@@ -535,11 +580,7 @@ def register_classroom_routes(
             },
             "csrfToken": raw_token,
             "stateVersion": classroom.state_version,
-            "presenter": {
-                "sequence": classroom.presenter_sequence,
-                "slideId": classroom.current_slide_id,
-                "viewport": classroom.presenter_viewport,
-            },
+            "presenter": presenter_json(classroom),
             "control": {
                 "isController": classroom.controller_participant_id == participant.id,
                 "leaseId": (
@@ -778,21 +819,31 @@ def register_classroom_routes(
             or slide_exists is None
         ):
             raise HTTPException(status_code=409, detail={"code": "CONTROL_LEASE_STALE"})
-        classroom.presenter_sequence += 1
-        classroom.current_slide_id = payload.slide_id
-        classroom.presenter_viewport = {"x": payload.x, "y": payload.y, "zoom": payload.zoom}
-        db.commit()
+        snapshot, slide_changed = presenter_runtime.update(
+            session_id,
+            classroom.presenter_sequence,
+            classroom.presenter_sequence_reserved,
+            classroom.current_slide_id,
+            payload.slide_id,
+            {"x": payload.x, "y": payload.y, "zoom": payload.zoom},
+        )
+        if slide_changed:
+            classroom.presenter_sequence = snapshot.sequence
+            classroom.current_slide_id = snapshot.slide_id
+            classroom.presenter_viewport = snapshot.viewport
+            db.commit()
+            presenter_runtime.mark_persisted(session_id, snapshot.sequence)
         hub.publish(
             session_id,
             "presenter",
             {
-                "presenterSequence": classroom.presenter_sequence,
-                "slideId": payload.slide_id,
-                "viewport": {"x": payload.x, "y": payload.y, "zoom": payload.zoom},
+                "presenterSequence": snapshot.sequence,
+                "slideId": snapshot.slide_id,
+                "viewport": snapshot.viewport,
             },
             critical=False,
         )
-        return {"presenterSequence": classroom.presenter_sequence}
+        return {"presenterSequence": snapshot.sequence}
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/presenter")
     def teacher_presenter(
@@ -818,10 +869,22 @@ def register_classroom_routes(
             classroom.controller_participant_id = None
             classroom.controller_lease_id = None
             classroom.controller_expires_at = None
-        classroom.presenter_sequence += 1
-        classroom.current_slide_id = payload.slide_id
-        classroom.presenter_viewport = {"x": payload.x, "y": payload.y, "zoom": payload.zoom}
-        db.commit()
+        snapshot, slide_changed = presenter_runtime.update(
+            session_id,
+            classroom.presenter_sequence,
+            classroom.presenter_sequence_reserved,
+            classroom.current_slide_id,
+            payload.slide_id,
+            {"x": payload.x, "y": payload.y, "zoom": payload.zoom},
+        )
+        if slide_changed:
+            classroom.presenter_sequence = snapshot.sequence
+            classroom.current_slide_id = snapshot.slide_id
+            classroom.presenter_viewport = snapshot.viewport
+        if took_control or slide_changed:
+            db.commit()
+        if slide_changed:
+            presenter_runtime.mark_persisted(session_id, snapshot.sequence)
         if took_control:
             hub.publish(
                 session_id,
@@ -839,13 +902,13 @@ def register_classroom_routes(
             session_id,
             "presenter",
             {
-                "presenterSequence": classroom.presenter_sequence,
-                "slideId": payload.slide_id,
-                "viewport": classroom.presenter_viewport,
+                "presenterSequence": snapshot.sequence,
+                "slideId": snapshot.slide_id,
+                "viewport": snapshot.viewport,
             },
             critical=False,
         )
-        return {"presenterSequence": classroom.presenter_sequence}
+        return {"presenterSequence": snapshot.sequence}
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/questions/{question_id}/open")
     def open_question(
@@ -869,10 +932,19 @@ def register_classroom_routes(
         classroom.controller_participant_id = None
         classroom.controller_lease_id = None
         classroom.controller_expires_at = None
-        classroom.presenter_sequence += 1
-        classroom.current_slide_id = question.slide_id
-        classroom.presenter_viewport = {"x": question.x, "y": question.y, "zoom": question.zoom}
+        snapshot, _slide_changed = presenter_runtime.update(
+            session_id,
+            classroom.presenter_sequence,
+            classroom.presenter_sequence_reserved,
+            classroom.current_slide_id,
+            question.slide_id,
+            {"x": question.x, "y": question.y, "zoom": question.zoom},
+        )
+        classroom.presenter_sequence = snapshot.sequence
+        classroom.current_slide_id = snapshot.slide_id
+        classroom.presenter_viewport = snapshot.viewport
         db.commit()
+        presenter_runtime.mark_persisted(session_id, snapshot.sequence)
         hub.publish(
             session_id,
             "control",
@@ -889,13 +961,13 @@ def register_classroom_routes(
             session_id,
             "presenter",
             {
-                "presenterSequence": classroom.presenter_sequence,
-                "slideId": question.slide_id,
-                "viewport": classroom.presenter_viewport,
+                "presenterSequence": snapshot.sequence,
+                "slideId": snapshot.slide_id,
+                "viewport": snapshot.viewport,
             },
             critical=False,
         )
-        return {"presenterSequence": classroom.presenter_sequence}
+        return {"presenterSequence": snapshot.sequence}
 
     @app.delete(
         "/api/v1/admin/classroom/sessions/{session_id}",
@@ -909,6 +981,7 @@ def register_classroom_routes(
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
         db.delete(classroom)
         db.commit()
+        presenter_runtime.forget(session_id)
         hub.publish(
             session_id,
             "session-ended",
@@ -961,7 +1034,7 @@ def register_classroom_routes(
                 yield f"event: stream-ready\ndata: {json.dumps(ready, separators=(',', ':'))}\n\n"
                 while True:
                     try:
-                        event = await asyncio.wait_for(subscriber.queue.get(), timeout=15)
+                        event = await asyncio.wait_for(subscriber.next_event(), timeout=15)
                     except TimeoutError:
                         yield ": heartbeat\n\n"
                         continue
@@ -1018,6 +1091,8 @@ def register_classroom_routes(
             participant, _ = participant_from_request(request, db, session_id)
             participant_id = participant.id
         return stream_response(session_id, "student", participant_id)
+
+    return presenter_runtime
 
 
 def _participant_response(

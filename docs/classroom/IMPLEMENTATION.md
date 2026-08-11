@@ -18,8 +18,13 @@ This branch does not authorize a merge, deployment, or production activation.
 - One active session, at most 300 recent participants and 200 pending questions.
 - At most 50 slides per session and 100 local notebook entries per browser session.
 - Static DZI descriptors and tiles remain Caddy-served; the API never proxies screenshot bytes.
-- Incremental SSE events are limited to 4 KiB UTF-8 and subscriber queues to 32 events.
+- Incremental SSE events are limited to 4 KiB UTF-8. Each subscriber has a bounded
+  32-event discrete queue plus one replaceable latest-presenter slot.
 - Presenter movement is client-throttled to four updates per second and server-limited to five.
+- Presenter movement is published from memory immediately. The latest viewport is checkpointed
+  to SQLite at most once per two seconds per classroom; slide changes persist immediately.
+- Presenter sequences are reserved in blocks of 1,024 so an abrupt restart cannot reuse a
+  sequence even when the latest viewport checkpoint has not yet run.
 - Critical queue overflow closes the slow stream, forcing bounded HTTP resynchronization.
 - The teacher state endpoint is naturally bounded by the participant and question limits.
 
@@ -37,6 +42,10 @@ Sticky sessions are not used as a substitute.
 2. Receive `stream-ready` with `hubEpoch` and `stateVersion`.
 3. Fetch the appropriate full-state HTTP endpoint.
 4. Treat HTTP state as authoritative and use later SSE events as refresh triggers.
+
+Students explicitly close a failed native `EventSource` and recreate it after deterministic,
+participant-seeded jitter with bounded backoff. A stable stream resets the backoff. This avoids
+a synchronized reconnect herd while retaining ordinary SSE and HTTP resynchronization.
 
 Participant, question, control, presenter, and session-ended events are incremental. SSE
 generators open short database scopes only for authentication/state and never retain a
@@ -78,11 +87,11 @@ Operational metrics expose only bounded counters, not student behavior history.
 
 ## Local verification and certification
 
-Use `tests/load/classroom_sse.py` for protocol-level clients. It requires an explicitly
-created non-production classroom and reads the join code from an environment variable. The
-development default is 30 users for 30 seconds; release certification must explicitly use
-300 users and the protected duration/configuration. Browser rendering and screenshot checks
-remain separate from protocol scale.
+Use `tests/load/classroom_sse.py` for protocol-level clients. It refuses non-local targets and
+requires an explicitly created ephemeral classroom. It continuously consumes SSE while
+publishing presenter movement, requesting a real tile, exercising questions and control, and
+creating bounded churn. Browser rendering and screenshot checks remain separate from protocol
+scale. The 300-user protected certification is a later explicit run.
 
 Production remains **NOT CERTIFIED** until the exact release SHA passes the protected
 baseline-versus-candidate capacity, restart, churn, cold-tile, question, control, and soak
@@ -90,7 +99,7 @@ gates. Never load-test production.
 
 ## Deployment and rollback
 
-1. Back up the SQLite database and apply Alembic revision `20260811_0015` while the feature
+1. Back up the SQLite database and apply Alembic revision `20260811_0016` while the feature
    remains disabled.
 2. Verify one API service, one Uvicorn worker, local SQLite/WAL, Caddy SSE flushing, static
    tile delivery, and readiness.

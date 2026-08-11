@@ -235,6 +235,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             services["classroom_ready"] = classroom_lock_held
             if classroom_lock_held:
                 classroom_hub.start()
+                classroom_presenter = services.get("classroom_presenter")
+                if classroom_presenter is not None:
+                    classroom_presenter.start()
         try:
             yield
         finally:
@@ -243,6 +246,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             services.pop("tile_routes", None)
             tile_routes.close()
             if classroom_lock_held:
+                classroom_presenter = services.get("classroom_presenter")
+                if classroom_presenter is not None:
+                    await classroom_presenter.close()
                 classroom_hub.close()
                 classroom_lock.release()
             services["classroom_ready"] = not current.classroom_enabled
@@ -390,7 +396,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
         max_upload_bytes=current.max_upload_bytes,
     )
-    register_classroom_routes(
+    services["classroom_presenter"] = register_classroom_routes(
         app,
         settings=current,
         storage=storage,

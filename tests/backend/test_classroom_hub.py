@@ -59,3 +59,31 @@ def test_hub_does_not_disclose_teacher_only_events_to_students() -> None:
             assert student.queue.empty()
 
     asyncio.run(scenario())
+
+
+def test_hub_coalesces_presenter_state_without_coalescing_discrete_events() -> None:
+    async def scenario() -> None:
+        hub = ClassroomHub()
+        hub.start()
+        async with hub.subscribe("session") as subscriber:
+            for sequence in range(1, 4):
+                hub._publish(
+                    "session",
+                    "presenter",
+                    {"presenterSequence": sequence},
+                    False,
+                    "all",
+                )
+            hub._publish("session", "question-removed", {"questionId": "q1"}, True, "all")
+            hub._publish("session", "control", {"controlEpoch": 2}, True, "all")
+
+            question = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+            control = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+            presenter = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+
+            assert question is not None and question["type"] == "question-removed"
+            assert control is not None and control["type"] == "control"
+            assert presenter is not None and presenter["presenterSequence"] == 3
+            assert hub.presenter_events_coalesced == 2
+
+    asyncio.run(scenario())

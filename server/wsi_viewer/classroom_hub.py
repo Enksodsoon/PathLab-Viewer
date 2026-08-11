@@ -15,9 +15,27 @@ SUBSCRIBER_QUEUE_SIZE = 32
 @dataclass(eq=False)
 class Subscriber:
     audience: Literal["teacher", "student"]
-    queue: asyncio.Queue[dict[str, Any] | None] = field(
+    queue: asyncio.Queue[dict[str, Any]] = field(
         default_factory=lambda: asyncio.Queue(maxsize=SUBSCRIBER_QUEUE_SIZE)
     )
+    latest_presenter: dict[str, Any] | None = None
+    wake: asyncio.Event = field(default_factory=asyncio.Event)
+    closed: bool = False
+
+    async def next_event(self) -> dict[str, Any] | None:
+        while True:
+            if not self.queue.empty():
+                return self.queue.get_nowait()
+            if self.latest_presenter is not None:
+                event = self.latest_presenter
+                self.latest_presenter = None
+                return event
+            if self.closed:
+                return None
+            self.wake.clear()
+            if not self.queue.empty() or self.latest_presenter is not None or self.closed:
+                continue
+            await self.wake.wait()
 
 
 class ClassroomHub:
@@ -34,6 +52,7 @@ class ClassroomHub:
         self.current_connections = 0
         self.peak_connections = 0
         self.presenter_events_published = 0
+        self.presenter_events_coalesced = 0
         self.slow_subscribers_disconnected = 0
         self.queue_overflows = 0
         self.reconnects = 0
@@ -93,8 +112,15 @@ class ClassroomHub:
             for subscriber in tuple(self._subscribers.get(session_id, ())):
                 if subscriber.audience != destination:
                     continue
+                if event_type == "presenter":
+                    if subscriber.latest_presenter is not None:
+                        self.presenter_events_coalesced += 1
+                    subscriber.latest_presenter = event
+                    subscriber.wake.set()
+                    continue
                 try:
                     subscriber.queue.put_nowait(event)
+                    subscriber.wake.set()
                 except asyncio.QueueFull:
                     self.queue_overflows += 1
                     if critical:
@@ -125,13 +151,16 @@ class ClassroomHub:
     def _close_subscriber(subscriber: Subscriber) -> None:
         while not subscriber.queue.empty():
             subscriber.queue.get_nowait()
-        subscriber.queue.put_nowait(None)
+        subscriber.latest_presenter = None
+        subscriber.closed = True
+        subscriber.wake.set()
 
     def metrics(self) -> dict[str, int]:
         return {
             "currentSseConnections": self.current_connections,
             "peakSseConnections": self.peak_connections,
             "presenterEventsPublished": self.presenter_events_published,
+            "presenterEventsCoalesced": self.presenter_events_coalesced,
             "slowSubscribersDisconnected": self.slow_subscribers_disconnected,
             "queueOverflows": self.queue_overflows,
             "reconnects": self.reconnects,

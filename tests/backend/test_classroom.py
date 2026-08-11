@@ -1,4 +1,7 @@
 import hashlib
+import json
+import sqlite3
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -183,6 +186,46 @@ def test_stale_control_lease_cannot_publish(tmp_path: Path) -> None:
         )
         assert response.status_code == 409
         assert response.json() == {"detail": {"code": "CONTROL_LEASE_STALE"}}
+
+
+def test_presenter_updates_are_immediate_but_persisted_sparsely(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        ).json()
+        for index in range(4):
+            response = client.post(
+                f"/api/v1/admin/classroom/sessions/{created['id']}/presenter",
+                headers=headers,
+                json={
+                    "slideId": "slide-1",
+                    "x": index / 10,
+                    "y": 0.5,
+                    "zoom": 2,
+                },
+            )
+            assert response.status_code == 200
+
+        state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}")
+        assert state.json()["presenter"]["viewport"]["x"] == 0.3
+        assert client.get("/api/v1/admin/classroom/metrics").json()[
+            "presenterPersistenceWrites"
+        ] == 0
+
+        time.sleep(2.3)
+        metrics = client.get("/api/v1/admin/classroom/metrics").json()
+        assert metrics["presenterPersistenceWrites"] == 1
+        with sqlite3.connect(tmp_path / "test.sqlite3") as database:
+            row = database.execute(
+                "SELECT presenter_sequence, presenter_viewport "
+                "FROM classroom_sessions WHERE id = ?",
+                (created["id"],),
+            ).fetchone()
+        assert row is not None and row[0] == 4
+        assert json.loads(row[1])["x"] == 0.3
 
 
 def test_question_receipt_hashes_idempotency_key(tmp_path: Path) -> None:

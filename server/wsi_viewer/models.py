@@ -706,6 +706,9 @@ class ClassroomSession(Base):
     join_code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="active")
     presenter_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    presenter_sequence_reserved: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     control_epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     state_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     current_slide_id: Mapped[str | None] = mapped_column(String(36))
