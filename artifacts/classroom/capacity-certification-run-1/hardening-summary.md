@@ -2,74 +2,102 @@
 
 ## Scope
 
-- Base candidate: `b1d04512ffc01a7624acdc604823cbeae8d4c7fc`
+- Base SHA: `ec97febbb9706f4b1109ba8fa45c3f807b3ff510`
 - Branch: `codex/classroom-certification-hardening`
 - Feature default: disabled
 - No push, pull request, merge, deployment, or activation
-- The 30-minute capacity certification was not run
-- All temporary containers, volumes, images, and copied DZI fixture data were removed afterward
+- The exact local one-worker candidate stack passed the 30-minute, 300-participant gate
+- Production was not load tested
 
-## Corrections
+## Corrections completed
 
-1. Presenter viewport state is immediate in memory and checkpointed to SQLite no more than
-   once per two seconds per classroom, with immediate persistence for slide changes.
-2. Presenter sequences are reserved in 1,024-number blocks so abrupt restart cannot reuse an
-   emitted sequence without coupling viewport persistence to movement frequency.
-3. SSE subscribers retain one replaceable latest-presenter event while discrete control and
-   question events remain in the bounded reliable queue.
-4. Student SSE failures explicitly close native EventSource and reconnect using deterministic,
-   participant-seeded bounded jitter.
-5. The local-only protocol harness continuously consumes SSE while presenter, tile, question,
-   control, convergence, and churn work execute concurrently.
+1. Presenter state is immediate in memory and checkpointed to SQLite at a bounded rate.
+2. Reserved presenter sequence blocks prevent sequence reuse after abrupt restart.
+3. SSE keeps one replaceable presenter event while critical events use a bounded reliable queue.
+4. Student SSE reconnects use deterministic participant jitter and full HTTP resynchronization.
+5. Join mutations queue as coroutines before the one short serialized SQLite write, preventing
+   a 300-join burst from exhausting the FastAPI thread pool.
+6. A successful browser join immediately hydrates student state, slide selection, and notebook.
+7. Final capacity readback uses bounded retries to tolerate a transient closing connection.
+8. The locked Pillow entry includes official x86-64 and ARM64 CPython 3.12 wheel hashes.
 
-## Focused evidence
+## Exact-stack capacity result
 
-- Backend classroom/load-contract tests: 24 passed before the sequence-reservation correction.
-- Backend presenter, hub, classroom, and migration tests after reservation: 29 passed.
-- Ruff: passed.
-- MyPy: passed for 37 modules.
-- Full backend and load-contract collection: 456 passed and 4 skipped.
-- Frontend Vitest: 36 files and 234 tests passed.
-- Frontend ESLint: passed.
-- Current frontend production build: passed.
+The local stack used one API worker, Caddy static DZI delivery, a generated non-PHI
+7,557 x 7,360 static DZI, 300 protocol participants, 2 Hz presenter movement, question/control
+activity, reconnect churn, and 61 independent resource samples.
 
-## Pre-reservation normal short smoke
-
-This local smoke used 20 protocol participants, one real 7,557 x 7,360 PathLab static DZI,
-Caddy SSE flushing/static tiles, one API worker, 2 Hz presenter movement, five questions,
-control grant/revoke, and deliberate churn.
-
-It ran before the later sequence-reservation correction, so it is useful behavioral evidence
-but is not an exact-final-SHA capacity certification.
-
-- Final convergence: 20/20
-- Reconnect success: 100% for deliberate churn
+- Harness exit: 0
+- Duration: 1,805.843 seconds
+- Final convergence: 300/300
+- Reconnect success: 100% (30/30 deliberate reconnects)
 - Participant/task/tile errors: 0
 - Stale presenter incidents: 0
-- Lost discrete control events: 0
-- Presenter latency p50/p95/p99: 47/63/78 ms
-- Tile latency p50/p95/p99: 15/16/32 ms
-- API RSS observed mid-run: 121.22 MiB
-- Caddy RSS observed mid-run: 18.1 MiB
-- Presenter events: 88
-- SQLite presenter checkpoints: 22
-- Checkpoint rate: 0.489 per second
+- Lost discrete events: 0
+- Presenter p50/p95/p99: 78/875/1,078 ms
+- Tile p50/p95/p99: 31/313/1,015 ms
+- Question p95: 1,547 ms
+- Control p95: 375 ms
+- API RSS min/max: 115.6/119.3 MiB
+- Caddy RSS min/max: 31.21/108.5 MiB
+- API/Caddy restart count: 0/0
+- API/Caddy OOM killed: false/false
+- SQLite presenter checkpoint rate: 0.4889 per second
+- One slow subscriber was safely disconnected after one bounded critical-queue overflow;
+  final HTTP resynchronization preserved convergence and all discrete events.
 
-## Restart evidence boundary
+Raw evidence is in `capacity-300-30m-rerun.json` and `resource-samples-rerun.csv`.
 
-An abrupt pre-reservation restart reproduced one presenter-sequence regression while all 10
-participants eventually converged. The new reservation unit test proves that an emitted sequence
-from a reserved block is not reused after an abrupt runtime replacement. Subsequent local process
-replacement attempts showed zero regression and full final HTTP convergence, but did not produce
-a trustworthy two-hub-epoch SSE sample because Windows process supervision/timing made the exact
-stream replacement ambiguous.
+## Exact-stack restart result
 
-Therefore the protected restart/reconnect capacity gate remains **NOT CERTIFIED** and must be
-repeated through the exact container restart mechanism before the 30-minute certification.
+The API container was restarted with 20 active SSE participants. The protected harness observed
+two hub epochs, 20/20 final convergence, 100% reconnect success, zero stale presenter incidents,
+zero task/tile errors, and zero lost discrete events. Reconnect spread was 4.625 seconds;
+presenter p95 was 47 ms and tile p95 was 63 ms. Raw evidence is in `restart-gate.json`.
 
-## Independent build blocker
+## Regression evidence
 
-The exact backend Docker build stopped at hash verification because the downloaded Pillow 12.3.0
-wheel SHA-256 did not match `deploy/backend-requirements.txt`. Hash checking was not weakened and
-dependencies were not changed. The short smoke used the existing validated local Python runtime
-with current branch source plus the freshly built current Caddy/frontend image.
+- Backend: 456 passed, 4 skipped.
+- Ruff: passed.
+- MyPy: passed for 38 source files.
+- Frontend Vitest: 36 files, 234 tests passed.
+- Frontend ESLint: passed.
+- TypeScript and Vite production build: passed.
+- Classroom screenshot spike: passed in Chromium, Firefox, WebKit, and mobile Chromium.
+- Full Playwright matrix: 117 passed, 28 failed, 7 skipped. The failures are outside classroom
+  and are recorded rather than hidden; repository-wide browser certification is not green.
+
+`origin/main` has no classroom endpoints, so a classroom protocol capacity delta cannot be
+computed. Baseline architecture, test, and bundle evidence remains available; no endpoint result
+was fabricated.
+
+## Runtime boundaries retained
+
+- One active session, 300 recent participants, 200 pending questions, and 50 slides maximum.
+- Static DZI descriptors/tiles stay Caddy-served; screenshots and notes stay in IndexedDB.
+- Incremental SSE events are at most 4 KiB UTF-8.
+- Each subscriber has 32 bounded critical slots plus one replaceable presenter slot.
+- Presenter publication is client-throttled and server-rate-limited.
+- Critical overflow closes the stream and requires full-state resynchronization.
+- The in-process hub requires one declared API worker and a lifetime singleton lock.
+- Generated aliases are canonical public identities; optional names never authorize anything.
+- Question content deletion retains only a bounded, content-free idempotency receipt.
+- Control writes validate lease ID, owner, expiry, session, rate, and immutable slide snapshot.
+- Notebook images are bounded to 1,600 x 1,200 and 2 MiB with text preserved on image failure.
+
+## Readiness boundary
+
+The local classroom candidate capacity and classroom-specific browser gates pass. Production
+remains disabled, unmerged, undeployed, and not load tested. The complete repository Playwright
+matrix is not fully green, so this report does not label the whole application production-ready.
+
+## Deployment and rollback
+
+1. Keep `PATHLAB_CLASSROOM_ENABLED=false` while backing up SQLite and applying migration
+   `20260811_0016`.
+2. Verify one API service, one Uvicorn worker, local SQLite/WAL, Caddy SSE flushing, static
+   tile delivery, and singleton readiness.
+3. Resolve or formally baseline the unrelated full-Playwright failures before release approval.
+4. Activation requires separate authorization; it is only the feature flag after all gates pass.
+5. Roll back by disabling the flag first. The downgrade drops classroom tables only; export any
+   required classroom rows first. Browser-owned student notes are not server rollback data.

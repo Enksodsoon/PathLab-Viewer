@@ -1,15 +1,21 @@
 services:
   caddy:
+    image: pathlab-classroom-web-cert:latest
     ports: !override
       - "18080:80"
     environment:
       DOMAIN: http://localhost
-      ACME_EMAIL: local-certification@example.invalid
+      ACME_EMAIL: classroom-certification@example.com
     depends_on: !override
       api:
         condition: service_healthy
+    volumes: !override
+      - ${PATHLAB_CERT_CADDYFILE:?Set PATHLAB_CERT_CADDYFILE}:/etc/caddy/Caddyfile:ro
+      - ${PATHLAB_CERT_DATA_DIR:?Set PATHLAB_CERT_DATA_DIR}/delivery/individual:/pathlab-individual:ro
   api:
-    image: pathlab-viewer-backend:test
+    image: pathlab-classroom-backend-cert:latest
+    ports: !override
+      - "8000:8000"
     environment:
       PATHLAB_ENVIRONMENT: development
       PYTHONPATH: /app/server
@@ -17,8 +23,6 @@ services:
       PATHLAB_CLASSROOM_SINGLETON: "true"
       PATHLAB_SECURE_COOKIES: "false"
       PATHLAB_INTERNAL_FILE_REDIRECTS: "false"
-    volumes:
-      - ../artifacts/classroom/capacity-certification-run-1/runtime:/cert:ro
-      - ../server:/app/server:ro
-      - ../migrations:/app/migrations:ro
-      - ../alembic.ini:/app/alembic.ini:ro
+    volumes: !override
+      - ${PATHLAB_CERT_DATA_DIR:?Set PATHLAB_CERT_DATA_DIR}:/data
+      - ${PATHLAB_CERT_SEED:?Set PATHLAB_CERT_SEED}:/cert/seed.py:ro

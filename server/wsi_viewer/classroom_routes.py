@@ -15,6 +15,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
+from starlette.concurrency import run_in_threadpool
 
 from .classroom_hub import ClassroomHub
 from .classroom_presenter import PresenterRuntime, PresenterSnapshot
@@ -137,6 +138,7 @@ def register_classroom_routes(
     AdminSession = Annotated[Session, Depends(admin_dependency)]
     CsrfSession = Annotated[Session, Depends(csrf_dependency)]
     mutation_lock = threading.Lock()
+    join_queue_lock = asyncio.Lock()
 
     def persist_presenters(
         snapshots: Sequence[PresenterSnapshot],
@@ -363,13 +365,11 @@ def register_classroom_routes(
             "slides": [_session_slide_json(item) for item in snapshot],
         }
 
-    @app.post("/api/v1/classroom/join")
-    def join(
+    def join_locked(
         payload: JoinRequest,
         request: Request,
         response: Response,
-        _guard: MutationGuard,
-        db: Database,
+        db: OrmSession,
     ) -> Any:
         classroom = db.scalar(
             select(ClassroomSession).where(
@@ -477,6 +477,23 @@ def register_classroom_routes(
             settings.secure_cookies,
             201,
         )
+
+    def execute_join(
+        payload: JoinRequest,
+        request: Request,
+        response: Response,
+    ) -> Any:
+        with mutation_lock, factory() as db:
+            return join_locked(payload, request, response, db)
+
+    @app.post("/api/v1/classroom/join")
+    async def join(
+        payload: JoinRequest,
+        request: Request,
+        response: Response,
+    ) -> Any:
+        async with join_queue_lock:
+            return await run_in_threadpool(execute_join, payload, request, response)
 
     @app.get("/api/v1/admin/classroom/sessions/{session_id}")
     def teacher_state(session_id: str, _: AdminSession, db: Database) -> dict[str, Any]:

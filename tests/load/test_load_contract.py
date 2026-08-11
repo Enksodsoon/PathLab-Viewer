@@ -53,6 +53,8 @@ def test_classroom_harness_consumes_realtime_and_tile_work_concurrently() -> Non
     assert "presenterLatencyMs" in script
     assert "finalConvergence" in script
     assert "presenterPersistenceWritesPerSecond" in script
+    assert "PATHLAB_CLASSROOM_EXPECT_RESTART" in script
+    assert 'report["distinctHubEpochs"] < 2' in script
     assert "restricted to local ephemeral targets" in script
     assert "ALLOW_PRODUCTION" not in script
 

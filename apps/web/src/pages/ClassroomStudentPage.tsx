@@ -265,8 +265,12 @@ export function ClassroomStudentPage() {
     setMessage('')
     try {
       const joined = await joinClassroom(joinCode.trim().toUpperCase(), displayName)
-      setCsrfToken(joined.csrfToken)
-      setAlias(joined.participant.alias)
+      const next = await studentState(joined.sessionId)
+      setState(next)
+      setCsrfToken(next.csrfToken)
+      setAlias(next.participant.alias)
+      if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+      setEntries(await listEntries(joined.sessionId))
       navigate(`/classroom/${joined.sessionId}`, { replace: true })
     } catch {
       setMessage('That classroom is unavailable or the code is incorrect.')

@@ -86,7 +86,26 @@ def reconnect_delay(participant_id: str, attempt: int) -> float:
     for value in participant_id.encode():
         seed = ((seed ^ value) * 16777619) & 0xFFFFFFFF
     jitter = seed % 1001
-    return min(5000, min(4000, 500 * (2 ** min(3, attempt))) + jitter) / 1000
+    delay_ms = min(5000, min(4000, 500 * (2 ** min(3, attempt))) + jitter)
+    return float(delay_ms) / 1000
+
+
+async def get_with_retry(
+    client: httpx.AsyncClient,
+    path: str,
+    *,
+    attempts: int = 5,
+) -> httpx.Response:
+    for attempt in range(attempts):
+        try:
+            response = await client.get(path)
+            response.raise_for_status()
+            return response
+        except httpx.HTTPError:
+            if attempt + 1 == attempts:
+                raise
+            await asyncio.sleep(0.25 * (2**attempt))
+    raise RuntimeError("unreachable retry state")
 
 
 async def consume_stream(
@@ -276,6 +295,11 @@ async def run() -> int:
     count = int(os.environ.get("PATHLAB_CLASSROOM_PARTICIPANTS", "30"))
     duration = float(os.environ.get("PATHLAB_CLASSROOM_DURATION_SECONDS", "60"))
     rate = float(os.environ.get("PATHLAB_CLASSROOM_PRESENTER_RATE", "2"))
+    expect_restart = os.environ.get("PATHLAB_CLASSROOM_EXPECT_RESTART", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     if not any(
         host in base_url for host in ("127.0.0.1", "localhost", "host.docker.internal")
     ):
@@ -341,20 +365,21 @@ async def run() -> int:
     task_results = await asyncio.gather(*tasks, return_exceptions=True)
     task_errors = [repr(result) for result in task_results if isinstance(result, BaseException)]
 
-    final_state = await admin.get(f"/api/v1/admin/classroom/sessions/{session_id}")
-    final_state.raise_for_status()
+    final_state = await get_with_retry(
+        admin, f"/api/v1/admin/classroom/sessions/{session_id}"
+    )
     final_sequence = int(final_state.json()["presenter"]["sequence"])
     converged = 0
     for participant in participants:
         try:
-            state = await participant.client.get(f"/api/v1/classroom/sessions/{session_id}")
-            state.raise_for_status()
+            state = await get_with_retry(
+                participant.client, f"/api/v1/classroom/sessions/{session_id}"
+            )
             if int(state.json()["presenter"]["sequence"]) == final_sequence:
                 converged += 1
         finally:
             await participant.client.aclose()
-    metrics = await admin.get("/api/v1/admin/classroom/metrics")
-    metrics.raise_for_status()
+    metrics = await get_with_retry(admin, "/api/v1/admin/classroom/metrics")
     server_metrics = metrics.json()
     metrics_delta = {
         key: (
@@ -393,6 +418,7 @@ async def run() -> int:
         "participantErrors": errors,
         "taskErrors": task_errors,
         "presenterLatencyMs": summary(recorder.presenter_latencies_ms),
+        "presenterSendSuccesses": len(recorder.presenter_sent),
         "questionLatencyMs": summary(recorder.question_latencies_ms),
         "controlLatencyMs": summary(recorder.control_latencies_ms),
         "tileLatencyMs": summary(recorder.tile_latencies_ms),
@@ -414,11 +440,12 @@ async def run() -> int:
         "lostDiscreteEvents": max(0, count * 3 - control_events),
     }
     print(json.dumps(report, indent=2))
-    expected_updates = math.floor(duration * rate * 0.8)
+    expected_updates = math.floor(duration * rate * (0.3 if expect_restart else 0.8))
     failed = bool(task_errors) or converged != count or recorder.tile_errors > 0
     failed = failed or any(error == "presenter_sequence_regressed" for error in errors)
     failed = failed or successful_reconnects != len(reconnect_expected)
     failed = failed or len(recorder.presenter_sent) < expected_updates
+    failed = failed or (expect_restart and report["distinctHubEpochs"] < 2)
     return 1 if failed else 0
 
 

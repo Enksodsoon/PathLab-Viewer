@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from wsi_viewer.config import Settings
 from wsi_viewer.database import session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Slide, User
+from wsi_viewer.models import PublicationGrant, Slide, User
 from wsi_viewer.publication import delivery_version
 from wsi_viewer.security import hash_password
 
@@ -40,6 +40,24 @@ with session_factory(settings)() as database:
             published_at=datetime(2026, 8, 11, tzinfo=UTC),
         )
         database.add(slide)
+        database.flush()
+    grant = (
+        database.query(PublicationGrant)
+        .filter(
+            PublicationGrant.slide_id == SLIDE_ID,
+            PublicationGrant.source_type == "individual",
+            PublicationGrant.source_id == SLIDE_ID,
+        )
+        .one_or_none()
+    )
+    if grant is None:
+        database.add(
+            PublicationGrant(
+                slide_id=SLIDE_ID,
+                source_type="individual",
+                source_id=SLIDE_ID,
+            )
+        )
     database.commit()
     database.refresh(slide)
     print(
