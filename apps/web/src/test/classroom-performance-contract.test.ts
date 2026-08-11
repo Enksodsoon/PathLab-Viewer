@@ -19,4 +19,15 @@ describe('classroom disabled-mode resource contract', () => {
     expect(classroomApi).not.toMatch(/screenshot|notebook|capture/i)
     expect(notebook).not.toMatch(/fetch\(|XMLHttpRequest|sendBeacon/)
   })
+
+  it('keeps live teaching projection outside the React animation loop', () => {
+    const overlay = readFileSync(resolve('src/classroom/ClassroomTeachingOverlays.tsx'), 'utf8')
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+
+    expect(overlay).not.toContain('useState')
+    expect(overlay).toContain("setAttribute('d'")
+    expect(overlay).toContain('if (!visibleAnnotations.length && !visiblePointer) return null')
+    expect(teacher).toContain('if (!stateRef.current?.controller.participantId) return')
+    expect(teacher).toContain("teachingTool === 'draw' ? <StudentDrawingOverlay")
+  })
 })

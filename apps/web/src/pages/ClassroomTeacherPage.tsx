@@ -159,6 +159,7 @@ export function ClassroomTeacherPage() {
       const payload = sequence(event)
       if (!payload || typeof payload.presenterSequence !== 'number'
         || typeof payload.slideId !== 'string' || !payload.viewport) return
+      if (!stateRef.current?.controller.participantId) return
       setState((current) => current ? {
         ...current,
         presenter: {
@@ -465,16 +466,16 @@ export function ClassroomTeacherPage() {
         slideId={currentSlide?.id ?? ''}
         viewer={viewer}
       />
-      <StudentDrawingOverlay
+      {teachingTool === 'draw' ? <StudentDrawingOverlay
         key={currentSlide?.id ?? 'teaching-drawing'}
-        active={teachingTool === 'draw'}
+        active
         allowEraser={false}
         retainCommitted={false}
         showHistoryActions={false}
         toolbarLabel="Teaching annotation tools"
         onStrokeCommitted={teachingAnnotation}
         onDone={() => setTeachingTool('navigate')}
-      />
+      /> : null}
       <div className="classroom-teaching-tools" role="toolbar" aria-label="Live teaching tools">
         {([
           ['navigate', 'Navigate'],

@@ -1,11 +1,7 @@
 import OpenSeadragon from 'openseadragon'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import type { TeacherPointer, TeachingAnnotation } from './api'
-
-interface ProjectedAnnotation extends TeachingAnnotation {
-  path: string
-}
 
 export function ClassroomTeachingOverlays({
   annotations,
@@ -18,11 +14,16 @@ export function ClassroomTeachingOverlays({
   slideId: string
   viewer: OpenSeadragon.Viewer | null
 }) {
-  const [projected, setProjected] = useState<ProjectedAnnotation[]>([])
-  const [pointerPoint, setPointerPoint] = useState<{ x: number; y: number } | null>(null)
+  const rootRef = useRef<SVGSVGElement | null>(null)
+  const visibleAnnotations = useMemo(
+    () => annotations.filter((annotation) => annotation.slideId === slideId),
+    [annotations, slideId],
+  )
+  const visiblePointer = pointer?.slideId === slideId ? pointer : null
 
   useEffect(() => {
-    if (!viewer) return
+    const root = rootRef.current
+    if (!viewer || !root || (!visibleAnnotations.length && !visiblePointer)) return
     let frame: number | null = null
     const render = () => {
       if (frame !== null) return
@@ -36,14 +37,18 @@ export function ClassroomTeachingOverlays({
             item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
           )
         )
-        setProjected(annotations.filter((annotation) => annotation.slideId === slideId).map((annotation) => ({
-          ...annotation,
-          path: annotation.points.map((point, index) => {
+        const paths = root.querySelectorAll<SVGPathElement>('[data-teaching-stroke]')
+        visibleAnnotations.forEach((annotation, annotationIndex) => {
+          paths[annotationIndex]?.setAttribute('d', annotation.points.map((point, index) => {
             const next = project(point)
             return `${index ? 'L' : 'M'}${next.x.toFixed(1)} ${next.y.toFixed(1)}`
-          }).join(' '),
-        })))
-        setPointerPoint(pointer?.slideId === slideId ? project(pointer) : null)
+          }).join(' '))
+        })
+        const pointerNode = root.querySelector<SVGGElement>('[data-teacher-pointer]')
+        if (pointerNode && visiblePointer) {
+          const next = project(visiblePointer)
+          pointerNode.setAttribute('transform', `translate(${next.x} ${next.y})`)
+        }
       })
     }
     viewer.addHandler('open', render)
@@ -59,12 +64,15 @@ export function ClassroomTeachingOverlays({
       observer.disconnect()
       if (frame !== null) window.cancelAnimationFrame(frame)
     }
-  }, [annotations, pointer, slideId, viewer])
+  }, [viewer, visibleAnnotations, visiblePointer])
 
-  return <svg className="classroom-teaching-overlay" aria-hidden="true">
-    {projected.map((annotation) => <path
+  if (!visibleAnnotations.length && !visiblePointer) return null
+
+  return <svg ref={rootRef} className="classroom-teaching-overlay" aria-hidden="true">
+    {visibleAnnotations.map((annotation) => <path
       key={annotation.id}
-      d={annotation.path}
+      data-teaching-stroke=""
+      d=""
       fill="none"
       stroke={annotation.color}
       strokeWidth={annotation.tool === 'highlight' ? annotation.width * 4 : annotation.width}
@@ -73,10 +81,10 @@ export function ClassroomTeachingOverlays({
       opacity={annotation.tool === 'highlight' ? 0.42 : 1}
       vectorEffect="non-scaling-stroke"
     />)}
-    {pointerPoint && pointer ? <g
-      className={`classroom-teacher-pointer is-${pointer.style}`}
-      transform={`translate(${pointerPoint.x} ${pointerPoint.y})`}
-    >{pointer.style === 'laser'
+    {visiblePointer ? <g
+      data-teacher-pointer=""
+      className={`classroom-teacher-pointer is-${visiblePointer.style}`}
+    >{visiblePointer.style === 'laser'
         ? <><circle r="13" /><circle className="core" r="4" /></>
         : <path d="M-4 -18 L17 2 L6 5 L2 17 Z" />}</g> : null}
   </svg>
