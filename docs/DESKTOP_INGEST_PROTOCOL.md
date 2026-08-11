@@ -16,7 +16,10 @@ Prepared packages use `pathlab-prepared-slide/v2`. A resumable ingest is created
 with the immutable artifact revision ID, package length and SHA-256, and manifest
 SHA-256 plus optional derivative bytes and file count. An authenticated
 `GET /api/v1/desktop/capabilities` advertises accepted schemas and inventory
-formats and 64 MiB recommended/maximum chunks. Forge streams bounded chunks and
+formats, upload limits, 64 MiB recommended/maximum chunks, and an exact
+`omeProfiles` object. V1 requires RGB uint8/sRGB, three channels, factor 2,
+512-pixel JPEG tiles, classic TIFF/BigTIFF support, native JPEG tiles, and
+persisted SHA acknowledgement. Forge streams bounded chunks and
 falls back to 16 MiB when capabilities are unavailable. Chunks are acknowledged
 only after fsync and offset commit; `HEAD` only returns the authoritative offset.
 
@@ -44,11 +47,16 @@ Direct OME uploads use `POST /api/v1/desktop/ome-ingests`, then the same
 resumable content and status contract as prepared ingest. The finalizer hashes
 and validates the complete OME, verifies exact geometry and the dynamic profile,
 builds a bounded immutable tile index, atomically installs the OME, and commits
-the slide with `render_mode=ome_dynamic` and zero stored derivative bytes.
+the slide with `render_mode=ome_dynamic` and zero stored derivative bytes. A
+ready response includes the SHA-256 calculated from the persisted final file.
 The request includes `jpegQuality`; it is persisted in the immutable index and
 used for on-demand virtual levels, so Viewer never silently increases or reduces
-the Forge-selected encoding quality. Regular factor-2 and factor-4 pyramids are
-accepted; missing DZI levels are rendered with a globally aligned resize before
+the Forge-selected encoding quality. The negotiated V1 artifact uses a factor-2
+pyramid; the tile reader may still recognize older supported layouts internally.
+Missing DZI levels are rendered with a globally aligned resize before
 the tile crop to avoid tile-boundary seams.
 Failed OME uploads move to quota-accounted private quarantine for bounded TTL
 cleanup. No endpoint exposes the OME file or arbitrary byte ranges.
+
+`PATHLAB_DESKTOP_OME_DYNAMIC_ENABLED=false` removes the V1 advertisement and
+rejects direct-ingest creation while leaving prepared-v2 unchanged.

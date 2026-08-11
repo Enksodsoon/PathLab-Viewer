@@ -121,6 +121,8 @@ def register_desktop_routes(
     csrf_dependency: Callable[..., Any],
     storage: StorageLayout,
     tile_routes: Callable[[], TileRouteService],
+    ome_dynamic_enabled: bool = True,
+    max_upload_bytes: int = 5 * GIB,
 ) -> PreparedIngestFinalizer:
     finalizer = PreparedIngestFinalizer(database_dependency, storage)
     app.state.desktop_ingest_finalizer = finalizer
@@ -150,8 +152,8 @@ def register_desktop_routes(
     def upload_path(ingest: DesktopIngest) -> Path:
         return desktop_upload_path(storage, ingest)
 
-    def ingest_json(ingest: DesktopIngest) -> dict[str, Any]:
-        return {
+    def ingest_json(ingest: DesktopIngest, database: OrmSession) -> dict[str, Any]:
+        document = {
             "id": ingest.id,
             "status": "finalizing" if ingest.status == "installing" else ingest.status,
             "receivedBytes": ingest.received_bytes,
@@ -161,6 +163,15 @@ def register_desktop_routes(
             "uploadUrl": f"/api/v1/desktop/ingests/{ingest.id}/content",
             "ingestMode": ingest.ingest_mode,
         }
+        if ingest.status == "ready_private" and ingest.slide_id is not None:
+            slide = database.get(Slide, ingest.slide_id)
+            if (
+                slide is not None
+                and slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
+                and slide.sha256 is not None
+            ):
+                document["slideSha256"] = slide.sha256
+        return document
 
     @app.post("/api/v1/desktop/pairings", status_code=status.HTTP_201_CREATED)
     def start_pairing(
@@ -279,15 +290,36 @@ def register_desktop_routes(
         authenticated: DesktopCredential = Depends(credential),
     ) -> dict[str, Any]:
         require_scope(authenticated, "desktop:ingest")
+        ingest_modes = ["prepared-v2"]
+        ome_profiles: list[dict[str, Any]] = []
+        if ome_dynamic_enabled:
+            ingest_modes.append("ome-dynamic-v1")
+            ome_profiles.append(
+                {
+                    "id": "ome-dynamic-v1",
+                    "pixelType": "uint8",
+                    "channels": 3,
+                    "colorSpace": "sRGB",
+                    "tileWidth": 512,
+                    "tileHeight": 512,
+                    "pyramidFactor": 2,
+                    "compression": "jpeg",
+                    "tiffKinds": ["classic", "bigtiff"],
+                    "nativeJpegTiles": True,
+                    "persistedSha256": True,
+                }
+            )
         return {
             "desktopApiVersion": "pathlab-desktop-ingest/v1",
-            "ingestModes": ["prepared-v2", "ome-dynamic-v1"],
+            "ingestModes": ingest_modes,
+            "omeProfiles": ome_profiles,
             "packageSchemas": ["pathlab-prepared-slide/v2"],
             "inventoryFormats": ["manifest-files-v1", "ndjson-v1"],
             "maxChunkBytes": MAX_DESKTOP_CHUNK_BYTES,
             "recommendedChunkBytes": MAX_DESKTOP_CHUNK_BYTES,
             "legacyChunkBytes": LEGACY_DESKTOP_CHUNK_BYTES,
             "maxDerivativeFiles": MAX_DERIVATIVE_FILES,
+            "maxUploadBytes": max_upload_bytes,
         }
 
     @app.post(
@@ -308,6 +340,8 @@ def register_desktop_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         require_scope(authenticated, "desktop:ingest")
+        if payload.package_length > max_upload_bytes:
+            raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         active = database.scalar(
             select(DesktopIngest.id).where(
                 DesktopIngest.credential_id == authenticated.id,
@@ -353,7 +387,7 @@ def register_desktop_routes(
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("xb"):
             pass
-        return ingest_json(ingest)
+        return ingest_json(ingest, database)
 
     @app.post("/api/v1/desktop/ome-ingests", status_code=status.HTTP_201_CREATED)
     def create_ome_ingest(
@@ -362,6 +396,12 @@ def register_desktop_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         require_scope(authenticated, "desktop:ingest")
+        if not ome_dynamic_enabled:
+            raise HTTPException(
+                status_code=409, detail={"code": "OME_DYNAMIC_DISABLED"}
+            )
+        if payload.ome_length > max_upload_bytes:
+            raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         active = database.scalar(
             select(DesktopIngest.id).where(
                 DesktopIngest.credential_id == authenticated.id,
@@ -396,7 +436,7 @@ def register_desktop_routes(
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("xb"):
             pass
-        return ingest_json(ingest)
+        return ingest_json(ingest, database)
 
     @app.head("/api/v1/desktop/ingests/{ingest_id}/content")
     def prepared_ingest_offset(
@@ -452,7 +492,7 @@ def register_desktop_routes(
             database.commit()
             finalizer.enqueue(ingest.id)
             database.refresh(ingest)
-            return ingest_json(ingest)
+            return ingest_json(ingest, database)
         if ingest.status != "uploading" or upload_offset != ingest.received_bytes:
             raise HTTPException(status_code=409, detail={"code": "UPLOAD_OFFSET_MISMATCH"})
         declared = request.headers.get("content-length")
@@ -496,7 +536,7 @@ def register_desktop_routes(
         if ingest.status == "finalizing":
             finalizer.enqueue(ingest.id)
         database.refresh(ingest)
-        return ingest_json(ingest)
+        return ingest_json(ingest, database)
 
     @app.get("/api/v1/desktop/ingests/{ingest_id}")
     def prepared_ingest_status(
@@ -508,7 +548,7 @@ def register_desktop_routes(
         ingest = database.get(DesktopIngest, ingest_id)
         if ingest is None or ingest.credential_id != authenticated.id:
             raise HTTPException(status_code=404, detail={"code": "INGEST_NOT_FOUND"})
-        return ingest_json(ingest)
+        return ingest_json(ingest, database)
 
     @app.get("/api/v1/desktop/slides/{slide_id}")
     def desktop_slide(

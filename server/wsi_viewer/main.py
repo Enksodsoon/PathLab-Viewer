@@ -348,6 +348,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         csrf_dependency=csrf,
         storage=storage,
         tile_routes=tile_routes,
+        ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
+        max_upload_bytes=current.max_upload_bytes,
     )
 
     @app.get("/livez")

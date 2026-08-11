@@ -27,7 +27,7 @@ from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 
 
-def _client(tmp_path: Path) -> TestClient:
+def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
@@ -35,6 +35,7 @@ def _client(tmp_path: Path) -> TestClient:
         secure_cookies=False,
         tus_internal_upload_dir=tmp_path / "tus",
         annotations_enabled=True,
+        desktop_ome_dynamic_enabled=ome_dynamic_enabled,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -287,6 +288,21 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "prepared-v2",
             "ome-dynamic-v1",
         ]
+        assert capabilities.json()["omeProfiles"] == [
+            {
+                "id": "ome-dynamic-v1",
+                "pixelType": "uint8",
+                "channels": 3,
+                "colorSpace": "sRGB",
+                "tileWidth": 512,
+                "tileHeight": 512,
+                "pyramidFactor": 2,
+                "compression": "jpeg",
+                "tiffKinds": ["classic", "bigtiff"],
+                "nativeJpegTiles": True,
+                "persistedSha256": True,
+            }
+        ]
         assert client.get(
             "/api/v1/desktop/credential", headers=authorization
         ).status_code == 200
@@ -341,6 +357,7 @@ def test_desktop_ingest_finalizes_streaming_package_in_background(
                 headers=authorization,
             )
         assert current.json()["status"] == "ready_private"
+        assert current.json()["slideSha256"] == ome_sha256
         assert current.json()["slideId"]
         assert client.get(
             f"/api/v1/desktop/slides/{current.json()['slideId']}",
@@ -435,6 +452,36 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
             ).status_code
             == 404
         )
+
+
+def test_desktop_ome_kill_switch_removes_capability_and_rejects_ingest(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, ome_dynamic_enabled=False) as client:
+        authorization = _desktop_authorization(client)
+        capabilities = client.get(
+            "/api/v1/desktop/capabilities", headers=authorization
+        )
+        assert capabilities.status_code == 200
+        assert capabilities.json()["ingestModes"] == ["prepared-v2"]
+        assert capabilities.json()["omeProfiles"] == []
+
+        rejected = client.post(
+            "/api/v1/desktop/ome-ingests",
+            headers=authorization,
+            json={
+                "displayName": "Disabled direct OME",
+                "artifactRevisionId": "artifact-disabled",
+                "omeLength": 1,
+                "omeSha256": "a" * 64,
+                "profile": "ome-dynamic-v1",
+                "width": 1,
+                "height": 1,
+                "downsample": 1,
+                "jpegQuality": 75,
+            },
+        )
+        assert _has_error(rejected, 409, "OME_DYNAMIC_DISABLED")
 
 
 def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
