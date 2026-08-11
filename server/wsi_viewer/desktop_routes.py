@@ -197,14 +197,17 @@ def register_desktop_routes(
         )
         database.add(pairing)
         database.commit()
+        verification_url = (
+            str(request.base_url).rstrip("/") + f"/admin/connect?code={code}"
+        )
         return {
             "pairingId": pairing.id,
             "deviceCode": device_code,
             "deviceSecret": device_secret,
             "userCode": code,
-            "verificationUrl": (
-                str(request.base_url).rstrip("/") + f"/admin/connect?code={code}"
-            ),
+            "verificationUrl": verification_url,
+            "verificationUrlComplete": verification_url,
+            "pollIntervalSeconds": 5,
             "expiresAt": expires.replace(tzinfo=UTC).isoformat(),
         }
 

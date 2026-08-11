@@ -234,6 +234,8 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
         assert pairing["verificationUrl"].endswith(
             f"/admin/connect?code={pairing['userCode']}"
         )
+        assert pairing["verificationUrlComplete"] == pairing["verificationUrl"]
+        assert pairing["pollIntervalSeconds"] == 5
 
         pending = client.post(
             "/api/v1/desktop/pairings/exchange",
