@@ -30,9 +30,11 @@ This branch does not authorize a merge, deployment, or production activation.
   creates no presenter requests until the teacher explicitly enables Guide. Presenter and pointer
   SSE gaps are expected when latest-only values are coalesced and do not trigger a full-state
   viewport reapplication; critical-event gaps still fail into bounded HTTP resynchronization.
-- Presenter magnification is transmitted in image-relative zoom space, making it independent of
-  teacher and student viewport sizes. Legacy viewport-relative snapshots remain readable. A remote
-  pan at unchanged magnification never calls `zoomTo`, preventing repeated maximum-zoom animation.
+- Presenter magnification is transmitted in OpenSeadragon's normalized viewport zoom space so the
+  teacher and student retain the same tissue field across different screen sizes. Older image-zoom
+  snapshots are panned without replaying their container-dependent magnification; the next current
+  presenter event restores the correct zoom. A remote pan at unchanged magnification never calls
+  `zoomTo`, preventing repeated maximum-zoom animation.
 - Presenter movement is published from memory immediately. The latest viewport is checkpointed
   to SQLite at most once per two seconds per classroom; slide changes persist immediately.
 - Presenter sequences are reserved in blocks of 1,024 so an abrupt restart cannot reuse a

@@ -259,7 +259,7 @@ export async function endClassroom(sessionId: string): Promise<void> {
 
 export async function publishTeacherViewport(
   sessionId: string,
-  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'image' },
+  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'viewport' },
 ): Promise<void> {
   await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/presenter`, {
     method: 'POST',
@@ -272,7 +272,7 @@ export async function publishStudentViewport(
   sessionId: string,
   csrfToken: string,
   leaseId: string,
-  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'image' },
+  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'viewport' },
 ): Promise<void> {
   await body(await fetch(`/api/v1/classroom/sessions/${sessionId}/presenter`, {
     method: 'POST',
