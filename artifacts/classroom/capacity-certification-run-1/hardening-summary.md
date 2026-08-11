@@ -33,11 +33,14 @@
 - Frontend ESLint: passed.
 - Current frontend production build: passed.
 
-## Valid normal short smoke
+## Pre-reservation normal short smoke
 
 This local smoke used 20 protocol participants, one real 7,557 x 7,360 PathLab static DZI,
 Caddy SSE flushing/static tiles, one API worker, 2 Hz presenter movement, five questions,
 control grant/revoke, and deliberate churn.
+
+It ran before the later sequence-reservation correction, so it is useful behavioral evidence
+but is not an exact-final-SHA capacity certification.
 
 - Final convergence: 20/20
 - Reconnect success: 100% for deliberate churn
