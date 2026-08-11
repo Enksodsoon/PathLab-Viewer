@@ -357,7 +357,6 @@ def test_desktop_ingest_finalizes_streaming_package_in_background(
                 headers=authorization,
             )
         assert current.json()["status"] == "ready_private"
-        assert current.json()["slideSha256"] == ome_sha256
         assert current.json()["slideId"]
         assert client.get(
             f"/api/v1/desktop/slides/{current.json()['slideId']}",
@@ -409,6 +408,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
                 headers=authorization,
             )
         assert current.json()["status"] == "ready_private"
+        assert current.json()["slideSha256"] == ome_sha256
         slide_id = current.json()["slideId"]
         original_root = client.app.state.settings.data_root / "originals" / slide_id
         assert (original_root / "source.ome.tif").stat().st_size == ome.stat().st_size
