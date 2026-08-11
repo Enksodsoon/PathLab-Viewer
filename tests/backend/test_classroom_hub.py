@@ -1,6 +1,10 @@
 import asyncio
 
-from wsi_viewer.classroom_hub import MAX_EVENT_BYTES, ClassroomHub
+from wsi_viewer.classroom_hub import MAX_EVENT_BYTES, SUBSCRIBER_QUEUE_SIZE, ClassroomHub
+
+
+def test_hub_discrete_queue_covers_bounded_reconnect_burst() -> None:
+    assert SUBSCRIBER_QUEUE_SIZE >= 300
 
 
 def test_hub_assigns_sequences_and_removes_subscriber() -> None:
@@ -13,6 +17,8 @@ def test_hub_assigns_sequences_and_removes_subscriber() -> None:
             assert event is not None
             assert event["eventSequence"] == 1
             assert event["hubEpoch"] == hub.hub_epoch
+            assert event["_encoded"].startswith('{"type":"participant-joined"')
+            assert '"_encoded"' not in event["_encoded"]
             assert hub.current_connections == 1
         assert hub.current_connections == 0
 

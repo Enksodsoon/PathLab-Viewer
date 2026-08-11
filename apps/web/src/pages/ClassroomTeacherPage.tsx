@@ -75,6 +75,8 @@ export function ClassroomTeacherPage() {
   const [guideMode, setGuideMode] = useState(false)
   const suppressPublish = useRef(false)
   const stateRef = useRef<TeacherState | null>(null)
+  const presenterRef = useRef<TeacherState['presenter'] | null>(null)
+  const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const slideIdRef = useRef(slideId)
   const streamEpoch = useRef('')
   const streamSequence = useRef(0)
@@ -110,6 +112,7 @@ export function ClassroomTeacherPage() {
 
   const refresh = useCallback(async (sessionId: string) => {
     const next = await teacherState(sessionId)
+    presenterRef.current = next.presenter
     setState(next)
     if (next.presenter.slideId) setSlideId(next.presenter.slideId)
   }, [])
@@ -162,15 +165,23 @@ export function ClassroomTeacherPage() {
       if (!payload || typeof payload.presenterSequence !== 'number'
         || typeof payload.slideId !== 'string' || !payload.viewport) return
       if (!stateRef.current?.controller.participantId) return
-      setState((current) => current ? {
-        ...current,
-        presenter: {
-          sequence: payload.presenterSequence as number,
-          slideId: payload.slideId as string,
-          viewport: payload.viewport as TeacherState['presenter']['viewport'],
-        },
-      } : current)
-      setSlideId(payload.slideId as string)
+      const nextPresenter: TeacherState['presenter'] = {
+        sequence: payload.presenterSequence as number,
+        slideId: payload.slideId as string,
+        viewport: payload.viewport as TeacherState['presenter']['viewport'],
+      }
+      presenterRef.current = nextPresenter
+      if (slideIdRef.current !== nextPresenter.slideId) {
+        slideIdRef.current = nextPresenter.slideId ?? ''
+        setSlideId(nextPresenter.slideId ?? '')
+        return
+      }
+      const target = viewerRef.current
+      const slide = classroom.slides.find((item) => item.id === nextPresenter.slideId)
+      if (!target || !slide || !nextPresenter.viewport) return
+      suppressPublish.current = true
+      applyPresenterViewport(target, slide, nextPresenter.viewport)
+      window.setTimeout(() => { suppressPublish.current = false }, 0)
     })
     events.addEventListener('pointer', (event) => {
       const payload = sequence(event, true)
@@ -267,7 +278,7 @@ export function ClassroomTeacherPage() {
 
   const applyRemote = useCallback((target: OpenSeadragon.Viewer) => {
     const current = stateRef.current
-    const presenter = current?.presenter
+    const presenter = presenterRef.current
     const slide = classroom?.slides.find((item) => item.id === slideIdRef.current)
     if (!presenter?.viewport || presenter.slideId !== slide?.id || !slide) return
     suppressPublish.current = true
@@ -318,6 +329,7 @@ export function ClassroomTeacherPage() {
   }, [classroom, currentSlide, viewer])
 
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
+    viewerRef.current = viewer
     setViewer(viewer)
     const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => (
       publishTeacherViewport(classroom!.id, payload).catch(() => {
@@ -380,6 +392,7 @@ export function ClassroomTeacherPage() {
       sender.dispose()
       pointerSender.dispose()
       clearPointer()
+      if (viewerRef.current === viewer) viewerRef.current = null
       setViewer(null)
     }
   }, [applyRemote, classroom, currentSlide])

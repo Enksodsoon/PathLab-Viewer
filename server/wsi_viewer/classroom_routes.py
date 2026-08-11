@@ -1381,7 +1381,7 @@ def register_classroom_routes(
                         continue
                     if event is None:
                         return
-                    encoded = json.dumps(event, separators=(",", ":"))
+                    encoded = event.get("_encoded") or json.dumps(event, separators=(",", ":"))
                     yield f"event: {event['type']}\ndata: {encoded}\n\n"
             finally:
                 if participant_id is not None and hub.participant_disconnected(

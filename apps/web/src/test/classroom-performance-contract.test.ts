@@ -42,4 +42,18 @@ describe('classroom disabled-mode resource contract', () => {
     expect(teacher).toContain('!coalescible && next !== streamSequence.current + 1')
     expect(student).toContain('!coalescible && next !== streamSequence.current + 1')
   })
+
+  it('projects presenter movement directly without a React render per event', () => {
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+    const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
+    const teacherHandler = teacher.match(/events\.addEventListener\('presenter',[\s\S]*?events\.addEventListener\('pointer'/)?.[0] ?? ''
+    const studentHandler = student.match(/source\.addEventListener\('presenter',[\s\S]*?source\.addEventListener\('control'/)?.[0] ?? ''
+
+    expect(teacherHandler).toContain('presenterRef.current = nextPresenter')
+    expect(studentHandler).toContain('presenterRef.current = nextPresenter')
+    expect(teacherHandler).toContain('applyPresenterViewport(target, slide, nextPresenter.viewport)')
+    expect(studentHandler).toContain('applyPresenterViewport(target, slide, nextPresenter.viewport)')
+    expect(teacherHandler).not.toContain('setState(')
+    expect(studentHandler).not.toContain('setState(')
+  })
 })

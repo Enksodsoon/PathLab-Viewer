@@ -27,4 +27,19 @@ describe('createLatestSender', () => {
     expect(sent).toEqual([2, 4])
     sender.dispose()
   })
+
+  it('defaults to a 20 Hz maximum cadence', async () => {
+    vi.useFakeTimers()
+    const sent: number[] = []
+    const sender = createLatestSender(async (value: number) => { sent.push(value) })
+
+    sender.push(1)
+    await vi.advanceTimersByTimeAsync(0)
+    sender.push(2)
+    await vi.advanceTimersByTimeAsync(49)
+    expect(sent).toEqual([1])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(sent).toEqual([1, 2])
+    sender.dispose()
+  })
 })

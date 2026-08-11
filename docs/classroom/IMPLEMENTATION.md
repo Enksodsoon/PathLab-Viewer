@@ -21,11 +21,14 @@ This branch does not authorize a merge, deployment, or production activation.
 - At most 50 slides per session and 100 local notebook entries per browser session.
 - Static DZI descriptors and tiles remain Caddy-served; the API never proxies screenshot bytes.
 - Incremental SSE events are limited to 4 KiB UTF-8. Each subscriber has a bounded
-  32-event discrete queue plus one replaceable latest-presenter slot.
+  384-event discrete queue plus one replaceable latest-presenter slot. The deque does not
+  preallocate those slots; the bound covers a full 300-seat reconnect presence burst plus
+  simultaneous classroom control events without making presenter movement queue up.
 - Presenter movement uses a bounded latest-only sender: one request may be in flight and one
   newer viewport may replace the pending value. Updates are sent on the leading edge and then
-  at a 120 ms cadence; the server admits at most ten updates per second. This keeps movement
-  responsive without allowing request or queue growth.
+  at a maximum 20 Hz cadence; the server admits at most 25 student-controller updates per second.
+  Followers project deltas directly into OpenSeadragon without a React render, and the hub
+  serializes each SSE event once. This keeps movement responsive without queue growth.
 - Teacher guide broadcasting is opt-in and defaults off. Ordinary teacher navigation therefore
   creates no presenter requests until the teacher explicitly enables Guide. Presenter and pointer
   SSE gaps are expected when latest-only values are coalesced and do not trigger a full-state

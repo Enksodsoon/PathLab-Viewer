@@ -10,7 +10,10 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 MAX_EVENT_BYTES = 4096
-SUBSCRIBER_QUEUE_SIZE = 32
+# A teacher may receive one critical presence delta for every seat while a full
+# class reconnects. asyncio.Queue uses a deque (it does not preallocate these
+# slots), so this bound covers the 300-seat burst without adding idle memory.
+SUBSCRIBER_QUEUE_SIZE = 384
 
 
 @dataclass(eq=False)
@@ -136,8 +139,12 @@ class ClassroomHub:
                 "eventSequence": self._event_sequences[key],
                 **payload,
             }
-            if len(json.dumps(event, separators=(",", ":")).encode("utf-8")) > MAX_EVENT_BYTES:
+            encoded = json.dumps(event, separators=(",", ":"))
+            if len(encoded.encode("utf-8")) > MAX_EVENT_BYTES:
                 raise ValueError("Classroom event exceeds 4 KiB")
+            # The event object is shared read-only by every subscriber. Cache its
+            # wire representation once instead of serializing it 300 times.
+            event["_encoded"] = encoded
             for subscriber in tuple(self._subscribers.get(session_id, ())):
                 if subscriber.audience != destination:
                     continue
@@ -228,7 +235,7 @@ class ClassroomHub:
     def participant_is_connected(self, session_id: str, participant_id: str) -> bool:
         return self._participant_connections.get((session_id, participant_id), 0) > 0
 
-    def allow_presenter(self, actor_id: str, *, interval_seconds: float = 0.1) -> bool:
+    def allow_presenter(self, actor_id: str, *, interval_seconds: float = 0.04) -> bool:
         now = time.monotonic()
         previous = self._presenter_last_at.get(actor_id, 0.0)
         if now - previous < interval_seconds:

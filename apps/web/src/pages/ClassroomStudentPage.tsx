@@ -91,6 +91,7 @@ export function ClassroomStudentPage() {
   const suppressPublish = useRef(false)
   const followRef = useRef(follow)
   const stateRef = useRef<StudentState | null>(null)
+  const presenterRef = useRef<StudentState['presenter'] | null>(null)
   const slideIdRef = useRef(slideId)
   const csrfRef = useRef(csrfToken)
   const streamEpoch = useRef('')
@@ -111,6 +112,7 @@ export function ClassroomStudentPage() {
   useEffect(() => {
     if (!sessionId || csrfToken) return
     void studentState(sessionId).then(async (next) => {
+      presenterRef.current = next.presenter
       setState(next)
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
@@ -122,6 +124,7 @@ export function ClassroomStudentPage() {
 
   const refresh = useCallback(async (id: string) => {
     const next = await studentState(id)
+    presenterRef.current = next.presenter
     setState(next)
     setPin(next.activePin)
     if (follow && !drawingModeRef.current && next.presenter.slideId) setSlideId(next.presenter.slideId)
@@ -176,15 +179,24 @@ export function ClassroomStudentPage() {
         const payload = sequence(event, true)
         if (!payload || typeof payload.presenterSequence !== 'number'
           || typeof payload.slideId !== 'string' || !payload.viewport) return
-        setState((current) => current ? {
-          ...current,
-          presenter: {
-            sequence: payload.presenterSequence as number,
-            slideId: payload.slideId as string,
-            viewport: payload.viewport as StudentState['presenter']['viewport'],
-          },
-        } : current)
-        if (followRef.current && !drawingModeRef.current) setSlideId(payload.slideId as string)
+        const nextPresenter: StudentState['presenter'] = {
+          sequence: payload.presenterSequence as number,
+          slideId: payload.slideId as string,
+          viewport: payload.viewport as StudentState['presenter']['viewport'],
+        }
+        presenterRef.current = nextPresenter
+        if (!followRef.current || drawingModeRef.current) return
+        if (slideIdRef.current !== nextPresenter.slideId) {
+          slideIdRef.current = nextPresenter.slideId ?? ''
+          setSlideId(nextPresenter.slideId ?? '')
+          return
+        }
+        const target = viewerRef.current
+        const slide = stateRef.current?.slides.find((item) => item.id === nextPresenter.slideId)
+        if (!target || !slide || !nextPresenter.viewport) return
+        suppressPublish.current = true
+        applyPresenterViewport(target, slide, nextPresenter.viewport)
+        window.setTimeout(() => { suppressPublish.current = false }, 0)
       })
       source.addEventListener('control', (event) => { if (sequence(event)) recover() })
       source.addEventListener('pointer', (event) => {
@@ -272,7 +284,7 @@ export function ClassroomStudentPage() {
 
   const applyRemote = useCallback((viewer: OpenSeadragon.Viewer) => {
     const current = stateRef.current
-    const presenter = current?.presenter
+    const presenter = presenterRef.current
     const slide = current?.slides.find((item) => item.id === slideIdRef.current)
     if (drawingModeRef.current || !follow || !presenter?.viewport
       || presenter.slideId !== slide?.id || !slide) return

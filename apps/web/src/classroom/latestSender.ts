@@ -5,7 +5,7 @@ export interface LatestSender<T> {
 
 export function createLatestSender<T>(
   send: (value: T) => Promise<void>,
-  intervalMs = 120,
+  intervalMs = 50,
 ): LatestSender<T> {
   let pending: T | null = null
   let timer: number | null = null
