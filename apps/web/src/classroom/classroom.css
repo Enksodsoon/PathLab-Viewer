@@ -631,8 +631,11 @@
 }
 
 .classroom-teaching-tools button {
-  min-height: 36px;
-  padding: 0 10px;
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 7px;
   color: #ede8df;
@@ -640,6 +643,29 @@
   font: 650 11px/1 var(--font-ui);
   cursor: pointer;
 }
+
+.classroom-teaching-tools .classroom-guide-toggle {
+  display: inline-flex;
+  width: auto;
+  padding: 0 11px;
+  gap: 6px;
+}
+
+.classroom-guide-toggle span {
+  font-size: 11px;
+  letter-spacing: .01em;
+}
+
+.classroom-tool-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 2px;
+  background: rgb(255 255 255 / 14%);
+}
+
+.classroom-tool-green-arrow svg { color: #55d98a; }
+.classroom-tool-red-arrow svg { color: #ff6a5f; }
+.classroom-tool-laser svg { color: #ffb34d; }
 
 .classroom-teaching-tools button:hover,
 .classroom-teaching-tools button.is-active {

@@ -26,6 +26,10 @@ This branch does not authorize a merge, deployment, or production activation.
   newer viewport may replace the pending value. Updates are sent on the leading edge and then
   at a 120 ms cadence; the server admits at most ten updates per second. This keeps movement
   responsive without allowing request or queue growth.
+- Teacher guide broadcasting is opt-in and defaults off. Ordinary teacher navigation therefore
+  creates no presenter requests until the teacher explicitly enables Guide. Presenter and pointer
+  SSE gaps are expected when latest-only values are coalesced and do not trigger a full-state
+  viewport reapplication; critical-event gaps still fail into bounded HTTP resynchronization.
 - Presenter movement is published from memory immediately. The latest viewport is checkpointed
   to SQLite at most once per two seconds per classroom; slide changes persist immediately.
 - Presenter sequences are reserved in blocks of 1,024 so an abrupt restart cannot reuse a

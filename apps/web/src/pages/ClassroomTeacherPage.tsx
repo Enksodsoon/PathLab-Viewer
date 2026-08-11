@@ -40,6 +40,16 @@ import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
 
+function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'laser' | 'arrow' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {name === 'guide' ? <><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13" /></> : null}
+    {name === 'navigate' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
+    {name === 'draw' ? <><path d="m4 20 4.2-1 10.4-10.4-3.2-3.2L5 15.8 4 20Z" /><path d="m13.8 7 3.2 3.2" /></> : null}
+    {name === 'laser' ? <><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></> : null}
+    {name === 'arrow' ? <><path d="M5 19 19 5M10 5h9v9" /><path d="M5 19h5" /></> : null}
+  </svg>
+}
+
 function savedClassroom(): CreatedClassroom | null {
   try {
     const value = sessionStorage.getItem(ACTIVE_CLASSROOM_KEY)
@@ -73,16 +83,19 @@ export function ClassroomTeacherPage() {
   const [focusedQuestion, setFocusedQuestion] = useState<TeacherState['pendingQuestions'][number] | null>(null)
   const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
   const [teachingTool, setTeachingTool] = useState<'navigate' | 'draw' | 'laser' | 'green-arrow' | 'red-arrow'>('navigate')
+  const [guideMode, setGuideMode] = useState(false)
   const suppressPublish = useRef(false)
   const stateRef = useRef<TeacherState | null>(null)
   const slideIdRef = useRef(slideId)
   const streamEpoch = useRef('')
   const streamSequence = useRef(0)
   const teachingToolRef = useRef(teachingTool)
+  const guideModeRef = useRef(guideMode)
 
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
   useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
+  useEffect(() => { guideModeRef.current = guideMode }, [guideMode])
   useEffect(() => {
     if (!showCode) return
     const close = (event: KeyboardEvent) => {
@@ -124,7 +137,7 @@ export function ClassroomTeacherPage() {
       setError('The classroom connection was interrupted. Reconnecting…')
     })
     const events = new EventSource(`/api/v1/admin/classroom/sessions/${classroom.id}/events`)
-    const sequence = (event: Event): Record<string, unknown> | null => {
+    const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
         const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
@@ -135,7 +148,7 @@ export function ClassroomTeacherPage() {
           return payload
         }
         if (epoch === streamEpoch.current && next <= streamSequence.current) return null
-        if (epoch !== streamEpoch.current || next !== streamSequence.current + 1) {
+        if (epoch !== streamEpoch.current || (!coalescible && next !== streamSequence.current + 1)) {
           streamEpoch.current = epoch
           streamSequence.current = next
           void refresh(classroom.id).catch(() => undefined)
@@ -156,7 +169,7 @@ export function ClassroomTeacherPage() {
       'participant-reconnected', 'question-added', 'question-removed', 'control',
     ]) events.addEventListener(name, update)
     events.addEventListener('presenter', (event) => {
-      const payload = sequence(event)
+      const payload = sequence(event, true)
       if (!payload || typeof payload.presenterSequence !== 'number'
         || typeof payload.slideId !== 'string' || !payload.viewport) return
       if (!stateRef.current?.controller.participantId) return
@@ -171,7 +184,7 @@ export function ClassroomTeacherPage() {
       setSlideId(payload.slideId as string)
     })
     events.addEventListener('pointer', (event) => {
-      const payload = sequence(event)
+      const payload = sequence(event, true)
       if (!payload || typeof payload.slideId !== 'string'
         || typeof payload.style !== 'string' || typeof payload.x !== 'number'
         || typeof payload.y !== 'number') return
@@ -334,7 +347,8 @@ export function ClassroomTeacherPage() {
         suppressPublish.current = false
         return
       }
-      if (stateRef.current?.controller.participantId || !classroom || !currentSlide) return
+      if (!guideModeRef.current || stateRef.current?.controller.participantId
+        || !classroom || !currentSlide) return
       sender.push(viewportPayload(viewer, currentSlide.id))
     }
     const opened = () => applyRemote(viewer)
@@ -477,20 +491,37 @@ export function ClassroomTeacherPage() {
         onDone={() => setTeachingTool('navigate')}
       /> : null}
       <div className="classroom-teaching-tools" role="toolbar" aria-label="Live teaching tools">
+        <button
+          className={`classroom-guide-toggle${guideMode ? ' is-active' : ''}`}
+          type="button"
+          aria-pressed={guideMode}
+          aria-label={guideMode ? 'Stop guiding students' : 'Guide students'}
+          title={guideMode ? 'Guide mode on — students follow this view' : 'Guide mode off — navigation stays local'}
+          onClick={() => {
+            const next = !guideMode
+            setGuideMode(next)
+            if (next && viewer && currentSlide && !state?.controller.participantId) {
+              void publishTeacherViewport(classroom.id, viewportPayload(viewer, currentSlide.id))
+            }
+          }}
+        ><TeachingToolIcon name="guide" /><span>{guideMode ? 'Live' : 'Guide'}</span></button>
+        <span className="classroom-tool-separator" aria-hidden="true" />
         {([
-          ['navigate', 'Navigate'],
-          ['draw', 'Draw'],
-          ['laser', 'Laser'],
-          ['green-arrow', 'Green arrow'],
-          ['red-arrow', 'Red arrow'],
-        ] as const).map(([tool, label]) => <button
+          ['navigate', 'Navigate', 'navigate'],
+          ['draw', 'Draw', 'draw'],
+          ['laser', 'Laser pointer', 'laser'],
+          ['green-arrow', 'Green arrow', 'arrow'],
+          ['red-arrow', 'Red arrow', 'arrow'],
+        ] as const).map(([tool, label, icon]) => <button
           key={tool}
-          className={teachingTool === tool ? 'is-active' : ''}
+          className={`classroom-tool-${tool}${teachingTool === tool ? ' is-active' : ''}`}
           type="button"
           aria-pressed={teachingTool === tool}
+          aria-label={label}
+          title={label}
           disabled={tool !== 'navigate' && Boolean(state?.controller.participantId)}
           onClick={() => setTeachingTool(tool)}
-        >{label}</button>)}
+        ><TeachingToolIcon name={icon} /></button>)}
       </div>
       <ClassroomSlideNavigator
         activeId={currentSlide?.id ?? ''}

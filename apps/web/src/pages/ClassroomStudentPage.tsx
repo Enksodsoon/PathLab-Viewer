@@ -137,7 +137,7 @@ export function ClassroomStudentPage() {
     let attempt = 0
     let cancelled = false
     const recover = () => { void refresh(sessionId).catch(() => undefined) }
-    const sequence = (event: Event): Record<string, unknown> | null => {
+    const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
         const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
@@ -148,7 +148,7 @@ export function ClassroomStudentPage() {
           return payload
         }
         if (epoch === streamEpoch.current && next <= streamSequence.current) return null
-        if (epoch !== streamEpoch.current || next !== streamSequence.current + 1) {
+        if (epoch !== streamEpoch.current || (!coalescible && next !== streamSequence.current + 1)) {
           streamEpoch.current = epoch
           streamSequence.current = next
           recover()
@@ -172,7 +172,7 @@ export function ClassroomStudentPage() {
         stableTimer = window.setTimeout(() => { attempt = 0 }, 5000)
       })
       source.addEventListener('presenter', (event) => {
-        const payload = sequence(event)
+        const payload = sequence(event, true)
         if (!payload || typeof payload.presenterSequence !== 'number'
           || typeof payload.slideId !== 'string' || !payload.viewport) return
         setState((current) => current ? {
@@ -187,7 +187,7 @@ export function ClassroomStudentPage() {
       })
       source.addEventListener('control', (event) => { if (sequence(event)) recover() })
       source.addEventListener('pointer', (event) => {
-        const payload = sequence(event)
+        const payload = sequence(event, true)
         if (!payload || typeof payload.slideId !== 'string'
           || typeof payload.style !== 'string' || typeof payload.x !== 'number'
           || typeof payload.y !== 'number') return

@@ -30,4 +30,16 @@ describe('classroom disabled-mode resource contract', () => {
     expect(teacher).toContain('if (!stateRef.current?.controller.participantId) return')
     expect(teacher).toContain("teachingTool === 'draw' ? <StudentDrawingOverlay")
   })
+
+  it('keeps guide traffic opt-in and accepts intentionally coalesced movement', () => {
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+    const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
+
+    expect(teacher).toContain('const [guideMode, setGuideMode] = useState(false)')
+    expect(teacher).toContain('if (!guideModeRef.current')
+    expect(teacher).toContain('sequence(event, true)')
+    expect(student).toContain('sequence(event, true)')
+    expect(teacher).toContain('!coalescible && next !== streamSequence.current + 1')
+    expect(student).toContain('!coalescible && next !== streamSequence.current + 1')
+  })
 })
