@@ -20,6 +20,7 @@ import {
   OpenSeadragonViewer,
   type ViewerAttachmentCallback,
 } from '../components/OpenSeadragonViewer'
+import { ThemeControl } from '../theme/ThemeControl'
 import type { AdminSlide } from '../types'
 import '../classroom/classroom.css'
 
@@ -134,12 +135,18 @@ export function ClassroomTeacherPage() {
     }
   }
 
-  if (!classroom) return <main className="classroom-setup">
-    <header><Brand variant="library" /><Link to="/admin">Back to library</Link></header>
-    <section>
-      <p className="eyebrow">Active classroom</p>
+  if (!classroom) return <main className="classroom-entry classroom-setup">
+    <header className="classroom-entry__header">
+      <Brand variant="library" />
+      <div className="classroom-entry__actions">
+        <ThemeControl compact />
+        <Link className="classroom-back-link" to="/admin">Back to library</Link>
+      </div>
+    </header>
+    <section className="classroom-entry__card">
+      <p className="classroom-kicker">Active classroom</p>
       <h1>Choose teaching slides</h1>
-      <p>Only the selected published DZI versions are pinned for this session.</p>
+      <p className="classroom-entry__intro">Only the selected published DZI versions are pinned for this session.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       <div className="classroom-slide-picker">
         {slides.map((slide) => <label key={slide.id}>
@@ -153,7 +160,7 @@ export function ClassroomTeacherPage() {
           <span>{slide.displayName}</span>
         </label>)}
       </div>
-      <button className="primary" type="button" disabled={!selected.length} onClick={() => void start()}>
+      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length} onClick={() => void start()}>
         Start classroom
       </button>
     </section>
@@ -162,13 +169,16 @@ export function ClassroomTeacherPage() {
   return <div className="classroom-shell classroom-shell--teacher">
     <header className="classroom-topbar">
       <Brand variant="library" />
-      <div><span>Join code</span><strong>{classroom.joinCode}</strong></div>
-      <button type="button" onClick={() => void endClassroom(classroom.id).then(() => {
-        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
-        setClassroom(null)
-      })}>
-        End class
-      </button>
+      <div className="classroom-join-code"><span>Join code</span><strong>{classroom.joinCode}</strong></div>
+      <div className="classroom-topbar__actions">
+        <ThemeControl compact />
+        <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
+          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          setClassroom(null)
+        })}>
+          End class
+        </button>
+      </div>
     </header>
     <main className="classroom-viewer">
       {currentSlide && <OpenSeadragonViewer
@@ -186,6 +196,7 @@ export function ClassroomTeacherPage() {
       {error && <p role="alert" className="classroom-error">{error}</p>}
       <section>
         <h2>Students <span>{state?.participants.length ?? 0}/300</span></h2>
+        {!state?.participants.length && <p className="classroom-empty">Students appear here after joining.</p>}
         <ul>{state?.participants.map((participant) => {
           const isController = state.controller.participantId === participant.id
           return <li key={participant.id}>
@@ -206,6 +217,7 @@ export function ClassroomTeacherPage() {
       </section>
       <section>
         <h2>Questions <span>{state?.pendingQuestions.length ?? 0}/200</span></h2>
+        {!state?.pendingQuestions.length && <p className="classroom-empty">Pinned questions appear here.</p>}
         <ul>{state?.pendingQuestions.map((question) => <li key={question.id}>
           <p>{question.text}</p>
           <div>

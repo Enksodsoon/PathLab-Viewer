@@ -25,6 +25,7 @@ import {
   OpenSeadragonViewer,
   type ViewerAttachmentCallback,
 } from '../components/OpenSeadragonViewer'
+import { ThemeControl } from '../theme/ThemeControl'
 import '../classroom/classroom.css'
 
 interface Pin {
@@ -342,15 +343,19 @@ export function ClassroomStudentPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
-  if (!sessionId || !csrfToken) return <main className="classroom-join">
-    <Brand variant="library" />
-    <section>
-      <p className="eyebrow">PathLab classroom</p>
+  if (!sessionId || !csrfToken) return <main className="classroom-entry classroom-join">
+    <header className="classroom-entry__header">
+      <Brand variant="library" />
+      <ThemeControl compact />
+    </header>
+    <section className="classroom-entry__card">
+      <p className="classroom-kicker">PathLab classroom</p>
       <h1>Join a slide session</h1>
-      <label>Join code<input value={joinCode} maxLength={16} onChange={(event) => setJoinCode(event.target.value)} /></label>
-      <label>Name (optional)<input value={displayName} maxLength={80} onChange={(event) => setDisplayName(event.target.value)} /></label>
-      <button className="primary" type="button" disabled={joinCode.length < 6} onClick={() => void join()}>Join</button>
-      {message && <p role="status">{message}</p>}
+      <p className="classroom-entry__intro">Enter the code shared by your teacher. Your generated alias is used in class.</p>
+      <label><span>Join code</span><input autoCapitalize="characters" autoComplete="off" value={joinCode} maxLength={16} onChange={(event) => setJoinCode(event.target.value)} /></label>
+      <label><span>Name <small>(optional)</small></span><input autoComplete="off" value={displayName} maxLength={80} onChange={(event) => setDisplayName(event.target.value)} /></label>
+      <button className="primary classroom-entry__primary" type="button" disabled={joinCode.length < 6} onClick={() => void join()}>Join classroom</button>
+      {message && <p className="classroom-message" role="status">{message}</p>}
     </section>
   </main>
 
@@ -359,16 +364,21 @@ export function ClassroomStudentPage() {
   return <div className="classroom-shell classroom-shell--student">
     <header className="classroom-topbar">
       <Brand variant="library" />
-      <strong>{alias || 'Private learner'}</strong>
-      <span className="classroom-control-status" role="status">
-        {isController ? 'You control the slide' : 'Teacher controls the slide'}
-      </span>
-      <label><input
-        type="checkbox"
-        checked={follow}
-        disabled={isController}
-        onChange={(event) => setFollow(event.target.checked)}
-      /> Follow teacher</label>
+      <div className="classroom-learner-identity">
+        <strong>{alias || 'Private learner'}</strong>
+        <span className="classroom-control-status" role="status">
+          {isController ? 'You control the slide' : 'Teacher controls the slide'}
+        </span>
+      </div>
+      <div className="classroom-topbar__actions">
+        <ThemeControl compact />
+        <label className="classroom-follow-control"><input
+          type="checkbox"
+          checked={follow}
+          disabled={isController}
+          onChange={(event) => setFollow(event.target.checked)}
+        /> <span>Follow teacher</span></label>
+      </div>
     </header>
     <main className={`classroom-viewer${pinMode ? ' is-pin-mode' : ''}`}>
       {currentSlide && <OpenSeadragonViewer
@@ -384,7 +394,7 @@ export function ClassroomStudentPage() {
     <aside className="classroom-panel">
       <section>
         <h2>Ask at an exact point</h2>
-        <button type="button" onClick={() => setPinMode(true)}>{pin ? 'Choose another point' : 'Pin a point on the slide'}</button>
+        <button className={pinMode ? 'is-active' : ''} type="button" onClick={() => setPinMode(true)}>{pin ? 'Choose another point' : 'Pin a point on the slide'}</button>
         <textarea value={question} maxLength={500} placeholder="What do you notice or want to ask?" onChange={(event) => setQuestion(event.target.value)} />
         <button className="primary" type="button" disabled={!pin || !question.trim()} onClick={() => void ask()}>Send question</button>
       </section>
@@ -393,7 +403,7 @@ export function ClassroomStudentPage() {
         {!storage.indexedDb && <p role="alert">Local notebook storage is unavailable.</p>}
         <textarea value={note} placeholder="Write a private note…" onChange={(event) => setNote(event.target.value)} />
         <button type="button" disabled={!storage.indexedDb} onClick={() => void capture()}>Capture tissue + save note</button>
-        <p>{entries.length}/100 entries · stored only in this browser</p>
+        <p className="classroom-storage-note">{entries.length}/100 entries · stored only in this browser</p>
         <div className="classroom-row">
           <button type="button" disabled={!entries.length} onClick={() => void exportLocal()}>Export HTML</button>
           <button type="button" disabled={!entries.length} onClick={() => {
@@ -403,7 +413,7 @@ export function ClassroomStudentPage() {
           }}>Delete local notes</button>
         </div>
       </section>
-      {message && <p role="status">{message}</p>}
+      {message && <p className="classroom-message" role="status">{message}</p>}
     </aside>
   </div>
 }
