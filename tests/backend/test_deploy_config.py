@@ -328,6 +328,16 @@ def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> Non
     assert "respond @direct_dynamic 404" in caddyfile
 
 
+def test_caddy_flushes_classroom_sse_without_buffering() -> None:
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    assert "@classroom_events path" in caddyfile
+    classroom = caddyfile.split("handle @classroom_events", maxsplit=1)[1].split(
+        "@backend", maxsplit=1
+    )[0]
+    assert "flush_interval -1" in classroom
+    assert 'Cache-Control "no-store"' in classroom
+
+
 def test_production_deploy_is_manual_serial_and_main_only() -> None:
     workflow = Path(".github/workflows/deploy-production.yml").read_text(
         encoding="utf-8"

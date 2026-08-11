@@ -231,6 +231,7 @@ def register_library_routes(
     tile_routes: Callable[[], TileRouteService],
 ) -> None:
     def navigation(
+        response: Response,
         folder_id: str | None = Query(default=None, alias="folderId", max_length=64),
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
@@ -295,6 +296,9 @@ def register_library_routes(
         ).all()
         views = database.scalars(select(SavedView).order_by(SavedView.normalized_name)).all()
         capacity = storage_capacity_snapshot(database, storage)
+        response.headers["X-PathLab-Classroom-Enabled"] = (
+            "true" if app.state.settings.classroom_enabled else "false"
+        )
         result = {
             "counts": {
                 "all": int(state_counts[0]),

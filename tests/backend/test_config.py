@@ -49,6 +49,28 @@ def test_annotations_are_disabled_by_default_and_accept_an_explicit_override(
     assert Settings(_env_file=None).annotations_enabled is True
 
 
+def test_classroom_is_disabled_by_default_and_accepts_an_explicit_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_CLASSROOM_ENABLED", raising=False)
+
+    assert Settings(_env_file=None).classroom_enabled is False
+
+    monkeypatch.setenv("PATHLAB_CLASSROOM_ENABLED", "true")
+    assert Settings(_env_file=None).classroom_enabled is True
+
+
+def test_production_classroom_requires_declared_singleton_topology() -> None:
+    with pytest.raises(ValidationError, match="singleton topology"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            secret_key="unique-production-secret-that-is-long-enough",
+            classroom_enabled=True,
+            classroom_singleton=False,
+        )
+
+
 def test_multi_share_is_enabled_by_default_and_accepts_the_kill_switch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

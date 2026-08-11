@@ -31,6 +31,14 @@
 		reverse_proxy tusd:8080
 	}
 
+	@classroom_events path /api/v1/classroom/sessions/*/events /api/v1/admin/classroom/sessions/*/events
+	handle @classroom_events {
+		header Cache-Control "no-store"
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+
 	@backend path /api/* /livez /readyz
 	handle @backend {
 		header ?Cache-Control "no-store"
