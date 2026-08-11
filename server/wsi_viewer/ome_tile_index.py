@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import stat
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from typing import BinaryIO, Literal
 
 import numpy as np
 import tifffile
+from PIL import Image, JpegImagePlugin
 
 
 class OmeTileIndexError(RuntimeError):
@@ -47,6 +49,54 @@ class OmeTileIndex:
     source_sha256: str
     jpeg_quality: int = 75
     quality_profile: str = "ome-dynamic-v1-q75"
+
+
+_JPEG_LUMA_BASE = (
+    16, 11, 10, 16, 24, 40, 51, 61,
+    12, 12, 14, 19, 26, 58, 60, 55,
+    14, 13, 16, 24, 40, 57, 69, 56,
+    14, 17, 22, 29, 51, 87, 80, 62,
+    18, 22, 37, 56, 68, 109, 103, 77,
+    24, 35, 55, 64, 81, 104, 113, 92,
+    49, 64, 78, 87, 103, 121, 120, 101,
+    72, 92, 95, 98, 112, 100, 103, 99,
+)
+_JPEG_CHROMA_BASE = (
+    17, 18, 24, 47, 99, 99, 99, 99,
+    18, 21, 26, 66, 99, 99, 99, 99,
+    24, 26, 56, 99, 99, 99, 99, 99,
+    47, 66, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+)
+
+
+def _standard_quantization_table(base: tuple[int, ...], quality: int) -> list[int]:
+    scale = 5000 // quality if quality < 50 else 200 - quality * 2
+    return [max(1, min(255, (value * scale + 50) // 100)) for value in base]
+
+
+def _jpeg_quality(payload: bytes) -> int:
+    try:
+        with Image.open(io.BytesIO(payload)) as image:
+            if not isinstance(image, JpegImagePlugin.JpegImageFile):
+                raise OmeTileIndexError("OME tile is not a JPEG image")
+            if JpegImagePlugin.get_sampling(image) != 2:
+                raise OmeTileIndexError("OME JPEG tiles must use 4:2:0 subsampling")
+            tables = image.quantization or {}
+    except (OSError, ValueError) as error:
+        raise OmeTileIndexError("OME JPEG quantization is unreadable") from error
+    if set(tables) != {0, 1}:
+        raise OmeTileIndexError("OME JPEG quantization tables are unsupported")
+    for quality in range(1, 101):
+        if (
+            tables[0] == _standard_quantization_table(_JPEG_LUMA_BASE, quality)
+            and tables[1] == _standard_quantization_table(_JPEG_CHROMA_BASE, quality)
+        ):
+            return quality
+    raise OmeTileIndexError("OME JPEG quality is not a standard libjpeg profile")
 
 
 def _sha256(stream: BinaryIO) -> str:
@@ -209,6 +259,21 @@ def build_ome_tile_index(
         raise OmeTileIndexError("OME pyramid levels are duplicated or out of order")
     if tile_width is None or tile_height is None:
         raise OmeTileIndexError("OME pyramid has no tiles")
+    qualities = {
+        _jpeg_quality(read_indexed_jpeg(path, tile))
+        for level in levels
+        for tile in level.tiles
+    }
+    if len(qualities) != 1:
+        raise OmeTileIndexError("OME JPEG quality is inconsistent between tiles")
+    jpeg_quality = qualities.pop()
+    validated = path.lstat()
+    if (
+        before.st_size != validated.st_size
+        or before.st_mtime_ns != validated.st_mtime_ns
+        or getattr(before, "st_ino", None) != getattr(validated, "st_ino", None)
+    ):
+        raise OmeTileIndexError("OME source changed during tile validation")
     return OmeTileIndex(
         width=first.width,
         height=first.height,
@@ -221,6 +286,8 @@ def build_ome_tile_index(
         source_size=before.st_size,
         source_mtime_ns=before.st_mtime_ns,
         source_sha256=source_sha256,
+        jpeg_quality=jpeg_quality,
+        quality_profile=f"ome-dynamic-v1-q{jpeg_quality}",
     )
 
 

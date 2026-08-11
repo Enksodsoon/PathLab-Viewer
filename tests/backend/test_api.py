@@ -180,6 +180,7 @@ def _dynamic_ome(path: Path) -> str:
             },
             photometric="ycbcr",
             compression="jpeg",
+            compressionargs={"level": 75},
             tile=(512, 512),
             subifds=1,
         )
@@ -187,6 +188,7 @@ def _dynamic_ome(path: Path) -> str:
             full[::2, ::2],
             photometric="ycbcr",
             compression="jpeg",
+            compressionargs={"level": 75},
             tile=(512, 512),
             subfiletype=1,
         )
@@ -298,6 +300,7 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
                 "tileHeight": 512,
                 "pyramidFactor": 2,
                 "compression": "jpeg",
+                "jpegQuality": 75,
                 "tiffKinds": ["classic", "bigtiff"],
                 "nativeJpegTiles": True,
                 "persistedSha256": True,
@@ -386,7 +389,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
                 "width": 1024,
                 "height": 1024,
                 "downsample": 1.5,
-                "jpegQuality": 85,
+                "jpegQuality": 75,
             },
         )
         assert created.status_code == 201
@@ -414,8 +417,8 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
         assert (original_root / "source.ome.tif").stat().st_size == ome.stat().st_size
         assert (original_root / "tile-index.json").is_file()
         tile_index = json.loads((original_root / "tile-index.json").read_bytes())
-        assert tile_index["jpegQuality"] == 85
-        assert tile_index["qualityProfile"] == "ome-dynamic-v1-q85"
+        assert tile_index["jpegQuality"] == 75
+        assert tile_index["qualityProfile"] == "ome-dynamic-v1-q75"
         assert not (client.app.state.settings.data_root / "private" / slide_id).exists()
         with session_factory(client.app.state.settings)() as database:
             slide = database.get(Slide, slide_id)
@@ -424,7 +427,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
             assert slide.source_bytes == ome.stat().st_size
             assert slide.derivative_bytes == 0
             assert slide.derivative_file_count == 0
-            assert slide.slide_metadata["encoding"]["jpegQuality"] == 85
+        assert slide.slide_metadata["encoding"]["jpegQuality"] == 75
 
         desktop_descriptor = client.get(
             f"/api/v1/desktop/slides/{slide_id}/preview/slide.dzi",
@@ -452,6 +455,26 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
             ).status_code
             == 404
         )
+
+
+def test_desktop_ome_ingest_rejects_non_negotiated_jpeg_quality(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        rejected = client.post(
+            "/api/v1/desktop/ome-ingests",
+            headers=_desktop_authorization(client),
+            json={
+                "displayName": "Wrong quality",
+                "artifactRevisionId": "artifact-wrong-quality",
+                "omeLength": 1,
+                "omeSha256": "a" * 64,
+                "profile": "ome-dynamic-v1",
+                "width": 1,
+                "height": 1,
+                "downsample": 1,
+                "jpegQuality": 80,
+            },
+        )
+        assert rejected.status_code == 422
 
 
 def test_desktop_ome_kill_switch_removes_capability_and_rejects_ingest(

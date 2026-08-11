@@ -111,7 +111,7 @@ class OmeIngestRequest(DesktopModel):
     width: int = Field(gt=0)
     height: int = Field(gt=0)
     downsample: float = Field(gt=0)
-    jpeg_quality: int = Field(default=75, ge=1, le=100)
+    jpeg_quality: int = Field(default=75, ge=75, le=75)
 
 
 def register_desktop_routes(
@@ -304,6 +304,7 @@ def register_desktop_routes(
                     "tileHeight": 512,
                     "pyramidFactor": 2,
                     "compression": "jpeg",
+                    "jpegQuality": 75,
                     "tiffKinds": ["classic", "bigtiff"],
                     "nativeJpegTiles": True,
                     "persistedSha256": True,

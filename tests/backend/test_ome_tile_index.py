@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import tifffile
 from PIL import Image
+from wsi_viewer import ome_tile_index
 from wsi_viewer.ome_tile_index import (
     OmeTileIndexError,
     TileExtent,
@@ -22,7 +23,9 @@ REAL_FORGE_OME = (
 )
 
 
-def _write_jpeg_pyramid(path: Path, *, pyramid_factor: int = 2) -> None:
+def _write_jpeg_pyramid(
+    path: Path, *, pyramid_factor: int = 2, jpeg_quality: int = 75
+) -> None:
     full = np.arange(96 * 128 * 3, dtype=np.uint8).reshape((96, 128, 3))
     reduced = full[::pyramid_factor, ::pyramid_factor]
     with tifffile.TiffWriter(path, ome=True, bigtiff=True) as writer:
@@ -31,6 +34,7 @@ def _write_jpeg_pyramid(path: Path, *, pyramid_factor: int = 2) -> None:
             metadata={"axes": "YXS"},
             photometric="ycbcr",
             compression="jpeg",
+            compressionargs={"level": jpeg_quality},
             tile=(32, 32),
             subifds=1,
         )
@@ -38,6 +42,7 @@ def _write_jpeg_pyramid(path: Path, *, pyramid_factor: int = 2) -> None:
             reduced,
             photometric="ycbcr",
             compression="jpeg",
+            compressionargs={"level": jpeg_quality},
             tile=(32, 32),
             subfiletype=1,
         )
@@ -78,6 +83,42 @@ def test_indexes_factor_two_jpeg_pyramid(tmp_path: Path) -> None:
     assert index.tile_height == 32
     assert index.codec == "jpeg"
     assert index.pyramid_factors == (1, 2)
+    assert index.jpeg_quality == 75
+
+
+def test_indexes_actual_jpeg_quality_instead_of_assuming_profile_default(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "quality-85.ome.tif"
+    _write_jpeg_pyramid(source, jpeg_quality=85)
+
+    assert build_ome_tile_index(source).jpeg_quality == 85
+
+
+def test_rejects_source_mutation_during_all_tile_quality_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "mutating.ome.tif"
+    _write_jpeg_pyramid(source)
+    original_quality = ome_tile_index._jpeg_quality
+    mutated = False
+
+    def mutate_after_first_tile(payload: bytes) -> int:
+        nonlocal mutated
+        quality = original_quality(payload)
+        if not mutated:
+            mutated = True
+            current = source.stat()
+            os.utime(
+                source,
+                ns=(current.st_atime_ns, current.st_mtime_ns + 1_000_000_000),
+            )
+        return quality
+
+    monkeypatch.setattr(ome_tile_index, "_jpeg_quality", mutate_after_first_tile)
+
+    with pytest.raises(OmeTileIndexError, match="changed during tile validation"):
+        build_ome_tile_index(source)
 
 
 @pytest.mark.skipif(

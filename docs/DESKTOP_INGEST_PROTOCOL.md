@@ -18,7 +18,7 @@ SHA-256 plus optional derivative bytes and file count. An authenticated
 `GET /api/v1/desktop/capabilities` advertises accepted schemas and inventory
 formats, upload limits, 64 MiB recommended/maximum chunks, and an exact
 `omeProfiles` object. V1 requires RGB uint8/sRGB, three channels, factor 2,
-512-pixel JPEG tiles, classic TIFF/BigTIFF support, native JPEG tiles, and
+512-pixel JPEG Q75 tiles, classic TIFF/BigTIFF support, native JPEG tiles, and
 persisted SHA acknowledgement. Forge streams bounded chunks and
 falls back to 16 MiB when capabilities are unavailable. Chunks are acknowledged
 only after fsync and offset commit; `HEAD` only returns the authoritative offset.
@@ -51,7 +51,9 @@ the slide with `render_mode=ome_dynamic` and zero stored derivative bytes. A
 ready response includes the SHA-256 calculated from the persisted final file.
 The request includes `jpegQuality`; it is persisted in the immutable index and
 used for on-demand virtual levels, so Viewer never silently increases or reduces
-the Forge-selected encoding quality. The negotiated V1 artifact uses a factor-2
+the Forge-selected encoding quality. Viewer independently requires Q75, verifies
+standard libjpeg Q75 quantization plus 4:2:0 subsampling across every stored tile,
+and rejects non-factor-2 pyramids. The negotiated V1 artifact uses a factor-2
 pyramid; the tile reader may still recognize older supported layouts internally.
 Missing DZI levels are rendered with a globally aligned resize before
 the tile crop to avoid tile-boundary seams.
