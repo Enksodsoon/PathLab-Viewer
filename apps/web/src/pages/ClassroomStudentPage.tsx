@@ -77,11 +77,18 @@ export function ClassroomStudentPage() {
   const publishTimer = useRef<number | null>(null)
   const streamEpoch = useRef('')
   const streamSequence = useRef(0)
+  const wasController = useRef(false)
 
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { followRef.current = follow }, [follow])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
   useEffect(() => { csrfRef.current = csrfToken }, [csrfToken])
+  useEffect(() => {
+    const isController = state?.control.isController ?? false
+    if (isController) setFollow(false)
+    else if (wasController.current) setFollow(true)
+    wasController.current = isController
+  }, [state?.control.isController])
   useEffect(() => { void storageCapability().then(setStorage) }, [])
   useEffect(() => {
     if (!sessionId || csrfToken) return
@@ -159,9 +166,14 @@ export function ClassroomStudentPage() {
         } : current)
         if (followRef.current) setSlideId(payload.slideId as string)
       })
-      for (const name of ['control', 'session-ended']) {
-        source.addEventListener(name, (event) => { if (sequence(event)) recover() })
-      }
+      source.addEventListener('control', (event) => { if (sequence(event)) recover() })
+      source.addEventListener('session-ended', (event) => {
+        if (!sequence(event)) return
+        setState(null)
+        setCsrfToken('')
+        setMessage('This classroom has ended.')
+        navigate('/classroom', { replace: true })
+      })
       source.addEventListener('question-removed', (event) => {
         const payload = sequence(event)
         if (!payload || typeof payload.questionId !== 'string') return
@@ -191,7 +203,7 @@ export function ClassroomStudentPage() {
       if (retryTimer !== null) window.clearTimeout(retryTimer)
       if (stableTimer !== null) window.clearTimeout(stableTimer)
     }
-  }, [csrfToken, refresh, sessionId, state?.participant.id])
+  }, [csrfToken, navigate, refresh, sessionId, state?.participant.id])
 
   const currentSlide = useMemo(
     () => state?.slides.find((slide) => slide.id === slideId) ?? state?.slides[0],
@@ -342,11 +354,21 @@ export function ClassroomStudentPage() {
     </section>
   </main>
 
+  const isController = state?.control.isController ?? false
+
   return <div className="classroom-shell classroom-shell--student">
     <header className="classroom-topbar">
       <Brand variant="library" />
       <strong>{alias || 'Private learner'}</strong>
-      <label><input type="checkbox" checked={follow} onChange={(event) => setFollow(event.target.checked)} /> Follow teacher</label>
+      <span className="classroom-control-status" role="status">
+        {isController ? 'You control the slide' : 'Teacher controls the slide'}
+      </span>
+      <label><input
+        type="checkbox"
+        checked={follow}
+        disabled={isController}
+        onChange={(event) => setFollow(event.target.checked)}
+      /> Follow teacher</label>
     </header>
     <main className={`classroom-viewer${pinMode ? ' is-pin-mode' : ''}`}>
       {currentSlide && <OpenSeadragonViewer

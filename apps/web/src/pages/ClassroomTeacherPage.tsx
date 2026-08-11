@@ -1,8 +1,8 @@
 import type OpenSeadragon from 'openseadragon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
-import { listSlides } from '../api'
+import { ApiError, listSlides } from '../api'
 import {
   answerQuestion,
   createClassroom,
@@ -10,6 +10,7 @@ import {
   grantControl,
   openQuestion,
   publishTeacherViewport,
+  revokeControl,
   teacherState,
   type CreatedClassroom,
   type TeacherState,
@@ -46,6 +47,7 @@ function viewportPayload(viewer: OpenSeadragon.Viewer, slideId: string) {
 }
 
 export function ClassroomTeacherPage() {
+  const navigate = useNavigate()
   const [slides, setSlides] = useState<AdminSlide[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
@@ -60,8 +62,14 @@ export function ClassroomTeacherPage() {
       .then((items) => setSlides(items.filter((slide) => (
         slide.state === 'published' && slide.renderMode === 'static_dzi'
       ))))
-      .catch(() => setError('Published slides could not be loaded.'))
-  }, [])
+      .catch((loadError: unknown) => {
+        if (loadError instanceof ApiError && loadError.status === 401) {
+          navigate('/admin', { replace: true })
+          return
+        }
+        setError('Published slides could not be loaded.')
+      })
+  }, [navigate])
 
   const refresh = useCallback(async (sessionId: string) => {
     const next = await teacherState(sessionId)
@@ -115,8 +123,14 @@ export function ClassroomTeacherPage() {
       setClassroom(created)
       sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(created))
       setSlideId(created.slides[0].id)
-    } catch {
-      setError('The classroom could not start. Only complete published static slides are allowed.')
+    } catch (startError) {
+      if (startError instanceof ApiError && startError.code === 'CLASSROOM_ALREADY_ACTIVE') {
+        setError('A classroom is already active. End it before starting another.')
+      } else if (startError instanceof ApiError && startError.code === 'CLASSROOM_SLIDE_NOT_READY') {
+        setError('The classroom could not start. Only complete published static slides are allowed.')
+      } else {
+        setError('The classroom could not start. Try again.')
+      }
     }
   }
 
@@ -169,14 +183,26 @@ export function ClassroomTeacherPage() {
       </select>
     </main>
     <aside className="classroom-panel">
+      {error && <p role="alert" className="classroom-error">{error}</p>}
       <section>
         <h2>Students <span>{state?.participants.length ?? 0}/300</span></h2>
-        <ul>{state?.participants.map((participant) => <li key={participant.id}>
-          <div><strong>{participant.alias}</strong><small>{participant.status}</small></div>
-          <button type="button" onClick={() => void grantControl(classroom.id, participant.id)}>
-            Give control
-          </button>
-        </li>)}</ul>
+        <ul>{state?.participants.map((participant) => {
+          const isController = state.controller.participantId === participant.id
+          return <li key={participant.id}>
+            <div>
+              <strong>{participant.alias}</strong>
+              <small>{isController ? `${participant.status} · controller` : participant.status}</small>
+            </div>
+            <button type="button" onClick={() => void (isController
+              ? revokeControl(classroom.id)
+              : grantControl(classroom.id, participant.id)
+            ).then(() => refresh(classroom.id)).catch(() => {
+              setError('Slide control could not be changed.')
+            })}>
+              {isController ? 'Take back control' : 'Give control'}
+            </button>
+          </li>
+        })}</ul>
       </section>
       <section>
         <h2>Questions <span>{state?.pendingQuestions.length ?? 0}/200</span></h2>

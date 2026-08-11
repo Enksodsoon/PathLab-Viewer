@@ -86,6 +86,12 @@
   letter-spacing: .12em;
 }
 
+.classroom-control-status {
+  color: #1f6549;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
 .classroom-viewer {
   position: relative;
   min-width: 0;

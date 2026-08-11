@@ -143,6 +143,12 @@ export async function grantControl(
   }))
 }
 
+export async function revokeControl(sessionId: string): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/control`, {
+    method: 'DELETE',
+  }))
+}
+
 export async function openQuestion(sessionId: string, questionId: string): Promise<void> {
   await body(await csrfFetch(
     `/api/v1/admin/classroom/sessions/${sessionId}/questions/${questionId}/open`,
