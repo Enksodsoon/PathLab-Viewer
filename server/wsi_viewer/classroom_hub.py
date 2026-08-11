@@ -1,5 +1,6 @@
 import asyncio
 import json
+import threading
 import time
 import uuid
 from collections import defaultdict
@@ -49,6 +50,9 @@ class ClassroomHub:
         self._participant_connections: dict[tuple[str, str], int] = defaultdict(int)
         self._seen_participants: set[tuple[str, str]] = set()
         self._presenter_last_at: dict[str, float] = {}
+        self._transient_lock = threading.Lock()
+        self._active_pins: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        self._control_requests: dict[str, dict[str, float]] = defaultdict(dict)
         self.current_connections = 0
         self.peak_connections = 0
         self.presenter_events_published = 0
@@ -68,6 +72,9 @@ class ClassroomHub:
         self._participant_connections.clear()
         self._seen_participants.clear()
         self._presenter_last_at.clear()
+        with self._transient_lock:
+            self._active_pins.clear()
+            self._control_requests.clear()
         self.current_connections = 0
         self._loop = None
 
@@ -201,3 +208,81 @@ class ClassroomHub:
             return False
         self._presenter_last_at[actor_id] = now
         return True
+
+    def set_pin(
+        self,
+        session_id: str,
+        participant_id: str,
+        pin: dict[str, Any],
+    ) -> None:
+        with self._transient_lock:
+            self._active_pins[session_id][participant_id] = dict(pin)
+
+    def clear_pin(self, session_id: str, participant_id: str) -> bool:
+        with self._transient_lock:
+            pins = self._active_pins.get(session_id)
+            if not pins or participant_id not in pins:
+                return False
+            del pins[participant_id]
+            if not pins:
+                self._active_pins.pop(session_id, None)
+            return True
+
+    def clear_pin_if(
+        self,
+        session_id: str,
+        participant_id: str,
+        *,
+        slide_id: str,
+        x: float,
+        y: float,
+    ) -> bool:
+        with self._transient_lock:
+            pins = self._active_pins.get(session_id)
+            pin = pins.get(participant_id) if pins else None
+            if (
+                pin is None
+                or pin.get("slideId") != slide_id
+                or pin.get("x") != x
+                or pin.get("y") != y
+            ):
+                return False
+            del pins[participant_id]
+            if not pins:
+                self._active_pins.pop(session_id, None)
+            return True
+
+    def active_pins(self, session_id: str) -> list[dict[str, Any]]:
+        with self._transient_lock:
+            return [dict(pin) for pin in self._active_pins.get(session_id, {}).values()]
+
+    def request_control(self, session_id: str, participant_id: str) -> bool:
+        with self._transient_lock:
+            requests = self._control_requests[session_id]
+            if participant_id in requests:
+                return False
+            requests[participant_id] = time.time()
+            return True
+
+    def cancel_control_request(self, session_id: str, participant_id: str) -> bool:
+        with self._transient_lock:
+            requests = self._control_requests.get(session_id)
+            if not requests or participant_id not in requests:
+                return False
+            del requests[participant_id]
+            if not requests:
+                self._control_requests.pop(session_id, None)
+            return True
+
+    def control_requests(self, session_id: str) -> dict[str, float]:
+        with self._transient_lock:
+            return dict(self._control_requests.get(session_id, {}))
+
+    def clear_participant(self, session_id: str, participant_id: str) -> None:
+        self.clear_pin(session_id, participant_id)
+        self.cancel_control_request(session_id, participant_id)
+
+    def clear_session(self, session_id: str) -> None:
+        with self._transient_lock:
+            self._active_pins.pop(session_id, None)
+            self._control_requests.pop(session_id, None)

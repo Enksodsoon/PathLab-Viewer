@@ -3,12 +3,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import {
+  cancelControlRequest,
+  clearPin,
   joinClassroom,
+  publishPin,
   publishStudentViewport,
+  requestControl,
   studentState,
   submitQuestion,
   type StudentState,
 } from '../classroom/api'
+import { ClassroomPinOverlays } from '../classroom/ClassroomPinOverlays'
+import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import {
   deleteSessionEntries,
   exportNotebook,
@@ -29,11 +35,10 @@ import { ThemeControl } from '../theme/ThemeControl'
 import '../classroom/classroom.css'
 
 interface Pin {
+  slideId: string
   x: number
   y: number
   zoom: number
-  left: number
-  top: number
 }
 
 function normalizedViewport(viewer: OpenSeadragon.Viewer, slideId: string) {
@@ -69,6 +74,7 @@ export function ClassroomStudentPage() {
   const [entries, setEntries] = useState<NotebookEntry[]>([])
   const [storage, setStorage] = useState<StorageCapability>({ indexedDb: false })
   const [message, setMessage] = useState('')
+  const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const suppressPublish = useRef(false)
   const followRef = useRef(follow)
@@ -97,6 +103,7 @@ export function ClassroomStudentPage() {
       setState(next)
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
+      setPin(next.activePin)
       if (next.presenter.slideId) setSlideId(next.presenter.slideId)
       setEntries(await listEntries(sessionId))
     }).catch(() => setMessage('Rejoin with the classroom code to continue.'))
@@ -105,6 +112,7 @@ export function ClassroomStudentPage() {
   const refresh = useCallback(async (id: string) => {
     const next = await studentState(id)
     setState(next)
+    setPin(next.activePin)
     if (follow && next.presenter.slideId) setSlideId(next.presenter.slideId)
     setEntries(await listEntries(id))
   }, [follow])
@@ -233,6 +241,7 @@ export function ClassroomStudentPage() {
 
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     viewerRef.current = viewer
+    setViewer(viewer)
     const opened = () => applyRemote(viewer)
     const moved = () => {
       const current = stateRef.current
@@ -254,14 +263,22 @@ export function ClassroomStudentPage() {
       const image = viewer.viewport.viewportToImageCoordinates(
         viewer.viewport.pointFromPixel(event.position, true),
       )
-      setPin({
+      const nextPin = {
+        slideId: currentSlide.id,
         x: Math.max(0, Math.min(1, image.x / currentSlide.width)),
         y: Math.max(0, Math.min(1, image.y / currentSlide.height)),
         zoom: viewer.viewport.getZoom(true),
-        left: event.position.x / viewer.container.clientWidth * 100,
-        top: event.position.y / viewer.container.clientHeight * 100,
-      })
+      }
+      setPin(nextPin)
       setPinMode(false)
+      if (sessionId) {
+        void publishPin(sessionId, csrfRef.current, {
+          slideId: currentSlide.id,
+          x: nextPin.x,
+          y: nextPin.y,
+          zoom: nextPin.zoom,
+        }).catch(() => setMessage('The teacher could not receive this pin.'))
+      }
     }
     viewer.addHandler('open', opened)
     viewer.addHandler('animation-finish', moved)
@@ -271,6 +288,7 @@ export function ClassroomStudentPage() {
       viewer.removeHandler('animation-finish', moved)
       viewer.removeHandler('canvas-click', clicked)
       viewerRef.current = null
+      setViewer(null)
     }
   }, [applyRemote, currentSlide, pinMode, sessionId])
 
@@ -282,6 +300,7 @@ export function ClassroomStudentPage() {
       setState(next)
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
+      setPin(next.activePin)
       if (next.presenter.slideId) setSlideId(next.presenter.slideId)
       setEntries(await listEntries(joined.sessionId))
       navigate(`/classroom/${joined.sessionId}`, { replace: true })
@@ -302,6 +321,33 @@ export function ClassroomStudentPage() {
     setQuestion('')
     setPin(null)
     setMessage('Question sent to the teacher.')
+  }
+
+  const toggleControlRequest = async () => {
+    if (!sessionId || !state || state.control.isController) return
+    const requested = state.control.requested
+    try {
+      if (requested) await cancelControlRequest(sessionId, csrfToken)
+      else await requestControl(sessionId, csrfToken)
+      setState((current) => current ? {
+        ...current,
+        control: { ...current.control, requested: !requested },
+      } : current)
+      setMessage(requested ? 'Control request cancelled.' : 'The teacher has received your control request.')
+    } catch {
+      setMessage('The control request could not be changed.')
+    }
+  }
+
+  const removePin = async () => {
+    if (!sessionId) return
+    setPin(null)
+    setPinMode(false)
+    try {
+      await clearPin(sessionId, csrfToken)
+    } catch {
+      setMessage('The pin could not be cleared for the teacher.')
+    }
   }
 
   const capture = async () => {
@@ -360,6 +406,7 @@ export function ClassroomStudentPage() {
   </main>
 
   const isController = state?.control.isController ?? false
+  const controlRequested = state?.control.requested ?? false
 
   return <div className="classroom-shell classroom-shell--student">
     <header className="classroom-topbar">
@@ -386,15 +433,50 @@ export function ClassroomStudentPage() {
         onReady={() => undefined}
         onViewerAttach={attachViewer}
       />}
-      {pin && <span className="classroom-pin" style={{ left: `${pin.left}%`, top: `${pin.top}%` }} />}
-      <select value={currentSlide?.id ?? ''} onChange={(event) => { setFollow(false); setSlideId(event.target.value) }}>
-        {state?.slides.map((slide) => <option key={slide.id} value={slide.id}>{slide.displayName}</option>)}
-      </select>
+      <ClassroomPinOverlays
+        pins={pin ? [{
+          participantId: state?.participant.id ?? 'student',
+          alias: alias || 'Your pin',
+          slideId: pin.slideId,
+          x: pin.x,
+          y: pin.y,
+          focused: true,
+        }] : []}
+        slideId={currentSlide?.id ?? ''}
+        viewer={viewer}
+      />
+      <ClassroomSlideNavigator
+        activeId={currentSlide?.id ?? ''}
+        slides={state?.slides ?? []}
+        onSelect={(nextSlideId) => {
+          setFollow(false)
+          setSlideId(nextSlideId)
+          if (pin) void removePin()
+        }}
+      />
     </main>
     <aside className="classroom-panel">
+      <section className="classroom-control-request">
+        <div>
+          <h2>Slide control</h2>
+          <p>{isController
+            ? 'You are presenting to the class.'
+            : controlRequested
+              ? 'Your request is waiting with the teacher.'
+              : 'Ask the teacher when you want to present.'}</p>
+        </div>
+        {!isController ? <button
+          className={controlRequested ? 'is-active' : ''}
+          type="button"
+          onClick={() => void toggleControlRequest()}
+        >{controlRequested ? 'Cancel request' : 'Ask for control'}</button> : null}
+      </section>
       <section>
         <h2>Ask at an exact point</h2>
-        <button className={pinMode ? 'is-active' : ''} type="button" onClick={() => setPinMode(true)}>{pin ? 'Choose another point' : 'Pin a point on the slide'}</button>
+        <div className="classroom-row">
+          <button className={pinMode ? 'is-active' : ''} type="button" onClick={() => setPinMode(true)}>{pin ? 'Choose another point' : 'Pin a point on the slide'}</button>
+          {pin ? <button type="button" onClick={() => void removePin()}>Clear pin</button> : null}
+        </div>
         <textarea value={question} maxLength={500} placeholder="What do you notice or want to ask?" onChange={(event) => setQuestion(event.target.value)} />
         <button className="primary" type="button" disabled={!pin || !question.trim()} onClick={() => void ask()}>Send question</button>
       </section>

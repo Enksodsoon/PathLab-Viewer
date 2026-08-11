@@ -15,6 +15,8 @@ import {
   type CreatedClassroom,
   type TeacherState,
 } from '../classroom/api'
+import { ClassroomPinOverlays, type ClassroomVisiblePin } from '../classroom/ClassroomPinOverlays'
+import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { Brand } from '../components/Brand'
 import {
   OpenSeadragonViewer,
@@ -55,8 +57,26 @@ export function ClassroomTeacherPage() {
   const [state, setState] = useState<TeacherState | null>(null)
   const [slideId, setSlideId] = useState('')
   const [error, setError] = useState('')
-  const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
+  const [showCode, setShowCode] = useState(false)
+  const [focusedQuestion, setFocusedQuestion] = useState<TeacherState['pendingQuestions'][number] | null>(null)
+  const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
   const publishTimer = useRef<number | null>(null)
+  const suppressPublish = useRef(false)
+  const stateRef = useRef<TeacherState | null>(null)
+  const slideIdRef = useRef(slideId)
+  const streamEpoch = useRef('')
+  const streamSequence = useRef(0)
+
+  useEffect(() => { stateRef.current = state }, [state])
+  useEffect(() => { slideIdRef.current = slideId }, [slideId])
+  useEffect(() => {
+    if (!showCode) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowCode(false)
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [showCode])
 
   useEffect(() => {
     void listSlides()
@@ -80,17 +100,87 @@ export function ClassroomTeacherPage() {
 
   useEffect(() => {
     if (!classroom) return
-    void refresh(classroom.id).catch(() => {
-      sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
-      setClassroom(null)
-      setError('The previous classroom is no longer active.')
+    void refresh(classroom.id).catch((loadError: unknown) => {
+      if (loadError instanceof ApiError && loadError.status === 404) {
+        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        setClassroom(null)
+        setError('The previous classroom is no longer active.')
+        return
+      }
+      setError('The classroom connection was interrupted. Reconnecting…')
     })
     const events = new EventSource(`/api/v1/admin/classroom/sessions/${classroom.id}/events`)
-    const update = () => { void refresh(classroom.id).catch(() => undefined) }
+    const sequence = (event: Event): Record<string, unknown> | null => {
+      try {
+        const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+        const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
+        const next = typeof payload.eventSequence === 'number' ? payload.eventSequence : 0
+        if (event.type === 'stream-ready') {
+          streamEpoch.current = epoch
+          streamSequence.current = next
+          return payload
+        }
+        if (epoch === streamEpoch.current && next <= streamSequence.current) return null
+        if (epoch !== streamEpoch.current || next !== streamSequence.current + 1) {
+          streamEpoch.current = epoch
+          streamSequence.current = next
+          void refresh(classroom.id).catch(() => undefined)
+          return null
+        }
+        streamSequence.current = next
+        return payload
+      } catch {
+        void refresh(classroom.id).catch(() => undefined)
+        return null
+      }
+    }
+    const update = (event: Event) => {
+      if (sequence(event)) void refresh(classroom.id).catch(() => undefined)
+    }
     for (const name of [
       'stream-ready', 'participant-joined', 'participant-left',
       'participant-reconnected', 'question-added', 'question-removed', 'control',
     ]) events.addEventListener(name, update)
+    events.addEventListener('presenter', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.presenterSequence !== 'number'
+        || typeof payload.slideId !== 'string' || !payload.viewport) return
+      setState((current) => current ? {
+        ...current,
+        presenter: {
+          sequence: payload.presenterSequence as number,
+          slideId: payload.slideId as string,
+          viewport: payload.viewport as { x: number; y: number; zoom: number },
+        },
+      } : current)
+      setSlideId(payload.slideId as string)
+    })
+    events.addEventListener('pin-updated', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.participantId !== 'string'
+        || typeof payload.alias !== 'string' || typeof payload.slideId !== 'string'
+        || typeof payload.x !== 'number' || typeof payload.y !== 'number'
+        || typeof payload.zoom !== 'number') return
+      const pin = payload as unknown as TeacherState['activePins'][number]
+      setState((current) => current ? {
+        ...current,
+        activePins: [...current.activePins.filter(
+          (item) => item.participantId !== pin.participantId,
+        ), pin],
+      } : current)
+    })
+    events.addEventListener('pin-removed', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.participantId !== 'string') return
+      setState((current) => current ? {
+        ...current,
+        activePins: current.activePins.filter(
+          (item) => item.participantId !== payload.participantId,
+        ),
+      } : current)
+    })
+    events.addEventListener('control-requested', update)
+    events.addEventListener('control-request-cancelled', update)
     return () => events.close()
   }, [classroom, refresh])
 
@@ -99,23 +189,66 @@ export function ClassroomTeacherPage() {
     [classroom, slideId],
   )
 
+  const participants = useMemo(() => [...(state?.participants ?? [])].sort((left, right) => {
+    if (left.controlRequested !== right.controlRequested) return left.controlRequested ? -1 : 1
+    return (left.controlRequestedAt ?? Number.POSITIVE_INFINITY)
+      - (right.controlRequestedAt ?? Number.POSITIVE_INFINITY)
+  }), [state?.participants])
+
+  const visiblePins = useMemo<ClassroomVisiblePin[]>(() => {
+    const pins: ClassroomVisiblePin[] = focusedQuestion ? [{
+      participantId: focusedQuestion.participantId,
+      alias: state?.participants.find((item) => item.id === focusedQuestion.participantId)?.alias ?? 'Question',
+      slideId: focusedQuestion.slideId,
+      x: focusedQuestion.x,
+      y: focusedQuestion.y,
+      focused: true,
+    }] : []
+    pins.push(...(state?.activePins ?? []))
+    return pins
+  }, [focusedQuestion, state?.activePins, state?.participants])
+
+  const applyRemote = useCallback((target: OpenSeadragon.Viewer) => {
+    const current = stateRef.current
+    const presenter = current?.presenter
+    const slide = classroom?.slides.find((item) => item.id === slideIdRef.current)
+    const item = target.world.getItemAt(0)
+    if (!presenter?.viewport || presenter.slideId !== slide?.id || !slide || !item) return
+    suppressPublish.current = true
+    const point = item.imageToViewportCoordinates(
+      presenter.viewport.x * slide.width,
+      presenter.viewport.y * slide.height,
+    )
+    target.viewport.panTo(point, true)
+    target.viewport.zoomTo(presenter.viewport.zoom, point, true)
+    target.viewport.applyConstraints()
+    window.setTimeout(() => { suppressPublish.current = false }, 0)
+  }, [classroom])
+
+  useEffect(() => {
+    if (viewer) applyRemote(viewer)
+  }, [applyRemote, state?.presenter, viewer])
+
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
-    viewerRef.current = viewer
+    setViewer(viewer)
     const publish = () => {
-      if (!classroom || !currentSlide) return
+      if (suppressPublish.current || !classroom || !currentSlide) return
       if (publishTimer.current !== null) window.clearTimeout(publishTimer.current)
       publishTimer.current = window.setTimeout(() => {
         publishTimer.current = null
         void publishTeacherViewport(classroom.id, viewportPayload(viewer, currentSlide.id))
       }, 250)
     }
+    const opened = () => applyRemote(viewer)
+    viewer.addHandler('open', opened)
     viewer.addHandler('animation-finish', publish)
     return () => {
+      viewer.removeHandler('open', opened)
       viewer.removeHandler('animation-finish', publish)
-      viewerRef.current = null
+      setViewer(null)
       if (publishTimer.current !== null) window.clearTimeout(publishTimer.current)
     }
-  }, [classroom, currentSlide])
+  }, [applyRemote, classroom, currentSlide])
 
   const start = async () => {
     setError('')
@@ -169,7 +302,9 @@ export function ClassroomTeacherPage() {
   return <div className="classroom-shell classroom-shell--teacher">
     <header className="classroom-topbar">
       <Brand variant="library" />
-      <div className="classroom-join-code"><span>Join code</span><strong>{classroom.joinCode}</strong></div>
+      <button className="classroom-join-code" type="button" onClick={() => setShowCode(true)}>
+        <span>Join code</span><strong>{classroom.joinCode}</strong><small>Display</small>
+      </button>
       <div className="classroom-topbar__actions">
         <ThemeControl compact />
         <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
@@ -186,50 +321,71 @@ export function ClassroomTeacherPage() {
         onReady={() => undefined}
         onViewerAttach={attachViewer}
       />}
-      <select value={currentSlide?.id ?? ''} onChange={(event) => setSlideId(event.target.value)}>
-        {classroom.slides.map((slide) => <option key={slide.id} value={slide.id}>
-          {slide.position + 1}. {slide.displayName}
-        </option>)}
-      </select>
+      <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
+      <ClassroomSlideNavigator
+        activeId={currentSlide?.id ?? ''}
+        slides={classroom.slides}
+        onSelect={setSlideId}
+      />
     </main>
     <aside className="classroom-panel">
       {error && <p role="alert" className="classroom-error">{error}</p>}
       <section>
         <h2>Students <span>{state?.participants.length ?? 0}/300</span></h2>
         {!state?.participants.length && <p className="classroom-empty">Students appear here after joining.</p>}
-        <ul>{state?.participants.map((participant) => {
-          const isController = state.controller.participantId === participant.id
+        <ul className="classroom-participant-list">{participants.map((participant) => {
+          const isController = state?.controller.participantId === participant.id
           return <li key={participant.id}>
             <div>
               <strong>{participant.alias}</strong>
-              <small>{isController ? `${participant.status} · controller` : participant.status}</small>
+              <small>{isController
+                ? `${participant.status} · controller`
+                : participant.controlRequested
+                  ? `${participant.status} · requested control`
+                  : participant.status}</small>
             </div>
-            <button type="button" onClick={() => void (isController
+            {isController || participant.controlRequested ? <button type="button" disabled={participant.status === 'disconnected'} onClick={() => void (isController
               ? revokeControl(classroom.id)
               : grantControl(classroom.id, participant.id)
             ).then(() => refresh(classroom.id)).catch(() => {
               setError('Slide control could not be changed.')
             })}>
               {isController ? 'Take back control' : 'Give control'}
-            </button>
+            </button> : null}
           </li>
         })}</ul>
       </section>
       <section>
         <h2>Questions <span>{state?.pendingQuestions.length ?? 0}/200</span></h2>
         {!state?.pendingQuestions.length && <p className="classroom-empty">Pinned questions appear here.</p>}
-        <ul>{state?.pendingQuestions.map((question) => <li key={question.id}>
+        <ul className="classroom-question-list">{state?.pendingQuestions.map((question) => <li className="classroom-question-item" key={question.id}>
           <p>{question.text}</p>
-          <div>
-            <button type="button" onClick={() => void openQuestion(classroom.id, question.id)}>
+          <div className="classroom-question-actions">
+            <button type="button" onClick={() => {
+              setFocusedQuestion(question)
+              void openQuestion(classroom.id, question.id).catch(() => {
+                setError('The pinned field could not be opened.')
+              })
+            }}>
               Show field
             </button>
-            <button type="button" onClick={() => void answerQuestion(classroom.id, question.id)}>
+            <button type="button" onClick={() => void answerQuestion(classroom.id, question.id).then(() => {
+              if (focusedQuestion?.id === question.id) setFocusedQuestion(null)
+            })}>
               Answered
             </button>
           </div>
         </li>)}</ul>
       </section>
     </aside>
+    {showCode ? <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
+      <div>
+        <p>PathLab classroom</p>
+        <h2 id="classroom-code-title">Join this slide session</h2>
+        <strong>{classroom.joinCode}</strong>
+        <span>Open PathLab Classroom and enter this code</span>
+        <button type="button" autoFocus onClick={() => setShowCode(false)}>Close</button>
+      </div>
+    </div> : null}
   </div>
 }

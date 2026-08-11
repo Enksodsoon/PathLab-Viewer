@@ -91,8 +91,7 @@
 }
 
 .classroom-entry__card > label > input,
-.classroom-panel textarea,
-.classroom-viewer > select {
+.classroom-panel textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   color: var(--ink);
@@ -107,8 +106,7 @@
 }
 
 .classroom-entry__card > label > input:hover,
-.classroom-panel textarea:hover,
-.classroom-viewer > select:hover {
+.classroom-panel textarea:hover {
   border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 
@@ -175,6 +173,15 @@
   align-items: baseline;
   gap: 10px;
   transform: translateX(-50%);
+  min-height: 52px !important;
+  padding: 4px 10px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  cursor: pointer;
+}
+
+.classroom-join-code:hover {
+  background: var(--surface) !important;
 }
 
 .classroom-join-code span {
@@ -186,6 +193,14 @@
   color: var(--ink);
   font-size: 18px;
   letter-spacing: .11em;
+}
+
+.classroom-join-code small {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 
 .classroom-learner-identity {
@@ -248,34 +263,275 @@
   height: 100%;
 }
 
-.classroom-viewer > select {
+.classroom-slide-navigator {
   position: absolute;
   top: 14px;
   left: 14px;
-  z-index: 4;
+  z-index: 7;
+  width: min(360px, calc(100% - 142px));
+}
+
+.classroom-slide-trigger {
+  width: 100%;
   min-height: 44px;
-  max-width: min(360px, calc(100% - 28px));
-  padding: 0 36px 0 12px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--ink);
   background: color-mix(in srgb, var(--surface-elevated) 96%, transparent);
+  font: 650 13px/1 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
   box-shadow: 0 8px 22px color-mix(in srgb, var(--shadow-color) 24%, transparent);
+}
+
+.classroom-slide-trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classroom-slide-trigger svg {
+  width: 17px;
+  height: 17px;
+}
+
+.classroom-slide-trigger svg:last-child {
+  transition: rotate 140ms ease;
+}
+
+.classroom-slide-navigator.is-open .classroom-slide-trigger svg:last-child {
+  rotate: 180deg;
+}
+
+.classroom-slide-backdrop {
+  position: fixed;
+  inset: 72px 0 0;
+  z-index: -1;
+  width: 100vw;
+  height: calc(100vh - 72px);
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--viewer-stage) 38%, transparent);
+  cursor: default;
+}
+
+.classroom-slide-popover {
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(620px, calc(100vh - 145px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  color: var(--body);
+  background: var(--canvas);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--shadow-color) 36%, transparent);
+}
+
+.classroom-slide-popover > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.classroom-slide-popover p,
+.classroom-slide-popover h2 {
+  margin: 0;
+}
+
+.classroom-slide-popover header p {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.classroom-slide-popover h2 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.classroom-slide-popover header button {
+  width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--body);
+  background: var(--surface);
+}
+
+.classroom-slide-popover header svg {
+  width: 17px;
+  height: 17px;
+}
+
+.classroom-slide-popover > input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--surface-elevated);
+  font: inherit;
+}
+
+.classroom-slide-tree {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.classroom-folder-node > summary {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  color: var(--body);
+  cursor: pointer;
+  list-style: none;
+}
+
+.classroom-folder-node > summary::-webkit-details-marker {
+  display: none;
+}
+
+.classroom-folder-node > summary:hover {
+  color: var(--ink);
+  background: var(--surface-card);
+}
+
+.classroom-folder-node > summary svg {
+  color: var(--primary-hover);
+}
+
+.classroom-folder-node > summary span {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classroom-folder-node > summary small {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.classroom-folder-contents {
+  display: grid;
+  gap: 4px;
+  margin-left: 8px;
+  padding-left: 9px;
+  border-left: 1px solid var(--border);
+}
+
+.classroom-slide-tree > button,
+.classroom-folder-contents > button {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--body);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.classroom-slide-tree > button:hover,
+.classroom-folder-contents > button:hover,
+.classroom-slide-tree > button.is-active,
+.classroom-folder-contents > button.is-active {
+  color: var(--ink);
+  background: var(--surface-card);
+}
+
+.classroom-slide-tree > button.is-active,
+.classroom-folder-contents > button.is-active {
+  border-color: var(--primary);
+}
+
+.classroom-slide-tree button > span,
+.classroom-folder-contents button > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.classroom-slide-tree button > strong,
+.classroom-folder-contents button > strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .classroom-viewer.is-pin-mode {
   cursor: crosshair;
 }
 
-.classroom-pin {
-  position: absolute;
-  z-index: 5;
+.classroom-live-pin {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.classroom-live-pin > span {
   width: 18px;
   height: 18px;
-  translate: -50% -50%;
   rotate: -45deg;
   border: 3px solid var(--surface-elevated);
   border-radius: 50% 50% 50% 0;
+  background: var(--primary);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--shadow-color) 55%, transparent);
+}
+
+.classroom-live-pin > strong {
+  max-width: 110px;
+  overflow: hidden;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  font: 700 10px/1.2 var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--shadow-color) 35%, transparent);
+}
+
+.classroom-live-pin.is-focused > span {
+  width: 24px;
+  height: 24px;
   background: var(--danger);
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--shadow-color) 46%, transparent);
-  pointer-events: none;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 20%, transparent);
 }
 
 .classroom-panel {
@@ -319,6 +575,13 @@
   list-style: none;
 }
 
+.classroom-participant-list {
+  max-height: min(34vh, 330px);
+  overflow: auto;
+  padding-right: 4px !important;
+  scrollbar-gutter: stable;
+}
+
 .classroom-panel li {
   display: flex;
   align-items: center;
@@ -358,6 +621,48 @@
   font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.classroom-question-item {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.classroom-question-item > p {
+  margin: 0;
+}
+
+.classroom-question-actions {
+  width: 112px;
+  display: grid;
+  gap: 6px;
+}
+
+.classroom-question-actions button {
+  width: 100%;
+}
+
+.classroom-control-request {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+}
+
+.classroom-control-request h2 {
+  margin-bottom: 5px;
+  font-size: 22px;
+}
+
+.classroom-control-request p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .classroom-panel textarea {
@@ -473,6 +778,72 @@
   background: color-mix(in srgb, var(--surface-card) 88%, var(--danger));
 }
 
+.classroom-code-display {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  color: #f7f3eb;
+  background: rgb(10 10 9 / 96%);
+  backdrop-filter: blur(12px);
+}
+
+.classroom-code-display > div {
+  width: min(980px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.classroom-code-display p,
+.classroom-code-display h2,
+.classroom-code-display span {
+  margin: 0;
+}
+
+.classroom-code-display p {
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.classroom-code-display h2 {
+  color: #f7f3eb;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 6vw, 72px);
+  font-weight: 500;
+}
+
+.classroom-code-display strong {
+  color: #fffaf2;
+  font-size: clamp(52px, 11vw, 150px);
+  letter-spacing: .12em;
+  line-height: .95;
+  overflow-wrap: anywhere;
+}
+
+.classroom-code-display span {
+  color: #c8c3ba;
+  font-size: clamp(15px, 2vw, 22px);
+}
+
+.classroom-code-display button {
+  min-width: 140px;
+  min-height: 48px;
+  margin-top: 12px;
+  border: 1px solid #4d4a44;
+  border-radius: var(--radius-control);
+  color: #f7f3eb;
+  background: #272622;
+  font: 650 14px/1 var(--font-ui);
+  cursor: pointer;
+}
+
 @media (max-width: 900px) {
   .classroom-shell {
     height: auto;
@@ -562,8 +933,28 @@
     padding-inline: 9px;
   }
 
-  .classroom-viewer > select {
-    max-width: calc(100% - 148px);
+  .classroom-slide-navigator {
+    width: calc(100% - 148px);
+  }
+
+  .classroom-question-item {
+    grid-template-columns: minmax(0, 1fr) 104px;
+  }
+
+  .classroom-control-request {
+    grid-template-columns: 1fr;
+  }
+
+  .classroom-control-request button {
+    width: 100%;
+  }
+
+  .classroom-code-display {
+    padding: 20px;
+  }
+
+  .classroom-code-display strong {
+    letter-spacing: .06em;
   }
 }
 

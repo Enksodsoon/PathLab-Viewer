@@ -747,6 +747,9 @@ class ClassroomSessionSlide(Base):
     tile_size: Mapped[int] = mapped_column(Integer, nullable=False)
     tile_format: Mapped[str] = mapped_column(String(10), nullable=False)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    folder_path: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
 
 
 class ClassroomParticipant(Base):

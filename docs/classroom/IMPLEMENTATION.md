@@ -6,7 +6,7 @@ This implementation is deliberately limited to the active-learning loop:
 
 - the teacher starts one session from complete published static DZI slides;
 - students join under generated non-identifying aliases;
-- students can follow the teacher, pin a field, ask a bounded question, and receive a short control lease;
+- students can follow the teacher, share one live pin, ask a bounded question, request control, and receive a short control lease;
 - screenshots and notes remain in the student's IndexedDB and can be exported as self-contained HTML.
 
 `PATHLAB_CLASSROOM_ENABLED=false` remains the default. No classroom route is registered
@@ -25,6 +25,8 @@ This branch does not authorize a merge, deployment, or production activation.
   to SQLite at most once per two seconds per classroom; slide changes persist immediately.
 - Presenter sequences are reserved in blocks of 1,024 so an abrupt restart cannot reuse a
   sequence even when the latest viewport checkpoint has not yet run.
+- Live pins and control requests are bounded to one in-memory record per participant and are
+  discarded with the session; they do not create new SQLite history.
 - Critical queue overflow closes the slow stream, forcing bounded HTTP resynchronization.
 - The teacher state endpoint is naturally bounded by the participant and question limits.
 
@@ -82,7 +84,8 @@ headers remain separate and versioned.
 
 Teacher endpoints live below `/api/v1/admin/classroom`; participant endpoints live below
 `/api/v1/classroom`. Important operations are session create/end, bounded full state, SSE,
-join/reconnect, question create/open/delete, control grant/revoke, and presenter updates.
+join/reconnect, live pin update/clear, question create/open/delete, control request/grant/revoke,
+and presenter updates.
 Operational metrics expose only bounded counters, not student behavior history.
 
 ## Local verification and certification
@@ -99,7 +102,7 @@ gates. Never load-test production.
 
 ## Deployment and rollback
 
-1. Back up the SQLite database and apply Alembic revision `20260811_0016` while the feature
+1. Back up the SQLite database and apply Alembic revision `20260811_0017` while the feature
    remains disabled.
 2. Verify one API service, one Uvicorn worker, local SQLite/WAL, Caddy SSE flushing, static
    tile delivery, and readiness.

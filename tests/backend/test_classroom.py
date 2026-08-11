@@ -12,7 +12,7 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
-from wsi_viewer.models import Slide, User
+from wsi_viewer.models import Folder, Slide, User
 from wsi_viewer.publication import delivery_version
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
@@ -36,6 +36,13 @@ def _client(tmp_path: Path, *, enabled: bool) -> TestClient:
         )
         database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
         database.add(
+            Folder(
+                id="folder-1",
+                name="Teaching cases",
+                normalized_name="teaching cases",
+            )
+        )
+        database.add(
             Slide(
                 id="slide-1",
                 public_id="public-slide-1",
@@ -53,6 +60,7 @@ def _client(tmp_path: Path, *, enabled: bool) -> TestClient:
                     "dziFormat": "jpg",
                 },
                 sha256="a" * 64,
+                folder_id="folder-1",
                 published_at=datetime.now(UTC),
             )
         )
@@ -96,6 +104,7 @@ def test_session_snapshots_static_asset_and_join_reconnects_idempotently(tmp_pat
         payload = created.json()
         assert payload["slides"][0]["assetVersion"]
         assert payload["slides"][0]["tileSource"].endswith("/slide.dzi")
+        assert payload["slides"][0]["folderPath"] == ["Teaching cases"]
 
         joined = client.post(
             "/api/v1/classroom/join",
@@ -230,6 +239,80 @@ def test_presenter_updates_are_immediate_but_persisted_sparsely(tmp_path: Path) 
 
 def test_question_receipt_hashes_idempotency_key(tmp_path: Path) -> None:
     assert hashlib.sha256(b"retry-key").hexdigest() != "retry-key"
+
+
+def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        ).json()
+        joined = client.post(
+            "/api/v1/classroom/join", json={"joinCode": created["joinCode"]}
+        ).json()
+        mutation = {"csrfToken": joined["csrfToken"]}
+        pin = {
+            **mutation,
+            "slideId": "slide-1",
+            "x": 0.25,
+            "y": 0.5,
+            "zoom": 4,
+        }
+
+        assert client.post(
+            f"/api/v1/classroom/sessions/{created['id']}/pin", json=pin
+        ).status_code == 204
+        assert client.post(
+            f"/api/v1/classroom/sessions/{created['id']}/control-request",
+            json=mutation,
+        ).status_code == 204
+
+        state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}").json()
+        assert state["activePins"] == [
+            {
+                "participantId": joined["participant"]["id"],
+                "alias": joined["participant"]["alias"],
+                "slideId": "slide-1",
+                "x": 0.25,
+                "y": 0.5,
+                "zoom": 4.0,
+            }
+        ]
+        assert state["participants"][0]["controlRequested"] is True
+
+        student_state = client.get(
+            f"/api/v1/classroom/sessions/{created['id']}"
+        ).json()
+        assert student_state["activePin"] == {
+            "participantId": joined["participant"]["id"],
+            "slideId": "slide-1",
+            "x": 0.25,
+            "y": 0.5,
+            "zoom": 4.0,
+        }
+
+        granted = client.post(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/control",
+            headers=headers,
+            json={"participantId": joined["participant"]["id"], "seconds": 60},
+        )
+        assert granted.status_code == 200
+        state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}").json()
+        assert state["participants"][0]["controlRequested"] is False
+
+        assert client.request(
+            "DELETE",
+            f"/api/v1/classroom/sessions/{created['id']}/pin",
+            json=mutation,
+        ).status_code == 204
+        assert client.get(
+            f"/api/v1/admin/classroom/sessions/{created['id']}"
+        ).json()["activePins"] == []
+        assert client.get(
+            f"/api/v1/classroom/sessions/{created['id']}"
+        ).json()["activePin"] is None
 
 
 def test_singleton_hub_lock_fails_closed(tmp_path: Path) -> None:

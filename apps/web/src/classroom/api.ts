@@ -10,6 +10,7 @@ export interface ClassroomSlide {
   height: number
   tileSize: number
   format: string
+  folderPath: string[]
 }
 
 export interface PresenterState {
@@ -40,12 +41,22 @@ export interface TeacherState {
     alias: string
     displayName: string | null
     status: 'connected' | 'reconnecting' | 'disconnected'
+    controlRequested: boolean
+    controlRequestedAt: number | null
   }>
   pendingQuestions: Array<{
     id: string
     participantId: string
     slideId: string
     text: string
+    x: number
+    y: number
+    zoom: number
+  }>
+  activePins: Array<{
+    participantId: string
+    alias: string
+    slideId: string
     x: number
     y: number
     zoom: number
@@ -60,12 +71,20 @@ export interface StudentState {
   presenter: PresenterState
   control: {
     isController: boolean
+    requested: boolean
     leaseId: string | null
     controlEpoch: number
     expiresAt: string | null
   }
   slides: ClassroomSlide[]
   pendingQuestionIds: string[]
+  activePin: {
+    participantId: string
+    slideId: string
+    x: number
+    y: number
+    zoom: number
+  } | null
 }
 
 async function body<T>(response: Response): Promise<T> {
@@ -131,6 +150,55 @@ export async function submitQuestion(
       idempotencyKey: crypto.randomUUID(),
     }),
   }))
+}
+
+export async function publishPin(
+  sessionId: string,
+  csrfToken: string,
+  pin: { slideId: string; x: number; y: number; zoom: number },
+): Promise<void> {
+  await body(await fetch(`/api/v1/classroom/sessions/${encodeURIComponent(sessionId)}/pin`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...pin, csrfToken }),
+  }))
+}
+
+export async function clearPin(sessionId: string, csrfToken: string): Promise<void> {
+  await body(await fetch(`/api/v1/classroom/sessions/${encodeURIComponent(sessionId)}/pin`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ csrfToken }),
+  }))
+}
+
+export async function requestControl(sessionId: string, csrfToken: string): Promise<void> {
+  await body(await fetch(
+    `/api/v1/classroom/sessions/${encodeURIComponent(sessionId)}/control-request`,
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csrfToken }),
+    },
+  ))
+}
+
+export async function cancelControlRequest(
+  sessionId: string,
+  csrfToken: string,
+): Promise<void> {
+  await body(await fetch(
+    `/api/v1/classroom/sessions/${encodeURIComponent(sessionId)}/control-request`,
+    {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csrfToken }),
+    },
+  ))
 }
 
 export async function grantControl(

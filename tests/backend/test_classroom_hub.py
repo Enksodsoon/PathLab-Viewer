@@ -87,3 +87,16 @@ def test_hub_coalesces_presenter_state_without_coalescing_discrete_events() -> N
             assert hub.presenter_events_coalesced == 2
 
     asyncio.run(scenario())
+
+
+def test_hub_bounds_transient_pin_and_control_request_per_participant() -> None:
+    hub = ClassroomHub()
+    hub.set_pin("session", "participant", {"participantId": "participant", "x": 0.1})
+    hub.set_pin("session", "participant", {"participantId": "participant", "x": 0.2})
+    assert hub.active_pins("session") == [{"participantId": "participant", "x": 0.2}]
+    assert hub.request_control("session", "participant") is True
+    assert hub.request_control("session", "participant") is False
+    assert list(hub.control_requests("session")) == ["participant"]
+    hub.clear_participant("session", "participant")
+    assert hub.active_pins("session") == []
+    assert hub.control_requests("session") == {}

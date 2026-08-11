@@ -27,6 +27,7 @@ from .models import (
     ClassroomQuestionReceipt,
     ClassroomSession,
     ClassroomSessionSlide,
+    Folder,
     Session,
     Slide,
     User,
@@ -58,6 +59,20 @@ class QuestionRequest(BaseModel):
     x: float = Field(ge=0, le=1)
     y: float = Field(ge=0, le=1)
     zoom: float = Field(gt=0, le=1000)
+    csrf_token: str = Field(alias="csrfToken", min_length=20, max_length=200)
+
+
+class PinRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    slide_id: str = Field(alias="slideId", min_length=1, max_length=36)
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    zoom: float = Field(gt=0, le=1000)
+    csrf_token: str = Field(alias="csrfToken", min_length=20, max_length=200)
+
+
+class ParticipantMutationRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     csrf_token: str = Field(alias="csrfToken", min_length=20, max_length=200)
 
 
@@ -117,6 +132,7 @@ def _session_slide_json(item: ClassroomSessionSlide) -> dict[str, Any]:
         "height": item.height,
         "tileSize": item.tile_size,
         "format": item.tile_format,
+        "folderPath": item.folder_path,
     }
 
 
@@ -201,6 +217,20 @@ def register_classroom_routes(
         if width <= 0 or height <= 0 or tile_size <= 0 or tile_format not in {"jpg", "jpeg"}:
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
         return width, height, tile_size, tile_format
+
+    def slide_folder_path(slide: Slide, db: OrmSession) -> list[str]:
+        path: list[str] = []
+        folder_id = slide.folder_id
+        seen: set[str] = set()
+        while folder_id and folder_id not in seen and len(path) < 20:
+            seen.add(folder_id)
+            folder = db.get(Folder, folder_id)
+            if folder is None or folder.trashed_at is not None:
+                break
+            path.append(folder.name)
+            folder_id = folder.parent_id
+        path.reverse()
+        return path
 
     def admin_from_request(request: Request) -> None:
         token = request.cookies.get("pathlab_session")
@@ -354,6 +384,7 @@ def register_classroom_routes(
                 tile_size=tile_size,
                 tile_format=tile_format,
                 display_name=slide.display_name,
+                folder_path=slide_folder_path(slide, db),
             )
             db.add(item)
             snapshot.append(item)
@@ -417,6 +448,7 @@ def register_classroom_routes(
             )
         )
         for stale in stale_participants:
+            hub.clear_participant(classroom.id, stale.id)
             db.delete(stale)
         if stale_participants:
             db.flush()
@@ -516,6 +548,8 @@ def register_classroom_routes(
                 .limit(200)
             )
         )
+        participants_by_id = {item.id: item for item in participants}
+        control_requests = hub.control_requests(session_id)
         return {
             "session": {"id": classroom.id, "status": classroom.status},
             "stateVersion": classroom.state_version,
@@ -535,6 +569,8 @@ def register_classroom_routes(
                     "id": item.id,
                     "alias": item.public_alias,
                     "displayName": item.optional_display_name,
+                    "controlRequested": item.id in control_requests,
+                    "controlRequestedAt": control_requests.get(item.id),
                     "status": (
                         "connected"
                         if hub.participant_is_connected(session_id, item.id)
@@ -557,6 +593,14 @@ def register_classroom_routes(
                     "zoom": item.zoom,
                 }
                 for item in questions
+            ],
+            "activePins": [
+                {
+                    **pin,
+                    "alias": participants_by_id[pin["participantId"]].public_alias,
+                }
+                for pin in hub.active_pins(session_id)
+                if pin.get("participantId") in participants_by_id
             ],
         }
 
@@ -589,6 +633,19 @@ def register_classroom_routes(
                 )
             )
         )
+        active_pin = next(
+            (
+                pin
+                for pin in hub.active_pins(session_id)
+                if pin.get("participantId") == participant.id
+            ),
+            None,
+        )
+        if active_pin is not None:
+            active_pin = {
+                key: active_pin[key]
+                for key in ("participantId", "slideId", "x", "y", "zoom")
+            }
         return {
             "session": {"id": classroom.id, "status": classroom.status},
             "participant": {
@@ -600,6 +657,7 @@ def register_classroom_routes(
             "presenter": presenter_json(classroom),
             "control": {
                 "isController": classroom.controller_participant_id == participant.id,
+                "requested": participant.id in hub.control_requests(session_id),
                 "leaseId": (
                     classroom.controller_lease_id
                     if classroom.controller_participant_id == participant.id
@@ -615,7 +673,119 @@ def register_classroom_routes(
             },
             "slides": [_session_slide_json(item) for item in slides],
             "pendingQuestionIds": pending_ids,
+            "activePin": active_pin,
         }
+
+    @app.post(
+        "/api/v1/classroom/sessions/{session_id}/pin",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def publish_pin(
+        session_id: str,
+        payload: PinRequest,
+        request: Request,
+        db: Database,
+    ) -> None:
+        participant, raw_token = participant_from_request(request, db, session_id)
+        if not secrets.compare_digest(payload.csrf_token, raw_token):
+            raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        classroom = db.get(ClassroomSession, session_id)
+        slide_exists = db.scalar(
+            select(ClassroomSessionSlide.id).where(
+                ClassroomSessionSlide.session_id == session_id,
+                ClassroomSessionSlide.slide_id == payload.slide_id,
+            )
+        )
+        if classroom is None or classroom.status != "active" or slide_exists is None:
+            raise HTTPException(status_code=409, detail={"code": "PIN_NOT_ACCEPTED"})
+        pin = {
+            "participantId": participant.id,
+            "alias": participant.public_alias,
+            "slideId": payload.slide_id,
+            "x": payload.x,
+            "y": payload.y,
+            "zoom": payload.zoom,
+        }
+        hub.set_pin(session_id, participant.id, pin)
+        hub.publish(
+            session_id,
+            "pin-updated",
+            {"stateVersion": classroom.state_version, **pin},
+            critical=True,
+            audience="teacher",
+        )
+
+    @app.delete(
+        "/api/v1/classroom/sessions/{session_id}/pin",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def clear_pin(
+        session_id: str,
+        payload: ParticipantMutationRequest,
+        request: Request,
+        db: Database,
+    ) -> None:
+        participant, raw_token = participant_from_request(request, db, session_id)
+        if not secrets.compare_digest(payload.csrf_token, raw_token):
+            raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        if hub.clear_pin(session_id, participant.id):
+            hub.publish(
+                session_id,
+                "pin-removed",
+                {"participantId": participant.id},
+                critical=True,
+                audience="teacher",
+            )
+
+    @app.post(
+        "/api/v1/classroom/sessions/{session_id}/control-request",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def request_control(
+        session_id: str,
+        payload: ParticipantMutationRequest,
+        request: Request,
+        db: Database,
+    ) -> None:
+        participant, raw_token = participant_from_request(request, db, session_id)
+        if not secrets.compare_digest(payload.csrf_token, raw_token):
+            raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None or classroom.status != "active":
+            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        if hub.request_control(session_id, participant.id):
+            hub.publish(
+                session_id,
+                "control-requested",
+                {
+                    "stateVersion": classroom.state_version,
+                    "participantId": participant.id,
+                },
+                critical=True,
+                audience="teacher",
+            )
+
+    @app.delete(
+        "/api/v1/classroom/sessions/{session_id}/control-request",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def cancel_control_request(
+        session_id: str,
+        payload: ParticipantMutationRequest,
+        request: Request,
+        db: Database,
+    ) -> None:
+        participant, raw_token = participant_from_request(request, db, session_id)
+        if not secrets.compare_digest(payload.csrf_token, raw_token):
+            raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        if hub.cancel_control_request(session_id, participant.id):
+            hub.publish(
+                session_id,
+                "control-request-cancelled",
+                {"participantId": participant.id},
+                critical=True,
+                audience="teacher",
+            )
 
     @app.post(
         "/api/v1/classroom/sessions/{session_id}/questions",
@@ -720,6 +890,8 @@ def register_classroom_routes(
         question = db.get(ClassroomQuestion, question_id)
         if question is None or question.session_id != session_id:
             raise HTTPException(status_code=404, detail={"code": "QUESTION_NOT_FOUND"})
+        participant_id = question.participant_id
+        question_pin = (question.slide_id, question.x, question.y)
         db.delete(question)
         classroom = db.get(ClassroomSession, session_id)
         if classroom is not None:
@@ -734,6 +906,20 @@ def register_classroom_routes(
             },
             critical=True,
         )
+        if hub.clear_pin_if(
+            session_id,
+            participant_id,
+            slide_id=question_pin[0],
+            x=question_pin[1],
+            y=question_pin[2],
+        ):
+            hub.publish(
+                session_id,
+                "pin-removed",
+                {"participantId": participant_id},
+                critical=True,
+                audience="teacher",
+            )
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/control")
     def grant_control(
@@ -758,6 +944,7 @@ def register_classroom_routes(
         classroom.controller_participant_id = participant.id
         classroom.controller_lease_id = secrets.token_urlsafe(32)
         classroom.controller_expires_at = _now() + timedelta(seconds=payload.seconds)
+        hub.cancel_control_request(session_id, participant.id)
         db.commit()
         hub.publish(
             session_id,
@@ -999,6 +1186,7 @@ def register_classroom_routes(
         db.delete(classroom)
         db.commit()
         presenter_runtime.forget(session_id)
+        hub.clear_session(session_id)
         hub.publish(
             session_id,
             "session-ended",
