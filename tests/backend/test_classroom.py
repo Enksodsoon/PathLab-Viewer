@@ -214,12 +214,14 @@ def test_presenter_updates_are_immediate_but_persisted_sparsely(tmp_path: Path) 
                     "x": index / 10,
                     "y": 0.5,
                     "zoom": 2,
+                    "zoomSpace": "image",
                 },
             )
             assert response.status_code == 200
 
         state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}")
         assert state.json()["presenter"]["viewport"]["x"] == 0.3
+        assert state.json()["presenter"]["viewport"]["zoomSpace"] == "image"
         assert client.get("/api/v1/admin/classroom/metrics").json()[
             "presenterPersistenceWrites"
         ] == 0
@@ -235,6 +237,7 @@ def test_presenter_updates_are_immediate_but_persisted_sparsely(tmp_path: Path) 
             ).fetchone()
         assert row is not None and row[0] == 4
         assert json.loads(row[1])["x"] == 0.3
+        assert json.loads(row[1])["zoomSpace"] == "image"
 
 
 def test_question_receipt_hashes_idempotency_key(tmp_path: Path) -> None:

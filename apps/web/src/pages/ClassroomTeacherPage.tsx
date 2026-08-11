@@ -25,6 +25,7 @@ import { ClassroomPinOverlays, type ClassroomVisiblePin } from '../classroom/Cla
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
+import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
 import {
   StudentDrawingOverlay,
   type DrawingStroke,
@@ -56,18 +57,6 @@ function savedClassroom(): CreatedClassroom | null {
     return value ? JSON.parse(value) as CreatedClassroom : null
   } catch {
     return null
-  }
-}
-
-function viewportPayload(viewer: OpenSeadragon.Viewer, slideId: string) {
-  const center = viewer.viewport.getCenter(true)
-  const image = viewer.viewport.viewportToImageCoordinates(center)
-  const dimensions = viewer.world.getItemAt(0)?.source.dimensions
-  return {
-    slideId,
-    x: dimensions ? image.x / dimensions.x : 0.5,
-    y: dimensions ? image.y / dimensions.y : 0.5,
-    zoom: viewer.viewport.getZoom(true),
   }
 }
 
@@ -178,7 +167,7 @@ export function ClassroomTeacherPage() {
         presenter: {
           sequence: payload.presenterSequence as number,
           slideId: payload.slideId as string,
-          viewport: payload.viewport as { x: number; y: number; zoom: number },
+          viewport: payload.viewport as TeacherState['presenter']['viewport'],
         },
       } : current)
       setSlideId(payload.slideId as string)
@@ -280,16 +269,9 @@ export function ClassroomTeacherPage() {
     const current = stateRef.current
     const presenter = current?.presenter
     const slide = classroom?.slides.find((item) => item.id === slideIdRef.current)
-    const item = target.world.getItemAt(0)
-    if (!presenter?.viewport || presenter.slideId !== slide?.id || !slide || !item) return
+    if (!presenter?.viewport || presenter.slideId !== slide?.id || !slide) return
     suppressPublish.current = true
-    const point = item.imageToViewportCoordinates(
-      presenter.viewport.x * slide.width,
-      presenter.viewport.y * slide.height,
-    )
-    target.viewport.panTo(point, true)
-    target.viewport.zoomTo(presenter.viewport.zoom, point, true)
-    target.viewport.applyConstraints()
+    applyPresenterViewport(target, slide, presenter.viewport)
     if (!current?.controller.participantId) {
       window.setTimeout(() => { suppressPublish.current = false }, 250)
     }
@@ -337,7 +319,7 @@ export function ClassroomTeacherPage() {
 
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     setViewer(viewer)
-    const sender = createLatestSender((payload: ReturnType<typeof viewportPayload>) => (
+    const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => (
       publishTeacherViewport(classroom!.id, payload).catch(() => {
         setError('The live field could not be shared.')
       })
@@ -349,7 +331,7 @@ export function ClassroomTeacherPage() {
       }
       if (!guideModeRef.current || stateRef.current?.controller.participantId
         || !classroom || !currentSlide) return
-      sender.push(viewportPayload(viewer, currentSlide.id))
+      sender.push(readPresenterViewport(viewer, currentSlide.id))
     }
     const opened = () => applyRemote(viewer)
     let pointerVisible = false
@@ -501,7 +483,7 @@ export function ClassroomTeacherPage() {
             const next = !guideMode
             setGuideMode(next)
             if (next && viewer && currentSlide && !state?.controller.participantId) {
-              void publishTeacherViewport(classroom.id, viewportPayload(viewer, currentSlide.id))
+              void publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
             }
           }}
         ><TeachingToolIcon name="guide" /><span>{guideMode ? 'Live' : 'Guide'}</span></button>

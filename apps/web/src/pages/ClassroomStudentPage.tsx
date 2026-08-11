@@ -17,6 +17,7 @@ import { ClassroomPinOverlays } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
+import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
 import {
   StudentDrawingOverlay,
   type StudentDrawingHandle,
@@ -180,7 +181,7 @@ export function ClassroomStudentPage() {
           presenter: {
             sequence: payload.presenterSequence as number,
             slideId: payload.slideId as string,
-            viewport: payload.viewport as { x: number; y: number; zoom: number },
+            viewport: payload.viewport as StudentState['presenter']['viewport'],
           },
         } : current)
         if (followRef.current && !drawingModeRef.current) setSlideId(payload.slideId as string)
@@ -276,13 +277,7 @@ export function ClassroomStudentPage() {
     if (drawingModeRef.current || !follow || !presenter?.viewport
       || presenter.slideId !== slide?.id || !slide) return
     suppressPublish.current = true
-    const point = viewer.viewport.imageToViewportCoordinates(
-      presenter.viewport.x * slide.width,
-      presenter.viewport.y * slide.height,
-    )
-    viewer.viewport.panTo(point, true)
-    viewer.viewport.zoomTo(presenter.viewport.zoom, point, true)
-    viewer.viewport.applyConstraints()
+    applyPresenterViewport(viewer, slide, presenter.viewport)
     window.setTimeout(() => { suppressPublish.current = false }, 0)
   }, [follow])
 
@@ -300,7 +295,7 @@ export function ClassroomStudentPage() {
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     viewerRef.current = viewer
     setViewer(viewer)
-    const sender = createLatestSender((payload: ReturnType<typeof normalizedViewport>) => {
+    const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => {
       const current = stateRef.current
       if (!current?.control.leaseId || !sessionId) return Promise.resolve()
       return publishStudentViewport(
@@ -315,7 +310,7 @@ export function ClassroomStudentPage() {
       const current = stateRef.current
       if (drawingModeRef.current || suppressPublish.current || !current?.control.isController
         || !current.control.leaseId || !sessionId) return
-      sender.push(normalizedViewport(viewer, slideIdRef.current))
+      sender.push(readPresenterViewport(viewer, slideIdRef.current))
     }
     const clicked = (event: { position: OpenSeadragon.Point }) => {
       if (drawingModeRef.current || !pinMode || !currentSlide) return

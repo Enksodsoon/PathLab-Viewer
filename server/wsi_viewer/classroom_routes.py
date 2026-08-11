@@ -90,6 +90,7 @@ class PresenterRequest(BaseModel):
     x: float = Field(ge=0, le=1)
     y: float = Field(ge=0, le=1)
     zoom: float = Field(gt=0, le=1000)
+    zoom_space: Literal["image", "viewport"] = Field(alias="zoomSpace", default="viewport")
 
 
 class TeacherPresenterRequest(BaseModel):
@@ -98,6 +99,7 @@ class TeacherPresenterRequest(BaseModel):
     x: float = Field(ge=0, le=1)
     y: float = Field(ge=0, le=1)
     zoom: float = Field(gt=0, le=1000)
+    zoom_space: Literal["image", "viewport"] = Field(alias="zoomSpace", default="viewport")
 
 
 class TeacherPointerRequest(BaseModel):
@@ -1056,7 +1058,7 @@ def register_classroom_routes(
             classroom.presenter_sequence_reserved,
             classroom.current_slide_id,
             payload.slide_id,
-            {"x": payload.x, "y": payload.y, "zoom": payload.zoom},
+            {"x": payload.x, "y": payload.y, "zoom": payload.zoom, "zoomSpace": payload.zoom_space},
         )
         if slide_changed:
             classroom.presenter_sequence = snapshot.sequence
@@ -1106,7 +1108,7 @@ def register_classroom_routes(
             classroom.presenter_sequence_reserved,
             classroom.current_slide_id,
             payload.slide_id,
-            {"x": payload.x, "y": payload.y, "zoom": payload.zoom},
+            {"x": payload.x, "y": payload.y, "zoom": payload.zoom, "zoomSpace": payload.zoom_space},
         )
         if slide_changed:
             classroom.presenter_sequence = snapshot.sequence
