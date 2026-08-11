@@ -126,14 +126,14 @@ def test_hub_bounds_transient_pin_and_control_request_per_participant() -> None:
 
 def test_hub_bounds_transient_teaching_tools_and_clears_them_with_session() -> None:
     hub = ClassroomHub()
-    hub.set_teacher_pointer("session", {"style": "laser", "x": 0.2, "y": 0.3})
+    hub.set_teacher_pointer("session", {"style": "green-arrow", "x": 0.2, "y": 0.3})
     for index in range(45):
         hub.add_teaching_annotation(
             "session",
             {"id": f"mark-{index}", "points": [{"x": 0.2, "y": 0.3}]},
         )
 
-    assert hub.teacher_pointer("session") == {"style": "laser", "x": 0.2, "y": 0.3}
+    assert hub.teacher_pointer("session") == {"style": "green-arrow", "x": 0.2, "y": 0.3}
     assert len(hub.teaching_annotations("session")) == 40
     assert hub.teaching_annotations("session")[0]["id"] == "mark-5"
     assert hub.remove_teaching_annotation("session", "mark-44") is True

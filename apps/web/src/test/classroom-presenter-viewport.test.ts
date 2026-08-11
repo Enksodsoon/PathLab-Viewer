@@ -40,6 +40,15 @@ describe('classroom presenter viewport', () => {
     expect(target.item.viewportToImageCoordinates).toHaveBeenCalledWith({ x: 0.5, y: 0.5 })
   })
 
+  it('clamps transient out-of-image centers and invalid zoom before sharing', () => {
+    const target = viewer()
+    target.item.viewportToImageCoordinates.mockReturnValue({ x: -120, y: 1400 })
+    target.viewport.getZoom.mockReturnValue(Number.POSITIVE_INFINITY)
+    expect(readPresenterViewport(target.value, 'slide-1')).toEqual({
+      slideId: 'slide-1', x: 0, y: 1, zoom: 1, zoomSpace: 'viewport',
+    })
+  })
+
   it('pans without restarting zoom when magnification is unchanged', () => {
     const target = viewer(4)
     applyPresenterViewport(target.value, { width: 2000, height: 1000 }, {

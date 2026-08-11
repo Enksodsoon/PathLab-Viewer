@@ -18,11 +18,17 @@ export function readPresenterViewport(
     ? item.viewportToImageCoordinates(viewportCenter)
     : viewer.viewport.viewportToImageCoordinates(viewportCenter)
   const dimensions = item?.source.dimensions
+  const normalizedX = dimensions ? center.x / dimensions.x : 0.5
+  const normalizedY = dimensions ? center.y / dimensions.y : 0.5
+  const zoom = viewer.viewport.getZoom(true)
   return {
     slideId,
-    x: dimensions ? center.x / dimensions.x : 0.5,
-    y: dimensions ? center.y / dimensions.y : 0.5,
-    zoom: viewer.viewport.getZoom(true),
+    // OpenSeadragon can briefly report a center beyond the image while an
+    // animated constraint settles. Keep the wire contract valid during that
+    // frame instead of surfacing an avoidable 422 to the teacher.
+    x: Number.isFinite(normalizedX) ? Math.max(0, Math.min(1, normalizedX)) : 0.5,
+    y: Number.isFinite(normalizedY) ? Math.max(0, Math.min(1, normalizedY)) : 0.5,
+    zoom: Number.isFinite(zoom) ? Math.max(0.000001, Math.min(1000, zoom)) : 1,
     zoomSpace: 'viewport',
   }
 }

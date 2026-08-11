@@ -327,7 +327,7 @@ def test_teacher_pointer_and_marks_are_bounded_transient_state(tmp_path: Path) -
             json={"slideIds": ["slide-1"]},
         ).json()
         client.post("/api/v1/classroom/join", json={"joinCode": created["joinCode"]})
-        pointer = {"slideId": "slide-1", "style": "laser", "x": 0.25, "y": 0.5}
+        pointer = {"slideId": "slide-1", "style": "green-arrow", "x": 0.25, "y": 0.5}
         annotation = {
             "id": "teaching-mark-1",
             "slideId": "slide-1",

@@ -41,13 +41,25 @@ import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
 
-function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'laser' | 'arrow' }) {
+function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     {name === 'guide' ? <><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13" /></> : null}
     {name === 'navigate' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
     {name === 'draw' ? <><path d="m4 20 4.2-1 10.4-10.4-3.2-3.2L5 15.8 4 20Z" /><path d="m13.8 7 3.2 3.2" /></> : null}
-    {name === 'laser' ? <><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></> : null}
     {name === 'arrow' ? <><path d="M5 19 19 5M10 5h9v9" /><path d="M5 19h5" /></> : null}
+  </svg>
+}
+
+function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks' | 'locate' | 'check' | 'remove' | 'clear' | 'control' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {name === 'students' ? <><circle cx="9" cy="8" r="3" /><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M16 5.5a3 3 0 0 1 0 5.8M17 14a4 4 0 0 1 3.5 4" /></> : null}
+    {name === 'questions' ? <><path d="M5 5.5h14v10H9l-4 3v-13Z" /><path d="M10 9a2 2 0 1 1 3.5 1.3c-.9.7-1.5 1.1-1.5 2M12 14h.01" /></> : null}
+    {name === 'marks' ? <><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></> : null}
+    {name === 'locate' ? <><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></> : null}
+    {name === 'check' ? <path d="m5 12 4 4L19 6" /> : null}
+    {name === 'remove' ? <><path d="M6 7h12M9 7V4h6v3M8 7l1 13h6l1-13M11 11v5M13 11v5" /></> : null}
+    {name === 'clear' ? <><path d="M4 7h16M8 7V4h8v3M7 7l1 13h8l1-13" /><path d="M10 11v5M14 11v5" /></> : null}
+    {name === 'control' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
   </svg>
 }
 
@@ -71,7 +83,8 @@ export function ClassroomTeacherPage() {
   const [showCode, setShowCode] = useState(false)
   const [focusedQuestion, setFocusedQuestion] = useState<TeacherState['pendingQuestions'][number] | null>(null)
   const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
-  const [teachingTool, setTeachingTool] = useState<'navigate' | 'draw' | 'laser' | 'green-arrow' | 'red-arrow'>('navigate')
+  const [teachingTool, setTeachingTool] = useState<'navigate' | 'draw' | 'pointer'>('navigate')
+  const [pointerColor, setPointerColor] = useState<'green' | 'red'>('green')
   const [guideMode, setGuideMode] = useState(false)
   const suppressPublish = useRef(false)
   const stateRef = useRef<TeacherState | null>(null)
@@ -82,11 +95,13 @@ export function ClassroomTeacherPage() {
   const streamSequence = useRef(0)
   const teachingToolRef = useRef(teachingTool)
   const guideModeRef = useRef(guideMode)
+  const pointerColorRef = useRef(pointerColor)
 
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
   useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
   useEffect(() => { guideModeRef.current = guideMode }, [guideMode])
+  useEffect(() => { pointerColorRef.current = pointerColor }, [pointerColor])
   useEffect(() => {
     if (!showCode) return
     const close = (event: KeyboardEvent) => {
@@ -262,6 +277,10 @@ export function ClassroomTeacherPage() {
     return (left.controlRequestedAt ?? Number.POSITIVE_INFINITY)
       - (right.controlRequestedAt ?? Number.POSITIVE_INFINITY)
   }), [state?.participants])
+  const activeParticipantCount = useMemo(
+    () => participants.filter((participant) => participant.status === 'connected').length,
+    [participants],
+  )
 
   const visiblePins = useMemo<ClassroomVisiblePin[]>(() => {
     const pins: ClassroomVisiblePin[] = focusedQuestion ? [{
@@ -294,8 +313,7 @@ export function ClassroomTeacherPage() {
 
   useEffect(() => {
     viewer?.setMouseNavEnabled(teachingTool === 'navigate')
-    if (!classroom || teachingTool === 'laser'
-      || teachingTool === 'green-arrow' || teachingTool === 'red-arrow') return
+    if (!classroom || teachingTool === 'pointer') return
     void clearTeacherPointer(classroom.id).catch(() => undefined)
   }, [classroom, teachingTool, viewer])
 
@@ -332,9 +350,9 @@ export function ClassroomTeacherPage() {
     viewerRef.current = viewer
     setViewer(viewer)
     const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => (
-      publishTeacherViewport(classroom!.id, payload).catch(() => {
-        setError('The live field could not be shared.')
-      })
+      publishTeacherViewport(classroom!.id, payload)
+        .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
+        .catch(() => { setError('The live field could not be shared.') })
     ))
     const publish = () => {
       if (suppressPublish.current) {
@@ -354,9 +372,7 @@ export function ClassroomTeacherPage() {
       })
     }, 100)
     const point = (event: globalThis.PointerEvent) => {
-      const style = teachingToolRef.current
-      if (!classroom || !currentSlide || (style !== 'laser'
-        && style !== 'green-arrow' && style !== 'red-arrow')) return
+      if (!classroom || !currentSlide || teachingToolRef.current !== 'pointer') return
       const item = viewer.world.getItemAt(0)
       if (!item) return
       const bounds = viewer.canvas.getBoundingClientRect()
@@ -368,7 +384,7 @@ export function ClassroomTeacherPage() {
       const dimensions = item.source.dimensions
       pointerSender.push({
         slideId: currentSlide.id,
-        style,
+        style: `${pointerColorRef.current}-arrow`,
         x: Math.max(0, Math.min(1, imagePoint.x / dimensions.x)),
         y: Math.max(0, Math.min(1, imagePoint.y / dimensions.y)),
       })
@@ -497,19 +513,19 @@ export function ClassroomTeacherPage() {
             setGuideMode(next)
             if (next && viewer && currentSlide && !state?.controller.participantId) {
               void publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
+                .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
+                .catch(() => { setError('The live field could not be shared.') })
             }
           }}
-        ><TeachingToolIcon name="guide" /><span>{guideMode ? 'Live' : 'Guide'}</span></button>
+        ><TeachingToolIcon name="guide" /><span className="classroom-tool-status" aria-hidden="true" /></button>
         <span className="classroom-tool-separator" aria-hidden="true" />
         {([
           ['navigate', 'Navigate', 'navigate'],
           ['draw', 'Draw', 'draw'],
-          ['laser', 'Laser pointer', 'laser'],
-          ['green-arrow', 'Green arrow', 'arrow'],
-          ['red-arrow', 'Red arrow', 'arrow'],
+          ['pointer', 'Arrow pointer', 'arrow'],
         ] as const).map(([tool, label, icon]) => <button
           key={tool}
-          className={`classroom-tool-${tool}${teachingTool === tool ? ' is-active' : ''}`}
+          className={`classroom-tool-${tool}${tool === 'pointer' ? ` is-${pointerColor}` : ''}${teachingTool === tool ? ' is-active' : ''}`}
           type="button"
           aria-pressed={teachingTool === tool}
           aria-label={label}
@@ -518,6 +534,17 @@ export function ClassroomTeacherPage() {
           onClick={() => setTeachingTool(tool)}
         ><TeachingToolIcon name={icon} /></button>)}
       </div>
+      {teachingTool === 'pointer' ? <div className="classroom-pointer-options" role="toolbar" aria-label="Pointer color">
+        {(['green', 'red'] as const).map((color) => <button
+          key={color}
+          className={`is-${color}${pointerColor === color ? ' is-active' : ''}`}
+          type="button"
+          aria-label={`${color === 'green' ? 'Green' : 'Red'} pointer`}
+          aria-pressed={pointerColor === color}
+          title={`${color === 'green' ? 'Green' : 'Red'} pointer`}
+          onClick={() => setPointerColor(color)}
+        />)}
+      </div> : null}
       <ClassroomSlideNavigator
         activeId={currentSlide?.id ?? ''}
         slides={classroom.slides}
@@ -527,12 +554,12 @@ export function ClassroomTeacherPage() {
         }}
       />
     </main>
-    <aside className="classroom-panel">
+    <aside className="classroom-panel" aria-label="Classroom activity">
       {error && <p role="alert" className="classroom-error">{error}</p>}
-      <section>
-        <h2>Students <span>{state?.participants.length ?? 0}/300</span></h2>
+      <section className="classroom-panel__section">
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="students" />Students</span><strong className="classroom-panel__count" aria-label={`${activeParticipantCount} active students`}>{activeParticipantCount}</strong></h2>
         {!state?.participants.length && <p className="classroom-empty">Students appear here after joining.</p>}
-        <ul className="classroom-participant-list">{participants.map((participant) => {
+        <ul className="classroom-participant-list" aria-label="Student roster">{participants.map((participant) => {
           const isController = state?.controller.participantId === participant.id
           return <li key={participant.id}>
             <div>
@@ -543,49 +570,49 @@ export function ClassroomTeacherPage() {
                   ? `${participant.status} · requested control`
                   : participant.status}</small>
             </div>
-            {isController || participant.controlRequested ? <button type="button" disabled={participant.status === 'disconnected'} onClick={() => void (isController
+            {isController || participant.controlRequested ? <button className="classroom-icon-action" type="button" aria-label={isController ? `Take back control from ${participant.alias}` : `Give control to ${participant.alias}`} title={isController ? 'Take back control' : 'Give control'} disabled={participant.status === 'disconnected'} onClick={() => void (isController
               ? revokeControl(classroom.id)
               : grantControl(classroom.id, participant.id)
             ).then(() => refresh(classroom.id)).catch(() => {
               setError('Slide control could not be changed.')
             })}>
-              {isController ? 'Take back control' : 'Give control'}
+              <ClassroomPanelIcon name="control" />
             </button> : null}
           </li>
         })}</ul>
       </section>
-      <section>
-        <h2>Questions <span>{state?.pendingQuestions.length ?? 0}/200</span></h2>
+      <section className="classroom-panel__section">
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span></h2>
         {!state?.pendingQuestions.length && <p className="classroom-empty">Pinned questions appear here.</p>}
         <ul className="classroom-question-list">{state?.pendingQuestions.map((question) => <li className="classroom-question-item" key={question.id}>
           <p>{question.text}</p>
           <div className="classroom-question-actions">
-            <button type="button" onClick={() => {
+            <button className="classroom-icon-action" type="button" aria-label="Show pinned field" title="Show field" onClick={() => {
               setFocusedQuestion(question)
               void openQuestion(classroom.id, question.id).catch(() => {
                 setError('The pinned field could not be opened.')
               })
             }}>
-              Show field
+              <ClassroomPanelIcon name="locate" />
             </button>
-            <button type="button" onClick={() => void answerQuestion(classroom.id, question.id).then(() => {
+            <button className="classroom-icon-action" type="button" aria-label="Mark question answered" title="Answered" onClick={() => void answerQuestion(classroom.id, question.id).then(() => {
               if (focusedQuestion?.id === question.id) setFocusedQuestion(null)
             })}>
-              Answered
+              <ClassroomPanelIcon name="check" />
             </button>
           </div>
         </li>)}</ul>
       </section>
-      <section>
-        <h2>Teaching marks <span>{state?.teachingAnnotations.length ?? 0}/40</span></h2>
+      <section className="classroom-panel__section">
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="marks" />Teaching marks</span><strong className="classroom-panel__count">{state?.teachingAnnotations.length ?? 0}</strong></h2>
         {!state?.teachingAnnotations.length ? <p className="classroom-empty">Drawn marks appear to everyone in this session and disappear when class ends.</p> : <ul className="classroom-mark-history">
           {[...(state?.teachingAnnotations ?? [])].reverse().map((annotation, index) => <li key={annotation.id}>
             <span style={{ background: annotation.color }} />
-            <div><strong>{annotation.tool === 'highlight' ? 'Highlight' : 'Pen mark'}</strong><small>Mark {(state?.teachingAnnotations.length ?? 0) - index}</small></div>
-            <button type="button" onClick={() => void removeTeachingAnnotation(classroom.id, annotation.id)}>Remove</button>
+            <div><strong>{annotation.tool === 'highlight' ? 'Highlight' : annotation.tool === 'line' ? 'Line' : annotation.tool === 'rectangle' ? 'Rectangle' : annotation.tool === 'ellipse' ? 'Ellipse' : 'Pen mark'}</strong><small>Mark {(state?.teachingAnnotations.length ?? 0) - index}</small></div>
+            <button className="classroom-icon-action" type="button" aria-label={`Remove mark ${(state?.teachingAnnotations.length ?? 0) - index}`} title="Remove" onClick={() => void removeTeachingAnnotation(classroom.id, annotation.id)}><ClassroomPanelIcon name="remove" /></button>
           </li>)}
         </ul>}
-        {state?.teachingAnnotations.length ? <button type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}>Clear teaching marks</button> : null}
+        {state?.teachingAnnotations.length ? <button className="classroom-clear-marks" type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}><ClassroomPanelIcon name="clear" />Clear all</button> : null}
       </section>
     </aside>
     {showCode ? <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">

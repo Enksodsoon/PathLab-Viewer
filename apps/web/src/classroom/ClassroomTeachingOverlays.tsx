@@ -39,10 +39,24 @@ export function ClassroomTeachingOverlays({
         )
         const paths = root.querySelectorAll<SVGPathElement>('[data-teaching-stroke]')
         visibleAnnotations.forEach((annotation, annotationIndex) => {
-          paths[annotationIndex]?.setAttribute('d', annotation.points.map((point, index) => {
-            const next = project(point)
-            return `${index ? 'L' : 'M'}${next.x.toFixed(1)} ${next.y.toFixed(1)}`
-          }).join(' '))
+          const points = annotation.points.map(project)
+          const first = points[0]
+          const last = points.at(-1)
+          let data = points.map((point, index) => (
+            `${index ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+          )).join(' ')
+          if (first && last && annotation.tool === 'line') {
+            data = `M${first.x} ${first.y}L${last.x} ${last.y}`
+          } else if (first && last && annotation.tool === 'rectangle') {
+            data = `M${first.x} ${first.y}H${last.x}V${last.y}H${first.x}Z`
+          } else if (first && last && annotation.tool === 'ellipse') {
+            const cx = (first.x + last.x) / 2
+            const cy = (first.y + last.y) / 2
+            const rx = Math.abs(last.x - first.x) / 2
+            const ry = Math.abs(last.y - first.y) / 2
+            data = `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`
+          }
+          paths[annotationIndex]?.setAttribute('d', data)
         })
         const pointerNode = root.querySelector<SVGGElement>('[data-teacher-pointer]')
         if (pointerNode && visiblePointer) {
@@ -84,8 +98,6 @@ export function ClassroomTeachingOverlays({
     {visiblePointer ? <g
       data-teacher-pointer=""
       className={`classroom-teacher-pointer is-${visiblePointer.style}`}
-    >{visiblePointer.style === 'laser'
-        ? <><circle r="13" /><circle className="core" r="4" /></>
-        : <path d="M-4 -18 L17 2 L6 5 L2 17 Z" />}</g> : null}
+    ><path d="M-4 -18 L17 2 L6 5 L2 17 Z" /></g> : null}
   </svg>
 }

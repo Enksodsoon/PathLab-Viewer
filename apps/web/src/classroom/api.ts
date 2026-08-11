@@ -21,7 +21,7 @@ export interface PresenterState {
 
 export interface TeacherPointer {
   slideId: string
-  style: 'laser' | 'green-arrow' | 'red-arrow'
+  style: 'green-arrow' | 'red-arrow'
   x: number
   y: number
 }
@@ -29,7 +29,7 @@ export interface TeacherPointer {
 export interface TeachingAnnotation {
   id: string
   slideId: string
-  tool: 'pen' | 'highlight'
+  tool: 'pen' | 'highlight' | 'line' | 'rectangle' | 'ellipse'
   color: '#ef765f' | '#f6c84a' | '#42b883' | '#4f8be8' | '#f6f2e8'
   width: 2 | 4 | 8
   points: Array<{ x: number; y: number }>

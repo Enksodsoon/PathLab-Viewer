@@ -105,7 +105,7 @@ class TeacherPresenterRequest(BaseModel):
 class TeacherPointerRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     slide_id: str = Field(alias="slideId", min_length=1, max_length=36)
-    style: Literal["laser", "green-arrow", "red-arrow"]
+    style: Literal["green-arrow", "red-arrow"]
     x: float = Field(ge=0, le=1)
     y: float = Field(ge=0, le=1)
 
@@ -119,7 +119,7 @@ class TeachingAnnotationRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     annotation_id: str = Field(alias="id", min_length=8, max_length=64)
     slide_id: str = Field(alias="slideId", min_length=1, max_length=36)
-    tool: Literal["pen", "highlight"]
+    tool: Literal["pen", "highlight", "line", "rectangle", "ellipse"]
     color: Literal["#ef765f", "#f6c84a", "#42b883", "#4f8be8", "#f6f2e8"]
     width: Literal[2, 4, 8]
     points: list[TeachingPoint] = Field(min_length=1, max_length=64)

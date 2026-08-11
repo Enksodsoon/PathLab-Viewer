@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react'
 
-type DrawingTool = 'pen' | 'highlight' | 'eraser'
+type DrawingTool = 'pen' | 'highlight' | 'line' | 'rectangle' | 'ellipse' | 'eraser'
 
 export interface DrawingPoint {
   x: number
@@ -33,6 +33,49 @@ export interface StudentDrawingHandle {
 
 const COLORS = ['#ef765f', '#f6c84a', '#42b883', '#4f8be8', '#f6f2e8'] as const
 const WIDTHS = [2, 4, 8] as const
+
+const TOOL_LABELS: Record<DrawingTool, string> = {
+  pen: 'Pen',
+  highlight: 'Highlight',
+  line: 'Line',
+  rectangle: 'Rectangle',
+  ellipse: 'Ellipse',
+  eraser: 'Erase',
+}
+
+function DrawingToolIcon({ tool }: { tool: DrawingTool | 'done' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {tool === 'pen' ? <><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></> : null}
+    {tool === 'highlight' ? <><path d="m5 15 7-10 5 3-7 10-5-3Z" /><path d="M4 20h15M5 15l5 3" /></> : null}
+    {tool === 'line' ? <><path d="M5 19 19 5" /><circle cx="5" cy="19" r="1" fill="currentColor" /><circle cx="19" cy="5" r="1" fill="currentColor" /></> : null}
+    {tool === 'rectangle' ? <rect x="4.5" y="6" width="15" height="12" rx="1" /> : null}
+    {tool === 'ellipse' ? <ellipse cx="12" cy="12" rx="8" ry="6" /> : null}
+    {tool === 'eraser' ? <><path d="m7 18-3-3 9-10 6 6-7 7H7Z" /><path d="m10 8 6 6M11 18h9" /></> : null}
+    {tool === 'done' ? <path d="m5 12 4 4L19 6" /> : null}
+  </svg>
+}
+
+function normalizedPath(stroke: DrawingStroke): string {
+  const first = stroke.points[0]
+  const last = stroke.points.at(-1)
+  if (!first || !last) return ''
+  const x1 = first.x * 100
+  const y1 = first.y * 100
+  const x2 = last.x * 100
+  const y2 = last.y * 100
+  if (stroke.tool === 'line') return `M${x1} ${y1}L${x2} ${y2}`
+  if (stroke.tool === 'rectangle') return `M${x1} ${y1}H${x2}V${y2}H${x1}Z`
+  if (stroke.tool === 'ellipse') {
+    const cx = (x1 + x2) / 2
+    const cy = (y1 + y2) / 2
+    const rx = Math.abs(x2 - x1) / 2
+    const ry = Math.abs(y2 - y1) / 2
+    return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`
+  }
+  return stroke.points.map((point, index) => (
+    `${index ? 'L' : 'M'}${(point.x * 100).toFixed(3)} ${(point.y * 100).toFixed(3)}`
+  )).join(' ')
+}
 
 export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
   active: boolean
@@ -97,6 +140,42 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
       context.lineWidth = toolWidth * canvas.width / Math.max(1, canvas.clientWidth)
       const points = stroke.points
       if (!points.length) continue
+      const first = points[0]
+      const last = points.at(-1) ?? first
+      if (stroke.tool === 'line') {
+        context.beginPath()
+        context.moveTo(first.x * canvas.width, first.y * canvas.height)
+        context.lineTo(last.x * canvas.width, last.y * canvas.height)
+        context.stroke()
+        continue
+      }
+      if (stroke.tool === 'rectangle') {
+        context.strokeRect(
+          first.x * canvas.width,
+          first.y * canvas.height,
+          (last.x - first.x) * canvas.width,
+          (last.y - first.y) * canvas.height,
+        )
+        continue
+      }
+      if (stroke.tool === 'ellipse') {
+        const left = Math.min(first.x, last.x) * canvas.width
+        const top = Math.min(first.y, last.y) * canvas.height
+        const shapeWidth = Math.abs(last.x - first.x) * canvas.width
+        const shapeHeight = Math.abs(last.y - first.y) * canvas.height
+        context.beginPath()
+        context.ellipse(
+          left + shapeWidth / 2,
+          top + shapeHeight / 2,
+          shapeWidth / 2,
+          shapeHeight / 2,
+          0,
+          0,
+          Math.PI * 2,
+        )
+        context.stroke()
+        continue
+      }
       if (points.length === 1) {
         context.beginPath()
         context.arc(
@@ -183,6 +262,12 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     const stroke = currentStroke.current
     if (!active || !stroke) return
     event.preventDefault()
+    if (stroke.tool === 'line' || stroke.tool === 'rectangle' || stroke.tool === 'ellipse') {
+      stroke.points = [stroke.points[0], pointFromEvent(event)]
+      redraw()
+      requestVisibleRender()
+      return
+    }
     const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? []
     const samples = coalesced.length ? coalesced : [event.nativeEvent]
     for (const sample of samples) {
@@ -232,10 +317,6 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     setRevision((current) => current + 1)
   }
 
-  const pathData = (stroke: DrawingStroke) => stroke.points.map((point, index) => (
-    `${index ? 'L' : 'M'}${(point.x * 100).toFixed(3)} ${(point.y * 100).toFixed(3)}`
-  )).join(' ')
-
   return <div className={`classroom-drawing${active ? ' is-active' : ''}`}>
     <canvas
       ref={canvasRef}
@@ -256,7 +337,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
         <rect width="100" height="100" fill="white" />
         {strokes.current.filter((stroke) => stroke.tool === 'eraser').map((stroke) => <path
           key={stroke.id}
-          d={pathData(stroke)}
+          d={normalizedPath(stroke)}
           fill="none"
           stroke="black"
           strokeWidth={stroke.width * 5}
@@ -267,7 +348,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
       </mask></defs>
       <g mask={`url(#${maskId})`}>{strokes.current.filter((stroke) => stroke.tool !== 'eraser').map((stroke) => <path
         key={stroke.id}
-        d={pathData(stroke)}
+        d={normalizedPath(stroke)}
         fill="none"
         stroke={stroke.color}
         strokeWidth={stroke.tool === 'highlight' ? stroke.width * 4 : stroke.width}
@@ -278,13 +359,15 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
       />)}</g>
     </svg>
     {active ? <div className="classroom-drawing-tools" role="toolbar" aria-label={toolbarLabel}>
-      {(['pen', 'highlight', ...(allowEraser ? ['eraser'] as const : [])] as DrawingTool[]).map((item) => <button
+      {(['pen', 'highlight', 'line', 'rectangle', 'ellipse', ...(allowEraser ? ['eraser'] as const : [])] as DrawingTool[]).map((item) => <button
         key={item}
-        className={tool === item ? 'is-active' : ''}
+        className={`classroom-drawing-tool${tool === item ? ' is-active' : ''}`}
         type="button"
         aria-pressed={tool === item}
+        aria-label={TOOL_LABELS[item]}
+        title={TOOL_LABELS[item]}
         onClick={() => setTool(item)}
-      >{item === 'pen' ? 'Pen' : item === 'highlight' ? 'Highlight' : 'Erase'}</button>)}
+      ><DrawingToolIcon tool={item} /></button>)}
       <div className="classroom-drawing-colors" role="group" aria-label="Drawing color">
         {COLORS.map((item) => <button
           key={item}
@@ -296,7 +379,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
           onClick={() => setColor(item)}
         />)}
       </div>
-      <label className="classroom-drawing-size">Size <select
+      <label className="classroom-drawing-size"><span>Stroke</span><select
         aria-label="Drawing size"
         value={width}
         onChange={(event) => setWidth(Number(event.target.value))}
@@ -306,11 +389,11 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
         <button type="button" disabled={!strokes.current.length} onClick={clear}>Clear</button>
         <button type="button" disabled={!strokes.current.length} aria-expanded={historyOpen} onClick={() => setHistoryOpen((current) => !current)}>History ({strokes.current.length})</button>
       </> : null}
-      <button className="primary" type="button" onClick={onDone}>Done</button>
+      <button className="primary classroom-drawing-done" type="button" aria-label="Done" title="Done" onClick={onDone}><DrawingToolIcon tool="done" /></button>
       {historyOpen && strokes.current.length ? <ol className="classroom-drawing-history" aria-label="Annotation history">
         {[...strokes.current].reverse().map((stroke, index) => <li key={stroke.id}>
           <span style={{ '--drawing-color': stroke.color } as CSSProperties} />
-          <strong>{stroke.tool === 'eraser' ? 'Erase' : stroke.tool === 'highlight' ? 'Highlight' : 'Pen'}</strong>
+          <strong>{TOOL_LABELS[stroke.tool]}</strong>
           <small>{stroke.width === 2 ? 'fine' : stroke.width === 4 ? 'medium' : 'bold'} · mark {strokes.current.length - index}</small>
         </li>)}
       </ol> : null}

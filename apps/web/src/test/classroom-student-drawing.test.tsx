@@ -29,6 +29,9 @@ describe('StudentDrawingOverlay', () => {
       onStrokeCommitted={committed}
     />)
     expect(screen.getByRole('toolbar', { name: 'Private drawing tools' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Line' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rectangle' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ellipse' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Highlight' }))
     expect(screen.getByRole('button', { name: 'Highlight' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Use #42b883 color' }))

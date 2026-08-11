@@ -43,6 +43,19 @@ describe('classroom disabled-mode resource contract', () => {
     expect(student).toContain('!coalescible && next !== streamSequence.current + 1')
   })
 
+  it('keeps the teacher workspace bounded and uses one lightweight arrow tool', () => {
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+    const styles = readFileSync(resolve('src/classroom/classroom.css'), 'utf8')
+
+    expect(teacher).not.toContain("name: 'laser'")
+    expect(teacher).toContain("['green', 'red'] as const")
+    expect(teacher).not.toContain('/300')
+    expect(teacher).not.toContain('/200')
+    expect(styles).toContain('.classroom-participant-list')
+    expect(styles).toContain('overflow-y: auto')
+    expect(styles).toContain('max-height: min(30vh, 260px)')
+  })
+
   it('projects presenter movement directly without a React render per event', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
     const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
