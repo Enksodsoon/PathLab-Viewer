@@ -22,13 +22,19 @@ This branch does not authorize a merge, deployment, or production activation.
 - Static DZI descriptors and tiles remain Caddy-served; the API never proxies screenshot bytes.
 - Incremental SSE events are limited to 4 KiB UTF-8. Each subscriber has a bounded
   32-event discrete queue plus one replaceable latest-presenter slot.
-- Presenter movement is client-throttled to four updates per second and server-limited to five.
+- Presenter movement uses a bounded latest-only sender: one request may be in flight and one
+  newer viewport may replace the pending value. Updates are sent on the leading edge and then
+  at a 120 ms cadence; the server admits at most ten updates per second. This keeps movement
+  responsive without allowing request or queue growth.
 - Presenter movement is published from memory immediately. The latest viewport is checkpointed
   to SQLite at most once per two seconds per classroom; slide changes persist immediately.
 - Presenter sequences are reserved in blocks of 1,024 so an abrupt restart cannot reuse a
   sequence even when the latest viewport checkpoint has not yet run.
 - Live pins and control requests are bounded to one in-memory record per participant and are
   discarded with the session; they do not create new SQLite history.
+- The teacher pointer is one replaceable in-memory value. Completed teacher teaching strokes
+  are bounded to 40 records with at most 64 points each and are discarded on session end or
+  process restart; neither feature writes database history.
 - Critical queue overflow closes the slow stream, forcing bounded HTTP resynchronization.
 - The teacher state endpoint is naturally bounded by the participant and question limits.
 
@@ -77,10 +83,17 @@ slide ID. Image encoding is bounded to 1600 x 1200 and 2 MiB, using WebP with JP
 If capture fails, a non-empty text note is still saved. The browser storage estimate and
 persistence request are best effort; the UI warns that data is local browser data.
 
-Student pen, highlight, erase, undo, and clear operations run entirely in the browser. The
-drawing canvas is composited into the bounded tissue capture only when the student saves a
-note; neither drawing vectors nor the resulting image are sent to a classroom API. The saved
-entry also records the normalized slide field and zoom so the private note retains its context.
+Student pen, highlight, erase, undo, clear, color, size, and compact stroke history operations
+run entirely in the browser. Entering drawing mode disables slide navigation and pauses remote
+presenter application, freezing the field until the student finishes. The drawing canvas is
+composited into the bounded tissue capture only when the student saves a note; neither drawing
+vectors nor the resulting image are sent to a classroom API. The saved entry also records the
+normalized slide field and zoom so the private note retains its context.
+
+Teacher teaching marks are deliberately simpler: pen and highlight with color and size,
+per-mark removal, and clear-all. A laser, green arrow, or red arrow can be shared as a transient
+coalesced pointer. Only a completed bounded stroke is broadcast; raw pointer samples and
+student-private drawings never leave their originating browser.
 
 HTML export escapes all user text, embeds images as data URLs, includes a restrictive CSP,
 and has no external scripts or network dependency. Devices supporting Web Share can send the

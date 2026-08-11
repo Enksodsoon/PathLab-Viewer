@@ -19,6 +19,22 @@ export interface PresenterState {
   viewport: { x: number; y: number; zoom: number } | null
 }
 
+export interface TeacherPointer {
+  slideId: string
+  style: 'laser' | 'green-arrow' | 'red-arrow'
+  x: number
+  y: number
+}
+
+export interface TeachingAnnotation {
+  id: string
+  slideId: string
+  tool: 'pen' | 'highlight'
+  color: '#ef765f' | '#f6c84a' | '#42b883' | '#4f8be8' | '#f6f2e8'
+  width: 2 | 4 | 8
+  points: Array<{ x: number; y: number }>
+}
+
 export interface CreatedClassroom {
   id: string
   joinCode: string
@@ -61,6 +77,8 @@ export interface TeacherState {
     y: number
     zoom: number
   }>
+  teacherPointer: TeacherPointer | null
+  teachingAnnotations: TeachingAnnotation[]
 }
 
 export interface StudentState {
@@ -85,6 +103,8 @@ export interface StudentState {
     y: number
     zoom: number
   } | null
+  teacherPointer: TeacherPointer | null
+  teachingAnnotations: TeachingAnnotation[]
 }
 
 async function body<T>(response: Response): Promise<T> {
@@ -259,5 +279,49 @@ export async function publishStudentViewport(
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...viewport, csrfToken, leaseId }),
+  }))
+}
+
+export async function publishTeacherPointer(
+  sessionId: string,
+  pointer: TeacherPointer,
+): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/pointer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pointer),
+  }))
+}
+
+export async function clearTeacherPointer(sessionId: string): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/pointer`, {
+    method: 'DELETE',
+  }))
+}
+
+export async function publishTeachingAnnotation(
+  sessionId: string,
+  annotation: TeachingAnnotation,
+): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/annotations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(annotation),
+  }))
+}
+
+export async function removeTeachingAnnotation(
+  sessionId: string,
+  annotationId: string,
+): Promise<void> {
+  await body(await csrfFetch(
+    `/api/v1/admin/classroom/sessions/${sessionId}/annotations/${encodeURIComponent(annotationId)}`,
+    { method: 'DELETE' },
+  ))
+}
+
+export async function clearTeachingAnnotations(sessionId: string): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/annotations`, {
+    method: 'DELETE',
   }))
 }

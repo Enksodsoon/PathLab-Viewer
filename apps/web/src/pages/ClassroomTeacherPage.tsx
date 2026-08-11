@@ -1,22 +1,34 @@
-import type OpenSeadragon from 'openseadragon'
+import OpenSeadragon from 'openseadragon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ApiError, listSlides } from '../api'
 import {
   answerQuestion,
+  clearTeacherPointer,
+  clearTeachingAnnotations,
   createClassroom,
   endClassroom,
   grantControl,
   openQuestion,
+  publishTeacherPointer,
   publishTeacherViewport,
+  publishTeachingAnnotation,
+  removeTeachingAnnotation,
   revokeControl,
   teacherState,
   type CreatedClassroom,
   type TeacherState,
+  type TeachingAnnotation,
 } from '../classroom/api'
 import { ClassroomPinOverlays, type ClassroomVisiblePin } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
+import { ClassroomTeachingOverlays } from '../classroom/ClassroomTeachingOverlays'
+import { createLatestSender } from '../classroom/latestSender'
+import {
+  StudentDrawingOverlay,
+  type DrawingStroke,
+} from '../classroom/StudentDrawingOverlay'
 import { Brand } from '../components/Brand'
 import {
   OpenSeadragonViewer,
@@ -60,15 +72,17 @@ export function ClassroomTeacherPage() {
   const [showCode, setShowCode] = useState(false)
   const [focusedQuestion, setFocusedQuestion] = useState<TeacherState['pendingQuestions'][number] | null>(null)
   const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
-  const publishTimer = useRef<number | null>(null)
+  const [teachingTool, setTeachingTool] = useState<'navigate' | 'draw' | 'laser' | 'green-arrow' | 'red-arrow'>('navigate')
   const suppressPublish = useRef(false)
   const stateRef = useRef<TeacherState | null>(null)
   const slideIdRef = useRef(slideId)
   const streamEpoch = useRef('')
   const streamSequence = useRef(0)
+  const teachingToolRef = useRef(teachingTool)
 
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
+  useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
   useEffect(() => {
     if (!showCode) return
     const close = (event: KeyboardEvent) => {
@@ -155,6 +169,46 @@ export function ClassroomTeacherPage() {
       } : current)
       setSlideId(payload.slideId as string)
     })
+    events.addEventListener('pointer', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.slideId !== 'string'
+        || typeof payload.style !== 'string' || typeof payload.x !== 'number'
+        || typeof payload.y !== 'number') return
+      setState((current) => current ? {
+        ...current,
+        teacherPointer: payload as unknown as TeacherState['teacherPointer'],
+      } : current)
+    })
+    events.addEventListener('pointer-removed', (event) => {
+      if (!sequence(event)) return
+      setState((current) => current ? { ...current, teacherPointer: null } : current)
+    })
+    events.addEventListener('teaching-annotation-added', (event) => {
+      const payload = sequence(event)
+      const annotation = payload?.annotation as TeachingAnnotation | undefined
+      if (!annotation?.id) return
+      setState((current) => current ? {
+        ...current,
+        teachingAnnotations: [
+          ...(current.teachingAnnotations ?? []).filter((item) => item.id !== annotation.id),
+          annotation,
+        ].slice(-40),
+      } : current)
+    })
+    events.addEventListener('teaching-annotation-removed', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.annotationId !== 'string') return
+      setState((current) => current ? {
+        ...current,
+        teachingAnnotations: (current.teachingAnnotations ?? []).filter(
+          (item) => item.id !== payload.annotationId,
+        ),
+      } : current)
+    })
+    events.addEventListener('teaching-annotations-cleared', (event) => {
+      if (!sequence(event)) return
+      setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
+    })
     events.addEventListener('pin-updated', (event) => {
       const payload = sequence(event)
       if (!payload || typeof payload.participantId !== 'string'
@@ -231,28 +285,105 @@ export function ClassroomTeacherPage() {
     if (viewer) applyRemote(viewer)
   }, [applyRemote, state?.presenter, viewer])
 
+  useEffect(() => {
+    viewer?.setMouseNavEnabled(teachingTool === 'navigate')
+    if (!classroom || teachingTool === 'laser'
+      || teachingTool === 'green-arrow' || teachingTool === 'red-arrow') return
+    void clearTeacherPointer(classroom.id).catch(() => undefined)
+  }, [classroom, teachingTool, viewer])
+
+  const teachingAnnotation = useCallback((stroke: DrawingStroke) => {
+    if (!viewer || !currentSlide || !classroom || stroke.tool === 'eraser') return
+    const item = viewer.world.getItemAt(0)
+    if (!item) return
+    const bounds = viewer.container.getBoundingClientRect()
+    const dimensions = item.source.dimensions
+    const annotation: TeachingAnnotation = {
+      id: stroke.id,
+      slideId: currentSlide.id,
+      tool: stroke.tool,
+      color: stroke.color as TeachingAnnotation['color'],
+      width: stroke.width as TeachingAnnotation['width'],
+      points: stroke.points.map((point) => {
+        const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
+          point.x * bounds.width,
+          point.y * bounds.height,
+        ), true)
+        const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
+        return {
+          x: Math.round(Math.max(0, Math.min(1, imagePoint.x / dimensions.x)) * 100000) / 100000,
+          y: Math.round(Math.max(0, Math.min(1, imagePoint.y / dimensions.y)) * 100000) / 100000,
+        }
+      }),
+    }
+    void publishTeachingAnnotation(classroom.id, annotation).catch(() => {
+      setError('The teaching mark could not be shared.')
+    })
+  }, [classroom, currentSlide, viewer])
+
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     setViewer(viewer)
+    const sender = createLatestSender((payload: ReturnType<typeof viewportPayload>) => (
+      publishTeacherViewport(classroom!.id, payload).catch(() => {
+        setError('The live field could not be shared.')
+      })
+    ))
     const publish = () => {
       if (suppressPublish.current) {
         suppressPublish.current = false
         return
       }
       if (stateRef.current?.controller.participantId || !classroom || !currentSlide) return
-      if (publishTimer.current !== null) window.clearTimeout(publishTimer.current)
-      publishTimer.current = window.setTimeout(() => {
-        publishTimer.current = null
-        void publishTeacherViewport(classroom.id, viewportPayload(viewer, currentSlide.id))
-      }, 250)
+      sender.push(viewportPayload(viewer, currentSlide.id))
     }
     const opened = () => applyRemote(viewer)
+    let pointerVisible = false
+    const pointerSender = createLatestSender((pointer: Parameters<typeof publishTeacherPointer>[1]) => {
+      pointerVisible = true
+      return publishTeacherPointer(classroom!.id, pointer).catch(() => {
+        setError('The live pointer could not be shared.')
+      })
+    }, 100)
+    const point = (event: globalThis.PointerEvent) => {
+      const style = teachingToolRef.current
+      if (!classroom || !currentSlide || (style !== 'laser'
+        && style !== 'green-arrow' && style !== 'red-arrow')) return
+      const item = viewer.world.getItemAt(0)
+      if (!item) return
+      const bounds = viewer.canvas.getBoundingClientRect()
+      const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
+        event.clientX - bounds.left,
+        event.clientY - bounds.top,
+      ), true)
+      const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
+      const dimensions = item.source.dimensions
+      pointerSender.push({
+        slideId: currentSlide.id,
+        style,
+        x: Math.max(0, Math.min(1, imagePoint.x / dimensions.x)),
+        y: Math.max(0, Math.min(1, imagePoint.y / dimensions.y)),
+      })
+    }
+    const clearPointer = () => {
+      if (!classroom || !pointerVisible) return
+      pointerVisible = false
+      void clearTeacherPointer(classroom.id).catch(() => undefined)
+    }
+    viewer.canvas.addEventListener('pointermove', point)
+    viewer.canvas.addEventListener('pointerleave', clearPointer)
     viewer.addHandler('open', opened)
+    viewer.addHandler('animation', publish)
     viewer.addHandler('animation-finish', publish)
     return () => {
       viewer.removeHandler('open', opened)
+      viewer.removeHandler('animation', publish)
       viewer.removeHandler('animation-finish', publish)
+      viewer.canvas.removeEventListener('pointermove', point)
+      viewer.canvas.removeEventListener('pointerleave', clearPointer)
+      sender.dispose()
+      pointerSender.dispose()
+      clearPointer()
       setViewer(null)
-      if (publishTimer.current !== null) window.clearTimeout(publishTimer.current)
     }
   }, [applyRemote, classroom, currentSlide])
 
@@ -328,10 +459,45 @@ export function ClassroomTeacherPage() {
         onViewerAttach={attachViewer}
       />}
       <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
+      <ClassroomTeachingOverlays
+        annotations={state?.teachingAnnotations ?? []}
+        pointer={state?.teacherPointer ?? null}
+        slideId={currentSlide?.id ?? ''}
+        viewer={viewer}
+      />
+      <StudentDrawingOverlay
+        key={currentSlide?.id ?? 'teaching-drawing'}
+        active={teachingTool === 'draw'}
+        allowEraser={false}
+        retainCommitted={false}
+        showHistoryActions={false}
+        toolbarLabel="Teaching annotation tools"
+        onStrokeCommitted={teachingAnnotation}
+        onDone={() => setTeachingTool('navigate')}
+      />
+      <div className="classroom-teaching-tools" role="toolbar" aria-label="Live teaching tools">
+        {([
+          ['navigate', 'Navigate'],
+          ['draw', 'Draw'],
+          ['laser', 'Laser'],
+          ['green-arrow', 'Green arrow'],
+          ['red-arrow', 'Red arrow'],
+        ] as const).map(([tool, label]) => <button
+          key={tool}
+          className={teachingTool === tool ? 'is-active' : ''}
+          type="button"
+          aria-pressed={teachingTool === tool}
+          disabled={tool !== 'navigate' && Boolean(state?.controller.participantId)}
+          onClick={() => setTeachingTool(tool)}
+        >{label}</button>)}
+      </div>
       <ClassroomSlideNavigator
         activeId={currentSlide?.id ?? ''}
         slides={classroom.slides}
-        onSelect={setSlideId}
+        onSelect={(nextSlideId) => {
+          setTeachingTool('navigate')
+          setSlideId(nextSlideId)
+        }}
       />
     </main>
     <aside className="classroom-panel">
@@ -382,6 +548,17 @@ export function ClassroomTeacherPage() {
             </button>
           </div>
         </li>)}</ul>
+      </section>
+      <section>
+        <h2>Teaching marks <span>{state?.teachingAnnotations.length ?? 0}/40</span></h2>
+        {!state?.teachingAnnotations.length ? <p className="classroom-empty">Drawn marks appear to everyone in this session and disappear when class ends.</p> : <ul className="classroom-mark-history">
+          {[...(state?.teachingAnnotations ?? [])].reverse().map((annotation, index) => <li key={annotation.id}>
+            <span style={{ background: annotation.color }} />
+            <div><strong>{annotation.tool === 'highlight' ? 'Highlight' : 'Pen mark'}</strong><small>Mark {(state?.teachingAnnotations.length ?? 0) - index}</small></div>
+            <button type="button" onClick={() => void removeTeachingAnnotation(classroom.id, annotation.id)}>Remove</button>
+          </li>)}
+        </ul>}
+        {state?.teachingAnnotations.length ? <button type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}>Clear teaching marks</button> : null}
       </section>
     </aside>
     {showCode ? <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">

@@ -20,6 +20,7 @@ class Subscriber:
         default_factory=lambda: asyncio.Queue(maxsize=SUBSCRIBER_QUEUE_SIZE)
     )
     latest_presenter: dict[str, Any] | None = None
+    latest_pointer: dict[str, Any] | None = None
     wake: asyncio.Event = field(default_factory=asyncio.Event)
     closed: bool = False
 
@@ -27,14 +28,31 @@ class Subscriber:
         while True:
             if not self.queue.empty():
                 return self.queue.get_nowait()
+            if self.latest_presenter is not None and self.latest_pointer is not None:
+                if self.latest_presenter["eventSequence"] <= self.latest_pointer["eventSequence"]:
+                    event = self.latest_presenter
+                    self.latest_presenter = None
+                else:
+                    event = self.latest_pointer
+                    self.latest_pointer = None
+                return event
             if self.latest_presenter is not None:
                 event = self.latest_presenter
                 self.latest_presenter = None
                 return event
+            if self.latest_pointer is not None:
+                event = self.latest_pointer
+                self.latest_pointer = None
+                return event
             if self.closed:
                 return None
             self.wake.clear()
-            if not self.queue.empty() or self.latest_presenter is not None or self.closed:
+            if (
+                not self.queue.empty()
+                or self.latest_presenter is not None
+                or self.latest_pointer is not None
+                or self.closed
+            ):
                 continue
             await self.wake.wait()
 
@@ -52,6 +70,8 @@ class ClassroomHub:
         self._presenter_last_at: dict[str, float] = {}
         self._transient_lock = threading.Lock()
         self._active_pins: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        self._teacher_pointers: dict[str, dict[str, Any]] = {}
+        self._teaching_annotations: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self._control_requests: dict[str, dict[str, float]] = defaultdict(dict)
         self.current_connections = 0
         self.peak_connections = 0
@@ -74,6 +94,8 @@ class ClassroomHub:
         self._presenter_last_at.clear()
         with self._transient_lock:
             self._active_pins.clear()
+            self._teacher_pointers.clear()
+            self._teaching_annotations.clear()
             self._control_requests.clear()
         self.current_connections = 0
         self._loop = None
@@ -125,6 +147,10 @@ class ClassroomHub:
                     subscriber.latest_presenter = event
                     subscriber.wake.set()
                     continue
+                if event_type == "pointer":
+                    subscriber.latest_pointer = event
+                    subscriber.wake.set()
+                    continue
                 try:
                     subscriber.queue.put_nowait(event)
                     subscriber.wake.set()
@@ -159,6 +185,7 @@ class ClassroomHub:
         while not subscriber.queue.empty():
             subscriber.queue.get_nowait()
         subscriber.latest_presenter = None
+        subscriber.latest_pointer = None
         subscriber.closed = True
         subscriber.wake.set()
 
@@ -201,7 +228,7 @@ class ClassroomHub:
     def participant_is_connected(self, session_id: str, participant_id: str) -> bool:
         return self._participant_connections.get((session_id, participant_id), 0) > 0
 
-    def allow_presenter(self, actor_id: str, *, interval_seconds: float = 0.2) -> bool:
+    def allow_presenter(self, actor_id: str, *, interval_seconds: float = 0.1) -> bool:
         now = time.monotonic()
         previous = self._presenter_last_at.get(actor_id, 0.0)
         if now - previous < interval_seconds:
@@ -256,6 +283,53 @@ class ClassroomHub:
         with self._transient_lock:
             return [dict(pin) for pin in self._active_pins.get(session_id, {}).values()]
 
+    def set_teacher_pointer(self, session_id: str, pointer: dict[str, Any]) -> None:
+        with self._transient_lock:
+            self._teacher_pointers[session_id] = dict(pointer)
+
+    def teacher_pointer(self, session_id: str) -> dict[str, Any] | None:
+        with self._transient_lock:
+            pointer = self._teacher_pointers.get(session_id)
+            return dict(pointer) if pointer else None
+
+    def clear_teacher_pointer(self, session_id: str) -> bool:
+        with self._transient_lock:
+            return self._teacher_pointers.pop(session_id, None) is not None
+
+    def add_teaching_annotation(
+        self, session_id: str, annotation: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        with self._transient_lock:
+            annotations = self._teaching_annotations[session_id]
+            annotations[:] = [
+                item for item in annotations if item.get("id") != annotation.get("id")
+            ]
+            annotations.append(dict(annotation))
+            del annotations[:-40]
+            return [dict(item) for item in annotations]
+
+    def remove_teaching_annotation(self, session_id: str, annotation_id: str) -> bool:
+        with self._transient_lock:
+            annotations = self._teaching_annotations.get(session_id)
+            if not annotations:
+                return False
+            remaining = [item for item in annotations if item.get("id") != annotation_id]
+            if len(remaining) == len(annotations):
+                return False
+            if remaining:
+                self._teaching_annotations[session_id] = remaining
+            else:
+                self._teaching_annotations.pop(session_id, None)
+            return True
+
+    def teaching_annotations(self, session_id: str) -> list[dict[str, Any]]:
+        with self._transient_lock:
+            return [dict(item) for item in self._teaching_annotations.get(session_id, [])]
+
+    def clear_teaching_annotations(self, session_id: str) -> bool:
+        with self._transient_lock:
+            return self._teaching_annotations.pop(session_id, None) is not None
+
     def request_control(self, session_id: str, participant_id: str) -> bool:
         with self._transient_lock:
             requests = self._control_requests[session_id]
@@ -286,3 +360,5 @@ class ClassroomHub:
         with self._transient_lock:
             self._active_pins.pop(session_id, None)
             self._control_requests.pop(session_id, None)
+            self._teacher_pointers.pop(session_id, None)
+            self._teaching_annotations.pop(session_id, None)

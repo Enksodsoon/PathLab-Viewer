@@ -527,13 +527,15 @@
 }
 
 .classroom-live-pin > span {
-  width: 18px;
-  height: 18px;
-  rotate: -45deg;
-  border: 3px solid var(--surface-elevated);
-  border-radius: 50% 50% 50% 0;
-  background: var(--primary);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--shadow-color) 55%, transparent);
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--surface-elevated);
+  border-radius: 50%;
+  background:
+    linear-gradient(var(--primary), var(--primary)) 50% 0 / 2px 100% no-repeat,
+    linear-gradient(90deg, var(--primary), var(--primary)) 0 50% / 100% 2px no-repeat;
+  box-shadow: 0 0 0 2px var(--primary), 0 3px 12px color-mix(in srgb, var(--shadow-color) 55%, transparent);
 }
 
 .classroom-live-pin > strong {
@@ -550,10 +552,148 @@
 }
 
 .classroom-live-pin.is-focused > span {
-  width: 24px;
-  height: 24px;
-  background: var(--danger);
+  width: 30px;
+  height: 30px;
+  background:
+    linear-gradient(var(--danger), var(--danger)) 50% 0 / 2px 100% no-repeat,
+    linear-gradient(90deg, var(--danger), var(--danger)) 0 50% / 100% 2px no-repeat;
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.classroom-pin-target {
+  position: fixed;
+  z-index: 100;
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgb(255 255 255 / 80%);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 12%);
+  translate: -50% -50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--primary), 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.classroom-pin-target::before,
+.classroom-pin-target::after {
+  position: absolute;
+  content: '';
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+}
+
+.classroom-pin-target::before { top: 25px; left: -10px; width: 70px; height: 1px; }
+.classroom-pin-target::after { top: -10px; left: 25px; width: 1px; height: 70px; }
+
+.classroom-pin-target > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--primary);
+  translate: -50% -50%;
+}
+
+.classroom-pin-help {
+  margin: -5px 0 12px;
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.classroom-teaching-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.classroom-teaching-tools {
+  position: absolute;
+  top: 86px;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 17%);
+  border-radius: 10px;
+  background: rgb(23 22 20 / 90%);
+  translate: -50% 0;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(10px);
+}
+
+.classroom-teaching-tools button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #ede8df;
+  background: transparent;
+  font: 650 11px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+.classroom-teaching-tools button:hover,
+.classroom-teaching-tools button.is-active {
+  border-color: rgb(255 255 255 / 17%);
+  background: #3a3530;
+}
+
+.classroom-teaching-tools button.is-active { color: #fff; box-shadow: inset 0 -2px var(--primary); }
+.classroom-teaching-tools button:disabled { cursor: not-allowed; opacity: .4; }
+
+.classroom-teacher-pointer {
+  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 55%));
+}
+
+.classroom-teacher-pointer.is-laser > circle:first-child {
+  fill: rgb(255 61 52 / 22%);
+  stroke: #fff;
+  stroke-width: 1;
+  animation: classroom-laser-pulse 900ms ease-out infinite;
+}
+
+.classroom-teacher-pointer.is-laser .core { fill: #ff3d34; }
+.classroom-teacher-pointer.is-green-arrow { fill: #36d77a; stroke: #fff; stroke-width: 1.5; }
+.classroom-teacher-pointer.is-red-arrow { fill: #ff4c42; stroke: #fff; stroke-width: 1.5; }
+
+.classroom-mark-history {
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px !important;
+}
+
+.classroom-mark-history li > span {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.classroom-mark-history li > div {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.classroom-mark-history li small { color: var(--muted); font-size: 10px; }
+
+@keyframes classroom-laser-pulse {
+  0% { opacity: .95; scale: .55; }
+  100% { opacity: 0; scale: 1.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .classroom-teacher-pointer.is-laser > circle:first-child { animation: none; }
 }
 
 .classroom-drawing {
@@ -571,9 +711,19 @@
   touch-action: none;
 }
 
+.classroom-drawing-visible {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .classroom-drawing.is-active canvas {
   cursor: crosshair;
   pointer-events: auto;
+  background: rgb(0 0 0 / 3%);
 }
 
 .classroom-drawing-tools {
@@ -594,6 +744,91 @@
   translate: -50% 0;
   pointer-events: auto;
   backdrop-filter: blur(10px);
+}
+
+.classroom-drawing-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.classroom-drawing-colors button {
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--drawing-color);
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 16%);
+}
+
+.classroom-drawing-colors button.is-active {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.classroom-drawing-size {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 5px;
+  color: #f7f3eb;
+  font: 650 11px/1 var(--font-ui);
+}
+
+.classroom-drawing-size select {
+  min-height: 34px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 7px;
+  color: #f7f3eb;
+  background: #302e2a;
+}
+
+.classroom-drawing-history {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 8px);
+  display: grid;
+  gap: 5px;
+  width: min(280px, calc(100vw - 40px));
+  max-height: 220px;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 10px;
+  background: rgb(24 23 21 / 96%);
+  list-style: none;
+}
+
+.classroom-drawing-history li {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.classroom-drawing-history li > span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--drawing-color);
+}
+
+.classroom-drawing-history strong,
+.classroom-drawing-history small {
+  color: #f7f3eb;
+  font: 650 11px/1.2 var(--font-ui);
+}
+
+.classroom-drawing-history small {
+  color: #c7c0b6;
+  font-weight: 500;
 }
 
 .classroom-drawing-tools button {

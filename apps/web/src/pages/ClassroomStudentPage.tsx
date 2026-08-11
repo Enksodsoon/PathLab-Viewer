@@ -15,6 +15,8 @@ import {
 } from '../classroom/api'
 import { ClassroomPinOverlays } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
+import { ClassroomTeachingOverlays } from '../classroom/ClassroomTeachingOverlays'
+import { createLatestSender } from '../classroom/latestSender'
 import {
   StudentDrawingOverlay,
   type StudentDrawingHandle,
@@ -73,6 +75,7 @@ export function ClassroomStudentPage() {
   const [follow, setFollow] = useState(true)
   const [slideId, setSlideId] = useState('')
   const [pinMode, setPinMode] = useState(false)
+  const [pinTarget, setPinTarget] = useState<{ x: number; y: number } | null>(null)
   const [pin, setPin] = useState<Pin | null>(null)
   const [question, setQuestion] = useState('')
   const [note, setNote] = useState('')
@@ -82,13 +85,13 @@ export function ClassroomStudentPage() {
   const [drawing, setDrawing] = useState(false)
   const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
   const drawingRef = useRef<StudentDrawingHandle | null>(null)
+  const drawingModeRef = useRef(false)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const suppressPublish = useRef(false)
   const followRef = useRef(follow)
   const stateRef = useRef<StudentState | null>(null)
   const slideIdRef = useRef(slideId)
   const csrfRef = useRef(csrfToken)
-  const publishTimer = useRef<number | null>(null)
   const streamEpoch = useRef('')
   const streamSequence = useRef(0)
   const wasController = useRef(false)
@@ -120,7 +123,7 @@ export function ClassroomStudentPage() {
     const next = await studentState(id)
     setState(next)
     setPin(next.activePin)
-    if (follow && next.presenter.slideId) setSlideId(next.presenter.slideId)
+    if (follow && !drawingModeRef.current && next.presenter.slideId) setSlideId(next.presenter.slideId)
     setEntries(await listEntries(id))
   }, [follow])
 
@@ -180,9 +183,49 @@ export function ClassroomStudentPage() {
             viewport: payload.viewport as { x: number; y: number; zoom: number },
           },
         } : current)
-        if (followRef.current) setSlideId(payload.slideId as string)
+        if (followRef.current && !drawingModeRef.current) setSlideId(payload.slideId as string)
       })
       source.addEventListener('control', (event) => { if (sequence(event)) recover() })
+      source.addEventListener('pointer', (event) => {
+        const payload = sequence(event)
+        if (!payload || typeof payload.slideId !== 'string'
+          || typeof payload.style !== 'string' || typeof payload.x !== 'number'
+          || typeof payload.y !== 'number') return
+        setState((current) => current ? {
+          ...current,
+          teacherPointer: payload as unknown as StudentState['teacherPointer'],
+        } : current)
+      })
+      source.addEventListener('pointer-removed', (event) => {
+        if (!sequence(event)) return
+        setState((current) => current ? { ...current, teacherPointer: null } : current)
+      })
+      source.addEventListener('teaching-annotation-added', (event) => {
+        const payload = sequence(event)
+        const annotation = payload?.annotation as StudentState['teachingAnnotations'][number] | undefined
+        if (!annotation?.id) return
+        setState((current) => current ? {
+          ...current,
+          teachingAnnotations: [
+            ...(current.teachingAnnotations ?? []).filter((item) => item.id !== annotation.id),
+            annotation,
+          ].slice(-40),
+        } : current)
+      })
+      source.addEventListener('teaching-annotation-removed', (event) => {
+        const payload = sequence(event)
+        if (!payload || typeof payload.annotationId !== 'string') return
+        setState((current) => current ? {
+          ...current,
+          teachingAnnotations: (current.teachingAnnotations ?? []).filter(
+            (item) => item.id !== payload.annotationId,
+          ),
+        } : current)
+      })
+      source.addEventListener('teaching-annotations-cleared', (event) => {
+        if (!sequence(event)) return
+        setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
+      })
       source.addEventListener('session-ended', (event) => {
         if (!sequence(event)) return
         setState(null)
@@ -230,7 +273,8 @@ export function ClassroomStudentPage() {
     const current = stateRef.current
     const presenter = current?.presenter
     const slide = current?.slides.find((item) => item.id === slideIdRef.current)
-    if (!follow || !presenter?.viewport || presenter.slideId !== slide?.id || !slide) return
+    if (drawingModeRef.current || !follow || !presenter?.viewport
+      || presenter.slideId !== slide?.id || !slide) return
     suppressPublish.current = true
     const point = viewer.viewport.imageToViewportCoordinates(
       presenter.viewport.x * slide.width,
@@ -246,27 +290,35 @@ export function ClassroomStudentPage() {
     if (viewerRef.current) applyRemote(viewerRef.current)
   }, [applyRemote, state])
 
+  useEffect(() => {
+    drawingModeRef.current = drawing
+    const target = viewerRef.current
+    target?.setMouseNavEnabled(!drawing)
+    if (!drawing && target && followRef.current) applyRemote(target)
+  }, [applyRemote, drawing])
+
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     viewerRef.current = viewer
     setViewer(viewer)
+    const sender = createLatestSender((payload: ReturnType<typeof normalizedViewport>) => {
+      const current = stateRef.current
+      if (!current?.control.leaseId || !sessionId) return Promise.resolve()
+      return publishStudentViewport(
+        sessionId,
+        csrfRef.current,
+        current.control.leaseId,
+        payload,
+      ).catch(() => setMessage('Slide control returned to the teacher.'))
+    })
     const opened = () => applyRemote(viewer)
     const moved = () => {
       const current = stateRef.current
-      if (suppressPublish.current || !current?.control.isController
+      if (drawingModeRef.current || suppressPublish.current || !current?.control.isController
         || !current.control.leaseId || !sessionId) return
-      if (publishTimer.current !== null) window.clearTimeout(publishTimer.current)
-      publishTimer.current = window.setTimeout(() => {
-        publishTimer.current = null
-        void publishStudentViewport(
-          sessionId,
-          csrfRef.current,
-          current.control.leaseId!,
-          normalizedViewport(viewer, slideIdRef.current),
-        ).catch(() => setMessage('Slide control returned to the teacher.'))
-      }, 250)
+      sender.push(normalizedViewport(viewer, slideIdRef.current))
     }
     const clicked = (event: { position: OpenSeadragon.Point }) => {
-      if (!pinMode || !currentSlide) return
+      if (drawingModeRef.current || !pinMode || !currentSlide) return
       const image = viewer.viewport.viewportToImageCoordinates(
         viewer.viewport.pointFromPixel(event.position, true),
       )
@@ -278,6 +330,7 @@ export function ClassroomStudentPage() {
       }
       setPin(nextPin)
       setPinMode(false)
+      setPinTarget(null)
       if (sessionId) {
         void publishPin(sessionId, csrfRef.current, {
           slideId: currentSlide.id,
@@ -287,13 +340,31 @@ export function ClassroomStudentPage() {
         }).catch(() => setMessage('The teacher could not receive this pin.'))
       }
     }
+    let pinFrame: number | null = null
+    const trackPin = (event: globalThis.PointerEvent) => {
+      if (!pinMode || drawingModeRef.current) return
+      if (pinFrame !== null) window.cancelAnimationFrame(pinFrame)
+      pinFrame = window.requestAnimationFrame(() => {
+        pinFrame = null
+        setPinTarget({ x: event.clientX, y: event.clientY })
+      })
+    }
+    const hidePinTarget = () => setPinTarget(null)
+    viewer.canvas.addEventListener('pointermove', trackPin)
+    viewer.canvas.addEventListener('pointerleave', hidePinTarget)
     viewer.addHandler('open', opened)
+    viewer.addHandler('animation', moved)
     viewer.addHandler('animation-finish', moved)
     viewer.addHandler('canvas-click', clicked)
     return () => {
       viewer.removeHandler('open', opened)
+      viewer.removeHandler('animation', moved)
       viewer.removeHandler('animation-finish', moved)
       viewer.removeHandler('canvas-click', clicked)
+      viewer.canvas.removeEventListener('pointermove', trackPin)
+      viewer.canvas.removeEventListener('pointerleave', hidePinTarget)
+      if (pinFrame !== null) window.cancelAnimationFrame(pinFrame)
+      sender.dispose()
       viewerRef.current = null
       setViewer(null)
     }
@@ -459,7 +530,7 @@ export function ClassroomStudentPage() {
       <div className="classroom-learner-identity">
         <strong>{alias || 'Private learner'}</strong>
         <span className="classroom-control-status" role="status">
-          {isController ? 'You control the slide' : 'Teacher controls the slide'}
+          {drawing ? 'View frozen for private drawing' : isController ? 'You control the slide' : 'Teacher controls the slide'}
         </span>
       </div>
       <div className="classroom-topbar__actions">
@@ -490,6 +561,17 @@ export function ClassroomStudentPage() {
         slideId={currentSlide?.id ?? ''}
         viewer={viewer}
       />
+      <ClassroomTeachingOverlays
+        annotations={state?.teachingAnnotations ?? []}
+        pointer={state?.teacherPointer ?? null}
+        slideId={currentSlide?.id ?? ''}
+        viewer={viewer}
+      />
+      {pinMode && pinTarget ? <div
+        className="classroom-pin-target"
+        style={{ left: pinTarget.x, top: pinTarget.y }}
+        aria-hidden="true"
+      ><span /><i /></div> : null}
       <StudentDrawingOverlay
         ref={drawingRef}
         active={drawing}
@@ -527,6 +609,7 @@ export function ClassroomStudentPage() {
       </section>
       <section>
         <h2>Ask at an exact point</h2>
+        {pinMode ? <p className="classroom-pin-help">Move the crosshair to the exact tissue point, then tap its centre.</p> : null}
         <div className="classroom-row">
           <button className={pinMode ? 'is-active' : ''} type="button" onClick={() => setPinMode(true)}>{pin ? 'Choose another point' : 'Pin a point on the slide'}</button>
           {pin ? <button type="button" onClick={() => void removePin()}>Clear pin</button> : null}
@@ -541,7 +624,10 @@ export function ClassroomStudentPage() {
           className={drawing ? 'is-active' : ''}
           type="button"
           aria-pressed={drawing}
-          onClick={() => setDrawing((current) => !current)}
+          onClick={() => {
+            setPinMode(false)
+            setDrawing((current) => !current)
+          }}
         >{drawing ? 'Finish drawing' : 'Draw on slide'}</button>
         <textarea value={note} placeholder="Write a private note…" onChange={(event) => setNote(event.target.value)} />
         <button type="button" disabled={!storage.indexedDb} onClick={() => void capture()}>Save capture + note</button>

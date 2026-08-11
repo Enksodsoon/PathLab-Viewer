@@ -100,6 +100,29 @@ class TeacherPresenterRequest(BaseModel):
     zoom: float = Field(gt=0, le=1000)
 
 
+class TeacherPointerRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    slide_id: str = Field(alias="slideId", min_length=1, max_length=36)
+    style: Literal["laser", "green-arrow", "red-arrow"]
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class TeachingPoint(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class TeachingAnnotationRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    annotation_id: str = Field(alias="id", min_length=8, max_length=64)
+    slide_id: str = Field(alias="slideId", min_length=1, max_length=36)
+    tool: Literal["pen", "highlight"]
+    color: Literal["#ef765f", "#f6c84a", "#42b883", "#4f8be8", "#f6f2e8"]
+    width: Literal[2, 4, 8]
+    points: list[TeachingPoint] = Field(min_length=1, max_length=64)
+
+
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -602,6 +625,8 @@ def register_classroom_routes(
                 for pin in hub.active_pins(session_id)
                 if pin.get("participantId") in participants_by_id
             ],
+            "teacherPointer": hub.teacher_pointer(session_id),
+            "teachingAnnotations": hub.teaching_annotations(session_id),
         }
 
     @app.get("/api/v1/admin/classroom/metrics")
@@ -674,6 +699,8 @@ def register_classroom_routes(
             "slides": [_session_slide_json(item) for item in slides],
             "pendingQuestionIds": pending_ids,
             "activePin": active_pin,
+            "teacherPointer": hub.teacher_pointer(session_id),
+            "teachingAnnotations": hub.teaching_annotations(session_id),
         }
 
     @app.post(
@@ -1113,6 +1140,113 @@ def register_classroom_routes(
             critical=False,
         )
         return {"presenterSequence": snapshot.sequence}
+
+    @app.post(
+        "/api/v1/admin/classroom/sessions/{session_id}/pointer",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def teacher_pointer(
+        session_id: str,
+        payload: TeacherPointerRequest,
+        _: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
+    ) -> None:
+        classroom = db.get(ClassroomSession, session_id)
+        slide_exists = db.scalar(
+            select(ClassroomSessionSlide.id).where(
+                ClassroomSessionSlide.session_id == session_id,
+                ClassroomSessionSlide.slide_id == payload.slide_id,
+            )
+        )
+        if classroom is None or classroom.status != "active" or slide_exists is None:
+            raise HTTPException(status_code=409, detail={"code": "POINTER_NOT_ACCEPTED"})
+        pointer = {
+            "slideId": payload.slide_id,
+            "style": payload.style,
+            "x": payload.x,
+            "y": payload.y,
+        }
+        hub.set_teacher_pointer(session_id, pointer)
+        hub.publish(session_id, "pointer", pointer, critical=False)
+
+    @app.delete(
+        "/api/v1/admin/classroom/sessions/{session_id}/pointer",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def clear_teacher_pointer(
+        session_id: str,
+        _: CsrfSession,
+        _guard: MutationGuard,
+    ) -> None:
+        if hub.clear_teacher_pointer(session_id):
+            hub.publish(session_id, "pointer-removed", {}, critical=True)
+
+    @app.post(
+        "/api/v1/admin/classroom/sessions/{session_id}/annotations",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def add_teaching_annotation(
+        session_id: str,
+        payload: TeachingAnnotationRequest,
+        _: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
+    ) -> None:
+        classroom = db.get(ClassroomSession, session_id)
+        slide_exists = db.scalar(
+            select(ClassroomSessionSlide.id).where(
+                ClassroomSessionSlide.session_id == session_id,
+                ClassroomSessionSlide.slide_id == payload.slide_id,
+            )
+        )
+        if classroom is None or classroom.status != "active" or slide_exists is None:
+            raise HTTPException(status_code=409, detail={"code": "ANNOTATION_NOT_ACCEPTED"})
+        annotation = {
+            "id": payload.annotation_id,
+            "slideId": payload.slide_id,
+            "tool": payload.tool,
+            "color": payload.color,
+            "width": payload.width,
+            "points": [point.model_dump() for point in payload.points],
+        }
+        hub.add_teaching_annotation(session_id, annotation)
+        hub.publish(
+            session_id,
+            "teaching-annotation-added",
+            {"annotation": annotation},
+            critical=True,
+        )
+
+    @app.delete(
+        "/api/v1/admin/classroom/sessions/{session_id}/annotations/{annotation_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def remove_teaching_annotation(
+        session_id: str,
+        annotation_id: str,
+        _: CsrfSession,
+        _guard: MutationGuard,
+    ) -> None:
+        if hub.remove_teaching_annotation(session_id, annotation_id):
+            hub.publish(
+                session_id,
+                "teaching-annotation-removed",
+                {"annotationId": annotation_id},
+                critical=True,
+            )
+
+    @app.delete(
+        "/api/v1/admin/classroom/sessions/{session_id}/annotations",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def clear_teaching_annotations(
+        session_id: str,
+        _: CsrfSession,
+        _guard: MutationGuard,
+    ) -> None:
+        if hub.clear_teaching_annotations(session_id):
+            hub.publish(session_id, "teaching-annotations-cleared", {}, critical=True)
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/questions/{question_id}/open")
     def open_question(

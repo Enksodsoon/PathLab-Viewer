@@ -315,6 +315,53 @@ def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: P
         ).json()["activePin"] is None
 
 
+def test_teacher_pointer_and_marks_are_bounded_transient_state(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        ).json()
+        client.post("/api/v1/classroom/join", json={"joinCode": created["joinCode"]})
+        pointer = {"slideId": "slide-1", "style": "laser", "x": 0.25, "y": 0.5}
+        annotation = {
+            "id": "teaching-mark-1",
+            "slideId": "slide-1",
+            "tool": "pen",
+            "color": "#42b883",
+            "width": 4,
+            "points": [{"x": 0.2, "y": 0.3}, {"x": 0.25, "y": 0.35}],
+        }
+
+        assert client.post(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/pointer",
+            headers=headers,
+            json=pointer,
+        ).status_code == 204
+        assert client.post(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/annotations",
+            headers=headers,
+            json=annotation,
+        ).status_code == 204
+
+        state = client.get(f"/api/v1/classroom/sessions/{created['id']}").json()
+        assert state["teacherPointer"] == pointer
+        assert state["teachingAnnotations"] == [annotation]
+
+        assert client.delete(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/annotations/teaching-mark-1",
+            headers=headers,
+        ).status_code == 204
+        assert client.delete(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/pointer",
+            headers=headers,
+        ).status_code == 204
+        state = client.get(f"/api/v1/classroom/sessions/{created['id']}").json()
+        assert state["teacherPointer"] is None
+        assert state["teachingAnnotations"] == []
+
+
 def test_singleton_hub_lock_fails_closed(tmp_path: Path) -> None:
     path = tmp_path / "classroom-hub.lock"
     first = ClassroomSingletonLock(path)

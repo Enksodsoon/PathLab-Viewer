@@ -89,6 +89,22 @@ def test_hub_coalesces_presenter_state_without_coalescing_discrete_events() -> N
     asyncio.run(scenario())
 
 
+def test_hub_preserves_sequence_order_between_pointer_and_presenter() -> None:
+    async def scenario() -> None:
+        hub = ClassroomHub()
+        hub.start()
+        async with hub.subscribe("session") as subscriber:
+            hub._publish("session", "pointer", {"x": 0.2}, False, "all")
+            hub._publish("session", "presenter", {"presenterSequence": 2}, False, "all")
+
+            pointer = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+            presenter = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+            assert pointer is not None and pointer["type"] == "pointer"
+            assert presenter is not None and presenter["type"] == "presenter"
+
+    asyncio.run(scenario())
+
+
 def test_hub_bounds_transient_pin_and_control_request_per_participant() -> None:
     hub = ClassroomHub()
     hub.set_pin("session", "participant", {"participantId": "participant", "x": 0.1})
@@ -100,3 +116,22 @@ def test_hub_bounds_transient_pin_and_control_request_per_participant() -> None:
     hub.clear_participant("session", "participant")
     assert hub.active_pins("session") == []
     assert hub.control_requests("session") == {}
+
+
+def test_hub_bounds_transient_teaching_tools_and_clears_them_with_session() -> None:
+    hub = ClassroomHub()
+    hub.set_teacher_pointer("session", {"style": "laser", "x": 0.2, "y": 0.3})
+    for index in range(45):
+        hub.add_teaching_annotation(
+            "session",
+            {"id": f"mark-{index}", "points": [{"x": 0.2, "y": 0.3}]},
+        )
+
+    assert hub.teacher_pointer("session") == {"style": "laser", "x": 0.2, "y": 0.3}
+    assert len(hub.teaching_annotations("session")) == 40
+    assert hub.teaching_annotations("session")[0]["id"] == "mark-5"
+    assert hub.remove_teaching_annotation("session", "mark-44") is True
+
+    hub.clear_session("session")
+    assert hub.teacher_pointer("session") is None
+    assert hub.teaching_annotations("session") == []
