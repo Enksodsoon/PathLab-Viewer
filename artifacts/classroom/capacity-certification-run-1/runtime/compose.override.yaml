@@ -1,0 +1,24 @@
+services:
+  caddy:
+    ports: !override
+      - "18080:80"
+    environment:
+      DOMAIN: http://localhost
+      ACME_EMAIL: local-certification@example.invalid
+    depends_on: !override
+      api:
+        condition: service_healthy
+  api:
+    image: pathlab-viewer-backend:test
+    environment:
+      PATHLAB_ENVIRONMENT: development
+      PYTHONPATH: /app/server
+      PATHLAB_CLASSROOM_ENABLED: "true"
+      PATHLAB_CLASSROOM_SINGLETON: "true"
+      PATHLAB_SECURE_COOKIES: "false"
+      PATHLAB_INTERNAL_FILE_REDIRECTS: "false"
+    volumes:
+      - ../artifacts/classroom/capacity-certification-run-1/runtime:/cert:ro
+      - ../server:/app/server:ro
+      - ../migrations:/app/migrations:ro
+      - ../alembic.ini:/app/alembic.ini:ro

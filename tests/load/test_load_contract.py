@@ -42,6 +42,21 @@ def test_k6_script_uses_manifest_profiles_and_seventy_thirty_mix() -> None:
     assert "sleep(1)" in script
 
 
+def test_classroom_harness_consumes_realtime_and_tile_work_concurrently() -> None:
+    script = Path("tests/load/classroom_sse.py").read_text(encoding="utf-8")
+
+    assert "aiter_lines" in script
+    assert "publish_presenter" in script
+    assert "request_tiles" in script
+    assert "exercise_discrete_events" in script
+    assert "reconnect_delay" in script
+    assert "presenterLatencyMs" in script
+    assert "finalConvergence" in script
+    assert "presenterPersistenceWritesPerSecond" in script
+    assert "restricted to local ephemeral targets" in script
+    assert "ALLOW_PRODUCTION" not in script
+
+
 def test_load_wrapper_requires_inputs_and_never_discovers_slide_ids() -> None:
     script = Path("deploy/scripts/run-viewer-load-test.sh").read_text(encoding="utf-8")
 
