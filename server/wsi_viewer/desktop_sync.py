@@ -56,6 +56,8 @@ def remote_slide_json(slide: Slide) -> dict[str, Any]:
         "folderRevision": metadata_revision,
         "contentBytes": slide.source_bytes if slide.render_mode == "ome_dynamic" else 0,
         "contentSha256": slide.sha256 if slide.render_mode == "ome_dynamic" else None,
+        "width": int((slide.slide_metadata or {}).get("width") or 1),
+        "height": int((slide.slide_metadata or {}).get("height") or 1),
         "thumbnailUrl": f"/api/v1/desktop/slides/{slide.id}/preview/thumbnail.jpg",
         "tileSourceUrl": f"/api/v1/desktop/slides/{slide.id}/preview/slide.dzi",
         "updatedAt": slide.updated_at.isoformat(),

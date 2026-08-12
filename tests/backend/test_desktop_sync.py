@@ -1,4 +1,5 @@
 import hashlib
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,16 @@ from wsi_viewer.models import DesktopCredential, DesktopSyncEvent, Folder, Slide
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 from wsi_viewer.storage import StorageLayout
+
+
+def test_desktop_sync_contract_fixtures_are_valid_and_bounded() -> None:
+    root = Path(__file__).parents[1] / "fixtures" / "desktop_sync_v1"
+    library = json.loads((root / "library-page.json").read_text(encoding="utf-8"))
+    changes = json.loads((root / "change-page.json").read_text(encoding="utf-8"))
+    assert library["schema"] == "desktop-sync/v1"
+    assert len(library["items"]) <= 100
+    assert changes["schema"] == "desktop-sync/v1"
+    assert len(changes["changes"]) <= 500
 
 
 def _client(tmp_path: Path) -> TestClient:

@@ -62,3 +62,13 @@ cleanup. No endpoint exposes the OME file or arbitrary byte ranges.
 
 `PATHLAB_DESKTOP_OME_DYNAMIC_ENABLED=false` removes the V1 advertisement and
 rejects direct-ingest creation while leaving prepared-v2 unchanged.
+# Private hybrid sync
+
+The optional `desktop-sync/v1` contract reuses device credentials and adds three scopes:
+`library:read`, `slides:offline:read`, and `library:sync`. Library pages are bounded to 100,
+change pages to 500, and canonical OME downloads stream 1 MiB blocks with exact length, ETag,
+SHA-256, and single open-ended byte ranges. Metadata and folder mutation requires the exact
+current revisions and returns `DESKTOP_SYNC_CONFLICT` without overwriting on mismatch.
+
+Preview and annotation routes remain the existing private desktop routes. Sync never publishes,
+shares, replaces pixels, or transfers credentials to browser JavaScript.
