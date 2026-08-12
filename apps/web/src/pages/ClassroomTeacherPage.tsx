@@ -46,7 +46,7 @@ function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arr
     {name === 'guide' ? <><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13" /></> : null}
     {name === 'navigate' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
     {name === 'draw' ? <><path d="m4 20 4.2-1 10.4-10.4-3.2-3.2L5 15.8 4 20Z" /><path d="m13.8 7 3.2 3.2" /></> : null}
-    {name === 'arrow' ? <path d="M5 3v16l4.4-4.4 3.7 7.4 3.7-1.9-3.6-7.1H19L5 3Z" fill="currentColor" /> : null}
+    {name === 'arrow' ? <><path d="M5 19 19 5" strokeWidth="2.8" /><path d="M10 5h9v9" strokeWidth="2.8" /></> : null}
   </svg>
 }
 

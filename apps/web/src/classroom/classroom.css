@@ -690,6 +690,8 @@
 
 .classroom-teacher-pointer.is-green-arrow { fill: #36d77a; stroke: #fff; stroke-width: 1.5; }
 .classroom-teacher-pointer.is-red-arrow { fill: #ff4c42; stroke: #fff; stroke-width: 1.5; }
+.classroom-teacher-pointer.is-green-arrow path { color: #36d77a; stroke: currentColor; }
+.classroom-teacher-pointer.is-red-arrow path { color: #ff4c42; stroke: currentColor; }
 
 .classroom-pointer-options {
   position: absolute;
@@ -949,16 +951,32 @@
 }
 
 .classroom-local-pointer::before {
-  display: block;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 35px;
+  left: 3px;
+  width: 43px;
+  height: 6px;
+  border-radius: 999px;
   background: #42b883;
-  clip-path: polygon(0 0, 0 71%, 24% 51%, 44% 100%, 61% 92%, 41% 46%, 74% 46%);
+  transform: rotate(-45deg);
+  transform-origin: left center;
+  content: '';
+}
+
+.classroom-local-pointer::after {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 20px;
+  height: 20px;
+  border-top: 6px solid #42b883;
+  border-right: 6px solid #42b883;
   content: '';
 }
 
 .classroom-local-pointer.is-visible { opacity: 1; }
 .classroom-local-pointer.is-red::before { background: #ef765f; }
+.classroom-local-pointer.is-red::after { border-color: #ef765f; }
 
 .classroom-panel {
   overflow: auto;
