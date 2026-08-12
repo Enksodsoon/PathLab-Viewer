@@ -127,7 +127,9 @@ def _validate_profile(ingest: DesktopIngest, index: OmeTileIndex) -> None:
         raise OmeIngestError("OME_PYRAMID_FACTOR_UNSUPPORTED")
     if index.tile_width != 512 or index.tile_height != 512:
         raise OmeIngestError("OME_TILE_SIZE_UNSUPPORTED")
-    if max(index.levels[-1].width, index.levels[-1].height) > 512 * pyramid_factor:
+    # The bounded tile renderer can synthesize exactly one terminal factor-two
+    # level from the smallest stored overview. Reject anything more truncated.
+    if max(index.levels[-1].width, index.levels[-1].height) > 512 * pyramid_factor**2:
         raise OmeIngestError("OME_PYRAMID_INCOMPLETE")
 
 
