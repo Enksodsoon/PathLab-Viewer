@@ -130,11 +130,8 @@ it('offers a circular dial with cardinal and fine local rotation controls', () =
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenCalledWith(90)
   expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
 
-  fireEvent.click(screen.getByRole('button', { name: 'Rotate one degree clockwise' }))
-  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(91)
-
   fireEvent.keyDown(screen.getByRole('slider', { name: 'Rotation dial' }), { key: 'ArrowLeft' })
-  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(90)
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(89)
 
   fireEvent.click(screen.getByRole('button', { name: 'Reset rotation' }))
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)

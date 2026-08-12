@@ -391,11 +391,6 @@ export function OpenSeadragonViewer({
         title={`Rotation · ${rotation}°`}
         onClick={() => setRotationOpen((open) => !open)}
       >
-        <svg className="viewer-compass" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
-          <path className="viewer-compass__needle" style={{ transform: `rotate(${rotation}deg)` }} d="m12 6 2 6-2 6-2-6 2-6Z" />
-        </svg>
         <span>{rotation}°</span>
       </button>
       {rotationOpen ? <div className="viewer-rotation-popover" role="dialog" aria-label="Slide rotation">
@@ -451,11 +446,7 @@ export function OpenSeadragonViewer({
           <output aria-live="polite">{rotation}°</output>
           <span className="viewer-rotation-drag-hint" aria-hidden="true">drag</span>
         </div>
-        <div className="viewer-rotation-nudge">
-          <button type="button" aria-label="Rotate one degree counterclockwise" onClick={() => applyRotation(rotation - 1)}>−</button>
-          <button type="button" aria-label="Reset rotation" onClick={() => applyRotation(0)}>Reset</button>
-          <button type="button" aria-label="Rotate one degree clockwise" onClick={() => applyRotation(rotation + 1)}>+</button>
-        </div>
+        <button className="viewer-rotation-reset" type="button" aria-label="Reset rotation" onClick={() => applyRotation(0)}>0°</button>
       </div> : null}
     </div>
     {connectionStatus ? <div className="viewer-connection-status" role="status">{connectionStatus}</div> : null}
