@@ -96,12 +96,27 @@ export function ClassroomTeacherPage() {
   const teachingToolRef = useRef(teachingTool)
   const guideModeRef = useRef(guideMode)
   const pointerColorRef = useRef(pointerColor)
+  const adminAuthFailed = useRef(false)
+  const localPointerElementRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
   useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
   useEffect(() => { guideModeRef.current = guideMode }, [guideMode])
   useEffect(() => { pointerColorRef.current = pointerColor }, [pointerColor])
+
+  const handleAdminFailure = useCallback((caught: unknown, message: string) => {
+    if (caught instanceof ApiError && caught.status === 401) {
+      adminAuthFailed.current = true
+      guideModeRef.current = false
+      setGuideMode(false)
+      sessionStorage.removeItem('pathlab-csrf')
+      navigate('/admin', { replace: true })
+      return true
+    }
+    setError(message)
+    return false
+  }, [navigate])
   useEffect(() => {
     if (!showCode) return
     const close = (event: KeyboardEvent) => {
@@ -313,14 +328,17 @@ export function ClassroomTeacherPage() {
 
   useEffect(() => {
     viewer?.setMouseNavEnabled(teachingTool === 'navigate')
+    if (teachingTool !== 'pointer' && localPointerElementRef.current) {
+      localPointerElementRef.current.className = 'classroom-local-pointer'
+    }
     if (!classroom || teachingTool === 'pointer') return
     void clearTeacherPointer(classroom.id).catch(() => undefined)
   }, [classroom, teachingTool, viewer])
 
   const teachingAnnotation = useCallback((stroke: DrawingStroke) => {
-    if (!viewer || !currentSlide || !classroom || stroke.tool === 'eraser') return
+    if (!viewer || !currentSlide || !classroom || stroke.tool === 'eraser') return false
     const item = viewer.world.getItemAt(0)
-    if (!item) return
+    if (!item) return false
     const bounds = viewer.container.getBoundingClientRect()
     const dimensions = item.source.dimensions
     const annotation: TeachingAnnotation = {
@@ -341,38 +359,51 @@ export function ClassroomTeacherPage() {
         }
       }),
     }
-    void publishTeachingAnnotation(classroom.id, annotation).catch(() => {
-      setError('The teaching mark could not be shared.')
-    })
-  }, [classroom, currentSlide, viewer])
+    return publishTeachingAnnotation(classroom.id, annotation)
+      .then(() => true)
+      .catch((caught: unknown) => {
+        handleAdminFailure(caught, 'The teaching mark could not be shared. The mark remains visible locally.')
+        return false
+      })
+  }, [classroom, currentSlide, handleAdminFailure, viewer])
 
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     viewerRef.current = viewer
     setViewer(viewer)
+    const localPointer = document.createElement('span')
+    localPointer.className = 'classroom-local-pointer'
+    localPointerElementRef.current = localPointer
+    viewer.addOverlay({
+      element: localPointer,
+      location: new OpenSeadragon.Point(0, 0),
+      placement: OpenSeadragon.Placement.CENTER,
+      checkResize: false,
+    })
     const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => (
       publishTeacherViewport(classroom!.id, payload)
         .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
-        .catch(() => { setError('The live field could not be shared.') })
+        .catch((caught: unknown) => {
+          handleAdminFailure(caught, 'The live field could not be shared.')
+        })
     ))
     const publish = () => {
       if (suppressPublish.current) {
         suppressPublish.current = false
         return
       }
-      if (!guideModeRef.current || stateRef.current?.controller.participantId
+      if (adminAuthFailed.current || !guideModeRef.current || stateRef.current?.controller.participantId
         || !classroom || !currentSlide) return
       sender.push(readPresenterViewport(viewer, currentSlide.id))
     }
     const opened = () => applyRemote(viewer)
     let pointerVisible = false
     const pointerSender = createLatestSender((pointer: Parameters<typeof publishTeacherPointer>[1]) => {
-      pointerVisible = true
-      return publishTeacherPointer(classroom!.id, pointer).catch(() => {
-        setError('The live pointer could not be shared.')
+      return publishTeacherPointer(classroom!.id, pointer).catch((caught: unknown) => {
+        handleAdminFailure(caught, 'The live pointer could not be shared.')
       })
     }, 100)
     const point = (event: globalThis.PointerEvent) => {
-      if (!classroom || !currentSlide || teachingToolRef.current !== 'pointer') return
+      if (adminAuthFailed.current || !classroom || !currentSlide || teachingToolRef.current !== 'pointer') return
       const item = viewer.world.getItemAt(0)
       if (!item) return
       const bounds = viewer.canvas.getBoundingClientRect()
@@ -382,6 +413,9 @@ export function ClassroomTeacherPage() {
       ), true)
       const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
       const dimensions = item.source.dimensions
+      pointerVisible = true
+      localPointer.className = `classroom-local-pointer is-visible${pointerColorRef.current === 'red' ? ' is-red' : ''}`
+      viewer.updateOverlay(localPointer, item.imageToViewportCoordinates(imagePoint), OpenSeadragon.Placement.CENTER)
       pointerSender.push({
         slideId: currentSlide.id,
         style: `${pointerColorRef.current}-arrow`,
@@ -392,7 +426,8 @@ export function ClassroomTeacherPage() {
     const clearPointer = () => {
       if (!classroom || !pointerVisible) return
       pointerVisible = false
-      void clearTeacherPointer(classroom.id).catch(() => undefined)
+      localPointer.className = 'classroom-local-pointer'
+      if (!adminAuthFailed.current) void clearTeacherPointer(classroom.id).catch(() => undefined)
     }
     viewer.canvas.addEventListener('pointermove', point)
     viewer.canvas.addEventListener('pointerleave', clearPointer)
@@ -408,10 +443,12 @@ export function ClassroomTeacherPage() {
       sender.dispose()
       pointerSender.dispose()
       clearPointer()
+      viewer.removeOverlay(localPointer)
+      if (localPointerElementRef.current === localPointer) localPointerElementRef.current = null
       if (viewerRef.current === viewer) viewerRef.current = null
       setViewer(null)
     }
-  }, [applyRemote, classroom, currentSlide])
+  }, [applyRemote, classroom, currentSlide, handleAdminFailure])
 
   const start = async () => {
     setError('')
@@ -487,7 +524,7 @@ export function ClassroomTeacherPage() {
       <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
       <ClassroomTeachingOverlays
         annotations={state?.teachingAnnotations ?? []}
-        pointer={state?.teacherPointer ?? null}
+        pointer={teachingTool === 'pointer' ? null : state?.teacherPointer ?? null}
         slideId={currentSlide?.id ?? ''}
         viewer={viewer}
       />
@@ -514,7 +551,9 @@ export function ClassroomTeacherPage() {
             if (next && viewer && currentSlide && !state?.controller.participantId) {
               void publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
                 .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
-                .catch(() => { setError('The live field could not be shared.') })
+                .catch((caught: unknown) => {
+                  handleAdminFailure(caught, 'The live field could not be shared.')
+                })
             }
           }}
         ><TeachingToolIcon name="guide" /><span className="classroom-tool-status" aria-hidden="true" /></button>
@@ -582,7 +621,7 @@ export function ClassroomTeacherPage() {
         })}</ul>
       </section>
       <section className="classroom-panel__section">
-        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span></h2>
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span><strong className="classroom-panel__count" aria-label={`${state?.pendingQuestions.length ?? 0} pending questions`}>{state?.pendingQuestions.length ?? 0}</strong></h2>
         {!state?.pendingQuestions.length && <p className="classroom-empty">Pinned questions appear here.</p>}
         <ul className="classroom-question-list">{state?.pendingQuestions.map((question) => <li className="classroom-question-item" key={question.id}>
           <p>{question.text}</p>

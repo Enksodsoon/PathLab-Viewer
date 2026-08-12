@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   StudentDrawingOverlay,
@@ -8,6 +8,8 @@ import {
 } from '../classroom/StudentDrawingOverlay'
 
 describe('StudentDrawingOverlay', () => {
+  afterEach(cleanup)
+
   it('keeps a compact local drawing toolbar behind an explicit mode', () => {
     const ref = createRef<StudentDrawingHandle>()
     const done = vi.fn()
@@ -34,8 +36,8 @@ describe('StudentDrawingOverlay', () => {
     expect(screen.getByRole('button', { name: 'Ellipse' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Highlight' }))
     expect(screen.getByRole('button', { name: 'Highlight' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'Use #42b883 color' }))
-    expect(screen.getByRole('button', { name: 'Use #42b883 color' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Green drawing color' }))
+    expect(screen.getByRole('button', { name: 'Green drawing color' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.change(screen.getByRole('combobox', { name: 'Drawing size' }), { target: { value: '8' } })
     expect(screen.getByRole('combobox', { name: 'Drawing size' })).toHaveValue('8')
 
@@ -51,5 +53,27 @@ describe('StudentDrawingOverlay', () => {
     expect(screen.getByRole('list', { name: 'Annotation history' })).toHaveTextContent('Highlight')
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(done).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a transient teaching mark visible until server acceptance', async () => {
+    let accept: ((value: boolean) => void) | undefined
+    const committed = vi.fn(() => new Promise<boolean>((resolve) => { accept = resolve }))
+    const ref = createRef<StudentDrawingHandle>()
+    render(<StudentDrawingOverlay
+      ref={ref}
+      active
+      retainCommitted={false}
+      onDone={vi.fn()}
+      onStrokeCommitted={committed}
+    />)
+
+    const canvas = screen.getByLabelText('Private slide drawing canvas')
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 30, clientY: 30 })
+    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 30, clientY: 30 })
+    expect(ref.current?.hasDrawing()).toBe(true)
+
+    await act(async () => { accept?.(true) })
+    expect(ref.current?.hasDrawing()).toBe(false)
   })
 })

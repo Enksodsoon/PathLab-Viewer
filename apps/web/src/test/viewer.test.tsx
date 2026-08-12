@@ -19,6 +19,8 @@ const osdMock = vi.hoisted(() => {
       goHome: vi.fn(),
       viewportToImageZoom: vi.fn(() => 2),
       getZoom: vi.fn(() => 1),
+      getRotation: vi.fn(() => 0),
+      setRotation: vi.fn(),
     },
     setFullScreen: vi.fn(),
     isFullPage: vi.fn(() => false),
@@ -117,6 +119,15 @@ it('uses bounded desktop loader and cache limits', () => {
     animationTime: 0.45,
     blendTime: 0.05,
   })
+})
+
+it('offers a lightweight local clockwise rotation control', () => {
+  renderViewer()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Rotate slide clockwise. Current rotation 0 degrees' }))
+
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenCalledWith(90)
+  expect(screen.getByRole('button', { name: 'Rotate slide clockwise. Current rotation 90 degrees' })).toBeInTheDocument()
 })
 
 it('shows a prioritized poster until the first tile is visible', () => {

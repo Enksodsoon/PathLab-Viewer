@@ -18,6 +18,7 @@ export interface ViewerHandle {
   zoomIn: () => void
   zoomOut: () => void
   home: () => void
+  rotate: () => void
   fullscreen: () => void
 }
 
@@ -76,6 +77,7 @@ export function OpenSeadragonViewer({
   const [posterVisible, setPosterVisible] = useState(Boolean(posterUrl))
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null)
   const [loadingError, setLoadingError] = useState(false)
+  const [rotation, setRotation] = useState(0)
   const narrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
   const networkState = useRef(initialViewerNetworkState(
     mode,
@@ -235,6 +237,12 @@ export function OpenSeadragonViewer({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
         home: () => viewer?.viewport.goHome(),
+        rotate: () => {
+          if (!viewer) return
+          const next = (viewer.viewport.getRotation() + 90) % 360
+          viewer.viewport.setRotation(next)
+          setRotation(next)
+        },
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
       })
       const updateScale = () => {
@@ -343,6 +351,19 @@ export function OpenSeadragonViewer({
         <option value="full">Full detail</option>
       </select>
     </label>
+    <button
+      className="viewer-rotation-control"
+      type="button"
+      aria-label={`Rotate slide clockwise. Current rotation ${rotation} degrees`}
+      title={`Rotate clockwise · ${rotation}°`}
+      onClick={() => {
+        const viewer = viewerRef.current
+        if (!viewer) return
+        const next = (viewer.viewport.getRotation() + 90) % 360
+        viewer.viewport.setRotation(next)
+        setRotation(next)
+      }}
+    ><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.35 5.65" /><path d="M20 5v6h-6" /></svg></button>
     {connectionStatus ? <div className="viewer-connection-status" role="status">{connectionStatus}</div> : null}
     {loadingError ? <div
       role="alert"

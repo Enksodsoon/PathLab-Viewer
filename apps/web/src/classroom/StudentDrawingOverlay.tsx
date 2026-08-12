@@ -32,6 +32,13 @@ export interface StudentDrawingHandle {
 }
 
 const COLORS = ['#ef765f', '#f6c84a', '#42b883', '#4f8be8', '#f6f2e8'] as const
+const COLOR_LABELS: Record<(typeof COLORS)[number], string> = {
+  '#ef765f': 'Coral',
+  '#f6c84a': 'Gold',
+  '#42b883': 'Green',
+  '#4f8be8': 'Blue',
+  '#f6f2e8': 'Ivory',
+}
 const WIDTHS = [2, 4, 8] as const
 
 const TOOL_LABELS: Record<DrawingTool, string> = {
@@ -82,7 +89,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
   onDone: () => void
   toolbarLabel?: string
   allowEraser?: boolean
-  onStrokeCommitted?: (stroke: DrawingStroke) => void
+  onStrokeCommitted?: (stroke: DrawingStroke) => void | boolean | Promise<void | boolean>
   onStrokeRemoved?: (strokeId: string) => void
   onClearAll?: () => void
   retainCommitted?: boolean
@@ -293,9 +300,16 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
       const points = stroke.points.filter((_, index) => index % stride === 0)
       const last = stroke.points.at(-1)
       if (last && points.at(-1) !== last) points.push(last)
-      onStrokeCommitted?.({ ...stroke, points })
-    }
-    if (!retainCommitted) {
+      const committed = onStrokeCommitted?.({ ...stroke, points })
+      if (!retainCommitted) {
+        void Promise.resolve(committed).then((accepted) => {
+          if (accepted === false) return
+          strokes.current = strokes.current.filter((item) => item.id !== stroke.id)
+          redraw()
+          requestVisibleRender()
+        }).catch(() => undefined)
+      }
+    } else if (!retainCommitted) {
       strokes.current = strokes.current.filter((item) => item.id !== stroke.id)
       redraw()
       requestVisibleRender()
@@ -373,8 +387,9 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
           key={item}
           className={color === item ? 'is-active' : ''}
           type="button"
-          aria-label={`Use ${item} color`}
+          aria-label={`${COLOR_LABELS[item]} drawing color`}
           aria-pressed={color === item}
+          title={COLOR_LABELS[item]}
           style={{ '--drawing-color': item } as CSSProperties}
           onClick={() => setColor(item)}
         />)}

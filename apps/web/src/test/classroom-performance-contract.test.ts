@@ -36,7 +36,7 @@ describe('classroom disabled-mode resource contract', () => {
     const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
 
     expect(teacher).toContain('const [guideMode, setGuideMode] = useState(false)')
-    expect(teacher).toContain('if (!guideModeRef.current')
+    expect(teacher).toContain('if (adminAuthFailed.current || !guideModeRef.current')
     expect(teacher).toContain('sequence(event, true)')
     expect(student).toContain('sequence(event, true)')
     expect(teacher).toContain('!coalescible && next !== streamSequence.current + 1')
@@ -54,6 +54,17 @@ describe('classroom disabled-mode resource contract', () => {
     expect(styles).toContain('.classroom-participant-list')
     expect(styles).toContain('overflow-y: auto')
     expect(styles).toContain('max-height: min(30vh, 260px)')
+  })
+
+  it('fails closed on expired teacher auth without continuing live traffic', () => {
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+
+    expect(teacher).toContain('const adminAuthFailed = useRef(false)')
+    expect(teacher).toContain('adminAuthFailed.current = true')
+    expect(teacher).toContain("navigate('/admin', { replace: true })")
+    expect(teacher).toContain('if (adminAuthFailed.current || !guideModeRef.current')
+    expect(teacher).toContain('classroom-local-pointer')
+    expect(teacher).toContain('pending questions`')
   })
 
   it('projects presenter movement directly without a React render per event', () => {
