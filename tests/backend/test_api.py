@@ -22,12 +22,20 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
-from wsi_viewer.models import Job, Slide, User
+from wsi_viewer.models import (
+    AnalysisRun,
+    DesktopIngest,
+    Job,
+    PathObjectMeasurement,
+    PathObjectMetadata,
+    Slide,
+    User,
+)
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 
 
-def _client(tmp_path: Path) -> TestClient:
+def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
@@ -35,6 +43,7 @@ def _client(tmp_path: Path) -> TestClient:
         secure_cookies=False,
         tus_internal_upload_dir=tmp_path / "tus",
         annotations_enabled=True,
+        desktop_ome_dynamic_enabled=ome_dynamic_enabled,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -67,11 +76,14 @@ def _desktop_authorization(client: TestClient) -> dict[str, str]:
         "/api/v1/desktop/pairings",
         json={"deviceName": "PathLab Forge ingest test"},
     ).json()
-    assert client.post(
-        "/api/v1/desktop/pairings/approve",
-        headers={"X-CSRF-Token": csrf},
-        json={"userCode": pairing["userCode"]},
-    ).status_code == 204
+    assert (
+        client.post(
+            "/api/v1/desktop/pairings/approve",
+            headers={"X-CSRF-Token": csrf},
+            json={"userCode": pairing["userCode"]},
+        ).status_code
+        == 204
+    )
     exchanged = client.post(
         "/api/v1/desktop/pairings/exchange",
         json={
@@ -89,8 +101,7 @@ def _streaming_prepared_package(path: Path) -> tuple[str, str, int, int]:
     jpeg_bytes = jpeg.getvalue()
     files = {
         "derivative/slide.dzi": (
-            b'<Image TileSize="512" Overlap="1" Format="jpg">'
-            b'<Size Width="1" Height="1"/></Image>'
+            b'<Image TileSize="512" Overlap="1" Format="jpg"><Size Width="1" Height="1"/></Image>'
         ),
         "derivative/slide_files/0/0_0.jpg": jpeg_bytes,
         "derivative/thumbnail.jpg": jpeg_bytes,
@@ -142,9 +153,7 @@ def _streaming_prepared_package(path: Path) -> tuple[str, str, int, int]:
             "derivativeBytes": derivative_bytes,
         },
     }
-    manifest_bytes = json.dumps(
-        manifest, ensure_ascii=False, separators=(",", ":")
-    ).encode()
+    manifest_bytes = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode()
     manifest_sha = hashlib.sha256(manifest_bytes).hexdigest()
     with tarfile.open(path, "w") as archive:
         for name, value in {
@@ -179,6 +188,7 @@ def _dynamic_ome(path: Path) -> str:
             },
             photometric="ycbcr",
             compression="jpeg",
+            compressionargs={"level": 75},
             tile=(512, 512),
             subifds=1,
         )
@@ -186,6 +196,7 @@ def _dynamic_ome(path: Path) -> str:
             full[::2, ::2],
             photometric="ycbcr",
             compression="jpeg",
+            compressionargs={"level": 75},
             tile=(512, 512),
             subfiletype=1,
         )
@@ -228,9 +239,9 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
         )
         assert started.status_code == 201
         pairing = started.json()
-        assert pairing["verificationUrl"].endswith(
-            f"/admin/connect?code={pairing['userCode']}"
-        )
+        assert pairing["verificationUrl"].endswith(f"/admin/connect?code={pairing['userCode']}")
+        assert pairing["verificationUrlComplete"] == pairing["verificationUrl"]
+        assert pairing["pollIntervalSeconds"] == 5
 
         pending = client.post(
             "/api/v1/desktop/pairings/exchange",
@@ -262,6 +273,10 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "desktop:ingest",
             "slides:private:read",
             "annotations:sync",
+            "results:sync",
+            "library:read",
+            "slides:offline:read",
+            "library:sync",
         }
 
         replay = client.post(
@@ -274,9 +289,7 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
         assert _has_error(replay, 409, "PAIRING_ALREADY_EXCHANGED")
 
         authorization = {"Authorization": f"Bearer {credential['accessToken']}"}
-        capabilities = client.get(
-            "/api/v1/desktop/capabilities", headers=authorization
-        )
+        capabilities = client.get("/api/v1/desktop/capabilities", headers=authorization)
         assert capabilities.status_code == 200
         assert capabilities.json()["recommendedChunkBytes"] == 64 * 1024 * 1024
         assert capabilities.json()["inventoryFormats"] == [
@@ -287,12 +300,27 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "prepared-v2",
             "ome-dynamic-v1",
         ]
-        assert client.get(
-            "/api/v1/desktop/credential", headers=authorization
-        ).status_code == 200
-        assert client.post(
-            "/api/v1/desktop/credential/revoke", headers=authorization
-        ).status_code == 204
+        assert capabilities.json()["omeProfiles"] == [
+            {
+                "id": "ome-dynamic-v1",
+                "pixelType": "uint8",
+                "channels": 3,
+                "colorSpace": "sRGB",
+                "tileWidth": 512,
+                "tileHeight": 512,
+                "pyramidFactor": 2,
+                "compression": "jpeg",
+                "jpegQuality": 75,
+                "tiffKinds": ["classic", "bigtiff"],
+                "nativeJpegTiles": True,
+                "persistedSha256": True,
+            }
+        ]
+        assert client.get("/api/v1/desktop/credential", headers=authorization).status_code == 200
+        assert (
+            client.post("/api/v1/desktop/credential/revoke", headers=authorization).status_code
+            == 204
+        )
         assert _has_error(
             client.get("/api/v1/desktop/credential", headers=authorization),
             401,
@@ -304,8 +332,8 @@ def test_desktop_ingest_finalizes_streaming_package_in_background(
     tmp_path: Path,
 ) -> None:
     package = tmp_path / "slide.plslide"
-    package_sha, manifest_sha, derivative_bytes, derivative_files = (
-        _streaming_prepared_package(package)
+    package_sha, manifest_sha, derivative_bytes, derivative_files = _streaming_prepared_package(
+        package
     )
     with _client(tmp_path) as client:
         authorization = _desktop_authorization(client)
@@ -342,10 +370,13 @@ def test_desktop_ingest_finalizes_streaming_package_in_background(
             )
         assert current.json()["status"] == "ready_private"
         assert current.json()["slideId"]
-        assert client.get(
-            f"/api/v1/desktop/slides/{current.json()['slideId']}",
-            headers=authorization,
-        ).status_code == 200
+        assert (
+            client.get(
+                f"/api/v1/desktop/slides/{current.json()['slideId']}",
+                headers=authorization,
+            ).status_code
+            == 200
+        )
         client.app.state.desktop_ingest_finalizer.enqueue(body["id"])
         client.app.state.desktop_ingest_finalizer.enqueue(body["id"])
         time.sleep(0.05)
@@ -370,7 +401,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
                 "width": 1024,
                 "height": 1024,
                 "downsample": 1.5,
-                "jpegQuality": 85,
+                "jpegQuality": 75,
             },
         )
         assert created.status_code == 201
@@ -392,13 +423,14 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
                 headers=authorization,
             )
         assert current.json()["status"] == "ready_private"
+        assert current.json()["slideSha256"] == ome_sha256
         slide_id = current.json()["slideId"]
         original_root = client.app.state.settings.data_root / "originals" / slide_id
         assert (original_root / "source.ome.tif").stat().st_size == ome.stat().st_size
         assert (original_root / "tile-index.json").is_file()
         tile_index = json.loads((original_root / "tile-index.json").read_bytes())
-        assert tile_index["jpegQuality"] == 85
-        assert tile_index["qualityProfile"] == "ome-dynamic-v1-q85"
+        assert tile_index["jpegQuality"] == 75
+        assert tile_index["qualityProfile"] == "ome-dynamic-v1-q75"
         assert not (client.app.state.settings.data_root / "private" / slide_id).exists()
         with session_factory(client.app.state.settings)() as database:
             slide = database.get(Slide, slide_id)
@@ -407,7 +439,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
             assert slide.source_bytes == ome.stat().st_size
             assert slide.derivative_bytes == 0
             assert slide.derivative_file_count == 0
-            assert slide.slide_metadata["encoding"]["jpegQuality"] == 85
+        assert slide.slide_metadata["encoding"]["jpegQuality"] == 75
 
         desktop_descriptor = client.get(
             f"/api/v1/desktop/slides/{slide_id}/preview/slide.dzi",
@@ -423,9 +455,7 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
         with Image.open(io.BytesIO(desktop_tile.content)) as decoded:
             assert decoded.size == (512, 512)
 
-        admin_descriptor = client.get(
-            f"/api/v1/admin/slides/{slide_id}/preview/slide.dzi"
-        )
+        admin_descriptor = client.get(f"/api/v1/admin/slides/{slide_id}/preview/slide.dzi")
         assert admin_descriptor.status_code == 200
         assert admin_descriptor.content == desktop_descriptor.content
         assert (
@@ -437,6 +467,164 @@ def test_desktop_ome_ingest_finalizes_without_stored_dzi(tmp_path: Path) -> None
         )
 
 
+def test_desktop_ome_ingest_rejects_non_negotiated_jpeg_quality(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        rejected = client.post(
+            "/api/v1/desktop/ome-ingests",
+            headers=_desktop_authorization(client),
+            json={
+                "displayName": "Wrong quality",
+                "artifactRevisionId": "artifact-wrong-quality",
+                "omeLength": 1,
+                "omeSha256": "a" * 64,
+                "profile": "ome-dynamic-v1",
+                "width": 1,
+                "height": 1,
+                "downsample": 1,
+                "jpegQuality": 80,
+            },
+        )
+        assert rejected.status_code == 422
+
+
+def test_desktop_can_cancel_only_an_incomplete_ome_ingest(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        authorization = _desktop_authorization(client)
+        capabilities = client.get("/api/v1/desktop/capabilities", headers=authorization).json()
+        assert capabilities["resultSchemas"] == ["pathlab-private-results/v1"]
+        assert capabilities["maxResultBytes"] > 0
+        created = client.post(
+            "/api/v1/desktop/ome-ingests",
+            headers=authorization,
+            json={
+                "displayName": "Cancelled OME slide",
+                "artifactRevisionId": "artifact-cancelled",
+                "omeLength": 1024,
+                "omeSha256": "a" * 64,
+                "profile": "ome-dynamic-v1",
+                "width": 1024,
+                "height": 1024,
+                "downsample": 1,
+                "jpegQuality": 75,
+            },
+        )
+        assert created.status_code == 201
+        ingest_id = created.json()["id"]
+        partial = client.patch(
+            created.json()["uploadUrl"],
+            headers={**authorization, "Upload-Offset": "0"},
+            content=b"partial",
+        )
+        assert partial.status_code == 202
+        assert partial.json()["status"] == "uploading"
+
+        cancelled = client.delete(f"/api/v2/desktop/ingests/{ingest_id}", headers=authorization)
+        assert cancelled.status_code == 204
+        assert client.head(created.json()["uploadUrl"], headers=authorization).status_code == 404
+
+        with session_factory(client.app.state.settings)() as database:
+            ingest = database.get(DesktopIngest, ingest_id)
+            assert ingest is not None
+            assert ingest.status == "cancelled"
+
+
+def test_private_result_bundle_applies_objects_and_measurements_atomically(
+    tmp_path: Path,
+) -> None:
+    slide_sha = "b" * 64
+    stream = io.BytesIO()
+    documents = {
+        "manifest.json": json.dumps(
+            {
+                "schema": "pathlab-private-results/v1",
+                "artifactRevisionId": "revision-1",
+                "slideSha256": slide_sha,
+            }
+        ).encode(),
+        "runs.ndjson": b'{"id":"run-1","status":"complete","provenance":{"tool":"Forge"}}\n',
+        "objects.ndjson": (
+            b'{"id":"object-1","runId":"run-1","type":"annotation",'
+            b'"geometry":{"type":"point","x":10,"y":20},"style":{"color":"#f00"}}\n'
+        ),
+        "measurements.ndjson": (b'{"objectId":"object-1","name":"x","value":10,"unit":"px"}\n'),
+    }
+    with tarfile.open(fileobj=stream, mode="w:gz") as archive:
+        for name, payload in documents.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(payload)
+            archive.addfile(info, io.BytesIO(payload))
+    bundle = stream.getvalue()
+    bundle_sha = hashlib.sha256(bundle).hexdigest()
+
+    with _client(tmp_path) as client:
+        authorization = _desktop_authorization(client)
+        with session_factory(client.app.state.settings)() as database:
+            slide = Slide(
+                display_name="Result slide",
+                original_filename="result.ome.tif",
+                source_bytes=100,
+                sha256=slide_sha,
+                state=SlideState.READY_PRIVATE,
+                privacy_status="private",
+                slide_metadata={"width": 100, "height": 100},
+            )
+            database.add(slide)
+            database.commit()
+            slide_id = slide.id
+        created = client.post(
+            f"/api/v2/desktop/slides/{slide_id}/result-deliveries",
+            headers=authorization,
+            json={
+                "artifactRevisionId": "revision-1",
+                "slideSha256": slide_sha,
+                "payloadLength": len(bundle),
+                "payloadSha256": bundle_sha,
+                "schema": "pathlab-private-results/v1",
+            },
+        )
+        assert created.status_code == 201
+        delivered = client.patch(
+            created.json()["uploadUrl"],
+            headers={**authorization, "Upload-Offset": "0"},
+            content=bundle,
+        )
+        assert delivered.status_code == 202
+        assert delivered.json()["status"] == "complete"
+        with session_factory(client.app.state.settings)() as database:
+            assert len(list(database.scalars(select(AnalysisRun)))) == 1
+            assert len(list(database.scalars(select(PathObjectMetadata)))) == 1
+            assert len(list(database.scalars(select(PathObjectMeasurement)))) == 1
+            assert database.scalar(select(PathObjectMetadata)).hidden is False
+
+
+def test_desktop_ome_kill_switch_removes_capability_and_rejects_ingest(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, ome_dynamic_enabled=False) as client:
+        authorization = _desktop_authorization(client)
+        capabilities = client.get("/api/v1/desktop/capabilities", headers=authorization)
+        assert capabilities.status_code == 200
+        assert capabilities.json()["ingestModes"] == ["prepared-v2"]
+        assert capabilities.json()["omeProfiles"] == []
+
+        rejected = client.post(
+            "/api/v1/desktop/ome-ingests",
+            headers=authorization,
+            json={
+                "displayName": "Disabled direct OME",
+                "artifactRevisionId": "artifact-disabled",
+                "omeLength": 1,
+                "omeSha256": "a" * 64,
+                "profile": "ome-dynamic-v1",
+                "width": 1,
+                "height": 1,
+                "downsample": 1,
+                "jpegQuality": 75,
+            },
+        )
+        assert _has_error(rejected, 409, "OME_DYNAMIC_DISABLED")
+
+
 def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
     tmp_path: Path,
 ) -> None:
@@ -446,11 +634,14 @@ def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
             "/api/v1/desktop/pairings",
             json={"deviceName": "PathLab Forge annotation test"},
         ).json()
-        assert client.post(
-            "/api/v1/desktop/pairings/approve",
-            headers={"X-CSRF-Token": csrf},
-            json={"userCode": pairing["userCode"]},
-        ).status_code == 204
+        assert (
+            client.post(
+                "/api/v1/desktop/pairings/approve",
+                headers={"X-CSRF-Token": csrf},
+                json={"userCode": pairing["userCode"]},
+            ).status_code
+            == 204
+        )
         exchanged = client.post(
             "/api/v1/desktop/pairings/exchange",
             json={
@@ -458,9 +649,7 @@ def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
                 "deviceSecret": pairing["deviceSecret"],
             },
         )
-        authorization = {
-            "Authorization": f"Bearer {exchanged.json()['accessToken']}"
-        }
+        authorization = {"Authorization": f"Bearer {exchanged.json()['accessToken']}"}
         settings = client.app.state.settings
         with session_factory(settings)() as database:
             slide = Slide(
@@ -505,14 +694,16 @@ def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
                     "locked": False,
                     "opacity": 1.0,
                 },
-                "operations": [{
-                    "type": "create",
-                    "item": {
-                        "id": first_id,
-                        "layerId": layer_id,
-                        "geometry": {"type": "point", "x": 10.0, "y": 20.0},
-                    },
-                }],
+                "operations": [
+                    {
+                        "type": "create",
+                        "item": {
+                            "id": first_id,
+                            "layerId": layer_id,
+                            "geometry": {"type": "point", "x": 10.0, "y": 20.0},
+                        },
+                    }
+                ],
             },
         )
         assert first.status_code == 200
@@ -524,14 +715,16 @@ def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
             json={
                 "mutationId": str(uuid.uuid4()),
                 "baseVersion": 0,
-                "operations": [{
-                    "type": "create",
-                    "item": {
-                        "id": str(uuid.uuid4()),
-                        "layerId": layer_id,
-                        "geometry": {"type": "point", "x": 30.0, "y": 40.0},
-                    },
-                }],
+                "operations": [
+                    {
+                        "type": "create",
+                        "item": {
+                            "id": str(uuid.uuid4()),
+                            "layerId": layer_id,
+                            "geometry": {"type": "point", "x": 30.0, "y": 40.0},
+                        },
+                    }
+                ],
             },
         )
         assert disjoint.status_code == 200
@@ -543,11 +736,13 @@ def test_desktop_annotations_sync_only_ready_private_and_merge_disjoint_changes(
             json={
                 "mutationId": str(uuid.uuid4()),
                 "baseVersion": 0,
-                "operations": [{
-                    "type": "delete",
-                    "id": first_id,
-                    "version": 99,
-                }],
+                "operations": [
+                    {
+                        "type": "delete",
+                        "id": first_id,
+                        "version": 99,
+                    }
+                ],
             },
         )
         assert conflict.status_code == 409

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .delivery import deliver_file
+from .desktop_sync import record_sync_event, revision_for
 from .domain import InvalidTransition, SlideState, transition
 from .library import (
     LibraryConflict,
@@ -535,6 +536,10 @@ def register_library_routes(
                 description=payload.description.strip(),
             )
             database.add(folder)
+            database.flush()
+            record_sync_event(
+                database, "folder", folder.id, "upsert", revision_for(folder.updated_at)
+            )
             database.commit()
             database.refresh(folder)
             return folder_json(folder)
@@ -577,6 +582,10 @@ def register_library_routes(
                 folder.description = payload.description.strip()
             if payload.sort_order is not None:
                 folder.sort_order = payload.sort_order
+            database.flush()
+            record_sync_event(
+                database, "folder", folder.id, "upsert", revision_for(folder.updated_at)
+            )
             database.commit()
             database.refresh(folder)
             return folder_json(folder)
@@ -614,6 +623,8 @@ def register_library_routes(
                 ),
             )
         )
+        for changed_id in subtree:
+            record_sync_event(database, "folder", changed_id, "trash", revision_for(now))
         database.commit()
         return {"id": folder_id, "trashedAt": now.isoformat(), "folderIds": subtree}
 
@@ -641,6 +652,9 @@ def register_library_routes(
             )
         database.execute(update(Folder).where(Folder.id.in_(subtree)).values(trashed_at=None))
         folder.previous_parent_id = None
+        now = utcnow()
+        for changed_id in subtree:
+            record_sync_event(database, "folder", changed_id, "restore", revision_for(now))
         database.commit()
         return {"id": folder_id, "trashedAt": None, "folderIds": subtree}
 
@@ -951,6 +965,11 @@ def register_library_routes(
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         for slide in slides:
             slide.folder_id = payload.folder_id
+        database.flush()
+        for slide in slides:
+            record_sync_event(
+                database, "slide", slide.id, "upsert", revision_for(slide.updated_at)
+            )
         database.commit()
         return {"items": [slide_json(slide) for slide in slides]}
 
@@ -999,6 +1018,11 @@ def register_library_routes(
             if public_changes:
                 slide.privacy_status = "pending"
                 slide.privacy_scanned_at = None
+        database.flush()
+        for slide in slides:
+            record_sync_event(
+                database, "slide", slide.id, "upsert", revision_for(slide.updated_at)
+            )
         database.commit()
         return {"items": [slide_json(slide) for slide in slides]}
 
@@ -1020,6 +1044,10 @@ def register_library_routes(
         slide.previous_folder_id = slide.folder_id
         slide.folder_id = None
         slide.trashed_at = utcnow()
+        database.flush()
+        record_sync_event(
+            database, "slide", slide.id, "trash", revision_for(slide.updated_at)
+        )
         database.commit()
         return slide_json(slide)
 
@@ -1043,6 +1071,10 @@ def register_library_routes(
         slide.folder_id = folder.id if folder is not None and folder.trashed_at is None else None
         slide.previous_folder_id = None
         slide.trashed_at = None
+        database.flush()
+        record_sync_event(
+            database, "slide", slide.id, "restore", revision_for(slide.updated_at)
+        )
         database.commit()
         return slide_json(slide)
 

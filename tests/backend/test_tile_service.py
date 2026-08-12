@@ -1,4 +1,6 @@
+import base64
 import io
+import json
 from pathlib import Path
 
 import numpy as np
@@ -7,12 +9,14 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from wsi_viewer.config import Settings
 from wsi_viewer.ome_ingest import serialize_ome_tile_index
-from wsi_viewer.ome_tile_index import build_ome_tile_index
+from wsi_viewer.ome_tile_index import build_ome_tile_index, read_indexed_jpeg
 from wsi_viewer.storage import StorageLayout
 from wsi_viewer.tile_service import create_tile_app
 
 
-def _service(tmp_path: Path) -> tuple[TestClient, str, str]:
+def _service(
+    tmp_path: Path, *, malformed_tables: bool = False
+) -> tuple[TestClient, str, str, bytes]:
     settings = Settings(
         _env_file=None,
         data_root=tmp_path / "data",
@@ -42,12 +46,26 @@ def _service(tmp_path: Path) -> tuple[TestClient, str, str]:
             subfiletype=1,
         )
     index = build_ome_tile_index(paths.original)
-    paths.ome_index.write_bytes(serialize_ome_tile_index(index))
-    return TestClient(create_tile_app(settings)), slide_id, index.source_sha256
+    serialized = serialize_ome_tile_index(index)
+    if malformed_tables:
+        document = json.loads(serialized)
+        document["levels"][0]["jpegTables"] = base64.b64encode(
+            b"\xff\xd8\xff\xdb\x00\x20\xff\xd9"
+        ).decode("ascii")
+        document["levels"][0]["tiles"][0]["standaloneJpeg"] = False
+        serialized = json.dumps(document).encode("utf-8")
+    paths.ome_index.write_bytes(serialized)
+    native = read_indexed_jpeg(
+        paths.original,
+        index.levels[0].tiles[0],
+        expected_width=512,
+        expected_height=512,
+    )
+    return TestClient(create_tile_app(settings)), slide_id, index.source_sha256, native
 
 
 def test_internal_tile_service_serves_only_virtual_dzi_shapes(tmp_path: Path) -> None:
-    client, slide_id, slide_sha256 = _service(tmp_path)
+    client, slide_id, slide_sha256, native = _service(tmp_path)
     root = f"/_pathlab_ome/{slide_id}/{slide_sha256}"
     with client:
         assert client.get("/livez").status_code == 200
@@ -60,6 +78,7 @@ def test_internal_tile_service_serves_only_virtual_dzi_shapes(tmp_path: Path) ->
         assert b'Width="1024" Height="1024"' in descriptor.content
         tile = client.get(f"{root}/slide_files/10/0_0.jpg")
         assert tile.status_code == 200
+        assert tile.content == native
         with Image.open(io.BytesIO(tile.content)) as decoded:
             assert decoded.size == (512, 512)
 
@@ -71,3 +90,16 @@ def test_internal_tile_service_serves_only_virtual_dzi_shapes(tmp_path: Path) ->
             ).status_code
             == 503
         )
+
+
+def test_internal_tile_service_maps_malformed_native_jpeg_to_stable_503(
+    tmp_path: Path,
+) -> None:
+    client, slide_id, slide_sha256, _ = _service(tmp_path, malformed_tables=True)
+    root = f"/_pathlab_ome/{slide_id}/{slide_sha256}"
+
+    with client:
+        response = client.get(f"{root}/slide_files/10/0_0.jpg")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": {"code": "TILE_UNAVAILABLE"}}

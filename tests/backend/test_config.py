@@ -60,6 +60,16 @@ def test_multi_share_is_enabled_by_default_and_accepts_the_kill_switch(
     assert Settings(_env_file=None).multi_share_enabled is False
 
 
+def test_desktop_ome_dynamic_is_enabled_by_default_and_has_a_kill_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_DESKTOP_OME_DYNAMIC_ENABLED", raising=False)
+    assert Settings(_env_file=None).desktop_ome_dynamic_enabled is True
+
+    monkeypatch.setenv("PATHLAB_DESKTOP_OME_DYNAMIC_ENABLED", "false")
+    assert Settings(_env_file=None).desktop_ome_dynamic_enabled is False
+
+
 @pytest.mark.parametrize(
     "field",
     (

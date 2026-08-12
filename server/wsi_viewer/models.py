@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -95,6 +96,25 @@ class DesktopCredential(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class DesktopSyncEvent(Base):
+    __tablename__ = "desktop_sync_events"
+    __table_args__ = (
+        Index(
+            "ix_desktop_sync_events_entity_sequence",
+            "entity_type",
+            "entity_id",
+            "sequence",
+        ),
+    )
+
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    revision: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class DesktopIngest(Base):
     __tablename__ = "desktop_ingests"
     __table_args__ = (
@@ -114,9 +134,7 @@ class DesktopIngest(Base):
     credential_id: Mapped[str] = mapped_column(
         ForeignKey("desktop_credentials.id", ondelete="CASCADE"), nullable=False
     )
-    slide_id: Mapped[str | None] = mapped_column(
-        ForeignKey("slides.id", ondelete="SET NULL")
-    )
+    slide_id: Mapped[str | None] = mapped_column(ForeignKey("slides.id", ondelete="SET NULL"))
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     artifact_revision_id: Mapped[str] = mapped_column(String(100), nullable=False)
     package_length: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -142,6 +160,101 @@ class DesktopIngest(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
+
+
+class ResultDelivery(Base):
+    __tablename__ = "result_deliveries"
+    __table_args__ = (
+        UniqueConstraint("slide_id", "artifact_revision_id", "payload_sha256"),
+        CheckConstraint(
+            "received_bytes >= 0 AND received_bytes <= payload_length",
+            name="ck_result_deliveries_received_range",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    credential_id: Mapped[str] = mapped_column(
+        ForeignKey("desktop_credentials.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    artifact_revision_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    slide_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_length: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    received_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="uploading")
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class AnalysisRun(Base):
+    __tablename__ = "analysis_runs"
+    __table_args__ = (UniqueConstraint("slide_id", "external_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    delivery_id: Mapped[str] = mapped_column(
+        ForeignKey("result_deliveries.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    provenance: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class PathObjectMetadata(Base):
+    __tablename__ = "path_object_metadata"
+    __table_args__ = (UniqueConstraint("slide_id", "external_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    delivery_id: Mapped[str] = mapped_column(
+        ForeignKey("result_deliveries.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    run_id: Mapped[str | None] = mapped_column(ForeignKey("analysis_runs.id", ondelete="SET NULL"))
+    external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    object_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    parent_external_id: Mapped[str | None] = mapped_column(String(100))
+    classification: Mapped[str | None] = mapped_column(String(120))
+    geometry: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    style: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class PathObjectMeasurement(Base):
+    __tablename__ = "path_object_measurements"
+    __table_args__ = (UniqueConstraint("object_id", "name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    object_id: Mapped[str] = mapped_column(
+        ForeignKey("path_object_metadata.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    unit: Mapped[str] = mapped_column(String(40), nullable=False, default="")
+
+
+class ManagedResultAttachment(Base):
+    __tablename__ = "managed_result_attachments"
+    __table_args__ = (UniqueConstraint("delivery_id", "sha256"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    delivery_id: Mapped[str] = mapped_column(
+        ForeignKey("result_deliveries.id", ondelete="CASCADE"), nullable=False
+    )
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    storage_name: Mapped[str] = mapped_column(String(120), nullable=False)
 
 
 class PasswordRecoveryCode(Base):
@@ -494,9 +607,7 @@ class LibraryShare(Base):
     include_descendants: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     auto_include_new: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     folder_paths: Mapped[list[list[str]]] = mapped_column(JSON, nullable=False, default=list)
-    privacy_status: Mapped[str] = mapped_column(
-        String(30), nullable=False, default="pending"
-    )
+    privacy_status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending")
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -567,9 +678,7 @@ class Job(Base):
 
 class AuditEvent(Base):
     __tablename__ = "audit_events"
-    __table_args__ = (
-        Index("ix_audit_events_action_created_at", "action", "created_at"),
-    )
+    __table_args__ = (Index("ix_audit_events_action_created_at", "action", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     actor_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

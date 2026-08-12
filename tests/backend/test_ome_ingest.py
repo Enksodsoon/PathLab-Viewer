@@ -72,7 +72,7 @@ def test_hash_mismatch_fails_closed_into_private_quarantine(tmp_path: Path) -> N
     assert not source.exists()
 
 
-def test_profile_accepts_regular_factor_four_for_seam_aligned_virtual_levels() -> None:
+def test_dynamic_v1_profile_rejects_factor_four_pyramids() -> None:
     levels = tuple(
         OmeLevel(width, height, 1, 1, ())
         for width, height in ((4096, 3072), (1024, 768), (256, 192))
@@ -91,10 +91,14 @@ def test_profile_accepts_regular_factor_four_for_seam_aligned_virtual_levels() -
         "a" * 64,
     )
     ingest = SimpleNamespace(
-        ome_profile="ome-dynamic-v1", ome_width=4096, ome_height=3072
+        ome_profile="ome-dynamic-v1",
+        ome_width=4096,
+        ome_height=3072,
+        ome_jpeg_quality=75,
     )
 
-    _validate_profile(ingest, index)  # type: ignore[arg-type]
+    with pytest.raises(OmeIngestError, match="FACTOR_UNSUPPORTED"):
+        _validate_profile(ingest, index)  # type: ignore[arg-type]
 
     irregular = OmeTileIndex(
         4096,
@@ -113,7 +117,7 @@ def test_profile_accepts_regular_factor_four_for_seam_aligned_virtual_levels() -
         _validate_profile(ingest, irregular)  # type: ignore[arg-type]
 
 
-def test_profile_accepts_a_single_level_factor_four_image_up_to_2048_pixels() -> None:
+def test_dynamic_v1_profile_requires_factor_two_coverage() -> None:
     level = OmeLevel(2048, 1536, 1, 1, ())
     index = OmeTileIndex(
         2048,
@@ -129,7 +133,42 @@ def test_profile_accepts_a_single_level_factor_four_image_up_to_2048_pixels() ->
         "a" * 64,
     )
     ingest = SimpleNamespace(
-        ome_profile="ome-dynamic-v1", ome_width=2048, ome_height=1536
+        ome_profile="ome-dynamic-v1",
+        ome_width=2048,
+        ome_height=1536,
+        ome_jpeg_quality=75,
     )
 
-    _validate_profile(ingest, index)  # type: ignore[arg-type]
+    with pytest.raises(OmeIngestError, match="PYRAMID_INCOMPLETE"):
+        _validate_profile(ingest, index)  # type: ignore[arg-type]
+
+
+def test_dynamic_v1_profile_rejects_mislabeled_jpeg_quality() -> None:
+    levels = (
+        OmeLevel(1024, 1024, 2, 2, ()),
+        OmeLevel(512, 512, 1, 1, ()),
+    )
+    index = OmeTileIndex(
+        1024,
+        1024,
+        512,
+        512,
+        "jpeg",
+        levels,
+        (1, 2),
+        True,
+        1,
+        1,
+        "a" * 64,
+        jpeg_quality=85,
+        quality_profile="ome-dynamic-v1-q85",
+    )
+    ingest = SimpleNamespace(
+        ome_profile="ome-dynamic-v1",
+        ome_width=1024,
+        ome_height=1024,
+        ome_jpeg_quality=75,
+    )
+
+    with pytest.raises(OmeIngestError, match="JPEG_QUALITY_MISMATCH"):
+        _validate_profile(ingest, index)  # type: ignore[arg-type]

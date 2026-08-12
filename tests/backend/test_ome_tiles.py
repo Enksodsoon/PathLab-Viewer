@@ -105,6 +105,66 @@ def test_factor_two_level_uses_matching_raw_page(tmp_path: Path) -> None:
     renderer.close()
 
 
+def test_edge_tile_preserves_tiff_tile_geometry_without_reencoding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "edge.ome.tif"
+    full = np.zeros((650, 700, 3), dtype=np.uint8)
+    with tifffile.TiffWriter(source, ome=True, bigtiff=True) as writer:
+        writer.write(
+            full,
+            metadata={"axes": "YXS"},
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subifds=1,
+        )
+        writer.write(
+            full[::2, ::2],
+            photometric="ycbcr",
+            compression="jpeg",
+            tile=(512, 512),
+            subfiletype=1,
+        )
+    index = build_ome_tile_index(source)
+    index_path = tmp_path / "edge-index.json"
+    index_path.write_bytes(serialize_ome_tile_index(index))
+    slide = DynamicSlide(
+        source=source,
+        index=index_path,
+        sha256=index.source_sha256,
+        width=700,
+        height=650,
+        quality=95,
+        quality_profile="ome-dynamic-v1-q95",
+    )
+    renderer = _renderer(tmp_path)
+    monkeypatch.setattr(
+        renderer,
+        "_render_fallback",
+        lambda *_: pytest.fail("native edge tile was re-encoded"),
+    )
+
+    result = renderer.tile(slide, DziRequest(level=10, column=1, row=1))
+
+    assert result == read_indexed_jpeg(
+        source,
+        index.levels[0].tiles[3],
+        expected_width=512,
+        expected_height=512,
+    )
+    with Image.open(io.BytesIO(result)) as image:
+        assert image.size == (512, 512)
+        direct_logical_region = np.asarray(image.convert("RGB"))[:138, :188]
+    with tifffile.TiffFile(source) as tif:
+        source_logical_region = tif.series[0].levels[0].asarray()[512:650, 512:700]
+    np.testing.assert_array_equal(direct_logical_region, source_logical_region)
+    assert (700 - 512, 650 - 512) == (188, 138)
+    assert renderer.stats().raw_tiles == 1
+    assert renderer.stats().fallback_tiles == 0
+    renderer.close()
+
+
 def test_missing_ome_level_uses_bounded_fallback(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -164,9 +224,7 @@ def test_fallback_jpeg_uses_debian_libvips_compatible_options(
     )
     monkeypatch.setitem(sys.modules, "pyvips", fake_pyvips)
 
-    assert renderer.tile(slide, DziRequest(level=8, column=0, row=0)).startswith(
-        b"\xff\xd8"
-    )
+    assert renderer.tile(slide, DziRequest(level=8, column=0, row=0)).startswith(b"\xff\xd8")
     assert options == {"Q": 95, "strip": True, "optimize_coding": True}
     renderer.close()
 

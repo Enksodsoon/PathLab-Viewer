@@ -9,6 +9,7 @@ from pathlib import Path
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session as OrmSession
 
+from .desktop_sync import record_sync_event, revision_for
 from .domain import SlideState
 from .models import AuditEvent, DesktopCredential, DesktopIngest, Slide
 from .ome_ingest import (
@@ -222,6 +223,7 @@ def _install(
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
         ingest.error_code = None
+        record_sync_event(database, "slide", slide.id, "upsert", revision_for(slide.updated_at))
         owning_credential = database.get(DesktopCredential, ingest.credential_id)
         if owning_credential is None:
             raise PreparedIngestError("DESKTOP_CREDENTIAL_MISSING")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import shutil
@@ -10,6 +11,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session as OrmSession
 
+from .desktop_sync import record_sync_event, revision_for
 from .domain import SlideState
 from .models import AuditEvent, DesktopCredential, DesktopIngest, Slide
 from .ome import OmeMetadata, validate_ome_tiff
@@ -19,6 +21,22 @@ from .storage import StorageLayout
 
 class OmeIngestError(RuntimeError):
     pass
+
+
+def _stable_file_sha256(path: Path) -> str:
+    before = path.lstat()
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    after = path.lstat()
+    if (
+        before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+        or getattr(before, "st_ino", None) != getattr(after, "st_ino", None)
+    ):
+        raise OmeIngestError("OME_DESTINATION_CHANGED_DURING_SHA")
+    return digest.hexdigest()
 
 
 def desktop_ome_path(storage: StorageLayout, ingest_id: str) -> Path:
@@ -98,10 +116,12 @@ def _write_index_atomic(path: Path, payload: bytes) -> None:
 def _validate_profile(ingest: DesktopIngest, index: OmeTileIndex) -> None:
     if ingest.ome_profile != "ome-dynamic-v1":
         raise OmeIngestError("OME_PROFILE_UNSUPPORTED")
+    if ingest.ome_jpeg_quality != 75 or index.jpeg_quality != 75:
+        raise OmeIngestError("OME_JPEG_QUALITY_MISMATCH")
     if ingest.ome_width != index.width or ingest.ome_height != index.height:
         raise OmeIngestError("OME_GEOMETRY_MISMATCH")
-    pyramid_factor = index.pyramid_factors[1] if len(index.pyramid_factors) > 1 else 4
-    if pyramid_factor not in {2, 4} or index.pyramid_factors != tuple(
+    pyramid_factor = 2
+    if index.pyramid_factors != tuple(
         pyramid_factor**level for level in range(len(index.levels))
     ):
         raise OmeIngestError("OME_PYRAMID_FACTOR_UNSUPPORTED")
@@ -170,6 +190,8 @@ def install_ome_ingest(
         destination = paths.original
         destination.parent.mkdir(parents=True, exist_ok=False)
         os.replace(source, destination)
+        if _stable_file_sha256(destination) != index.source_sha256:
+            raise OmeIngestError("OME_PERSISTED_SHA_MISMATCH")
         _write_index_atomic(
             paths.ome_index,
             serialize_ome_tile_index(
@@ -179,6 +201,7 @@ def install_ome_ingest(
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
         ingest.error_code = None
+        record_sync_event(database, "slide", slide.id, "upsert", revision_for(slide.updated_at))
         owning_credential = database.get(DesktopCredential, ingest.credential_id)
         if owning_credential is None:
             raise OmeIngestError("DESKTOP_CREDENTIAL_MISSING")
