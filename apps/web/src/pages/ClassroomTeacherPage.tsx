@@ -373,12 +373,7 @@ export function ClassroomTeacherPage() {
     const localPointer = document.createElement('span')
     localPointer.className = 'classroom-local-pointer'
     localPointerElementRef.current = localPointer
-    viewer.addOverlay({
-      element: localPointer,
-      location: new OpenSeadragon.Point(0, 0),
-      placement: OpenSeadragon.Placement.CENTER,
-      checkResize: false,
-    })
+    viewer.container.append(localPointer)
     const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => (
       publishTeacherViewport(classroom!.id, payload)
         .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
@@ -415,7 +410,7 @@ export function ClassroomTeacherPage() {
       const dimensions = item.source.dimensions
       pointerVisible = true
       localPointer.className = `classroom-local-pointer is-visible${pointerColorRef.current === 'red' ? ' is-red' : ''}`
-      viewer.updateOverlay(localPointer, item.imageToViewportCoordinates(imagePoint), OpenSeadragon.Placement.CENTER)
+      localPointer.style.transform = `translate3d(${event.clientX - bounds.left}px, ${event.clientY - bounds.top}px, 0)`
       pointerSender.push({
         slideId: currentSlide.id,
         style: `${pointerColorRef.current}-arrow`,
@@ -443,7 +438,7 @@ export function ClassroomTeacherPage() {
       sender.dispose()
       pointerSender.dispose()
       clearPointer()
-      viewer.removeOverlay(localPointer)
+      localPointer.remove()
       if (localPointerElementRef.current === localPointer) localPointerElementRef.current = null
       if (viewerRef.current === viewer) viewerRef.current = null
       setViewer(null)

@@ -25,7 +25,9 @@ describe('classroom disabled-mode resource contract', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
 
     expect(overlay).not.toContain('useState')
-    expect(overlay).toContain("setAttribute('d'")
+    expect(overlay).toContain("setAttribute('transform'")
+    expect(overlay).toContain('data-teaching-annotations')
+    expect(overlay).not.toContain('annotation.points.map(project)')
     expect(overlay).toContain('if (!visibleAnnotations.length && !visiblePointer) return null')
     expect(teacher).toContain('if (!stateRef.current?.controller.participantId) return')
     expect(teacher).toContain("teachingTool === 'draw' ? <StudentDrawingOverlay")
@@ -64,6 +66,8 @@ describe('classroom disabled-mode resource contract', () => {
     expect(teacher).toContain("navigate('/admin', { replace: true })")
     expect(teacher).toContain('if (adminAuthFailed.current || !guideModeRef.current')
     expect(teacher).toContain('classroom-local-pointer')
+    expect(teacher).toContain('viewer.container.append(localPointer)')
+    expect(teacher).not.toContain('viewer.updateOverlay(localPointer')
     expect(teacher).toContain('pending questions`')
   })
 

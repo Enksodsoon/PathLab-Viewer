@@ -76,4 +76,29 @@ describe('StudentDrawingOverlay', () => {
     await act(async () => { accept?.(true) })
     expect(ref.current?.hasDrawing()).toBe(false)
   })
+
+  it('draws pen movement incrementally without rerendering the full canvas per sample', () => {
+    const canvasContext = {
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      clearRect: vi.fn(),
+      fill: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(canvasContext as unknown as CanvasRenderingContext2D)
+    render(<StudentDrawingOverlay active onDone={vi.fn()} />)
+
+    const canvas = screen.getByLabelText('Private slide drawing canvas')
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 10, clientY: 10 })
+    canvasContext.clearRect.mockClear()
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 20, clientY: 20 })
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 30, clientY: 30 })
+
+    expect(canvasContext.lineTo).toHaveBeenCalledTimes(2)
+    expect(canvasContext.clearRect).not.toHaveBeenCalled()
+  })
 })

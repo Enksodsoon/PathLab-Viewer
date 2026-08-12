@@ -206,6 +206,29 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     context.globalAlpha = 1
   }, [])
 
+  const drawIncrement = (
+    canvas: HTMLCanvasElement,
+    stroke: DrawingStroke,
+    from: DrawingPoint,
+    to: DrawingPoint,
+  ) => {
+    const context = canvas.getContext('2d')
+    if (!context) return
+    context.save()
+    context.lineCap = 'round'
+    context.lineJoin = 'round'
+    context.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over'
+    context.globalAlpha = stroke.tool === 'highlight' ? 0.42 : 1
+    context.strokeStyle = stroke.color
+    context.lineWidth = (stroke.tool === 'highlight' ? stroke.width * 4 : stroke.tool === 'eraser' ? stroke.width * 5 : stroke.width)
+      * canvas.width / Math.max(1, canvas.clientWidth)
+    context.beginPath()
+    context.moveTo(from.x * canvas.width, from.y * canvas.height)
+    context.lineTo(to.x * canvas.width, to.y * canvas.height)
+    context.stroke()
+    context.restore()
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current
     const container = canvas?.parentElement
@@ -262,7 +285,6 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     strokes.current.push(stroke)
     currentStroke.current = stroke
     redraw()
-    requestVisibleRender()
   }
 
   const move = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -277,15 +299,16 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     }
     const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? []
     const samples = coalesced.length ? coalesced : [event.nativeEvent]
+    const bounds = event.currentTarget.getBoundingClientRect()
     for (const sample of samples) {
-      const bounds = event.currentTarget.getBoundingClientRect()
-      stroke.points.push({
+      const previous = stroke.points.at(-1) ?? stroke.points[0]
+      const next = {
         x: Math.max(0, Math.min(1, (sample.clientX - bounds.left) / bounds.width)),
         y: Math.max(0, Math.min(1, (sample.clientY - bounds.top) / bounds.height)),
-      })
+      }
+      stroke.points.push(next)
+      drawIncrement(event.currentTarget, stroke, previous, next)
     }
-    redraw()
-    requestVisibleRender()
   }
 
   const end = (event: PointerEvent<HTMLCanvasElement>) => {
