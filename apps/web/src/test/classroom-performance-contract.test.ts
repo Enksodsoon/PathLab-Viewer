@@ -31,6 +31,7 @@ describe('classroom disabled-mode resource contract', () => {
     expect(overlay).toContain('if (!visibleAnnotations.length && !visiblePointer) return null')
     expect(teacher).toContain('if (!stateRef.current?.controller.participantId) return')
     expect(teacher).toContain("teachingTool === 'draw' ? <StudentDrawingOverlay")
+    expect(teacher).toContain("setMouseNavEnabled(teachingTool !== 'draw')")
   })
 
   it('keeps guide traffic opt-in and accepts intentionally coalesced movement', () => {

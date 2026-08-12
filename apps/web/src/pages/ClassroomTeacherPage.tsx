@@ -327,7 +327,9 @@ export function ClassroomTeacherPage() {
   }, [applyRemote, state?.presenter, viewer])
 
   useEffect(() => {
-    viewer?.setMouseNavEnabled(teachingTool === 'navigate')
+    // Pointer mode is an additive presentation aid: keep the normal pan, zoom,
+    // and touch gestures available while the screen-space arrow follows along.
+    viewer?.setMouseNavEnabled(teachingTool !== 'draw')
     if (teachingTool !== 'pointer' && localPointerElementRef.current) {
       localPointerElementRef.current.className = 'classroom-local-pointer'
     }
