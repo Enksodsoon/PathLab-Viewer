@@ -624,11 +624,12 @@
   width: max-content;
   max-width: calc(100% - 32px);
   padding: 4px;
-  border: 1px solid rgb(255 255 255 / 17%);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgb(23 22 20 / 92%);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
   translate: -50% 0;
-  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--shadow-color) 18%, transparent);
 }
 
 .classroom-teaching-tools button {
@@ -639,7 +640,7 @@
   padding: 0;
   border: 1px solid transparent;
   border-radius: 7px;
-  color: #ede8df;
+  color: var(--body);
   background: transparent;
   font: 650 11px/1 var(--font-ui);
   cursor: pointer;
@@ -655,9 +656,9 @@
   bottom: 6px;
   width: 6px;
   height: 6px;
-  border: 1px solid #171614;
+  border: 1px solid var(--surface-elevated);
   border-radius: 50%;
-  background: #817b72;
+  background: var(--muted);
 }
 
 .classroom-guide-toggle.is-active .classroom-tool-status {
@@ -669,7 +670,7 @@
   align-self: stretch;
   width: 1px;
   margin: 4px 2px;
-  background: rgb(255 255 255 / 14%);
+  background: var(--border);
 }
 
 .classroom-tool-pointer svg { color: #55d98a; }
@@ -677,11 +678,11 @@
 
 .classroom-teaching-tools button:hover,
 .classroom-teaching-tools button.is-active {
-  border-color: rgb(255 255 255 / 17%);
-  background: #3a3530;
+  border-color: var(--border);
+  background: var(--surface-card);
 }
 
-.classroom-teaching-tools button.is-active { color: #fff; box-shadow: inset 0 -2px var(--primary); }
+.classroom-teaching-tools button.is-active { color: var(--ink); box-shadow: inset 0 -2px var(--primary); }
 .classroom-teaching-tools button:disabled { cursor: not-allowed; opacity: .4; }
 
 .classroom-teacher-pointer { will-change: transform; }
@@ -699,18 +700,18 @@
   display: flex;
   gap: 8px;
   padding: 7px;
-  border: 1px solid rgb(255 255 255 / 17%);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgb(23 22 20 / 92%);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
   translate: -50% 0;
-  box-shadow: 0 10px 28px rgb(0 0 0 / 28%);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--shadow-color) 18%, transparent);
 }
 
 .classroom-pointer-options button {
   width: 30px;
   min-height: 30px;
   padding: 0;
-  border: 2px solid rgb(255 255 255 / 22%);
+  border: 2px solid var(--border);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -718,7 +719,7 @@
 .classroom-pointer-options .is-green { background: #36d77a; }
 .classroom-pointer-options .is-red { background: #ff4c42; }
 .classroom-pointer-options button.is-active {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
