@@ -101,6 +101,6 @@ export function ClassroomTeachingOverlays({
     {visiblePointer ? <g
       data-teacher-pointer=""
       className={`classroom-teacher-pointer is-${visiblePointer.style}`}
-    ><path d="M0 0V32L8.5 23.5L14.5 37L20.5 34L14.5 21H28Z" /></g> : null}
+    ><path d="M0 0V34L9.5 24.5L17.5 42L24 38.8L16.2 22H29Z" /></g> : null}
   </svg>
 }
