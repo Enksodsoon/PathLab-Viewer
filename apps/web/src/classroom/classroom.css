@@ -684,9 +684,7 @@
 .classroom-teaching-tools button.is-active { color: #fff; box-shadow: inset 0 -2px var(--primary); }
 .classroom-teaching-tools button:disabled { cursor: not-allowed; opacity: .4; }
 
-.classroom-teacher-pointer {
-  filter: drop-shadow(0 2px 5px rgb(0 0 0 / 55%));
-}
+.classroom-teacher-pointer { will-change: transform; }
 
 .classroom-teacher-pointer.is-green-arrow { fill: #36d77a; stroke: #fff; stroke-width: 1.5; }
 .classroom-teacher-pointer.is-red-arrow { fill: #ff4c42; stroke: #fff; stroke-width: 1.5; }
@@ -944,9 +942,8 @@
   height: 48px;
   pointer-events: none;
   opacity: 0;
-  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 70%));
+  contain: layout paint style;
   transform-origin: 0 0;
-  transition: opacity 80ms ease;
   will-change: transform;
 }
 

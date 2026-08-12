@@ -312,14 +312,14 @@ export function ClassroomStudentPage() {
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     viewerRef.current = viewer
     setViewer(viewer)
-    const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => {
+    const sender = createLatestSender(() => {
       const current = stateRef.current
       if (!current?.control.leaseId || !sessionId) return Promise.resolve()
       return publishStudentViewport(
         sessionId,
         csrfRef.current,
         current.control.leaseId,
-        payload,
+        readPresenterViewport(viewer, slideIdRef.current),
       ).catch(() => setMessage('Slide control returned to the teacher.'))
     })
     const opened = () => applyRemote(viewer)
@@ -327,7 +327,7 @@ export function ClassroomStudentPage() {
       const current = stateRef.current
       if (drawingModeRef.current || suppressPublish.current || !current?.control.isController
         || !current.control.leaseId || !sessionId) return
-      sender.push(readPresenterViewport(viewer, slideIdRef.current))
+      sender.push(0)
     }
     const clicked = (event: { position: OpenSeadragon.Point }) => {
       if (drawingModeRef.current || !pinMode || !currentSlide) return

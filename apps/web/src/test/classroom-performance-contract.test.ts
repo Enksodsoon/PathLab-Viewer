@@ -62,6 +62,7 @@ describe('classroom disabled-mode resource contract', () => {
 
   it('fails closed on expired teacher auth without continuing live traffic', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+    const styles = readFileSync(resolve('src/classroom/classroom.css'), 'utf8')
 
     expect(teacher).toContain('const adminAuthFailed = useRef(false)')
     expect(teacher).toContain('adminAuthFailed.current = true')
@@ -70,6 +71,10 @@ describe('classroom disabled-mode resource contract', () => {
     expect(teacher).toContain('classroom-local-pointer')
     expect(teacher).toContain('viewer.container.append(localPointer)')
     expect(teacher).not.toContain('viewer.updateOverlay(localPointer')
+    expect(teacher).toContain('window.requestAnimationFrame')
+    expect(teacher).toContain('pointerBoundsObserver.observe(viewer.canvas)')
+    expect(teacher).not.toContain('sender.push(readPresenterViewport')
+    expect(styles).not.toContain('.classroom-local-pointer {\n  position: absolute;\n  top: 0;\n  left: 0;\n  z-index: 7;\n  width: 40px;\n  height: 48px;\n  pointer-events: none;\n  opacity: 0;\n  filter:')
     expect(teacher).toContain('pending questions`')
   })
 

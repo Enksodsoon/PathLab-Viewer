@@ -36,15 +36,17 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
   viewer,
 }, ref) {
   const rootRef = useRef<SVGSVGElement | null>(null)
+  const annotationLayerRef = useRef<SVGGElement | null>(null)
+  const pointerNodeRef = useRef<SVGGElement | null>(null)
   const pointerRef = useRef<TeacherPointer | null>(pointer)
+  const pointerFrameRef = useRef<number | null>(null)
   const visibleAnnotations = useMemo(
     () => annotations.filter((annotation) => annotation.slideId === slideId),
     [annotations, slideId],
   )
   const projectPointer = useCallback(() => {
-    const root = rootRef.current
     const visiblePointer = pointerRef.current?.slideId === slideId ? pointerRef.current : null
-    const pointerNode = root?.querySelector<SVGGElement>('[data-teacher-pointer]')
+    const pointerNode = pointerNodeRef.current
     const item = viewer?.world.getItemAt(0)
     if (!pointerNode || !viewer || !item || !visiblePointer) {
       pointerNode?.setAttribute('visibility', 'hidden')
@@ -59,23 +61,36 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
     pointerNode.setAttribute('visibility', 'visible')
   }, [slideId, viewer])
 
+  const schedulePointerProjection = useCallback(() => {
+    if (pointerFrameRef.current !== null) return
+    pointerFrameRef.current = window.requestAnimationFrame(() => {
+      pointerFrameRef.current = null
+      projectPointer()
+    })
+  }, [projectPointer])
+
   useImperativeHandle(ref, () => ({
     setPointer(next) {
       pointerRef.current = next
-      projectPointer()
+      schedulePointerProjection()
     },
-  }), [projectPointer])
+  }), [schedulePointerProjection])
 
   useEffect(() => {
     pointerRef.current = pointer
-    projectPointer()
-  }, [pointer, projectPointer])
+    schedulePointerProjection()
+  }, [pointer, schedulePointerProjection])
+
+  useEffect(() => () => {
+    if (pointerFrameRef.current !== null) window.cancelAnimationFrame(pointerFrameRef.current)
+  }, [])
 
   useEffect(() => {
     const root = rootRef.current
     if (!viewer || !root) return
     let frame: number | null = null
     const render = () => {
+      if (!visibleAnnotations.length && pointerRef.current?.slideId !== slideId) return
       if (frame !== null) return
       frame = window.requestAnimationFrame(() => {
         frame = null
@@ -87,7 +102,7 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
             item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
           )
         )
-        const annotationLayer = root.querySelector<SVGGElement>('[data-teaching-annotations]')
+        const annotationLayer = annotationLayerRef.current
         if (annotationLayer && visibleAnnotations.length) {
           const origin = project({ x: 0, y: 0 })
           const horizontal = project({ x: 1, y: 0 })
@@ -110,10 +125,10 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
       observer.disconnect()
       if (frame !== null) window.cancelAnimationFrame(frame)
     }
-  }, [viewer, visibleAnnotations, projectPointer])
+  }, [viewer, visibleAnnotations, projectPointer, slideId])
 
   return <svg ref={rootRef} className="classroom-teaching-overlay" aria-hidden="true">
-    <g data-teaching-annotations="">{visibleAnnotations.map((annotation) => <path
+    <g ref={annotationLayerRef} data-teaching-annotations="">{visibleAnnotations.map((annotation) => <path
         key={annotation.id}
         data-teaching-stroke=""
         d={normalizedPath(annotation)}
@@ -126,6 +141,7 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
         vectorEffect="non-scaling-stroke"
       />)}</g>
     <g
+      ref={pointerNodeRef}
       data-teacher-pointer=""
       className="classroom-teacher-pointer"
       visibility="hidden"

@@ -379,8 +379,8 @@ export function ClassroomTeacherPage() {
     localPointer.className = 'classroom-local-pointer'
     localPointerElementRef.current = localPointer
     viewer.container.append(localPointer)
-    const sender = createLatestSender((payload: ReturnType<typeof readPresenterViewport>) => (
-      publishTeacherViewport(classroom!.id, payload)
+    const sender = createLatestSender(() => (
+      publishTeacherViewport(classroom!.id, readPresenterViewport(viewer, currentSlide!.id))
         .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
         .catch((caught: unknown) => {
           handleAdminFailure(caught, 'The live field could not be shared.')
@@ -393,12 +393,32 @@ export function ClassroomTeacherPage() {
       }
       if (adminAuthFailed.current || !guideModeRef.current || stateRef.current?.controller.participantId
         || !classroom || !currentSlide) return
-      sender.push(readPresenterViewport(viewer, currentSlide.id))
+      sender.push(0)
     }
     const opened = () => applyRemote(viewer)
     let pointerVisible = false
-    const pointerSender = createLatestSender((pointer: Parameters<typeof publishTeacherPointer>[1]) => {
-      return publishTeacherPointer(classroom!.id, pointer).catch((caught: unknown) => {
+    let localPointerColor: 'green' | 'red' | null = null
+    let pointerFrame: number | null = null
+    let pendingPointer: { clientX: number; clientY: number; color: 'green' | 'red' } | null = null
+    let pointerBounds = viewer.canvas.getBoundingClientRect()
+    const updatePointerBounds = () => { pointerBounds = viewer.canvas.getBoundingClientRect() }
+    const pointerBoundsObserver = new ResizeObserver(updatePointerBounds)
+    pointerBoundsObserver.observe(viewer.canvas)
+    const pointerSender = createLatestSender((sample: NonNullable<typeof pendingPointer>) => {
+      const item = viewer.world.getItemAt(0)
+      if (!item || !classroom || !currentSlide) return Promise.resolve()
+      const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
+        sample.clientX - pointerBounds.left,
+        sample.clientY - pointerBounds.top,
+      ), true)
+      const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
+      const dimensions = item.source.dimensions
+      return publishTeacherPointer(classroom.id, {
+        slideId: currentSlide.id,
+        style: `${sample.color}-arrow`,
+        x: Math.max(0, Math.min(1, imagePoint.x / dimensions.x)),
+        y: Math.max(0, Math.min(1, imagePoint.y / dimensions.y)),
+      }).catch((caught: unknown) => {
         handleAdminFailure(caught, 'The live pointer could not be shared.')
       })
     }, 100)
@@ -408,28 +428,29 @@ export function ClassroomTeacherPage() {
         clearPointer()
         return
       }
-      const item = viewer.world.getItemAt(0)
-      if (!item) return
-      const bounds = viewer.canvas.getBoundingClientRect()
-      const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
-        event.clientX - bounds.left,
-        event.clientY - bounds.top,
-      ), true)
-      const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
-      const dimensions = item.source.dimensions
-      pointerVisible = true
-      localPointer.className = `classroom-local-pointer is-visible${pointerColorRef.current === 'red' ? ' is-red' : ''}`
-      localPointer.style.transform = `translate3d(${event.clientX - bounds.left}px, ${event.clientY - bounds.top}px, 0)`
-      pointerSender.push({
-        slideId: currentSlide.id,
-        style: `${pointerColorRef.current}-arrow`,
-        x: Math.max(0, Math.min(1, imagePoint.x / dimensions.x)),
-        y: Math.max(0, Math.min(1, imagePoint.y / dimensions.y)),
+      pendingPointer = { clientX: event.clientX, clientY: event.clientY, color: pointerColorRef.current }
+      if (pointerFrame !== null) return
+      pointerFrame = window.requestAnimationFrame(() => {
+        pointerFrame = null
+        const sample = pendingPointer
+        if (!sample) return
+        pendingPointer = null
+        if (!pointerVisible || localPointerColor !== sample.color) {
+          pointerVisible = true
+          localPointerColor = sample.color
+          localPointer.className = `classroom-local-pointer is-visible${sample.color === 'red' ? ' is-red' : ''}`
+        }
+        localPointer.style.transform = `translate3d(${sample.clientX - pointerBounds.left}px, ${sample.clientY - pointerBounds.top}px, 0)`
+        pointerSender.push(sample)
       })
     }
     const clearPointer = () => {
       if (!classroom || !pointerVisible) return
+      pendingPointer = null
+      if (pointerFrame !== null) window.cancelAnimationFrame(pointerFrame)
+      pointerFrame = null
       pointerVisible = false
+      localPointerColor = null
       localPointer.className = 'classroom-local-pointer'
       if (!adminAuthFailed.current) void clearTeacherPointer(classroom.id).catch(() => undefined)
     }
@@ -444,6 +465,8 @@ export function ClassroomTeacherPage() {
       viewer.removeHandler('animation-finish', publish)
       viewer.canvas.removeEventListener('pointermove', point)
       viewer.canvas.removeEventListener('pointerleave', clearPointer)
+      pointerBoundsObserver.disconnect()
+      if (pointerFrame !== null) window.cancelAnimationFrame(pointerFrame)
       sender.dispose()
       pointerSender.dispose()
       clearPointer()
