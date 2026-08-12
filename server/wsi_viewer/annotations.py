@@ -25,6 +25,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session as OrmSession
 
+from .desktop_sync import record_sync_event
 from .models import Annotation, AnnotationLayer, AnnotationRevision, AuditEvent, Slide
 
 MAX_ACTIVE_ANNOTATIONS = 25_000
@@ -1113,6 +1114,9 @@ def apply_batch(
             },
         )
     )
+    record_sync_event(
+        database, "annotation", slide.id, "upsert", slide.annotation_version
+    )
     database.commit()
     return {
         "mutationId": mutation_id,
@@ -1207,6 +1211,9 @@ def restore_revision(
                 "purged": purged,
             },
         )
+    )
+    record_sync_event(
+        database, "annotation", slide.id, "upsert", slide.annotation_version
     )
     database.commit()
     return {
@@ -1666,6 +1673,9 @@ def import_annotations(
                 "purged": purged,
             },
         )
+    )
+    record_sync_event(
+        database, "annotation", slide.id, "upsert", slide.annotation_version
     )
     database.commit()
     return {

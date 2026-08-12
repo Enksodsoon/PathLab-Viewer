@@ -28,6 +28,16 @@ from .annotations import (
     slide_bounds,
 )
 from .desktop_finalizer import PreparedIngestFinalizer, desktop_upload_path
+from .desktop_sync import (
+    SCHEMA as DESKTOP_SYNC_SCHEMA,
+)
+from .desktop_sync import (
+    change_json,
+    decode_library_cursor,
+    encode_library_cursor,
+    remote_folder_json,
+    remote_slide_json,
+)
 from .domain import SlideState
 from .models import (
     AnalysisRun,
@@ -36,6 +46,8 @@ from .models import (
     DesktopCredential,
     DesktopIngest,
     DesktopPairing,
+    DesktopSyncEvent,
+    Folder,
     ManagedResultAttachment,
     PathObjectMeasurement,
     PathObjectMetadata,
@@ -498,6 +510,75 @@ def register_desktop_routes(
             "maxResultBytes": MAX_RESULT_BYTES,
             "maxResultObjects": MAX_RESULT_OBJECTS,
             "maxMaskBytes": MAX_RESULT_MASK_BYTES,
+        }
+
+    @app.get("/api/v2/desktop/library/items")
+    def desktop_library_items(
+        limit: int = Query(default=48, ge=1, le=100),
+        cursor_value: str = Query(default="", alias="cursor"),
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "library:read")
+        statement = select(Slide).where(
+            Slide.state.in_([SlideState.READY_PRIVATE, SlideState.PUBLISHED]),
+            Slide.trashed_at.is_(None),
+        )
+        if cursor_value:
+            try:
+                cursor_time, cursor_id = decode_library_cursor(cursor_value)
+            except ValueError as error:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"code": str(error)},
+                ) from error
+            statement = statement.where(
+                (Slide.updated_at > cursor_time)
+                | ((Slide.updated_at == cursor_time) & (Slide.id > cursor_id))
+            )
+        slides = list(
+            database.scalars(
+                statement.order_by(Slide.updated_at, Slide.id).limit(limit + 1)
+            )
+        )
+        page = slides[:limit]
+        folders = list(
+            database.scalars(
+                select(Folder)
+                .where(Folder.trashed_at.is_(None))
+                .order_by(Folder.parent_id, Folder.sort_order, Folder.normalized_name)
+                .limit(100)
+            )
+        )
+        return {
+            "schema": DESKTOP_SYNC_SCHEMA,
+            "items": [remote_slide_json(slide) for slide in page],
+            "folders": [remote_folder_json(folder) for folder in folders],
+            "nextCursor": (
+                encode_library_cursor(page[-1]) if len(slides) > limit and page else None
+            ),
+        }
+
+    @app.get("/api/v2/desktop/library/changes")
+    def desktop_library_changes(
+        after: int = Query(default=0, ge=0),
+        limit: int = Query(default=100, ge=1, le=500),
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "library:read")
+        events = list(
+            database.scalars(
+                select(DesktopSyncEvent)
+                .where(DesktopSyncEvent.sequence > after)
+                .order_by(DesktopSyncEvent.sequence)
+                .limit(limit)
+            )
+        )
+        return {
+            "schema": DESKTOP_SYNC_SCHEMA,
+            "changes": [change_json(event) for event in events],
+            "nextCursor": str(events[-1].sequence if events else after),
         }
 
     @app.post(
