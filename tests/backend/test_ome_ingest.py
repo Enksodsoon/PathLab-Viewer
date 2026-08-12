@@ -117,7 +117,7 @@ def test_dynamic_v1_profile_rejects_factor_four_pyramids() -> None:
         _validate_profile(ingest, irregular)  # type: ignore[arg-type]
 
 
-def test_dynamic_v1_profile_requires_factor_two_coverage() -> None:
+def test_dynamic_v1_profile_allows_one_synthesizable_terminal_level() -> None:
     level = OmeLevel(2048, 1536, 1, 1, ())
     index = OmeTileIndex(
         2048,
@@ -136,6 +136,31 @@ def test_dynamic_v1_profile_requires_factor_two_coverage() -> None:
         ome_profile="ome-dynamic-v1",
         ome_width=2048,
         ome_height=1536,
+        ome_jpeg_quality=75,
+    )
+
+    _validate_profile(ingest, index)  # type: ignore[arg-type]
+
+
+def test_dynamic_v1_profile_rejects_more_than_one_missing_terminal_level() -> None:
+    level = OmeLevel(4096, 3072, 1, 1, ())
+    index = OmeTileIndex(
+        4096,
+        3072,
+        512,
+        512,
+        "jpeg",
+        (level,),
+        (1,),
+        True,
+        1,
+        1,
+        "a" * 64,
+    )
+    ingest = SimpleNamespace(
+        ome_profile="ome-dynamic-v1",
+        ome_width=4096,
+        ome_height=3072,
         ome_jpeg_quality=75,
     )
 
