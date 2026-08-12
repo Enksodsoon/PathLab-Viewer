@@ -774,6 +774,18 @@
   background: rgb(0 0 0 / 3%);
 }
 
+.classroom-drawing.is-active[data-tool='pen'] canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M5 23l2-6L20 4l4 4L11 21l-6 2Z' fill='%23ef765f' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='m17 7 4 4M7 17l4 4' fill='none' stroke='%23181715' stroke-width='1.4'/%3E%3C/svg%3E") 5 23, crosshair;
+}
+
+.classroom-drawing.is-active[data-tool='highlight'] canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='m6 20 4-8L18 4l6 6-8 8-8 4-2-2Z' fill='%23f6c84a' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='m14 8 6 6M8 18l2 2' fill='none' stroke='%23181715' stroke-width='1.4'/%3E%3C/svg%3E") 6 21, crosshair;
+}
+
+.classroom-drawing.is-active[data-tool='eraser'] canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='m5 19 10-13 8 7-8 10H9l-4-4Z' fill='%23f6f2e8' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='m10 13 8 7M15 23h9' fill='none' stroke='%23181715' stroke-width='1.4'/%3E%3C/svg%3E") 6 21, crosshair;
+}
+
 .classroom-drawing-tools {
   position: absolute;
   bottom: 18px;
@@ -782,38 +794,95 @@
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   width: max-content;
   max-width: calc(100% - 28px);
-  padding: 6px;
-  border: 1px solid rgb(255 255 255 / 18%);
-  border-radius: 12px;
-  background: rgb(24 23 21 / 92%);
-  box-shadow: 0 14px 36px rgb(0 0 0 / 34%);
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, rgb(255 255 255 / 14%));
+  border-radius: 16px;
+  background: color-mix(in srgb, #181715 92%, var(--primary) 8%);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 38%), inset 0 1px rgb(255 255 255 / 8%);
   translate: -50% 0;
   pointer-events: auto;
   backdrop-filter: blur(10px);
 }
 
-.classroom-drawing-colors {
+.classroom-drawing-cluster {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px 5px;
+  gap: 2px;
+  padding: 3px;
   border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 9px;
+  border-radius: 11px;
   background: rgb(0 0 0 / 16%);
 }
 
+.classroom-drawing-style { position: relative; }
+
+.classroom-drawing-style-trigger {
+  position: relative;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  place-items: center;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+.classroom-drawing-style-swatch {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgb(255 255 255 / 74%);
+  border-radius: 50%;
+  background: var(--drawing-color);
+  box-shadow: 0 0 0 2px rgb(0 0 0 / 22%);
+}
+
+.classroom-drawing-style-menu {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  z-index: 2;
+  display: grid;
+  width: 184px;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, rgb(255 255 255 / 14%));
+  border-radius: 20px;
+  background: color-mix(in srgb, #181715 95%, var(--primary) 5%);
+  translate: -50% 0;
+  box-shadow: 0 16px 36px rgb(0 0 0 / 42%), inset 0 1px rgb(255 255 255 / 8%);
+}
+
+.classroom-drawing-style-menu::after {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid rgb(255 255 255 / 14%);
+  border-bottom: 1px solid rgb(255 255 255 / 14%);
+  background: #181715;
+  rotate: 45deg;
+  translate: -50% -55%;
+  content: '';
+}
+
+.classroom-drawing-colors {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+}
+
 .classroom-drawing-colors button {
-  width: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 28%);
+  border: 2px solid rgb(255 255 255 / 24%);
   border-radius: 50%;
   background-color: var(--drawing-color);
-  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 16%);
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 12%);
 }
 
 .classroom-drawing-colors button.is-active {
@@ -821,32 +890,55 @@
   outline-offset: 2px;
 }
 
-.classroom-drawing-size {
+.classroom-drawing-widths button {
   display: flex;
+  width: auto;
+  min-width: 0;
+  min-height: 30px;
   align-items: center;
-  gap: 5px;
-  padding-left: 5px;
-  color: #f7f3eb;
-  font: 650 11px/1 var(--font-ui);
+  justify-content: center;
+  padding: 0;
 }
 
-.classroom-drawing-size > span {
+.classroom-drawing-widths {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.classroom-drawing-widths button > span {
+  width: var(--stroke-size);
+  height: var(--stroke-size);
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.classroom-drawing-widths button.is-active > span {
+  color: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.classroom-drawing-separator { align-self: stretch; width: 1px; margin: 4px 0; background: rgb(255 255 255 / 12%); }
+
+.classroom-drawing-action { width: 36px; min-width: 36px; padding: 0 !important; }
+
+.classroom-drawing-history-trigger { position: relative; }
+
+.classroom-drawing-history-trigger > span {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
-.classroom-drawing-size select {
-  min-height: 34px;
-  width: 66px;
-  padding: 0 18px 0 7px;
-  border: 1px solid rgb(255 255 255 / 16%);
-  border-radius: 7px;
-  color: #f7f3eb;
-  background: #302e2a;
-  font: 600 10px/1 var(--font-ui);
+  right: 2px;
+  top: 1px;
+  display: grid;
+  min-width: 15px;
+  height: 15px;
+  place-items: center;
+  padding: 0 3px;
+  border-radius: 999px;
+  color: #181715;
+  background: var(--primary);
+  font: 750 8px/1 var(--font-ui);
 }
 
 .classroom-drawing-history {
@@ -1217,6 +1309,17 @@
   margin-top: 8px;
 }
 
+.classroom-entry__recovery {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--primary) 48%, var(--line));
+  border-radius: 10px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  font: 700 13px/1 var(--font-ui);
+  cursor: pointer;
+}
+
 .classroom-row {
   display: flex;
   flex-wrap: wrap;
@@ -1430,10 +1533,34 @@
 
   .classroom-drawing-tools {
     bottom: 12px;
+    gap: 4px;
+    padding: 6px;
   }
 
   .classroom-drawing-tools button {
     min-height: 42px;
+  }
+
+  .classroom-drawing-tools .classroom-drawing-tool {
+    width: 34px;
+    min-width: 34px;
+  }
+
+  .classroom-drawing-style-trigger {
+    width: 42px;
+    min-width: 42px;
+  }
+
+  .classroom-drawing-style-menu {
+    right: 0;
+    left: auto;
+    translate: 0 0;
+  }
+
+  .classroom-drawing-style-menu::after {
+    right: 17px;
+    left: auto;
+    translate: 0 -55%;
   }
 
   .classroom-code-display {

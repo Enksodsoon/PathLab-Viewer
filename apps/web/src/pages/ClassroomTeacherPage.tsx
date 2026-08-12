@@ -8,6 +8,7 @@ import {
   clearTeacherPointer,
   clearTeachingAnnotations,
   createClassroom,
+  endActiveClassroom,
   endClassroom,
   grantControl,
   openQuestion,
@@ -80,6 +81,7 @@ export function ClassroomTeacherPage() {
   const [state, setState] = useState<TeacherState | null>(null)
   const [slideId, setSlideId] = useState('')
   const [error, setError] = useState('')
+  const [activeConflict, setActiveConflict] = useState(false)
   const [showCode, setShowCode] = useState(false)
   const [focusedQuestion, setFocusedQuestion] = useState<TeacherState['pendingQuestions'][number] | null>(null)
   const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
@@ -146,7 +148,9 @@ export function ClassroomTeacherPage() {
     presenterRef.current = next.presenter
     stateRef.current = next
     setState(next)
-    teachingOverlayRef.current?.setPointer(next.teacherPointer)
+    teachingOverlayRef.current?.setPointer(
+      teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
+    )
     if (next.presenter.slideId) setSlideId(next.presenter.slideId)
   }, [])
 
@@ -222,7 +226,12 @@ export function ClassroomTeacherPage() {
         || typeof payload.style !== 'string' || typeof payload.x !== 'number'
         || typeof payload.y !== 'number') return
       const nextPointer = payload as unknown as TeacherState['teacherPointer']
-      teachingOverlayRef.current?.setPointer(nextPointer)
+      // The teacher already has a zero-latency screen-space pointer. Ignore the
+      // server echo locally while pointer mode is active so it cannot render a
+      // delayed second arrow; students still receive and project this event.
+      if (teachingToolRef.current !== 'pointer') {
+        teachingOverlayRef.current?.setPointer(nextPointer)
+      }
       if (stateRef.current) stateRef.current.teacherPointer = nextPointer
     })
     events.addEventListener('pointer-removed', (event) => {
@@ -333,6 +342,7 @@ export function ClassroomTeacherPage() {
     // Pointer mode is an additive presentation aid: keep the normal pan, zoom,
     // and touch gestures available while the screen-space arrow follows along.
     viewer?.setMouseNavEnabled(teachingTool !== 'draw')
+    if (teachingTool === 'pointer') teachingOverlayRef.current?.setPointer(null)
     if (teachingTool !== 'pointer' && localPointerElementRef.current) {
       localPointerElementRef.current.className = 'classroom-local-pointer'
     }
@@ -341,11 +351,56 @@ export function ClassroomTeacherPage() {
   }, [classroom, teachingTool, viewer])
 
   const teachingAnnotation = useCallback((stroke: DrawingStroke) => {
-    if (!viewer || !currentSlide || !classroom || stroke.tool === 'eraser') return false
+    if (!viewer || !currentSlide || !classroom) return false
     const item = viewer.world.getItemAt(0)
     if (!item) return false
     const bounds = viewer.container.getBoundingClientRect()
     const dimensions = item.source.dimensions
+    if (stroke.tool === 'eraser') {
+      const distanceToSegment = (point: DrawingStroke['points'][number], start: DrawingStroke['points'][number], end: DrawingStroke['points'][number]) => {
+        const dx = end.x - start.x
+        const dy = end.y - start.y
+        const lengthSquared = dx * dx + dy * dy
+        const amount = lengthSquared ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared)) : 0
+        return Math.hypot(point.x - (start.x + amount * dx), point.y - (start.y + amount * dy))
+      }
+      const project = (point: TeachingAnnotation['points'][number]) => {
+        const projected = viewer.viewport.viewportToViewerElementCoordinates(
+          item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
+        )
+        return { x: projected.x / bounds.width, y: projected.y / bounds.height }
+      }
+      const erased = (stateRef.current?.teachingAnnotations ?? []).filter((annotation) => {
+        if (annotation.slideId !== currentSlide.id || !annotation.points.length) return false
+        const projected = annotation.points.map(project)
+        const first = projected[0]
+        const last = projected.at(-1) ?? first
+        const outline = annotation.tool === 'rectangle'
+          ? [first, { x: last.x, y: first.y }, last, { x: first.x, y: last.y }, first]
+          : annotation.tool === 'ellipse'
+            ? Array.from({ length: 25 }, (_, index) => {
+                const angle = index / 24 * Math.PI * 2
+                return {
+                  x: (first.x + last.x) / 2 + Math.cos(angle) * Math.abs(last.x - first.x) / 2,
+                  y: (first.y + last.y) / 2 + Math.sin(angle) * Math.abs(last.y - first.y) / 2,
+                }
+              })
+            : projected
+        const threshold = Math.max(14 / Math.max(1, Math.min(bounds.width, bounds.height)), annotation.width / Math.max(1, bounds.width))
+        return stroke.points.some((eraserPoint) => outline.some((point, index) => (
+          index === 0
+            ? Math.hypot(eraserPoint.x - point.x, eraserPoint.y - point.y) <= threshold
+            : distanceToSegment(eraserPoint, outline[index - 1], point) <= threshold
+        )))
+      })
+      if (!erased.length) return true
+      return Promise.all(erased.map((annotation) => removeTeachingAnnotation(classroom.id, annotation.id)))
+        .then(() => true)
+        .catch((caught: unknown) => {
+          handleAdminFailure(caught, 'The selected teaching mark could not be erased.')
+          return false
+        })
+    }
     const annotation: TeachingAnnotation = {
       id: stroke.id,
       slideId: currentSlide.id,
@@ -479,6 +534,7 @@ export function ClassroomTeacherPage() {
 
   const start = async () => {
     setError('')
+    setActiveConflict(false)
     try {
       const created = await createClassroom(selected)
       setClassroom(created)
@@ -487,6 +543,7 @@ export function ClassroomTeacherPage() {
     } catch (startError) {
       if (startError instanceof ApiError && startError.code === 'CLASSROOM_ALREADY_ACTIVE') {
         setError('A classroom is already active. End it before starting another.')
+        setActiveConflict(true)
       } else if (startError instanceof ApiError && startError.code === 'CLASSROOM_SLIDE_NOT_READY') {
         setError('The classroom could not start. Only complete published static slides are allowed.')
       } else {
@@ -508,6 +565,13 @@ export function ClassroomTeacherPage() {
       <h1>Choose teaching slides</h1>
       <p className="classroom-entry__intro">Only the selected published DZI versions are pinned for this session.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
+      {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
+        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        setActiveConflict(false)
+        setError('The previous classroom ended. You can start a new one now.')
+      }).catch((endError: unknown) => handleAdminFailure(endError, 'The previous classroom could not be ended. Try again.'))}>
+        End existing classroom
+      </button>}
       <div className="classroom-slide-picker">
         {slides.map((slide) => <label key={slide.id}>
           <input
@@ -559,7 +623,7 @@ export function ClassroomTeacherPage() {
       {teachingTool === 'draw' ? <StudentDrawingOverlay
         key={currentSlide?.id ?? 'teaching-drawing'}
         active
-        allowEraser={false}
+        allowEraser
         retainCommitted={false}
         showHistoryActions={false}
         toolbarLabel="Teaching annotation tools"

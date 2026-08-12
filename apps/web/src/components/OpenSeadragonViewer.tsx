@@ -444,9 +444,7 @@ export function OpenSeadragonViewer({
             <i />
           </div>
           <output aria-live="polite">{rotation}°</output>
-          <span className="viewer-rotation-drag-hint" aria-hidden="true">drag</span>
         </div>
-        <button className="viewer-rotation-reset" type="button" aria-label="Reset rotation" onClick={() => applyRotation(0)}>0°</button>
       </div> : null}
     </div>
     {connectionStatus ? <div className="viewer-connection-status" role="status">{connectionStatus}</div> : null}

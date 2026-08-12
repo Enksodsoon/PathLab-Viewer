@@ -257,6 +257,12 @@ export async function endClassroom(sessionId: string): Promise<void> {
   }))
 }
 
+export async function endActiveClassroom(): Promise<void> {
+  await body(await csrfFetch('/api/v1/admin/classroom/sessions/active', {
+    method: 'DELETE',
+  }))
+}
+
 export async function publishTeacherViewport(
   sessionId: string,
   viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'viewport' },

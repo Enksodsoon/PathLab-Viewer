@@ -62,6 +62,15 @@ function DrawingToolIcon({ tool }: { tool: DrawingTool | 'done' }) {
   </svg>
 }
 
+function DrawingUtilityIcon({ icon }: { icon: 'palette' | 'undo' | 'clear' | 'history' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {icon === 'palette' ? <><path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 6-6c0-2.2-4-4-9-4Z" /><circle cx="7.5" cy="10" r=".8" fill="currentColor" /><circle cx="9" cy="6.5" r=".8" fill="currentColor" /><circle cx="14" cy="6" r=".8" fill="currentColor" /><circle cx="17.5" cy="8.5" r=".8" fill="currentColor" /></> : null}
+    {icon === 'undo' ? <><path d="M9 7 4 12l5 5" /><path d="M5 12h8a6 6 0 0 1 6 6" /></> : null}
+    {icon === 'clear' ? <><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13" /><path d="M10 11v5M14 11v5" /></> : null}
+    {icon === 'history' ? <><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6" /><path d="M4 4v4.6h4.6M12 8v5l3 2" /></> : null}
+  </svg>
+}
+
 function normalizedPath(stroke: DrawingStroke): string {
   const first = stroke.points[0]
   const last = stroke.points.at(-1)
@@ -113,6 +122,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
   const [tool, setTool] = useState<DrawingTool>('pen')
   const [color, setColor] = useState<string>(COLORS[0])
   const [width, setWidth] = useState<number>(WIDTHS[1])
+  const [styleOpen, setStyleOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [revision, setRevision] = useState(0)
 
@@ -332,10 +342,16 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
           requestVisibleRender()
         }).catch(() => undefined)
       }
-    } else if (!retainCommitted) {
-      strokes.current = strokes.current.filter((item) => item.id !== stroke.id)
-      redraw()
-      requestVisibleRender()
+    } else {
+      const committed = onStrokeCommitted?.({ ...stroke })
+      if (!retainCommitted) {
+        void Promise.resolve(committed).then((accepted) => {
+          if (accepted === false) return
+          strokes.current = strokes.current.filter((item) => item.id !== stroke.id)
+          redraw()
+          requestVisibleRender()
+        }).catch(() => undefined)
+      }
     }
   }
 
@@ -354,7 +370,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     setRevision((current) => current + 1)
   }
 
-  return <div className={`classroom-drawing${active ? ' is-active' : ''}`}>
+  return <div className={`classroom-drawing${active ? ' is-active' : ''}`} data-tool={tool}>
     <canvas
       ref={canvasRef}
       aria-label="Private slide drawing canvas"
@@ -396,36 +412,57 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
       />)}</g>
     </svg>
     {active ? <div className="classroom-drawing-tools" role="toolbar" aria-label={toolbarLabel}>
-      {(['pen', 'highlight', 'line', 'rectangle', 'ellipse', ...(allowEraser ? ['eraser'] as const : [])] as DrawingTool[]).map((item) => <button
-        key={item}
-        className={`classroom-drawing-tool${tool === item ? ' is-active' : ''}`}
-        type="button"
-        aria-pressed={tool === item}
-        aria-label={TOOL_LABELS[item]}
-        title={TOOL_LABELS[item]}
-        onClick={() => setTool(item)}
-      ><DrawingToolIcon tool={item} /></button>)}
-      <div className="classroom-drawing-colors" role="group" aria-label="Drawing color">
-        {COLORS.map((item) => <button
+      <div className="classroom-drawing-cluster classroom-drawing-toolset" role="group" aria-label="Drawing tool">
+        {(['pen', 'highlight', 'line', 'rectangle', 'ellipse', ...(allowEraser ? ['eraser'] as const : [])] as DrawingTool[]).map((item) => <button
           key={item}
-          className={color === item ? 'is-active' : ''}
+          className={`classroom-drawing-tool${tool === item ? ' is-active' : ''}`}
           type="button"
-          aria-label={`${COLOR_LABELS[item]} drawing color`}
-          aria-pressed={color === item}
-          title={COLOR_LABELS[item]}
-          style={{ '--drawing-color': item } as CSSProperties}
-          onClick={() => setColor(item)}
-        />)}
+          aria-pressed={tool === item}
+          aria-label={TOOL_LABELS[item]}
+          title={TOOL_LABELS[item]}
+          onClick={() => setTool(item)}
+        ><DrawingToolIcon tool={item} /></button>)}
       </div>
-      <label className="classroom-drawing-size"><span>Stroke</span><select
-        aria-label="Drawing size"
-        value={width}
-        onChange={(event) => setWidth(Number(event.target.value))}
-      >{WIDTHS.map((item) => <option key={item} value={item}>{item === 2 ? 'Fine' : item === 4 ? 'Medium' : 'Bold'}</option>)}</select></label>
+      <div className="classroom-drawing-style">
+        <button
+          className="classroom-drawing-style-trigger"
+          type="button"
+          aria-label={`Drawing style: ${COLOR_LABELS[color as keyof typeof COLOR_LABELS]}, ${width === 2 ? 'fine' : width === 4 ? 'medium' : 'bold'}`}
+          aria-expanded={styleOpen}
+          title="Color and stroke size"
+          onClick={() => setStyleOpen((current) => !current)}
+        ><span className="classroom-drawing-style-swatch" style={{ '--drawing-color': color } as CSSProperties} /></button>
+        {styleOpen ? <div className="classroom-drawing-style-menu" role="group" aria-label="Drawing style">
+          <div className="classroom-drawing-colors" role="group" aria-label="Drawing color">
+            {COLORS.map((item) => <button
+              key={item}
+              className={color === item ? 'is-active' : ''}
+              type="button"
+              aria-label={`${COLOR_LABELS[item]} drawing color`}
+              aria-pressed={color === item}
+              title={COLOR_LABELS[item]}
+              style={{ '--drawing-color': item } as CSSProperties}
+              onClick={() => setColor(item)}
+            />)}
+          </div>
+          <div className="classroom-drawing-widths" role="group" aria-label="Drawing size">
+            {WIDTHS.map((item) => <button
+              key={item}
+              className={width === item ? 'is-active' : ''}
+              type="button"
+              aria-label={`${item === 2 ? 'Fine' : item === 4 ? 'Medium' : 'Bold'} drawing size`}
+              aria-pressed={width === item}
+              title={item === 2 ? 'Fine stroke' : item === 4 ? 'Medium stroke' : 'Bold stroke'}
+              onClick={() => setWidth(item)}
+            ><span style={{ '--stroke-size': `${item === 2 ? 2 : item === 4 ? 4 : 7}px` } as CSSProperties} /></button>)}
+          </div>
+        </div> : null}
+      </div>
       {showHistoryActions ? <>
-        <button type="button" disabled={!strokes.current.length} onClick={undo}>Undo</button>
-        <button type="button" disabled={!strokes.current.length} onClick={clear}>Clear</button>
-        <button type="button" disabled={!strokes.current.length} aria-expanded={historyOpen} onClick={() => setHistoryOpen((current) => !current)}>History ({strokes.current.length})</button>
+        <span className="classroom-drawing-separator" />
+        <button className="classroom-drawing-action" type="button" aria-label="Undo last mark" title="Undo" disabled={!strokes.current.length} onClick={undo}><DrawingUtilityIcon icon="undo" /></button>
+        <button className="classroom-drawing-action" type="button" aria-label="Clear all marks" title="Clear" disabled={!strokes.current.length} onClick={clear}><DrawingUtilityIcon icon="clear" /></button>
+        <button className="classroom-drawing-action classroom-drawing-history-trigger" type="button" aria-label={`Annotation history, ${strokes.current.length} marks`} title="History" disabled={!strokes.current.length} aria-expanded={historyOpen} onClick={() => setHistoryOpen((current) => !current)}><DrawingUtilityIcon icon="history" />{strokes.current.length ? <span>{strokes.current.length}</span> : null}</button>
       </> : null}
       <button className="primary classroom-drawing-done" type="button" aria-label="Done" title="Done" onClick={onDone}><DrawingToolIcon tool="done" /></button>
       {historyOpen && strokes.current.length ? <ol className="classroom-drawing-history" aria-label="Annotation history">

@@ -36,10 +36,12 @@ describe('StudentDrawingOverlay', () => {
     expect(screen.getByRole('button', { name: 'Ellipse' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Highlight' }))
     expect(screen.getByRole('button', { name: 'Highlight' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Private slide drawing canvas').parentElement).toHaveAttribute('data-tool', 'highlight')
+    fireEvent.click(screen.getByRole('button', { name: 'Drawing style: Coral, medium' }))
     fireEvent.click(screen.getByRole('button', { name: 'Green drawing color' }))
-    expect(screen.getByRole('button', { name: 'Green drawing color' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.change(screen.getByRole('combobox', { name: 'Drawing size' }), { target: { value: '8' } })
-    expect(screen.getByRole('combobox', { name: 'Drawing size' })).toHaveValue('8')
+    expect(screen.getByRole('button', { name: 'Drawing style: Green, medium' })).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Bold drawing size' }))
+    expect(screen.getByRole('button', { name: 'Bold drawing size' })).toHaveAttribute('aria-pressed', 'true')
 
     const canvas = screen.getByLabelText('Private slide drawing canvas')
     fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 10, clientY: 10 })
@@ -48,11 +50,26 @@ describe('StudentDrawingOverlay', () => {
     expect(ref.current?.hasDrawing()).toBe(true)
     expect(committed).toHaveBeenCalledOnce()
     expect(committed.mock.calls[0][0].points).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'History (1)' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'History (1)' }))
+    expect(screen.getByRole('button', { name: 'Annotation history, 1 marks' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Annotation history, 1 marks' }))
     expect(screen.getByRole('list', { name: 'Annotation history' })).toHaveTextContent('Highlight')
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(done).toHaveBeenCalledOnce()
+  })
+
+  it('commits an eraser gesture so shared teaching marks can be removed', () => {
+    const committed = vi.fn()
+    render(<StudentDrawingOverlay active retainCommitted={false} onDone={vi.fn()} onStrokeCommitted={committed} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Erase' }))
+    const canvas = screen.getByLabelText('Private slide drawing canvas')
+    expect(canvas.parentElement).toHaveAttribute('data-tool', 'eraser')
+    fireEvent.pointerDown(canvas, { pointerId: 2, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(canvas, { pointerId: 2, clientX: 30, clientY: 30 })
+    fireEvent.pointerUp(canvas, { pointerId: 2, clientX: 30, clientY: 30 })
+
+    expect(committed).toHaveBeenCalledOnce()
+    expect(committed.mock.calls[0][0].tool).toBe('eraser')
   })
 
   it('keeps a transient teaching mark visible until server acceptance', async () => {

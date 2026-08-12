@@ -123,6 +123,27 @@ def test_session_snapshots_static_asset_and_join_reconnects_idempotently(tmp_pat
         assert rejoined.json()["participant"]["displayName"] == "Student"
 
 
+def test_admin_can_end_an_active_session_after_losing_browser_state(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert created.status_code == 201
+
+        ended = client.delete("/api/v1/admin/classroom/sessions/active", headers=headers)
+        assert ended.status_code == 204
+
+        restarted = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert restarted.status_code == 201
+
+
 def test_deleted_question_retry_returns_receipt_instead_of_recreating(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=True) as client:
         headers = _admin_headers(client)

@@ -421,6 +421,27 @@ def register_classroom_routes(
             "slides": [_session_slide_json(item) for item in snapshot],
         }
 
+    @app.delete(
+        "/api/v1/admin/classroom/sessions/active",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def end_active_session(_: CsrfSession, _guard: MutationGuard, db: Database) -> None:
+        classroom = db.scalar(select(ClassroomSession).where(ClassroomSession.status == "active"))
+        if classroom is None:
+            return
+        session_id = classroom.id
+        next_state_version = classroom.state_version + 1
+        db.delete(classroom)
+        db.commit()
+        presenter_runtime.forget(session_id)
+        hub.clear_session(session_id)
+        hub.publish(
+            session_id,
+            "session-ended",
+            {"stateVersion": next_state_version},
+            critical=True,
+        )
+
     def join_locked(
         payload: JoinRequest,
         request: Request,

@@ -73,6 +73,8 @@ describe('classroom disabled-mode resource contract', () => {
     expect(teacher).not.toContain('viewer.updateOverlay(localPointer')
     expect(teacher).toContain('window.requestAnimationFrame')
     expect(teacher).toContain('pointerBoundsObserver.observe(viewer.canvas)')
+    expect(teacher).toContain("if (teachingToolRef.current !== 'pointer')")
+    expect(teacher).toContain("if (teachingTool === 'pointer') teachingOverlayRef.current?.setPointer(null)")
     expect(teacher).not.toContain('sender.push(readPresenterViewport')
     expect(styles).not.toContain('.classroom-local-pointer {\n  position: absolute;\n  top: 0;\n  left: 0;\n  z-index: 7;\n  width: 40px;\n  height: 48px;\n  pointer-events: none;\n  opacity: 0;\n  filter:')
     expect(teacher).toContain('pending questions`')

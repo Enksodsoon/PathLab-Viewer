@@ -133,7 +133,8 @@ it('offers a circular dial with cardinal and fine local rotation controls', () =
   fireEvent.keyDown(screen.getByRole('slider', { name: 'Rotation dial' }), { key: 'ArrowLeft' })
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(89)
 
-  fireEvent.click(screen.getByRole('button', { name: 'Reset rotation' }))
+  expect(screen.queryByText('drag', { exact: false })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Rotate to 0 degrees' }))
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
 })
 
