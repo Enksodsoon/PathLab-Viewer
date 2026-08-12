@@ -54,6 +54,9 @@ DESKTOP_SCOPES = [
     "slides:private:read",
     "annotations:sync",
     "results:sync",
+    "library:read",
+    "slides:offline:read",
+    "library:sync",
 ]
 MAX_DESKTOP_CHUNK_BYTES = 64 * 1024 * 1024
 LEGACY_DESKTOP_CHUNK_BYTES = 16 * 1024 * 1024

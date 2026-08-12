@@ -96,6 +96,25 @@ class DesktopCredential(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class DesktopSyncEvent(Base):
+    __tablename__ = "desktop_sync_events"
+    __table_args__ = (
+        Index(
+            "ix_desktop_sync_events_entity_sequence",
+            "entity_type",
+            "entity_id",
+            "sequence",
+        ),
+    )
+
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    revision: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class DesktopIngest(Base):
     __tablename__ = "desktop_ingests"
     __table_args__ = (
