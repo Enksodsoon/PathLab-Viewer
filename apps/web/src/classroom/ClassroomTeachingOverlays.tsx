@@ -1,5 +1,5 @@
 import OpenSeadragon from 'openseadragon'
-import { useEffect, useMemo, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 
 import type { TeacherPointer, TeachingAnnotation } from './api'
 
@@ -20,27 +20,60 @@ function normalizedPath(annotation: TeachingAnnotation): string {
   return points.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${point.y}`).join(' ')
 }
 
-export function ClassroomTeachingOverlays({
-  annotations,
-  pointer,
-  slideId,
-  viewer,
-}: {
+export interface ClassroomTeachingOverlayHandle {
+  setPointer: (pointer: TeacherPointer | null) => void
+}
+
+export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHandle, {
   annotations: TeachingAnnotation[]
   pointer: TeacherPointer | null
   slideId: string
   viewer: OpenSeadragon.Viewer | null
-}) {
+}>(function ClassroomTeachingOverlays({
+  annotations,
+  pointer,
+  slideId,
+  viewer,
+}, ref) {
   const rootRef = useRef<SVGSVGElement | null>(null)
+  const pointerRef = useRef<TeacherPointer | null>(pointer)
   const visibleAnnotations = useMemo(
     () => annotations.filter((annotation) => annotation.slideId === slideId),
     [annotations, slideId],
   )
-  const visiblePointer = pointer?.slideId === slideId ? pointer : null
+  const projectPointer = useCallback(() => {
+    const root = rootRef.current
+    const visiblePointer = pointerRef.current?.slideId === slideId ? pointerRef.current : null
+    const pointerNode = root?.querySelector<SVGGElement>('[data-teacher-pointer]')
+    const item = viewer?.world.getItemAt(0)
+    if (!pointerNode || !viewer || !item || !visiblePointer) {
+      pointerNode?.setAttribute('visibility', 'hidden')
+      return
+    }
+    const dimensions = item.source.dimensions
+    const next = viewer.viewport.viewportToViewerElementCoordinates(
+      item.imageToViewportCoordinates(visiblePointer.x * dimensions.x, visiblePointer.y * dimensions.y),
+    )
+    pointerNode.setAttribute('class', `classroom-teacher-pointer is-${visiblePointer.style}`)
+    pointerNode.setAttribute('transform', `translate(${next.x} ${next.y})`)
+    pointerNode.setAttribute('visibility', 'visible')
+  }, [slideId, viewer])
+
+  useImperativeHandle(ref, () => ({
+    setPointer(next) {
+      pointerRef.current = next
+      projectPointer()
+    },
+  }), [projectPointer])
+
+  useEffect(() => {
+    pointerRef.current = pointer
+    projectPointer()
+  }, [pointer, projectPointer])
 
   useEffect(() => {
     const root = rootRef.current
-    if (!viewer || !root || (!visibleAnnotations.length && !visiblePointer)) return
+    if (!viewer || !root) return
     let frame: number | null = null
     const render = () => {
       if (frame !== null) return
@@ -61,11 +94,7 @@ export function ClassroomTeachingOverlays({
           const vertical = project({ x: 0, y: 1 })
           annotationLayer.setAttribute('transform', `matrix(${(horizontal.x - origin.x) / 100} ${(horizontal.y - origin.y) / 100} ${(vertical.x - origin.x) / 100} ${(vertical.y - origin.y) / 100} ${origin.x} ${origin.y})`)
         }
-        const pointerNode = root.querySelector<SVGGElement>('[data-teacher-pointer]')
-        if (pointerNode && visiblePointer) {
-          const next = project(visiblePointer)
-          pointerNode.setAttribute('transform', `translate(${next.x} ${next.y})`)
-        }
+        projectPointer()
       })
     }
     viewer.addHandler('open', render)
@@ -81,9 +110,7 @@ export function ClassroomTeachingOverlays({
       observer.disconnect()
       if (frame !== null) window.cancelAnimationFrame(frame)
     }
-  }, [viewer, visibleAnnotations, visiblePointer])
-
-  if (!visibleAnnotations.length && !visiblePointer) return null
+  }, [viewer, visibleAnnotations, projectPointer])
 
   return <svg ref={rootRef} className="classroom-teaching-overlay" aria-hidden="true">
     <g data-teaching-annotations="">{visibleAnnotations.map((annotation) => <path
@@ -98,9 +125,10 @@ export function ClassroomTeachingOverlays({
         opacity={annotation.tool === 'highlight' ? 0.42 : 1}
         vectorEffect="non-scaling-stroke"
       />)}</g>
-    {visiblePointer ? <g
+    <g
       data-teacher-pointer=""
-      className={`classroom-teacher-pointer is-${visiblePointer.style}`}
-    ><path d="M4 38 36 6M17 6h19v19" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" /></g> : null}
+      className="classroom-teacher-pointer"
+      visibility="hidden"
+    ><path d="M4 38 36 6M17 6h19v19" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" /></g>
   </svg>
-}
+})

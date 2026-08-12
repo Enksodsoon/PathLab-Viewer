@@ -15,7 +15,7 @@ import {
 } from '../classroom/api'
 import { ClassroomPinOverlays } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
-import { ClassroomTeachingOverlays } from '../classroom/ClassroomTeachingOverlays'
+import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
 import {
@@ -73,6 +73,7 @@ export function ClassroomStudentPage() {
   const [csrfToken, setCsrfToken] = useState('')
   const [alias, setAlias] = useState('')
   const [state, setState] = useState<StudentState | null>(null)
+  const teachingOverlayRef = useRef<ClassroomTeachingOverlayHandle | null>(null)
   const [follow, setFollow] = useState(true)
   const [slideId, setSlideId] = useState('')
   const [pinMode, setPinMode] = useState(false)
@@ -113,7 +114,9 @@ export function ClassroomStudentPage() {
     if (!sessionId || csrfToken) return
     void studentState(sessionId).then(async (next) => {
       presenterRef.current = next.presenter
+      stateRef.current = next
       setState(next)
+      teachingOverlayRef.current?.setPointer(next.teacherPointer)
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
       setPin(next.activePin)
@@ -125,7 +128,9 @@ export function ClassroomStudentPage() {
   const refresh = useCallback(async (id: string) => {
     const next = await studentState(id)
     presenterRef.current = next.presenter
+    stateRef.current = next
     setState(next)
+    teachingOverlayRef.current?.setPointer(next.teacherPointer)
     setPin(next.activePin)
     if (follow && !drawingModeRef.current && next.presenter.slideId) setSlideId(next.presenter.slideId)
     setEntries(await listEntries(id))
@@ -204,14 +209,14 @@ export function ClassroomStudentPage() {
         if (!payload || typeof payload.slideId !== 'string'
           || typeof payload.style !== 'string' || typeof payload.x !== 'number'
           || typeof payload.y !== 'number') return
-        setState((current) => current ? {
-          ...current,
-          teacherPointer: payload as unknown as StudentState['teacherPointer'],
-        } : current)
+        const nextPointer = payload as unknown as StudentState['teacherPointer']
+        teachingOverlayRef.current?.setPointer(nextPointer)
+        if (stateRef.current) stateRef.current.teacherPointer = nextPointer
       })
       source.addEventListener('pointer-removed', (event) => {
         if (!sequence(event)) return
-        setState((current) => current ? { ...current, teacherPointer: null } : current)
+        teachingOverlayRef.current?.setPointer(null)
+        if (stateRef.current) stateRef.current.teacherPointer = null
       })
       source.addEventListener('teaching-annotation-added', (event) => {
         const payload = sequence(event)
@@ -382,6 +387,7 @@ export function ClassroomStudentPage() {
     try {
       const joined = await joinClassroom(joinCode.trim().toUpperCase(), displayName)
       const next = await studentState(joined.sessionId)
+      stateRef.current = next
       setState(next)
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
@@ -569,6 +575,7 @@ export function ClassroomStudentPage() {
         viewer={viewer}
       />
       <ClassroomTeachingOverlays
+        ref={teachingOverlayRef}
         annotations={state?.teachingAnnotations ?? []}
         pointer={state?.teacherPointer ?? null}
         slideId={currentSlide?.id ?? ''}

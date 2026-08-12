@@ -23,7 +23,7 @@ import {
 } from '../classroom/api'
 import { ClassroomPinOverlays, type ClassroomVisiblePin } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
-import { ClassroomTeachingOverlays } from '../classroom/ClassroomTeachingOverlays'
+import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
 import {
@@ -96,6 +96,7 @@ export function ClassroomTeacherPage() {
   const teachingToolRef = useRef(teachingTool)
   const guideModeRef = useRef(guideMode)
   const pointerColorRef = useRef(pointerColor)
+  const teachingOverlayRef = useRef<ClassroomTeachingOverlayHandle | null>(null)
   const adminAuthFailed = useRef(false)
   const localPointerElementRef = useRef<HTMLElement | null>(null)
 
@@ -143,7 +144,9 @@ export function ClassroomTeacherPage() {
   const refresh = useCallback(async (sessionId: string) => {
     const next = await teacherState(sessionId)
     presenterRef.current = next.presenter
+    stateRef.current = next
     setState(next)
+    teachingOverlayRef.current?.setPointer(next.teacherPointer)
     if (next.presenter.slideId) setSlideId(next.presenter.slideId)
   }, [])
 
@@ -218,14 +221,14 @@ export function ClassroomTeacherPage() {
       if (!payload || typeof payload.slideId !== 'string'
         || typeof payload.style !== 'string' || typeof payload.x !== 'number'
         || typeof payload.y !== 'number') return
-      setState((current) => current ? {
-        ...current,
-        teacherPointer: payload as unknown as TeacherState['teacherPointer'],
-      } : current)
+      const nextPointer = payload as unknown as TeacherState['teacherPointer']
+      teachingOverlayRef.current?.setPointer(nextPointer)
+      if (stateRef.current) stateRef.current.teacherPointer = nextPointer
     })
     events.addEventListener('pointer-removed', (event) => {
       if (!sequence(event)) return
-      setState((current) => current ? { ...current, teacherPointer: null } : current)
+      teachingOverlayRef.current?.setPointer(null)
+      if (stateRef.current) stateRef.current.teacherPointer = null
     })
     events.addEventListener('teaching-annotation-added', (event) => {
       const payload = sequence(event)
@@ -401,6 +404,10 @@ export function ClassroomTeacherPage() {
     }, 100)
     const point = (event: globalThis.PointerEvent) => {
       if (adminAuthFailed.current || !classroom || !currentSlide || teachingToolRef.current !== 'pointer') return
+      if (event.buttons !== 0) {
+        clearPointer()
+        return
+      }
       const item = viewer.world.getItemAt(0)
       if (!item) return
       const bounds = viewer.canvas.getBoundingClientRect()
@@ -520,6 +527,7 @@ export function ClassroomTeacherPage() {
       />}
       <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
       <ClassroomTeachingOverlays
+        ref={teachingOverlayRef}
         annotations={state?.teachingAnnotations ?? []}
         pointer={teachingTool === 'pointer' ? null : state?.teacherPointer ?? null}
         slideId={currentSlide?.id ?? ''}
