@@ -78,6 +78,8 @@ export function OpenSeadragonViewer({
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null)
   const [loadingError, setLoadingError] = useState(false)
   const [rotation, setRotation] = useState(0)
+  const [rotationOpen, setRotationOpen] = useState(false)
+  const rotationControl = useRef<HTMLDivElement>(null)
   const narrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
   const networkState = useRef(initialViewerNetworkState(
     mode,
@@ -93,6 +95,28 @@ export function OpenSeadragonViewer({
     setLoadingError(false)
     viewerRef.current?.open(tileSourceRef.current as unknown as OpenSeadragon.TileSourceSpecifier)
   }, [])
+  const applyRotation = useCallback((degrees: number) => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    const normalized = ((degrees % 360) + 360) % 360
+    viewer.viewport.setRotation(degrees === 360 ? 360 : normalized)
+    setRotation(degrees === 360 ? 360 : normalized)
+  }, [])
+  useEffect(() => {
+    if (!rotationOpen) return
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!rotationControl.current?.contains(event.target as Node)) setRotationOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setRotationOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePress)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [rotationOpen])
   const detachViewerAttachment = useCallback(() => {
     const cleanup = attachmentCleanupRef.current
     attachmentCleanupRef.current = null
@@ -240,8 +264,7 @@ export function OpenSeadragonViewer({
         rotate: () => {
           if (!viewer) return
           const next = (viewer.viewport.getRotation() + 90) % 360
-          viewer.viewport.setRotation(next)
-          setRotation(next)
+          applyRotation(next)
         },
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
       })
@@ -333,7 +356,7 @@ export function OpenSeadragonViewer({
       viewer?.destroy()
       if (viewerRef.current === viewer) viewerRef.current = null
     }
-  }, [attachViewerAttachment, detachViewerAttachment])
+  }, [applyRotation, attachViewerAttachment, detachViewerAttachment])
   return <div className="osd-surface" data-tile-source={tileSource} style={{ position: 'relative' }}>
     {posterVisible && posterUrl ? <img
       className="viewer-poster"
@@ -351,19 +374,49 @@ export function OpenSeadragonViewer({
         <option value="full">Full detail</option>
       </select>
     </label>
-    <button
-      className="viewer-rotation-control"
-      type="button"
-      aria-label={`Rotate slide clockwise. Current rotation ${rotation} degrees`}
-      title={`Rotate clockwise · ${rotation}°`}
-      onClick={() => {
-        const viewer = viewerRef.current
-        if (!viewer) return
-        const next = (viewer.viewport.getRotation() + 90) % 360
-        viewer.viewport.setRotation(next)
-        setRotation(next)
-      }}
-    ><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.35 5.65" /><path d="M20 5v6h-6" /></svg></button>
+    <div className="viewer-rotation" ref={rotationControl}>
+      <button
+        className="viewer-rotation-control"
+        type="button"
+        aria-label={`Open rotation controls. Current rotation ${rotation} degrees`}
+        aria-expanded={rotationOpen}
+        title={`Rotation · ${rotation}°`}
+        onClick={() => setRotationOpen((open) => !open)}
+      >
+        <svg className="viewer-compass" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+          <path className="viewer-compass__needle" style={{ transform: `rotate(${rotation}deg)` }} d="m12 6 2 6-2 6-2-6 2-6Z" />
+        </svg>
+        <span>{rotation}°</span>
+      </button>
+      {rotationOpen ? <div className="viewer-rotation-popover" role="dialog" aria-label="Slide rotation">
+        <div className="viewer-rotation-presets" role="group" aria-label="Rotation presets">
+          {[0, 90, 180, 360].map((degrees) => <button
+            key={degrees}
+            type="button"
+            className={rotation === degrees ? 'is-active' : ''}
+            aria-pressed={rotation === degrees}
+            onClick={() => applyRotation(degrees)}
+          >{degrees}°</button>)}
+        </div>
+        <div className="viewer-rotation-fine">
+          <span>Fine rotation</span>
+          <output aria-live="polite">{rotation}°</output>
+          <button type="button" aria-label="Rotate one degree counterclockwise" onClick={() => applyRotation(rotation - 1)}>−</button>
+          <input
+            aria-label="Fine rotation angle"
+            type="range"
+            min="0"
+            max="359"
+            step="1"
+            value={rotation === 360 ? 0 : rotation}
+            onChange={(event) => applyRotation(Number(event.target.value))}
+          />
+          <button type="button" aria-label="Rotate one degree clockwise" onClick={() => applyRotation(rotation + 1)}>+</button>
+        </div>
+      </div> : null}
+    </div>
     {connectionStatus ? <div className="viewer-connection-status" role="status">{connectionStatus}</div> : null}
     {loadingError ? <div
       role="alert"

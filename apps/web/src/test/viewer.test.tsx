@@ -121,13 +121,24 @@ it('uses bounded desktop loader and cache limits', () => {
   })
 })
 
-it('offers a lightweight local clockwise rotation control', () => {
+it('offers preset and fine local rotation controls', () => {
   renderViewer()
 
-  fireEvent.click(screen.getByRole('button', { name: 'Rotate slide clockwise. Current rotation 0 degrees' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 0 degrees' }))
+  fireEvent.click(screen.getByRole('button', { name: '90°' }))
 
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenCalledWith(90)
-  expect(screen.getByRole('button', { name: 'Rotate slide clockwise. Current rotation 90 degrees' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
+
+  fireEvent.change(screen.getByRole('slider', { name: 'Fine rotation angle' }), { target: { value: '37' } })
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(37)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Rotate one degree clockwise' }))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(38)
+
+  fireEvent.click(screen.getByRole('button', { name: '360°' }))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(360)
+  expect(screen.getByText('360°', { selector: 'output' })).toBeInTheDocument()
 })
 
 it('shows a prioritized poster until the first tile is visible', () => {

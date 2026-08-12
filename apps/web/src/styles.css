@@ -160,8 +160,25 @@ button .pathlab-loader__label { color:currentColor; }
 .viewer-poster { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:contain; background:var(--viewer-stage); }
 .viewer-loading-mode { position:absolute; z-index:4; right:14px; top:14px; display:flex; align-items:center; gap:7px; padding:6px 8px; border:1px solid var(--border); border-radius:8px; color:var(--body); background:color-mix(in srgb,var(--surface-elevated) 96%,transparent); font-size:11px; }
 .viewer-loading-mode select { min-height:30px; border:0; border-radius:5px; padding:0 24px 0 8px; color:var(--ink); background:var(--surface); font:inherit; }
-.viewer-rotation-control { position:absolute; z-index:4; right:14px; top:58px; display:grid; width:36px; height:36px; place-items:center; padding:0; border:1px solid var(--border); border-radius:8px; color:var(--body); background:color-mix(in srgb,var(--surface-elevated) 96%,transparent); cursor:pointer; }
+.viewer-rotation { position:absolute; z-index:5; right:14px; top:58px; }
+.viewer-rotation-control { display:flex; min-width:42px; height:38px; align-items:center; justify-content:center; gap:4px; padding:0 7px; border:1px solid var(--border); border-radius:9px; color:var(--body); background:color-mix(in srgb,var(--surface-elevated) 96%,transparent); box-shadow:0 6px 18px rgba(0,0,0,.12); cursor:pointer; }
 .viewer-rotation-control:hover,.viewer-rotation-control:focus-visible { color:var(--primary); border-color:var(--primary); }
+.viewer-rotation-control[aria-expanded="true"] { color:var(--primary); border-color:var(--primary); box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 18%,transparent),0 8px 24px rgba(0,0,0,.16); }
+.viewer-rotation-control span { min-width:24px; font-size:10px; font-variant-numeric:tabular-nums; }
+.viewer-compass { width:19px; height:19px; flex:none; }
+.viewer-compass__needle { transform-box:fill-box; transform-origin:center; transition:transform 160ms ease; fill:color-mix(in srgb,var(--primary) 28%,transparent); }
+.viewer-rotation-popover { position:absolute; right:0; top:46px; width:246px; padding:9px; border:1px solid var(--border); border-radius:12px; color:var(--ink); background:color-mix(in srgb,var(--surface-elevated) 98%,transparent); box-shadow:0 16px 40px rgba(0,0,0,.24); }
+.viewer-rotation-presets { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+.viewer-rotation-presets button,.viewer-rotation-fine button { min-height:32px; border:1px solid var(--border); border-radius:7px; color:var(--body); background:var(--surface); font:600 11px/1 var(--font-body); cursor:pointer; }
+.viewer-rotation-presets button:hover,.viewer-rotation-presets button:focus-visible,.viewer-rotation-fine button:hover,.viewer-rotation-fine button:focus-visible { color:var(--primary); border-color:var(--primary); }
+.viewer-rotation-presets button.is-active { color:var(--primary-contrast); border-color:var(--primary); background:var(--primary); }
+.viewer-rotation-fine { display:grid; grid-template-columns:1fr auto; gap:7px 8px; align-items:center; padding-top:9px; }
+.viewer-rotation-fine>span { color:var(--muted); font-size:10px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; }
+.viewer-rotation-fine output { color:var(--body); font:700 11px/1 var(--font-body); font-variant-numeric:tabular-nums; }
+.viewer-rotation-fine button { width:32px; grid-row:2; }
+.viewer-rotation-fine button:first-of-type { grid-column:1; }
+.viewer-rotation-fine input { grid-column:1 / 3; grid-row:2; width:166px; justify-self:center; accent-color:var(--primary); }
+.viewer-rotation-fine button:last-of-type { grid-column:2; justify-self:end; }
 .viewer-connection-status { position:absolute; z-index:4; left:50%; top:14px; transform:translateX(-50%); padding:8px 11px; border:1px solid var(--primary); border-radius:8px; color:var(--ink); background:color-mix(in srgb,var(--surface-elevated) 96%,transparent); font-size:12px; }
 .viewer-tools { position:absolute; left:18px; top:18px; z-index:3; display:flex; flex-direction:column; background:rgba(255,255,255,.97); padding:5px; border-radius:10px; box-shadow:0 5px 24px rgba(0,0,0,.22); }
 .viewer-tools button { width:40px; height:40px; border:0; background:transparent; color:#26384c; border-radius:7px; display:grid; place-items:center; cursor:pointer; }
@@ -196,7 +213,9 @@ button .pathlab-loader__label { color:currentColor; }
   .viewer-loading-mode { top:10px; right:10px; }
   .viewer-loading-mode select { min-height:44px; }
   .viewer-loading-mode span { display:none; }
-  .viewer-rotation-control { top:62px; right:10px; width:44px; height:44px; }
+  .viewer-rotation { top:62px; right:10px; }
+  .viewer-rotation-control { min-width:48px; height:44px; }
+  .viewer-rotation-popover { width:min(246px,calc(100vw - 20px)); }
   .viewer-connection-status { top:76px; max-width:calc(100% - 20px); white-space:nowrap; }
   .login-card,.security-dialog { padding:24px 20px; }
   .auth-actions { flex-direction:column-reverse; }
