@@ -121,24 +121,23 @@ it('uses bounded desktop loader and cache limits', () => {
   })
 })
 
-it('offers preset and fine local rotation controls', () => {
+it('offers a circular dial with cardinal and fine local rotation controls', () => {
   renderViewer()
 
   fireEvent.click(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 0 degrees' }))
-  fireEvent.click(screen.getByRole('button', { name: '90°' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Rotate to 90 degrees' }))
 
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenCalledWith(90)
   expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
 
-  fireEvent.change(screen.getByRole('slider', { name: 'Fine rotation angle' }), { target: { value: '37' } })
-  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(37)
-
   fireEvent.click(screen.getByRole('button', { name: 'Rotate one degree clockwise' }))
-  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(38)
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(91)
 
-  fireEvent.click(screen.getByRole('button', { name: '360°' }))
-  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(360)
-  expect(screen.getByText('360°', { selector: 'output' })).toBeInTheDocument()
+  fireEvent.keyDown(screen.getByRole('slider', { name: 'Rotation dial' }), { key: 'ArrowLeft' })
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(90)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Reset rotation' }))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
 })
 
 it('shows a prioritized poster until the first tile is visible', () => {

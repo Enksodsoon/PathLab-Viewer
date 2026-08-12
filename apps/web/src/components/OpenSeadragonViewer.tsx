@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import OpenSeadragon from 'openseadragon'
 
 import {
@@ -80,6 +80,7 @@ export function OpenSeadragonViewer({
   const [rotation, setRotation] = useState(0)
   const [rotationOpen, setRotationOpen] = useState(false)
   const rotationControl = useRef<HTMLDivElement>(null)
+  const rotationPointer = useRef<number | null>(null)
   const narrowViewport = window.innerWidth < NARROW_VIEWPORT_MAX
   const networkState = useRef(initialViewerNetworkState(
     mode,
@@ -102,6 +103,13 @@ export function OpenSeadragonViewer({
     viewer.viewport.setRotation(degrees === 360 ? 360 : normalized)
     setRotation(degrees === 360 ? 360 : normalized)
   }, [])
+  const rotateFromPointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const horizontal = event.clientX - (bounds.left + bounds.width / 2)
+    const vertical = event.clientY - (bounds.top + bounds.height / 2)
+    const degrees = Math.round((Math.atan2(horizontal, -vertical) * 180 / Math.PI + 360) % 360)
+    applyRotation(degrees)
+  }, [applyRotation])
   useEffect(() => {
     if (!rotationOpen) return
     const closeOnOutsidePress = (event: PointerEvent) => {
@@ -391,28 +399,61 @@ export function OpenSeadragonViewer({
         <span>{rotation}°</span>
       </button>
       {rotationOpen ? <div className="viewer-rotation-popover" role="dialog" aria-label="Slide rotation">
-        <div className="viewer-rotation-presets" role="group" aria-label="Rotation presets">
-          {[0, 90, 180, 360].map((degrees) => <button
+        <div
+          className="viewer-rotation-dial"
+          role="slider"
+          tabIndex={0}
+          aria-label="Rotation dial"
+          aria-valuemin={0}
+          aria-valuemax={359}
+          aria-valuenow={rotation === 360 ? 0 : rotation}
+          aria-valuetext={`${rotation} degrees`}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+              event.preventDefault()
+              applyRotation(rotation - 1)
+            } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              applyRotation(rotation + 1)
+            } else if (event.key === 'Home') {
+              event.preventDefault()
+              applyRotation(0)
+            }
+          }}
+          onPointerDown={(event) => {
+            rotationPointer.current = event.pointerId
+            event.currentTarget.setPointerCapture(event.pointerId)
+            rotateFromPointer(event)
+          }}
+          onPointerMove={(event) => {
+            if (rotationPointer.current === event.pointerId) rotateFromPointer(event)
+          }}
+          onPointerUp={(event) => {
+            if (rotationPointer.current !== event.pointerId) return
+            rotateFromPointer(event)
+            rotationPointer.current = null
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }}
+          onPointerCancel={() => { rotationPointer.current = null }}
+        >
+          <div className="viewer-rotation-ticks" aria-hidden="true" />
+          {[0, 90, 180, 270].map((degrees) => <button
             key={degrees}
             type="button"
-            className={rotation === degrees ? 'is-active' : ''}
-            aria-pressed={rotation === degrees}
+            className={`viewer-rotation-cardinal is-${degrees}`}
+            aria-label={`Rotate to ${degrees} degrees`}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={() => applyRotation(degrees)}
-          >{degrees}°</button>)}
-        </div>
-        <div className="viewer-rotation-fine">
-          <span>Fine rotation</span>
+          >{degrees === 270 ? '270' : degrees}</button>)}
+          <div className="viewer-rotation-needle" aria-hidden="true" style={{ transform: `rotate(${rotation}deg)` }}>
+            <i />
+          </div>
           <output aria-live="polite">{rotation}°</output>
+          <span className="viewer-rotation-drag-hint" aria-hidden="true">drag</span>
+        </div>
+        <div className="viewer-rotation-nudge">
           <button type="button" aria-label="Rotate one degree counterclockwise" onClick={() => applyRotation(rotation - 1)}>−</button>
-          <input
-            aria-label="Fine rotation angle"
-            type="range"
-            min="0"
-            max="359"
-            step="1"
-            value={rotation === 360 ? 0 : rotation}
-            onChange={(event) => applyRotation(Number(event.target.value))}
-          />
+          <button type="button" aria-label="Reset rotation" onClick={() => applyRotation(0)}>Reset</button>
           <button type="button" aria-label="Rotate one degree clockwise" onClick={() => applyRotation(rotation + 1)}>+</button>
         </div>
       </div> : null}
