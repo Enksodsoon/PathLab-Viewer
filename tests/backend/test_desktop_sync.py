@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from wsi_viewer.main import create_app
 from wsi_viewer.models import DesktopCredential, DesktopSyncEvent, Folder, Slide, User
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
+from wsi_viewer.storage import StorageLayout
 
 
 def _client(tmp_path: Path) -> TestClient:
@@ -84,6 +86,25 @@ def _ready_slide(client: TestClient, *, name: str = "Remote slide") -> Slide:
         database.refresh(slide)
         database.expunge(slide)
         return slide
+
+
+def _ready_slide_with_content(client: TestClient, payload: bytes) -> Slide:
+    slide = _ready_slide(client, name="Offline slide")
+    settings = client.app.state.settings
+    digest = hashlib.sha256(payload).hexdigest()
+    with session_factory(settings)() as database:
+        stored = database.get(Slide, slide.id)
+        assert stored is not None
+        stored.source_bytes = len(payload)
+        stored.sha256 = digest
+        database.commit()
+        database.refresh(stored)
+        database.expunge(stored)
+        slide = stored
+    target = StorageLayout(settings.data_root).for_slide(slide.id).original
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(payload)
+    return slide
 
 
 def test_new_pairing_receives_private_sync_scopes(tmp_path: Path) -> None:
@@ -224,3 +245,86 @@ def test_admin_metadata_change_records_desktop_change_event(tmp_path: Path) -> N
         and event["operation"] == "upsert"
         for event in changes.json()["changes"]
     )
+
+
+def test_offline_download_resumes_exact_range_with_persisted_digest(tmp_path: Path) -> None:
+    payload = b"0123456789"
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        slide = _ready_slide_with_content(client, payload)
+        response = client.get(
+            f"/api/v2/desktop/slides/{slide.id}/content",
+            headers={**_authorization(exchanged), "Range": "bytes=4-"},
+        )
+
+    assert response.status_code == 206
+    assert response.content == payload[4:]
+    assert response.headers["content-range"] == "bytes 4-9/10"
+    assert response.headers["x-pathlab-sha256"] == hashlib.sha256(payload).hexdigest()
+
+
+def test_desktop_patch_rejects_stale_revision_without_mutating_slide(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        slide = _ready_slide(client)
+        response = client.patch(
+            f"/api/v2/desktop/slides/{slide.id}",
+            headers=_authorization(exchanged),
+            json={
+                "expectedMetadataRevision": 1,
+                "expectedFolderRevision": 1,
+                "displayName": "Local edit",
+            },
+        )
+        settings = client.app.state.settings
+        with session_factory(settings)() as database:
+            stored = database.get(Slide, slide.id)
+            assert stored is not None
+            stored_name = stored.display_name
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "DESKTOP_SYNC_CONFLICT"
+    assert stored_name == "Remote slide"
+
+
+def test_desktop_patch_updates_private_metadata_at_expected_revision(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        slide = _ready_slide(client)
+        listed = client.get(
+            "/api/v2/desktop/library/items",
+            headers=_authorization(exchanged),
+        ).json()["items"][0]
+        response = client.patch(
+            f"/api/v2/desktop/slides/{slide.id}",
+            headers=_authorization(exchanged),
+            json={
+                "expectedMetadataRevision": listed["metadataRevision"],
+                "expectedFolderRevision": listed["folderRevision"],
+                "displayName": "Local edit",
+                "caseId": "CASE-42",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["displayName"] == "Local edit"
+    assert response.json()["caseId"] == "CASE-42"
+    assert response.json()["metadataRevision"] > listed["metadataRevision"]
+
+
+def test_offline_head_exposes_exact_length_digest_and_private_cache_policy(
+    tmp_path: Path,
+) -> None:
+    payload = b"verified-offline-content"
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        slide = _ready_slide_with_content(client, payload)
+        response = client.head(
+            f"/api/v2/desktop/slides/{slide.id}/content",
+            headers=_authorization(exchanged),
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-length"] == str(len(payload))
+    assert response.headers["accept-ranges"] == "bytes"
+    assert response.headers["cache-control"] == "private, no-store"

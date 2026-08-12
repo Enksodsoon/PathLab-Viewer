@@ -274,6 +274,9 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "slides:private:read",
             "annotations:sync",
             "results:sync",
+            "library:read",
+            "slides:offline:read",
+            "library:sync",
         }
 
         replay = client.post(

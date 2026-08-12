@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
@@ -35,8 +35,10 @@ from .desktop_sync import (
     change_json,
     decode_library_cursor,
     encode_library_cursor,
+    record_sync_event,
     remote_folder_json,
     remote_slide_json,
+    revision_for,
 )
 from .domain import SlideState
 from .models import (
@@ -148,6 +150,22 @@ class ResultDeliveryRequest(DesktopModel):
     payload_length: int = Field(gt=0, le=MAX_RESULT_BYTES)
     payload_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     result_schema: str = Field(alias="schema", pattern=r"^pathlab-private-results/v1$")
+
+
+class DesktopSlidePatch(DesktopModel):
+    expected_metadata_revision: int = Field(ge=0)
+    expected_folder_revision: int = Field(ge=0)
+    display_name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    case_id: str | None = Field(default=None, max_length=120)
+    organ_site: str | None = Field(default=None, max_length=120)
+    stain: str | None = Field(default=None, max_length=80)
+    diagnosis: str | None = Field(default=None, max_length=300)
+    course: str | None = Field(default=None, max_length=160)
+    tags: list[str] | None = Field(default=None, max_length=50)
+    teaching_note: str | None = Field(default=None, max_length=8000)
+    admin_notes: str | None = Field(default=None, max_length=16000)
+    folder_id: str | None = None
 
 
 def register_desktop_routes(
@@ -580,6 +598,143 @@ def register_desktop_routes(
             "changes": [change_json(event) for event in events],
             "nextCursor": str(events[-1].sequence if events else after),
         }
+
+    def offline_slide(
+        slide_id: str,
+        authenticated: DesktopCredential,
+        database: OrmSession,
+    ) -> tuple[Slide, Path]:
+        require_scope(authenticated, "slides:offline:read")
+        slide = database.get(Slide, slide_id)
+        if (
+            slide is None
+            or slide.state not in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
+            or slide.render_mode != "ome_dynamic"
+            or slide.sha256 is None
+        ):
+            raise HTTPException(status_code=404, detail={"code": "OFFLINE_SLIDE_NOT_FOUND"})
+        target = storage.for_slide(slide.id).original
+        if not target.is_file() or target.stat().st_size != slide.source_bytes:
+            raise HTTPException(status_code=409, detail={"code": "OFFLINE_CONTENT_UNAVAILABLE"})
+        return slide, target
+
+    def offline_headers(slide: Slide, length: int) -> dict[str, str]:
+        return {
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(length),
+            "ETag": f'"{slide.sha256}"',
+            "X-PathLab-SHA256": slide.sha256 or "",
+            "Cache-Control": "private, no-store",
+        }
+
+    @app.head("/api/v2/desktop/slides/{slide_id}/content")
+    def head_desktop_slide_content(
+        slide_id: str,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> Response:
+        slide, _ = offline_slide(slide_id, authenticated, database)
+        return Response(headers=offline_headers(slide, slide.source_bytes))
+
+    @app.get("/api/v2/desktop/slides/{slide_id}/content")
+    def get_desktop_slide_content(
+        slide_id: str,
+        range_value: str | None = Header(default=None, alias="Range"),
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> Response:
+        slide, target = offline_slide(slide_id, authenticated, database)
+        start = 0
+        status_code = status.HTTP_200_OK
+        headers = offline_headers(slide, slide.source_bytes)
+        if range_value:
+            if (
+                not range_value.startswith("bytes=")
+                or "," in range_value
+                or not range_value.removeprefix("bytes=").endswith("-")
+            ):
+                raise HTTPException(status_code=416, detail={"code": "RANGE_NOT_SATISFIABLE"})
+            raw_start = range_value.removeprefix("bytes=")[:-1]
+            if not raw_start.isdigit():
+                raise HTTPException(status_code=416, detail={"code": "RANGE_NOT_SATISFIABLE"})
+            start = int(raw_start)
+            if start >= slide.source_bytes:
+                raise HTTPException(status_code=416, detail={"code": "RANGE_NOT_SATISFIABLE"})
+            status_code = status.HTTP_206_PARTIAL_CONTENT
+            headers["Content-Length"] = str(slide.source_bytes - start)
+            headers["Content-Range"] = (
+                f"bytes {start}-{slide.source_bytes - 1}/{slide.source_bytes}"
+            )
+
+        def blocks() -> Iterator[bytes]:
+            with target.open("rb") as source:
+                source.seek(start)
+                while block := source.read(MAX_REQUEST_BUFFER_BYTES):
+                    yield block
+
+        return StreamingResponse(
+            blocks(),
+            status_code=status_code,
+            media_type="image/tiff",
+            headers=headers,
+        )
+
+    @app.patch("/api/v2/desktop/slides/{slide_id}")
+    def patch_desktop_slide(
+        slide_id: str,
+        payload: DesktopSlidePatch,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "library:sync")
+        slide = database.get(Slide, slide_id)
+        if slide is None or slide.trashed_at is not None:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        if slide.state == SlideState.PUBLISHED:
+            raise HTTPException(status_code=409, detail={"code": "SLIDE_PUBLIC"})
+        current_revision = revision_for(slide.updated_at)
+        if (
+            payload.expected_metadata_revision != current_revision
+            or payload.expected_folder_revision != current_revision
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "DESKTOP_SYNC_CONFLICT",
+                    "metadataRevision": current_revision,
+                    "folderRevision": current_revision,
+                },
+            )
+        if "folder_id" in payload.model_fields_set:
+            if payload.folder_id is not None:
+                folder = database.get(Folder, payload.folder_id)
+                if folder is None or folder.trashed_at is not None:
+                    raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
+            slide.folder_id = payload.folder_id
+        fields = {
+            "display_name": payload.display_name,
+            "description": payload.description,
+            "case_id": payload.case_id,
+            "organ_site": payload.organ_site,
+            "stain": payload.stain,
+            "diagnosis": payload.diagnosis,
+            "course": payload.course,
+            "tags": payload.tags,
+            "teaching_note": payload.teaching_note,
+            "admin_notes": payload.admin_notes,
+        }
+        for field, value in fields.items():
+            if field in payload.model_fields_set:
+                setattr(slide, field, value.strip() if isinstance(value, str) else value)
+        if not slide.display_name:
+            raise HTTPException(status_code=422, detail={"code": "DISPLAY_NAME_REQUIRED"})
+        slide.updated_at = _now()
+        database.flush()
+        next_revision = revision_for(slide.updated_at)
+        record_sync_event(database, "slide", slide.id, "upsert", next_revision)
+        database.commit()
+        database.refresh(slide)
+        return remote_slide_json(slide)
 
     @app.post(
         "/api/v1/desktop/credential/revoke",
