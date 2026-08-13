@@ -34,6 +34,7 @@ import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
+import { classroomSlideSource } from '../classroom/slideSource'
 import {
   StudentDrawingOverlay,
   type DrawingStroke,
@@ -848,7 +849,7 @@ export function ClassroomTeacherPage() {
     </header>
     <main className="classroom-viewer">
       {currentSlide && <OpenSeadragonViewer
-        tileSource={currentSlide.tileSource}
+        tileSource={classroomSlideSource(currentSlide.tileSource, classroom.id)}
         onReady={() => undefined}
         onViewerAttach={attachViewer}
       />}

@@ -89,7 +89,9 @@ describe('smart Classroom invite', () => {
     await userEvent.type(screen.getByLabelText('Access code'), 'ABC234DEFG')
     await userEvent.type(screen.getByLabelText('Name (optional)'), 'Student')
     await userEvent.click(screen.getByRole('button', { name: 'Open slide review' }))
-    await screen.findByTestId('slide-viewer')
+    expect(await screen.findByTestId('slide-viewer')).toHaveTextContent(
+      '/tiles/public/v1/slide.dzi?classroom=session-1',
+    )
     expect(classroomApi.unlockClassroomInvite).toHaveBeenCalledWith('opaque-public-id', 'ABC234DEFG', 'Student')
     expect(classroomApi.joinLiveClassroom).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Join live class' }))
