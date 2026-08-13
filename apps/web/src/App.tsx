@@ -9,6 +9,7 @@ const SharedViewerPage = lazy(() => import('./pages/SharedViewerPage').then((mod
 const DesktopConnectPage = lazy(() => import('./pages/DesktopConnectPage').then((module) => ({ default: module.DesktopConnectPage })))
 const ClassroomTeacherPage = lazy(() => import('./pages/ClassroomTeacherPage').then((module) => ({ default: module.ClassroomTeacherPage })))
 const ClassroomStudentPage = lazy(() => import('./pages/ClassroomStudentPage').then((module) => ({ default: module.ClassroomStudentPage })))
+const ClassroomInvitePage = lazy(() => import('./pages/ClassroomInvitePage').then((module) => ({ default: module.ClassroomInvitePage })))
 
 export function App() {
   return <Routes>
@@ -17,6 +18,7 @@ export function App() {
     <Route path="/admin/connect" element={<Suspense fallback={<Loader label="Opening device pairing…" size="large" fullscreen />}><DesktopConnectPage /></Suspense>} />
     <Route path="/admin/classroom" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomTeacherPage /></Suspense>} />
     <Route path="/classroom" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomStudentPage /></Suspense>} />
+    <Route path="/classroom/invite/:publicId" element={<Suspense fallback={<Loader label="Opening classroom review…" size="large" fullscreen />}><ClassroomInvitePage /></Suspense>} />
     <Route path="/classroom/:sessionId" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomStudentPage /></Suspense>} />
     <Route path="/s/:publicId" element={<Suspense fallback={<Loader label="Opening slide…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />

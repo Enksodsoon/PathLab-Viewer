@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
 }))
 
 const classroomApi = vi.hoisted(() => ({
+  classroomReadiness: vi.fn(),
   createClassroom: vi.fn(),
 }))
 
@@ -119,6 +120,14 @@ describe('Classroom folder setup', () => {
       slide({ id: 'slide-unfiled', displayName: 'Unfiled slide', folderId: null }),
     ])
     classroomApi.createClassroom.mockReturnValue(new Promise(() => undefined))
+    classroomApi.classroomReadiness.mockResolvedValue({
+      folderId: rootFolder.id,
+      ready: [
+        { id: 'slide-root', displayName: 'Root H&E', folderPath: ['Pathology 101'] },
+        { id: 'slide-child', displayName: 'Child H&E', folderPath: ['Pathology 101', 'Week 1'] },
+      ],
+      blocked: [],
+    })
   })
 
   afterEach(() => {
@@ -131,20 +140,19 @@ describe('Classroom folder setup', () => {
     renderSetup()
 
     const group = await screen.findByRole('radiogroup', { name: 'Class folder' })
-    const root = within(group).getByRole('radio', { name: /Pathology 101.*2 eligible slides.*includes subfolders/i })
-    const child = within(group).getByRole('radio', { name: /Week 1.*1 eligible slide/i })
-    const empty = within(group).getByRole('radio', { name: /Empty class.*No eligible slides/i })
+    const root = within(group).getByRole('radio', { name: /Pathology 101.*4 slides.*includes subfolders/i })
+    const child = within(group).getByRole('radio', { name: /Week 1.*2 slides/i })
+    const empty = within(group).getByRole('radio', { name: /Empty class.*No slides/i })
 
     expect(root.closest('label')?.querySelector('.classroom-folder-picker__icon svg')).toBeInTheDocument()
     expect(child).toBeEnabled()
     expect(empty).toBeDisabled()
 
     await userEvent.click(root)
-    await userEvent.click(screen.getByRole('button', { name: 'Start classroom with 2 slides' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare classroom with 2 slides' }))
 
-    await waitFor(() => expect(classroomApi.createClassroom).toHaveBeenCalledWith([
-      'slide-root',
-      'slide-child',
-    ]))
+    await waitFor(() => expect(classroomApi.createClassroom).toHaveBeenCalledWith(
+      'folder-course', expect.any(String),
+    ))
   })
 })

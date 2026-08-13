@@ -1,5 +1,6 @@
 import OpenSeadragon from 'openseadragon'
-import { FolderOpen } from '@phosphor-icons/react'
+import { Copy, FolderOpen, ShareNetwork } from '@phosphor-icons/react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -8,17 +9,22 @@ import {
   answerQuestion,
   clearTeacherPointer,
   clearTeachingAnnotations,
+  classroomReadiness,
   createClassroom,
   endActiveClassroom,
   endClassroom,
+  finishLiveClassroom,
   grantControl,
+  listClassrooms,
   openQuestion,
   publishTeacherPointer,
   publishTeacherViewport,
   publishTeachingAnnotation,
   removeTeachingAnnotation,
   revokeControl,
+  startLiveClassroom,
   teacherState,
+  type ClassroomReadiness,
   type CreatedClassroom,
   type TeacherState,
   type TeachingAnnotation,
@@ -42,6 +48,40 @@ import type { AdminSlide, LibraryFolder } from '../types'
 import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
+
+function defaultReviewExpiry(): string {
+  const value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  value.setMinutes(value.getMinutes() - value.getTimezoneOffset())
+  return value.toISOString().slice(0, 16)
+}
+
+function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onClose: () => void }) {
+  const inviteUrl = `${window.location.origin}/classroom/invite/${classroom.publicId}`
+  const invitation = `PathLab Classroom\n${inviteUrl}\nAccess code: ${classroom.joinCode}`
+  const [message, setMessage] = useState('')
+  const copy = async (text: string, success: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setMessage(success)
+    } catch { setMessage('Copy failed. Select the visible link and code.') }
+  }
+  return <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
+    <div className="classroom-invite-card">
+      <p>PathLab classroom</p>
+      <h2 id="classroom-code-title">Review slides and join class</h2>
+      <QRCodeSVG value={inviteUrl} size={232} level="M" aria-label="Classroom invite QR code" />
+      <a className="classroom-invite-link" href={inviteUrl}>{inviteUrl}</a>
+      <span>Access code</span><strong>{classroom.joinCode}</strong>
+      <div className="classroom-invite-actions">
+        <button type="button" onClick={() => void copy(inviteUrl, 'Link copied.')}><Copy />Copy link</button>
+        <button type="button" onClick={() => void copy(invitation, 'Invitation copied.')}><Copy />Copy invitation</button>
+        {'share' in navigator ? <button type="button" onClick={() => void navigator.share({ title: 'PathLab Classroom', text: invitation })}><ShareNetwork />Share</button> : null}
+      </div>
+      {message ? <span role="status">{message}</span> : null}
+      <button type="button" autoFocus onClick={onClose}>Close</button>
+    </div>
+  </div>
+}
 
 interface ClassroomFolderOption {
   folder: LibraryFolder
@@ -140,7 +180,9 @@ function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks'
 function savedClassroom(): CreatedClassroom | null {
   try {
     const value = sessionStorage.getItem(ACTIVE_CLASSROOM_KEY)
-    return value ? JSON.parse(value) as CreatedClassroom : null
+    if (!value) return null
+    const parsed = JSON.parse(value) as CreatedClassroom
+    return { ...parsed, publicId: parsed.publicId ?? null, phase: parsed.phase ?? 'live', reviewExpiresAt: parsed.reviewExpiresAt ?? null }
   } catch {
     return null
   }
@@ -151,6 +193,11 @@ export function ClassroomTeacherPage() {
   const [slides, setSlides] = useState<AdminSlide[]>([])
   const [folders, setFolders] = useState<LibraryFolder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [reviewExpiry, setReviewExpiry] = useState(defaultReviewExpiry)
+  const [readiness, setReadiness] = useState<ClassroomReadiness | null>(null)
+  const [recentClassrooms, setRecentClassrooms] = useState<Array<{
+    id: string; publicId: string; phase: 'preview' | 'live' | 'review' | 'revoked'; joinCode: string; reviewExpiresAt: string
+  }>>([])
   const [setupLoading, setSetupLoading] = useState(true)
   const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
   const [state, setState] = useState<TeacherState | null>(null)
@@ -209,9 +256,7 @@ export function ClassroomTeacherPage() {
     void Promise.all([listSlides(), loadClassroomFolders()])
       .then(([items, nextFolders]) => {
         if (cancelled) return
-        setSlides(items.filter((slide) => (
-          slide.state === 'published' && slide.renderMode === 'static_dzi'
-        )))
+        setSlides(items)
         setFolders(nextFolders)
       })
       .catch((loadError: unknown) => {
@@ -228,6 +273,11 @@ export function ClassroomTeacherPage() {
     return () => { cancelled = true }
   }, [navigate])
 
+  useEffect(() => {
+    if (classroom) return
+    void listClassrooms().then((result) => setRecentClassrooms(result.sessions)).catch(() => undefined)
+  }, [classroom])
+
   const folderOptions = useMemo(
     () => classroomFolderOptions(folders, slides),
     [folders, slides],
@@ -236,6 +286,20 @@ export function ClassroomTeacherPage() {
     () => folderOptions.find((option) => option.folder.id === selectedFolderId)?.slideIds ?? [],
     [folderOptions, selectedFolderId],
   )
+
+  useEffect(() => {
+    if (!selectedFolderId || classroom) {
+      setReadiness(null)
+      return
+    }
+    let active = true
+    void classroomReadiness(selectedFolderId).then((next) => {
+      if (active) setReadiness(next)
+    }).catch(() => {
+      if (active) setError('This folder could not be checked for classroom readiness.')
+    })
+    return () => { active = false }
+  }, [classroom, selectedFolderId])
 
   const refresh = useCallback(async (sessionId: string) => {
     const next = await teacherState(sessionId)
@@ -259,6 +323,7 @@ export function ClassroomTeacherPage() {
       }
       setError('The classroom connection was interrupted. Reconnecting…')
     })
+    if (classroom.phase !== 'live') return
     const events = new EventSource(`/api/v1/admin/classroom/sessions/${classroom.id}/events`)
     const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
       try {
@@ -630,16 +695,24 @@ export function ClassroomTeacherPage() {
     setError('')
     setActiveConflict(false)
     try {
-      const created = await createClassroom(selected)
+      if (!selectedFolderId) return
+      const checked = await classroomReadiness(selectedFolderId)
+      setReadiness(checked)
+      if (checked.blocked.length) {
+        setError(`This folder is blocked: ${checked.blocked.map((item) => item.displayName).join(', ')} must be republished.`)
+        return
+      }
+      const created = await createClassroom(selectedFolderId, new Date(reviewExpiry).toISOString())
       setClassroom(created)
       sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(created))
       setSlideId(created.slides[0].id)
+      setShowCode(true)
     } catch (startError) {
       if (startError instanceof ApiError && startError.code === 'CLASSROOM_ALREADY_ACTIVE') {
         setError('A classroom is already active. End it before starting another.')
         setActiveConflict(true)
-      } else if (startError instanceof ApiError && startError.code === 'CLASSROOM_SLIDE_NOT_READY') {
-        setError('The classroom could not start. Only complete published static slides are allowed.')
+      } else if (startError instanceof ApiError && (startError.code === 'CLASSROOM_SLIDE_NOT_READY' || startError.code === 'CLASSROOM_SLIDES_BLOCKED')) {
+        setError('The classroom could not be prepared. One or more slides must be republished.')
       } else {
         setError('The classroom could not start. Try again.')
       }
@@ -655,9 +728,9 @@ export function ClassroomTeacherPage() {
       </div>
     </header>
     <section className="classroom-entry__card">
-      <p className="classroom-kicker">Active classroom</p>
+      <p className="classroom-kicker">Prepare classroom</p>
       <h1>Choose a class folder</h1>
-      <p className="classroom-entry__intro">Every published static-DZI slide in the folder and its subfolders will open in this classroom.</p>
+      <p className="classroom-entry__intro">Create one protected link for review before, during, and after class.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
         sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
@@ -691,18 +764,63 @@ export function ClassroomTeacherPage() {
             <span className="classroom-folder-picker__copy">
               <strong>{folder.name}</strong>
               <small>{count === 0
-                ? 'No eligible slides'
-                : `${count} eligible ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
+                ? 'No slides'
+                : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
             </span>
           </label>
         })}
       </div>
-      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length} onClick={() => void start()}>
+      {readiness?.blocked.length ? <div className="classroom-readiness-error" role="alert">
+        <strong>{readiness.blocked.length} slide{readiness.blocked.length === 1 ? '' : 's'} need attention</strong>
+        {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} · {item.reason.replaceAll('_', ' ')}</span>)}
+      </div> : null}
+      <label className="classroom-expiry">Review access expires
+        <input type="datetime-local" min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)} max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)} value={reviewExpiry} onChange={(event) => setReviewExpiry(event.target.value)} />
+      </label>
+      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length || Boolean(readiness?.blocked.length)} onClick={() => void start()}>
         {selected.length
-          ? `Start classroom with ${selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
+          ? `Prepare classroom with ${readiness?.ready.length ?? selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
           : 'Choose a class folder'}
       </button>
+      {recentClassrooms.some((item) => item.phase === 'review') ? <section className="classroom-recent-reviews">
+        <h2>Recent review links</h2>
+        {recentClassrooms.filter((item) => item.phase === 'review').map((item) => <div key={item.id}>
+          <span><strong>{item.joinCode}</strong><small>Expires {new Date(item.reviewExpiresAt).toLocaleString()}</small></span>
+          <button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/classroom/invite/${item.publicId}`)}>Copy link</button>
+          <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id)))}>Revoke</button>
+        </div>)}
+      </section> : null}
     </section>
+  </main>
+
+  if (classroom.phase !== 'live') return <main className="classroom-entry classroom-setup">
+    <header className="classroom-entry__header">
+      <Brand variant="library" />
+      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to="/admin">Back to library</Link></div>
+    </header>
+    <section className="classroom-entry__card classroom-prepared-card">
+      <p className="classroom-kicker">{classroom.phase === 'preview' ? 'Classroom prepared' : 'Post-class review'}</p>
+      <h1>{classroom.phase === 'preview' ? 'Invite students to review' : 'Review remains open'}</h1>
+      <p className="classroom-entry__intro">The protected link opens all {classroom.slides.length} slides. Students enter the separate access code once.</p>
+      <button className="classroom-join-code classroom-join-code--large" type="button" onClick={() => setShowCode(true)}>
+        <span>Access code</span><strong>{classroom.joinCode}</strong><small>Display QR and link</small>
+      </button>
+      {classroom.reviewExpiresAt ? <p className="classroom-review-expiry">Review expires {new Date(classroom.reviewExpiresAt).toLocaleString()}</p> : null}
+      <div className="classroom-prepared-actions">
+        {classroom.phase === 'preview' ? <button className="primary classroom-entry__primary" type="button" onClick={() => void startLiveClassroom(classroom.id).then(() => {
+          const next = { ...classroom, phase: 'live' as const }
+          setClassroom(next)
+          sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
+          setShowCode(true)
+        }).catch((caught: unknown) => handleAdminFailure(caught, 'The live class could not start.'))}>Start live class</button> : null}
+        <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
+          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          setClassroom(null)
+        }).catch((caught: unknown) => handleAdminFailure(caught, 'Review access could not be revoked.'))}>Revoke review access</button>
+      </div>
+      {error ? <p role="alert" className="classroom-error">{error}</p> : null}
+    </section>
+    {showCode && classroom.publicId ? <InviteDialog classroom={classroom} onClose={() => setShowCode(false)} /> : null}
   </main>
 
   return <div className="classroom-shell classroom-shell--teacher">
@@ -713,9 +831,10 @@ export function ClassroomTeacherPage() {
       </button>
       <div className="classroom-topbar__actions">
         <ThemeControl compact />
-        <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
-          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
-          setClassroom(null)
+        <button className="classroom-danger-action" type="button" onClick={() => void finishLiveClassroom(classroom.id).then(() => {
+          const next = { ...classroom, phase: 'review' as const }
+          sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
+          setClassroom(next)
         })}>
           End class
         </button>
@@ -861,14 +980,6 @@ export function ClassroomTeacherPage() {
         {state?.teachingAnnotations.length ? <button className="classroom-clear-marks" type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}><ClassroomPanelIcon name="clear" />Clear all</button> : null}
       </section>
     </aside>
-    {showCode ? <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
-      <div>
-        <p>PathLab classroom</p>
-        <h2 id="classroom-code-title">Join this slide session</h2>
-        <strong>{classroom.joinCode}</strong>
-        <span>Open PathLab Classroom and enter this code</span>
-        <button type="button" autoFocus onClick={() => setShowCode(false)}>Close</button>
-      </div>
-    </div> : null}
+    {showCode && classroom.publicId ? <InviteDialog classroom={classroom} onClose={() => setShowCode(false)} /> : null}
   </div>
 }

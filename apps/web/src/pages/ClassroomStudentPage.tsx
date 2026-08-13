@@ -246,10 +246,11 @@ export function ClassroomStudentPage() {
       })
       source.addEventListener('session-ended', (event) => {
         if (!sequence(event)) return
+        const inviteId = stateRef.current?.session.publicId
         setState(null)
         setCsrfToken('')
-        setMessage('This classroom has ended.')
-        navigate('/classroom', { replace: true })
+        setMessage('The live class ended. Independent review remains available.')
+        navigate(inviteId ? `/classroom/invite/${inviteId}` : '/classroom', { replace: true })
       })
       source.addEventListener('question-removed', (event) => {
         const payload = sequence(event)
