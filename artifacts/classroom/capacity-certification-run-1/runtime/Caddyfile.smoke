@@ -1,0 +1,30 @@
+:80 {
+	header {
+		Cache-Control "no-store"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+	}
+
+	@classroom_events path /api/v1/classroom/sessions/*/events /api/v1/admin/classroom/sessions/*/events
+	handle @classroom_events {
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle_path /tiles/* {
+		root * /pathlab-individual
+		header Cache-Control "private, max-age=86400, immutable"
+		file_server
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

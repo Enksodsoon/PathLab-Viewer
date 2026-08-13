@@ -218,9 +218,16 @@ function csrfHeaders(jsonBody = false): Record<string, string> {
 
 export async function getLibraryNavigation(folderId?: string): Promise<LibraryNavigation> {
   const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : ''
-  return json<LibraryNavigation>(
-    await fetch(`/api/v2/admin/library/navigation${query}`, { credentials: 'same-origin' }),
-  )
+  const response = await fetch(`/api/v2/admin/library/navigation${query}`, {
+    credentials: 'same-origin',
+  })
+  const navigation = await json<LibraryNavigation>(response)
+  return {
+    ...navigation,
+    capabilities: {
+      classroom: response.headers.get('X-PathLab-Classroom-Enabled') === 'true',
+    },
+  }
 }
 
 export async function getFolderChildren(folderId: string): Promise<LibraryFolder[]> {

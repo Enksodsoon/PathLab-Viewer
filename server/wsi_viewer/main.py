@@ -4,13 +4,14 @@ import os
 import re
 import shutil
 from collections import defaultdict, deque
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
@@ -26,6 +27,9 @@ from .auth import (
     change_password,
     recover_password,
 )
+from .classroom_hub import ClassroomHub
+from .classroom_routes import register_classroom_routes
+from .classroom_runtime import ClassroomSingletonLock
 from .config import Settings
 from .database import session_factory
 from .delivery import deliver_file
@@ -175,6 +179,7 @@ def _slide_json(
             )
     else:
         result["filename"] = slide.original_filename
+        result["renderMode"] = slide.render_mode
         result["annotationsEnabled"] = annotations_enabled
         result["annotationVersion"] = slide.annotation_version
     return result
@@ -187,6 +192,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
     services: dict[str, Any] = {}
+    classroom_lock = ClassroomSingletonLock(current.data_root / "runtime" / "classroom-hub.lock")
+    classroom_hub = ClassroomHub()
+    services["classroom_ready"] = not current.classroom_enabled
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -221,6 +229,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if finalizer is not None and schema_ready:
             finalizer.start()
             finalizer_started = True
+        classroom_lock_held = False
+        if current.classroom_enabled:
+            classroom_lock_held = classroom_lock.acquire()
+            services["classroom_ready"] = classroom_lock_held
+            if classroom_lock_held:
+                classroom_hub.start()
+                classroom_presenter = services.get("classroom_presenter")
+                if classroom_presenter is not None:
+                    classroom_presenter.start()
         try:
             yield
         finally:
@@ -228,6 +245,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 finalizer.close()
             services.pop("tile_routes", None)
             tile_routes.close()
+            if classroom_lock_held:
+                classroom_presenter = services.get("classroom_presenter")
+                if classroom_presenter is not None:
+                    await classroom_presenter.close()
+                classroom_hub.close()
+                classroom_lock.release()
+            services["classroom_ready"] = not current.classroom_enabled
 
     app = FastAPI(title="PathLab Viewer API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
@@ -247,6 +271,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
     )
     app.state.settings = current
+
+    @app.middleware("http")
+    async def require_classroom_singleton(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        if (
+            current.classroom_enabled
+            and "/classroom" in request.url.path
+            and not services.get("classroom_ready", False)
+        ):
+            return JSONResponse(
+                status_code=503,
+                content={"detail": {"code": "CLASSROOM_SINGLETON_NOT_READY"}},
+                headers={"Cache-Control": "no-store"},
+            )
+        response = await call_next(request)
+        if "/classroom" in request.url.path:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+        return response
 
     def tile_routes() -> TileRouteService:
         service = services.get("tile_routes")
@@ -351,6 +396,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
         max_upload_bytes=current.max_upload_bytes,
     )
+    services["classroom_presenter"] = register_classroom_routes(
+        app,
+        settings=current,
+        storage=storage,
+        factory=factory,
+        hub=classroom_hub,
+        database_dependency=database,
+        admin_dependency=admin_session,
+        csrf_dependency=csrf,
+    )
 
     @app.get("/livez")
     def livez() -> dict[str, str]:
@@ -366,6 +421,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(
                 status_code=503,
                 detail={"code": "TILE_SERVICE_NOT_READY"},
+            )
+        if current.classroom_enabled and not services.get("classroom_ready", False):
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "CLASSROOM_SINGLETON_NOT_READY"},
             )
         return {"status": "ready"}
 

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .models import Base
 
-ALEMBIC_HEAD = "20260812_0016"
+ALEMBIC_HEAD = "20260813_0019"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
 ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
 

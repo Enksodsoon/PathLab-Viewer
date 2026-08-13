@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     multi_share_enabled: bool = True
     annotations_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
+    classroom_enabled: bool = False
+    classroom_singleton: bool = False
     libvips_concurrency: PositiveInt = 1
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
     libvips_cache_max_files: PositiveInt = 128
@@ -59,6 +61,8 @@ class Settings(BaseSettings):
             raise ValueError("Tile cache memory must not exceed 512 MiB")
         if self.environment != "production":
             return self
+        if self.classroom_enabled and not self.classroom_singleton:
+            raise ValueError("Production classroom requires the declared singleton topology")
         secret = self.secret_key.strip()
         if len(secret.encode("utf-8")) < 32 or secret.casefold() in PRODUCTION_SECRET_PLACEHOLDERS:
             raise ValueError("Production requires a unique secret key of at least 32 bytes")

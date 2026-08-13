@@ -19,6 +19,8 @@ const osdMock = vi.hoisted(() => {
       goHome: vi.fn(),
       viewportToImageZoom: vi.fn(() => 2),
       getZoom: vi.fn(() => 1),
+      getRotation: vi.fn(() => 0),
+      setRotation: vi.fn(),
     },
     setFullScreen: vi.fn(),
     isFullPage: vi.fn(() => false),
@@ -117,6 +119,23 @@ it('uses bounded desktop loader and cache limits', () => {
     animationTime: 0.45,
     blendTime: 0.05,
   })
+})
+
+it('offers a circular dial with cardinal and fine local rotation controls', () => {
+  renderViewer()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 0 degrees' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Rotate to 90 degrees' }))
+
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenCalledWith(90)
+  expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
+
+  fireEvent.keyDown(screen.getByRole('slider', { name: 'Rotation dial' }), { key: 'ArrowLeft' })
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(89)
+
+  expect(screen.queryByText('drag', { exact: false })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Rotate to 0 degrees' }))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
 })
 
 it('shows a prioritized poster until the first tile is visible', () => {
