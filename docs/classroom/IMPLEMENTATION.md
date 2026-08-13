@@ -135,7 +135,7 @@ gates. Never load-test production.
 
 ## Deployment and rollback
 
-1. Back up the SQLite database and apply Alembic revision `20260811_0017` while the feature
+1. Back up the SQLite database and apply Alembic revision `20260813_0019` while the feature
    remains disabled.
 2. Verify one API service, one Uvicorn worker, local SQLite/WAL, Caddy SSE flushing, static
    tile delivery, and readiness.
