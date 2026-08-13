@@ -704,6 +704,17 @@ class ClassroomSession(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     join_code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    public_id: Mapped[str | None] = mapped_column(String(64), unique=True)
+    phase: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="live", server_default="live"
+    )
+    code_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    folder_id: Mapped[str | None] = mapped_column(ForeignKey("folders.id", ondelete="SET NULL"))
+    review_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    live_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="active")
     presenter_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     presenter_sequence_reserved: Mapped[int] = mapped_column(
@@ -772,6 +783,7 @@ class ClassroomParticipant(Base):
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     public_alias: Mapped[str] = mapped_column(String(16), nullable=False)
     optional_display_name: Mapped[str | None] = mapped_column(String(80))
+    joined_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
