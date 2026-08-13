@@ -461,6 +461,8 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
     assert "secrets.OCI_BASTION_KNOWN_HOSTS" in workflow
     assert "deploy/scripts/deploy-via-bastion.sh" in workflow
+    assert "vars.PATHLAB_CLASSROOM_ENABLED" in workflow
+    assert '"$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"' in workflow
     assert "secrets.OCI_DEPLOY_KEY" not in workflow
     assert "vars.OCI_HOST" not in workflow
     assert "pip install --require-hashes -r deploy/oci-cli-requirements.txt" in workflow
@@ -482,6 +484,8 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "oci bastion session delete" in script
     assert "StrictHostKeyChecking=yes" in script
     assert "deploy ${TARGET_SHA}" in script
+    assert '"${CLASSROOM_ENABLED}" =~ ^(true|false)$' in script
+    assert 'classroom=${CLASSROOM_ENABLED}' in script
 
 
 def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> None:
@@ -546,6 +550,8 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
     script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
 
     assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
+    assert "classroom=(true|false)" in script
+    assert "PATHLAB_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}" in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
 

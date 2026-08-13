@@ -82,7 +82,8 @@ jobs:
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_TARGET_USER: pathlab-deploy
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-        run: deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA"
+          PATHLAB_CLASSROOM_ENABLED: ${{ vars.PATHLAB_CLASSROOM_ENABLED }}
+        run: deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"
 
       - name: Remove temporary cloud credentials
         if: always()

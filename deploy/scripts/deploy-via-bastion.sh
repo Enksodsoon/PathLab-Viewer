@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 TARGET_SHA="${1:-}"
+CLASSROOM_ENABLED="${2:-}"
 TARGET_USER="${OCI_TARGET_USER:-pathlab-deploy}"
 SESSION_ID=""
 SESSION_NAME="pathlab-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
@@ -26,6 +27,9 @@ cleanup_bastion_session() {
 trap cleanup_bastion_session EXIT
 
 [[ "${TARGET_SHA}" =~ ^[0-9a-f]{40}$ ]] || fail "a full lowercase commit SHA is required"
+if [[ -n "${CLASSROOM_ENABLED}" && ! "${CLASSROOM_ENABLED}" =~ ^(true|false)$ ]]; then
+  fail "classroom enabled must be true, false, or empty"
+fi
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
 : "${OCI_INSTANCE_ID:?OCI_INSTANCE_ID is required}"
 : "${OCI_TARGET_PRIVATE_IP:?OCI_TARGET_PRIVATE_IP is required}"
@@ -83,4 +87,8 @@ SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
 SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE}"
 SSH_COMMAND="${SSH_COMMAND//ssh /ssh ${SSH_OPTIONS} }"
 
-bash -c "${SSH_COMMAND} \"deploy ${TARGET_SHA}\""
+REMOTE_REQUEST="deploy ${TARGET_SHA}"
+if [[ -n "${CLASSROOM_ENABLED}" ]]; then
+  REMOTE_REQUEST="${REMOTE_REQUEST} classroom=${CLASSROOM_ENABLED}"
+fi
+bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
