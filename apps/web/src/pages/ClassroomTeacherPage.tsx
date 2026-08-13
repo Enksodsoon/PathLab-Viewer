@@ -498,14 +498,20 @@ export function ClassroomTeacherPage() {
   }, [applyRemote, state?.presenter, viewer])
 
   useEffect(() => {
+    if (!viewer || classroom?.phase !== 'live') return
     // Pointer mode is an additive presentation aid: keep the normal pan, zoom,
     // and touch gestures available while the screen-space arrow follows along.
-    viewer?.setMouseNavEnabled(teachingTool !== 'draw')
+    try {
+      viewer.setMouseNavEnabled(teachingTool !== 'draw')
+    } catch {
+      // The viewer may already be closing while live teaching transitions to review.
+      return
+    }
     if (teachingTool === 'pointer') teachingOverlayRef.current?.setPointer(null)
     if (teachingTool !== 'pointer' && localPointerElementRef.current) {
       localPointerElementRef.current.className = 'classroom-local-pointer'
     }
-    if (!classroom || teachingTool === 'pointer') return
+    if (teachingTool === 'pointer') return
     void clearTeacherPointer(classroom.id).catch(() => undefined)
   }, [classroom, teachingTool, viewer])
 
