@@ -461,8 +461,8 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
     assert "secrets.OCI_BASTION_KNOWN_HOSTS" in workflow
     assert "deploy/scripts/deploy-via-bastion.sh" in workflow
-    assert "vars.PATHLAB_CLASSROOM_ENABLED" in workflow
-    assert '"$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"' in workflow
+    assert 'deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA"' in workflow
+    assert "vars.PATHLAB_CLASSROOM_ENABLED" not in workflow
     assert "secrets.OCI_DEPLOY_KEY" not in workflow
     assert "vars.OCI_HOST" not in workflow
     assert "pip install --require-hashes -r deploy/oci-cli-requirements.txt" in workflow
@@ -551,9 +551,20 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
 
     assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
     assert "classroom=(true|false)" in script
-    assert "PATHLAB_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}" in script
+    assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}" in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
+
+
+def test_production_classroom_is_enabled_without_mutating_the_preserved_environment() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    example = Path("deploy/.env.example").read_text(encoding="utf-8")
+
+    assert (
+        'PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-true}"'
+        in compose
+    )
+    assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=true" in example
 
 
 def test_release_script_interlocks_before_worker_disruption() -> None:
