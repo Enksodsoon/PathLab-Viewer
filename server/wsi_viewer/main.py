@@ -179,6 +179,7 @@ def _slide_json(
             )
     else:
         result["filename"] = slide.original_filename
+        result["folderId"] = slide.folder_id
         result["renderMode"] = slide.render_mode
         result["annotationsEnabled"] = annotations_enabled
         result["annotationVersion"] = slide.annotation_version

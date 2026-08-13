@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminPage as CanvasFocusAdminPage } from '../pages/AdminPage'
@@ -265,6 +265,28 @@ describe('Canvas Focus library explorer', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(document.querySelector('.library-shell')).toHaveClass('rail-expanded')
     expect(localStorage.getItem('pathlab-library-rail:v1')).toBe('expanded')
+  })
+
+  it('opens the Classroom workspace from the product rail when enabled', async () => {
+    api.getLibraryNavigation.mockResolvedValue({
+      ...navigation,
+      capabilities: { classroom: true },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/admin']}>
+        <Routes>
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/classroom" element={<h1>Classroom workspace</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await screen.findAllByText('Colon adenocarcinoma')
+    const rail = screen.getByRole('complementary', { name: /product navigation/i })
+    await userEvent.click(within(rail).getByRole('button', { name: /^classroom$/i }))
+
+    expect(screen.getByRole('heading', { name: 'Classroom workspace' })).toBeVisible()
   })
 
   it('leaves absent card metadata blank instead of showing placeholder copy', async () => {

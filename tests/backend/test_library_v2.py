@@ -217,6 +217,23 @@ def test_folder_children_are_lazy_and_trash_restore_preserves_subtree(tmp_path: 
         assert [item["id"] for item in items] == ["slide-lung"]
 
 
+def test_private_admin_slide_contract_includes_folder_id(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        folder = _create_folder(client, headers, "Teaching class")
+        _seed_slide(
+            client,
+            slide_id="slide-classroom-folder",
+            display_name="Classroom H&E",
+            folder_id=folder["id"],
+            state=SlideState.PUBLISHED,
+        )
+
+        slides = client.get("/api/v1/admin/slides").json()
+
+    assert slides[0]["folderId"] == folder["id"]
+
+
 def test_permanent_folder_delete_never_flattens_or_orphans_content(
     tmp_path: Path,
 ) -> None:

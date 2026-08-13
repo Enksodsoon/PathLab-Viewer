@@ -12,6 +12,7 @@ interface AppRailProps {
   onToggleExpanded: () => void
   onNavigator: () => void
   onUpload: () => void
+  onClassroom?: () => void
   onSecurity: () => void
   onSignOut: () => void
 }
@@ -25,6 +26,7 @@ export function AppRail({
   onToggleExpanded,
   onNavigator,
   onUpload,
+  onClassroom,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
@@ -39,6 +41,7 @@ export function AppRail({
       onToggleExpanded={onToggleExpanded}
       onNavigator={onNavigator}
       onUpload={onUpload}
+      onClassroom={onClassroom}
       onSecurity={onSecurity}
       onSignOut={onSignOut}
     />

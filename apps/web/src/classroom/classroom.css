@@ -110,32 +110,96 @@
   border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
 }
 
-.classroom-slide-picker {
+.classroom-folder-picker {
   max-height: 42vh;
   overflow: auto;
   margin: 26px 0;
   border-block: 1px solid var(--border-soft);
 }
 
-.classroom-slide-picker label {
+.classroom-folder-picker label {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 20px 28px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
+  gap: 10px;
+  min-height: 62px;
   margin: 0;
-  padding: 8px 2px;
+  padding: 8px 8px 8px calc(4px + var(--classroom-folder-depth, 0) * 18px);
   border-bottom: 1px solid var(--border-soft);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 
-.classroom-slide-picker label:last-child {
+.classroom-folder-picker label:hover {
+  background: var(--surface);
+}
+
+.classroom-folder-picker label.selected {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-elevated));
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.classroom-folder-picker label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: .56;
+}
+
+.classroom-folder-picker label:last-child {
   border-bottom: 0;
 }
 
-.classroom-slide-picker input {
+.classroom-folder-picker input {
   width: 18px;
   min-height: 18px;
   accent-color: var(--primary);
+}
+
+.classroom-folder-picker__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: 8px;
+}
+
+.classroom-folder-picker__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.classroom-folder-picker__copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.classroom-folder-picker__copy strong,
+.classroom-folder-picker__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classroom-folder-picker__copy strong {
+  color: var(--body);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.classroom-folder-picker__copy small,
+.classroom-folder-picker__status {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.classroom-folder-picker__status {
+  margin: 0;
+  padding: 18px 4px;
 }
 
 .classroom-shell {

@@ -1335,6 +1335,9 @@ export function AdminPage() {
         })}
         onNavigator={() => setNavigatorOpen((current) => !current)}
         onUpload={() => openNamedDialog('upload')}
+        onClassroom={navigation.capabilities?.classroom
+          ? () => navigate('/admin/classroom')
+          : undefined}
         onSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void signOut()}
       />
@@ -1393,15 +1396,6 @@ export function AdminPage() {
         data-canvas-region="content"
         inert={navigatorOpen || undefined}
       >
-        {navigation.capabilities?.classroom ? (
-          <button
-            type="button"
-            className="classroom-admin-entry"
-            onClick={() => navigate('/admin/classroom')}
-          >
-            Open classroom
-          </button>
-        ) : null}
         <LibraryToolbar
           breadcrumbs={breadcrumbs}
           search={searchDraft}

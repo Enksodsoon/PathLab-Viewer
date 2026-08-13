@@ -1,8 +1,9 @@
 import OpenSeadragon from 'openseadragon'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FolderOpen } from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { ApiError, listSlides } from '../api'
+import { ApiError, getFolderChildren, getLibraryNavigation, listSlides } from '../api'
 import {
   answerQuestion,
   clearTeacherPointer,
@@ -37,10 +38,82 @@ import {
   type ViewerAttachmentCallback,
 } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
-import type { AdminSlide } from '../types'
+import type { AdminSlide, LibraryFolder } from '../types'
 import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
+
+interface ClassroomFolderOption {
+  folder: LibraryFolder
+  depth: number
+  slideIds: string[]
+}
+
+async function loadClassroomFolders(): Promise<LibraryFolder[]> {
+  const navigation = await getLibraryNavigation()
+  const folders = [...navigation.folders]
+  const seen = new Set(folders.map((folder) => folder.id))
+  const queue = folders.filter((folder) => folder.hasChildren)
+  for (let index = 0; index < queue.length; index += 1) {
+    const children = await getFolderChildren(queue[index].id)
+    for (const child of children) {
+      if (seen.has(child.id)) continue
+      seen.add(child.id)
+      folders.push(child)
+      if (child.hasChildren) queue.push(child)
+    }
+  }
+  return folders
+}
+
+function classroomFolderOptions(
+  folders: LibraryFolder[],
+  slides: AdminSlide[],
+): ClassroomFolderOption[] {
+  const children = new Map<string | null, LibraryFolder[]>()
+  folders.forEach((folder) => {
+    const siblings = children.get(folder.parentId) ?? []
+    siblings.push(folder)
+    children.set(folder.parentId, siblings)
+  })
+
+  const slideIdsByFolder = new Map<string, string[]>()
+  slides.forEach((slide) => {
+    if (!slide.folderId) return
+    const ids = slideIdsByFolder.get(slide.folderId) ?? []
+    ids.push(slide.id)
+    slideIdsByFolder.set(slide.folderId, ids)
+  })
+
+  const options: ClassroomFolderOption[] = []
+  const slideMemo = new Map<string, string[]>()
+  const collecting = new Set<string>()
+  const collectSlideIds = (folder: LibraryFolder): string[] => {
+    const cached = slideMemo.get(folder.id)
+    if (cached) return cached
+    if (collecting.has(folder.id)) return []
+    collecting.add(folder.id)
+    const ids = [
+      ...(slideIdsByFolder.get(folder.id) ?? []),
+      ...(children.get(folder.id) ?? []).flatMap(collectSlideIds),
+    ]
+    collecting.delete(folder.id)
+    slideMemo.set(folder.id, ids)
+    return ids
+  }
+  const visited = new Set<string>()
+  const append = (folder: LibraryFolder, depth: number) => {
+    if (visited.has(folder.id)) return
+    visited.add(folder.id)
+    options.push({ folder, depth, slideIds: collectSlideIds(folder) })
+    ;(children.get(folder.id) ?? []).forEach((child) => append(child, depth + 1))
+  }
+  ;(children.get(null) ?? []).forEach((folder) => append(folder, 0))
+  folders.forEach((folder) => {
+    if (!visited.has(folder.id)) append(folder, 0)
+  })
+  return options
+}
 
 function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -76,7 +149,9 @@ function savedClassroom(): CreatedClassroom | null {
 export function ClassroomTeacherPage() {
   const navigate = useNavigate()
   const [slides, setSlides] = useState<AdminSlide[]>([])
-  const [selected, setSelected] = useState<string[]>([])
+  const [folders, setFolders] = useState<LibraryFolder[]>([])
+  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [setupLoading, setSetupLoading] = useState(true)
   const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
   const [state, setState] = useState<TeacherState | null>(null)
   const [slideId, setSlideId] = useState('')
@@ -130,18 +205,37 @@ export function ClassroomTeacherPage() {
   }, [showCode])
 
   useEffect(() => {
-    void listSlides()
-      .then((items) => setSlides(items.filter((slide) => (
-        slide.state === 'published' && slide.renderMode === 'static_dzi'
-      ))))
+    let cancelled = false
+    void Promise.all([listSlides(), loadClassroomFolders()])
+      .then(([items, nextFolders]) => {
+        if (cancelled) return
+        setSlides(items.filter((slide) => (
+          slide.state === 'published' && slide.renderMode === 'static_dzi'
+        )))
+        setFolders(nextFolders)
+      })
       .catch((loadError: unknown) => {
+        if (cancelled) return
         if (loadError instanceof ApiError && loadError.status === 401) {
           navigate('/admin', { replace: true })
           return
         }
-        setError('Published slides could not be loaded.')
+        setError('Class folders could not be loaded.')
       })
+      .finally(() => {
+        if (!cancelled) setSetupLoading(false)
+      })
+    return () => { cancelled = true }
   }, [navigate])
+
+  const folderOptions = useMemo(
+    () => classroomFolderOptions(folders, slides),
+    [folders, slides],
+  )
+  const selected = useMemo(
+    () => folderOptions.find((option) => option.folder.id === selectedFolderId)?.slideIds ?? [],
+    [folderOptions, selectedFolderId],
+  )
 
   const refresh = useCallback(async (sessionId: string) => {
     const next = await teacherState(sessionId)
@@ -562,8 +656,8 @@ export function ClassroomTeacherPage() {
     </header>
     <section className="classroom-entry__card">
       <p className="classroom-kicker">Active classroom</p>
-      <h1>Choose teaching slides</h1>
-      <p className="classroom-entry__intro">Only the selected published DZI versions are pinned for this session.</p>
+      <h1>Choose a class folder</h1>
+      <p className="classroom-entry__intro">Every published static-DZI slide in the folder and its subfolders will open in this classroom.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
         sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
@@ -572,20 +666,41 @@ export function ClassroomTeacherPage() {
       }).catch((endError: unknown) => handleAdminFailure(endError, 'The previous classroom could not be ended. Try again.'))}>
         End existing classroom
       </button>}
-      <div className="classroom-slide-picker">
-        {slides.map((slide) => <label key={slide.id}>
-          <input
-            type="checkbox"
-            checked={selected.includes(slide.id)}
-            onChange={(event) => setSelected((current) => event.target.checked
-              ? [...current, slide.id]
-              : current.filter((id) => id !== slide.id))}
-          />
-          <span>{slide.displayName}</span>
-        </label>)}
+      <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
+        {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class folders…</p> : null}
+        {!setupLoading && !folderOptions.length ? (
+          <p className="classroom-folder-picker__status">Create a library folder before starting a classroom.</p>
+        ) : null}
+        {folderOptions.map(({ folder, depth, slideIds }) => {
+          const count = slideIds.length
+          const selectedFolder = selectedFolderId === folder.id
+          return <label
+            key={folder.id}
+            className={selectedFolder ? 'selected' : undefined}
+            style={{ '--classroom-folder-depth': depth } as CSSProperties}
+          >
+            <input
+              type="radio"
+              name="classroom-folder"
+              value={folder.id}
+              checked={selectedFolder}
+              disabled={count === 0}
+              onChange={() => setSelectedFolderId(folder.id)}
+            />
+            <span className="classroom-folder-picker__icon"><FolderOpen aria-hidden="true" /></span>
+            <span className="classroom-folder-picker__copy">
+              <strong>{folder.name}</strong>
+              <small>{count === 0
+                ? 'No eligible slides'
+                : `${count} eligible ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
+            </span>
+          </label>
+        })}
       </div>
       <button className="primary classroom-entry__primary" type="button" disabled={!selected.length} onClick={() => void start()}>
-        Start classroom
+        {selected.length
+          ? `Start classroom with ${selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
+          : 'Choose a class folder'}
       </button>
     </section>
   </main>
