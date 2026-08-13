@@ -67,7 +67,6 @@ with session_factory(settings)() as database:
                 "publicId": slide.public_id,
                 "assetVersion": delivery_version(slide),
                 "adminUsername": "admin",
-                "adminPassword": PASSWORD,
             }
         )
     )
