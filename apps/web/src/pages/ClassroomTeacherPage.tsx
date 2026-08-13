@@ -1,0 +1,759 @@
+import OpenSeadragon from 'openseadragon'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+
+import { ApiError, listSlides } from '../api'
+import {
+  answerQuestion,
+  clearTeacherPointer,
+  clearTeachingAnnotations,
+  createClassroom,
+  endActiveClassroom,
+  endClassroom,
+  grantControl,
+  openQuestion,
+  publishTeacherPointer,
+  publishTeacherViewport,
+  publishTeachingAnnotation,
+  removeTeachingAnnotation,
+  revokeControl,
+  teacherState,
+  type CreatedClassroom,
+  type TeacherState,
+  type TeachingAnnotation,
+} from '../classroom/api'
+import { ClassroomPinOverlays, type ClassroomVisiblePin } from '../classroom/ClassroomPinOverlays'
+import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
+import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
+import { createLatestSender } from '../classroom/latestSender'
+import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
+import {
+  StudentDrawingOverlay,
+  type DrawingStroke,
+} from '../classroom/StudentDrawingOverlay'
+import { Brand } from '../components/Brand'
+import {
+  OpenSeadragonViewer,
+  type ViewerAttachmentCallback,
+} from '../components/OpenSeadragonViewer'
+import { ThemeControl } from '../theme/ThemeControl'
+import type { AdminSlide } from '../types'
+import '../classroom/classroom.css'
+
+const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
+
+function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {name === 'guide' ? <><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13" /></> : null}
+    {name === 'navigate' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
+    {name === 'draw' ? <><path d="m4 20 4.2-1 10.4-10.4-3.2-3.2L5 15.8 4 20Z" /><path d="m13.8 7 3.2 3.2" /></> : null}
+    {name === 'arrow' ? <><path d="M5 19 19 5" strokeWidth="2.8" /><path d="M10 5h9v9" strokeWidth="2.8" /></> : null}
+  </svg>
+}
+
+function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks' | 'locate' | 'check' | 'remove' | 'clear' | 'control' }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {name === 'students' ? <><circle cx="9" cy="8" r="3" /><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M16 5.5a3 3 0 0 1 0 5.8M17 14a4 4 0 0 1 3.5 4" /></> : null}
+    {name === 'questions' ? <><path d="M5 5.5h14v10H9l-4 3v-13Z" /><path d="M10 9a2 2 0 1 1 3.5 1.3c-.9.7-1.5 1.1-1.5 2M12 14h.01" /></> : null}
+    {name === 'marks' ? <><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></> : null}
+    {name === 'locate' ? <><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></> : null}
+    {name === 'check' ? <path d="m5 12 4 4L19 6" /> : null}
+    {name === 'remove' ? <><path d="M6 7h12M9 7V4h6v3M8 7l1 13h6l1-13M11 11v5M13 11v5" /></> : null}
+    {name === 'clear' ? <><path d="M4 7h16M8 7V4h8v3M7 7l1 13h8l1-13" /><path d="M10 11v5M14 11v5" /></> : null}
+    {name === 'control' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
+  </svg>
+}
+
+function savedClassroom(): CreatedClassroom | null {
+  try {
+    const value = sessionStorage.getItem(ACTIVE_CLASSROOM_KEY)
+    return value ? JSON.parse(value) as CreatedClassroom : null
+  } catch {
+    return null
+  }
+}
+
+export function ClassroomTeacherPage() {
+  const navigate = useNavigate()
+  const [slides, setSlides] = useState<AdminSlide[]>([])
+  const [selected, setSelected] = useState<string[]>([])
+  const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
+  const [state, setState] = useState<TeacherState | null>(null)
+  const [slideId, setSlideId] = useState('')
+  const [error, setError] = useState('')
+  const [activeConflict, setActiveConflict] = useState(false)
+  const [showCode, setShowCode] = useState(false)
+  const [focusedQuestion, setFocusedQuestion] = useState<TeacherState['pendingQuestions'][number] | null>(null)
+  const [viewer, setViewer] = useState<OpenSeadragon.Viewer | null>(null)
+  const [teachingTool, setTeachingTool] = useState<'navigate' | 'draw' | 'pointer'>('navigate')
+  const [pointerColor, setPointerColor] = useState<'green' | 'red'>('green')
+  const [guideMode, setGuideMode] = useState(false)
+  const suppressPublish = useRef(false)
+  const stateRef = useRef<TeacherState | null>(null)
+  const presenterRef = useRef<TeacherState['presenter'] | null>(null)
+  const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
+  const slideIdRef = useRef(slideId)
+  const streamEpoch = useRef('')
+  const streamSequence = useRef(0)
+  const teachingToolRef = useRef(teachingTool)
+  const guideModeRef = useRef(guideMode)
+  const pointerColorRef = useRef(pointerColor)
+  const teachingOverlayRef = useRef<ClassroomTeachingOverlayHandle | null>(null)
+  const adminAuthFailed = useRef(false)
+  const localPointerElementRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => { stateRef.current = state }, [state])
+  useEffect(() => { slideIdRef.current = slideId }, [slideId])
+  useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
+  useEffect(() => { guideModeRef.current = guideMode }, [guideMode])
+  useEffect(() => { pointerColorRef.current = pointerColor }, [pointerColor])
+
+  const handleAdminFailure = useCallback((caught: unknown, message: string) => {
+    if (caught instanceof ApiError && caught.status === 401) {
+      adminAuthFailed.current = true
+      guideModeRef.current = false
+      setGuideMode(false)
+      sessionStorage.removeItem('pathlab-csrf')
+      navigate('/admin', { replace: true })
+      return true
+    }
+    setError(message)
+    return false
+  }, [navigate])
+  useEffect(() => {
+    if (!showCode) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowCode(false)
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [showCode])
+
+  useEffect(() => {
+    void listSlides()
+      .then((items) => setSlides(items.filter((slide) => (
+        slide.state === 'published' && slide.renderMode === 'static_dzi'
+      ))))
+      .catch((loadError: unknown) => {
+        if (loadError instanceof ApiError && loadError.status === 401) {
+          navigate('/admin', { replace: true })
+          return
+        }
+        setError('Published slides could not be loaded.')
+      })
+  }, [navigate])
+
+  const refresh = useCallback(async (sessionId: string) => {
+    const next = await teacherState(sessionId)
+    presenterRef.current = next.presenter
+    stateRef.current = next
+    setState(next)
+    teachingOverlayRef.current?.setPointer(
+      teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
+    )
+    if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+  }, [])
+
+  useEffect(() => {
+    if (!classroom) return
+    void refresh(classroom.id).catch((loadError: unknown) => {
+      if (loadError instanceof ApiError && loadError.status === 404) {
+        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        setClassroom(null)
+        setError('The previous classroom is no longer active.')
+        return
+      }
+      setError('The classroom connection was interrupted. Reconnecting…')
+    })
+    const events = new EventSource(`/api/v1/admin/classroom/sessions/${classroom.id}/events`)
+    const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
+      try {
+        const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+        const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
+        const next = typeof payload.eventSequence === 'number' ? payload.eventSequence : 0
+        if (event.type === 'stream-ready') {
+          streamEpoch.current = epoch
+          streamSequence.current = next
+          return payload
+        }
+        if (epoch === streamEpoch.current && next <= streamSequence.current) return null
+        if (epoch !== streamEpoch.current || (!coalescible && next !== streamSequence.current + 1)) {
+          streamEpoch.current = epoch
+          streamSequence.current = next
+          void refresh(classroom.id).catch(() => undefined)
+          return null
+        }
+        streamSequence.current = next
+        return payload
+      } catch {
+        void refresh(classroom.id).catch(() => undefined)
+        return null
+      }
+    }
+    const update = (event: Event) => {
+      if (sequence(event)) void refresh(classroom.id).catch(() => undefined)
+    }
+    for (const name of [
+      'stream-ready', 'participant-joined', 'participant-left',
+      'participant-reconnected', 'question-added', 'question-removed', 'control',
+    ]) events.addEventListener(name, update)
+    events.addEventListener('presenter', (event) => {
+      const payload = sequence(event, true)
+      if (!payload || typeof payload.presenterSequence !== 'number'
+        || typeof payload.slideId !== 'string' || !payload.viewport) return
+      if (!stateRef.current?.controller.participantId) return
+      const nextPresenter: TeacherState['presenter'] = {
+        sequence: payload.presenterSequence as number,
+        slideId: payload.slideId as string,
+        viewport: payload.viewport as TeacherState['presenter']['viewport'],
+      }
+      presenterRef.current = nextPresenter
+      if (slideIdRef.current !== nextPresenter.slideId) {
+        slideIdRef.current = nextPresenter.slideId ?? ''
+        setSlideId(nextPresenter.slideId ?? '')
+        return
+      }
+      const target = viewerRef.current
+      const slide = classroom.slides.find((item) => item.id === nextPresenter.slideId)
+      if (!target || !slide || !nextPresenter.viewport) return
+      suppressPublish.current = true
+      applyPresenterViewport(target, slide, nextPresenter.viewport)
+      window.setTimeout(() => { suppressPublish.current = false }, 0)
+    })
+    events.addEventListener('pointer', (event) => {
+      const payload = sequence(event, true)
+      if (!payload || typeof payload.slideId !== 'string'
+        || typeof payload.style !== 'string' || typeof payload.x !== 'number'
+        || typeof payload.y !== 'number') return
+      const nextPointer = payload as unknown as TeacherState['teacherPointer']
+      // The teacher already has a zero-latency screen-space pointer. Ignore the
+      // server echo locally while pointer mode is active so it cannot render a
+      // delayed second arrow; students still receive and project this event.
+      if (teachingToolRef.current !== 'pointer') {
+        teachingOverlayRef.current?.setPointer(nextPointer)
+      }
+      if (stateRef.current) stateRef.current.teacherPointer = nextPointer
+    })
+    events.addEventListener('pointer-removed', (event) => {
+      if (!sequence(event)) return
+      teachingOverlayRef.current?.setPointer(null)
+      if (stateRef.current) stateRef.current.teacherPointer = null
+    })
+    events.addEventListener('teaching-annotation-added', (event) => {
+      const payload = sequence(event)
+      const annotation = payload?.annotation as TeachingAnnotation | undefined
+      if (!annotation?.id) return
+      setState((current) => current ? {
+        ...current,
+        teachingAnnotations: [
+          ...(current.teachingAnnotations ?? []).filter((item) => item.id !== annotation.id),
+          annotation,
+        ].slice(-40),
+      } : current)
+    })
+    events.addEventListener('teaching-annotation-removed', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.annotationId !== 'string') return
+      setState((current) => current ? {
+        ...current,
+        teachingAnnotations: (current.teachingAnnotations ?? []).filter(
+          (item) => item.id !== payload.annotationId,
+        ),
+      } : current)
+    })
+    events.addEventListener('teaching-annotations-cleared', (event) => {
+      if (!sequence(event)) return
+      setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
+    })
+    events.addEventListener('pin-updated', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.participantId !== 'string'
+        || typeof payload.alias !== 'string' || typeof payload.slideId !== 'string'
+        || typeof payload.x !== 'number' || typeof payload.y !== 'number'
+        || typeof payload.zoom !== 'number') return
+      const pin = payload as unknown as TeacherState['activePins'][number]
+      setState((current) => current ? {
+        ...current,
+        activePins: [...current.activePins.filter(
+          (item) => item.participantId !== pin.participantId,
+        ), pin],
+      } : current)
+    })
+    events.addEventListener('pin-removed', (event) => {
+      const payload = sequence(event)
+      if (!payload || typeof payload.participantId !== 'string') return
+      setState((current) => current ? {
+        ...current,
+        activePins: current.activePins.filter(
+          (item) => item.participantId !== payload.participantId,
+        ),
+      } : current)
+    })
+    events.addEventListener('control-requested', update)
+    events.addEventListener('control-request-cancelled', update)
+    return () => events.close()
+  }, [classroom, refresh])
+
+  const currentSlide = useMemo(
+    () => classroom?.slides.find((slide) => slide.id === slideId) ?? classroom?.slides[0],
+    [classroom, slideId],
+  )
+
+  const participants = useMemo(() => [...(state?.participants ?? [])].sort((left, right) => {
+    if (left.controlRequested !== right.controlRequested) return left.controlRequested ? -1 : 1
+    return (left.controlRequestedAt ?? Number.POSITIVE_INFINITY)
+      - (right.controlRequestedAt ?? Number.POSITIVE_INFINITY)
+  }), [state?.participants])
+  const activeParticipantCount = useMemo(
+    () => participants.filter((participant) => participant.status === 'connected').length,
+    [participants],
+  )
+
+  const visiblePins = useMemo<ClassroomVisiblePin[]>(() => {
+    const pins: ClassroomVisiblePin[] = focusedQuestion ? [{
+      participantId: focusedQuestion.participantId,
+      alias: state?.participants.find((item) => item.id === focusedQuestion.participantId)?.alias ?? 'Question',
+      slideId: focusedQuestion.slideId,
+      x: focusedQuestion.x,
+      y: focusedQuestion.y,
+      focused: true,
+    }] : []
+    pins.push(...(state?.activePins ?? []))
+    return pins
+  }, [focusedQuestion, state?.activePins, state?.participants])
+
+  const applyRemote = useCallback((target: OpenSeadragon.Viewer) => {
+    const current = stateRef.current
+    const presenter = presenterRef.current
+    const slide = classroom?.slides.find((item) => item.id === slideIdRef.current)
+    if (!presenter?.viewport || presenter.slideId !== slide?.id || !slide) return
+    suppressPublish.current = true
+    applyPresenterViewport(target, slide, presenter.viewport)
+    if (!current?.controller.participantId) {
+      window.setTimeout(() => { suppressPublish.current = false }, 250)
+    }
+  }, [classroom])
+
+  useEffect(() => {
+    if (viewer) applyRemote(viewer)
+  }, [applyRemote, state?.presenter, viewer])
+
+  useEffect(() => {
+    // Pointer mode is an additive presentation aid: keep the normal pan, zoom,
+    // and touch gestures available while the screen-space arrow follows along.
+    viewer?.setMouseNavEnabled(teachingTool !== 'draw')
+    if (teachingTool === 'pointer') teachingOverlayRef.current?.setPointer(null)
+    if (teachingTool !== 'pointer' && localPointerElementRef.current) {
+      localPointerElementRef.current.className = 'classroom-local-pointer'
+    }
+    if (!classroom || teachingTool === 'pointer') return
+    void clearTeacherPointer(classroom.id).catch(() => undefined)
+  }, [classroom, teachingTool, viewer])
+
+  const teachingAnnotation = useCallback((stroke: DrawingStroke) => {
+    if (!viewer || !currentSlide || !classroom) return false
+    const item = viewer.world.getItemAt(0)
+    if (!item) return false
+    const bounds = viewer.container.getBoundingClientRect()
+    const dimensions = item.source.dimensions
+    if (stroke.tool === 'eraser') {
+      const distanceToSegment = (point: DrawingStroke['points'][number], start: DrawingStroke['points'][number], end: DrawingStroke['points'][number]) => {
+        const dx = end.x - start.x
+        const dy = end.y - start.y
+        const lengthSquared = dx * dx + dy * dy
+        const amount = lengthSquared ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared)) : 0
+        return Math.hypot(point.x - (start.x + amount * dx), point.y - (start.y + amount * dy))
+      }
+      const project = (point: TeachingAnnotation['points'][number]) => {
+        const projected = viewer.viewport.viewportToViewerElementCoordinates(
+          item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
+        )
+        return { x: projected.x / bounds.width, y: projected.y / bounds.height }
+      }
+      const erased = (stateRef.current?.teachingAnnotations ?? []).filter((annotation) => {
+        if (annotation.slideId !== currentSlide.id || !annotation.points.length) return false
+        const projected = annotation.points.map(project)
+        const first = projected[0]
+        const last = projected.at(-1) ?? first
+        const outline = annotation.tool === 'rectangle'
+          ? [first, { x: last.x, y: first.y }, last, { x: first.x, y: last.y }, first]
+          : annotation.tool === 'ellipse'
+            ? Array.from({ length: 25 }, (_, index) => {
+                const angle = index / 24 * Math.PI * 2
+                return {
+                  x: (first.x + last.x) / 2 + Math.cos(angle) * Math.abs(last.x - first.x) / 2,
+                  y: (first.y + last.y) / 2 + Math.sin(angle) * Math.abs(last.y - first.y) / 2,
+                }
+              })
+            : projected
+        const threshold = Math.max(14 / Math.max(1, Math.min(bounds.width, bounds.height)), annotation.width / Math.max(1, bounds.width))
+        return stroke.points.some((eraserPoint) => outline.some((point, index) => (
+          index === 0
+            ? Math.hypot(eraserPoint.x - point.x, eraserPoint.y - point.y) <= threshold
+            : distanceToSegment(eraserPoint, outline[index - 1], point) <= threshold
+        )))
+      })
+      if (!erased.length) return true
+      return Promise.all(erased.map((annotation) => removeTeachingAnnotation(classroom.id, annotation.id)))
+        .then(() => true)
+        .catch((caught: unknown) => {
+          handleAdminFailure(caught, 'The selected teaching mark could not be erased.')
+          return false
+        })
+    }
+    const annotation: TeachingAnnotation = {
+      id: stroke.id,
+      slideId: currentSlide.id,
+      tool: stroke.tool,
+      color: stroke.color as TeachingAnnotation['color'],
+      width: stroke.width as TeachingAnnotation['width'],
+      points: stroke.points.map((point) => {
+        const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
+          point.x * bounds.width,
+          point.y * bounds.height,
+        ), true)
+        const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
+        return {
+          x: Math.round(Math.max(0, Math.min(1, imagePoint.x / dimensions.x)) * 100000) / 100000,
+          y: Math.round(Math.max(0, Math.min(1, imagePoint.y / dimensions.y)) * 100000) / 100000,
+        }
+      }),
+    }
+    return publishTeachingAnnotation(classroom.id, annotation)
+      .then(() => true)
+      .catch((caught: unknown) => {
+        handleAdminFailure(caught, 'The teaching mark could not be shared. The mark remains visible locally.')
+        return false
+      })
+  }, [classroom, currentSlide, handleAdminFailure, viewer])
+
+  const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
+    viewerRef.current = viewer
+    setViewer(viewer)
+    const localPointer = document.createElement('span')
+    localPointer.className = 'classroom-local-pointer'
+    localPointerElementRef.current = localPointer
+    viewer.container.append(localPointer)
+    const sender = createLatestSender(() => (
+      publishTeacherViewport(classroom!.id, readPresenterViewport(viewer, currentSlide!.id))
+        .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
+        .catch((caught: unknown) => {
+          handleAdminFailure(caught, 'The live field could not be shared.')
+        })
+    ))
+    const publish = () => {
+      if (suppressPublish.current) {
+        suppressPublish.current = false
+        return
+      }
+      if (adminAuthFailed.current || !guideModeRef.current || stateRef.current?.controller.participantId
+        || !classroom || !currentSlide) return
+      sender.push(0)
+    }
+    const opened = () => applyRemote(viewer)
+    let pointerVisible = false
+    let localPointerColor: 'green' | 'red' | null = null
+    let pointerFrame: number | null = null
+    let pendingPointer: { clientX: number; clientY: number; color: 'green' | 'red' } | null = null
+    let pointerBounds = viewer.canvas.getBoundingClientRect()
+    const updatePointerBounds = () => { pointerBounds = viewer.canvas.getBoundingClientRect() }
+    const pointerBoundsObserver = new ResizeObserver(updatePointerBounds)
+    pointerBoundsObserver.observe(viewer.canvas)
+    const pointerSender = createLatestSender((sample: NonNullable<typeof pendingPointer>) => {
+      const item = viewer.world.getItemAt(0)
+      if (!item || !classroom || !currentSlide) return Promise.resolve()
+      const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
+        sample.clientX - pointerBounds.left,
+        sample.clientY - pointerBounds.top,
+      ), true)
+      const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint)
+      const dimensions = item.source.dimensions
+      return publishTeacherPointer(classroom.id, {
+        slideId: currentSlide.id,
+        style: `${sample.color}-arrow`,
+        x: Math.max(0, Math.min(1, imagePoint.x / dimensions.x)),
+        y: Math.max(0, Math.min(1, imagePoint.y / dimensions.y)),
+      }).catch((caught: unknown) => {
+        handleAdminFailure(caught, 'The live pointer could not be shared.')
+      })
+    }, 100)
+    const point = (event: globalThis.PointerEvent) => {
+      if (adminAuthFailed.current || !classroom || !currentSlide || teachingToolRef.current !== 'pointer') return
+      if (event.buttons !== 0) {
+        clearPointer()
+        return
+      }
+      pendingPointer = { clientX: event.clientX, clientY: event.clientY, color: pointerColorRef.current }
+      if (pointerFrame !== null) return
+      pointerFrame = window.requestAnimationFrame(() => {
+        pointerFrame = null
+        const sample = pendingPointer
+        if (!sample) return
+        pendingPointer = null
+        if (!pointerVisible || localPointerColor !== sample.color) {
+          pointerVisible = true
+          localPointerColor = sample.color
+          localPointer.className = `classroom-local-pointer is-visible${sample.color === 'red' ? ' is-red' : ''}`
+        }
+        localPointer.style.transform = `translate3d(${sample.clientX - pointerBounds.left}px, ${sample.clientY - pointerBounds.top}px, 0)`
+        pointerSender.push(sample)
+      })
+    }
+    const clearPointer = () => {
+      if (!classroom || !pointerVisible) return
+      pendingPointer = null
+      if (pointerFrame !== null) window.cancelAnimationFrame(pointerFrame)
+      pointerFrame = null
+      pointerVisible = false
+      localPointerColor = null
+      localPointer.className = 'classroom-local-pointer'
+      if (!adminAuthFailed.current) void clearTeacherPointer(classroom.id).catch(() => undefined)
+    }
+    viewer.canvas.addEventListener('pointermove', point)
+    viewer.canvas.addEventListener('pointerleave', clearPointer)
+    viewer.addHandler('open', opened)
+    viewer.addHandler('animation', publish)
+    viewer.addHandler('animation-finish', publish)
+    return () => {
+      viewer.removeHandler('open', opened)
+      viewer.removeHandler('animation', publish)
+      viewer.removeHandler('animation-finish', publish)
+      viewer.canvas.removeEventListener('pointermove', point)
+      viewer.canvas.removeEventListener('pointerleave', clearPointer)
+      pointerBoundsObserver.disconnect()
+      if (pointerFrame !== null) window.cancelAnimationFrame(pointerFrame)
+      sender.dispose()
+      pointerSender.dispose()
+      clearPointer()
+      localPointer.remove()
+      if (localPointerElementRef.current === localPointer) localPointerElementRef.current = null
+      if (viewerRef.current === viewer) viewerRef.current = null
+      setViewer(null)
+    }
+  }, [applyRemote, classroom, currentSlide, handleAdminFailure])
+
+  const start = async () => {
+    setError('')
+    setActiveConflict(false)
+    try {
+      const created = await createClassroom(selected)
+      setClassroom(created)
+      sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(created))
+      setSlideId(created.slides[0].id)
+    } catch (startError) {
+      if (startError instanceof ApiError && startError.code === 'CLASSROOM_ALREADY_ACTIVE') {
+        setError('A classroom is already active. End it before starting another.')
+        setActiveConflict(true)
+      } else if (startError instanceof ApiError && startError.code === 'CLASSROOM_SLIDE_NOT_READY') {
+        setError('The classroom could not start. Only complete published static slides are allowed.')
+      } else {
+        setError('The classroom could not start. Try again.')
+      }
+    }
+  }
+
+  if (!classroom) return <main className="classroom-entry classroom-setup">
+    <header className="classroom-entry__header">
+      <Brand variant="library" />
+      <div className="classroom-entry__actions">
+        <ThemeControl compact />
+        <Link className="classroom-back-link" to="/admin">Back to library</Link>
+      </div>
+    </header>
+    <section className="classroom-entry__card">
+      <p className="classroom-kicker">Active classroom</p>
+      <h1>Choose teaching slides</h1>
+      <p className="classroom-entry__intro">Only the selected published DZI versions are pinned for this session.</p>
+      {error && <p role="alert" className="classroom-error">{error}</p>}
+      {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
+        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        setActiveConflict(false)
+        setError('The previous classroom ended. You can start a new one now.')
+      }).catch((endError: unknown) => handleAdminFailure(endError, 'The previous classroom could not be ended. Try again.'))}>
+        End existing classroom
+      </button>}
+      <div className="classroom-slide-picker">
+        {slides.map((slide) => <label key={slide.id}>
+          <input
+            type="checkbox"
+            checked={selected.includes(slide.id)}
+            onChange={(event) => setSelected((current) => event.target.checked
+              ? [...current, slide.id]
+              : current.filter((id) => id !== slide.id))}
+          />
+          <span>{slide.displayName}</span>
+        </label>)}
+      </div>
+      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length} onClick={() => void start()}>
+        Start classroom
+      </button>
+    </section>
+  </main>
+
+  return <div className="classroom-shell classroom-shell--teacher">
+    <header className="classroom-topbar">
+      <Brand variant="library" />
+      <button className="classroom-join-code" type="button" onClick={() => setShowCode(true)}>
+        <span>Join code</span><strong>{classroom.joinCode}</strong><small>Display</small>
+      </button>
+      <div className="classroom-topbar__actions">
+        <ThemeControl compact />
+        <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
+          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          setClassroom(null)
+        })}>
+          End class
+        </button>
+      </div>
+    </header>
+    <main className="classroom-viewer">
+      {currentSlide && <OpenSeadragonViewer
+        tileSource={currentSlide.tileSource}
+        onReady={() => undefined}
+        onViewerAttach={attachViewer}
+      />}
+      <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
+      <ClassroomTeachingOverlays
+        ref={teachingOverlayRef}
+        annotations={state?.teachingAnnotations ?? []}
+        pointer={teachingTool === 'pointer' ? null : state?.teacherPointer ?? null}
+        slideId={currentSlide?.id ?? ''}
+        viewer={viewer}
+      />
+      {teachingTool === 'draw' ? <StudentDrawingOverlay
+        key={currentSlide?.id ?? 'teaching-drawing'}
+        active
+        allowEraser
+        retainCommitted={false}
+        showHistoryActions={false}
+        toolbarLabel="Teaching annotation tools"
+        onStrokeCommitted={teachingAnnotation}
+        onDone={() => setTeachingTool('navigate')}
+      /> : null}
+      <div className="classroom-teaching-tools" role="toolbar" aria-label="Live teaching tools">
+        <button
+          className={`classroom-guide-toggle${guideMode ? ' is-active' : ''}`}
+          type="button"
+          aria-pressed={guideMode}
+          aria-label={guideMode ? 'Stop guiding students' : 'Guide students'}
+          title={guideMode ? 'Guide mode on — students follow this view' : 'Guide mode off — navigation stays local'}
+          onClick={() => {
+            const next = !guideMode
+            setGuideMode(next)
+            if (next && viewer && currentSlide && !state?.controller.participantId) {
+              void publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
+                .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
+                .catch((caught: unknown) => {
+                  handleAdminFailure(caught, 'The live field could not be shared.')
+                })
+            }
+          }}
+        ><TeachingToolIcon name="guide" /><span className="classroom-tool-status" aria-hidden="true" /></button>
+        <span className="classroom-tool-separator" aria-hidden="true" />
+        {([
+          ['navigate', 'Navigate', 'navigate'],
+          ['draw', 'Draw', 'draw'],
+          ['pointer', 'Arrow pointer', 'arrow'],
+        ] as const).map(([tool, label, icon]) => <button
+          key={tool}
+          className={`classroom-tool-${tool}${tool === 'pointer' ? ` is-${pointerColor}` : ''}${teachingTool === tool ? ' is-active' : ''}`}
+          type="button"
+          aria-pressed={teachingTool === tool}
+          aria-label={label}
+          title={label}
+          disabled={tool !== 'navigate' && Boolean(state?.controller.participantId)}
+          onClick={() => setTeachingTool(tool)}
+        ><TeachingToolIcon name={icon} /></button>)}
+      </div>
+      {teachingTool === 'pointer' ? <div className="classroom-pointer-options" role="toolbar" aria-label="Pointer color">
+        {(['green', 'red'] as const).map((color) => <button
+          key={color}
+          className={`is-${color}${pointerColor === color ? ' is-active' : ''}`}
+          type="button"
+          aria-label={`${color === 'green' ? 'Green' : 'Red'} pointer`}
+          aria-pressed={pointerColor === color}
+          title={`${color === 'green' ? 'Green' : 'Red'} pointer`}
+          onClick={() => setPointerColor(color)}
+        />)}
+      </div> : null}
+      <ClassroomSlideNavigator
+        activeId={currentSlide?.id ?? ''}
+        slides={classroom.slides}
+        onSelect={(nextSlideId) => {
+          setTeachingTool('navigate')
+          setSlideId(nextSlideId)
+        }}
+      />
+    </main>
+    <aside className="classroom-panel" aria-label="Classroom activity">
+      {error && <p role="alert" className="classroom-error">{error}</p>}
+      <section className="classroom-panel__section">
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="students" />Students</span><strong className="classroom-panel__count" aria-label={`${activeParticipantCount} active students`}>{activeParticipantCount}</strong></h2>
+        {!state?.participants.length && <p className="classroom-empty">Students appear here after joining.</p>}
+        <ul className="classroom-participant-list" aria-label="Student roster">{participants.map((participant) => {
+          const isController = state?.controller.participantId === participant.id
+          return <li key={participant.id}>
+            <div>
+              <strong>{participant.alias}</strong>
+              <small>{isController
+                ? `${participant.status} · controller`
+                : participant.controlRequested
+                  ? `${participant.status} · requested control`
+                  : participant.status}</small>
+            </div>
+            {isController || participant.controlRequested ? <button className="classroom-icon-action" type="button" aria-label={isController ? `Take back control from ${participant.alias}` : `Give control to ${participant.alias}`} title={isController ? 'Take back control' : 'Give control'} disabled={participant.status === 'disconnected'} onClick={() => void (isController
+              ? revokeControl(classroom.id)
+              : grantControl(classroom.id, participant.id)
+            ).then(() => refresh(classroom.id)).catch(() => {
+              setError('Slide control could not be changed.')
+            })}>
+              <ClassroomPanelIcon name="control" />
+            </button> : null}
+          </li>
+        })}</ul>
+      </section>
+      <section className="classroom-panel__section">
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span><strong className="classroom-panel__count" aria-label={`${state?.pendingQuestions.length ?? 0} pending questions`}>{state?.pendingQuestions.length ?? 0}</strong></h2>
+        {!state?.pendingQuestions.length && <p className="classroom-empty">Pinned questions appear here.</p>}
+        <ul className="classroom-question-list">{state?.pendingQuestions.map((question) => <li className="classroom-question-item" key={question.id}>
+          <p>{question.text}</p>
+          <div className="classroom-question-actions">
+            <button className="classroom-icon-action" type="button" aria-label="Show pinned field" title="Show field" onClick={() => {
+              setFocusedQuestion(question)
+              void openQuestion(classroom.id, question.id).catch(() => {
+                setError('The pinned field could not be opened.')
+              })
+            }}>
+              <ClassroomPanelIcon name="locate" />
+            </button>
+            <button className="classroom-icon-action" type="button" aria-label="Mark question answered" title="Answered" onClick={() => void answerQuestion(classroom.id, question.id).then(() => {
+              if (focusedQuestion?.id === question.id) setFocusedQuestion(null)
+            })}>
+              <ClassroomPanelIcon name="check" />
+            </button>
+          </div>
+        </li>)}</ul>
+      </section>
+      <section className="classroom-panel__section">
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="marks" />Teaching marks</span><strong className="classroom-panel__count">{state?.teachingAnnotations.length ?? 0}</strong></h2>
+        {!state?.teachingAnnotations.length ? <p className="classroom-empty">Drawn marks appear to everyone in this session and disappear when class ends.</p> : <ul className="classroom-mark-history">
+          {[...(state?.teachingAnnotations ?? [])].reverse().map((annotation, index) => <li key={annotation.id}>
+            <span style={{ background: annotation.color }} />
+            <div><strong>{annotation.tool === 'highlight' ? 'Highlight' : annotation.tool === 'line' ? 'Line' : annotation.tool === 'rectangle' ? 'Rectangle' : annotation.tool === 'ellipse' ? 'Ellipse' : 'Pen mark'}</strong><small>Mark {(state?.teachingAnnotations.length ?? 0) - index}</small></div>
+            <button className="classroom-icon-action" type="button" aria-label={`Remove mark ${(state?.teachingAnnotations.length ?? 0) - index}`} title="Remove" onClick={() => void removeTeachingAnnotation(classroom.id, annotation.id)}><ClassroomPanelIcon name="remove" /></button>
+          </li>)}
+        </ul>}
+        {state?.teachingAnnotations.length ? <button className="classroom-clear-marks" type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}><ClassroomPanelIcon name="clear" />Clear all</button> : null}
+      </section>
+    </aside>
+    {showCode ? <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
+      <div>
+        <p>PathLab classroom</p>
+        <h2 id="classroom-code-title">Join this slide session</h2>
+        <strong>{classroom.joinCode}</strong>
+        <span>Open PathLab Classroom and enter this code</span>
+        <button type="button" autoFocus onClick={() => setShowCode(false)}>Close</button>
+      </div>
+    </div> : null}
+  </div>
+}

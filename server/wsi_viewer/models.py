@@ -686,3 +686,135 @@ class AuditEvent(Base):
     target_id: Mapped[str | None] = mapped_column(String(100))
     detail: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ClassroomSession(Base):
+    __tablename__ = "classroom_sessions"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'ended')", name="ck_classroom_sessions_status"),
+        Index(
+            "uq_classroom_sessions_one_active",
+            "status",
+            unique=True,
+            sqlite_where=text("status = 'active'"),
+        ),
+        Index("ix_classroom_sessions_join_code", "join_code_hash", "status"),
+        Index("ix_classroom_sessions_expires", "expires_at", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    join_code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="active")
+    presenter_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    presenter_sequence_reserved: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    control_epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    state_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    current_slide_id: Mapped[str | None] = mapped_column(String(36))
+    presenter_viewport: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    controller_participant_id: Mapped[str | None] = mapped_column(String(36))
+    controller_lease_id: Mapped[str | None] = mapped_column(String(64))
+    controller_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ClassroomSessionSlide(Base):
+    __tablename__ = "classroom_session_slides"
+    __table_args__ = (
+        UniqueConstraint("session_id", "slide_id", name="uq_classroom_session_slides_slide"),
+        UniqueConstraint(
+            "session_id", "slide_position", name="uq_classroom_session_slides_position"
+        ),
+        Index("ix_classroom_session_slides_session", "session_id", "slide_position"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("classroom_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="RESTRICT"), nullable=False
+    )
+    slide_position: Mapped[int] = mapped_column(Integer, nullable=False)
+    published_asset_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    asset_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    dzi_descriptor_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    tile_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    tile_format: Mapped[str] = mapped_column(String(10), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    folder_path: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
+
+
+class ClassroomParticipant(Base):
+    __tablename__ = "classroom_participants"
+    __table_args__ = (
+        UniqueConstraint("session_id", "token_hash", name="uq_classroom_participants_token"),
+        UniqueConstraint("session_id", "public_alias", name="uq_classroom_participants_alias"),
+        Index(
+            "ix_classroom_participants_presence",
+            "session_id",
+            "disconnected_at",
+            "last_seen_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("classroom_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    public_alias: Mapped[str] = mapped_column(String(16), nullable=False)
+    optional_display_name: Mapped[str | None] = mapped_column(String(80))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ClassroomQuestion(Base):
+    __tablename__ = "classroom_questions"
+    __table_args__ = (Index("ix_classroom_questions_pending", "session_id", "created_at", "id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("classroom_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    participant_id: Mapped[str] = mapped_column(
+        ForeignKey("classroom_participants.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    x: Mapped[float] = mapped_column(Float, nullable=False)
+    y: Mapped[float] = mapped_column(Float, nullable=False)
+    zoom: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ClassroomQuestionReceipt(Base):
+    __tablename__ = "classroom_question_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "participant_id",
+            "idempotency_key_hash",
+            name="uq_classroom_question_receipts_key",
+        ),
+        Index("ix_classroom_question_receipts_participant", "participant_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("classroom_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    participant_id: Mapped[str] = mapped_column(
+        ForeignKey("classroom_participants.id", ondelete="CASCADE"), nullable=False
+    )
+    idempotency_key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    original_question_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

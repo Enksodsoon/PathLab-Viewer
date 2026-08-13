@@ -1,0 +1,65 @@
+{
+  "participants": 300,
+  "durationSeconds": 1805.843,
+  "connectionsOpened": 330,
+  "reconnects": 30,
+  "reconnectSuccessRate": 1.0,
+  "reconnectSpreadMs": 1016.0,
+  "participantErrors": [],
+  "taskErrors": [],
+  "presenterLatencyMs": {
+    "p50": 78.0,
+    "p95": 875.0,
+    "p99": 1078.0
+  },
+  "presenterSendSuccesses": 3438,
+  "questionLatencyMs": {
+    "p50": 31.0,
+    "p95": 1547.0,
+    "p99": 1547.0
+  },
+  "controlLatencyMs": {
+    "p50": 62.0,
+    "p95": 375.0,
+    "p99": 375.0
+  },
+  "tileLatencyMs": {
+    "p50": 31.0,
+    "p95": 313.0,
+    "p99": 1015.0
+  },
+  "tileErrors": 0,
+  "finalConvergence": {
+    "converged": 300,
+    "expected": 300
+  },
+  "serverMetrics": {
+    "currentSseConnections": 0,
+    "peakSseConnections": 301,
+    "presenterEventsPublished": 7370,
+    "presenterEventsCoalesced": 0,
+    "slowSubscribersDisconnected": 3,
+    "queueOverflows": 3,
+    "reconnects": 94,
+    "activeParticipants": 0,
+    "presenterPersistenceWrites": 1866
+  },
+  "serverMetricsDelta": {
+    "presenterEventsPublished": 3438,
+    "presenterEventsCoalesced": 0,
+    "slowSubscribersDisconnected": 1,
+    "queueOverflows": 1,
+    "reconnects": 30,
+    "presenterPersistenceWrites": 880
+  },
+  "presenterPersistenceWritesPerSecond": 0.4889,
+  "distinctHubEpochs": 1,
+  "stalePresenterIncidents": 0,
+  "eventCounts": {
+    "stream-ready": 330,
+    "presenter": 1031033,
+    "control": 900,
+    "question-removed": 0
+  },
+  "lostDiscreteEvents": 0
+}

@@ -3212,3 +3212,19 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
     animation: none;
   }
 }
+.classroom-admin-entry {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 18;
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 1px solid #1f6549;
+  border-radius: 999px;
+  color: #fff;
+  background: #1f6549;
+  box-shadow: 0 8px 24px rgb(16 45 33 / 22%);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
