@@ -5,13 +5,15 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+PresenterViewport = dict[str, float | str]
+
 
 @dataclass(frozen=True)
 class PresenterSnapshot:
     session_id: str
     sequence: int
     slide_id: str
-    viewport: dict[str, float]
+    viewport: PresenterViewport
 
 
 class PresenterRuntime:
@@ -61,7 +63,7 @@ class PresenterRuntime:
         persisted_reserved_sequence: int,
         persisted_slide_id: str | None,
         slide_id: str,
-        viewport: dict[str, float],
+        viewport: PresenterViewport,
     ) -> tuple[PresenterSnapshot, bool]:
         now = self._clock()
         with self._lock:

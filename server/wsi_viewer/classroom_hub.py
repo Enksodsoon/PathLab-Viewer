@@ -281,6 +281,7 @@ class ClassroomHub:
                 or pin.get("y") != y
             ):
                 return False
+            assert pins is not None
             del pins[participant_id]
             if not pins:
                 self._active_pins.pop(session_id, None)
