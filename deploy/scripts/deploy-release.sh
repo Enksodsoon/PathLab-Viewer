@@ -109,11 +109,11 @@ git clone --quiet --branch main --single-branch "${REPOSITORY_URL}" "${STAGE_DIR
   fail "staged checkout does not match the requested commit"
 install -m 600 "${LIVE_DIR}/deploy/.env" "${STAGE_DIR}/deploy/.env"
 if [[ -n "${CLASSROOM_ENABLED}" ]]; then
-  if grep -q '^PATHLAB_CLASSROOM_ENABLED=' "${STAGE_DIR}/deploy/.env"; then
-    sed -i "s/^PATHLAB_CLASSROOM_ENABLED=.*/PATHLAB_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}/" \
+  if grep -q '^PATHLAB_PRODUCTION_CLASSROOM_ENABLED=' "${STAGE_DIR}/deploy/.env"; then
+    sed -i "s/^PATHLAB_PRODUCTION_CLASSROOM_ENABLED=.*/PATHLAB_PRODUCTION_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}/" \
       "${STAGE_DIR}/deploy/.env"
   else
-    printf 'PATHLAB_CLASSROOM_ENABLED=%s\n' "${CLASSROOM_ENABLED}" >> "${STAGE_DIR}/deploy/.env"
+    printf 'PATHLAB_PRODUCTION_CLASSROOM_ENABLED=%s\n' "${CLASSROOM_ENABLED}" >> "${STAGE_DIR}/deploy/.env"
   fi
 fi
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"
