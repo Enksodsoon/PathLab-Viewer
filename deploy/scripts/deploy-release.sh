@@ -9,6 +9,7 @@ SWAPPED=0
 OLD_WORKER_STOPPED=0
 STAGE_DIR=""
 ROLLBACK_DIR=""
+CLASSROOM_ENABLED=""
 
 fail() {
   echo "Deployment failed: $*" >&2
@@ -72,9 +73,10 @@ if [[ "${REQUEST}" =~ ^observe-load[[:space:]]([0-9]{2,3})$ ]]; then
   exec "${LIVE_DIR}/deploy/scripts/observe-load.sh" "${OBSERVE_DURATION}"
 fi
 
-[[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})$ ]] || \
-  fail "expected: deploy <40-character lowercase commit SHA> or observe-load <10-900 seconds>"
+[[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})([[:space:]]classroom=(true|false))?$ ]] || \
+  fail "expected: deploy <40-character lowercase commit SHA> [classroom=true|false] or observe-load <10-900 seconds>"
 TARGET_SHA="${BASH_REMATCH[1]}"
+CLASSROOM_ENABLED="${BASH_REMATCH[3]:-}"
 
 command -v flock >/dev/null || fail "flock is required"
 exec 9>"${LOCK_FILE}"
@@ -106,6 +108,14 @@ git clone --quiet --branch main --single-branch "${REPOSITORY_URL}" "${STAGE_DIR
 [[ "$(git -C "${STAGE_DIR}" rev-parse HEAD)" == "${TARGET_SHA}" ]] || \
   fail "staged checkout does not match the requested commit"
 install -m 600 "${LIVE_DIR}/deploy/.env" "${STAGE_DIR}/deploy/.env"
+if [[ -n "${CLASSROOM_ENABLED}" ]]; then
+  if grep -q '^PATHLAB_CLASSROOM_ENABLED=' "${STAGE_DIR}/deploy/.env"; then
+    sed -i "s/^PATHLAB_CLASSROOM_ENABLED=.*/PATHLAB_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}/" \
+      "${STAGE_DIR}/deploy/.env"
+  else
+    printf 'PATHLAB_CLASSROOM_ENABLED=%s\n' "${CLASSROOM_ENABLED}" >> "${STAGE_DIR}/deploy/.env"
+  fi
+fi
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"
 chown -R ubuntu:ubuntu "${STAGE_DIR}"
 
