@@ -1,6 +1,7 @@
 import {
   CaretDoubleLeft,
   CaretDoubleRight,
+  ChalkboardTeacher,
   Key,
   List as Menu,
   SignOut,
@@ -23,9 +24,11 @@ export interface PathLabProductRailProps {
   onToggleExpanded: () => void
   onNavigator: () => void
   onUpload: () => void
+  onClassroom?: () => void
   onSecurity: () => void
   onSignOut: () => void
   uploadLabel?: string
+  classroomLabel?: string
   accountLabel?: string
   signOutLabel?: string
 }
@@ -40,9 +43,11 @@ export function PathLabProductRail({
   onToggleExpanded,
   onNavigator,
   onUpload,
+  onClassroom,
   onSecurity,
   onSignOut,
   uploadLabel = 'Upload',
+  classroomLabel = 'Classroom',
   accountLabel = 'Account',
   signOutLabel = 'Sign out',
 }: PathLabProductRailProps) {
@@ -92,6 +97,12 @@ export function PathLabProductRail({
           <Upload aria-hidden="true" />
           <span>{uploadLabel}</span>
         </button>
+        {onClassroom ? (
+          <button type="button" aria-label={classroomLabel} onClick={onClassroom}>
+            <ChalkboardTeacher aria-hidden="true" />
+            <span>{classroomLabel}</span>
+          </button>
+        ) : null}
       </nav>
       <div className="library-rail-utilities" aria-label="Account actions">
         <section

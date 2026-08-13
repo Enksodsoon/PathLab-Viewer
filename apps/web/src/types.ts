@@ -28,6 +28,7 @@ export interface AdminSlide {
   errorMessage: string | null
   metadata: SlideMetadata | null
   createdAt: string
+  folderId?: string | null
   tileSource?: string
   renderMode?: 'static_dzi' | 'ome_dynamic'
   thumbnailUrl?: string | null
