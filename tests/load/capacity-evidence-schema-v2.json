@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pathlab.dev/schemas/capacity-evidence-v2.json",
+  "title": "PathLab aggregate capacity certification evidence v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "certified", "certifiedTier", "release", "browserCi", "run", "stages",
+    "journeys", "realtime", "pressure", "resources", "abort", "recovery",
+    "cleanup", "privacy", "egress", "cost", "functionalSentinels", "checks", "metrics", "browser"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "certified": {"type": "boolean"},
+    "certifiedTier": {"type": ["integer", "null"], "enum": [1200, 1500, null]},
+    "release": {"$ref": "#/$defs/release"},
+    "browserCi": {"$ref": "#/$defs/browserCi"},
+    "run": {"$ref": "#/$defs/run"},
+    "stages": {
+      "type": "array", "minItems": 10, "maxItems": 10,
+      "items": {"$ref": "#/$defs/stage"}
+    },
+    "journeys": {"$ref": "#/$defs/journeys"},
+    "realtime": {"$ref": "#/$defs/realtime"},
+    "pressure": {"$ref": "#/$defs/pressure"},
+    "resources": {"$ref": "#/$defs/resources"},
+    "abort": {"$ref": "#/$defs/abort"},
+    "recovery": {"$ref": "#/$defs/recovery"},
+    "cleanup": {"$ref": "#/$defs/cleanup"},
+    "privacy": {"$ref": "#/$defs/privacy"},
+    "egress": {"$ref": "#/$defs/egress"},
+    "cost": {"$ref": "#/$defs/cost"},
+    "functionalSentinels": {"$ref": "#/$defs/functionalSentinels"},
+    "checks": {"$ref": "#/$defs/checks"},
+    "metrics": {"$ref": "#/$defs/metrics"},
+    "browser": {"$ref": "#/$defs/browser"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$", "maxLength": 40},
+    "safeId": {"type": "string", "pattern": "^[a-z0-9-]{1,64}$", "maxLength": 64},
+    "timestamp": {"type": "string", "minLength": 20, "maxLength": 40},
+    "percentage": {"type": "number", "minimum": 0, "maximum": 100},
+    "nonnegativeNumber": {"type": "number", "minimum": 0, "maximum": 1000000000000000000},
+    "nonnegativeInteger": {"type": "integer", "minimum": 0, "maximum": 1000000000000000000},
+    "release": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workflowSha", "deployedSha", "exact"],
+      "properties": {
+        "workflowSha": {"$ref": "#/$defs/sha"},
+        "deployedSha": {"$ref": "#/$defs/sha"},
+        "exact": {"type": "boolean"}
+      }
+    },
+    "browserCi": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "headSha", "conclusion", "runId"],
+      "properties": {
+        "name": {"const": "browser"},
+        "headSha": {"$ref": "#/$defs/sha"},
+        "conclusion": {
+          "enum": ["success", "failure", "cancelled", "timed_out", "action_required", "neutral", "skipped", "stale", "startup_failure"]
+        },
+        "runId": {"type": "integer", "minimum": 1, "maximum": 1000000000000000000}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runId", "startedAt", "endedAt", "window"],
+      "properties": {
+        "runId": {"$ref": "#/$defs/safeId"},
+        "startedAt": {"$ref": "#/$defs/timestamp"},
+        "endedAt": {"$ref": "#/$defs/timestamp"},
+        "window": {"const": "02:00-05:00 ICT"}
+      }
+    },
+    "generator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cpuPctMax", "memoryPctMax", "droppedIterations", "saturated"],
+      "properties": {
+        "cpuPctMax": {"$ref": "#/$defs/percentage"},
+        "memoryPctMax": {"$ref": "#/$defs/percentage"},
+        "droppedIterations": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+        "saturated": {"type": "boolean"}
+      }
+    },
+    "shard": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "shardId", "targetUsers", "achievedUsers", "healthy", "startEpochMs",
+        "maxTimingDriftMs", "timingWithinTolerance", "generator"
+      ],
+      "properties": {
+        "shardId": {"$ref": "#/$defs/safeId"},
+        "targetUsers": {"type": "integer", "minimum": 0, "maximum": 2000},
+        "achievedUsers": {"type": "integer", "minimum": 0, "maximum": 2000},
+        "healthy": {"type": "boolean"},
+        "startEpochMs": {"type": "integer", "minimum": 1, "maximum": 9999999999999},
+        "maxTimingDriftMs": {"type": "number", "minimum": 0, "maximum": 60000},
+        "timingWithinTolerance": {"type": "boolean"},
+        "generator": {"$ref": "#/$defs/generator"}
+      }
+    },
+    "stage": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "name", "targetUsers", "achievedUsers", "startedAt", "endedAt",
+        "durationSeconds", "strictGate", "outcome", "abortCauses", "shards"
+      ],
+      "properties": {
+        "name": {
+          "enum": ["smoke-2", "acceptance-100", "boundary-300", "boundary-600", "boundary-900", "sustained-1200", "headroom-1500", "breakpoint-1750", "breakpoint-2000", "recovery-1200"]
+        },
+        "targetUsers": {"type": "integer", "minimum": 1, "maximum": 2000},
+        "achievedUsers": {"type": "integer", "minimum": 0, "maximum": 2000},
+        "startedAt": {"$ref": "#/$defs/timestamp"},
+        "endedAt": {"$ref": "#/$defs/timestamp"},
+        "durationSeconds": {"enum": [30, 300, 600, 3600]},
+        "strictGate": {"type": "boolean"},
+        "outcome": {"enum": ["passed", "protected-early-stop", "skipped"]},
+        "abortCauses": {
+          "type": "array", "maxItems": 8, "uniqueItems": true,
+          "items": {"enum": ["cpu-sustained", "memory", "queue-pressure", "event-loop", "failure-rate", "pool-timeout", "sqlite-lock", "latency", "escalation-blocked"]}
+        },
+        "shards": {
+          "type": "array", "minItems": 6, "maxItems": 6,
+          "items": {"$ref": "#/$defs/shard"}
+        }
+      }
+    },
+    "latency": {
+      "type": "object", "additionalProperties": false,
+      "required": ["p50", "p95", "p99"],
+      "properties": {
+        "p50": {"type": "number", "minimum": 0, "maximum": 600000},
+        "p95": {"type": "number", "minimum": 0, "maximum": 600000},
+        "p99": {"type": "number", "minimum": 0, "maximum": 600000}
+      }
+    },
+    "journey": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requests", "failureRate", "latencyMs"],
+      "properties": {
+        "requests": {"type": "integer", "minimum": 1, "maximum": 1000000000000000},
+        "failureRate": {"type": "number", "minimum": 0, "maximum": 1},
+        "latencyMs": {"$ref": "#/$defs/latency"}
+      }
+    },
+    "journeys": {
+      "type": "object", "additionalProperties": false,
+      "required": ["presenterSse", "classroomControl", "generalApi", "staticTile", "poster", "question"],
+      "properties": {
+        "presenterSse": {"$ref": "#/$defs/journey"},
+        "classroomControl": {"$ref": "#/$defs/journey"},
+        "generalApi": {"$ref": "#/$defs/journey"},
+        "staticTile": {"$ref": "#/$defs/journey"},
+        "poster": {"$ref": "#/$defs/journey"},
+        "question": {"$ref": "#/$defs/journey"}
+      }
+    },
+    "realtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sseConvergencePct", "reconnectSuccessPct", "lostCriticalEvents", "unexpectedDisconnects", "queueOverflows"],
+      "properties": {
+        "sseConvergencePct": {"$ref": "#/$defs/percentage"},
+        "reconnectSuccessPct": {"$ref": "#/$defs/percentage"},
+        "lostCriticalEvents": {"$ref": "#/$defs/nonnegativeInteger"},
+        "unexpectedDisconnects": {"$ref": "#/$defs/nonnegativeInteger"},
+        "queueOverflows": {"$ref": "#/$defs/nonnegativeInteger"}
+      }
+    },
+    "pressure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["queueMaxDepth", "queueCapacity", "eventLoopP99Ms", "poolWaitP95Ms", "poolTimeouts", "sqliteLockErrors"],
+      "properties": {
+        "queueMaxDepth": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "queueCapacity": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "eventLoopP99Ms": {"type": "number", "minimum": 0, "maximum": 600000},
+        "poolWaitP95Ms": {"type": "number", "minimum": 0, "maximum": 600000},
+        "poolTimeouts": {"$ref": "#/$defs/nonnegativeInteger"},
+        "sqliteLockErrors": {"$ref": "#/$defs/nonnegativeInteger"}
+      }
+    },
+    "resources": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "socketsPeak", "fileDescriptorsPeak", "containerCpuPctMax", "containerMemoryPctMax",
+        "protectedHeavyHostCpuPctMax", "protectedHeavyHostMemoryPctMax",
+        "containerRestarts", "oomKills", "diskReadBytes", "diskWriteBytes", "diskFreePctMin",
+        "networkRxBytes", "networkTxBytes"
+      ],
+      "properties": {
+        "socketsPeak": {"type": "integer", "minimum": 0, "maximum": 10000000},
+        "fileDescriptorsPeak": {"type": "integer", "minimum": 0, "maximum": 10000000},
+        "containerCpuPctMax": {"$ref": "#/$defs/percentage"},
+        "containerMemoryPctMax": {"$ref": "#/$defs/percentage"},
+        "protectedHeavyHostCpuPctMax": {"$ref": "#/$defs/percentage"},
+        "protectedHeavyHostMemoryPctMax": {"$ref": "#/$defs/percentage"},
+        "containerRestarts": {"$ref": "#/$defs/nonnegativeInteger"},
+        "oomKills": {"$ref": "#/$defs/nonnegativeInteger"},
+        "diskReadBytes": {"$ref": "#/$defs/nonnegativeInteger"},
+        "diskWriteBytes": {"$ref": "#/$defs/nonnegativeInteger"},
+        "diskFreePctMin": {"$ref": "#/$defs/percentage"},
+        "networkRxBytes": {"$ref": "#/$defs/nonnegativeInteger"},
+        "networkTxBytes": {"$ref": "#/$defs/nonnegativeInteger"}
+      }
+    },
+    "abort": {
+      "type": "object", "additionalProperties": false,
+      "required": ["aborted", "cause"],
+      "properties": {
+        "aborted": {"type": "boolean"},
+        "cause": {"type": ["string", "null"], "pattern": "^[a-z0-9-]{1,64}$", "maxLength": 64}
+      }
+    },
+    "recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempted", "succeeded", "readinessRestored", "usersAchieved"],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "succeeded": {"type": "boolean"},
+        "readinessRestored": {"type": "boolean"},
+        "usersAchieved": {"type": "integer", "minimum": 0, "maximum": 2000}
+      }
+    },
+    "cleanup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["startedAt", "completedAt", "attempted", "succeeded", "configurationRestored", "fixturesRemoved", "bastionSessionsRemaining"],
+      "properties": {
+        "startedAt": {"$ref": "#/$defs/timestamp"},
+        "completedAt": {"$ref": "#/$defs/timestamp"},
+        "attempted": {"type": "boolean"},
+        "succeeded": {"type": "boolean"},
+        "configurationRestored": {"type": "boolean"},
+        "fixturesRemoved": {"type": "boolean"},
+        "bastionSessionsRemaining": {"$ref": "#/$defs/nonnegativeInteger"}
+      }
+    },
+    "privacy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["aggregateOnly", "credentialsMasked", "syntheticFixturesOnly"],
+      "properties": {
+        "aggregateOnly": {"type": "boolean"},
+        "credentialsMasked": {"type": "boolean"},
+        "syntheticFixturesOnly": {"type": "boolean"}
+      }
+    },
+    "egress": {
+      "type": "object", "additionalProperties": false,
+      "required": ["measuredRunBytes", "projectedMonthlyRuns", "projectedBytes", "budgetBytes", "withinBudget"],
+      "properties": {
+        "measuredRunBytes": {"$ref": "#/$defs/nonnegativeInteger"},
+        "projectedMonthlyRuns": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "projectedBytes": {"$ref": "#/$defs/nonnegativeInteger"},
+        "budgetBytes": {"const": 9000000000000},
+        "withinBudget": {"type": "boolean"}
+      }
+    },
+    "cost": {
+      "type": "object", "additionalProperties": false,
+      "required": ["currency", "existingMonthlyAmount", "projectedMonthlyAmount", "amount", "permanentResourcesAdded", "computeOcpus", "memoryGb", "storageGb", "shapeCompliant"],
+      "properties": {
+        "currency": {"const": "SGD"},
+        "existingMonthlyAmount": {"type": "number", "minimum": 0, "maximum": 1000000000},
+        "projectedMonthlyAmount": {"type": "number", "minimum": 0, "maximum": 1000000000},
+        "amount": {"type": "number", "minimum": 0, "maximum": 1000000000},
+        "permanentResourcesAdded": {"type": "boolean"},
+        "computeOcpus": {"type": "integer", "minimum": 1, "maximum": 160},
+        "memoryGb": {"type": "number", "minimum": 1, "maximum": 2048},
+        "storageGb": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "shapeCompliant": {"type": "boolean"}
+      }
+    },
+    "checks": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "requestFailures", "tileFailures", "tileLatency", "posterLatency", "cpu", "memory",
+        "swap", "restarts", "oom", "services", "readiness", "disk", "observerRelease",
+        "admin", "conversion", "browserCleanup", "degradedViewer", "release", "browserCi",
+        "stages", "shards", "journeys", "realtime", "pressure", "resources", "abort",
+        "recovery", "cleanup", "privacy", "egress", "cost", "functionalSentinels"
+      ],
+      "properties": {
+        "requestFailures": {"type": "boolean"}, "tileFailures": {"type": "boolean"},
+        "tileLatency": {"type": "boolean"}, "posterLatency": {"type": "boolean"},
+        "cpu": {"type": "boolean"}, "memory": {"type": "boolean"},
+        "swap": {"type": "boolean"}, "restarts": {"type": "boolean"},
+        "oom": {"type": "boolean"}, "services": {"type": "boolean"},
+        "readiness": {"type": "boolean"}, "disk": {"type": "boolean"},
+        "observerRelease": {"type": "boolean"}, "admin": {"type": "boolean"},
+        "conversion": {"type": "boolean"}, "browserCleanup": {"type": "boolean"},
+        "degradedViewer": {"type": "boolean"}, "release": {"type": "boolean"},
+        "browserCi": {"type": "boolean"}, "stages": {"type": "boolean"},
+        "shards": {"type": "boolean"}, "journeys": {"type": "boolean"},
+        "realtime": {"type": "boolean"}, "pressure": {"type": "boolean"},
+        "resources": {"type": "boolean"}, "abort": {"type": "boolean"},
+        "recovery": {"type": "boolean"}, "cleanup": {"type": "boolean"},
+        "privacy": {"type": "boolean"}, "egress": {"type": "boolean"},
+        "cost": {"type": "boolean"},
+        "functionalSentinels": {"type": "boolean"}
+      }
+    },
+    "functionalSentinels": {
+      "type": "object", "additionalProperties": false,
+      "required": ["uploadConversion", "annotations", "libraryShare", "dynamicViewer", "desktop"],
+      "properties": {
+        "uploadConversion": {"type": "boolean"},
+        "annotations": {"type": "boolean"},
+        "libraryShare": {"type": "boolean"},
+        "dynamicViewer": {"type": "boolean"},
+        "desktop": {"type": "boolean"}
+      }
+    },
+    "metrics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["requestFailureRate", "tileFailureRate", "tileP95Ms", "posterP95Ms", "maxCpuPct", "maxMemoryPct", "swapGrowthBytes", "restartGrowth", "oomObserved", "servicesExact", "readinessMaintained", "minDiskFreePct", "releaseExact"],
+      "properties": {
+        "requestFailureRate": {"type": "number", "minimum": 0, "maximum": 1},
+        "tileFailureRate": {"type": "number", "minimum": 0, "maximum": 1},
+        "tileP95Ms": {"type": "number", "minimum": 0, "maximum": 600000},
+        "posterP95Ms": {"type": "number", "minimum": 0, "maximum": 600000},
+        "maxCpuPct": {"$ref": "#/$defs/percentage"},
+        "maxMemoryPct": {"$ref": "#/$defs/percentage"},
+        "swapGrowthBytes": {"$ref": "#/$defs/nonnegativeInteger"},
+        "restartGrowth": {"$ref": "#/$defs/nonnegativeInteger"},
+        "oomObserved": {"type": "boolean"},
+        "servicesExact": {"type": "boolean"},
+        "readinessMaintained": {"type": "boolean"},
+        "minDiskFreePct": {"$ref": "#/$defs/percentage"},
+        "releaseExact": {"type": "boolean"}
+      }
+    },
+    "browser": {
+      "type": "object", "additionalProperties": false,
+      "required": ["adminResponsive", "conversionSucceeded", "cleanupSucceeded", "degradedViewerRecovered"],
+      "properties": {
+        "adminResponsive": {"type": "boolean"},
+        "conversionSucceeded": {"type": "boolean"},
+        "cleanupSucceeded": {"type": "boolean"},
+        "degradedViewerRecovered": {"type": "boolean"}
+      }
+    }
+  }
+}

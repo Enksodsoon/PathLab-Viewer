@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import PositiveInt, model_validator
+from pydantic import Field, PositiveInt, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PRODUCTION_SECRET_PLACEHOLDERS = {
@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     )
 
     environment: Literal["development", "test", "production"] = "development"
+    service_role: Literal["general", "classroom", "all"] = "all"
     database_url: str = "sqlite:///./var/pathlab.sqlite3"
     data_root: Path = Path("./var/data")
     secret_key: str = "change-this-before-deployment"
@@ -39,6 +40,8 @@ class Settings(BaseSettings):
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False
     classroom_singleton: bool = False
+    classroom_service_url: str = "http://classroom:8001"
+    classroom_max_participants: int = Field(default=300, ge=1, le=2000)
     libvips_concurrency: PositiveInt = 1
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
     libvips_cache_max_files: PositiveInt = 128
@@ -61,7 +64,13 @@ class Settings(BaseSettings):
             raise ValueError("Tile cache memory must not exceed 512 MiB")
         if self.environment != "production":
             return self
-        if self.classroom_enabled and not self.classroom_singleton:
+        if self.service_role == "all":
+            raise ValueError("Production rejects the combined service role")
+        if (
+            self.service_role == "classroom"
+            and self.classroom_enabled
+            and not self.classroom_singleton
+        ):
             raise ValueError("Production classroom requires the declared singleton topology")
         secret = self.secret_key.strip()
         if len(secret.encode("utf-8")) < 32 or secret.casefold() in PRODUCTION_SECRET_PLACEHOLDERS:

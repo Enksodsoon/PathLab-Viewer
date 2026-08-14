@@ -1,4 +1,5 @@
 import hmac
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from wsi_viewer.cli import _build_parser, _read_password, main
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Job, PasswordRecoveryCode, Slide, User
+from wsi_viewer.models import ClassroomSession, Job, PasswordRecoveryCode, Slide, User
 from wsi_viewer.security import hash_password, recovery_code_hash
 
 
@@ -126,6 +127,35 @@ def test_deployment_check_blocks_running_job_without_private_details(
     output = capsys.readouterr()
     assert "Private patient name" not in output.err
     assert "private-patient-file.ome.tif" not in output.err
+
+
+def test_deployment_check_blocks_an_active_real_classroom_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_path = tmp_path / "deployment-check-classroom.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.add(
+            ClassroomSession(
+                join_code_hash="a" * 64,
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+                status="active",
+            )
+        )
+        database.commit()
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    with pytest.raises(SystemExit) as captured:
+        main()
+
+    assert captured.value.code == "Deployment blocked: a Classroom session is active"
+    output = capsys.readouterr()
+    assert "a" * 64 not in output.err
 
 
 def test_reconcile_storage_is_noninteractive_and_prints_aggregate_only(

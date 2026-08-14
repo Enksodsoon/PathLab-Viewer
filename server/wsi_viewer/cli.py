@@ -7,7 +7,7 @@ from sqlalchemy import select
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
-from .models import Job, User
+from .models import ClassroomSession, Job, User
 from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
@@ -71,6 +71,13 @@ def main() -> None:
             )
             if running_job is not None:
                 raise SystemExit("Deployment blocked: worker job is active")
+            active_classroom = database.scalar(
+                select(ClassroomSession.id)
+                .where(ClassroomSession.status == "active")
+                .limit(1)
+            )
+            if active_classroom is not None:
+                raise SystemExit("Deployment blocked: a Classroom session is active")
             return
         user = database.scalar(select(User).where(User.username == args.username))
         if args.command == "issue-recovery-code":

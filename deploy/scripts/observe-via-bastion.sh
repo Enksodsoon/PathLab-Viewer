@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 DURATION="${1:-}"
+START_EPOCH="${2:-}"
 TARGET_USER="${OCI_TARGET_USER:-pathlab-deploy}"
 SESSION_ID=""
 SESSION_NAME="pathlab-observe-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
@@ -25,9 +26,11 @@ cleanup_bastion_session() {
 }
 trap cleanup_bastion_session EXIT
 
-[[ "${DURATION}" =~ ^[0-9]{2,3}$ ]] || fail "duration must be an integer"
-(( DURATION >= 10 && DURATION <= 900 && DURATION % 10 == 0 )) || \
-  fail "duration must be a multiple of 10 from 10 to 900 seconds"
+[[ "${DURATION}" =~ ^[0-9]{2,5}$ ]] || fail "duration must be an integer"
+(( DURATION >= 10 && DURATION <= 10000 && DURATION % 10 == 0 )) || \
+  fail "duration must be a multiple of 10 from 10 to 10000 seconds"
+[[ -z "${START_EPOCH}" || "${START_EPOCH}" =~ ^[0-9]{10}$ ]] || \
+  fail "optional synchronized start epoch is invalid"
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
 : "${OCI_INSTANCE_ID:?OCI_INSTANCE_ID is required}"
 : "${OCI_TARGET_PRIVATE_IP:?OCI_TARGET_PRIVATE_IP is required}"
@@ -45,7 +48,7 @@ SESSION_ID="$(
     --target-private-ip "${OCI_TARGET_PRIVATE_IP}" \
     --target-port 22 \
     --target-os-username "${TARGET_USER}" \
-    --session-ttl 1800 \
+    --session-ttl 10800 \
     --query 'data.id' \
     --raw-output
 )"
@@ -76,4 +79,6 @@ SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
 SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE}"
 SSH_COMMAND="${SSH_COMMAND//ssh /ssh ${SSH_OPTIONS} }"
 
-bash -c "${SSH_COMMAND} \"observe-load ${DURATION}\""
+REMOTE_REQUEST="observe-load ${DURATION}"
+[[ -n "${START_EPOCH}" ]] && REMOTE_REQUEST+=" start=${START_EPOCH}"
+bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""

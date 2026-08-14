@@ -1,0 +1,12 @@
+[Unit]
+Description=Probe PathLab Viewer components every 15 seconds
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=15s
+AccuracySec=1s
+Persistent=false
+Unit=pathlab-viewer-watchdog.service
+
+[Install]
+WantedBy=timers.target

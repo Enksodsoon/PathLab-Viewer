@@ -68,6 +68,22 @@ export interface ClassroomInviteState {
   slides: ClassroomSlide[]
 }
 
+export interface ClassroomParticipant {
+  id: string
+  alias: string
+  displayName: string | null
+  status: 'connected' | 'reconnecting' | 'disconnected'
+  controlRequested: boolean
+  controlRequestedAt: number | null
+}
+
+export interface TeacherParticipantsPage {
+  items: ClassroomParticipant[]
+  total: number
+  nextCursor: string | null
+  rosterVersion: number
+}
+
 export interface TeacherState {
   session: {
     id: string
@@ -78,6 +94,8 @@ export interface TeacherState {
     reviewExpiresAt: string | null
   }
   stateVersion: number
+  participantCount: number
+  rosterVersion: number
   presenter: PresenterState
   controller: {
     participantId: string | null
@@ -85,14 +103,7 @@ export interface TeacherState {
     controlEpoch: number
     expiresAt: string | null
   }
-  participants: Array<{
-    id: string
-    alias: string
-    displayName: string | null
-    status: 'connected' | 'reconnecting' | 'disconnected'
-    controlRequested: boolean
-    controlRequestedAt: number | null
-  }>
+  participants: ClassroomParticipant[]
   pendingQuestions: Array<{
     id: string
     participantId: string
@@ -190,6 +201,22 @@ export async function teacherState(sessionId: string): Promise<TeacherState> {
   return body(await fetch(`/api/v1/admin/classroom/sessions/${encodeURIComponent(sessionId)}`, {
     credentials: 'same-origin', cache: 'no-store',
   }))
+}
+
+export async function teacherParticipants(
+  sessionId: string,
+  query: { after?: string | null; limit?: number; q?: string; requested?: boolean } = {},
+): Promise<TeacherParticipantsPage> {
+  const parameters = new URLSearchParams()
+  if (query.after) parameters.set('after', query.after)
+  parameters.set('limit', String(Math.max(1, Math.min(100, Math.floor(query.limit ?? 100)))))
+  const normalizedQuery = query.q?.trim()
+  if (normalizedQuery) parameters.set('q', normalizedQuery)
+  if (query.requested) parameters.set('requested', 'true')
+  return body(await fetch(
+    `/api/v1/admin/classroom/sessions/${encodeURIComponent(sessionId)}/participants?${parameters.toString()}`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
 }
 
 export async function joinClassroom(joinCode: string, displayName?: string): Promise<{

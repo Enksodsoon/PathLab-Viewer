@@ -1,6 +1,13 @@
 from pathlib import Path
 
-EXPECTED_COMPOSE_SERVICES = ("caddy", "api", "tile-service", "tusd", "worker")
+EXPECTED_COMPOSE_SERVICES = (
+    "caddy",
+    "api",
+    "classroom",
+    "tile-service",
+    "tusd",
+    "worker",
+)
 EXPECTED_LOGGING_LINES = [
     "      driver: json-file",
     "      options:",
@@ -24,9 +31,7 @@ def test_all_services_use_bounded_json_file_logging() -> None:
 
     for position, (start, service_name) in enumerate(service_starts):
         end = (
-            service_starts[position + 1][0]
-            if position + 1 < len(service_starts)
-            else services_end
+            service_starts[position + 1][0] if position + 1 < len(service_starts) else services_end
         )
         service_lines = lines[start + 1 : end]
         assert "    logging:" in service_lines, f"{service_name} missing logging config"
@@ -43,27 +48,21 @@ def test_all_services_use_bounded_json_file_logging() -> None:
 
 def test_tusd_uses_pathlab_data_owner() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
-        "\n  worker:\n", maxsplit=1
-    )[0]
+    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split("\n  worker:\n", maxsplit=1)[0]
 
     assert 'user: "10001:10001"' in tusd_service
 
 
 def test_conversion_resource_limits_are_worker_and_tile_service_only() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
-        "\n  api:\n", maxsplit=1
-    )[0]
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tile-service:\n", maxsplit=1
-    )[0]
+    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  classroom:\n", maxsplit=1)[
+        0
+    ]
     tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
         "\n  tusd:\n", maxsplit=1
     )[0]
-    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split(
-        "\n  worker:\n", maxsplit=1
-    )[0]
+    tusd_service = compose.split("\n  tusd:\n", maxsplit=1)[1].split("\n  worker:\n", maxsplit=1)[0]
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
         "\nvolumes:\n", maxsplit=1
     )[0]
@@ -100,12 +99,10 @@ def test_backend_image_smoke_imports_every_production_runtime() -> None:
 
 def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split(
-        "\n  api:\n", maxsplit=1
-    )[0]
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tile-service:\n", maxsplit=1
-    )[0]
+    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  classroom:\n", maxsplit=1)[
+        0
+    ]
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
         "\nvolumes:\n", maxsplit=1
     )[0]
@@ -118,6 +115,34 @@ def test_delivery_optimized_oci_resource_budget_prioritizes_caddy() -> None:
     assert "cpus: 0.50" in api_service
     assert "cpu_shares: 1024" in api_service
     assert "cpu_shares: 256" in worker_service
+
+
+def test_classroom_uses_the_existing_backend_image_with_a_single_bounded_worker() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  classroom:\n", maxsplit=1)[
+        0
+    ]
+    classroom_service = compose.split("\n  classroom:\n", maxsplit=1)[1].split(
+        "\n  tile-service:\n", maxsplit=1
+    )[0]
+
+    assert "dockerfile: deploy/Dockerfile.backend" in api_service
+    assert "dockerfile: deploy/Dockerfile.backend" in classroom_service
+    assert "PATHLAB_SERVICE_ROLE: general" in api_service
+    assert "PATHLAB_SERVICE_ROLE: classroom" in classroom_service
+    assert '"--port", "8001"' in classroom_service
+    assert '"--workers", "1"' in classroom_service
+    assert "alembic upgrade" not in classroom_service
+    assert "reconcile-storage" not in classroom_service
+    assert 'expose: ["8001"]' in classroom_service
+    assert "\n    ports:" not in classroom_service
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data" in classroom_service
+    assert 'test: ["CMD", "curl", "--fail", "http://127.0.0.1:8001/readyz"]' in (classroom_service)
+    assert "api:\n        condition: service_healthy" in classroom_service
+    assert "mem_limit: 1g" in classroom_service
+    assert "cpus: 1.00" in classroom_service
+    assert "mem_limit: 512m" in api_service
+    assert "cpus: 0.50" in api_service
 
 
 def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:
@@ -150,19 +175,14 @@ def test_annotation_feature_flag_is_explicitly_default_off_in_deployment_example
 
     assert "PATHLAB_ANNOTATIONS_ENABLED=false" in root_example
     assert "PATHLAB_ANNOTATIONS_ENABLED=false" in deploy_example
-    assert (
-        'PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"'
-        in compose
-    )
+    assert 'PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"' in compose
 
 
 def test_annotation_operations_runbook_and_bundle_budget_are_ci_contracts() -> None:
     guide = Path("docs/architecture/ADMIN_ANNOTATIONS.md")
     package = Path("apps/web/package.json").read_text(encoding="utf-8")
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
-    web_job = workflow.split("\n  web:\n", maxsplit=1)[1].split(
-        "\n  containers:\n", maxsplit=1
-    )[0]
+    web_job = workflow.split("\n  web:\n", maxsplit=1)[1].split("\n  containers:\n", maxsplit=1)[0]
 
     assert guide.is_file()
     guide_text = guide.read_text(encoding="utf-8")
@@ -183,8 +203,7 @@ def test_annotation_operations_runbook_and_bundle_budget_are_ci_contracts() -> N
     assert "git worktree add --detach" in web_job
     assert "vite build --config vite.config.ts --manifest" in web_job
     assert (
-        'pnpm --dir apps/web check:annotation-bundle -- '
-        '--baseline "$PATHLAB_BUNDLE_BASELINE"'
+        'pnpm --dir apps/web check:annotation-bundle -- --baseline "$PATHLAB_BUNDLE_BASELINE"'
     ) in web_job
 
 
@@ -212,7 +231,7 @@ def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
     )[0]
     assert "timeout-minutes: 15" in browser_job
     assert "playwright install --with-deps chromium firefox webkit" in browser_job
-    assert "PLAYWRIGHT_PORT: \"5217\"" in browser_job
+    assert 'PLAYWRIGHT_PORT: "5217"' in browser_job
     assert "e2e/annotation-responsive.spec.ts" in browser_job
     assert "e2e/shared-viewer-responsive.spec.ts" in browser_job
     assert "--workers=2" in browser_job
@@ -220,30 +239,24 @@ def test_ci_runs_the_bounded_annotation_browser_matrix() -> None:
 
 def test_api_creates_runtime_directories_before_migrations() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tile-service:\n", maxsplit=1
-    )[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  classroom:\n", maxsplit=1)[
+        0
+    ]
 
-    command = api_service.split("command:", maxsplit=1)[1].split(
-        "environment:", maxsplit=1
-    )[0]
+    command = api_service.split("command:", maxsplit=1)[1].split("environment:", maxsplit=1)[0]
     assert "mkdir -p /data/database /data/tus" in command
     assert command.index("mkdir -p") < command.index("alembic upgrade head")
 
 
 def test_api_reconciles_storage_after_migration_before_startup() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
-    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tile-service:\n", maxsplit=1
-    )[0]
-    command = api_service.split("command:", maxsplit=1)[1].split(
-        "environment:", maxsplit=1
-    )[0]
+    api_service = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  classroom:\n", maxsplit=1)[
+        0
+    ]
+    command = api_service.split("command:", maxsplit=1)[1].split("environment:", maxsplit=1)[0]
 
     assert "pathlab-admin reconcile-storage" in command
-    assert command.index("alembic upgrade head") < command.index(
-        "pathlab-admin reconcile-storage"
-    )
+    assert command.index("alembic upgrade head") < command.index("pathlab-admin reconcile-storage")
     assert command.index("pathlab-admin reconcile-storage") < command.index("uvicorn")
 
 
@@ -264,9 +277,7 @@ def test_caddy_serves_isolated_individual_tiles_and_preserves_route_cache_header
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     uploads = caddyfile.split("handle @uploads {", maxsplit=1)[1].split("}", maxsplit=1)[0]
     backend = caddyfile.split("handle @backend {", maxsplit=1)[1].split("}", maxsplit=1)[0]
-    assets = caddyfile.split("handle /assets/* {", maxsplit=1)[1].split(
-        "}", maxsplit=1
-    )[0]
+    assets = caddyfile.split("handle /assets/* {", maxsplit=1)[1].split("}", maxsplit=1)[0]
     spa = caddyfile.split("\thandle {\n", maxsplit=1)[1].split("\n\t}", maxsplit=1)[0]
 
     assert 'header Cache-Control "no-store"' in uploads
@@ -274,13 +285,12 @@ def test_caddy_serves_isolated_individual_tiles_and_preserves_route_cache_header
     assert "handle_path /tiles/*" in caddyfile
     assert "root * /pathlab-individual" in caddyfile
     assert (
-        "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/individual:"
-        "/pathlab-individual:ro"
+        "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/individual:/pathlab-individual:ro"
     ) in compose
     assert "/pathlab-individual" in compose
     assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro" in compose
     assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/private:/pathlab-private:ro" in compose
-    assert "PATHLAB_INTERNAL_FILE_REDIRECTS: \"true\"" in compose
+    assert 'PATHLAB_INTERNAL_FILE_REDIRECTS: "true"' in compose
     assert "/pathlab-data" not in compose
     assert "header X-Accel-Redirect *" in caddyfile
     assert "rewrite * {rp.header.X-Accel-Redirect}" in caddyfile
@@ -295,9 +305,7 @@ def test_caddy_serves_isolated_individual_tiles_and_preserves_route_cache_header
 def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
-    api = compose.split("\n  api:\n", maxsplit=1)[1].split(
-        "\n  tile-service:\n", maxsplit=1
-    )[0]
+    api = compose.split("\n  api:\n", maxsplit=1)[1].split("\n  classroom:\n", maxsplit=1)[0]
     tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
         "\n  tusd:\n", maxsplit=1
     )[0]
@@ -305,10 +313,7 @@ def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> Non
     assert 'command: ["pathlab-tiles"]' in tile_service
     assert 'expose: ["8090"]' in tile_service
     assert "\n    ports:" not in tile_service
-    assert (
-        "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/originals:/data/originals:ro"
-        in tile_service
-    )
+    assert "${PATHLAB_DATA_DIR:-/srv/pathlab/data}/originals:/data/originals:ro" in tile_service
     assert "pathlab-tile-cache:/cache/ome-tiles" in tile_service
     assert "PATHLAB_TILE_CACHE_MAX_BYTES:-2147483648" in tile_service
     assert "PATHLAB_TILE_CACHE_LOW_WATER_BYTES:-1879048192" in tile_service
@@ -317,10 +322,9 @@ def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> Non
     assert "pathlab-internal" in tile_service
     assert "internal: true" in compose
     assert "pathlab-tile-cache:" in compose
-    assert (
-        "install -d -o pathlab -g pathlab -m 700 /cache/ome-tiles"
-        in Path("deploy/Dockerfile.backend").read_text(encoding="utf-8")
-    )
+    assert "install -d -o pathlab -g pathlab -m 700 /cache/ome-tiles" in Path(
+        "deploy/Dockerfile.backend"
+    ).read_text(encoding="utf-8")
 
     assert "@dynamic_delivery header X-Accel-Redirect /_pathlab_ome/*" in caddyfile
     assert "reverse_proxy tile-service:8090" in caddyfile
@@ -332,16 +336,50 @@ def test_caddy_flushes_classroom_sse_without_buffering() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
     assert "@classroom_events path" in caddyfile
     classroom = caddyfile.split("handle @classroom_events", maxsplit=1)[1].split(
-        "@backend", maxsplit=1
+        "handle @classroom_api", maxsplit=1
     )[0]
     assert "flush_interval -1" in classroom
     assert 'Cache-Control "no-store"' in classroom
+    assert "reverse_proxy {$PATHLAB_CLASSROOM_SERVICE_URL}" in classroom
+    assert "reverse_proxy api:8000" not in classroom
+
+
+def test_caddy_routes_all_classroom_http_before_generic_api_and_keeps_direct_tiles() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]
+
+    assert "PATHLAB_CLASSROOM_SERVICE_URL: http://classroom:8001" in caddy_service
+    assert "classroom:\n        condition: service_healthy" in caddy_service
+    assert "@classroom_api path /api/v1/classroom/* /api/v1/admin/classroom/*" in caddyfile
+    classroom_api = caddyfile.split("handle @classroom_api", maxsplit=1)[1].split(
+        "@backend", maxsplit=1
+    )[0]
+    assert "reverse_proxy {$PATHLAB_CLASSROOM_SERVICE_URL}" in classroom_api
+    assert (
+        caddyfile.index("handle @classroom_events")
+        < caddyfile.index("handle @classroom_api")
+        < caddyfile.index("handle @backend")
+    )
+    assert "handle_path /tiles/*" in caddyfile
+    direct_tiles = caddyfile.split("handle_path /tiles/*", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    assert "file_server" in direct_tiles
+    assert "reverse_proxy" not in direct_tiles
+
+
+def test_compose_exposes_bounded_classroom_capacity_configuration() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    example = Path("deploy/.env.example").read_text(encoding="utf-8")
+
+    assert (
+        'PATHLAB_CLASSROOM_MAX_PARTICIPANTS: "${PATHLAB_CLASSROOM_MAX_PARTICIPANTS:-300}"'
+        in compose
+    )
+    assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300" in example
 
 
 def test_production_deploy_is_manual_serial_and_main_only() -> None:
-    workflow = Path(".github/workflows/deploy-production.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
     assert "name: production" in workflow
@@ -353,38 +391,32 @@ def test_production_deploy_is_manual_serial_and_main_only() -> None:
 
 
 def test_capacity_certification_is_manual_protected_and_serialized_with_deploys() -> None:
-    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
-    assert "CERTIFY_PRODUCTION_300" in workflow
+    assert "CERTIFY_PRODUCTION_1200" in workflow
     assert "github.ref == 'refs/heads/main'" in workflow
     assert "name: production" in workflow
     assert "group: production-control" in workflow
     assert "cancel-in-progress: false" in workflow
-    assert "timeout-minutes: 60" in workflow
+    assert "timeout-minutes: 170" in workflow
     assert "pull_request:" not in workflow
     assert "push:" not in workflow
     assert "schedule:" not in workflow
-    assert "secrets.LOAD_TEST_PUBLIC_ID" not in workflow
-    assert "secrets.LOAD_TEST_ADMIN_SLIDE_ID" not in workflow
+    assert "secrets.LOAD_TEST_PUBLIC_ID" in workflow
+    assert "secrets.LOAD_TEST_ADMIN_SLIDE_ID" in workflow
     assert "secrets.LOAD_TEST_ADMIN_PASSWORD" in workflow
     assert "vars.PRODUCTION_BASE_URL" in workflow
     assert "tests/load/viewer.js" not in workflow
-    assert "deploy/scripts/run-capacity-certification.sh" in workflow
-    assert "capacity-fixture.spec.ts" in Path(
-        "deploy/scripts/run-capacity-certification.sh"
+    assert "deploy/scripts/run-capacity-sentinels.sh" in workflow
+    assert "capacity-sentinels.spec.ts" in Path(
+        "deploy/scripts/run-capacity-sentinels.sh"
     ).read_text(encoding="utf-8")
 
 
 def test_capacity_workflow_publishes_only_sanitized_aggregate_evidence() -> None:
-    workflow = Path(".github/workflows/capacity-certification.yml").read_text(
-        encoding="utf-8"
-    )
-    runner = Path("deploy/scripts/run-capacity-certification.sh").read_text(
-        encoding="utf-8"
-    )
+    workflow = Path(".github/workflows/capacity-certification.yml").read_text(encoding="utf-8")
+    runner = Path("deploy/scripts/run-capacity-certification.sh").read_text(encoding="utf-8")
 
     assert "capacity-certification.json" in workflow
     assert "capacity-certification.md" in workflow
@@ -453,9 +485,7 @@ def test_terraform_stays_within_the_approved_free_tier_footprint() -> None:
 
 
 def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
-    workflow = Path(".github/workflows/deploy-production.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
 
     assert "secrets.OCI_CONFIG" in workflow
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
@@ -472,9 +502,7 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
 
 
 def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
-    script = Path("deploy/scripts/deploy-via-bastion.sh").read_text(
-        encoding="utf-8"
-    )
+    script = Path("deploy/scripts/deploy-via-bastion.sh").read_text(encoding="utf-8")
 
     assert "ssh-keygen" in script
     assert "oci bastion session create-managed-ssh" in script
@@ -485,7 +513,7 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "StrictHostKeyChecking=yes" in script
     assert "deploy ${TARGET_SHA}" in script
     assert '"${CLASSROOM_ENABLED}" =~ ^(true|false)$' in script
-    assert 'classroom=${CLASSROOM_ENABLED}' in script
+    assert "classroom=${CLASSROOM_ENABLED}" in script
 
 
 def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> None:
@@ -498,9 +526,10 @@ def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> 
     assert "oci bastion session delete" in client
     assert "StrictHostKeyChecking=yes" in client
     assert "observe-load ${DURATION}" in client
-    assert "DURATION <= 900" in client
-    assert "^observe-load[[:space:]]([0-9]{2,3})$" in release
-    assert "exec \"${LIVE_DIR}/deploy/scripts/observe-load.sh\"" in release
+    assert "DURATION <= 10000" in client
+    assert "^observe-load[[:space:]]([0-9]{2,5})([[:space:]]start=([0-9]{10}))?$" in release
+    assert "--session-ttl 10800" in client
+    assert 'exec bash "${LIVE_DIR}/deploy/scripts/observe-load.sh"' in release
     assert "/proc/stat" in observer
     assert "/proc/meminfo" in observer
     assert "docker inspect" in observer
@@ -510,9 +539,7 @@ def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> 
 
 
 def test_bastion_target_has_no_interactive_deployment_access() -> None:
-    script = Path("deploy/scripts/configure-bastion-target.sh").read_text(
-        encoding="utf-8"
-    )
+    script = Path("deploy/scripts/configure-bastion-target.sh").read_text(encoding="utf-8")
 
     assert "pathlab-deploy" in script
     assert "DisableForwarding yes" in script
@@ -536,14 +563,14 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert "docker compose config --quiet" in script
     assert "docker compose build" in script
     assert "systemctl reload pathlab-viewer" in script
-    assert "mv \"${LIVE_DIR}\" \"${ROLLBACK_DIR}\"" in script
-    assert "mv \"${STAGE_DIR}\" \"${LIVE_DIR}\"" in script
+    assert 'mv "${LIVE_DIR}" "${ROLLBACK_DIR}"' in script
+    assert 'mv "${STAGE_DIR}" "${LIVE_DIR}"' in script
     assert "curl --fail" in script
     assert "rollback_release" in script
     assert "flock" in script
     assert 'cat "${LIVE_DIR}/.pathlab-release"' in script
     assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
-    assert "EXPECTED_SERVICES=$'api\\ncaddy\\ntile-service\\ntusd\\nworker'" in script
+    assert "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\ntile-service\\ntusd\\nworker'" in script
 
 
 def test_release_script_preserves_environment_and_never_touches_data() -> None:
@@ -560,10 +587,7 @@ def test_production_classroom_is_enabled_without_mutating_the_preserved_environm
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     example = Path("deploy/.env.example").read_text(encoding="utf-8")
 
-    assert (
-        'PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-true}"'
-        in compose
-    )
+    assert 'PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-true}"' in compose
     assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=true" in example
 
 

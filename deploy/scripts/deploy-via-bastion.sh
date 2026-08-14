@@ -8,6 +8,9 @@ SESSION_ID=""
 SESSION_NAME="pathlab-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
 WORK_DIR="$(mktemp -d)"
 KEY_FILE="${WORK_DIR}/bastion-session"
+: "${PATHLAB_DEPLOY_EVIDENCE_FILE:?PATHLAB_DEPLOY_EVIDENCE_FILE is required}"
+: "${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE:?PATHLAB_DEPLOY_EVIDENCE_SIGNATURE is required}"
+: "${PATHLAB_DEPLOY_EVIDENCE_NONCE:?PATHLAB_DEPLOY_EVIDENCE_NONCE is required}"
 
 fail() {
   echo "Bastion deployment failed: $*" >&2
@@ -16,12 +19,26 @@ fail() {
 
 cleanup_bastion_session() {
   local exit_code=$?
+  local cleanup_failed=0
   trap - EXIT
   if [[ -n "${SESSION_ID}" ]]; then
     oci bastion session delete --session-id "${SESSION_ID}" --force >/dev/null 2>&1 || \
-      echo "Warning: Bastion session cleanup must be checked manually." >&2
+      cleanup_failed=1
+    for _ in $(seq 1 30); do
+      active_count="$(
+        oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
+          --query 'length(data[?"lifecycle-state" == `ACTIVE`])' --raw-output 2>/dev/null
+      )" || { cleanup_failed=1; break; }
+      [[ "${active_count}" == 0 ]] && break
+      sleep 2
+    done
+    [[ "${active_count:-}" == 0 ]] || cleanup_failed=1
   fi
   rm -rf -- "${WORK_DIR}"
+  if [[ "${cleanup_failed}" -ne 0 ]]; then
+    echo "Bastion session cleanup or zero-session verification failed." >&2
+    exit 1
+  fi
   exit "${exit_code}"
 }
 trap cleanup_bastion_session EXIT
@@ -35,6 +52,19 @@ fi
 : "${OCI_TARGET_PRIVATE_IP:?OCI_TARGET_PRIVATE_IP is required}"
 : "${OCI_KNOWN_HOSTS_FILE:?OCI_KNOWN_HOSTS_FILE is required}"
 [[ -f "${OCI_KNOWN_HOSTS_FILE}" ]] || fail "pinned SSH host keys are missing"
+[[ -f "${PATHLAB_DEPLOY_EVIDENCE_FILE}" ]] || fail "deployment evidence is missing"
+[[ "$(wc -c < "${PATHLAB_DEPLOY_EVIDENCE_FILE}")" -le 65536 ]] || \
+  fail "deployment evidence is too large"
+[[ "${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE}" =~ ^[0-9a-f]{64}$ ]] || \
+  fail "deployment evidence signature is invalid"
+[[ "${PATHLAB_DEPLOY_EVIDENCE_NONCE}" =~ ^[A-Za-z0-9._-]{8,128}$ ]] || \
+  fail "deployment evidence nonce is invalid"
+
+ACTIVE_SESSIONS="$(
+  oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
+    --query 'length(data[?"lifecycle-state" == `ACTIVE`])' --raw-output
+)" || fail "Bastion preflight could not verify active sessions"
+[[ "${ACTIVE_SESSIONS}" == 0 ]] || fail "Bastion preflight requires zero active sessions"
 
 ssh-keygen -q -t ed25519 -N "" -f "${KEY_FILE}"
 
@@ -87,7 +117,8 @@ SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
 SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE}"
 SSH_COMMAND="${SSH_COMMAND//ssh /ssh ${SSH_OPTIONS} }"
 
-REMOTE_REQUEST="deploy ${TARGET_SHA}"
+EVIDENCE_B64="$(base64 -w 0 "${PATHLAB_DEPLOY_EVIDENCE_FILE}" | tr '+/' '-_' | tr -d '=')"
+REMOTE_REQUEST="deploy ${TARGET_SHA} evidence=${EVIDENCE_B64} signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE} nonce=${PATHLAB_DEPLOY_EVIDENCE_NONCE}"
 if [[ -n "${CLASSROOM_ENABLED}" ]]; then
   REMOTE_REQUEST="${REMOTE_REQUEST} classroom=${CLASSROOM_ENABLED}"
 fi

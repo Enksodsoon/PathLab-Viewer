@@ -16,6 +16,7 @@ from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
+    AuditEvent,
     Collection,
     Folder,
     Job,
@@ -161,14 +162,10 @@ def test_folders_enforce_normalized_sibling_names_depth_and_cycles(tmp_path: Pat
 
         subtree = _create_folder(client, headers, "Subtree")
         subtree_child = _create_folder(client, headers, "Subtree child", subtree["id"])
-        _create_folder(
-            client, headers, "Subtree grandchild", subtree_child["id"]
-        )
+        _create_folder(client, headers, "Subtree grandchild", subtree_child["id"])
         destination = _create_folder(client, headers, "Destination")
         for level in range(2, 8):
-            destination = _create_folder(
-                client, headers, f"Destination {level}", destination["id"]
-            )
+            destination = _create_folder(client, headers, f"Destination {level}", destination["id"])
         too_tall = client.patch(
             f"/api/v2/admin/folders/{subtree['id']}",
             headers=headers,
@@ -199,17 +196,16 @@ def test_folder_children_are_lazy_and_trash_restore_preserves_subtree(tmp_path: 
         children = client.get(f"/api/v2/admin/folders/{root['id']}/children").json()
         assert [folder["id"] for folder in children] == [child["id"]]
 
-        trashed = client.post(
-            f"/api/v2/admin/folders/{root['id']}/trash", headers=headers
-        )
+        trashed = client.post(f"/api/v2/admin/folders/{root['id']}/trash", headers=headers)
         assert trashed.status_code == 200
-        assert client.get(
-            "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
-        ).json()["items"] == []
-
-        restored = client.post(
-            f"/api/v2/admin/folders/{root['id']}/restore", headers=headers
+        assert (
+            client.get(
+                "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
+            ).json()["items"]
+            == []
         )
+
+        restored = client.post(f"/api/v2/admin/folders/{root['id']}/restore", headers=headers)
         assert restored.status_code == 200
         items = client.get(
             "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
@@ -247,21 +243,15 @@ def test_permanent_folder_delete_never_flattens_or_orphans_content(
             display_name="Occupied",
             folder_id=child["id"],
         )
-        client.post(
-            f"/api/v2/admin/folders/{occupied['id']}/trash", headers=headers
-        )
-        blocked = client.delete(
-            f"/api/v2/admin/folders/{occupied['id']}", headers=headers
-        )
+        client.post(f"/api/v2/admin/folders/{occupied['id']}/trash", headers=headers)
+        blocked = client.delete(f"/api/v2/admin/folders/{occupied['id']}", headers=headers)
         assert blocked.status_code == 409
         assert blocked.json()["detail"]["code"] == "FOLDER_NOT_EMPTY"
 
         empty = _create_folder(client, headers, "Empty")
         empty_child = _create_folder(client, headers, "Nested empty", empty["id"])
         client.post(f"/api/v2/admin/folders/{empty['id']}/trash", headers=headers)
-        deleted = client.delete(
-            f"/api/v2/admin/folders/{empty['id']}", headers=headers
-        )
+        deleted = client.delete(f"/api/v2/admin/folders/{empty['id']}", headers=headers)
         assert deleted.status_code == 204
         with session_factory(client.app.state.settings)() as database:
             assert database.get(Folder, empty["id"]) is None
@@ -345,8 +335,7 @@ def test_items_search_filters_cursor_and_payload_are_bounded(tmp_path: Path) -> 
         assert first.json()["nextCursor"]
         assert len(first.content) <= 512 * 1024
         assert all(
-            "filename" not in item and "adminNotes" not in item
-            for item in first.json()["items"]
+            "filename" not in item and "adminNotes" not in item for item in first.json()["items"]
         )
 
         second = client.get(
@@ -355,9 +344,9 @@ def test_items_search_filters_cursor_and_payload_are_bounded(tmp_path: Path) -> 
         )
         assert second.status_code == 200
         assert len(second.json()["items"]) == 12
-        assert {
-            item["id"] for item in first.json()["items"]
-        }.isdisjoint(item["id"] for item in second.json()["items"])
+        assert {item["id"] for item in first.json()["items"]}.isdisjoint(
+            item["id"] for item in second.json()["items"]
+        )
 
         invalid_limit = client.get("/api/v2/admin/library/items", params={"limit": 101})
         assert invalid_limit.status_code == 422
@@ -396,20 +385,14 @@ def test_slide_trash_restore_and_targeted_status(tmp_path: Path) -> None:
             folder_id=folder["id"],
             state=SlideState.CONVERTING,
         )
-        trashed = client.post(
-            "/api/v2/admin/slides/slide-processing/trash", headers=headers
-        )
+        trashed = client.post("/api/v2/admin/slides/slide-processing/trash", headers=headers)
         assert trashed.status_code == 200
         assert trashed.json()["trashedAt"]
-        restored = client.post(
-            "/api/v2/admin/slides/slide-processing/restore", headers=headers
-        )
+        restored = client.post("/api/v2/admin/slides/slide-processing/restore", headers=headers)
         assert restored.status_code == 200
         assert restored.json()["folderId"] == folder["id"]
 
-        statuses = client.get(
-            "/api/v2/admin/slides/status", params={"ids": "slide-processing"}
-        )
+        statuses = client.get("/api/v2/admin/slides/status", params={"ids": "slide-processing"})
         assert statuses.status_code == 200
         assert statuses.json() == {
             "items": [{"id": "slide-processing", "state": "converting", "errorCode": None}]
@@ -430,20 +413,16 @@ def test_permanent_delete_is_explicit_and_uses_existing_worker(tmp_path: Path) -
             display_name="Delete",
             state=SlideState.READY_PRIVATE,
         )
-        trashed = client.post(
-            "/api/v2/admin/slides/slide-delete/trash", headers=headers
-        )
+        trashed = client.post("/api/v2/admin/slides/slide-delete/trash", headers=headers)
         assert trashed.status_code == 200
-        deleted = client.delete(
-            "/api/v2/admin/slides/slide-delete", headers=headers
-        )
+        deleted = client.delete("/api/v2/admin/slides/slide-delete", headers=headers)
         assert deleted.status_code == 202
         assert deleted.json()["state"] == "deleting"
         with session_factory(client.app.state.settings)() as database:
             assert database.scalar(
-                database.query(Job).filter(
-                    Job.slide_id == "slide-delete", Job.kind == "delete"
-                ).statement
+                database.query(Job)
+                .filter(Job.slide_id == "slide-delete", Job.kind == "delete")
+                .statement
             )
 
 
@@ -460,10 +439,13 @@ def test_empty_trash_queues_worker_deletions_and_hides_scheduled_slides(
                 display_name=f"Trash {index}",
                 state=SlideState.READY_PRIVATE,
             )
-            assert client.post(
-                f"/api/v2/admin/slides/{slide_id}/trash",
-                headers=headers,
-            ).status_code == 200
+            assert (
+                client.post(
+                    f"/api/v2/admin/slides/{slide_id}/trash",
+                    headers=headers,
+                ).status_code
+                == 200
+            )
 
         with session_factory(client.app.state.settings)() as database:
             database.add(Job(slide_id="trash-0", kind="ingest"))
@@ -496,12 +478,15 @@ def test_empty_trash_queues_worker_deletions_and_hides_scheduled_slides(
                 )
             ).all()
             assert len(jobs) == 2
-            assert database.scalar(
-                select(Job.status).where(
-                    Job.slide_id == "trash-0",
-                    Job.kind == "ingest",
+            assert (
+                database.scalar(
+                    select(Job.status).where(
+                        Job.slide_id == "trash-0",
+                        Job.kind == "ingest",
+                    )
                 )
-            ) == "cancelled"
+                == "cancelled"
+            )
 
 
 def test_empty_trash_refuses_to_race_an_active_conversion(tmp_path: Path) -> None:
@@ -513,10 +498,13 @@ def test_empty_trash_refuses_to_race_an_active_conversion(tmp_path: Path) -> Non
             display_name="Converting",
             state=SlideState.CONVERTING,
         )
-        assert client.post(
-            "/api/v2/admin/slides/trash-converting/trash",
-            headers=headers,
-        ).status_code == 200
+        assert (
+            client.post(
+                "/api/v2/admin/slides/trash-converting/trash",
+                headers=headers,
+            ).status_code
+            == 200
+        )
 
         emptied = client.delete("/api/v2/admin/trash", headers=headers)
         assert emptied.status_code == 409
@@ -526,12 +514,15 @@ def test_empty_trash_refuses_to_race_an_active_conversion(tmp_path: Path) -> Non
             slide = database.get(Slide, "trash-converting")
             assert slide is not None
             assert slide.state == SlideState.CONVERTING
-            assert database.scalar(
-                select(Job.id).where(
-                    Job.slide_id == "trash-converting",
-                    Job.kind == "delete",
+            assert (
+                database.scalar(
+                    select(Job.id).where(
+                        Job.slide_id == "trash-converting",
+                        Job.kind == "delete",
+                    )
                 )
-            ) is None
+                is None
+            )
 
 
 def test_multi_share_activation_honors_administrative_kill_switch(tmp_path: Path) -> None:
@@ -579,6 +570,62 @@ def _seed_share_ready_slide(
         (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
         (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"tile")
         (derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
+
+
+def test_capacity_share_cleanup_revokes_only_the_atomically_run_bound_share(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        sentinel_folder = _create_folder(client, headers, "Capacity sentinel")
+        real_folder = _create_folder(client, headers, "Concurrent real share")
+        _seed_share_ready_slide(client, slide_id="sentinel-slide", folder_id=sentinel_folder["id"])
+        _seed_share_ready_slide(client, slide_id="real-slide", folder_id=real_folder["id"])
+        sentinel = client.post(
+            "/api/v2/admin/shares",
+            headers={**headers, "X-PathLab-Synthetic-Run": "123456"},
+            json={
+                "targetType": "folder",
+                "targetId": sentinel_folder["id"],
+                "deidentifiedConfirmed": True,
+            },
+        )
+        real = client.post(
+            "/api/v2/admin/shares",
+            headers=headers,
+            json={
+                "targetType": "folder",
+                "targetId": real_folder["id"],
+                "deidentifiedConfirmed": True,
+            },
+        )
+        assert sentinel.status_code == real.status_code == 201
+
+        for _ in range(2):
+            cleanup = client.post(
+                "/api/v1/admin/capacity-sentinels/123456/share-cleanup",
+                headers={**headers, "X-PathLab-Synthetic-Run": "123456"},
+            )
+            assert cleanup.status_code == 204
+
+        with session_factory(client.app.state.settings)() as database:
+            sentinel_share = database.get(LibraryShare, sentinel.json()["id"])
+            real_share = database.get(LibraryShare, real.json()["id"])
+            audit = database.scalar(
+                select(AuditEvent).where(
+                    AuditEvent.action == "capacity.sentinel.share",
+                    AuditEvent.target_id == sentinel.json()["id"],
+                )
+            )
+            assert sentinel_share is not None and sentinel_share.is_active is False
+            assert real_share is not None and real_share.is_active is True
+            assert audit is not None and audit.detail == {"runId": "123456"}
+
+        rejected = client.post(
+            "/api/v1/admin/capacity-sentinels/123456/share-cleanup",
+            headers={**headers, "X-PathLab-Synthetic-Run": "other-run"},
+        )
+        assert rejected.status_code == 400
 
 
 def _seed_dynamic_share_slide(client: TestClient, *, slide_id: str) -> None:
@@ -657,9 +704,7 @@ def test_collection_share_serves_dynamic_ome_without_public_derivative(
             client.app.state.settings.data_root / "public" / "public-dynamic-share"
         ).exists()
 
-        manifest = client.get(
-            f"/api/v2/public/collections/{shared.json()['publicId']}"
-        ).json()
+        manifest = client.get(f"/api/v2/public/collections/{shared.json()['publicId']}").json()
         descriptor = client.get(manifest["slides"][0]["tileSource"])
         assert descriptor.status_code == 200
         assert b'Width="1024" Height="1024"' in descriptor.content
@@ -721,8 +766,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
             "Safe descendant",
         }
         assert {
-            item["displayName"]: item["folderPath"]
-            for item in descendant.json()["included"]
+            item["displayName"]: item["folderPath"] for item in descendant.json()["included"]
         } == {
             "Safe direct": [],
             "Safe descendant": ["Colon"],
@@ -803,9 +847,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         public_thumbnail = client.get(payload["slides"][0]["thumbnailUrl"])
         assert public_thumbnail.status_code == 200
         assert public_thumbnail.content == b"thumbnail"
-        assert public_thumbnail.headers["cache-control"] == (
-            "private, max-age=86400, immutable"
-        )
+        assert public_thumbnail.headers["cache-control"] == ("private, max-age=86400, immutable")
         monkeypatch.setattr(
             library_routes_module,
             "active_public_share",
@@ -814,9 +856,7 @@ def test_share_preview_scopes_folders_and_creation_requires_reviewed_slides(
         public_tile = client.get(payload["slides"][0]["tileSource"])
         assert public_tile.status_code == 200
         assert public_tile.content == b"<Image />"
-        assert public_tile.headers["cache-control"] == (
-            "private, max-age=86400, immutable"
-        )
+        assert public_tile.headers["cache-control"] == ("private, max-age=86400, immutable")
         serialized = manifest.text
         for private_value in [
             "private-descendant.ome.tiff",
@@ -866,9 +906,7 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         assert not (share_delivery_root / f"{old_public_id}.json").exists()
         assert (share_delivery_root / f"{rotated.json()['publicId']}.json").is_file()
         assert client.get(f"/api/v2/public/collections/{old_public_id}").status_code == 404
-        new_manifest = client.get(
-            f"/api/v2/public/collections/{rotated.json()['publicId']}"
-        )
+        new_manifest = client.get(f"/api/v2/public/collections/{rotated.json()['publicId']}")
         assert new_manifest.status_code == 200
         new_tile_source = new_manifest.json()["slides"][0]["tileSource"]
         old_tile_source = new_tile_source.replace(rotated.json()["publicId"], old_public_id)
@@ -881,9 +919,7 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
         )
         assert revoked.status_code == 204
         assert not (share_delivery_root / f"{rotated.json()['publicId']}.json").exists()
-        missing = client.get(
-            f"/api/v2/public/collections/{rotated.json()['publicId']}"
-        )
+        missing = client.get(f"/api/v2/public/collections/{rotated.json()['publicId']}")
         assert missing.status_code == 404
         assert missing.json()["detail"]["code"] == "SHARE_NOT_FOUND"
         assert client.get("/api/v2/public/collections/not-a-share").json() == missing.json()
@@ -903,9 +939,7 @@ def test_collection_share_rotation_expiration_and_revoke_use_generic_failures(
             database.add(expired)
             database.commit()
             expired_public_id = expired.public_id
-        assert client.get(
-            f"/api/v2/public/collections/{expired_public_id}"
-        ).status_code == 404
+        assert client.get(f"/api/v2/public/collections/{expired_public_id}").status_code == 404
 
 
 def test_unpublish_removes_slide_from_every_public_delivery(tmp_path: Path) -> None:
@@ -950,16 +984,20 @@ def test_unpublish_removes_slide_from_every_public_delivery(tmp_path: Path) -> N
         assert refreshed.json()["slides"] == []
         assert client.get(tile_source).status_code == 404
         with session_factory(client.app.state.settings)() as database:
-            assert database.scalars(
-                select(PublicationGrant).where(
-                    PublicationGrant.slide_id == "unpublish-everywhere"
-                )
-            ).all() == []
-            assert database.scalars(
-                select(ShareSlide).where(
-                    ShareSlide.slide_id == "unpublish-everywhere"
-                )
-            ).all() == []
+            assert (
+                database.scalars(
+                    select(PublicationGrant).where(
+                        PublicationGrant.slide_id == "unpublish-everywhere"
+                    )
+                ).all()
+                == []
+            )
+            assert (
+                database.scalars(
+                    select(ShareSlide).where(ShareSlide.slide_id == "unpublish-everywhere")
+                ).all()
+                == []
+            )
 
 
 def test_routine_move_never_auto_publishes_into_shared_folder(tmp_path: Path) -> None:
@@ -1000,9 +1038,7 @@ def test_routine_move_never_auto_publishes_into_shared_folder(tmp_path: Path) ->
             memberships = database.scalars(
                 select(ShareSlide).where(ShareSlide.share_id == share.id)
             ).all()
-            assert [membership.slide_id for membership in memberships] == [
-                "already-reviewed"
-            ]
+            assert [membership.slide_id for membership in memberships] == ["already-reviewed"]
 
 
 def test_publication_alias_and_thumbnail_remain_until_final_grant_is_removed(
@@ -1063,10 +1099,7 @@ def test_authenticated_thumbnail_uses_private_cache_and_etag(tmp_path: Path) -> 
         thumbnail.parent.mkdir(parents=True)
         thumbnail.write_bytes(b"thumbnail")
 
-        assert (
-            client.get("/api/v2/admin/slides/slide-thumb/thumbnail").status_code
-            == 401
-        )
+        assert client.get("/api/v2/admin/slides/slide-thumb/thumbnail").status_code == 401
         _login(client)
         response = client.get("/api/v2/admin/slides/slide-thumb/thumbnail")
 

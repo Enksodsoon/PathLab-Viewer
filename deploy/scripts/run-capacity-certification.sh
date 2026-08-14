@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+if [[ "${CAPACITY_DISTRIBUTED_ORCHESTRATOR_READY:-false}" != "true" ]]; then
+  echo "Distributed capacity orchestrator is not ready; live load is disabled until Task 6." >&2
+  exit 1
+fi
+
 : "${CAPACITY_BASE_URL:?CAPACITY_BASE_URL is required}"
 : "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
 : "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
 : "${GITHUB_SHA:?GITHUB_SHA is required}"
 : "${GITHUB_RUN_ID:?GITHUB_RUN_ID is required}"
+: "${CAPACITY_BROWSER_CI_RUN_ID:?CAPACITY_BROWSER_CI_RUN_ID is required}"
 : "${CAPACITY_EVIDENCE_DIR:?CAPACITY_EVIDENCE_DIR is required}"
+: "${CAPACITY_EVIDENCE_CONTEXT:?CAPACITY_EVIDENCE_CONTEXT is required; no live load is permitted without a complete v2 producer artifact}"
 
 [[ "${CAPACITY_BASE_URL}" =~ ^https://[^/?#]+/?$ ]] || {
   echo "CAPACITY_BASE_URL must be an HTTPS origin." >&2
@@ -16,6 +23,23 @@ set -Eeuo pipefail
   echo "GITHUB_SHA must be a full lowercase commit SHA." >&2
   exit 1
 }
+[[ "${CAPACITY_BROWSER_CI_RUN_ID}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "CAPACITY_BROWSER_CI_RUN_ID must be a positive check-run ID." >&2
+  exit 1
+}
+[[ -f "${CAPACITY_EVIDENCE_CONTEXT}" ]] || {
+  echo "CAPACITY_EVIDENCE_CONTEXT must identify a complete v2 producer artifact." >&2
+  exit 1
+}
+command -v python >/dev/null || { echo "python is required." >&2; exit 1; }
+python tests/load/certification_report.py \
+  --evidence-context "${CAPACITY_EVIDENCE_CONTEXT}" \
+  --commit "${GITHUB_SHA}" \
+  --browser-ci-run-id "${CAPACITY_BROWSER_CI_RUN_ID}" \
+  --validate-context-only || {
+    echo "Capacity v2 evidence context preflight failed; refusing live load." >&2
+    exit 1
+  }
 command -v k6 >/dev/null || { echo "k6 is required." >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required." >&2; exit 1; }
 
@@ -54,6 +78,16 @@ cleanup() {
   exit "${exit_code}"
 }
 trap cleanup EXIT
+
+echo "Capacity phase: exact deployed release verification."
+preflight_observer="${WORK_DIR}/preflight-observer.ndjson"
+bash deploy/scripts/observe-via-bastion.sh 10 > "${preflight_observer}"
+python -c \
+  'import json,sys; first=json.loads(open(sys.argv[1], encoding="utf-8").readline()); raise SystemExit(0 if first.get("releaseSha") == sys.argv[2] else 1)' \
+  "${preflight_observer}" "${GITHUB_SHA}" || {
+    echo "The deployed release does not match the workflow commit." >&2
+    exit 1
+  }
 
 echo "Capacity phase: synthetic fixture generation."
 if ! python tests/load/generate_synthetic_ome.py \
@@ -158,7 +192,7 @@ run_profile() {
     set +e
     child=""
     trap '[[ -n "${child}" ]] && kill "${child}" >/dev/null 2>&1; wait "${child}" 2>/dev/null; exit 143' TERM INT
-    deploy/scripts/observe-via-bastion.sh "${observe_duration}" > "${observer}" &
+    bash deploy/scripts/observe-via-bastion.sh "${observe_duration}" > "${observer}" &
     child=$!
     wait "${child}"
     result=$?
@@ -296,6 +330,8 @@ python tests/load/certification_report.py \
   --summary "${WORK_DIR}/capacity-summary.json" \
   --observer "${WORK_DIR}/capacity-observer.ndjson" \
   --browser "${CAPACITY_BROWSER_RESULT}" \
+  --evidence-context "${CAPACITY_EVIDENCE_CONTEXT}" \
   --commit "${GITHUB_SHA}" \
+  --browser-ci-run-id "${CAPACITY_BROWSER_CI_RUN_ID}" \
   --json-output "${CAPACITY_EVIDENCE_DIR}/capacity-certification.json" \
   --markdown-output "${CAPACITY_EVIDENCE_DIR}/capacity-certification.md"
