@@ -1,12 +1,21 @@
+import asyncio
 import hashlib
 import json
 import sqlite3
 import time
+from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, cast
 
+from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 from sqlalchemy import text
+from starlette.concurrency import run_in_threadpool
+from starlette.requests import Request
+from starlette.responses import StreamingResponse
 from wsi_viewer.classroom_runtime import ClassroomSingletonLock
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
@@ -96,6 +105,75 @@ def _admin_headers(client: TestClient) -> dict[str, str]:
 def test_classroom_routes_are_absent_when_disabled(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=False) as client:
         assert client.post("/api/v1/classroom/join", json={"joinCode": "ABC123"}).status_code == 404
+
+
+def test_classroom_event_stream_runs_database_work_off_event_loop(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    async def recording_run_in_threadpool(
+        function: Callable[..., Any], *args: object
+    ) -> Any:
+        calls.append(getattr(function, "__name__", "unknown"))
+        return await run_in_threadpool(function, *args)
+
+    monkeypatch.setattr(
+        "wsi_viewer.classroom_routes.run_in_threadpool", recording_run_in_threadpool
+    )
+
+    with _client(tmp_path, enabled=True) as client:
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=_admin_headers(client),
+            json={"slideIds": ["slide-1"]},
+        ).json()
+        client.post(
+            "/api/v1/classroom/join",
+            json={"joinCode": created["joinCode"], "displayName": "Student"},
+        )
+        calls.clear()
+        path = f"/api/v1/classroom/sessions/{created['id']}/events"
+        app = cast(FastAPI, client.app)
+        route = next(
+            cast(APIRoute, route)
+            for route in app.routes
+            if getattr(route, "path", None)
+            == "/api/v1/classroom/sessions/{session_id}/events"
+        )
+        cookie = "; ".join(f"{key}={value}" for key, value in client.cookies.items())
+        request = Request(
+            {
+                "type": "http",
+                "asgi": {"version": "3.0"},
+                "http_version": "1.1",
+                "method": "GET",
+                "scheme": "http",
+                "path": path,
+                "raw_path": path.encode(),
+                "query_string": b"",
+                "headers": [(b"cookie", cookie.encode())],
+                "client": ("testclient", 50000),
+                "server": ("testserver", 80),
+                "root_path": "",
+            }
+        )
+        response = cast(StreamingResponse, route.endpoint(created["id"], request))
+        body_iterator = cast(AsyncGenerator[str | bytes | memoryview, None], response.body_iterator)
+
+        async def open_and_close_stream() -> str:
+            first = cast(str, await anext(body_iterator))
+            await body_iterator.aclose()
+            return first
+
+        first = asyncio.run(open_and_close_stream())
+
+    assert first.startswith("event: stream-ready")
+    assert calls == [
+        "mark_participant_connected",
+        "stream_state_version",
+        "mark_participant_disconnected",
+    ]
 
 
 def test_session_snapshots_static_asset_and_join_reconnects_idempotently(tmp_path: Path) -> None:
