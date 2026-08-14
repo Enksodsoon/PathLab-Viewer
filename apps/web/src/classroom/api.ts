@@ -38,12 +38,45 @@ export interface TeachingAnnotation {
 export interface CreatedClassroom {
   id: string
   joinCode: string
+  publicId: string | null
+  phase: ClassroomPhase
+  reviewExpiresAt: string | null
   stateVersion: number
   slides: ClassroomSlide[]
 }
 
+export type ClassroomPhase = 'preview' | 'live' | 'review' | 'revoked'
+
+export interface ClassroomReadiness {
+  folderId: string
+  ready: Array<{ id: string; displayName: string; folderPath: string[] }>
+  blocked: Array<{
+    id: string
+    displayName: string
+    folderPath: string[]
+    reason: 'publication_incomplete' | 'delivery_missing' | 'metadata_invalid'
+  }>
+}
+
+export interface ClassroomInviteState {
+  sessionId: string
+  publicId: string
+  phase: ClassroomPhase
+  reviewExpiresAt: string
+  participant: { id: string; alias: string }
+  csrfToken: string
+  slides: ClassroomSlide[]
+}
+
 export interface TeacherState {
-  session: { id: string; status: string }
+  session: {
+    id: string
+    status: string
+    phase: ClassroomPhase
+    publicId: string | null
+    joinCode: string | null
+    reviewExpiresAt: string | null
+  }
   stateVersion: number
   presenter: PresenterState
   controller: {
@@ -82,7 +115,7 @@ export interface TeacherState {
 }
 
 export interface StudentState {
-  session: { id: string; status: string }
+  session: { id: string; status: string; phase: ClassroomPhase; publicId: string | null }
   participant: { id: string; alias: string }
   csrfToken: string
   stateVersion: number
@@ -122,12 +155,35 @@ async function body<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function createClassroom(slideIds: string[]): Promise<CreatedClassroom> {
+export async function classroomReadiness(folderId: string): Promise<ClassroomReadiness> {
+  return body(await csrfFetch('/api/v1/admin/classroom/readiness', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folderId }),
+  }))
+}
+
+export async function createClassroom(
+  folderId: string,
+  reviewExpiresAt: string,
+): Promise<CreatedClassroom> {
   return body(await csrfFetch('/api/v1/admin/classroom/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slideIds }),
+    body: JSON.stringify({ folderId, reviewExpiresAt }),
   }))
+}
+
+export async function startLiveClassroom(sessionId: string): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/start`, { method: 'POST' }))
+}
+
+export async function finishLiveClassroom(sessionId: string): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/end`, { method: 'POST' }))
+}
+
+export async function listClassrooms(): Promise<{ sessions: Array<{
+  id: string; publicId: string; phase: ClassroomPhase; joinCode: string; reviewExpiresAt: string
+}> }> {
+  return body(await fetch('/api/v1/admin/classroom/sessions', { credentials: 'same-origin', cache: 'no-store' }))
 }
 
 export async function teacherState(sessionId: string): Promise<TeacherState> {
@@ -146,6 +202,36 @@ export async function joinClassroom(joinCode: string, displayName?: string): Pro
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ joinCode, displayName: displayName || null }),
+  }))
+}
+
+export async function unlockClassroomInvite(
+  publicId: string, accessCode: string, displayName?: string,
+): Promise<{ sessionId: string; csrfToken: string; phase: ClassroomPhase }> {
+  return body(await fetch(`/api/v1/classroom/invites/${encodeURIComponent(publicId)}/unlock`, {
+    method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessCode, displayName: displayName || null }),
+  }))
+}
+
+export async function classroomInviteState(publicId: string): Promise<ClassroomInviteState> {
+  return body(await fetch(`/api/v1/classroom/invites/${encodeURIComponent(publicId)}`, {
+    credentials: 'same-origin', cache: 'no-store',
+  }))
+}
+
+export async function classroomInvitePhase(publicId: string): Promise<{
+  sessionId: string; phase: ClassroomPhase; reviewExpiresAt: string
+}> {
+  return body(await fetch(`/api/v1/classroom/invites/${encodeURIComponent(publicId)}/phase`, {
+    credentials: 'same-origin', cache: 'no-store',
+  }))
+}
+
+export async function joinLiveClassroom(sessionId: string, csrfToken: string): Promise<void> {
+  await body(await fetch(`/api/v1/classroom/sessions/${encodeURIComponent(sessionId)}/live-join`, {
+    method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ csrfToken }),
   }))
 }
 
@@ -265,7 +351,7 @@ export async function endActiveClassroom(): Promise<void> {
 
 export async function publishTeacherViewport(
   sessionId: string,
-  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'viewport' },
+  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'image' | 'viewport' },
 ): Promise<void> {
   await body(await csrfFetch(`/api/v1/admin/classroom/sessions/${sessionId}/presenter`, {
     method: 'POST',
@@ -278,7 +364,7 @@ export async function publishStudentViewport(
   sessionId: string,
   csrfToken: string,
   leaseId: string,
-  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'viewport' },
+  viewport: { slideId: string; x: number; y: number; zoom: number; zoomSpace: 'image' | 'viewport' },
 ): Promise<void> {
   await body(await fetch(`/api/v1/classroom/sessions/${sessionId}/presenter`, {
     method: 'POST',

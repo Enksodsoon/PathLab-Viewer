@@ -18,6 +18,7 @@ import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
+import { classroomSlideSource } from '../classroom/slideSource'
 import {
   StudentDrawingOverlay,
   type StudentDrawingHandle,
@@ -246,10 +247,11 @@ export function ClassroomStudentPage() {
       })
       source.addEventListener('session-ended', (event) => {
         if (!sequence(event)) return
+        const inviteId = stateRef.current?.session.publicId
         setState(null)
         setCsrfToken('')
-        setMessage('This classroom has ended.')
-        navigate('/classroom', { replace: true })
+        setMessage('The live class ended. Independent review remains available.')
+        navigate(inviteId ? `/classroom/invite/${inviteId}` : '/classroom', { replace: true })
       })
       source.addEventListener('question-removed', (event) => {
         const payload = sequence(event)
@@ -558,7 +560,7 @@ export function ClassroomStudentPage() {
     </header>
     <main className={`classroom-viewer${pinMode ? ' is-pin-mode' : ''}`}>
       {currentSlide && <OpenSeadragonViewer
-        tileSource={currentSlide.tileSource}
+        tileSource={classroomSlideSource(currentSlide.tileSource, sessionId ?? state!.session.id)}
         onReady={() => undefined}
         onViewerAttach={attachViewer}
       />}

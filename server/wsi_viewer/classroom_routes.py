@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import hmac
 import json
 import secrets
 import threading
@@ -28,11 +29,12 @@ from .models import (
     ClassroomSession,
     ClassroomSessionSlide,
     Folder,
+    PublicationGrant,
     Session,
     Slide,
     User,
 )
-from .publication import delivery_version
+from .publication import INDIVIDUAL, delivery_version
 from .storage import StorageLayout
 
 PARTICIPANT_COOKIE = "pathlab_classroom_participant"
@@ -42,7 +44,25 @@ ALIAS_WORDS = ("MINT", "AMBER", "CORAL", "FERN", "IRIS", "JADE", "LILAC", "OAK")
 
 class CreateSessionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    slide_ids: list[str] = Field(alias="slideIds", min_length=1, max_length=50)
+    slide_ids: list[str] | None = Field(default=None, alias="slideIds", min_length=1, max_length=50)
+    folder_id: str | None = Field(default=None, alias="folderId", min_length=1, max_length=36)
+    review_expires_at: datetime | None = Field(default=None, alias="reviewExpiresAt")
+
+
+class ReadinessRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    folder_id: str = Field(alias="folderId", min_length=1, max_length=36)
+
+
+class InviteUnlockRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    access_code: str = Field(alias="accessCode", min_length=6, max_length=16)
+    display_name: str | None = Field(default=None, alias="displayName", max_length=80)
+
+
+class LiveJoinRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    csrf_token: str = Field(alias="csrfToken", min_length=20, max_length=200)
 
 
 class JoinRequest(BaseModel):
@@ -187,7 +207,7 @@ def register_classroom_routes(
         with mutation_lock, factory() as database:
             for snapshot in snapshots:
                 classroom = database.get(ClassroomSession, snapshot.session_id)
-                if classroom is None or classroom.status != "active":
+                if classroom is None or classroom.status != "active" or classroom.phase != "live":
                     continue
                 if snapshot.sequence < classroom.presenter_sequence:
                     continue
@@ -200,7 +220,7 @@ def register_classroom_routes(
         # update() is called only inside a serialized presenter mutation.
         with factory() as database:
             classroom = database.get(ClassroomSession, session_id)
-            if classroom is None or classroom.status != "active":
+            if classroom is None or classroom.status != "active" or classroom.phase != "live":
                 raise RuntimeError("Cannot reserve a sequence for an inactive classroom")
             if classroom.presenter_sequence_reserved < reserved_until:
                 classroom.presenter_sequence_reserved = reserved_until
@@ -221,6 +241,15 @@ def register_classroom_routes(
 
     MutationGuard = Annotated[None, Depends(serialized_mutation)]
     serializer = URLSafeSerializer(settings.secret_key, salt="pathlab-classroom-participant-v1")
+    unlock_attempts: dict[str, list[datetime]] = {}
+
+    def access_code(public_id: str, generation: int) -> str:
+        digest = hmac.new(
+            settings.secret_key.encode("utf-8"),
+            f"classroom:{public_id}:{generation}".encode(),
+            hashlib.sha256,
+        ).digest()
+        return "".join(JOIN_ALPHABET[value % len(JOIN_ALPHABET)] for value in digest[:10])
 
     def static_descriptor(slide: Slide, version: str) -> tuple[int, int, int, str]:
         root = storage.individual_delivery_for(slide.public_id, version)
@@ -242,6 +271,80 @@ def register_classroom_routes(
         if width <= 0 or height <= 0 or tile_size <= 0 or tile_format not in {"jpg", "jpeg"}:
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
         return width, height, tile_size, tile_format
+
+    def slide_readiness(
+        slide: Slide, db: OrmSession
+    ) -> tuple[str | None, tuple[int, int, int, str] | None]:
+        metadata = slide.slide_metadata or {}
+        width = metadata.get("width")
+        height = metadata.get("height")
+        grant = db.scalar(
+            select(PublicationGrant.id).where(
+                PublicationGrant.slide_id == slide.id,
+                PublicationGrant.source_type == INDIVIDUAL,
+                PublicationGrant.source_id == slide.id,
+            )
+        )
+        if (
+            slide.state != SlideState.PUBLISHED
+            or slide.privacy_status != "passed"
+            or slide.render_mode != "static_dzi"
+            or not slide.sha256
+            or grant is None
+        ):
+            return "publication_incomplete", None
+        if not isinstance(width, int) or not isinstance(height, int) or width <= 0 or height <= 0:
+            return "metadata_invalid", None
+        if slide.derivative_file_count <= 0:
+            return "delivery_missing", None
+        version = delivery_version(slide)
+        try:
+            descriptor = static_descriptor(slide, version)
+        except HTTPException:
+            return "delivery_missing", None
+        if descriptor[0] != width or descriptor[1] != height:
+            return "metadata_invalid", None
+        return None, descriptor
+
+    def folder_slide_ids(folder_id: str, db: OrmSession) -> list[str]:
+        folders = list(db.scalars(select(Folder).where(Folder.trashed_at.is_(None))))
+        descendants = {folder_id}
+        changed = True
+        while changed:
+            changed = False
+            for folder in folders:
+                if folder.parent_id in descendants and folder.id not in descendants:
+                    descendants.add(folder.id)
+                    changed = True
+        return list(
+            db.scalars(
+                select(Slide.id)
+                .where(Slide.folder_id.in_(descendants), Slide.trashed_at.is_(None))
+                .order_by(Slide.created_at, Slide.id)
+            )
+        )
+
+    def readiness_snapshot(folder_id: str, db: OrmSession) -> dict[str, Any]:
+        folder = db.get(Folder, folder_id)
+        if folder is None or folder.trashed_at is not None:
+            raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
+        ready: list[dict[str, Any]] = []
+        blocked: list[dict[str, Any]] = []
+        for slide_id in folder_slide_ids(folder_id, db):
+            slide = db.get(Slide, slide_id)
+            if slide is None:
+                continue
+            reason, _descriptor = slide_readiness(slide, db)
+            item = {
+                "id": slide.id,
+                "displayName": slide.display_name,
+                "folderPath": slide_folder_path(slide, db),
+            }
+            if reason:
+                blocked.append({**item, "reason": reason})
+            else:
+                ready.append(item)
+        return {"folderId": folder_id, "ready": ready, "blocked": blocked}
 
     def slide_folder_path(slide: Slide, db: OrmSession) -> list[str]:
         path: list[str] = []
@@ -290,6 +393,25 @@ def register_classroom_routes(
             raise HTTPException(status_code=401, detail={"code": "PARTICIPANT_REQUIRED"})
         return participant, raw_token
 
+    def require_live_classroom(
+        session_id: str,
+        db: OrmSession,
+        *,
+        code: str = "CLASSROOM_NOT_LIVE",
+        status_code: int = 409,
+    ) -> ClassroomSession:
+        classroom = db.get(ClassroomSession, session_id)
+        deadline = classroom.live_expires_at or classroom.expires_at if classroom else None
+        if (
+            classroom is None
+            or classroom.status != "active"
+            or classroom.phase != "live"
+            or deadline is None
+            or deadline <= _now()
+        ):
+            raise HTTPException(status_code=status_code, detail={"code": code})
+        return classroom
+
     def expire_control(classroom: ClassroomSession, db: OrmSession) -> None:
         if (
             classroom.controller_participant_id is None
@@ -330,6 +452,12 @@ def register_classroom_routes(
             "viewport": current.viewport,
         }
 
+    @app.post("/api/v1/admin/classroom/readiness")
+    def classroom_readiness(
+        payload: ReadinessRequest, _: AdminSession, db: Database
+    ) -> dict[str, Any]:
+        return readiness_snapshot(payload.folder_id, db)
+
     @app.post(
         "/api/v1/admin/classroom/sessions",
         status_code=status.HTTP_201_CREATED,
@@ -337,66 +465,87 @@ def register_classroom_routes(
     def create_session(
         payload: CreateSessionRequest, _: CsrfSession, _guard: MutationGuard, db: Database
     ) -> dict[str, Any]:
+        now = _now()
         expired = list(
             db.scalars(
                 select(ClassroomSession).where(
                     ClassroomSession.status == "active",
-                    ClassroomSession.expires_at <= _now(),
+                    ClassroomSession.expires_at <= now,
                 )
             )
         )
         for stale in expired:
-            db.delete(stale)
+            if (
+                stale.public_id is not None
+                and stale.review_expires_at is not None
+                and stale.review_expires_at > now
+            ):
+                stale.phase = "review"
+                stale.status = "ended"
+                stale.ended_at = now
+                stale.expires_at = stale.review_expires_at
+                stale.state_version += 1
+            else:
+                db.delete(stale)
         if expired:
             db.commit()
         active = db.scalar(select(ClassroomSession).where(ClassroomSession.status == "active"))
         if active is not None:
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_ALREADY_ACTIVE"})
-        slides = list(db.scalars(select(Slide).where(Slide.id.in_(payload.slide_ids))))
-        slides_by_id = {slide.id: slide for slide in slides}
-        if len(slides_by_id) != len(set(payload.slide_ids)):
-            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
-        join_code = ""
-        for _attempt in range(10):
-            candidate = "".join(secrets.choice(JOIN_ALPHABET) for _ in range(10))
-            collision = db.scalar(
-                select(ClassroomSession.id).where(
-                    ClassroomSession.join_code_hash == _hash(candidate)
+        is_smart_invite = payload.folder_id is not None
+        if is_smart_invite:
+            if payload.slide_ids is not None or payload.review_expires_at is None:
+                raise HTTPException(status_code=422, detail={"code": "CLASSROOM_REQUEST_INVALID"})
+            review_expires_at = payload.review_expires_at.replace(tzinfo=None)
+            if review_expires_at < now + timedelta(hours=1) or review_expires_at > now + timedelta(
+                days=30
+            ):
+                raise HTTPException(status_code=422, detail={"code": "CLASSROOM_EXPIRY_INVALID"})
+            readiness = readiness_snapshot(payload.folder_id or "", db)
+            if readiness["blocked"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "CLASSROOM_SLIDES_BLOCKED", "blocked": readiness["blocked"]},
                 )
-            )
-            if collision is None:
-                join_code = candidate
-                break
-        if not join_code:
-            raise HTTPException(status_code=503, detail={"code": "JOIN_CODE_UNAVAILABLE"})
+            slide_ids = [item["id"] for item in readiness["ready"]]
+            if not slide_ids:
+                raise HTTPException(status_code=409, detail={"code": "CLASSROOM_EMPTY"})
+        else:
+            slide_ids = payload.slide_ids or []
+            review_expires_at = None
+            if not slide_ids:
+                raise HTTPException(status_code=422, detail={"code": "CLASSROOM_REQUEST_INVALID"})
+        slides = list(db.scalars(select(Slide).where(Slide.id.in_(slide_ids))))
+        slides_by_id = {slide.id: slide for slide in slides}
+        if len(slides_by_id) != len(set(slide_ids)):
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
+        public_id = secrets.token_urlsafe(24) if is_smart_invite else None
+        join_code = (
+            access_code(public_id, 1)
+            if public_id
+            else "".join(secrets.choice(JOIN_ALPHABET) for _ in range(10))
+        )
         classroom = ClassroomSession(
             join_code_hash=_hash(join_code),
-            expires_at=_now() + timedelta(hours=8),
-            current_slide_id=payload.slide_ids[0],
+            public_id=public_id,
+            phase="preview" if is_smart_invite else "live",
+            folder_id=payload.folder_id,
+            review_expires_at=review_expires_at,
+            expires_at=review_expires_at or (now + timedelta(hours=8)),
+            live_expires_at=None if is_smart_invite else now + timedelta(hours=8),
+            started_at=None if is_smart_invite else now,
+            current_slide_id=slide_ids[0],
         )
         db.add(classroom)
         db.flush()
         snapshot: list[ClassroomSessionSlide] = []
-        for position, slide_id in enumerate(payload.slide_ids):
+        for position, slide_id in enumerate(slide_ids):
             slide = slides_by_id[slide_id]
-            metadata = slide.slide_metadata or {}
-            width = metadata.get("width")
-            height = metadata.get("height")
-            if (
-                slide.state != SlideState.PUBLISHED
-                or slide.render_mode != "static_dzi"
-                or not slide.sha256
-                or not isinstance(width, int)
-                or not isinstance(height, int)
-                or width <= 0
-                or height <= 0
-                or slide.derivative_file_count <= 0
-            ):
+            reason, descriptor = slide_readiness(slide, db)
+            if reason or descriptor is None:
                 raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
             version = delivery_version(slide)
-            width, height, tile_size, tile_format = static_descriptor(slide, version)
-            if width != metadata.get("width") or height != metadata.get("height"):
-                raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
+            width, height, tile_size, tile_format = descriptor
             item = ClassroomSessionSlide(
                 session_id=classroom.id,
                 slide_id=slide.id,
@@ -417,9 +566,57 @@ def register_classroom_routes(
         return {
             "id": classroom.id,
             "joinCode": join_code,
+            "publicId": classroom.public_id,
+            "phase": classroom.phase,
+            "reviewExpiresAt": classroom.review_expires_at.isoformat()
+            if classroom.review_expires_at
+            else None,
             "stateVersion": classroom.state_version,
             "slides": [_session_slide_json(item) for item in snapshot],
         }
+
+    @app.post("/api/v1/admin/classroom/sessions/{session_id}/start")
+    def start_session(
+        session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
+    ) -> dict[str, Any]:
+        classroom = db.get(ClassroomSession, session_id)
+        if (
+            classroom is None
+            or classroom.phase != "preview"
+            or classroom.review_expires_at is None
+            or classroom.review_expires_at <= _now()
+        ):
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        classroom.phase = "live"
+        classroom.started_at = _now()
+        classroom.live_expires_at = _now() + timedelta(hours=8)
+        classroom.expires_at = min(classroom.review_expires_at, classroom.live_expires_at)
+        classroom.state_version += 1
+        db.commit()
+        return {
+            "id": classroom.id,
+            "phase": classroom.phase,
+            "liveExpiresAt": classroom.live_expires_at.isoformat(),
+        }
+
+    @app.post("/api/v1/admin/classroom/sessions/{session_id}/end", status_code=204)
+    def end_live_session(
+        session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
+    ) -> None:
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None or classroom.phase != "live":
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        classroom.phase = "review"
+        classroom.status = "ended"
+        classroom.expires_at = classroom.review_expires_at or _now()
+        classroom.ended_at = _now()
+        classroom.state_version += 1
+        db.commit()
+        presenter_runtime.forget(session_id)
+        hub.clear_session(session_id)
+        hub.publish(
+            session_id, "session-ended", {"stateVersion": classroom.state_version}, critical=True
+        )
 
     @app.delete(
         "/api/v1/admin/classroom/sessions/active",
@@ -431,7 +628,10 @@ def register_classroom_routes(
             return
         session_id = classroom.id
         next_state_version = classroom.state_version + 1
-        db.delete(classroom)
+        classroom.status = "ended"
+        classroom.phase = "revoked"
+        classroom.ended_at = _now()
+        classroom.state_version = next_state_version
         db.commit()
         presenter_runtime.forget(session_id)
         hub.clear_session(session_id)
@@ -452,6 +652,7 @@ def register_classroom_routes(
             select(ClassroomSession).where(
                 ClassroomSession.join_code_hash == _hash(payload.join_code.strip().upper()),
                 ClassroomSession.status == "active",
+                ClassroomSession.phase == "live",
                 ClassroomSession.expires_at > _now(),
             )
         )
@@ -529,6 +730,7 @@ def register_classroom_routes(
             token_hash=_hash(token),
             public_alias=alias,
             optional_display_name=_display_name(payload.display_name),
+            joined_live_at=_now(),
             disconnected_at=_now(),
         )
         db.add(participant)
@@ -573,6 +775,199 @@ def register_classroom_routes(
         async with join_queue_lock:
             return await run_in_threadpool(execute_join, payload, request, response)
 
+    def invite_classroom(public_id: str, db: OrmSession) -> ClassroomSession:
+        classroom = db.scalar(
+            select(ClassroomSession).where(ClassroomSession.public_id == public_id)
+        )
+        if (
+            classroom is not None
+            and classroom.phase == "live"
+            and classroom.live_expires_at is not None
+            and classroom.live_expires_at <= _now()
+            and classroom.review_expires_at is not None
+            and classroom.review_expires_at > _now()
+        ):
+            classroom.phase = "review"
+            classroom.status = "ended"
+            classroom.ended_at = _now()
+            classroom.expires_at = classroom.review_expires_at
+            classroom.state_version += 1
+            db.commit()
+            presenter_runtime.forget(classroom.id)
+            hub.clear_session(classroom.id)
+            hub.publish(
+                classroom.id,
+                "session-ended",
+                {"stateVersion": classroom.state_version},
+                critical=True,
+            )
+        if (
+            classroom is None
+            or classroom.phase == "revoked"
+            or classroom.review_expires_at is None
+            or classroom.review_expires_at <= _now()
+        ):
+            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
+        return classroom
+
+    @app.post("/api/v1/classroom/invites/{public_id}/unlock")
+    def unlock_invite(
+        public_id: str,
+        payload: InviteUnlockRequest,
+        request: Request,
+        response: Response,
+        _guard: MutationGuard,
+        db: Database,
+    ) -> dict[str, Any]:
+        key = f"{request.client.host if request.client else 'unknown'}:{public_id}"
+        cutoff = _now() - timedelta(minutes=5)
+        attempts = [attempt for attempt in unlock_attempts.get(key, []) if attempt >= cutoff]
+        if len(attempts) >= 8:
+            raise HTTPException(status_code=429, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
+        classroom = invite_classroom(public_id, db)
+        review_expires_at = classroom.review_expires_at
+        assert review_expires_at is not None
+        candidate = payload.access_code.strip().upper()
+        if not secrets.compare_digest(classroom.join_code_hash, _hash(candidate)):
+            attempts.append(_now())
+            unlock_attempts[key] = attempts
+            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
+        unlock_attempts.pop(key, None)
+        signed = request.cookies.get(PARTICIPANT_COOKIE)
+        if signed:
+            try:
+                claims = serializer.loads(signed)
+            except BadSignature:
+                claims = None
+            if isinstance(claims, dict) and claims.get("sessionId") == classroom.id:
+                participant = db.get(ClassroomParticipant, claims.get("participantId"))
+                token = claims.get("token")
+                if (
+                    participant is not None
+                    and isinstance(token, str)
+                    and secrets.compare_digest(participant.token_hash, _hash(token))
+                ):
+                    return _participant_response(
+                        participant,
+                        token,
+                        classroom.id,
+                        response,
+                        serializer,
+                        settings.secure_cookies,
+                        200,
+                        max_age_seconds=max(1, int((review_expires_at - _now()).total_seconds())),
+                    )
+        token = secrets.token_urlsafe(32)
+        existing_aliases = set(
+            db.scalars(
+                select(ClassroomParticipant.public_alias).where(
+                    ClassroomParticipant.session_id == classroom.id
+                )
+            )
+        )
+        alias = ""
+        for _attempt in range(50):
+            candidate_alias = f"{secrets.choice(ALIAS_WORDS)}-{secrets.randbelow(90) + 10}"
+            if candidate_alias not in existing_aliases:
+                alias = candidate_alias
+                break
+        if not alias:
+            alias = secrets.token_hex(4).upper()
+        participant = ClassroomParticipant(
+            session_id=classroom.id,
+            token_hash=_hash(token),
+            public_alias=alias,
+            optional_display_name=_display_name(payload.display_name),
+            disconnected_at=_now(),
+        )
+        db.add(participant)
+        db.commit()
+        result = _participant_response(
+            participant,
+            token,
+            classroom.id,
+            response,
+            serializer,
+            settings.secure_cookies,
+            201,
+            max_age_seconds=max(1, int((review_expires_at - _now()).total_seconds())),
+        )
+        return {**result, "publicId": public_id, "phase": classroom.phase}
+
+    @app.get("/api/v1/classroom/invites/{public_id}")
+    def invite_state(public_id: str, request: Request, db: Database) -> dict[str, Any]:
+        classroom = invite_classroom(public_id, db)
+        review_expires_at = classroom.review_expires_at
+        assert review_expires_at is not None
+        participant, raw_token = participant_from_request(request, db, classroom.id)
+        slides = list(
+            db.scalars(
+                select(ClassroomSessionSlide)
+                .where(ClassroomSessionSlide.session_id == classroom.id)
+                .order_by(ClassroomSessionSlide.slide_position)
+            )
+        )
+        return {
+            "sessionId": classroom.id,
+            "publicId": public_id,
+            "phase": classroom.phase,
+            "reviewExpiresAt": review_expires_at.isoformat(),
+            "participant": {"id": participant.id, "alias": participant.public_alias},
+            "csrfToken": raw_token,
+            "slides": [_session_slide_json(item) for item in slides],
+        }
+
+    @app.get("/api/v1/classroom/invites/{public_id}/phase")
+    def invite_phase(public_id: str, request: Request, db: Database) -> dict[str, Any]:
+        classroom = invite_classroom(public_id, db)
+        review_expires_at = classroom.review_expires_at
+        assert review_expires_at is not None
+        participant_from_request(request, db, classroom.id)
+        return {
+            "sessionId": classroom.id,
+            "phase": classroom.phase,
+            "reviewExpiresAt": review_expires_at.isoformat(),
+        }
+
+    @app.post("/api/v1/classroom/sessions/{session_id}/live-join")
+    def join_live(
+        session_id: str,
+        payload: LiveJoinRequest,
+        request: Request,
+        _guard: MutationGuard,
+        db: Database,
+    ) -> dict[str, Any]:
+        participant, raw_token = participant_from_request(request, db, session_id)
+        if not secrets.compare_digest(payload.csrf_token, raw_token):
+            raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        classroom = require_live_classroom(session_id, db)
+        if participant.joined_live_at is None:
+            live_count = db.scalar(
+                select(func.count())
+                .select_from(ClassroomParticipant)
+                .where(
+                    ClassroomParticipant.session_id == session_id,
+                    ClassroomParticipant.joined_live_at.is_not(None),
+                )
+            )
+            if int(live_count or 0) >= 300:
+                raise HTTPException(status_code=409, detail={"code": "CLASSROOM_FULL"})
+            participant.joined_live_at = _now()
+            classroom.state_version += 1
+            db.commit()
+            hub.publish(
+                classroom.id,
+                "participant-joined",
+                {
+                    "stateVersion": classroom.state_version,
+                    "participantId": participant.id,
+                    "alias": participant.public_alias,
+                },
+                critical=True,
+                audience="teacher",
+            )
+        return {"sessionId": session_id, "phase": classroom.phase}
+
     @app.get("/api/v1/admin/classroom/sessions/{session_id}")
     def teacher_state(session_id: str, _: AdminSession, db: Database) -> dict[str, Any]:
         classroom = db.get(ClassroomSession, session_id)
@@ -581,7 +976,10 @@ def register_classroom_routes(
         participants = list(
             db.scalars(
                 select(ClassroomParticipant)
-                .where(ClassroomParticipant.session_id == session_id)
+                .where(
+                    ClassroomParticipant.session_id == session_id,
+                    ClassroomParticipant.joined_live_at.is_not(None),
+                )
                 .order_by(ClassroomParticipant.created_at)
                 .limit(300)
             )
@@ -597,7 +995,18 @@ def register_classroom_routes(
         participants_by_id = {item.id: item for item in participants}
         control_requests = hub.control_requests(session_id)
         return {
-            "session": {"id": classroom.id, "status": classroom.status},
+            "session": {
+                "id": classroom.id,
+                "status": classroom.status,
+                "phase": classroom.phase,
+                "publicId": classroom.public_id,
+                "joinCode": access_code(classroom.public_id, classroom.code_generation)
+                if classroom.public_id
+                else None,
+                "reviewExpiresAt": classroom.review_expires_at.isoformat()
+                if classroom.review_expires_at
+                else None,
+            },
             "stateVersion": classroom.state_version,
             "presenter": presenter_json(classroom),
             "controller": {
@@ -659,12 +1068,41 @@ def register_classroom_routes(
             "presenterPersistenceWrites": presenter_runtime.persistence_writes,
         }
 
+    @app.get("/api/v1/admin/classroom/sessions")
+    def list_classroom_sessions(_: AdminSession, db: Database) -> dict[str, Any]:
+        sessions = list(
+            db.scalars(
+                select(ClassroomSession)
+                .where(
+                    ClassroomSession.public_id.is_not(None),
+                    ClassroomSession.phase.in_(("preview", "live", "review")),
+                    ClassroomSession.review_expires_at > _now(),
+                )
+                .order_by(ClassroomSession.created_at.desc())
+                .limit(20)
+            )
+        )
+        return {
+            "sessions": [
+                {
+                    "id": item.id,
+                    "publicId": item.public_id,
+                    "phase": item.phase,
+                    "joinCode": access_code(item.public_id or "", item.code_generation),
+                    "reviewExpiresAt": item.review_expires_at.isoformat()
+                    if item.review_expires_at
+                    else None,
+                }
+                for item in sessions
+            ]
+        }
+
     @app.get("/api/v1/classroom/sessions/{session_id}")
     def student_state(session_id: str, request: Request, db: Database) -> dict[str, Any]:
         participant, raw_token = participant_from_request(request, db, session_id)
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is None or classroom.status != "active":
-            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        classroom = require_live_classroom(
+            session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404
+        )
         expire_control(classroom, db)
         slides = list(
             db.scalars(
@@ -691,11 +1129,15 @@ def register_classroom_routes(
         )
         if active_pin is not None:
             active_pin = {
-                key: active_pin[key]
-                for key in ("participantId", "slideId", "x", "y", "zoom")
+                key: active_pin[key] for key in ("participantId", "slideId", "x", "y", "zoom")
             }
         return {
-            "session": {"id": classroom.id, "status": classroom.status},
+            "session": {
+                "id": classroom.id,
+                "status": classroom.status,
+                "phase": classroom.phase,
+                "publicId": classroom.public_id,
+            },
             "participant": {
                 "id": participant.id,
                 "alias": participant.public_alias,
@@ -739,14 +1181,14 @@ def register_classroom_routes(
         participant, raw_token = participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = require_live_classroom(session_id, db, code="PIN_NOT_ACCEPTED")
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
                 ClassroomSessionSlide.slide_id == payload.slide_id,
             )
         )
-        if classroom is None or classroom.status != "active" or slide_exists is None:
+        if slide_exists is None:
             raise HTTPException(status_code=409, detail={"code": "PIN_NOT_ACCEPTED"})
         pin = {
             "participantId": participant.id,
@@ -778,6 +1220,7 @@ def register_classroom_routes(
         participant, raw_token = participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        require_live_classroom(session_id, db, code="PIN_NOT_ACCEPTED")
         if hub.clear_pin(session_id, participant.id):
             hub.publish(
                 session_id,
@@ -800,9 +1243,9 @@ def register_classroom_routes(
         participant, raw_token = participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is None or classroom.status != "active":
-            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        classroom = require_live_classroom(
+            session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404
+        )
         if hub.request_control(session_id, participant.id):
             hub.publish(
                 session_id,
@@ -828,6 +1271,7 @@ def register_classroom_routes(
         participant, raw_token = participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        require_live_classroom(session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404)
         if hub.cancel_control_request(session_id, participant.id):
             hub.publish(
                 session_id,
@@ -852,6 +1296,7 @@ def register_classroom_routes(
         participant, raw_token = participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        classroom = require_live_classroom(session_id, db, code="QUESTION_NOT_ACCEPTED")
         receipt_hash = _hash(payload.idempotency_key)
         existing = db.scalar(
             select(ClassroomQuestionReceipt).where(
@@ -904,15 +1349,13 @@ def register_classroom_routes(
                 original_question_id=question.id,
             )
         )
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is not None:
-            classroom.state_version += 1
+        classroom.state_version += 1
         db.commit()
         hub.publish(
             session_id,
             "question-added",
             {
-                "stateVersion": classroom.state_version if classroom is not None else 0,
+                "stateVersion": classroom.state_version,
                 "questionId": question.id,
                 "participantId": participant.id,
                 "slideId": payload.slide_id,
@@ -938,20 +1381,21 @@ def register_classroom_routes(
         db: Database,
     ) -> None:
         question = db.get(ClassroomQuestion, question_id)
+        classroom = require_live_classroom(
+            session_id, db, code="QUESTION_NOT_FOUND", status_code=404
+        )
         if question is None or question.session_id != session_id:
             raise HTTPException(status_code=404, detail={"code": "QUESTION_NOT_FOUND"})
         participant_id = question.participant_id
         question_pin = (question.slide_id, question.x, question.y)
         db.delete(question)
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is not None:
-            classroom.state_version += 1
+        classroom.state_version += 1
         db.commit()
         hub.publish(
             session_id,
             "question-removed",
             {
-                "stateVersion": classroom.state_version if classroom is not None else 0,
+                "stateVersion": classroom.state_version,
                 "questionId": question_id,
             },
             critical=True,
@@ -979,14 +1423,9 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, Any]:
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = require_live_classroom(session_id, db, code="CONTROL_NOT_AVAILABLE")
         participant = db.get(ClassroomParticipant, payload.participant_id)
-        if (
-            classroom is None
-            or classroom.status != "active"
-            or participant is None
-            or participant.session_id != session_id
-        ):
+        if participant is None or participant.session_id != session_id:
             raise HTTPException(status_code=409, detail={"code": "CONTROL_NOT_AVAILABLE"})
         expire_control(classroom, db)
         classroom.control_epoch += 1
@@ -1020,9 +1459,9 @@ def register_classroom_routes(
     def revoke_control(
         session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
     ) -> None:
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is None:
-            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        classroom = require_live_classroom(
+            session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404
+        )
         classroom.control_epoch += 1
         classroom.state_version += 1
         classroom.controller_participant_id = None
@@ -1051,7 +1490,7 @@ def register_classroom_routes(
         db: Database,
     ) -> dict[str, int]:
         participant, raw_token = participant_from_request(request, db, session_id)
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = require_live_classroom(session_id, db, code="CONTROL_LEASE_STALE")
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
@@ -1063,9 +1502,7 @@ def register_classroom_routes(
         if not hub.allow_presenter(participant.id):
             raise HTTPException(status_code=429, detail={"code": "PRESENTER_RATE_LIMITED"})
         if (
-            classroom is None
-            or classroom.status != "active"
-            or classroom.controller_participant_id != participant.id
+            classroom.controller_participant_id != participant.id
             or classroom.controller_lease_id is None
             or not secrets.compare_digest(classroom.controller_lease_id, payload.lease_id)
             or classroom.controller_expires_at is None
@@ -1107,14 +1544,14 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, int]:
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = require_live_classroom(session_id, db, code="PRESENTER_NOT_ACCEPTED")
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
                 ClassroomSessionSlide.slide_id == payload.slide_id,
             )
         )
-        if classroom is None or classroom.status != "active" or slide_exists is None:
+        if slide_exists is None:
             raise HTTPException(status_code=409, detail={"code": "PRESENTER_NOT_ACCEPTED"})
         took_control = classroom.controller_participant_id is not None
         if took_control:
@@ -1175,14 +1612,14 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        classroom = db.get(ClassroomSession, session_id)
+        require_live_classroom(session_id, db, code="POINTER_NOT_ACCEPTED")
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
                 ClassroomSessionSlide.slide_id == payload.slide_id,
             )
         )
-        if classroom is None or classroom.status != "active" or slide_exists is None:
+        if slide_exists is None:
             raise HTTPException(status_code=409, detail={"code": "POINTER_NOT_ACCEPTED"})
         pointer = {
             "slideId": payload.slide_id,
@@ -1201,7 +1638,9 @@ def register_classroom_routes(
         session_id: str,
         _: CsrfSession,
         _guard: MutationGuard,
+        db: Database,
     ) -> None:
+        require_live_classroom(session_id, db, code="POINTER_NOT_ACCEPTED")
         if hub.clear_teacher_pointer(session_id):
             hub.publish(session_id, "pointer-removed", {}, critical=True)
 
@@ -1216,14 +1655,14 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        classroom = db.get(ClassroomSession, session_id)
+        require_live_classroom(session_id, db, code="ANNOTATION_NOT_ACCEPTED")
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
                 ClassroomSessionSlide.slide_id == payload.slide_id,
             )
         )
-        if classroom is None or classroom.status != "active" or slide_exists is None:
+        if slide_exists is None:
             raise HTTPException(status_code=409, detail={"code": "ANNOTATION_NOT_ACCEPTED"})
         annotation = {
             "id": payload.annotation_id,
@@ -1250,7 +1689,9 @@ def register_classroom_routes(
         annotation_id: str,
         _: CsrfSession,
         _guard: MutationGuard,
+        db: Database,
     ) -> None:
+        require_live_classroom(session_id, db, code="ANNOTATION_NOT_ACCEPTED")
         if hub.remove_teaching_annotation(session_id, annotation_id):
             hub.publish(
                 session_id,
@@ -1267,7 +1708,9 @@ def register_classroom_routes(
         session_id: str,
         _: CsrfSession,
         _guard: MutationGuard,
+        db: Database,
     ) -> None:
+        require_live_classroom(session_id, db, code="ANNOTATION_NOT_ACCEPTED")
         if hub.clear_teaching_annotations(session_id):
             hub.publish(session_id, "teaching-annotations-cleared", {}, critical=True)
 
@@ -1279,14 +1722,11 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, int]:
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = require_live_classroom(
+            session_id, db, code="QUESTION_NOT_FOUND", status_code=404
+        )
         question = db.get(ClassroomQuestion, question_id)
-        if (
-            classroom is None
-            or classroom.status != "active"
-            or question is None
-            or question.session_id != session_id
-        ):
+        if question is None or question.session_id != session_id:
             raise HTTPException(status_code=404, detail={"code": "QUESTION_NOT_FOUND"})
         classroom.control_epoch += 1
         classroom.state_version += 1
@@ -1334,20 +1774,21 @@ def register_classroom_routes(
         "/api/v1/admin/classroom/sessions/{session_id}",
         status_code=status.HTTP_204_NO_CONTENT,
     )
-    def end_session(
-        session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
-    ) -> None:
+    def end_session(session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database) -> None:
         classroom = db.get(ClassroomSession, session_id)
         if classroom is None:
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
-        db.delete(classroom)
+        classroom.status = "ended"
+        classroom.phase = "revoked"
+        classroom.ended_at = _now()
+        classroom.state_version += 1
         db.commit()
         presenter_runtime.forget(session_id)
         hub.clear_session(session_id)
         hub.publish(
             session_id,
             "session-ended",
-            {"stateVersion": classroom.state_version + 1},
+            {"stateVersion": classroom.state_version},
             critical=True,
         )
 
@@ -1465,6 +1906,7 @@ def _participant_response(
     serializer: URLSafeSerializer,
     secure_cookies: bool,
     status_code: int,
+    max_age_seconds: int = 8 * 60 * 60,
 ) -> dict[str, Any]:
     response.status_code = status_code
     response.set_cookie(
@@ -1475,7 +1917,7 @@ def _participant_response(
         httponly=True,
         secure=secure_cookies,
         samesite="strict",
-        max_age=8 * 60 * 60,
+        max_age=max_age_seconds,
         path="/api/v1/classroom",
     )
     return {

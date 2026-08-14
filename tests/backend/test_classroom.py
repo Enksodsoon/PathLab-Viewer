@@ -2,7 +2,7 @@ import hashlib
 import json
 import sqlite3
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -12,7 +12,7 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
-from wsi_viewer.models import Folder, Slide, User
+from wsi_viewer.models import Folder, PublicationGrant, Slide, User
 from wsi_viewer.publication import delivery_version
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
@@ -62,7 +62,12 @@ def _client(tmp_path: Path, *, enabled: bool) -> TestClient:
                 sha256="a" * 64,
                 folder_id="folder-1",
                 published_at=datetime.now(UTC),
+                privacy_status="passed",
             )
+        )
+        database.flush()
+        database.add(
+            PublicationGrant(slide_id="slide-1", source_type="individual", source_id="slide-1")
         )
         database.commit()
     with session_factory(settings)() as database:
@@ -142,6 +147,179 @@ def test_admin_can_end_an_active_session_after_losing_browser_state(tmp_path: Pa
             json={"slideIds": ["slide-1"]},
         )
         assert restarted.status_code == 201
+
+
+def test_smart_invite_supports_preview_live_and_post_class_review(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        readiness = client.post(
+            "/api/v1/admin/classroom/readiness",
+            headers=headers,
+            json={"folderId": "folder-1"},
+        )
+        assert readiness.status_code == 200
+        assert [item["id"] for item in readiness.json()["ready"]] == ["slide-1"]
+        assert readiness.json()["blocked"] == []
+
+        expiry = datetime.now(UTC) + timedelta(days=7)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"folderId": "folder-1", "reviewExpiresAt": expiry.isoformat()},
+        )
+        assert created.status_code == 201, created.text
+        classroom = created.json()
+        assert classroom["phase"] == "preview"
+        assert classroom["publicId"]
+        assert classroom["joinCode"] not in f"/classroom/invite/{classroom['publicId']}"
+
+        unlocked = client.post(
+            f"/api/v1/classroom/invites/{classroom['publicId']}/unlock",
+            json={"accessCode": classroom["joinCode"], "displayName": "Student"},
+        )
+        assert unlocked.status_code == 201, unlocked.text
+        assert unlocked.json()["phase"] == "preview"
+        preview = client.get(f"/api/v1/classroom/invites/{classroom['publicId']}")
+        assert preview.status_code == 200
+        assert preview.json()["slides"][0]["id"] == "slide-1"
+
+        preview_question = client.post(
+            f"/api/v1/classroom/sessions/{classroom['id']}/questions",
+            json={
+                "idempotencyKey": "preview-question",
+                "slideId": "slide-1",
+                "text": "Not live yet",
+                "x": 0.25,
+                "y": 0.5,
+                "zoom": 4,
+                "csrfToken": unlocked.json()["csrfToken"],
+            },
+        )
+        assert preview_question.status_code == 409
+
+        not_live = client.post(
+            f"/api/v1/classroom/sessions/{classroom['id']}/live-join",
+            json={"csrfToken": unlocked.json()["csrfToken"]},
+        )
+        assert not_live.status_code == 409
+        assert (
+            client.post(
+                f"/api/v1/admin/classroom/sessions/{classroom['id']}/start",
+                headers=headers,
+            ).status_code
+            == 200
+        )
+        assert (
+            client.post(
+                f"/api/v1/classroom/sessions/{classroom['id']}/live-join",
+                json={"csrfToken": unlocked.json()["csrfToken"]},
+            ).status_code
+            == 200
+        )
+        roster = client.get(f"/api/v1/admin/classroom/sessions/{classroom['id']}").json()
+        assert roster["session"]["phase"] == "live"
+        assert len(roster["participants"]) == 1
+
+        assert (
+            client.post(
+                f"/api/v1/admin/classroom/sessions/{classroom['id']}/end",
+                headers=headers,
+            ).status_code
+            == 204
+        )
+        phase = client.get(f"/api/v1/classroom/invites/{classroom['publicId']}/phase")
+        assert phase.status_code == 200
+        assert phase.json()["phase"] == "review"
+        review_pin = client.post(
+            f"/api/v1/classroom/sessions/{classroom['id']}/pin",
+            json={
+                "slideId": "slide-1",
+                "x": 0.25,
+                "y": 0.5,
+                "zoom": 4,
+                "csrfToken": unlocked.json()["csrfToken"],
+            },
+        )
+        assert review_pin.status_code == 409
+        assert (
+            client.delete(
+                f"/api/v1/admin/classroom/sessions/{classroom['id']}", headers=headers
+            ).status_code
+            == 204
+        )
+        assert (
+            client.get(f"/api/v1/classroom/invites/{classroom['publicId']}/phase").status_code
+            == 404
+        )
+
+
+def test_smart_invite_blocks_folder_when_delivery_is_missing(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        with sqlite3.connect(tmp_path / "test.sqlite3") as database:
+            database.execute("UPDATE slides SET derivative_file_count = 0 WHERE id = 'slide-1'")
+            database.commit()
+        readiness = client.post(
+            "/api/v1/admin/classroom/readiness", headers=headers, json={"folderId": "folder-1"}
+        )
+        assert readiness.status_code == 200
+        assert readiness.json()["blocked"][0]["reason"] == "delivery_missing"
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={
+                "folderId": "folder-1",
+                "reviewExpiresAt": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+            },
+        )
+        assert created.status_code == 409
+        assert created.json()["detail"]["code"] == "CLASSROOM_SLIDES_BLOCKED"
+
+
+def test_expired_live_ceiling_becomes_review_and_does_not_block_next_preview(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        expiry = datetime.now(UTC) + timedelta(days=7)
+        first = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"folderId": "folder-1", "reviewExpiresAt": expiry.isoformat()},
+        ).json()
+        assert (
+            client.post(
+                f"/api/v1/admin/classroom/sessions/{first['id']}/start", headers=headers
+            ).status_code
+            == 200
+        )
+        assert (
+            client.post(
+                f"/api/v1/classroom/invites/{first['publicId']}/unlock",
+                json={"accessCode": first["joinCode"]},
+            ).status_code
+            == 201
+        )
+        past = (datetime.now(UTC) - timedelta(minutes=1)).replace(tzinfo=None).isoformat()
+        with sqlite3.connect(tmp_path / "test.sqlite3") as database:
+            database.execute(
+                "UPDATE classroom_sessions SET live_expires_at = ?, expires_at = ? WHERE id = ?",
+                (past, past, first["id"]),
+            )
+            database.commit()
+
+        phase = client.get(f"/api/v1/classroom/invites/{first['publicId']}/phase")
+        assert phase.status_code == 200
+        assert phase.json()["phase"] == "review"
+
+        second = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"folderId": "folder-1", "reviewExpiresAt": expiry.isoformat()},
+        )
+        assert second.status_code == 201, second.text
+        recent = client.get("/api/v1/admin/classroom/sessions", headers=headers).json()["sessions"]
+        assert {item["phase"] for item in recent} == {"preview", "review"}
 
 
 def test_deleted_question_retry_returns_receipt_instead_of_recreating(tmp_path: Path) -> None:
@@ -243,9 +421,9 @@ def test_presenter_updates_are_immediate_but_persisted_sparsely(tmp_path: Path) 
         state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}")
         assert state.json()["presenter"]["viewport"]["x"] == 0.3
         assert state.json()["presenter"]["viewport"]["zoomSpace"] == "viewport"
-        assert client.get("/api/v1/admin/classroom/metrics").json()[
-            "presenterPersistenceWrites"
-        ] == 0
+        assert (
+            client.get("/api/v1/admin/classroom/metrics").json()["presenterPersistenceWrites"] == 0
+        )
 
         time.sleep(2.3)
         metrics = client.get("/api/v1/admin/classroom/metrics").json()
@@ -285,13 +463,17 @@ def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: P
             "zoom": 4,
         }
 
-        assert client.post(
-            f"/api/v1/classroom/sessions/{created['id']}/pin", json=pin
-        ).status_code == 204
-        assert client.post(
-            f"/api/v1/classroom/sessions/{created['id']}/control-request",
-            json=mutation,
-        ).status_code == 204
+        assert (
+            client.post(f"/api/v1/classroom/sessions/{created['id']}/pin", json=pin).status_code
+            == 204
+        )
+        assert (
+            client.post(
+                f"/api/v1/classroom/sessions/{created['id']}/control-request",
+                json=mutation,
+            ).status_code
+            == 204
+        )
 
         state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}").json()
         assert state["activePins"] == [
@@ -306,9 +488,7 @@ def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: P
         ]
         assert state["participants"][0]["controlRequested"] is True
 
-        student_state = client.get(
-            f"/api/v1/classroom/sessions/{created['id']}"
-        ).json()
+        student_state = client.get(f"/api/v1/classroom/sessions/{created['id']}").json()
         assert student_state["activePin"] == {
             "participantId": joined["participant"]["id"],
             "slideId": "slide-1",
@@ -326,17 +506,19 @@ def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: P
         state = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}").json()
         assert state["participants"][0]["controlRequested"] is False
 
-        assert client.request(
-            "DELETE",
-            f"/api/v1/classroom/sessions/{created['id']}/pin",
-            json=mutation,
-        ).status_code == 204
-        assert client.get(
-            f"/api/v1/admin/classroom/sessions/{created['id']}"
-        ).json()["activePins"] == []
-        assert client.get(
-            f"/api/v1/classroom/sessions/{created['id']}"
-        ).json()["activePin"] is None
+        assert (
+            client.request(
+                "DELETE",
+                f"/api/v1/classroom/sessions/{created['id']}/pin",
+                json=mutation,
+            ).status_code
+            == 204
+        )
+        assert (
+            client.get(f"/api/v1/admin/classroom/sessions/{created['id']}").json()["activePins"]
+            == []
+        )
+        assert client.get(f"/api/v1/classroom/sessions/{created['id']}").json()["activePin"] is None
 
 
 def test_teacher_pointer_and_marks_are_bounded_transient_state(tmp_path: Path) -> None:
@@ -358,29 +540,41 @@ def test_teacher_pointer_and_marks_are_bounded_transient_state(tmp_path: Path) -
             "points": [{"x": 0.2, "y": 0.3}, {"x": 0.25, "y": 0.35}],
         }
 
-        assert client.post(
-            f"/api/v1/admin/classroom/sessions/{created['id']}/pointer",
-            headers=headers,
-            json=pointer,
-        ).status_code == 204
-        assert client.post(
-            f"/api/v1/admin/classroom/sessions/{created['id']}/annotations",
-            headers=headers,
-            json=annotation,
-        ).status_code == 204
+        assert (
+            client.post(
+                f"/api/v1/admin/classroom/sessions/{created['id']}/pointer",
+                headers=headers,
+                json=pointer,
+            ).status_code
+            == 204
+        )
+        assert (
+            client.post(
+                f"/api/v1/admin/classroom/sessions/{created['id']}/annotations",
+                headers=headers,
+                json=annotation,
+            ).status_code
+            == 204
+        )
 
         state = client.get(f"/api/v1/classroom/sessions/{created['id']}").json()
         assert state["teacherPointer"] == pointer
         assert state["teachingAnnotations"] == [annotation]
 
-        assert client.delete(
-            f"/api/v1/admin/classroom/sessions/{created['id']}/annotations/teaching-mark-1",
-            headers=headers,
-        ).status_code == 204
-        assert client.delete(
-            f"/api/v1/admin/classroom/sessions/{created['id']}/pointer",
-            headers=headers,
-        ).status_code == 204
+        assert (
+            client.delete(
+                f"/api/v1/admin/classroom/sessions/{created['id']}/annotations/teaching-mark-1",
+                headers=headers,
+            ).status_code
+            == 204
+        )
+        assert (
+            client.delete(
+                f"/api/v1/admin/classroom/sessions/{created['id']}/pointer",
+                headers=headers,
+            ).status_code
+            == 204
+        )
         state = client.get(f"/api/v1/classroom/sessions/{created['id']}").json()
         assert state["teacherPointer"] is None
         assert state["teachingAnnotations"] == []
