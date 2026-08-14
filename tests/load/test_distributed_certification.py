@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta, timezone
 
+import classroom_sse
 import httpx
 import pytest
 from build_capacity_decision import (
@@ -539,6 +540,38 @@ def test_plan_reserves_admission_full_hold_and_cleanup_transition_for_every_stag
         assert stage["transitionEndEpochMs"] - stage["holdEndEpochMs"] == TRANSITION_SECONDS * 1000
         if index:
             assert stage["admissionStartEpochMs"] == stages[index - 1]["transitionEndEpochMs"]
+
+
+def test_plan_fits_the_protected_window_with_sixty_second_admissions() -> None:
+    start = datetime(2026, 8, 15, 2, 9, tzinfo=ICT)
+    plan = build_plan(
+        run_id="schedule-proof",
+        workflow_sha="a" * 40,
+        browser_ci_run_id=42,
+        start_epoch_ms=int(start.timestamp() * 1000),
+        now_epoch_ms=int(datetime(2026, 8, 15, 1, 30, tzinfo=ICT).timestamp() * 1000),
+    )
+
+    stages = plan["stages"]
+    assert isinstance(stages, list)
+    assert ADMISSION_SECONDS == 60
+    assert stages[0]["admissionStartEpochMs"] == int(start.timestamp() * 1000)
+    assert stages[0]["holdStartEpochMs"] == int(
+        datetime(2026, 8, 15, 2, 10, tzinfo=ICT).timestamp() * 1000
+    )
+    assert stages[-1]["transitionEndEpochMs"] == int(
+        datetime(2026, 8, 15, 4, 34, 30, tzinfo=ICT).timestamp() * 1000
+    )
+
+
+def test_maximum_shard_has_bounded_join_and_sse_runway_before_hold() -> None:
+    required = classroom_sse.admission_budget_required_seconds(334)
+
+    assert required == pytest.approx(52.33)
+    assert required <= ADMISSION_SECONDS
+
+    with pytest.raises(ValueError, match="participants must be 1..334"):
+        classroom_sse.admission_budget_required_seconds(335)
 
 
 def test_remote_stage_credentials_require_one_resettable_synthetic_classroom() -> None:

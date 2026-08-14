@@ -82,6 +82,8 @@ def arm(
     nonce: str,
     deadline_epoch: int,
     *,
+    rollback_sha: str = "0" * 40,
+    rollback_not_after: int | None = None,
     fault_start_epoch: int | None = None,
     fault_end_epoch: int | None = None,
 ) -> dict[str, Any]:
@@ -89,6 +91,12 @@ def arm(
         raise CapacityControlError("capacity run identity is invalid")
     if not DIGEST.fullmatch(plan_digest) or not NONCE.fullmatch(nonce):
         raise CapacityControlError("capacity run binding is invalid")
+    if rollback_not_after is None:
+        rollback_not_after = deadline_epoch + 300
+    if not SHA.fullmatch(rollback_sha) or rollback_sha == workflow_sha:
+        raise CapacityControlError("capacity rollback release is invalid")
+    if not deadline_epoch + 180 <= rollback_not_after <= deadline_epoch + 900:
+        raise CapacityControlError("capacity rollback deadline is outside the bounded window")
     if deadline_epoch < int(time.time()) + 120 or deadline_epoch > int(time.time()) + 3 * 3600:
         raise CapacityControlError("capacity deadline is outside the bounded window")
     if (fault_start_epoch is None) != (fault_end_epoch is None):
@@ -106,6 +114,8 @@ def arm(
         "planDigest": plan_digest,
         "nonceHash": hashlib.sha256(nonce.encode()).hexdigest(),
         "deadlineEpoch": deadline_epoch,
+        "rollbackSha": rollback_sha,
+        "rollbackNotAfter": rollback_not_after,
         "phase": "armed",
         "finalLimit": None,
         "faultStartEpoch": fault_start_epoch,
@@ -176,6 +186,8 @@ def request_finalize(
     state["phase"] = "finalizing"
     state["evidencePath"] = str(evidence_path)
     state["signaturePath"] = str(signature_path)
+    state["evidenceDigest"] = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+    state["decisionSignature"] = signature
     _atomic_write(state_path, state)
 
 
@@ -231,6 +243,8 @@ def sanitized_status(state_dir: Path, run_id: str) -> dict[str, Any]:
             "workflowSha",
             "planDigest",
             "deadlineEpoch",
+            "rollbackSha",
+            "rollbackNotAfter",
             "phase",
             "finalLimit",
             "faultConsumed",
@@ -276,6 +290,8 @@ def main() -> int:
         target.add_argument("--plan-digest", required=True)
         target.add_argument("--nonce", required=True)
     arm_parser.add_argument("--deadline-epoch", required=True, type=int)
+    arm_parser.add_argument("--rollback-sha", required=True)
+    arm_parser.add_argument("--rollback-not-after", required=True, type=int)
     arm_parser.add_argument("--fault-start-epoch", required=True, type=int)
     arm_parser.add_argument("--fault-end-epoch", required=True, type=int)
     status_parser = subparsers.add_parser("status")
@@ -308,6 +324,8 @@ def main() -> int:
             args.plan_digest,
             args.nonce,
             args.deadline_epoch,
+            rollback_sha=args.rollback_sha,
+            rollback_not_after=args.rollback_not_after,
             fault_start_epoch=args.fault_start_epoch,
             fault_end_epoch=args.fault_end_epoch,
         )

@@ -111,7 +111,15 @@ fi
 if [[ "${REQUEST}" == capacity-arm\ * || "${REQUEST}" == capacity-status\ * \
   || "${REQUEST}" == capacity-finalize\ * || "${REQUEST}" == capacity-fault\ * \
   || "${REQUEST}" == capacity-abort\ * || "${REQUEST}" == capacity-rollback\ * \
+  || "${REQUEST}" == capacity-ack\ * \
   || "${REQUEST}" == capacity-postflight\ * || "${REQUEST}" == capacity-rollback-preflight\ * ]]; then
+  if [[ -f /run/pathlab-capacity-controller ]]; then
+    CONTROLLER_DIR="$(cat /run/pathlab-capacity-controller)"
+    [[ "${CONTROLLER_DIR}" =~ ^/run/pathlab-capacity-[a-z0-9-]{1,64}-controller$ && \
+      -x "${CONTROLLER_DIR}/capacity-control-host.sh" ]] || \
+      fail "stable capacity controller binding is invalid"
+    exec bash "${CONTROLLER_DIR}/capacity-control-host.sh" "${REQUEST}"
+  fi
   exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" "${REQUEST}"
 fi
 
