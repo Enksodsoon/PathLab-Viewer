@@ -1792,6 +1792,35 @@ def register_classroom_routes(
             critical=True,
         )
 
+    def mark_participant_connected(session_id: str, participant_id: str) -> int | None:
+        with factory() as db:
+            participant = db.get(ClassroomParticipant, participant_id)
+            classroom = db.get(ClassroomSession, session_id)
+            if participant is None or classroom is None:
+                return None
+            participant.disconnected_at = None
+            participant.last_seen_at = _now()
+            classroom.state_version += 1
+            db.commit()
+            return int(classroom.state_version)
+
+    def stream_state_version(session_id: str) -> int | None:
+        with factory() as db:
+            classroom = db.get(ClassroomSession, session_id)
+            return None if classroom is None else int(classroom.state_version)
+
+    def mark_participant_disconnected(session_id: str, participant_id: str) -> int | None:
+        with factory() as db:
+            participant = db.get(ClassroomParticipant, participant_id)
+            classroom = db.get(ClassroomSession, session_id)
+            if participant is None or classroom is None:
+                return None
+            participant.disconnected_at = _now()
+            participant.last_seen_at = _now()
+            classroom.state_version += 1
+            db.commit()
+            return int(classroom.state_version)
+
     async def event_stream(
         session_id: str,
         audience: str,
@@ -1800,34 +1829,28 @@ def register_classroom_routes(
         if participant_id is not None:
             first_connection = hub.participant_connected(session_id, participant_id)
             if first_connection:
-                with factory() as db:
-                    participant = db.get(ClassroomParticipant, participant_id)
-                    classroom = db.get(ClassroomSession, session_id)
-                    if participant is not None and classroom is not None:
-                        participant.disconnected_at = None
-                        participant.last_seen_at = _now()
-                        classroom.state_version += 1
-                        db.commit()
-                        hub.publish(
-                            session_id,
-                            "participant-reconnected",
-                            {
-                                "stateVersion": classroom.state_version,
-                                "participantId": participant_id,
-                            },
-                            critical=True,
-                            audience="teacher",
-                        )
+                state_version = await run_in_threadpool(
+                    mark_participant_connected, session_id, participant_id
+                )
+                if state_version is not None:
+                    hub.publish(
+                        session_id,
+                        "participant-reconnected",
+                        {
+                            "stateVersion": state_version,
+                            "participantId": participant_id,
+                        },
+                        critical=True,
+                        audience="teacher",
+                    )
         stream_audience: Literal["teacher", "student"] = (
             "teacher" if audience == "teacher" else "student"
         )
         async with hub.subscribe(session_id, stream_audience) as subscriber:
             try:
-                with factory() as db:
-                    classroom = db.get(ClassroomSession, session_id)
-                    if classroom is None:
-                        return
-                    state_version = classroom.state_version
+                state_version = await run_in_threadpool(stream_state_version, session_id)
+                if state_version is None:
+                    return
                 ready = {
                     "type": "stream-ready",
                     "hubEpoch": hub.hub_epoch,
@@ -1849,24 +1872,20 @@ def register_classroom_routes(
                 if participant_id is not None and hub.participant_disconnected(
                     session_id, participant_id
                 ):
-                    with factory() as db:
-                        participant = db.get(ClassroomParticipant, participant_id)
-                        classroom = db.get(ClassroomSession, session_id)
-                        if participant is not None and classroom is not None:
-                            participant.disconnected_at = _now()
-                            participant.last_seen_at = _now()
-                            classroom.state_version += 1
-                            db.commit()
-                            hub.publish(
-                                session_id,
-                                "participant-left",
-                                {
-                                    "stateVersion": classroom.state_version,
-                                    "participantId": participant_id,
-                                },
-                                critical=True,
-                                audience="teacher",
-                            )
+                    state_version = await run_in_threadpool(
+                        mark_participant_disconnected, session_id, participant_id
+                    )
+                    if state_version is not None:
+                        hub.publish(
+                            session_id,
+                            "participant-left",
+                            {
+                                "stateVersion": state_version,
+                                "participantId": participant_id,
+                            },
+                            critical=True,
+                            audience="teacher",
+                        )
 
     def stream_response(
         session_id: str,
