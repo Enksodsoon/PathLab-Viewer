@@ -6,7 +6,7 @@ from alembic.config import Config
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from wsi_viewer.config import Settings
-from wsi_viewer.database import create_schema, session_factory
+from wsi_viewer.database import create_schema, pool_options_for, session_factory
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AuditEvent,
@@ -36,6 +36,20 @@ def test_sqlite_schema_has_contract_tables_and_wal(tmp_path: Path) -> None:
         AuditEvent.__tablename__,
     } <= tables
     assert mode == "wal"
+
+
+@pytest.mark.parametrize(
+    ("role", "expected_size"),
+    (("general", 5), ("classroom", 4), ("all", 5)),
+)
+def test_sqlite_pool_is_bounded_by_runtime_role(role: str, expected_size: int) -> None:
+    settings = Settings(_env_file=None, service_role=role)
+
+    assert pool_options_for(settings) == {
+        "pool_size": expected_size,
+        "max_overflow": 0,
+        "pool_timeout": 1.0,
+    }
 
 
 def test_runtime_app_startup_does_not_create_or_stamp_schema(tmp_path: Path) -> None:

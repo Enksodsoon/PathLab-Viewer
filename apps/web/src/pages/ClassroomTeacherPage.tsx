@@ -1,7 +1,15 @@
 import OpenSeadragon from 'openseadragon'
 import { Copy, FolderOpen, ShareNetwork } from '@phosphor-icons/react'
 import { QRCodeSVG } from 'qrcode.react'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ApiError, getFolderChildren, getLibraryNavigation, listSlides } from '../api'
@@ -23,9 +31,12 @@ import {
   removeTeachingAnnotation,
   revokeControl,
   startLiveClassroom,
+  teacherParticipants,
   teacherState,
+  type ClassroomParticipant,
   type ClassroomReadiness,
   type CreatedClassroom,
+  type TeacherParticipantsPage,
   type TeacherState,
   type TeachingAnnotation,
 } from '../classroom/api'
@@ -34,7 +45,17 @@ import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
+import { createRosterReconciler } from '../classroom/roster'
+import {
+  createClassroomSnapshotReconciler,
+  type ClassroomSnapshotReconciler,
+} from '../classroom/snapshotReconciler'
 import { classroomSlideSource } from '../classroom/slideSource'
+import {
+  applyClassroomStreamEvent,
+  createClassroomStreamCursor,
+  noteClassroomSnapshot,
+} from '../classroom/streamSync'
 import {
   StudentDrawingOverlay,
   type DrawingStroke,
@@ -46,6 +67,7 @@ import {
 } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
 import type { AdminSlide, LibraryFolder } from '../types'
+import { CLASSROOM_VIEWER_NETWORK_PROFILE } from '../viewerNetwork'
 import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
@@ -202,6 +224,18 @@ export function ClassroomTeacherPage() {
   const [setupLoading, setSetupLoading] = useState(true)
   const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
   const [state, setState] = useState<TeacherState | null>(null)
+  const [roster, setRoster] = useState<TeacherParticipantsPage>({
+    items: [], total: 0, nextCursor: null, rosterVersion: 0,
+  })
+  const [rosterQuery, setRosterQuery] = useState('')
+  const deferredRosterQuery = useDeferredValue(rosterQuery.trim())
+  const [rosterLoading, setRosterLoading] = useState(false)
+  const [pinnedControlRequests, setPinnedControlRequests] = useState<ClassroomParticipant[]>([])
+  const [pendingControlPage, setPendingControlPage] = useState<{
+    total: number
+    nextCursor: string | null
+  }>({ total: 0, nextCursor: null })
+  const [pendingControlLoading, setPendingControlLoading] = useState(false)
   const [slideId, setSlideId] = useState('')
   const [error, setError] = useState('')
   const [activeConflict, setActiveConflict] = useState(false)
@@ -216,8 +250,14 @@ export function ClassroomTeacherPage() {
   const presenterRef = useRef<TeacherState['presenter'] | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const slideIdRef = useRef(slideId)
-  const streamEpoch = useRef('')
-  const streamSequence = useRef(0)
+  const streamCursor = useRef(createClassroomStreamCursor(0))
+  const snapshotReconciler = useRef<ClassroomSnapshotReconciler | null>(null)
+  const snapshotSession = useRef('')
+  const rosterRef = useRef(roster)
+  const rosterQueryRef = useRef('')
+  const rosterLoadedQueryRef = useRef('')
+  const rosterRequest = useRef(0)
+  const pendingControlRequest = useRef(0)
   const teachingToolRef = useRef(teachingTool)
   const guideModeRef = useRef(guideMode)
   const pointerColorRef = useRef(pointerColor)
@@ -226,6 +266,7 @@ export function ClassroomTeacherPage() {
   const localPointerElementRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => { stateRef.current = state }, [state])
+  useEffect(() => { rosterRef.current = roster }, [roster])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
   useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
   useEffect(() => { guideModeRef.current = guideMode }, [guideMode])
@@ -302,49 +343,185 @@ export function ClassroomTeacherPage() {
     return () => { active = false }
   }, [classroom, selectedFolderId])
 
-  const refresh = useCallback(async (sessionId: string) => {
-    const next = await teacherState(sessionId)
-    presenterRef.current = next.presenter
-    stateRef.current = next
-    setState(next)
-    teachingOverlayRef.current?.setPointer(
-      teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
-    )
-    if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+  const refresh = useCallback((sessionId: string, minimumVersion = 0): Promise<void> => {
+    if (!snapshotReconciler.current || snapshotSession.current !== sessionId) {
+      snapshotReconciler.current?.dispose()
+      snapshotSession.current = sessionId
+      snapshotReconciler.current = createClassroomSnapshotReconciler(
+        () => teacherState(sessionId),
+        (next) => {
+          noteClassroomSnapshot(streamCursor.current, next.stateVersion)
+          presenterRef.current = next.presenter
+          stateRef.current = next
+          setState(next)
+          teachingOverlayRef.current?.setPointer(
+            teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
+          )
+          if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+        },
+      )
+    }
+    return snapshotReconciler.current.request(minimumVersion)
   }, [])
+
+  useEffect(() => () => snapshotReconciler.current?.dispose(), [])
+
+  const refreshRoster = useCallback(async (
+    sessionId: string,
+    minimumVersion?: number,
+  ) => {
+    const query = rosterQueryRef.current
+    if (minimumVersion !== undefined
+      && rosterLoadedQueryRef.current === query
+      && minimumVersion <= rosterRef.current.rosterVersion) return
+    const request = ++rosterRequest.current
+    setRosterLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, { limit: 100, q: query })
+      if (request !== rosterRequest.current || query !== rosterQueryRef.current) return
+      rosterLoadedQueryRef.current = query
+      rosterRef.current = next
+      setRoster(next)
+      setPinnedControlRequests((current) => current.flatMap((participant) => {
+        const fresh = next.items.find((item) => item.id === participant.id)
+        if (!fresh) return [participant]
+        return fresh.controlRequested ? [fresh] : []
+      }))
+    } finally {
+      if (request === rosterRequest.current) setRosterLoading(false)
+    }
+  }, [])
+
+  const refreshPendingControlRequests = useCallback(async (sessionId: string) => {
+    const request = ++pendingControlRequest.current
+    setPendingControlLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, { limit: 100, requested: true })
+      if (request !== pendingControlRequest.current) return
+      setPinnedControlRequests(next.items.filter((participant) => participant.controlRequested))
+      setPendingControlPage({ total: next.total, nextCursor: next.nextCursor })
+    } finally {
+      if (request === pendingControlRequest.current) setPendingControlLoading(false)
+    }
+  }, [])
+
+  const loadMorePendingControlRequests = useCallback(async (sessionId: string) => {
+    const { nextCursor } = pendingControlPage
+    if (!nextCursor || pendingControlLoading) return
+    const request = ++pendingControlRequest.current
+    setPendingControlLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, {
+        after: nextCursor,
+        limit: 100,
+        requested: true,
+      })
+      if (request !== pendingControlRequest.current) return
+      setPinnedControlRequests((current) => {
+        const byId = new Map(current.map((participant) => [participant.id, participant]))
+        for (const participant of next.items) {
+          if (participant.controlRequested) byId.set(participant.id, participant)
+        }
+        return [...byId.values()]
+      })
+      setPendingControlPage({ total: next.total, nextCursor: next.nextCursor })
+    } finally {
+      if (request === pendingControlRequest.current) setPendingControlLoading(false)
+    }
+  }, [pendingControlLoading, pendingControlPage])
+
+  const loadMoreRoster = useCallback(async (sessionId: string) => {
+    const { nextCursor } = rosterRef.current
+    if (!nextCursor || rosterLoading) return
+    const query = rosterQueryRef.current
+    const request = ++rosterRequest.current
+    setRosterLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, {
+        after: nextCursor,
+        limit: 100,
+        q: query,
+      })
+      if (request !== rosterRequest.current || query !== rosterQueryRef.current) return
+      setRoster((current) => {
+        const byId = new Map(current.items.map((participant) => [participant.id, participant]))
+        for (const participant of next.items) byId.set(participant.id, participant)
+        const merged = {
+          ...next,
+          items: [...byId.values()],
+        }
+        rosterRef.current = merged
+        return merged
+      })
+      setPinnedControlRequests((current) => current.flatMap((participant) => {
+        const fresh = next.items.find((item) => item.id === participant.id)
+        if (!fresh) return [participant]
+        return fresh.controlRequested ? [fresh] : []
+      }))
+    } finally {
+      if (request === rosterRequest.current) setRosterLoading(false)
+    }
+  }, [rosterLoading])
+
+  useEffect(() => {
+    rosterQueryRef.current = deferredRosterQuery
+    if (!classroom || classroom.phase !== 'live') return
+    void refreshRoster(classroom.id).catch((caught: unknown) => {
+      handleAdminFailure(caught, 'The student roster could not be loaded.')
+    })
+  }, [classroom, deferredRosterQuery, handleAdminFailure, refreshRoster])
+
+  useEffect(() => {
+    if (!classroom || classroom.phase !== 'live') return
+    void refreshPendingControlRequests(classroom.id).catch((caught: unknown) => {
+      handleAdminFailure(caught, 'Pending control requests could not be loaded.')
+    })
+  }, [classroom, handleAdminFailure, refreshPendingControlRequests])
 
   useEffect(() => {
     if (!classroom) return
-    void refresh(classroom.id).catch((loadError: unknown) => {
-      if (loadError instanceof ApiError && loadError.status === 404) {
-        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
-        setClassroom(null)
-        setError('The previous classroom is no longer active.')
-        return
-      }
-      setError('The classroom connection was interrupted. Reconnecting…')
-    })
+    if (state?.session.id !== classroom.id) {
+      void refresh(classroom.id).catch((loadError: unknown) => {
+        if (loadError instanceof ApiError && loadError.status === 404) {
+          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          setClassroom(null)
+          setError('The previous classroom is no longer active.')
+          return
+        }
+        setError('The classroom connection was interrupted. Reconnecting…')
+      })
+      return
+    }
     if (classroom.phase !== 'live') return
     const events = new EventSource(`/api/v1/admin/classroom/sessions/${classroom.id}/events`)
+    const rosterReconciler = createRosterReconciler(async (version) => {
+      try {
+        await Promise.all([
+          refreshRoster(classroom.id, version),
+          refreshPendingControlRequests(classroom.id),
+        ])
+      } catch (caught) {
+        handleAdminFailure(caught, 'The student roster could not be refreshed.')
+      }
+    })
+    let streamReadySeen = false
     const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
-        const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
-        const next = typeof payload.eventSequence === 'number' ? payload.eventSequence : 0
-        if (event.type === 'stream-ready') {
-          streamEpoch.current = epoch
-          streamSequence.current = next
-          return payload
-        }
-        if (epoch === streamEpoch.current && next <= streamSequence.current) return null
-        if (epoch !== streamEpoch.current || (!coalescible && next !== streamSequence.current + 1)) {
-          streamEpoch.current = epoch
-          streamSequence.current = next
-          void refresh(classroom.id).catch(() => undefined)
+        const decision = applyClassroomStreamEvent(
+          streamCursor.current,
+          event.type,
+          payload,
+          { coalescible },
+        )
+        if (decision === 'resync') {
+          void refresh(
+            classroom.id,
+            typeof payload.stateVersion === 'number' ? payload.stateVersion : 0,
+          ).catch(() => undefined)
           return null
         }
-        streamSequence.current = next
-        return payload
+        return decision === 'apply' ? payload : null
       } catch {
         void refresh(classroom.id).catch(() => undefined)
         return null
@@ -353,10 +530,31 @@ export function ClassroomTeacherPage() {
     const update = (event: Event) => {
       if (sequence(event)) void refresh(classroom.id).catch(() => undefined)
     }
-    for (const name of [
-      'stream-ready', 'participant-joined', 'participant-left',
-      'participant-reconnected', 'question-added', 'question-removed', 'control',
-    ]) events.addEventListener(name, update)
+    events.addEventListener('stream-ready', (event) => {
+      sequence(event)
+      if (streamReadySeen) {
+        rosterReconciler.notify(rosterRef.current.rosterVersion + 1)
+      }
+      streamReadySeen = true
+    })
+    for (const name of ['question-added', 'question-removed', 'control']) {
+      events.addEventListener(name, update)
+    }
+    events.addEventListener('roster-changed', (event) => {
+      const payload = sequence(event)
+      let rosterVersion = payload?.rosterVersion
+      if (typeof rosterVersion !== 'number') {
+        try {
+          const raw = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+          rosterVersion = raw.rosterVersion
+        } catch {
+          rosterVersion = undefined
+        }
+      }
+      if (typeof rosterVersion === 'number') {
+        rosterReconciler.notify(rosterVersion)
+      }
+    })
     events.addEventListener('presenter', (event) => {
       const payload = sequence(event, true)
       if (!payload || typeof payload.presenterSequence !== 'number'
@@ -449,25 +647,106 @@ export function ClassroomTeacherPage() {
         ),
       } : current)
     })
-    events.addEventListener('control-requested', update)
-    events.addEventListener('control-request-cancelled', update)
-    return () => events.close()
-  }, [classroom, refresh])
+    const updateControlRequest = (event: Event, requested: boolean) => {
+      const previousEpoch = streamCursor.current.hubEpoch
+      const previousSequence = streamCursor.current.eventSequence
+      let raw: Record<string, unknown>
+      try {
+        raw = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+      } catch {
+        sequence(event)
+        return
+      }
+      const sequenced = sequence(event)
+      const rawEpoch = typeof raw.hubEpoch === 'string' ? raw.hubEpoch : ''
+      const rawSequence = typeof raw.eventSequence === 'number' ? raw.eventSequence : -1
+      const duplicate = rawEpoch === previousEpoch && rawSequence <= previousSequence
+      if (!sequenced && (duplicate || !rawEpoch || !Number.isSafeInteger(rawSequence))) return
+      const payload = sequenced ?? raw
+      if (typeof payload.participantId !== 'string') return
+      pendingControlRequest.current += 1
+      setPendingControlLoading(false)
+      const participantId = payload.participantId
+      const eventParticipant = payload.participant as Partial<ClassroomParticipant> | undefined
+      const authoritative = eventParticipant
+        && eventParticipant.id === participantId
+        && typeof eventParticipant.alias === 'string'
+        && (eventParticipant.status === 'connected'
+          || eventParticipant.status === 'reconnecting'
+          || eventParticipant.status === 'disconnected')
+        ? {
+            id: participantId,
+            alias: eventParticipant.alias,
+            displayName: typeof eventParticipant.displayName === 'string'
+              ? eventParticipant.displayName
+              : null,
+            status: eventParticipant.status,
+            controlRequested: true,
+            controlRequestedAt: typeof eventParticipant.controlRequestedAt === 'number'
+              ? eventParticipant.controlRequestedAt
+              : Date.now(),
+          }
+        : null
+      const known = rosterRef.current.items.find((participant) => participant.id === participantId)
+        ?? stateRef.current?.participants.find((participant) => participant.id === participantId)
+      setPinnedControlRequests((current) => {
+        if (!requested) return current.filter((participant) => participant.id !== participantId)
+        const participant = authoritative ?? known ?? current.find(
+          (item) => item.id === participantId,
+        )
+        if (!participant) return current
+        return [{
+          ...participant,
+          controlRequested: true,
+          controlRequestedAt: participant.controlRequestedAt ?? Date.now(),
+        }, ...current.filter((item) => item.id !== participantId)]
+      })
+      setRoster((current) => {
+        const next = {
+          ...current,
+          items: current.items.map((participant) => participant.id === participantId
+            ? {
+                ...participant,
+                controlRequested: requested,
+                controlRequestedAt: requested ? Date.now() : null,
+              }
+            : participant),
+        }
+        rosterRef.current = next
+        return next
+      })
+    }
+    events.addEventListener('control-requested', (event) => updateControlRequest(event, true))
+    events.addEventListener('control-request-cancelled', (event) => updateControlRequest(event, false))
+    return () => {
+      rosterReconciler.dispose()
+      events.close()
+    }
+  }, [
+    classroom,
+    handleAdminFailure,
+    refresh,
+    refreshPendingControlRequests,
+    refreshRoster,
+    state?.session.id,
+  ])
 
   const currentSlide = useMemo(
     () => classroom?.slides.find((slide) => slide.id === slideId) ?? classroom?.slides[0],
     [classroom, slideId],
   )
 
-  const participants = useMemo(() => [...(state?.participants ?? [])].sort((left, right) => {
+  const participants = useMemo(() => {
+    const pinnedIds = new Set(pinnedControlRequests.map((participant) => participant.id))
+    return [...pinnedControlRequests, ...roster.items.filter(
+      (participant) => !pinnedIds.has(participant.id),
+    )].sort((left, right) => {
     if (left.controlRequested !== right.controlRequested) return left.controlRequested ? -1 : 1
     return (left.controlRequestedAt ?? Number.POSITIVE_INFINITY)
       - (right.controlRequestedAt ?? Number.POSITIVE_INFINITY)
-  }), [state?.participants])
-  const activeParticipantCount = useMemo(
-    () => participants.filter((participant) => participant.status === 'connected').length,
-    [participants],
-  )
+    })
+  }, [pinnedControlRequests, roster.items])
+  const activeParticipantCount = roster.total || state?.participantCount || participants.length
 
   const visiblePins = useMemo<ClassroomVisiblePin[]>(() => {
     const pins: ClassroomVisiblePin[] = focusedQuestion ? [{
@@ -852,6 +1131,7 @@ export function ClassroomTeacherPage() {
         tileSource={classroomSlideSource(currentSlide.tileSource, classroom.id)}
         onReady={() => undefined}
         onViewerAttach={attachViewer}
+        networkProfile={CLASSROOM_VIEWER_NETWORK_PROFILE}
       />}
       <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
       <ClassroomTeachingOverlays
@@ -929,14 +1209,27 @@ export function ClassroomTeacherPage() {
     <aside className="classroom-panel" aria-label="Classroom activity">
       {error && <p role="alert" className="classroom-error">{error}</p>}
       <section className="classroom-panel__section">
-        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="students" />Students</span><strong className="classroom-panel__count" aria-label={`${activeParticipantCount} active students`}>{activeParticipantCount}</strong></h2>
-        {!state?.participants.length && <p className="classroom-empty">Students appear here after joining.</p>}
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="students" />Students</span><strong className="classroom-panel__count" aria-label={`${activeParticipantCount} students`}>{activeParticipantCount}</strong></h2>
+        <label className="classroom-roster-search">
+          <span>Search students</span>
+          <input
+            type="search"
+            value={rosterQuery}
+            onChange={(event) => setRosterQuery(event.target.value)}
+            placeholder="Alias or name"
+            autoComplete="off"
+          />
+        </label>
+        {!rosterLoading && !participants.length && <p className="classroom-empty">
+          {deferredRosterQuery ? 'No students match this search.' : 'Students appear here after joining.'}
+        </p>}
+        {rosterLoading && !participants.length ? <p className="classroom-empty" role="status">Loading students…</p> : null}
         <ul className="classroom-participant-list" aria-label="Student roster">{participants.map((participant) => {
           const isController = state?.controller.participantId === participant.id
           return <li key={participant.id}>
             <div>
               <strong>{participant.alias}</strong>
-              <small>{isController
+              <small>{participant.displayName ? `${participant.displayName} · ` : ''}{isController
                 ? `${participant.status} · controller`
                 : participant.controlRequested
                   ? `${participant.status} · requested control`
@@ -945,13 +1238,50 @@ export function ClassroomTeacherPage() {
             {isController || participant.controlRequested ? <button className="classroom-icon-action" type="button" aria-label={isController ? `Take back control from ${participant.alias}` : `Give control to ${participant.alias}`} title={isController ? 'Take back control' : 'Give control'} disabled={participant.status === 'disconnected'} onClick={() => void (isController
               ? revokeControl(classroom.id)
               : grantControl(classroom.id, participant.id)
-            ).then(() => refresh(classroom.id)).catch(() => {
+            ).then(() => {
+              if (!isController) {
+                pendingControlRequest.current += 1
+                setPendingControlLoading(false)
+                setPinnedControlRequests((current) => current.filter(
+                  (item) => item.id !== participant.id,
+                ))
+                setRoster((current) => {
+                  const next = {
+                    ...current,
+                    items: current.items.map((item) => item.id === participant.id
+                      ? { ...item, controlRequested: false, controlRequestedAt: null }
+                      : item),
+                  }
+                  rosterRef.current = next
+                  return next
+                })
+              }
+              return refresh(classroom.id)
+            }).catch(() => {
               setError('Slide control could not be changed.')
             })}>
               <ClassroomPanelIcon name="control" />
             </button> : null}
           </li>
         })}</ul>
+        {pendingControlPage.nextCursor ? <button
+          className="classroom-roster-more"
+          type="button"
+          disabled={pendingControlLoading}
+          onClick={() => void loadMorePendingControlRequests(classroom.id).catch(() => {
+            setError('More control requests could not be loaded.')
+          })}
+        >{pendingControlLoading
+            ? 'Loading control requests…'
+            : `Load more control requests (${pinnedControlRequests.length} of ${pendingControlPage.total})`}</button> : null}
+        {roster.nextCursor ? <button
+          className="classroom-roster-more"
+          type="button"
+          disabled={rosterLoading}
+          onClick={() => void loadMoreRoster(classroom.id).catch(() => {
+            setError('More students could not be loaded.')
+          })}
+        >{rosterLoading ? 'Loading…' : `Load more (${roster.items.length} of ${roster.total})`}</button> : null}
       </section>
       <section className="classroom-panel__section">
         <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span><strong className="classroom-panel__count" aria-label={`${state?.pendingQuestions.length ?? 0} pending questions`}>{state?.pendingQuestions.length ?? 0}</strong></h2>

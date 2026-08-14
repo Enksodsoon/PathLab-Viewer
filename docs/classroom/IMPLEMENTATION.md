@@ -17,13 +17,15 @@ This branch does not authorize a merge, deployment, or production activation.
 
 ## Resource boundaries
 
-- One active session, at most 300 recent participants and 200 pending questions.
+- One active session, a validated `PATHLAB_CLASSROOM_MAX_PARTICIPANTS=1..2000`
+  ceiling (default 300 until capacity evidence authorizes a change), and 200 pending questions.
 - At most 50 slides per session and 100 local notebook entries per browser session.
 - Static DZI descriptors and tiles remain Caddy-served; the API never proxies screenshot bytes.
 - Incremental SSE events are limited to 4 KiB UTF-8. Each subscriber has a bounded
-  384-event discrete queue plus one replaceable latest-presenter slot. The deque does not
-  preallocate those slots; the bound covers a full 300-seat reconnect presence burst plus
-  simultaneous classroom control events without making presenter movement queue up.
+  512-event discrete queue plus replaceable latest-presenter, pointer, and roster slots.
+  Critical queue overflow closes the stream so the client resynchronizes instead of silently
+  losing a discrete event. Each participant has one live stream; a replacement closes the stale
+  stream without changing the replacement's presence.
 - Presenter movement uses a bounded latest-only sender: one request may be in flight and one
   newer viewport may replace the pending value. Updates are sent on the leading edge and then
   at a maximum 20 Hz cadence; the server admits at most 25 student-controller updates per second.
@@ -48,7 +50,13 @@ This branch does not authorize a merge, deployment, or production activation.
   are bounded to 40 records with at most 64 points each and are discarded on session end or
   process restart; neither feature writes database history.
 - Critical queue overflow closes the slow stream, forcing bounded HTTP resynchronization.
-- The teacher state endpoint is naturally bounded by the participant and question limits.
+- Presence changes are in memory, perform no database write, and emit a teacher-only
+  `roster-changed` signal at most once per second. Teacher state retains its embedded bounded
+  participant list and adds `participantCount`/`rosterVersion`; the roster endpoint uses
+  searchable alias-keyset pages of at most 100 rows.
+- A single latest-pending off-loop worker prewarms only the current and next slide descriptor,
+  poster, and mathematically derived center tiles. It reads bounded prefixes and never scans a
+  DZI pyramid.
 
 ## Singleton topology
 
@@ -76,8 +84,9 @@ transaction while streaming. Caddy uses `flush_interval -1`; heartbeats are SSE 
 ## Identity, questions, and control
 
 The signed participant cookie carries a high-entropy opaque token. SQLite stores only its
-SHA-256 hash. The generated alias is public; an optional normalized display name is visible
-only to the teacher and is never authorization or uniqueness data.
+SHA-256 hash. The public alias is HMAC-derived from that token with bounded indexed collision
+retries; an optional normalized display name is visible only to the teacher and is never
+authorization or uniqueness data.
 
 Question content is deleted immediately when answered. A content-free receipt containing
 only session, participant, hashed idempotency key, original ID, and time prevents a delayed

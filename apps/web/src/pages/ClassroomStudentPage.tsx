@@ -34,13 +34,23 @@ import {
   type StorageCapability,
 } from '../classroom/notebook'
 import { captureVisibleTissue } from '../classroom/screenshot'
-import { classroomReconnectDelay } from '../classroom/reconnect'
+import { classroomGuideDelay, classroomReconnectDelay } from '../classroom/reconnect'
+import {
+  createClassroomSnapshotReconciler,
+  type ClassroomSnapshotReconciler,
+} from '../classroom/snapshotReconciler'
+import {
+  applyClassroomStreamEvent,
+  createClassroomStreamCursor,
+  noteClassroomSnapshot,
+} from '../classroom/streamSync'
 import { Brand } from '../components/Brand'
 import {
   OpenSeadragonViewer,
   type ViewerAttachmentCallback,
 } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
+import { CLASSROOM_VIEWER_NETWORK_PROFILE } from '../viewerNetwork'
 import '../classroom/classroom.css'
 
 interface Pin {
@@ -96,8 +106,11 @@ export function ClassroomStudentPage() {
   const presenterRef = useRef<StudentState['presenter'] | null>(null)
   const slideIdRef = useRef(slideId)
   const csrfRef = useRef(csrfToken)
-  const streamEpoch = useRef('')
-  const streamSequence = useRef(0)
+  const streamCursor = useRef(createClassroomStreamCursor(0))
+  const snapshotReconciler = useRef<ClassroomSnapshotReconciler | null>(null)
+  const snapshotSession = useRef('')
+  const guideSwitchTimer = useRef<number | null>(null)
+  const pendingGuideSlideId = useRef<string | null>(null)
   const wasController = useRef(false)
 
   useEffect(() => { stateRef.current = state }, [state])
@@ -113,7 +126,8 @@ export function ClassroomStudentPage() {
   useEffect(() => { void storageCapability().then(setStorage) }, [])
   useEffect(() => {
     if (!sessionId || csrfToken) return
-    void studentState(sessionId).then(async (next) => {
+    void Promise.all([studentState(sessionId), listEntries(sessionId)]).then(([next, savedEntries]) => {
+      noteClassroomSnapshot(streamCursor.current, next.stateVersion)
       presenterRef.current = next.presenter
       stateRef.current = next
       setState(next)
@@ -122,50 +136,64 @@ export function ClassroomStudentPage() {
       setAlias(next.participant.alias)
       setPin(next.activePin)
       if (next.presenter.slideId) setSlideId(next.presenter.slideId)
-      setEntries(await listEntries(sessionId))
+      setEntries(savedEntries)
     }).catch(() => setMessage('Rejoin with the classroom code to continue.'))
   }, [csrfToken, sessionId])
 
-  const refresh = useCallback(async (id: string) => {
-    const next = await studentState(id)
-    presenterRef.current = next.presenter
-    stateRef.current = next
-    setState(next)
-    teachingOverlayRef.current?.setPointer(next.teacherPointer)
-    setPin(next.activePin)
-    if (follow && !drawingModeRef.current && next.presenter.slideId) setSlideId(next.presenter.slideId)
-    setEntries(await listEntries(id))
-  }, [follow])
+  const refresh = useCallback((id: string, minimumVersion = 0): Promise<void> => {
+    if (!snapshotReconciler.current || snapshotSession.current !== id) {
+      snapshotReconciler.current?.dispose()
+      snapshotSession.current = id
+      snapshotReconciler.current = createClassroomSnapshotReconciler(
+        () => studentState(id),
+        (next) => {
+          noteClassroomSnapshot(streamCursor.current, next.stateVersion)
+          presenterRef.current = next.presenter
+          stateRef.current = next
+          setState(next)
+          teachingOverlayRef.current?.setPointer(next.teacherPointer)
+          setPin(next.activePin)
+          if (followRef.current && !drawingModeRef.current && next.presenter.slideId) {
+            slideIdRef.current = next.presenter.slideId
+            setSlideId(next.presenter.slideId)
+          }
+        },
+      )
+    }
+    return snapshotReconciler.current.request(minimumVersion)
+  }, [])
+
+  useEffect(() => () => snapshotReconciler.current?.dispose(), [])
 
   useEffect(() => {
     const participantId = state?.participant.id
     if (!sessionId || !csrfToken || !participantId) return
-    void refresh(sessionId)
     let events: EventSource | null = null
     let retryTimer: number | null = null
     let stableTimer: number | null = null
     let attempt = 0
     let cancelled = false
-    const recover = () => { void refresh(sessionId).catch(() => undefined) }
-    const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
+    const recover = (minimumVersion = 0) => {
+      void refresh(sessionId, minimumVersion).catch(() => undefined)
+    }
+    const sequence = (
+      event: Event,
+      coalescible = false,
+      terminal = false,
+    ): Record<string, unknown> | null => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
-        const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
-        const next = typeof payload.eventSequence === 'number' ? payload.eventSequence : 0
-        if (event.type === 'stream-ready') {
-          streamEpoch.current = epoch
-          streamSequence.current = next
-          return payload
-        }
-        if (epoch === streamEpoch.current && next <= streamSequence.current) return null
-        if (epoch !== streamEpoch.current || (!coalescible && next !== streamSequence.current + 1)) {
-          streamEpoch.current = epoch
-          streamSequence.current = next
-          recover()
+        const decision = applyClassroomStreamEvent(
+          streamCursor.current,
+          event.type,
+          payload,
+          { coalescible, terminal },
+        )
+        if (decision === 'resync') {
+          recover(typeof payload.stateVersion === 'number' ? payload.stateVersion : 0)
           return null
         }
-        streamSequence.current = next
-        return payload
+        return decision === 'apply' ? payload : null
       } catch {
         recover()
         return null
@@ -177,7 +205,6 @@ export function ClassroomStudentPage() {
       events = source
       source.addEventListener('stream-ready', (event) => {
         sequence(event)
-        recover()
         if (stableTimer !== null) window.clearTimeout(stableTimer)
         stableTimer = window.setTimeout(() => { attempt = 0 }, 5000)
       })
@@ -193,8 +220,20 @@ export function ClassroomStudentPage() {
         presenterRef.current = nextPresenter
         if (!followRef.current || drawingModeRef.current) return
         if (slideIdRef.current !== nextPresenter.slideId) {
-          slideIdRef.current = nextPresenter.slideId ?? ''
-          setSlideId(nextPresenter.slideId ?? '')
+          const nextSlideId = nextPresenter.slideId ?? ''
+          if (guideSwitchTimer.current !== null
+            && pendingGuideSlideId.current === nextSlideId) return
+          if (guideSwitchTimer.current !== null) window.clearTimeout(guideSwitchTimer.current)
+          pendingGuideSlideId.current = nextSlideId
+          const delay = classroomGuideDelay(participantId, nextSlideId)
+          guideSwitchTimer.current = window.setTimeout(() => {
+            guideSwitchTimer.current = null
+            pendingGuideSlideId.current = null
+            if (!followRef.current || drawingModeRef.current
+              || presenterRef.current?.slideId !== nextSlideId) return
+            slideIdRef.current = nextSlideId
+            setSlideId(nextSlideId)
+          }, delay)
           return
         }
         const target = viewerRef.current
@@ -246,7 +285,7 @@ export function ClassroomStudentPage() {
         setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
       })
       source.addEventListener('session-ended', (event) => {
-        if (!sequence(event)) return
+        if (!sequence(event, false, true)) return
         const inviteId = stateRef.current?.session.publicId
         setState(null)
         setCsrfToken('')
@@ -281,6 +320,9 @@ export function ClassroomStudentPage() {
       events?.close()
       if (retryTimer !== null) window.clearTimeout(retryTimer)
       if (stableTimer !== null) window.clearTimeout(stableTimer)
+      if (guideSwitchTimer.current !== null) window.clearTimeout(guideSwitchTimer.current)
+      guideSwitchTimer.current = null
+      pendingGuideSlideId.current = null
     }
   }, [csrfToken, navigate, refresh, sessionId, state?.participant.id])
 
@@ -306,10 +348,15 @@ export function ClassroomStudentPage() {
 
   useEffect(() => {
     drawingModeRef.current = drawing
+    if ((!follow || drawing) && guideSwitchTimer.current !== null) {
+      window.clearTimeout(guideSwitchTimer.current)
+      guideSwitchTimer.current = null
+      pendingGuideSlideId.current = null
+    }
     const target = viewerRef.current
     target?.setMouseNavEnabled(!drawing)
     if (!drawing && target && followRef.current) applyRemote(target)
-  }, [applyRemote, drawing])
+  }, [applyRemote, drawing, follow])
 
   const attachViewer = useCallback<ViewerAttachmentCallback>((viewer) => {
     viewerRef.current = viewer
@@ -388,14 +435,18 @@ export function ClassroomStudentPage() {
     setMessage('')
     try {
       const joined = await joinClassroom(joinCode.trim().toUpperCase(), displayName)
-      const next = await studentState(joined.sessionId)
+      const [next, savedEntries] = await Promise.all([
+        studentState(joined.sessionId),
+        listEntries(joined.sessionId),
+      ])
+      noteClassroomSnapshot(streamCursor.current, next.stateVersion)
       stateRef.current = next
       setState(next)
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
       setPin(next.activePin)
       if (next.presenter.slideId) setSlideId(next.presenter.slideId)
-      setEntries(await listEntries(joined.sessionId))
+      setEntries(savedEntries)
       navigate(`/classroom/${joined.sessionId}`, { replace: true })
     } catch {
       setMessage('That classroom is unavailable or the code is incorrect.')
@@ -563,6 +614,7 @@ export function ClassroomStudentPage() {
         tileSource={classroomSlideSource(currentSlide.tileSource, sessionId ?? state!.session.id)}
         onReady={() => undefined}
         onViewerAttach={attachViewer}
+        networkProfile={CLASSROOM_VIEWER_NETWORK_PROFILE}
       />}
       <ClassroomPinOverlays
         pins={pin ? [{

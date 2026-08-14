@@ -14,6 +14,7 @@ import { classroomSlideSource } from '../classroom/slideSource'
 import { Brand } from '../components/Brand'
 import { OpenSeadragonViewer } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
+import { CLASSROOM_VIEWER_NETWORK_PROFILE } from '../viewerNetwork'
 import '../classroom/classroom.css'
 
 export function ClassroomInvitePage() {
@@ -97,7 +98,11 @@ export function ClassroomInvitePage() {
       </div>
     </header>
     <main className="classroom-viewer">
-      {slide ? <OpenSeadragonViewer tileSource={classroomSlideSource(slide.tileSource, invite.sessionId)} onReady={() => undefined} /> : null}
+      {slide ? <OpenSeadragonViewer
+        tileSource={classroomSlideSource(slide.tileSource, invite.sessionId)}
+        onReady={() => undefined}
+        networkProfile={CLASSROOM_VIEWER_NETWORK_PROFILE}
+      /> : null}
       <ClassroomSlideNavigator activeId={slide?.id ?? ''} slides={invite.slides} onSelect={setSlideId} />
     </main>
     <aside className="classroom-panel classroom-review-panel">

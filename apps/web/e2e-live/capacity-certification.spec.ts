@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 
 import {
   csrfJson,
@@ -15,6 +15,15 @@ const username = required('LOAD_TEST_ADMIN_USERNAME')
 const password = required('LOAD_TEST_ADMIN_PASSWORD')
 const syntheticPath = required('CAPACITY_SYNTHETIC_OME')
 const runMarker = `capacity-${required('GITHUB_RUN_ID')}`
+const privateStatePath = required('CAPACITY_SENTINEL_PRIVATE_STATE')
+
+function privateState(patch: Record<string, unknown>) {
+  let current: Record<string, unknown> = {}
+  try { current = JSON.parse(readFileSync(privateStatePath, 'utf8')) as Record<string, unknown> } catch { /* first resource */ }
+  const temporary = `${privateStatePath}.tmp`
+  writeFileSync(temporary, `${JSON.stringify({ ...current, ...patch })}\n`, { mode: 0o600 })
+  renameSync(temporary, privateStatePath)
+}
 
 interface BrowserResult {
   adminResponsive: boolean
@@ -47,9 +56,7 @@ function updateResult(patch: Partial<BrowserResult>) {
 test.beforeAll(() => updateResult({}))
 
 test('admin remains responsive and conversion cleanup succeeds', async ({ page }) => {
-  let originalNote: string | null = null
   let syntheticSlideId: string | null = null
-  let noteChanged = false
   let conversionSucceeded = false
   let cleanupSucceeded = false
   try {
@@ -68,18 +75,14 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
       }
       return { displayName: body.displayName, adminNotes: body.adminNotes }
     }, adminSlideId)
-    originalNote = target.adminNotes
-
     const search = page.getByRole('searchbox', { name: 'Search slides' })
     await search.fill(target.displayName)
     await expect(page.getByRole('heading', { name: target.displayName })).toBeVisible()
     await page.getByRole('button', { name: `More actions for ${target.displayName}` }).click()
     await page.getByRole('menuitem', { name: 'Edit details' }).click()
     const note = page.getByLabel('Administrator note')
-    await note.fill(`${originalNote}\n${runMarker}`.trim())
-    // Cleanup must restore the original even if the save response is interrupted.
-    noteChanged = true
-    await page.getByRole('button', { name: 'Save details' }).click()
+    await expect(note).toHaveValue(target.adminNotes)
+    await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByRole('heading', { name: 'Edit slide details' })).toBeHidden()
     updateResult({ adminResponsive: true })
 
@@ -88,6 +91,7 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
       syntheticPath,
       `Synthetic certification ${runMarker}`,
     )
+    privateState({ syntheticSlideId })
     await expect(page.getByText('Upload complete. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
@@ -106,15 +110,7 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
     }).toBe('ready_private')
     conversionSucceeded = true
   } finally {
-    let noteRestored = !noteChanged
     let syntheticDeleted = syntheticSlideId === null
-    if (noteChanged && originalNote !== null) {
-      const response = await csrfJson(page, '/api/v2/admin/slides/batch-metadata', {
-        method: 'POST',
-        body: { slideIds: [adminSlideId], adminNotes: originalNote },
-      }).catch(() => ({ ok: false, status: 0 }))
-      noteRestored = response.ok
-    }
     if (syntheticSlideId !== null) {
       const response = await csrfJson(
         page,
@@ -127,7 +123,8 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
           .catch(() => false)
       }
     }
-    cleanupSucceeded = noteRestored && syntheticDeleted
+    if (syntheticDeleted) privateState({ syntheticSlideId: null })
+    cleanupSucceeded = syntheticDeleted
     updateResult({ cleanupSucceeded, conversionSucceeded })
   }
   expect(conversionSucceeded).toBe(true)

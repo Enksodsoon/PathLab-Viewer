@@ -1,0 +1,967 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+import subprocess
+import time
+from pathlib import Path
+from types import ModuleType
+from typing import Any
+
+import pytest
+
+ROOT = Path(__file__).parents[2]
+BASH = Path(r"C:\Program Files\Git\bin\bash.exe")
+
+
+def _bash_path(path: Path) -> str:
+    resolved = path.resolve().as_posix()
+    return f"/{resolved[0].lower()}{resolved[2:]}"
+
+
+def _load_script(name: str) -> ModuleType:
+    path = ROOT / "deploy" / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _successful_check_runs(sha: str) -> dict[str, object]:
+    names = (
+        "backend",
+        "browser",
+        "web",
+        "containers",
+        "repository-and-dependencies",
+        "CodeQL (python)",
+        "CodeQL (javascript-typescript)",
+    )
+    return {
+        "check_runs": [
+            {
+                "name": name,
+                "id": index + 100,
+                "head_sha": sha,
+                "status": "completed",
+                "conclusion": "success",
+            }
+            for index, name in enumerate(names)
+        ]
+    }
+
+
+def test_evidence_builder_uses_current_authoritative_check_runs() -> None:
+    builder = _load_script("build_deploy_evidence")
+    safety = _load_script("production_safety")
+    sha = "f" * 40
+    evidence = builder.build_evidence(
+        _successful_check_runs(sha),
+        sha=sha,
+        repository="Enksodsoon/PathLab-Viewer",
+        workflow_run_id="456",
+        nonce="run-456-attempt-1",
+        projected_monthly_egress_bytes=1_000,
+        month_to_date_cost_sgd=0,
+        now=1_700_000_000,
+    )
+    key = b"test-only-deployment-evidence-key-32-bytes"
+    safety.validate_signed(
+        evidence,
+        sha,
+        safety.sign_evidence(evidence, key),
+        key,
+        now=1_700_000_100,
+        expected_nonce="run-456-attempt-1",
+    )
+
+
+def test_evidence_builder_rejects_wrong_sha_or_missing_check() -> None:
+    builder = _load_script("build_deploy_evidence")
+    sha = "f" * 40
+    payload = _successful_check_runs(sha)
+    payload["check_runs"] = [run for run in payload["check_runs"] if run["name"] != "browser"]
+    with pytest.raises(builder.EvidenceBuildFailure):
+        builder.build_evidence(
+            payload,
+            sha=sha,
+            repository="Enksodsoon/PathLab-Viewer",
+            workflow_run_id="456",
+            nonce="run-456-attempt-1",
+            projected_monthly_egress_bytes=1_000,
+            month_to_date_cost_sgd=0,
+            now=1_700_000_000,
+        )
+
+
+class FakeRunner:
+    def __init__(self, failing: set[str] | None = None, restart_fails: bool = False) -> None:
+        self.failing = failing or set()
+        self.restart_fails = restart_fails
+        self.commands: list[tuple[str, ...]] = []
+
+    def __call__(
+        self, command: list[str], *, timeout: int, capture: bool = False
+    ) -> tuple[int, str]:
+        del timeout, capture
+        self.commands.append(tuple(command))
+        component = next(
+            (name for name in ("api", "classroom", "tile-service") if name in command),
+            "",
+        )
+        if "curl" in command and component in self.failing:
+            return 1, "probe failed"
+        if "restart" in command and self.restart_fails:
+            return 1, "restart failed"
+        return 0, "ok"
+
+
+def _valid_evidence(sha: str) -> dict[str, Any]:
+    return {
+        "schemaVersion": 2,
+        "candidateSha": sha,
+        "issuedAt": 1_700_000_000,
+        "expiresAt": 1_700_000_600,
+        "nonce": "run-123-attempt-1",
+        "workflowRunId": "123",
+        "repository": "Enksodsoon/PathLab-Viewer",
+        "ci": {
+            "sha": sha,
+            "required": {
+                name: {"conclusion": "success", "runId": index + 1}
+                for index, name in enumerate(("backend", "browser", "web", "containers"))
+            },
+        },
+        "security": {
+            "sha": sha,
+            "required": {
+                name: {"conclusion": "success", "runId": index + 10}
+                for index, name in enumerate(
+                    (
+                        "repository-and-dependencies",
+                        "CodeQL (python)",
+                        "CodeQL (javascript-typescript)",
+                    )
+                )
+            },
+        },
+        "backup": {"created": True, "restoreDrillSucceeded": True},
+        "classroom": {"activeRealSessions": 0},
+        "fixtures": {"syntheticOnly": True},
+        "rollback": {"releaseAvailable": True},
+        "annotations": {"enabled": False},
+        "egress": {"projectedMonthlyBytes": 8_999_999_999_999},
+        "cost": {"currency": "SGD", "monthToDate": 0},
+    }
+
+
+def _capacity_evidence(strict_1200: bool, strict_1500: bool) -> dict[str, Any]:
+    stage_results = {
+        "smoke-2": {"durationSeconds": 1, "status": "passed"},
+        "smoke-100": {"durationSeconds": 1, "status": "passed"},
+        "boundary-300": {"durationSeconds": 600, "status": "passed"},
+        "boundary-600": {"durationSeconds": 600, "status": "passed"},
+        "boundary-900": {"durationSeconds": 600, "status": "passed"},
+        "certification-1200": {
+            "durationSeconds": 3600 if strict_1200 else 1,
+            "status": "passed" if strict_1200 else "failed",
+        },
+        "headroom-1500": {
+            "durationSeconds": 600 if strict_1500 else 1,
+            "status": "passed" if strict_1500 else ("failed" if strict_1200 else "skipped"),
+        },
+        "stress-1750": {"durationSeconds": 1, "status": "early-stopped"},
+        "stress-2000": {"durationSeconds": 0, "status": "skipped"},
+        "recovery-1200": {
+            "durationSeconds": 1 if strict_1200 else 0,
+            "status": "passed" if strict_1200 else "skipped",
+        },
+    }
+    return {
+        "schemaVersion": 2,
+        "candidateSha": "d" * 40,
+        "runId": "run-456",
+        "nonce": "capacity-nonce",
+        "startedAt": 1_786_649_400,
+        "completedAt": 1_786_653_600,
+        "withinAuthorizedIctWindow": True,
+        "allPreflightGatesPassed": True,
+        "fixtureCleanupSucceeded": True,
+        "evidenceDigest": "e" * 64,
+        "strictStages": {
+            "1200": {"durationSeconds": 3600, "passed": strict_1200},
+            "1500": {"durationSeconds": 600, "passed": strict_1500},
+        },
+        "stageResults": stage_results,
+        "functionalSentinels": {
+            "uploadConversion": strict_1200,
+            "annotations": strict_1200,
+            "libraryShare": strict_1200,
+            "dynamicViewer": strict_1200,
+            "desktop": strict_1200,
+        },
+    }
+
+
+def test_watchdog_restarts_only_failed_component_after_third_failure(tmp_path: Path) -> None:
+    watchdog = _load_script("component_watchdog")
+    runner = FakeRunner({"classroom"})
+    events: list[dict[str, object]] = []
+
+    for now in (100, 115, 130):
+        watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda now=now: now, events.append)
+
+    restarts = [command for command in runner.commands if "restart" in command]
+    assert restarts == [("docker", "compose", "restart", "classroom")]
+    assert not any("api" in command or "tile-service" in command for command in restarts)
+    inspect_commands = [
+        command for command in runner.commands if command[:2] == ("docker", "inspect")
+    ]
+    assert len(inspect_commands) == 1
+    assert "--format" in inspect_commands[0]
+    assert inspect_commands[0][-1] == "ok"
+    assert any(event["decision"] == "diagnostics-captured" for event in events)
+    assert not any("logs" in command for command in runner.commands)
+    assert not any("{{json .State}}" in command for command in runner.commands)
+    api_probes = [command for command in runner.commands if "api" in command and "curl" in command]
+    assert api_probes and all(command[-1].endswith("/livez") for command in api_probes)
+
+
+def test_watchdog_stops_after_three_restarts_in_ten_minutes(tmp_path: Path) -> None:
+    watchdog = _load_script("component_watchdog")
+    runner = FakeRunner({"api"})
+    events: list[dict[str, object]] = []
+
+    for now in range(100, 100 + 12 * 15, 15):
+        watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda now=now: now, events.append)
+
+    restarts = [command for command in runner.commands if "restart" in command]
+    assert restarts == [("docker", "compose", "restart", "api")] * 3
+    assert any(event["decision"] == "restart-refused-anti-flap" for event in events)
+
+
+def test_watchdog_anti_flap_limit_is_global_across_components(tmp_path: Path) -> None:
+    watchdog = _load_script("component_watchdog")
+    runner = FakeRunner()
+    events: list[dict[str, object]] = []
+
+    now = 100
+    for component in ("api", "classroom", "tile-service"):
+        runner.failing = {component}
+        for _ in range(3):
+            watchdog.run_cycle(
+                tmp_path, ROOT / "deploy", runner, lambda now=now: now, events.append
+            )
+            now += 15
+    runner.failing = {"classroom"}
+    for _ in range(3):
+        watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda now=now: now, events.append)
+        now += 15
+
+    restarts = [command for command in runner.commands if "restart" in command]
+    assert len(restarts) == 3
+    classroom_decisions = [
+        event["decision"] for event in events if event.get("component") == "classroom"
+    ]
+    assert classroom_decisions[-2:] == [
+        "diagnostics-captured",
+        "restart-refused-anti-flap",
+    ]
+
+
+def test_watchdog_fails_closed_when_state_is_corrupt(tmp_path: Path) -> None:
+    watchdog = _load_script("component_watchdog")
+    tmp_path.mkdir(exist_ok=True)
+    (tmp_path / "state.json").write_text("not-json", encoding="utf-8")
+
+    with pytest.raises(watchdog.WatchdogStateError):
+        watchdog.run_cycle(
+            tmp_path, ROOT / "deploy", FakeRunner({"api"}), lambda: 100, lambda _: None
+        )
+
+
+def test_watchdog_counts_failed_restart_action_and_rejects_invalid_history(tmp_path: Path) -> None:
+    watchdog = _load_script("component_watchdog")
+    runner = FakeRunner({"api"}, restart_fails=True)
+    for now in (100, 115, 130):
+        watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda now=now: now, lambda _: None)
+    state = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
+    assert state["restartActions"] == [{"at": 130, "component": "api", "outcome": "failed"}]
+
+    state["restartActions"].append("corrupt")
+    (tmp_path / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    with pytest.raises(watchdog.WatchdogStateError):
+        watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda: 145, lambda _: None)
+
+
+def test_watchdog_recovery_clears_failure_counter(tmp_path: Path) -> None:
+    watchdog = _load_script("component_watchdog")
+    runner = FakeRunner({"tile-service"})
+    events: list[dict[str, object]] = []
+
+    watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda: 100, events.append)
+    runner.failing.clear()
+    watchdog.run_cycle(tmp_path, ROOT / "deploy", runner, lambda: 115, events.append)
+
+    state = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
+    assert state["components"]["tile-service"]["consecutiveFailures"] == 0
+    assert any(
+        event["component"] == "tile-service" and event["decision"] == "recovered"
+        for event in events
+    )
+    healthy_components = {
+        event["component"] for event in events if event["decision"] == "probe-healthy"
+    }
+    assert healthy_components == {"api", "classroom", "tile-service"}
+
+
+def test_watchdog_timer_and_installer_contract() -> None:
+    timer = (ROOT / "deploy" / "systemd" / "pathlab-viewer-watchdog.timer").read_text(
+        encoding="utf-8"
+    )
+    service = (ROOT / "deploy" / "systemd" / "pathlab-viewer-watchdog.service").read_text(
+        encoding="utf-8"
+    )
+    installer = (ROOT / "deploy" / "scripts" / "install-watchdog.sh").read_text(encoding="utf-8")
+
+    assert "OnUnitActiveSec=15s" in timer
+    assert "Persistent=false" in timer
+    assert "component_watchdog.py" in service
+    assert "install -m 0644" in installer
+    assert "systemctl enable --now pathlab-viewer-watchdog.timer" in installer
+    assert "systemctl disable --now pathlab-viewer-watchdog.timer" in installer
+    override = (ROOT / "deploy" / "scripts" / "with-capacity-override.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "trap restore_prior EXIT" in override
+    assert "trap 'exit 130' INT" in override
+    assert "trap 'exit 143' TERM" in override
+    assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000" in override
+    assert 'RESTORE_LIMIT="300"' in override
+    assert override.index('"$@"') < override.index('FINAL_LIMIT="$("${PYTHON_BIN}"')
+
+
+def test_preflight_and_postflight_accept_complete_exact_sha_evidence() -> None:
+    safety = _load_script("production_safety")
+    sha = "a" * 40
+    evidence = _valid_evidence(sha)
+    key = b"test-only-deployment-evidence-key-32-bytes"
+    signature = safety.sign_evidence(evidence, key)
+
+    safety.validate_signed(
+        evidence, sha, signature, key, now=1_700_000_100, expected_nonce="run-123-attempt-1"
+    )
+
+
+def test_signed_evidence_rejects_tampering_staleness_and_nonce_replay() -> None:
+    safety = _load_script("production_safety")
+    sha = "c" * 40
+    key = b"test-only-deployment-evidence-key-32-bytes"
+    evidence = _valid_evidence(sha)
+    signature = safety.sign_evidence(evidence, key)
+
+    evidence["cost"]["monthToDate"] = 0.01
+    with pytest.raises(safety.GuardFailure):
+        safety.validate_signed(
+            evidence, sha, signature, key, now=1_700_000_100, expected_nonce="run-123-attempt-1"
+        )
+    evidence = _valid_evidence(sha)
+    signature = safety.sign_evidence(evidence, key)
+    with pytest.raises(safety.GuardFailure):
+        safety.validate_signed(
+            evidence, sha, signature, key, now=1_700_000_700, expected_nonce="run-123-attempt-1"
+        )
+    with pytest.raises(safety.GuardFailure):
+        safety.validate_signed(
+            evidence, sha, signature, key, now=1_700_000_100, expected_nonce="another-run"
+        )
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("ci", "required", "backend", "conclusion"), "failure"),
+        (("security", "required", "CodeQL (python)", "conclusion"), "failure"),
+        (("fixtures", "syntheticOnly"), False),
+        (("annotations", "enabled"), True),
+        (("egress", "projectedMonthlyBytes"), 9_000_000_000_000),
+        (("cost", "monthToDate"), 0.01),
+    ],
+)
+def test_deployment_guards_fail_closed(path: tuple[str, ...], value: object) -> None:
+    safety = _load_script("production_safety")
+    sha = "b" * 40
+    evidence = _valid_evidence(sha)
+    target: dict[str, Any] = evidence
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+    with pytest.raises(safety.GuardFailure):
+        safety.validate(evidence, sha)
+
+
+def test_capacity_override_restores_prior_limit_and_applies_only_allowed_final_limit(
+    tmp_path: Path,
+) -> None:
+    safety = _load_script("production_safety")
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "DOMAIN=viewer.test\nPATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n",
+        encoding="utf-8",
+    )
+
+    with safety.capacity_override(env_file, temporary_limit=2000) as restore:
+        assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000" in env_file.read_text(encoding="utf-8")
+        restore(1200)
+
+    assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=1200" in env_file.read_text(encoding="utf-8")
+
+    with (
+        pytest.raises(safety.GuardFailure),
+        safety.capacity_override(env_file, temporary_limit=2000) as restore,
+    ):
+        restore(1750)
+
+    assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=1200" in env_file.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("strict_1200", "strict_1500", "expected"),
+    [(False, False, 300), (True, False, 1200), (True, True, 1500)],
+)
+def test_final_capacity_is_derived_from_strict_evidence(
+    strict_1200: bool, strict_1500: bool, expected: int
+) -> None:
+    safety = _load_script("production_safety")
+
+    evidence = _capacity_evidence(strict_1200, strict_1500)
+    assert (
+        safety.select_final_capacity(
+            evidence,
+            expected_sha="d" * 40,
+            expected_run_id="run-456",
+            expected_nonce="capacity-nonce",
+            not_before=1_786_649_400,
+        )
+        == expected
+    )
+
+
+def test_failed_strict_run_can_select_300_without_claiming_earlier_gates() -> None:
+    safety = _load_script("production_safety")
+    evidence = _capacity_evidence(False, False)
+    for name in ("smoke-2", "smoke-100", "boundary-300", "boundary-600", "boundary-900"):
+        evidence["stageResults"][name] = {"durationSeconds": 0, "status": "skipped"}
+    assert (
+        safety.select_final_capacity(
+            evidence,
+            expected_sha="d" * 40,
+            expected_run_id="run-456",
+            expected_nonce="capacity-nonce",
+            not_before=1_786_649_400,
+        )
+        == 300
+    )
+
+
+def test_final_capacity_rejects_inconsistent_evidence() -> None:
+    safety = _load_script("production_safety")
+
+    with pytest.raises(safety.GuardFailure):
+        safety.select_final_capacity(
+            _capacity_evidence(False, True),
+            expected_sha="d" * 40,
+            expected_run_id="run-456",
+            expected_nonce="capacity-nonce",
+            not_before=1_786_649_400,
+        )
+
+
+def test_final_capacity_rejects_completion_after_authorized_window() -> None:
+    safety = _load_script("production_safety")
+    evidence = _capacity_evidence(True, True)
+    evidence["startedAt"] = 1_786_658_340  # 04:59 ICT
+    evidence["completedAt"] = 1_786_662_540
+    with pytest.raises(safety.GuardFailure, match="02:00-05:00"):
+        safety.select_final_capacity(
+            evidence,
+            expected_sha="d" * 40,
+            expected_run_id="run-456",
+            expected_nonce="capacity-nonce",
+            not_before=1_786_658_340,
+        )
+
+
+def test_release_flow_installs_watchdog_and_runs_guards() -> None:
+    release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(encoding="utf-8")
+
+    assert "production_safety.py" in release
+    assert "preflight" in release
+    assert "capacity-postflight" in release
+    assert "install-watchdog.sh" in release
+    assert "restore_watchdog" in release
+    assert "systemctl disable --now pathlab-viewer-watchdog.timer" in release
+    assert '"${ROLLBACK_DIR}/deploy/scripts/install-watchdog.sh" uninstall' not in release
+    assert release.index("docker compose stop worker") < release.index("bash scripts/backup.sh")
+    assert release.index("OLD_SERVICES_STOPPED=1") < release.index("docker compose stop worker")
+    assert release.index("docker compose stop caddy tusd") < release.index("bash scripts/backup.sh")
+    old_topology_stop = release[
+        release.index("OLD_WORKER_STOPPED=1") : release.index("BACKUP_PATH=")
+    ]
+    assert "docker compose stop caddy classroom tusd" not in old_topology_stop
+    assert '"https://${DOMAIN}/livez"' in release
+    assert '"https://${DOMAIN}/"' in release
+    assert "Tus-Resumable: 1.0.0" in release
+    assert ".State.Health.Status" in release
+
+
+def test_deploy_workflow_produces_and_transports_authenticated_evidence() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "deploy-production.yml").read_text(
+        encoding="utf-8"
+    )
+    bastion = (ROOT / "deploy" / "scripts" / "deploy-via-bastion.sh").read_text(encoding="utf-8")
+    assert "build_deploy_evidence.py" in workflow
+    assert "request-summarized-usages" in workflow
+    assert "browser" in workflow
+    assert "PATHLAB_DEPLOY_EVIDENCE_KEY" in workflow
+    assert "evidence=${EVIDENCE_B64}" in bastion
+    assert "signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE}" in bastion
+    assert 'length(data[?"lifecycle-state" == `ACTIVE`])' in bastion
+    assert workflow.index("Remove temporary cloud credentials") < workflow.index(
+        "Record deployment result"
+    )
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_watchdog_install_rolls_back_partial_systemd_failure(tmp_path: Path) -> None:
+    release = tmp_path / "release"
+    unit_source = release / "deploy" / "systemd"
+    unit_source.mkdir(parents=True)
+    for name in ("service", "timer"):
+        (unit_source / f"pathlab-viewer-watchdog.{name}").write_text(
+            f"new-{name}\n", encoding="utf-8"
+        )
+    unit_dir = tmp_path / "units"
+    unit_dir.mkdir()
+    (tmp_path / "state").mkdir()
+    (unit_dir / "pathlab-viewer-watchdog.service").write_text("old-service\n", encoding="utf-8")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text(
+        "#!/usr/bin/env bash\nif [[ \"$1 $2\" == 'enable --now' ]]; then exit 42; fi\nexit 0\n",
+        encoding="utf-8",
+    )
+    systemctl.chmod(0o755)
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_SYSTEMD_UNIT_DIR": _bash_path(unit_dir),
+            "PATHLAB_WATCHDOG_STATE_DIR": _bash_path(tmp_path / "state"),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(BASH),
+            str(ROOT / "deploy" / "scripts" / "install-watchdog.sh"),
+            "install",
+            _bash_path(release),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 42
+    assert (unit_dir / "pathlab-viewer-watchdog.service").read_text(
+        encoding="utf-8"
+    ) == "old-service\n"
+    assert not (unit_dir / "pathlab-viewer-watchdog.timer").exists()
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_watchdog_uninstall_propagates_disable_failure_and_restores_units(
+    tmp_path: Path,
+) -> None:
+    release = tmp_path / "release"
+    (release / "deploy" / "systemd").mkdir(parents=True)
+    unit_dir = tmp_path / "units"
+    state_dir = tmp_path / "state"
+    fake_bin = tmp_path / "bin"
+    unit_dir.mkdir()
+    state_dir.mkdir()
+    fake_bin.mkdir()
+    for name in ("service", "timer"):
+        (unit_dir / f"pathlab-viewer-watchdog.{name}").write_text(f"old-{name}\n", encoding="utf-8")
+    systemctl = fake_bin / "systemctl"
+    failure_marker = tmp_path / "disable-failed"
+    systemctl.write_text(
+        "#!/usr/bin/env bash\n"
+        f"marker='{_bash_path(failure_marker)}'\n"
+        'if [[ "$1 $2" == \'disable --now\' && ! -f "$marker" ]]; then '
+        'touch "$marker"; exit 42; fi\n'
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    systemctl.chmod(0o755)
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_SYSTEMD_UNIT_DIR": _bash_path(unit_dir),
+            "PATHLAB_WATCHDOG_STATE_DIR": _bash_path(state_dir),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(BASH),
+            str(ROOT / "deploy" / "scripts" / "install-watchdog.sh"),
+            "uninstall",
+            _bash_path(release),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 42
+    assert (unit_dir / "pathlab-viewer-watchdog.service").read_text(
+        encoding="utf-8"
+    ) == "old-service\n"
+    assert (unit_dir / "pathlab-viewer-watchdog.timer").read_text(encoding="utf-8") == "old-timer\n"
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_release_rollback_restores_previous_tree_behaviorally(tmp_path: Path) -> None:
+    live = tmp_path / "live"
+    rollback = tmp_path / "rollback"
+    live.mkdir()
+    rollback.mkdir()
+    (live / "candidate").write_text("candidate", encoding="utf-8")
+    (rollback / "previous").write_text("previous", encoding="utf-8")
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    systemctl.chmod(0o755)
+    shell = (
+        "set -Eeuo pipefail; export PATHLAB_DEPLOY_RELEASE_LIBRARY_ONLY=1; "
+        'source "$1"; LIVE_DIR="$2"; ROLLBACK_DIR="$3"; SWAPPED=1; '
+        "WATCHDOG_CHANGED=0; OLD_WORKER_STOPPED=0; OLD_SERVICES_STOPPED=0; "
+        "rollback_release"
+    )
+    env = os.environ.copy()
+    env["PATH"] = f"{_bash_path(fake_bin)}:{env['PATH']}"
+    result = subprocess.run(
+        [
+            str(BASH),
+            "-c",
+            shell,
+            "rollback-test",
+            _bash_path(ROOT / "deploy" / "scripts" / "deploy-release.sh"),
+            _bash_path(live),
+            _bash_path(rollback),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert (live / "previous").read_text(encoding="utf-8") == "previous"
+    failed = list(tmp_path.glob("live.failed-*"))
+    assert len(failed) == 1
+    assert (failed[0] / "candidate").read_text(encoding="utf-8") == "candidate"
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_capacity_shell_contains_failed_restoration(tmp_path: Path) -> None:
+    compose_dir = tmp_path / "deploy"
+    runtime_dir = compose_dir / "runtime"
+    fake_bin = tmp_path / "bin"
+    compose_dir.mkdir()
+    runtime_dir.mkdir()
+    fake_bin.mkdir()
+    env_file = compose_dir / ".env"
+    env_file.write_text("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n", encoding="utf-8")
+    decision = runtime_dir / "pathlab-capacity-run-789.json"
+    decision_signature = Path(f"{decision}.sig")
+    command = fake_bin / "run-load"
+    command.write_text(
+        f"#!/usr/bin/env bash\nprintf '{{}}' > '{_bash_path(decision)}'\n"
+        f"printf '%064d' 0 > '{_bash_path(decision_signature)}'\n",
+        encoding="utf-8",
+    )
+    python = fake_bin / "python3"
+    python.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [[ \" $* \" == *' capacity-decision '* ]]; then echo 1200; fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        f"log='{_bash_path(tmp_path / 'docker.log')}'\n"
+        'printf \'%s\\n\' "$*" >> "$log"\n'
+        "if [[ \" $* \" == *' compose up '* ]]; then\n"
+        f"  count_file='{_bash_path(tmp_path / 'up-count')}'\n"
+        '  count=0; [[ -f "$count_file" ]] && count=$(cat "$count_file")\n'
+        '  count=$((count + 1)); printf \'%s\' "$count" > "$count_file"\n'
+        "  [[ $count -gt 1 ]] && exit 9\n"
+        "fi\n"
+        "if [[ \" $* \" == *' compose ps '* ]]; then printf 'api\\nclassroom\\n'; fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    date = fake_bin / "date"
+    date.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [[ \"$1\" == '+%H' ]]; then echo 02; "
+        "elif [[ \"$1\" == '+%s' ]]; then echo 1786649400; "
+        'else /usr/bin/date "$@"; fi\n',
+        encoding="utf-8",
+    )
+    for executable in (command, python, docker, date):
+        executable.chmod(0o755)
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text("{}", encoding="utf-8")
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_CAPACITY_TEST_MODE": "1",
+            "PATHLAB_CAPACITY_TEST_ICT_HOUR": "02",
+            "PATHLAB_CAPACITY_ENV_FILE": _bash_path(env_file),
+            "PATHLAB_COMPOSE_DIR": _bash_path(compose_dir),
+            "PATHLAB_CAPACITY_RUNTIME_DIR": _bash_path(runtime_dir),
+            "PATHLAB_CAPACITY_DECISION_FILE": _bash_path(decision),
+            "PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE": _bash_path(decision_signature),
+            "PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE": _bash_path(evidence),
+            "PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE": "a" * 64,
+            "PATHLAB_CAPACITY_CANDIDATE_SHA": "b" * 40,
+            "PATHLAB_CAPACITY_RUN_ID": "run-789",
+            "PATHLAB_CAPACITY_NONCE": "nonce-run-789",
+            "PATHLAB_PYTHON": _bash_path(python),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(BASH),
+            str(ROOT / "deploy" / "scripts" / "with-capacity-override.sh"),
+            _bash_path(command),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+    assert "compose stop api classroom" in (tmp_path / "docker.log").read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+@pytest.mark.parametrize(("signal", "expected"), [("INT", 130), ("TERM", 143)])
+def test_capacity_shell_restores_on_signals(tmp_path: Path, signal: str, expected: int) -> None:
+    compose_dir = tmp_path / "deploy"
+    runtime_dir = compose_dir / "runtime"
+    fake_bin = tmp_path / "bin"
+    compose_dir.mkdir()
+    runtime_dir.mkdir()
+    fake_bin.mkdir()
+    env_file = compose_dir / ".env"
+    env_file.write_text("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n", encoding="utf-8")
+    command = fake_bin / "signal-load"
+    command.write_text(
+        f'#!/usr/bin/env bash\nkill -s {signal} "$PPID"\nsleep 1\n',
+        encoding="utf-8",
+    )
+    python = fake_bin / "python3"
+    python.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [[ \" $* \" == *' compose ps '* ]]; then printf 'api\\nclassroom\\n'; fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    for executable in (command, python, docker):
+        executable.chmod(0o755)
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text("{}", encoding="utf-8")
+    decision = runtime_dir / "pathlab-capacity-run-signal.json"
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_CAPACITY_TEST_MODE": "1",
+            "PATHLAB_CAPACITY_TEST_ICT_HOUR": "02",
+            "PATHLAB_CAPACITY_ENV_FILE": _bash_path(env_file),
+            "PATHLAB_COMPOSE_DIR": _bash_path(compose_dir),
+            "PATHLAB_CAPACITY_RUNTIME_DIR": _bash_path(runtime_dir),
+            "PATHLAB_CAPACITY_DECISION_FILE": _bash_path(decision),
+            "PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE": _bash_path(Path(f"{decision}.sig")),
+            "PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE": _bash_path(evidence),
+            "PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE": "a" * 64,
+            "PATHLAB_CAPACITY_CANDIDATE_SHA": "b" * 40,
+            "PATHLAB_CAPACITY_RUN_ID": "run-signal",
+            "PATHLAB_CAPACITY_NONCE": "nonce-run-signal",
+            "PATHLAB_PYTHON": _bash_path(python),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(BASH),
+            str(ROOT / "deploy" / "scripts" / "with-capacity-override.sh"),
+            _bash_path(command),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == expected
+    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_capacity_shell_refuses_0459_before_raising_limit(tmp_path: Path) -> None:
+    compose_dir = tmp_path / "deploy"
+    runtime_dir = compose_dir / "runtime"
+    fake_bin = tmp_path / "bin"
+    compose_dir.mkdir()
+    runtime_dir.mkdir()
+    fake_bin.mkdir()
+    env_file = compose_dir / ".env"
+    env_file.write_text("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n", encoding="utf-8")
+    python = fake_bin / "python3"
+    python.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    command = fake_bin / "must-not-run"
+    marker = tmp_path / "ran"
+    command.write_text(f"#!/usr/bin/env bash\ntouch '{_bash_path(marker)}'\n", encoding="utf-8")
+    python.chmod(0o755)
+    command.chmod(0o755)
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text("{}", encoding="utf-8")
+    decision = runtime_dir / "pathlab-capacity-run-late.json"
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_CAPACITY_TEST_MODE": "1",
+            "PATHLAB_CAPACITY_TEST_ICT_HOUR": "04",
+            "PATHLAB_CAPACITY_TEST_ICT_SECONDS": "17940",
+            "PATHLAB_CAPACITY_ENV_FILE": _bash_path(env_file),
+            "PATHLAB_COMPOSE_DIR": _bash_path(compose_dir),
+            "PATHLAB_CAPACITY_RUNTIME_DIR": _bash_path(runtime_dir),
+            "PATHLAB_CAPACITY_DECISION_FILE": _bash_path(decision),
+            "PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE": _bash_path(Path(f"{decision}.sig")),
+            "PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE": _bash_path(evidence),
+            "PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE": "a" * 64,
+            "PATHLAB_CAPACITY_CANDIDATE_SHA": "b" * 40,
+            "PATHLAB_CAPACITY_RUN_ID": "run-late",
+            "PATHLAB_CAPACITY_NONCE": "nonce-run-late",
+            "PATHLAB_PYTHON": _bash_path(python),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(BASH),
+            str(ROOT / "deploy" / "scripts" / "with-capacity-override.sh"),
+            _bash_path(command),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "two hours before the 05:00 ICT hard stop" in result.stderr
+    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) -> None:
+    compose_dir = tmp_path / "deploy"
+    runtime_dir = compose_dir / "runtime"
+    fake_bin = tmp_path / "bin"
+    compose_dir.mkdir()
+    runtime_dir.mkdir()
+    fake_bin.mkdir()
+    env_file = compose_dir / ".env"
+    env_file.write_text("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n", encoding="utf-8")
+    started = tmp_path / "started"
+    terminated = tmp_path / "terminated"
+    command = fake_bin / "overrun-load"
+    command.write_text(
+        "#!/usr/bin/env bash\n"
+        f"touch '{_bash_path(started)}'\n"
+        f"trap \"touch '{_bash_path(terminated)}'\" TERM\n"
+        "while :; do sleep 1; done\n",
+        encoding="utf-8",
+    )
+    python = fake_bin / "python3"
+    python.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    date = fake_bin / "date"
+    date.write_text("#!/usr/bin/env bash\nprintf '1700000000\\n'\n", encoding="utf-8")
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        "if [[ \" $* \" == *' compose ps '* ]]; then printf 'api\\nclassroom\\n'; fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    for executable in (command, python, date, docker):
+        executable.chmod(0o755)
+    evidence = tmp_path / "evidence.json"
+    evidence.write_text("{}", encoding="utf-8")
+    decision = runtime_dir / "pathlab-capacity-run-overrun.json"
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_CAPACITY_TEST_MODE": "1",
+            "PATHLAB_CAPACITY_TEST_ICT_HOUR": "02",
+            "PATHLAB_CAPACITY_TEST_ICT_SECONDS": "7200",
+            "PATHLAB_CAPACITY_TEST_REQUIRED_RUNTIME_SECONDS": "1",
+            "PATHLAB_CAPACITY_TEST_LAUNCH_SECONDS_UNTIL_END": "5",
+            "PATHLAB_CAPACITY_TEST_KILL_AFTER_SECONDS": "1",
+            "PATHLAB_CAPACITY_TEST_DEADLINE_SAFETY_SECONDS": "1",
+            "PATHLAB_CAPACITY_ENV_FILE": _bash_path(env_file),
+            "PATHLAB_COMPOSE_DIR": _bash_path(compose_dir),
+            "PATHLAB_CAPACITY_RUNTIME_DIR": _bash_path(runtime_dir),
+            "PATHLAB_CAPACITY_DECISION_FILE": _bash_path(decision),
+            "PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE": _bash_path(Path(f"{decision}.sig")),
+            "PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE": _bash_path(evidence),
+            "PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE": "a" * 64,
+            "PATHLAB_CAPACITY_CANDIDATE_SHA": "b" * 40,
+            "PATHLAB_CAPACITY_RUN_ID": "run-overrun",
+            "PATHLAB_CAPACITY_NONCE": "nonce-run-overrun",
+            "PATHLAB_PYTHON": _bash_path(python),
+        }
+    )
+    started_at = time.monotonic()
+    result = subprocess.run(
+        [
+            str(BASH),
+            str(ROOT / "deploy" / "scripts" / "with-capacity-override.sh"),
+            _bash_path(command),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=10,
+    )
+    elapsed = time.monotonic() - started_at
+    assert result.returncode in {124, 137}
+    assert elapsed < 6
+    assert started.exists()
+    assert terminated.exists()
+    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")

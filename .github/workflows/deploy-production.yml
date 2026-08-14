@@ -48,9 +48,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for check in backend web containers; do
-            conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
-              --jq ".check_runs[] | select(.name == \"${check}\") | .conclusion" | head -n 1)"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?per_page=100" \
+            > "${RUNNER_TEMP}/check-runs.json"
+          for check in backend browser web containers repository-and-dependencies \
+            'CodeQL (python)' 'CodeQL (javascript-typescript)'; do
+            conclusion="$(jq -r --arg name "${check}" \
+              '[.check_runs[] | select(.name == $name and .head_sha == env.GITHUB_SHA)] \
+               | sort_by(.id) | last | .conclusion // empty' \
+              "${RUNNER_TEMP}/check-runs.json")"
             test "${conclusion}" = success || {
               echo "Required check ${check} is ${conclusion:-missing}, not successful."
               exit 1
@@ -75,6 +81,42 @@ jobs:
           printf '%s\n' "${OCI_BASTION_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Build authenticated deployment evidence
+        env:
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+          PROJECTED_EGRESS_BYTES: ${{ vars.OCI_PROJECTED_MONTHLY_EGRESS_BYTES }}
+        run: |
+          test "${PROJECTED_EGRESS_BYTES}" -ge 0
+          test "${PROJECTED_EGRESS_BYTES}" -lt 9000000000000
+          evidence_key="${RUNNER_TEMP}/deploy-evidence.key"
+          evidence_file="${RUNNER_TEMP}/deploy-evidence.json"
+          signature_file="${RUNNER_TEMP}/deploy-evidence.signature"
+          install -m 600 /dev/null "${evidence_key}"
+          printf '%s' "${DEPLOY_EVIDENCE_KEY}" > "${evidence_key}"
+          tenancy_id="$(awk -F= '/^tenancy=/{print $2; exit}' ~/.oci/config)"
+          test -n "${tenancy_id}"
+          usage_start="$(date -u +%Y-%m-01T00:00:00Z)"
+          usage_end="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          oci usage-api usage-summary request-summarized-usages \
+            --tenant-id "${tenancy_id}" --granularity MONTHLY --query-type COST \
+            --time-usage-started "${usage_start}" --time-usage-ended "${usage_end}" \
+            > "${RUNNER_TEMP}/oci-cost.json"
+          month_cost="$(jq -r '[.data.items[]? | (."computed-amount" // 0 | tonumber)] | add // 0' \
+            "${RUNNER_TEMP}/oci-cost.json")"
+          nonce="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date -u +%s)"
+          python deploy/scripts/build_deploy_evidence.py \
+            --checks "${RUNNER_TEMP}/check-runs.json" \
+            --candidate-sha "${GITHUB_SHA}" --repository "${GITHUB_REPOSITORY}" \
+            --workflow-run-id "${GITHUB_RUN_ID}" --nonce "${nonce}" \
+            --projected-monthly-egress-bytes "${PROJECTED_EGRESS_BYTES}" \
+            --month-to-date-cost-sgd "${month_cost}" --key-file "${evidence_key}" \
+            --output "${evidence_file}" --signature-output "${signature_file}"
+          signature="$(cat "${signature_file}")"
+          echo "::add-mask::${signature}"
+          echo "PATHLAB_DEPLOY_EVIDENCE_FILE=${evidence_file}" >> "${GITHUB_ENV}"
+          echo "PATHLAB_DEPLOY_EVIDENCE_SIGNATURE=${signature}" >> "${GITHUB_ENV}"
+          echo "PATHLAB_DEPLOY_EVIDENCE_NONCE=${nonce}" >> "${GITHUB_ENV}"
+
       - name: Deploy through temporary OCI Bastion session
         env:
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
@@ -86,7 +128,14 @@ jobs:
 
       - name: Remove temporary cloud credentials
         if: always()
-        run: rm -rf -- ~/.oci ~/.ssh
+        run: |
+          rm -rf -- ~/.oci ~/.ssh
+          rm -f -- "${RUNNER_TEMP}/deploy-evidence.key" \
+            "${RUNNER_TEMP}/deploy-evidence.json" \
+            "${RUNNER_TEMP}/deploy-evidence.signature" \
+            "${RUNNER_TEMP}/check-runs.json" "${RUNNER_TEMP}/oci-cost.json"
+          test ! -e ~/.oci
+          test ! -e ~/.ssh
 
       - name: Record deployment result
         run: |

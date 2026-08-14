@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CLASSROOM_VIEWER_NETWORK_PROFILE,
   initialViewerNetworkState,
   nextViewerNetworkState,
   type ViewerNetworkWindow,
@@ -40,5 +41,39 @@ describe('adaptive viewer request policy', () => {
     expect(nextViewerNetworkState(start, healthy, false, 'data-saver').jobLimit).toBe(2)
     expect(nextViewerNetworkState(start, { ...healthy, p75Ms: 5000 }, false, 'full').jobLimit).toBe(12)
     expect(nextViewerNetworkState(start, healthy, true, 'full').jobLimit).toBe(8)
+  })
+
+  it('starts Classroom tile loading at two and never exceeds four', () => {
+    const start = initialViewerNetworkState(
+      'auto',
+      false,
+      { effectiveType: '4g', saveData: false },
+      CLASSROOM_VIEWER_NETWORK_PROFILE,
+    )
+    expect(start).toEqual({ jobLimit: 2, healthyWindows: 0 })
+
+    const firstHealthy = nextViewerNetworkState(
+      start,
+      healthy,
+      false,
+      'auto',
+      CLASSROOM_VIEWER_NETWORK_PROFILE,
+    )
+    const secondHealthy = nextViewerNetworkState(
+      firstHealthy,
+      healthy,
+      false,
+      'auto',
+      CLASSROOM_VIEWER_NETWORK_PROFILE,
+    )
+    expect(firstHealthy.jobLimit).toBe(2)
+    expect(secondHealthy.jobLimit).toBe(4)
+    expect(nextViewerNetworkState(
+      secondHealthy,
+      healthy,
+      false,
+      'full',
+      CLASSROOM_VIEWER_NETWORK_PROFILE,
+    ).jobLimit).toBe(4)
   })
 })

@@ -4,6 +4,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy import text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import session_factory
@@ -63,6 +64,26 @@ def test_current_alembic_head_is_ready(tmp_path: Path, monkeypatch: pytest.Monke
         assert client.get("/readyz").json() == {"status": "ready"}
 
 
+def test_readiness_validates_schema_once_at_startup_then_uses_cached_lightweight_probe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, "cached-readiness.sqlite3")
+    _upgrade(settings, "head", monkeypatch)
+    inspections = 0
+
+    def recording_inspect(bind: object):
+        nonlocal inspections
+        inspections += 1
+        return sqlalchemy_inspect(bind)
+
+    monkeypatch.setattr("wsi_viewer.readiness.inspect", recording_inspect)
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/readyz").json() == {"status": "ready"}
+        assert client.get("/readyz").json() == {"status": "ready"}
+
+    assert inspections == 1
+
+
 def test_production_readiness_requires_bounded_internal_tile_service(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -80,6 +101,45 @@ def test_production_readiness_requires_bounded_internal_tile_service(
         }
 
     monkeypatch.setattr("wsi_viewer.main.tile_service_is_ready", lambda _: True)
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/readyz").json() == {"status": "ready"}
+
+
+def test_classroom_readiness_does_not_depend_on_the_general_tile_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = _settings(tmp_path, "classroom-role.sqlite3").model_dump()
+    values.update(
+        service_role="classroom",
+        classroom_enabled=True,
+        classroom_singleton=True,
+        internal_file_redirects=True,
+    )
+    settings = Settings(**values)
+    _upgrade(settings, "head", monkeypatch)
+    monkeypatch.setattr("wsi_viewer.main.tile_service_is_ready", lambda _: False)
+
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/readyz").json() == {"status": "ready"}
+
+
+def test_general_readiness_does_not_own_the_classroom_singleton(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = _settings(tmp_path, "general-role.sqlite3").model_dump()
+    values.update(
+        service_role="general",
+        classroom_enabled=True,
+        classroom_singleton=False,
+    )
+    settings = Settings(**values)
+    _upgrade(settings, "head", monkeypatch)
+    monkeypatch.setattr(
+        "wsi_viewer.main.ClassroomSingletonLock.acquire", lambda _: False
+    )
+
     with TestClient(create_app(settings)) as client:
         assert client.get("/readyz").json() == {"status": "ready"}
 

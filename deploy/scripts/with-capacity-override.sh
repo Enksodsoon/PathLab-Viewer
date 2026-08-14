@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${PATHLAB_CAPACITY_DECISION_FILE:?PATHLAB_CAPACITY_DECISION_FILE is required}"
+: "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE:?PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE is required}"
+: "${PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE:?PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE is required}"
+: "${PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE:?PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE is required}"
+: "${PATHLAB_CAPACITY_CANDIDATE_SHA:?PATHLAB_CAPACITY_CANDIDATE_SHA is required}"
+: "${PATHLAB_CAPACITY_RUN_ID:?PATHLAB_CAPACITY_RUN_ID is required}"
+: "${PATHLAB_CAPACITY_NONCE:?PATHLAB_CAPACITY_NONCE is required}"
+ENV_FILE="${PATHLAB_CAPACITY_ENV_FILE:-/opt/pathlab-viewer/deploy/.env}"
+COMPOSE_DIR="${PATHLAB_COMPOSE_DIR:-/opt/pathlab-viewer/deploy}"
+PYTHON_BIN="${PATHLAB_PYTHON:-python3}"
+RUNTIME_DIR="${PATHLAB_CAPACITY_RUNTIME_DIR:-/run}"
+RESTORE_EVIDENCE="${PATHLAB_CAPACITY_RESTORE_EVIDENCE:-${RUNTIME_DIR}/pathlab-capacity-${PATHLAB_CAPACITY_RUN_ID}-restore.json}"
+[[ "$#" -gt 0 ]] || { echo "Usage: with-capacity-override.sh command [args...]" >&2; exit 2; }
+if [[ "${ENV_FILE}" == /opt/pathlab-viewer/deploy/.env ]]; then
+  [[ "${COMPOSE_DIR}" == /opt/pathlab-viewer/deploy && "${RUNTIME_DIR}" == /run ]] || {
+    echo "Refusing unexpected production capacity paths" >&2
+    exit 2
+  }
+else
+  [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" && "${ENV_FILE}" == "${COMPOSE_DIR}/.env" && \
+    "${RUNTIME_DIR}" == "${COMPOSE_DIR}/runtime" ]] || {
+    echo "Refusing unexpected capacity environment file" >&2
+    exit 2
+  }
+fi
+[[ "${PATHLAB_CAPACITY_DECISION_FILE}" == "${RUNTIME_DIR}/pathlab-capacity-${PATHLAB_CAPACITY_RUN_ID}.json" ]] || {
+  echo "Capacity decision path is not run-bound" >&2
+  exit 2
+}
+[[ "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}" == "${PATHLAB_CAPACITY_DECISION_FILE}.sig" ]] || {
+  echo "Capacity decision signature path is not run-bound" >&2
+  exit 2
+}
+
+"${PYTHON_BIN}" "${COMPOSE_DIR}/scripts/production_safety.py" \
+  preflight "${PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE}" \
+  "${PATHLAB_CAPACITY_CANDIDATE_SHA}" \
+  --signature "${PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE}" \
+  --nonce "${PATHLAB_CAPACITY_NONCE}"
+if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
+  ICT_HOUR="${PATHLAB_CAPACITY_TEST_ICT_HOUR:-}"
+  ICT_SECONDS_SINCE_MIDNIGHT="${PATHLAB_CAPACITY_TEST_ICT_SECONDS:-}"
+else
+  ICT_HOUR="$(TZ=Asia/Bangkok date +%H)"
+  ICT_TIME="$(TZ=Asia/Bangkok date +%H:%M:%S)"
+  IFS=: read -r ict_hour ict_minute ict_second <<< "${ICT_TIME}"
+  ICT_SECONDS_SINCE_MIDNIGHT="$((10#${ict_hour} * 3600 + 10#${ict_minute} * 60 + 10#${ict_second}))"
+fi
+[[ "${ICT_HOUR}" =~ ^0[234]$ ]] || {
+  echo "Capacity override is restricted to 02:00-05:00 ICT" >&2
+  exit 2
+}
+if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" && -z "${ICT_SECONDS_SINCE_MIDNIGHT}" ]]; then
+  ICT_SECONDS_SINCE_MIDNIGHT="$((10#${ICT_HOUR} * 3600))"
+fi
+[[ "${ICT_SECONDS_SINCE_MIDNIGHT}" =~ ^[0-9]+$ ]] || {
+  echo "Capacity override could not determine the ICT runtime window" >&2
+  exit 2
+}
+SECONDS_UNTIL_WINDOW_END="$((5 * 3600 - ICT_SECONDS_SINCE_MIDNIGHT))"
+if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
+  REQUIRED_RUNTIME_SECONDS="${PATHLAB_CAPACITY_TEST_REQUIRED_RUNTIME_SECONDS:-7200}"
+  KILL_AFTER_SECONDS="${PATHLAB_CAPACITY_TEST_KILL_AFTER_SECONDS:-5}"
+  DEADLINE_SAFETY_SECONDS="${PATHLAB_CAPACITY_TEST_DEADLINE_SAFETY_SECONDS:-1}"
+  TEST_LAUNCH_REMAINING="${PATHLAB_CAPACITY_TEST_LAUNCH_SECONDS_UNTIL_END:-${SECONDS_UNTIL_WINDOW_END}}"
+  [[ "${TEST_LAUNCH_REMAINING}" =~ ^[1-9][0-9]*$ ]] || {
+    echo "Capacity test deadline is invalid" >&2
+    exit 2
+  }
+  WINDOW_END_EPOCH="$(($(date +%s) + TEST_LAUNCH_REMAINING))"
+else
+  REQUIRED_RUNTIME_SECONDS=7200
+  KILL_AFTER_SECONDS=30
+  DEADLINE_SAFETY_SECONDS=5
+  WINDOW_END_EPOCH="$(TZ=Asia/Bangkok date -d 'today 05:00:00' +%s)"
+fi
+[[ "${REQUIRED_RUNTIME_SECONDS}" =~ ^[1-9][0-9]*$ && \
+  "${KILL_AFTER_SECONDS}" =~ ^[1-9][0-9]*$ && \
+  "${DEADLINE_SAFETY_SECONDS}" =~ ^[1-9][0-9]*$ && \
+  "${WINDOW_END_EPOCH}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "Capacity runtime deadline is invalid" >&2
+  exit 2
+}
+[[ "${SECONDS_UNTIL_WINDOW_END}" -ge "${REQUIRED_RUNTIME_SECONDS}" ]] || {
+  echo "Capacity override lacks two hours before the 05:00 ICT hard stop" >&2
+  exit 2
+}
+
+existing="$(sed -n 's/^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=//p' "${ENV_FILE}")"
+[[ -z "${existing}" || "${existing}" =~ ^([1-9][0-9]{0,2}|1[0-9]{3}|2000)$ ]] || {
+  echo "Existing Classroom capacity is invalid" >&2
+  exit 2
+}
+PRIOR_LIMIT="${existing:-300}"
+RESTORE_LIMIT="300"
+if [[ "${RUNTIME_DIR}" == /run ]]; then
+  install -d -m 0700 "${RUNTIME_DIR}"
+else
+  mkdir -p -- "${RUNTIME_DIR}"
+fi
+PRIOR_SNAPSHOT="$(mktemp "${RUNTIME_DIR}/pathlab-capacity-prior-XXXXXX.env")"
+install -m 0600 "${ENV_FILE}" "${PRIOR_SNAPSHOT}"
+START_EPOCH="$(date +%s)"
+rm -f -- "${PATHLAB_CAPACITY_DECISION_FILE}" "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}"
+
+set_limit() {
+  local limit="$1"
+  local temporary
+  temporary="$(mktemp "${ENV_FILE}.XXXXXX")"
+  awk -v value="${limit}" '
+    BEGIN { found=0 }
+    /^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=/ {
+      if (!found) print "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=" value
+      found=1
+      next
+    }
+    { print }
+    END { if (!found) print "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=" value }
+  ' "${ENV_FILE}" > "${temporary}"
+  chmod --reference="${ENV_FILE}" "${temporary}"
+  mv -- "${temporary}" "${ENV_FILE}"
+}
+
+reload_capacity_services() {
+  (
+    cd "${COMPOSE_DIR}"
+    docker compose up -d --no-deps --force-recreate api classroom || exit 1
+    running="$(docker compose ps --status running --services api classroom | sort)" || exit 1
+    [[ "${running}" == $'api\nclassroom' ]]
+  )
+}
+
+contain_unsafe_runtime() {
+  (
+    cd "${COMPOSE_DIR}"
+    docker compose stop api classroom
+  ) || true
+}
+
+restore_prior() {
+  local exit_code=$?
+  trap - EXIT INT TERM
+  if ! set_limit "${RESTORE_LIMIT}" || ! reload_capacity_services; then
+    install -m 0600 "${PRIOR_SNAPSHOT}" "${ENV_FILE}" || true
+    contain_unsafe_runtime
+    echo "Capacity restoration failed; API and Classroom were stopped" >&2
+    rm -f -- "${PRIOR_SNAPSHOT}"
+    exit 1
+  fi
+  grep -qx "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=${RESTORE_LIMIT}" "${ENV_FILE}" || exit 1
+  local restore_temporary="${RESTORE_EVIDENCE}.tmp"
+  printf '{"configurationRestored":true,"finalLimit":%s,"servicesReady":true}\n' \
+    "${RESTORE_LIMIT}" > "${restore_temporary}"
+  chmod 0600 "${restore_temporary}"
+  mv -- "${restore_temporary}" "${RESTORE_EVIDENCE}"
+  rm -f -- "${PRIOR_SNAPSHOT}"
+  exit "${exit_code}"
+}
+trap restore_prior EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+set_limit 2000
+grep -qx 'PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000' "${ENV_FILE}"
+reload_capacity_services
+LAUNCH_REMAINING_SECONDS="$((WINDOW_END_EPOCH - $(date +%s)))"
+COMMAND_TIMEOUT_SECONDS="$((LAUNCH_REMAINING_SECONDS - KILL_AFTER_SECONDS - DEADLINE_SAFETY_SECONDS))"
+[[ "${COMMAND_TIMEOUT_SECONDS}" -ge 1 ]] || {
+  echo "Capacity runtime deadline elapsed during setup" >&2
+  exit 2
+}
+timeout --signal=TERM --kill-after="${KILL_AFTER_SECONDS}s" \
+  "${COMMAND_TIMEOUT_SECONDS}s" "$@"
+[[ -f "${PATHLAB_CAPACITY_DECISION_FILE}" ]] || {
+  echo "Capacity command did not produce a decision" >&2
+  exit 1
+}
+[[ -f "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}" ]] || {
+  echo "Capacity command did not produce a decision signature" >&2
+  exit 1
+}
+[[ "$(stat -c %Y "${PATHLAB_CAPACITY_DECISION_FILE}")" -ge "${START_EPOCH}" ]] || {
+  echo "Capacity decision is stale" >&2
+  exit 1
+}
+FINAL_LIMIT="$("${PYTHON_BIN}" "${COMPOSE_DIR}/scripts/production_safety.py" \
+  capacity-decision "${PATHLAB_CAPACITY_DECISION_FILE}" \
+  "${PATHLAB_CAPACITY_CANDIDATE_SHA}" \
+  --signature "$(cat "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}")" \
+  --run-id "${PATHLAB_CAPACITY_RUN_ID}" \
+  --nonce "${PATHLAB_CAPACITY_NONCE}" \
+  --not-before "${START_EPOCH}")"
+[[ "${FINAL_LIMIT}" =~ ^(300|1200|1500)$ ]] || {
+  echo "Capacity decision is invalid" >&2
+  exit 2
+}
+RESTORE_LIMIT="${FINAL_LIMIT}"

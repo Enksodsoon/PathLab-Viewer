@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session as OrmSession
 from .domain import SlideState
 from .library import folder_subtree_ids, utcnow
 from .models import (
+    AuditEvent,
     Collection,
     CollectionSlide,
     Folder,
@@ -97,11 +98,7 @@ def target_slides(
         folder = database.get(Folder, target_id)
         if folder is None or folder.trashed_at is not None:
             raise ShareConflict("SHARE_TARGET_NOT_FOUND")
-        folder_ids = (
-            folder_subtree_ids(database, folder.id)
-            if include_descendants
-            else [folder.id]
-        )
+        folder_ids = folder_subtree_ids(database, folder.id) if include_descendants else [folder.id]
         slides = list(
             database.scalars(
                 select(Slide)
@@ -247,9 +244,7 @@ def share_json(
     count = included_count
     if count is None:
         count = len(
-            database.scalars(
-                select(ShareSlide.id).where(ShareSlide.share_id == share.id)
-            ).all()
+            database.scalars(select(ShareSlide.id).where(ShareSlide.share_id == share.id)).all()
         )
     state = "revoked" if not share.is_active else "active"
     if share.expires_at is not None and share.expires_at <= utcnow():
@@ -278,6 +273,7 @@ def activate_share(
     auto_include_new: bool,
     expires_at: datetime | None,
     slide_ids: list[str] | None,
+    synthetic_run_id: str | None = None,
 ) -> LibraryShare:
     preview = preview_share(
         database,
@@ -341,6 +337,14 @@ def activate_share(
             )
         )
         ensure_grant(database, storage, slide, SHARE, share.id)
+    if synthetic_run_id is not None:
+        database.add(
+            AuditEvent(
+                action="capacity.sentinel.share",
+                target_id=share.id,
+                detail={"runId": synthetic_run_id},
+            )
+        )
     database.commit()
     write_share_delivery_manifest(
         storage,
@@ -407,12 +411,10 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
                 "tags": slide.tags,
                 "teachingNote": slide.teaching_note,
                 "thumbnailUrl": (
-                    f"/api/v2/public/{route}/{share.public_id}/slides/"
-                    f"{position}/thumbnail"
+                    f"/api/v2/public/{route}/{share.public_id}/slides/{position}/thumbnail"
                 ),
                 "tileSource": (
-                    f"/api/v2/public/{route}/{share.public_id}/slides/"
-                    f"{position}/tiles/slide.dzi"
+                    f"/api/v2/public/{route}/{share.public_id}/slides/{position}/tiles/slide.dzi"
                 ),
                 "scale": (slide.slide_metadata or {}).get("physicalSizeX"),
             }
@@ -458,9 +460,7 @@ def detach_slide_from_shares(
         ).all()
     )
     active_shares = {
-        share.id: share
-        for _, share in memberships
-        if share.is_active and share.revoked_at is None
+        share.id: share for _, share in memberships if share.is_active and share.revoked_at is None
     }
     for share in active_shares.values():
         remove_share_delivery_manifest(storage, share.public_id)

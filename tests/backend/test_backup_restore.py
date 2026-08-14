@@ -1,4 +1,5 @@
 import hashlib
+import importlib.util
 import os
 import shutil
 import sqlite3
@@ -11,6 +12,23 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Annotation, AnnotationLayer, AnnotationRevision, Slide
+
+
+def _load_restore_drill():
+    path = Path("deploy/scripts/verify_restore_drill.py")
+    spec = importlib.util.spec_from_file_location("verify_restore_drill", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _write_backup_checksums(backup: Path) -> None:
+    entries = []
+    for relative in (Path("database/pathlab.sqlite3"), Path("files.tar.gz")):
+        digest = hashlib.sha256((backup / relative).read_bytes()).hexdigest()
+        entries.append(f"{digest}  {relative.as_posix()}")
+    (backup / "SHA256SUMS").write_text("\n".join(entries) + "\n", encoding="utf-8")
 
 
 @pytest.mark.skipif(shutil.which("tar") is None, reason="tar is unavailable")
@@ -73,9 +91,10 @@ def test_backup_archive_and_restore_preserve_public_private_hardlinks(
     restored_private = restored / "private" / "slide-1" / "0_0.jpeg"
     restored_public = restored / "public" / "public-1" / "0_0.jpeg"
     assert restored_private.stat().st_ino == restored_public.stat().st_ino
-    assert hashlib.sha256(restored_private.read_bytes()).digest() == hashlib.sha256(
-        private_tile.read_bytes()
-    ).digest()
+    assert (
+        hashlib.sha256(restored_private.read_bytes()).digest()
+        == hashlib.sha256(private_tile.read_bytes()).digest()
+    )
     assert (restored / "originals" / "slide-1" / "source.ome.tif").read_bytes() == (
         b"private-original"
     )
@@ -85,7 +104,7 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     backup = Path("deploy/scripts/backup.sh").read_text(encoding="utf-8")
     restore = Path("deploy/scripts/restore.sh").read_text(encoding="utf-8")
 
-    assert "--directory \"$data_dir\" originals private public" in backup
+    assert '--directory "$data_dir" originals private public' in backup
     assert "umask 077" in backup
     assert "install -d -m 700" in backup
     assert "sha256sum" in backup
@@ -95,6 +114,51 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     assert ".before-restore-" in restore
     assert "cache/ome-tiles" not in backup
     assert "pathlab-tiles --purge-cache" in restore
+    assert "docker compose stop caddy api classroom tile-service tusd worker" in restore
+
+
+def test_restore_drill_streams_backup_with_bounded_scratch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    verifier = _load_restore_drill()
+    backup = tmp_path / "backup"
+    (backup / "database").mkdir(parents=True)
+    database_path = backup / "database" / "pathlab.sqlite3"
+    with sqlite3.connect(database_path) as database:
+        database.execute("CREATE TABLE proof (value TEXT NOT NULL)")
+        database.execute("INSERT INTO proof VALUES ('restored')")
+    source = tmp_path / "source"
+    (source / "originals").mkdir(parents=True)
+    (source / "private").mkdir()
+    (source / "public").mkdir()
+    (source / "public" / "proof.txt").write_text("restored", encoding="utf-8")
+    with tarfile.open(backup / "files.tar.gz", "w:gz") as archive:
+        for name in ("originals", "private", "public"):
+            archive.add(source / name, arcname=name)
+    _write_backup_checksums(backup)
+
+    monkeypatch.setattr(Path, "read_bytes", lambda self: pytest.fail("unbounded read_bytes"))
+    monkeypatch.setattr(
+        tarfile.TarFile,
+        "extractall",
+        lambda *args, **kwargs: pytest.fail("full archive extraction is forbidden"),
+    )
+    result = verifier.verify_restore_drill(backup, scratch_root=tmp_path / "scratch")
+
+    assert result == {"databaseIntegrity": "ok", "archiveRoots": ["originals", "private", "public"]}
+
+
+def test_restore_drill_rejects_corrupt_database(tmp_path: Path) -> None:
+    verifier = _load_restore_drill()
+    backup = tmp_path / "backup"
+    (backup / "database").mkdir(parents=True)
+    (backup / "database" / "pathlab.sqlite3").write_bytes(b"not sqlite")
+    with tarfile.open(backup / "files.tar.gz", "w:gz"):
+        pass
+    _write_backup_checksums(backup)
+
+    with pytest.raises(verifier.RestoreDrillFailure):
+        verifier.verify_restore_drill(backup, scratch_root=tmp_path / "scratch")
 
 
 def test_sqlite_backup_preserves_private_annotation_state(tmp_path: Path) -> None:
