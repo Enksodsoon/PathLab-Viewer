@@ -104,26 +104,59 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert "--start-epoch-ms" in serialized
     assert "distributed_certification.py plan" in serialized
     assert "distributed_certification.py merge" in serialized
-    assert "02:05" in serialized
+    assert "02:09" in serialized
     assert "browser-matrix.json" in serialized
     assert "capacity-postflight.json" in serialized
     assert "OCI_ROLLBACK_RELEASE_SHA" in serialized
     assert "NOT CERTIFIED" in serialized
-    assert "now_epoch <= arm_epoch + 30" in serialized
+    assert "capacity_window.py" in serialized
     assert "capacity-decision.json.sig" in serialized
     sentinel_runner = Path("deploy/scripts/run-capacity-sentinels.sh").read_text(encoding="utf-8")
     assert "playwright.capacity-metrics.config.ts" in sentinel_runner
     assert "chromium firefox webkit" in serialized
     assert "arm-not-after=${arm_not_after}" in serialized
+    assert "rollback-not-after=${rollback_not_after}" in serialized
+    assert '.cleanupExecutionDeadlineEpoch' in serialized
     assert "steps.signed-decision.outputs.selected != '300'" in serialized
     assert "steps.signed-decision.outputs.selected == '300'" in serialized
+
+
+def test_capacity_workflow_bounds_each_final_phase_by_absolute_wall_clock() -> None:
+    jobs = workflow()["jobs"]  # type: ignore[index]
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    assert jobs["decision"]["timeout-minutes"] == "3"
+    assert jobs["cleanup"]["timeout-minutes"] == "12"
+    assert jobs["postflight"]["timeout-minutes"] == "5"
+    assert jobs["aggregate"]["timeout-minutes"] == "3"
+    for phase in ("arm", "decision", "cleanup", "postflight", "aggregate"):
+        assert f"remaining --phase {phase}" in serialized
+    assert "timeout --foreground" not in serialized
+    assert serialized.count("timeout --signal=TERM") >= 5
+    assert "--kill-after=250s" in serialized
+
+
+def test_capacity_workflow_performs_no_bastion_or_host_action_before_arm_gate() -> None:
+    jobs = workflow()["jobs"]  # type: ignore[index]
+    preflight_runs = "\n".join(
+        str(step.get("run", "")) for step in jobs["preflight"]["steps"]  # type: ignore[index]
+    )
+    arm_runs = "\n".join(
+        str(step.get("run", "")) for step in jobs["arm"]["steps"]  # type: ignore[index]
+    )
+
+    assert "capacity-control-via-bastion.sh" not in preflight_runs
+    assert "capacity-arm" not in preflight_runs
+    gate_index = arm_runs.index("remaining --phase arm")
+    assert gate_index < arm_runs.index("capacity-rollback-preflight")
+    assert arm_runs.count("capacity-control-via-bastion.sh") == 1
 
 
 def test_legacy_rollback_waits_for_health_and_preserves_observed_result() -> None:
     rollback = Path("deploy/scripts/rollback-capacity-candidate.sh").read_text(encoding="utf-8")
 
     assert "for _ in $(seq 1 30)" in rollback
-    assert "sleep 2" in rollback
+    assert "sleep_bounded" in rollback
     assert "serviceCount:5" in rollback
     assert "finalCapacity:$capacity" in rollback
 
@@ -135,7 +168,8 @@ def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_r
 
     assert cleanup.index("fail_safe_recovery()") < trap_index
     assert '"capacity-abort run=${run_id} digest=${digest}"' in cleanup
-    assert '"capacity-rollback candidate=${sha}' in cleanup
+    assert '"capacity-rollback candidate=${sha}' not in cleanup
+    assert '"capacity-abort run=${run_id} digest=${digest}"' in cleanup
     for reconciliation_gate in (
         'login="$(curl',
         "/synthetic-reset",
@@ -147,17 +181,37 @@ def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_r
     ):
         assert trap_index < cleanup.index(reconciliation_gate) < finalize_index
     assert cleanup.index("cleanup_committed=true") > finalize_index
+    assert '.phase == "aborted-restored" and .finalLimit == null' in cleanup
+    assert '*\'"phase": "aborted-restored"\'*' not in cleanup
+
+
+def test_cleanup_timeout_signals_the_entire_process_tree_before_recovery_reserve() -> None:
+    jobs = workflow()["jobs"]  # type: ignore[index]
+    cleanup_run = next(
+        str(step["run"])
+        for step in jobs["cleanup"]["steps"]  # type: ignore[index]
+        if step.get("name") == "Restore capacity configuration and remove every synthetic fixture"
+    )
+
+    assert "timeout --signal=TERM --kill-after=250s" in cleanup_run
+    assert "timeout --foreground --signal=TERM --kill-after=250s" not in cleanup_run
 
 
 def test_aborted_restored_state_can_only_rollback_to_bound_300_release() -> None:
     host = Path("deploy/scripts/capacity-control-host.sh").read_text(encoding="utf-8")
+    unit = Path("deploy/scripts/capacity-control-unit.sh").read_text(encoding="utf-8")
+    rollback = Path("deploy/scripts/rollback-capacity-candidate.sh").read_text(encoding="utf-8")
 
-    rollback_guard = host[host.index('if [[ "${REQUEST}" =~ ^capacity-rollback') :]
-    assert 'value.get("phase") in ("restored", "aborted-restored")' in rollback_guard
-    assert 'value.get("finalLimit") in (None, 300)' in rollback_guard
-    assert 'value.get("workflowSha") == sha' in rollback_guard
-    assert 'value.get("planDigest") == digest' in rollback_guard
-    assert "hashlib.sha256(nonce.encode()).hexdigest()" in rollback_guard
+    assert "capacity-rollback candidate=" not in host
+    assert "capacity-rollback candidate=" not in Path(
+        "deploy/scripts/cleanup-capacity-certification.sh"
+    ).read_text(encoding="utf-8")
+    assert 'if [[ "${FINAL_LIMIT}" == 300 ]]' in unit
+    assert '"${current}" == "${ROLLBACK_SHA}" || -z "${current}"' in unit
+    resumable_states = (
+        '"${current}" == "${EXPECTED_CANDIDATE}" || "${current}" == "${ROLLBACK_SHA}"'
+    )
+    assert resumable_states in rollback
 
 
 def test_missing_decision_aborts_rolls_back_and_reports_cleanup_failure() -> None:

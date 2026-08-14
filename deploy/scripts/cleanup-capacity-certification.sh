@@ -24,6 +24,8 @@ cookie_jar="${work_dir}/cookies"
 run_id="$(jq -r .runId "${PLAN_PATH}")"
 sha="$(jq -r .workflowSha "${PLAN_PATH}")"
 digest="$(jq -r .planDigest "${PLAN_PATH}")"
+rollback_not_after="$(python deploy/scripts/capacity_window.py --plan "${PLAN_PATH}" describe | \
+  jq -er .restorationDeadlineEpoch)"
 configuration_restored=false
 fixtures_removed=false
 bastion_remaining=999
@@ -32,19 +34,27 @@ rollback_completed=false
 containment_complete=false
 nonce=""
 fail_safe_recovery() {
-  local abort_status=""
+  local abort_request abort_status="" recovery_result=1
   set +e
-  abort_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
-    "capacity-abort run=${run_id} digest=${digest}" 2>/dev/null)"
-  if [[ "${abort_status}" == *'"phase": "aborted-restored"'* ]]; then
-    configuration_restored=true
+  abort_request="capacity-abort run=${run_id} digest=${digest}"
+  if [[ -n "${CAPACITY_ROLLBACK_RESULT:-}" ]]; then
+    abort_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+      "${abort_request}" 2>/dev/null)"
+    recovery_result="$?"
+    if [[ "${recovery_result}" -eq 0 ]]; then
+      printf '%s\n' "${abort_status}" > "${CAPACITY_ROLLBACK_RESULT}"
+      rollback_completed=true
+    fi
+  else
+    abort_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+      "${abort_request}" 2>/dev/null)"
   fi
-  if [[ -n "${OCI_ROLLBACK_RELEASE_SHA:-}" && "${OCI_ROLLBACK_RELEASE_SHA}" =~ ^[0-9a-f]{40}$ && \
-        -n "${CAPACITY_ROLLBACK_RESULT:-}" && "${nonce}" =~ ^[A-Za-z0-9._-]{8,128}$ ]]; then
-    bash deploy/scripts/capacity-control-via-bastion.sh \
-      "capacity-rollback candidate=${sha} rollback=${OCI_ROLLBACK_RELEASE_SHA} run=${run_id} digest=${digest} nonce=${nonce}" \
-      > "${CAPACITY_ROLLBACK_RESULT}" 2>/dev/null
-    [[ "$?" -eq 0 ]] && rollback_completed=true
+  if jq -e '((.phase == "aborted-restored" and .finalLimit == null) or
+      (.phase == "restored" and .finalLimit == 300)) and
+      .releaseExact == true and .servicesExact == true and .ready == true and
+      .finalCapacity == 300' \
+    <<< "${abort_status}" >/dev/null 2>&1; then
+    configuration_restored=true
   fi
   set -e
 }
@@ -178,16 +188,19 @@ status="$(bash deploy/scripts/capacity-control-via-bastion.sh "${request}")"
 }
 configuration_restored=true
 [[ "${decision_present}" == true ]] && decision_valid=true
+ack_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+  "capacity-ack run=${run_id} digest=${digest}")"
+jq -e --arg run "${run_id}" --arg digest "${digest}" \
+  '.runId == $run and .planDigest == $digest and .controllerAcknowledged == true and
+   .cleanupScheduled == true' <<< "${ack_status}" >/dev/null
 
 # Candidate-only cleanup is complete before this authenticated rollback swaps
 # to the five-service release.
 if [[ "${selected_capacity}" == 300 ]]; then
-  : "${OCI_ROLLBACK_RELEASE_SHA:?OCI_ROLLBACK_RELEASE_SHA is required for NOT CERTIFIED rollback}"
-  [[ "${OCI_ROLLBACK_RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]] || exit 1
   : "${CAPACITY_ROLLBACK_RESULT:?CAPACITY_ROLLBACK_RESULT is required}"
-  bash deploy/scripts/capacity-control-via-bastion.sh \
-    "capacity-rollback candidate=${sha} rollback=${OCI_ROLLBACK_RELEASE_SHA} run=${run_id} digest=${digest} nonce=${nonce}" \
-    > "${CAPACITY_ROLLBACK_RESULT}"
+  jq -e '.releaseExact == true and .servicesExact == true and .serviceCount == 5 and
+    .ready == true and .finalCapacity == 300' <<< "${status}" >/dev/null
+  printf '%s\n' "${status}" > "${CAPACITY_ROLLBACK_RESULT}"
   rollback_completed=true
   containment_complete=true
 fi

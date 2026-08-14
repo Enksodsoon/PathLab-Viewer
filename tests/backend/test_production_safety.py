@@ -933,6 +933,7 @@ def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) ->
             "PATHLAB_CAPACITY_TEST_LAUNCH_SECONDS_UNTIL_END": "5",
             "PATHLAB_CAPACITY_TEST_KILL_AFTER_SECONDS": "1",
             "PATHLAB_CAPACITY_TEST_DEADLINE_SAFETY_SECONDS": "1",
+            "PATHLAB_CAPACITY_RESTORE_NOT_AFTER": str(int(time.time()) + 30),
             "PATHLAB_CAPACITY_ENV_FILE": _bash_path(env_file),
             "PATHLAB_COMPOSE_DIR": _bash_path(compose_dir),
             "PATHLAB_CAPACITY_RUNTIME_DIR": _bash_path(runtime_dir),

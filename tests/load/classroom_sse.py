@@ -13,7 +13,27 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from distributed_certification import early_stop_causes
+from distributed_certification import ADMISSION_SECONDS, early_stop_causes
+
+ADMISSION_REQUEST_TIMEOUT_SECONDS = 8
+JOIN_STAGGER_SECONDS = 0.01
+SSE_READY_RESERVE_SECONDS = 20
+ADMISSION_PROCESS_RESERVE_SECONDS = 5
+
+
+def admission_budget_required_seconds(participants: int) -> float:
+    """Bound setup, joins, and SSE readiness inside the planned admission ramp."""
+    if not 1 <= participants <= 334:
+        raise ValueError("participants must be 1..334")
+    admin_setup = 2 * ADMISSION_REQUEST_TIMEOUT_SECONDS
+    last_join_starts = (participants - 1) * JOIN_STAGGER_SECONDS
+    return (
+        admin_setup
+        + last_join_starts
+        + ADMISSION_REQUEST_TIMEOUT_SECONDS
+        + SSE_READY_RESERVE_SECONDS
+        + ADMISSION_PROCESS_RESERVE_SECONDS
+    )
 
 
 class HeavyEarlyStop(RuntimeError):
@@ -780,6 +800,8 @@ async def run() -> int:
         raise SystemExit("join code, session, slide, and admin credentials are required")
     if not 1 <= count <= 334 or duration <= 0 or not 0 < rate <= 20:
         raise SystemExit("participants must be 1..334; duration positive; presenter rate 0..20")
+    if admission_budget_required_seconds(count) > ADMISSION_SECONDS:
+        raise SystemExit("participant admission budget exceeds the synchronized ramp")
     media_manifest: dict[str, Any] | None = None
     if media_manifest_path:
         loaded = json.loads(Path(media_manifest_path).read_text(encoding="utf-8"))
@@ -791,20 +813,27 @@ async def run() -> int:
 
     recorder = Recorder()
     admission_started_epoch_ms = int(time.time() * 1_000)
-    admin = httpx.AsyncClient(base_url=base_url, timeout=20)
-    login = await admin.post(
-        "/api/v1/auth/session", json={"username": username, "password": password}
+    admin = httpx.AsyncClient(base_url=base_url, timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS)
+    login = await asyncio.wait_for(
+        admin.post("/api/v1/auth/session", json={"username": username, "password": password}),
+        timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
     )
     login.raise_for_status()
     admin_csrf = login.json()["csrfToken"]
-    initial_metrics_response = await admin.get("/api/v1/admin/classroom/metrics")
+    initial_metrics_response = await asyncio.wait_for(
+        admin.get("/api/v1/admin/classroom/metrics"),
+        timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
+    )
     initial_metrics_response.raise_for_status()
     initial_metrics = initial_metrics_response.json()
 
     async def join(sequence: int) -> Participant:
-        await asyncio.sleep(sequence * 0.01)
-        client = httpx.AsyncClient(base_url=base_url, timeout=20)
-        response = await client.post("/api/v1/classroom/join", json={"joinCode": join_code})
+        await asyncio.sleep(sequence * JOIN_STAGGER_SECONDS)
+        client = httpx.AsyncClient(base_url=base_url, timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS)
+        response = await asyncio.wait_for(
+            client.post("/api/v1/classroom/join", json={"joinCode": join_code}),
+            timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
+        )
         response.raise_for_status()
         payload = response.json()
         return Participant(sequence, client, payload["participant"]["id"], payload["csrfToken"])
