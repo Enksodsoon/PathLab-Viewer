@@ -288,7 +288,6 @@ export function ClassroomStudentPage() {
         if (!sequence(event, false, true)) return
         const inviteId = stateRef.current?.session.publicId
         setState(null)
-        setCsrfToken('')
         setMessage('The live class ended. Independent review remains available.')
         navigate(inviteId ? `/classroom/invite/${inviteId}` : '/classroom', { replace: true })
       })
