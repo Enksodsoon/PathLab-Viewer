@@ -90,18 +90,22 @@ export function LibraryNavigator({
         <h1>Slides library</h1>
       </div>
       <nav className="navigator-special">
-        {SPECIAL.map(([id, label, Icon, countKey]) => (
-          <button
-            key={id}
-            type="button"
-            className={location === id ? 'active' : ''}
-            onClick={() => onLocation(id)}
-          >
-            <Icon />
-            <span>{label}</span>
-            <strong>{navigation.counts[countKey]}</strong>
-          </button>
-        ))}
+        {SPECIAL.map(([id, label, Icon, countKey]) => {
+          const count = navigation.counts[countKey]
+          return (
+            <button
+              key={id}
+              type="button"
+              aria-label={`${label} ${count}`}
+              className={location === id ? 'active' : ''}
+              onClick={() => onLocation(id)}
+            >
+              <Icon aria-hidden="true" />
+              <span>{label}</span>
+              <strong aria-hidden="true">{count}</strong>
+            </button>
+          )
+        })}
       </nav>
 
       <SectionTitle label="New folder" onAdd={onNewFolder}>Folders</SectionTitle>
@@ -122,10 +126,11 @@ export function LibraryNavigator({
           <div className="navigator-list-row" key={collection.id}>
             <button
               type="button"
+              aria-label={`${collection.name} ${collection.itemCount}`}
               className={location === `collection:${collection.id}` ? 'active' : ''}
               onClick={() => onLocation(`collection:${collection.id}`)}
             >
-              <Grid2X2 /><span>{collection.name}</span><strong>{collection.itemCount}</strong>
+              <Grid2X2 aria-hidden="true" /><span>{collection.name}</span><strong aria-hidden="true">{collection.itemCount}</strong>
             </button>
             <ContextMenu
               label={`More actions for ${collection.name}`}
