@@ -2,24 +2,27 @@ import asyncio
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import threading
 import unicodedata
 import xml.etree.ElementTree as ElementTree
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session as OrmSession
 from starlette.concurrency import run_in_threadpool
 
 from .classroom_hub import ClassroomHub
 from .classroom_presenter import PresenterRuntime, PresenterSnapshot
+from .classroom_prewarm import ClassroomPrewarmer, PrewarmSlide
 from .config import Settings
 from .domain import SlideState
 from .models import (
@@ -40,6 +43,55 @@ from .storage import StorageLayout
 PARTICIPANT_COOKIE = "pathlab_classroom_participant"
 JOIN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 ALIAS_WORDS = ("MINT", "AMBER", "CORAL", "FERN", "IRIS", "JADE", "LILAC", "OAK")
+ALIAS_COLLISION_RETRIES = 8
+CLASSROOM_MUTATION_TIMEOUT_SECONDS = 1.0
+CLASSROOM_RETRY_AFTER_SECONDS = "1"
+
+
+class ClassroomMutationGate:
+    def __init__(self, timeout_seconds: float = CLASSROOM_MUTATION_TIMEOUT_SECONDS) -> None:
+        self.timeout_seconds = timeout_seconds
+        self.lock = threading.Lock()
+
+    @contextmanager
+    def acquire(self) -> Iterator[None]:
+        acquired = self.lock.acquire(timeout=self.timeout_seconds)
+        if not acquired:
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "CLASSROOM_BUSY"},
+                headers={"Retry-After": CLASSROOM_RETRY_AFTER_SECONDS},
+            )
+        try:
+            yield None
+        finally:
+            self.lock.release()
+
+    def __call__(self) -> Iterator[None]:
+        with self.acquire():
+            yield None
+
+
+class ClassroomRouteRuntime:
+    def __init__(
+        self,
+        presenter: PresenterRuntime,
+        prewarmer: ClassroomPrewarmer,
+        restore_prewarm: Callable[[], None],
+    ) -> None:
+        self._presenter = presenter
+        self._prewarmer = prewarmer
+        self._restore_prewarm = restore_prewarm
+
+    async def start(self) -> None:
+        self._presenter.start()
+        self._prewarmer.start()
+        with suppress(Exception):
+            await asyncio.to_thread(self._restore_prewarm)
+
+    async def close(self) -> None:
+        await self._presenter.close()
+        await self._prewarmer.close()
 
 
 class CreateSessionRequest(BaseModel):
@@ -145,8 +197,36 @@ class TeachingAnnotationRequest(BaseModel):
     points: list[TeachingPoint] = Field(min_length=1, max_length=64)
 
 
+class CapacitySafetyStopRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    stage_name: str = Field(alias="stageName", pattern=r"^breakpoint-(1750|2000)$")
+    causes: list[Literal["cpu-sustained", "memory"]] = Field(min_length=1, max_length=2)
+
+
+class SyntheticStageAckRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    stage_name: str = Field(alias="stageName", pattern=r"^[a-z0-9-]{1,64}$")
+    shard_index: int = Field(alias="shardIndex", ge=0, le=5)
+
+
+class SyntheticRecoveryReadyRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    epoch_ms: int = Field(alias="epochMs", ge=1, le=9_999_999_999_999)
+
+
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _alias_candidate(secret_key: str, token: str, attempt: int) -> str:
+    digest = hmac.new(
+        secret_key.encode("utf-8"),
+        f"classroom-alias:{token}:{attempt}".encode(),
+        hashlib.sha256,
+    ).digest()
+    word = ALIAS_WORDS[digest[0] % len(ALIAS_WORDS)]
+    number = int.from_bytes(digest[1:5], "big") % 100_000_000
+    return f"{word}-{number:08d}"
 
 
 def _now() -> datetime:
@@ -191,20 +271,21 @@ def register_classroom_routes(
     database_dependency: Any,
     admin_dependency: Any,
     csrf_dependency: Any,
-) -> PresenterRuntime | None:
+    pressure_metrics: dict[str, int | float],
+) -> ClassroomRouteRuntime | None:
     if not settings.classroom_enabled:
         return None
 
     Database = Annotated[OrmSession, Depends(database_dependency)]
     AdminSession = Annotated[Session, Depends(admin_dependency)]
     CsrfSession = Annotated[Session, Depends(csrf_dependency)]
-    mutation_lock = threading.Lock()
+    mutation_gate = ClassroomMutationGate()
     join_queue_lock = asyncio.Lock()
 
     def persist_presenters(
         snapshots: Sequence[PresenterSnapshot],
     ) -> None:
-        with mutation_lock, factory() as database:
+        with mutation_gate.lock, factory() as database:
             for snapshot in snapshots:
                 classroom = database.get(ClassroomSession, snapshot.session_id)
                 if classroom is None or classroom.status != "active" or classroom.phase != "live":
@@ -231,17 +312,44 @@ def register_classroom_routes(
         persist_presenters,
         reserve=reserve_presenter_sequence,
     )
+    prewarmer = ClassroomPrewarmer()
 
-    def serialized_mutation() -> Iterator[None]:
-        mutation_lock.acquire()
-        try:
-            yield None
-        finally:
-            mutation_lock.release()
-
-    MutationGuard = Annotated[None, Depends(serialized_mutation)]
+    MutationGuard = Annotated[None, Depends(mutation_gate)]
     serializer = URLSafeSerializer(settings.secret_key, salt="pathlab-classroom-participant-v1")
     unlock_attempts: dict[str, list[datetime]] = {}
+
+    def allocate_alias(session_id: str, token: str, db: OrmSession) -> str:
+        for attempt in range(ALIAS_COLLISION_RETRIES):
+            candidate = _alias_candidate(settings.secret_key, token, attempt)
+            collision = db.scalar(
+                select(ClassroomParticipant.id)
+                .where(
+                    ClassroomParticipant.session_id == session_id,
+                    ClassroomParticipant.public_alias == candidate,
+                )
+                .limit(1)
+            )
+            if collision is None:
+                return candidate
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "CLASSROOM_BUSY"},
+            headers={"Retry-After": CLASSROOM_RETRY_AFTER_SECONDS},
+        )
+
+    def participant_json(
+        participant: ClassroomParticipant,
+        presence: str,
+        control_requests: dict[str, float],
+    ) -> dict[str, Any]:
+        return {
+            "id": participant.id,
+            "alias": participant.public_alias,
+            "displayName": participant.optional_display_name,
+            "controlRequested": participant.id in control_requests,
+            "controlRequestedAt": control_requests.get(participant.id),
+            "status": presence,
+        }
 
     def access_code(public_id: str, generation: int) -> str:
         digest = hmac.new(
@@ -305,6 +413,62 @@ def register_classroom_routes(
         if descriptor[0] != width or descriptor[1] != height:
             return "metadata_invalid", None
         return None, descriptor
+
+    def request_prewarm(session_id: str, slide_id: str, db: OrmSession) -> None:
+        current = db.scalar(
+            select(ClassroomSessionSlide).where(
+                ClassroomSessionSlide.session_id == session_id,
+                ClassroomSessionSlide.slide_id == slide_id,
+            )
+        )
+        if current is None:
+            return
+        window = list(
+            db.scalars(
+                select(ClassroomSessionSlide)
+                .where(
+                    ClassroomSessionSlide.session_id == session_id,
+                    ClassroomSessionSlide.slide_position >= current.slide_position,
+                )
+                .order_by(ClassroomSessionSlide.slide_position)
+                .limit(2)
+            )
+        )
+        slides: list[PrewarmSlide] = []
+        for item in window:
+            slide = db.get(Slide, item.slide_id)
+            if slide is None:
+                continue
+            slides.append(
+                PrewarmSlide(
+                    root=storage.individual_delivery_for(slide.public_id, item.asset_version),
+                    width=item.width,
+                    height=item.height,
+                    tile_size=item.tile_size,
+                    tile_format=item.tile_format,
+                    poster_filename=slide.thumbnail_filename or "thumbnail.jpg",
+                )
+            )
+        prewarmer.request(slides)
+
+    def restore_prewarm() -> None:
+        with factory() as database:
+            classroom = database.scalar(
+                select(ClassroomSession).where(ClassroomSession.status == "active")
+            )
+            if classroom is None:
+                return
+            participant_ids = list(
+                database.scalars(
+                    select(ClassroomParticipant.id).where(
+                        ClassroomParticipant.session_id == classroom.id,
+                        ClassroomParticipant.joined_live_at.is_not(None),
+                    )
+                )
+            )
+            hub.restore_participants(classroom.id, participant_ids)
+            if classroom.current_slide_id is not None:
+                request_prewarm(classroom.id, classroom.current_slide_id, database)
 
     def folder_slide_ids(folder_id: str, db: OrmSession) -> list[str]:
         folders = list(db.scalars(select(Folder).where(Folder.trashed_at.is_(None))))
@@ -391,6 +555,14 @@ def register_classroom_routes(
             or not secrets.compare_digest(participant.token_hash, _hash(raw_token))
         ):
             raise HTTPException(status_code=401, detail={"code": "PARTICIPANT_REQUIRED"})
+        return participant, raw_token
+
+    def live_participant_from_request(
+        request: Request, db: OrmSession, session_id: str
+    ) -> tuple[ClassroomParticipant, str]:
+        participant, raw_token = participant_from_request(request, db, session_id)
+        if participant.joined_live_at is None:
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_JOIN_REQUIRED"})
         return participant, raw_token
 
     def require_live_classroom(
@@ -563,6 +735,7 @@ def register_classroom_routes(
             db.add(item)
             snapshot.append(item)
         db.commit()
+        request_prewarm(classroom.id, classroom.current_slide_id or slide_ids[0], db)
         return {
             "id": classroom.id,
             "joinCode": join_code,
@@ -593,6 +766,8 @@ def register_classroom_routes(
         classroom.expires_at = min(classroom.review_expires_at, classroom.live_expires_at)
         classroom.state_version += 1
         db.commit()
+        if classroom.current_slide_id is not None:
+            request_prewarm(classroom.id, classroom.current_slide_id, db)
         return {
             "id": classroom.id,
             "phase": classroom.phase,
@@ -613,10 +788,8 @@ def register_classroom_routes(
         classroom.state_version += 1
         db.commit()
         presenter_runtime.forget(session_id)
-        hub.clear_session(session_id)
-        hub.publish(
-            session_id, "session-ended", {"stateVersion": classroom.state_version}, critical=True
-        )
+        prewarmer.clear()
+        hub.terminate_session(session_id, state_version=classroom.state_version)
 
     @app.delete(
         "/api/v1/admin/classroom/sessions/active",
@@ -634,13 +807,27 @@ def register_classroom_routes(
         classroom.state_version = next_state_version
         db.commit()
         presenter_runtime.forget(session_id)
-        hub.clear_session(session_id)
-        hub.publish(
-            session_id,
-            "session-ended",
-            {"stateVersion": next_state_version},
-            critical=True,
+        prewarmer.clear()
+        hub.terminate_session(session_id, state_version=next_state_version)
+
+    def reserve_live_seats(
+        session_id: str, db: OrmSession
+    ) -> tuple[dict[str, ClassroomParticipant], set[str], int]:
+        cutoff = _now() - timedelta(minutes=15)
+        participants = list(
+            db.scalars(
+                select(ClassroomParticipant).where(
+                    ClassroomParticipant.session_id == session_id,
+                    ClassroomParticipant.joined_live_at.is_not(None),
+                )
+            )
         )
+        participants_by_id = {item.id: item for item in participants}
+        stale_participant_ids, active_count = hub.reserve_stale_participants(
+            session_id,
+            {item.id: item.last_seen_at >= cutoff for item in participants},
+        )
+        return participants_by_id, stale_participant_ids, active_count
 
     def join_locked(
         payload: JoinRequest,
@@ -675,6 +862,8 @@ def register_classroom_routes(
                 ):
                     participant.last_seen_at = _now()
                     db.commit()
+                    hub.participant_activity(classroom.id, participant.id)
+                    hub.mark_roster_changed(classroom.id)
                     return _participant_response(
                         participant,
                         token,
@@ -685,68 +874,36 @@ def register_classroom_routes(
                         200,
                     )
 
-        cutoff = _now() - timedelta(minutes=15)
-        stale_participants = list(
-            db.scalars(
-                select(ClassroomParticipant).where(
-                    ClassroomParticipant.session_id == classroom.id,
-                    ClassroomParticipant.last_seen_at < cutoff,
-                )
-            )
+        participants_by_id, stale_participant_ids, active_count = reserve_live_seats(
+            classroom.id, db
         )
-        for stale in stale_participants:
-            hub.clear_participant(classroom.id, stale.id)
-            db.delete(stale)
-        if stale_participants:
-            db.flush()
-        active_count = db.scalar(
-            select(func.count())
-            .select_from(ClassroomParticipant)
-            .where(
-                ClassroomParticipant.session_id == classroom.id,
-                ClassroomParticipant.last_seen_at >= cutoff,
-            )
-        )
-        if int(active_count or 0) >= 300:
+        if active_count >= settings.classroom_max_participants:
+            hub.cancel_stale_reservations(classroom.id, stale_participant_ids)
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_FULL"})
-        token = secrets.token_urlsafe(32)
-        existing_aliases = set(
-            db.scalars(
-                select(ClassroomParticipant.public_alias).where(
-                    ClassroomParticipant.session_id == classroom.id
-                )
+        try:
+            for stale_participant_id in stale_participant_ids:
+                db.delete(participants_by_id[stale_participant_id])
+            if stale_participant_ids:
+                db.flush()
+            token = secrets.token_urlsafe(32)
+            alias = allocate_alias(classroom.id, token, db)
+            participant = ClassroomParticipant(
+                session_id=classroom.id,
+                token_hash=_hash(token),
+                public_alias=alias,
+                optional_display_name=_display_name(payload.display_name),
+                joined_live_at=_now(),
+                disconnected_at=_now(),
             )
-        )
-        alias = ""
-        for _ in range(50):
-            candidate = f"{secrets.choice(ALIAS_WORDS)}-{secrets.randbelow(90) + 10}"
-            if candidate not in existing_aliases:
-                alias = candidate
-                break
-        if not alias:
-            alias = secrets.token_hex(4).upper()
-        participant = ClassroomParticipant(
-            session_id=classroom.id,
-            token_hash=_hash(token),
-            public_alias=alias,
-            optional_display_name=_display_name(payload.display_name),
-            joined_live_at=_now(),
-            disconnected_at=_now(),
-        )
-        db.add(participant)
-        classroom.state_version += 1
-        db.commit()
-        hub.publish(
-            classroom.id,
-            "participant-joined",
-            {
-                "stateVersion": classroom.state_version,
-                "participantId": participant.id,
-                "alias": participant.public_alias,
-            },
-            critical=True,
-            audience="teacher",
-        )
+            db.add(participant)
+            classroom.state_version += 1
+            db.commit()
+        except Exception:
+            hub.cancel_stale_reservations(classroom.id, stale_participant_ids)
+            raise
+        hub.complete_stale_reservations(classroom.id, stale_participant_ids)
+        hub.participant_activity(classroom.id, participant.id)
+        hub.mark_roster_changed(classroom.id)
         response.status_code = status.HTTP_201_CREATED
         return _participant_response(
             participant,
@@ -763,7 +920,7 @@ def register_classroom_routes(
         request: Request,
         response: Response,
     ) -> Any:
-        with mutation_lock, factory() as db:
+        with mutation_gate.acquire(), factory() as db:
             return join_locked(payload, request, response, db)
 
     @app.post("/api/v1/classroom/join")
@@ -772,8 +929,18 @@ def register_classroom_routes(
         request: Request,
         response: Response,
     ) -> Any:
-        async with join_queue_lock:
+        try:
+            await asyncio.wait_for(join_queue_lock.acquire(), timeout=mutation_gate.timeout_seconds)
+        except TimeoutError as error:
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "CLASSROOM_BUSY"},
+                headers={"Retry-After": CLASSROOM_RETRY_AFTER_SECONDS},
+            ) from error
+        try:
             return await run_in_threadpool(execute_join, payload, request, response)
+        finally:
+            join_queue_lock.release()
 
     def invite_classroom(public_id: str, db: OrmSession) -> ClassroomSession:
         classroom = db.scalar(
@@ -794,13 +961,8 @@ def register_classroom_routes(
             classroom.state_version += 1
             db.commit()
             presenter_runtime.forget(classroom.id)
-            hub.clear_session(classroom.id)
-            hub.publish(
-                classroom.id,
-                "session-ended",
-                {"stateVersion": classroom.state_version},
-                critical=True,
-            )
+            prewarmer.clear()
+            hub.terminate_session(classroom.id, state_version=classroom.state_version)
         if (
             classroom is None
             or classroom.phase == "revoked"
@@ -858,21 +1020,7 @@ def register_classroom_routes(
                         max_age_seconds=max(1, int((review_expires_at - _now()).total_seconds())),
                     )
         token = secrets.token_urlsafe(32)
-        existing_aliases = set(
-            db.scalars(
-                select(ClassroomParticipant.public_alias).where(
-                    ClassroomParticipant.session_id == classroom.id
-                )
-            )
-        )
-        alias = ""
-        for _attempt in range(50):
-            candidate_alias = f"{secrets.choice(ALIAS_WORDS)}-{secrets.randbelow(90) + 10}"
-            if candidate_alias not in existing_aliases:
-                alias = candidate_alias
-                break
-        if not alias:
-            alias = secrets.token_hex(4).upper()
+        alias = allocate_alias(classroom.id, token, db)
         participant = ClassroomParticipant(
             session_id=classroom.id,
             token_hash=_hash(token),
@@ -942,34 +1090,32 @@ def register_classroom_routes(
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
         classroom = require_live_classroom(session_id, db)
         if participant.joined_live_at is None:
-            live_count = db.scalar(
-                select(func.count())
-                .select_from(ClassroomParticipant)
-                .where(
-                    ClassroomParticipant.session_id == session_id,
-                    ClassroomParticipant.joined_live_at.is_not(None),
-                )
+            participants_by_id, stale_participant_ids, live_count = reserve_live_seats(
+                session_id, db
             )
-            if int(live_count or 0) >= 300:
+            if live_count >= settings.classroom_max_participants:
+                hub.cancel_stale_reservations(session_id, stale_participant_ids)
                 raise HTTPException(status_code=409, detail={"code": "CLASSROOM_FULL"})
-            participant.joined_live_at = _now()
-            classroom.state_version += 1
-            db.commit()
-            hub.publish(
-                classroom.id,
-                "participant-joined",
-                {
-                    "stateVersion": classroom.state_version,
-                    "participantId": participant.id,
-                    "alias": participant.public_alias,
-                },
-                critical=True,
-                audience="teacher",
-            )
+            try:
+                for stale_participant_id in stale_participant_ids:
+                    db.delete(participants_by_id[stale_participant_id])
+                if stale_participant_ids:
+                    db.flush()
+                participant.joined_live_at = _now()
+                classroom.state_version += 1
+                db.commit()
+            except Exception:
+                hub.cancel_stale_reservations(session_id, stale_participant_ids)
+                raise
+            hub.complete_stale_reservations(session_id, stale_participant_ids)
+            hub.participant_activity(classroom.id, participant.id)
+            hub.mark_roster_changed(classroom.id)
         return {"sessionId": session_id, "phase": classroom.phase}
 
     @app.get("/api/v1/admin/classroom/sessions/{session_id}")
-    def teacher_state(session_id: str, _: AdminSession, db: Database) -> dict[str, Any]:
+    def teacher_state(
+        session_id: str, _: AdminSession, _guard: MutationGuard, db: Database
+    ) -> dict[str, Any]:
         classroom = db.get(ClassroomSession, session_id)
         if classroom is None:
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
@@ -984,6 +1130,17 @@ def register_classroom_routes(
                 .limit(300)
             )
         )
+        participant_count = int(
+            db.scalar(
+                select(func.count())
+                .select_from(ClassroomParticipant)
+                .where(
+                    ClassroomParticipant.session_id == session_id,
+                    ClassroomParticipant.joined_live_at.is_not(None),
+                )
+            )
+            or 0
+        )
         questions = list(
             db.scalars(
                 select(ClassroomQuestion)
@@ -993,6 +1150,9 @@ def register_classroom_routes(
             )
         )
         participants_by_id = {item.id: item for item in participants}
+        presence_by_id, roster_version = hub.participant_roster_snapshot(
+            session_id, [item.id for item in participants]
+        )
         control_requests = hub.control_requests(session_id)
         return {
             "session": {
@@ -1008,6 +1168,8 @@ def register_classroom_routes(
                 else None,
             },
             "stateVersion": classroom.state_version,
+            "participantCount": participant_count,
+            "rosterVersion": roster_version,
             "presenter": presenter_json(classroom),
             "controller": {
                 "participantId": classroom.controller_participant_id,
@@ -1020,21 +1182,7 @@ def register_classroom_routes(
                 ),
             },
             "participants": [
-                {
-                    "id": item.id,
-                    "alias": item.public_alias,
-                    "displayName": item.optional_display_name,
-                    "controlRequested": item.id in control_requests,
-                    "controlRequestedAt": control_requests.get(item.id),
-                    "status": (
-                        "connected"
-                        if hub.participant_is_connected(session_id, item.id)
-                        else "reconnecting"
-                        if item.disconnected_at is not None
-                        and item.disconnected_at >= _now() - timedelta(seconds=60)
-                        else "disconnected"
-                    ),
-                }
+                participant_json(item, presence_by_id[item.id], control_requests)
                 for item in participants
             ],
             "pendingQuestions": [
@@ -1061,12 +1209,142 @@ def register_classroom_routes(
             "teachingAnnotations": hub.teaching_annotations(session_id),
         }
 
+    @app.get("/api/v1/admin/classroom/sessions/{session_id}/participants")
+    def teacher_participants(
+        session_id: str,
+        _: AdminSession,
+        _guard: MutationGuard,
+        db: Database,
+        after: Annotated[str | None, Query(max_length=16)] = None,
+        limit: Annotated[int, Query(ge=1, le=100)] = 100,
+        q: Annotated[str | None, Query(max_length=80)] = None,
+        requested: bool = False,
+    ) -> dict[str, Any]:
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None:
+            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+
+        filters: list[Any] = [
+            ClassroomParticipant.session_id == session_id,
+            ClassroomParticipant.joined_live_at.is_not(None),
+        ]
+        control_requests = hub.control_requests(session_id)
+        if requested:
+            filters.append(ClassroomParticipant.id.in_(tuple(control_requests)))
+        normalized_q = unicodedata.normalize("NFKC", q or "").strip().casefold()
+        if normalized_q:
+            filters.append(
+                or_(
+                    func.lower(ClassroomParticipant.public_alias).contains(
+                        normalized_q, autoescape=True
+                    ),
+                    func.lower(
+                        func.coalesce(ClassroomParticipant.optional_display_name, "")
+                    ).contains(normalized_q, autoescape=True),
+                )
+            )
+        total = int(
+            db.scalar(select(func.count()).select_from(ClassroomParticipant).where(*filters)) or 0
+        )
+        page_filters = list(filters)
+        cursor = (after or "").strip().upper()
+        if cursor:
+            page_filters.append(ClassroomParticipant.public_alias > cursor)
+        participants = list(
+            db.scalars(
+                select(ClassroomParticipant)
+                .where(*page_filters)
+                .order_by(ClassroomParticipant.public_alias)
+                .limit(limit + 1)
+            )
+        )
+        has_more = len(participants) > limit
+        page = participants[:limit]
+        presence_by_id, roster_version = hub.participant_roster_snapshot(
+            session_id, [item.id for item in page]
+        )
+        return {
+            "items": [
+                participant_json(item, presence_by_id[item.id], control_requests) for item in page
+            ],
+            "total": total,
+            "nextCursor": page[-1].public_alias if has_more and page else None,
+            "rosterVersion": roster_version,
+        }
+
     @app.get("/api/v1/admin/classroom/metrics")
-    def operational_metrics(_: AdminSession) -> dict[str, int]:
+    def operational_metrics(_: AdminSession) -> dict[str, int | float | str | list[str]]:
         return {
             **hub.metrics(),
+            **pressure_metrics,
             "presenterPersistenceWrites": presenter_runtime.persistence_writes,
         }
+
+    @app.post(
+        "/api/v1/admin/classroom/sessions/{session_id}/synthetic-safety-stop",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def signal_synthetic_safety_stop(
+        session_id: str,
+        body: CapacitySafetyStopRequest,
+        _: CsrfSession,
+        db: Database,
+        synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
+        plan_digest: Annotated[str | None, Header(alias="X-PathLab-Plan-Digest")] = None,
+        stage_nonce: Annotated[str | None, Header(alias="X-PathLab-Stage-Nonce")] = None,
+    ) -> None:
+        if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
+        if plan_digest is None or re.fullmatch(r"[0-9a-f]{64}", plan_digest) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_PLAN_REQUIRED"})
+        if stage_nonce is None or re.fullmatch(r"[A-Za-z0-9._-]{32,128}", stage_nonce) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_NONCE_REQUIRED"})
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None or classroom.status != "active" or classroom.phase != "live":
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        hub.signal_capacity_safety_stop(
+            session_id,
+            body.stage_name,
+            plan_digest,
+            hashlib.sha256(stage_nonce.encode()).hexdigest(),
+            set(body.causes),
+        )
+
+    @app.post("/api/v1/admin/classroom/sessions/{session_id}/synthetic-stage-ack")
+    def acknowledge_synthetic_stage(
+        session_id: str,
+        body: SyntheticStageAckRequest,
+        _: CsrfSession,
+        db: Database,
+        synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
+    ) -> dict[str, int | bool]:
+        if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None or classroom.status != "active" or classroom.phase != "live":
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        count = hub.acknowledge_synthetic_stage(
+            session_id, synthetic_run, body.stage_name, body.shard_index
+        )
+        return {"acknowledgedShards": count, "complete": count == 6}
+
+    @app.post(
+        "/api/v1/admin/classroom/sessions/{session_id}/synthetic-recovery-ready",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def mark_synthetic_recovery_ready(
+        session_id: str,
+        body: SyntheticRecoveryReadyRequest,
+        _: CsrfSession,
+        db: Database,
+        synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
+    ) -> None:
+        if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None or classroom.status != "active" or classroom.phase != "live":
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        hub.mark_recovery_ready(session_id, body.epoch_ms)
 
     @app.get("/api/v1/admin/classroom/sessions")
     def list_classroom_sessions(_: AdminSession, db: Database) -> dict[str, Any]:
@@ -1099,7 +1377,7 @@ def register_classroom_routes(
 
     @app.get("/api/v1/classroom/sessions/{session_id}")
     def student_state(session_id: str, request: Request, db: Database) -> dict[str, Any]:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         classroom = require_live_classroom(
             session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404
         )
@@ -1178,7 +1456,7 @@ def register_classroom_routes(
         request: Request,
         db: Database,
     ) -> None:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
         classroom = require_live_classroom(session_id, db, code="PIN_NOT_ACCEPTED")
@@ -1217,7 +1495,7 @@ def register_classroom_routes(
         request: Request,
         db: Database,
     ) -> None:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
         require_live_classroom(session_id, db, code="PIN_NOT_ACCEPTED")
@@ -1240,19 +1518,25 @@ def register_classroom_routes(
         request: Request,
         db: Database,
     ) -> None:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
         classroom = require_live_classroom(
             session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404
         )
         if hub.request_control(session_id, participant.id):
+            control_requests = hub.control_requests(session_id)
             hub.publish(
                 session_id,
                 "control-requested",
                 {
                     "stateVersion": classroom.state_version,
                     "participantId": participant.id,
+                    "participant": participant_json(
+                        participant,
+                        hub.participant_presence(session_id, participant.id),
+                        control_requests,
+                    ),
                 },
                 critical=True,
                 audience="teacher",
@@ -1268,7 +1552,7 @@ def register_classroom_routes(
         request: Request,
         db: Database,
     ) -> None:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
         require_live_classroom(session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404)
@@ -1293,7 +1577,7 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, str]:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
         classroom = require_live_classroom(session_id, db, code="QUESTION_NOT_ACCEPTED")
@@ -1489,7 +1773,7 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, int]:
-        participant, raw_token = participant_from_request(request, db, session_id)
+        participant, raw_token = live_participant_from_request(request, db, session_id)
         classroom = require_live_classroom(session_id, db, code="CONTROL_LEASE_STALE")
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
@@ -1524,6 +1808,7 @@ def register_classroom_routes(
             classroom.presenter_viewport = snapshot.viewport
             db.commit()
             presenter_runtime.mark_persisted(session_id, snapshot.sequence)
+            request_prewarm(session_id, snapshot.slide_id, db)
         hub.publish(
             session_id,
             "presenter",
@@ -1576,6 +1861,7 @@ def register_classroom_routes(
             db.commit()
         if slide_changed:
             presenter_runtime.mark_persisted(session_id, snapshot.sequence)
+            request_prewarm(session_id, snapshot.slide_id, db)
         if took_control:
             hub.publish(
                 session_id,
@@ -1733,7 +2019,7 @@ def register_classroom_routes(
         classroom.controller_participant_id = None
         classroom.controller_lease_id = None
         classroom.controller_expires_at = None
-        snapshot, _slide_changed = presenter_runtime.update(
+        snapshot, slide_changed = presenter_runtime.update(
             session_id,
             classroom.presenter_sequence,
             classroom.presenter_sequence_reserved,
@@ -1746,6 +2032,8 @@ def register_classroom_routes(
         classroom.presenter_viewport = snapshot.viewport
         db.commit()
         presenter_runtime.mark_persisted(session_id, snapshot.sequence)
+        if slide_changed:
+            request_prewarm(session_id, snapshot.slide_id, db)
         hub.publish(
             session_id,
             "control",
@@ -1784,89 +2072,101 @@ def register_classroom_routes(
         classroom.state_version += 1
         db.commit()
         presenter_runtime.forget(session_id)
-        hub.clear_session(session_id)
-        hub.publish(
-            session_id,
-            "session-ended",
-            {"stateVersion": classroom.state_version},
-            critical=True,
+        prewarmer.clear()
+        hub.terminate_session(session_id, state_version=classroom.state_version)
+
+    @app.post(
+        "/api/v1/admin/classroom/sessions/{session_id}/synthetic-reset",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def reset_synthetic_session(
+        session_id: str,
+        _: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
+        synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
+    ) -> None:
+        if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
+        classroom = db.get(ClassroomSession, session_id)
+        if classroom is None or classroom.status != "active" or classroom.phase != "live":
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        hub.reset_session(session_id)
+        presenter_runtime.forget(session_id)
+        db.execute(
+            delete(ClassroomQuestionReceipt).where(
+                ClassroomQuestionReceipt.session_id == session_id
+            )
         )
+        db.execute(delete(ClassroomQuestion).where(ClassroomQuestion.session_id == session_id))
+        db.execute(
+            delete(ClassroomParticipant).where(ClassroomParticipant.session_id == session_id)
+        )
+        first_slide = db.scalar(
+            select(ClassroomSessionSlide.slide_id)
+            .where(ClassroomSessionSlide.session_id == session_id)
+            .order_by(ClassroomSessionSlide.slide_position)
+            .limit(1)
+        )
+        classroom.presenter_sequence = 0
+        classroom.presenter_sequence_reserved = 0
+        classroom.current_slide_id = first_slide
+        classroom.presenter_viewport = None
+        classroom.controller_participant_id = None
+        classroom.controller_lease_id = None
+        classroom.controller_expires_at = None
+        classroom.control_epoch += 1
+        classroom.state_version += 1
+        db.commit()
+
+    def stream_state_version(session_id: str) -> int | None:
+        with factory() as db:
+            classroom = db.get(ClassroomSession, session_id)
+            deadline = classroom.live_expires_at or classroom.expires_at if classroom else None
+            if (
+                classroom is None
+                or classroom.status != "active"
+                or classroom.phase != "live"
+                or deadline is None
+                or deadline <= _now()
+            ):
+                return None
+            return int(classroom.state_version)
 
     async def event_stream(
         session_id: str,
         audience: str,
         participant_id: str | None = None,
     ) -> Any:
-        if participant_id is not None:
-            first_connection = hub.participant_connected(session_id, participant_id)
-            if first_connection:
-                with factory() as db:
-                    participant = db.get(ClassroomParticipant, participant_id)
-                    classroom = db.get(ClassroomSession, session_id)
-                    if participant is not None and classroom is not None:
-                        participant.disconnected_at = None
-                        participant.last_seen_at = _now()
-                        classroom.state_version += 1
-                        db.commit()
-                        hub.publish(
-                            session_id,
-                            "participant-reconnected",
-                            {
-                                "stateVersion": classroom.state_version,
-                                "participantId": participant_id,
-                            },
-                            critical=True,
-                            audience="teacher",
-                        )
         stream_audience: Literal["teacher", "student"] = (
             "teacher" if audience == "teacher" else "student"
         )
-        async with hub.subscribe(session_id, stream_audience) as subscriber:
-            try:
-                with factory() as db:
-                    classroom = db.get(ClassroomSession, session_id)
-                    if classroom is None:
-                        return
-                    state_version = classroom.state_version
-                ready = {
-                    "type": "stream-ready",
-                    "hubEpoch": hub.hub_epoch,
-                    "eventSequence": hub.event_sequence(session_id, stream_audience),
-                    "stateVersion": state_version,
-                }
-                yield f"event: stream-ready\ndata: {json.dumps(ready, separators=(',', ':'))}\n\n"
-                while True:
-                    try:
-                        event = await asyncio.wait_for(subscriber.next_event(), timeout=15)
-                    except TimeoutError:
-                        yield ": heartbeat\n\n"
-                        continue
-                    if event is None:
-                        return
-                    encoded = event.get("_encoded") or json.dumps(event, separators=(",", ":"))
-                    yield f"event: {event['type']}\ndata: {encoded}\n\n"
-            finally:
-                if participant_id is not None and hub.participant_disconnected(
-                    session_id, participant_id
-                ):
-                    with factory() as db:
-                        participant = db.get(ClassroomParticipant, participant_id)
-                        classroom = db.get(ClassroomSession, session_id)
-                        if participant is not None and classroom is not None:
-                            participant.disconnected_at = _now()
-                            participant.last_seen_at = _now()
-                            classroom.state_version += 1
-                            db.commit()
-                            hub.publish(
-                                session_id,
-                                "participant-left",
-                                {
-                                    "stateVersion": classroom.state_version,
-                                    "participantId": participant_id,
-                                },
-                                critical=True,
-                                audience="teacher",
-                            )
+        async with hub.subscribe(
+            session_id, stream_audience, participant_id=participant_id
+        ) as subscriber:
+            if not hub.subscription_is_current(session_id, subscriber):
+                return
+            initial_event_sequence = hub.event_sequence(session_id, stream_audience)
+            state_version = await run_in_threadpool(stream_state_version, session_id)
+            if state_version is None or not hub.subscription_is_current(session_id, subscriber):
+                return
+            ready = {
+                "type": "stream-ready",
+                "hubEpoch": hub.hub_epoch,
+                "eventSequence": initial_event_sequence,
+                "stateVersion": state_version,
+            }
+            yield f"event: stream-ready\ndata: {json.dumps(ready, separators=(',', ':'))}\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(subscriber.next_event(), timeout=15)
+                except TimeoutError:
+                    yield ": heartbeat\n\n"
+                    continue
+                if event is None:
+                    return
+                encoded = event.get("_encoded") or json.dumps(event, separators=(",", ":"))
+                yield f"event: {event['type']}\ndata: {encoded}\n\n"
 
     def stream_response(
         session_id: str,
@@ -1891,11 +2191,11 @@ def register_classroom_routes(
     @app.get("/api/v1/classroom/sessions/{session_id}/events")
     def participant_events(session_id: str, request: Request) -> StreamingResponse:
         with factory() as db:
-            participant, _ = participant_from_request(request, db, session_id)
+            participant, _ = live_participant_from_request(request, db, session_id)
             participant_id = participant.id
         return stream_response(session_id, "student", participant_id)
 
-    return presenter_runtime
+    return ClassroomRouteRuntime(presenter_runtime, prewarmer, restore_prewarm)
 
 
 def _participant_response(

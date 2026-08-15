@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from wsi_viewer.config import Settings
+from wsi_viewer.main import create_app
 
 LIMIT_ENVIRONMENT = {
     "PATHLAB_LIBVIPS_CONCURRENCY": "3",
@@ -60,11 +64,122 @@ def test_classroom_is_disabled_by_default_and_accepts_an_explicit_override(
     assert Settings(_env_file=None).classroom_enabled is True
 
 
+@pytest.mark.parametrize("value", (1, 1500, 2000))
+def test_classroom_participant_limit_accepts_declared_range(value: int) -> None:
+    settings = Settings(_env_file=None, classroom_max_participants=value)
+
+    assert settings.classroom_max_participants == value
+
+
+@pytest.mark.parametrize("value", (0, 2001))
+def test_classroom_participant_limit_rejects_values_outside_declared_range(value: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, classroom_max_participants=value)
+
+
+def test_classroom_participant_limit_accepts_environment_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PATHLAB_CLASSROOM_MAX_PARTICIPANTS", "1500")
+
+    assert Settings(_env_file=None).classroom_max_participants == 1500
+
+
+@pytest.mark.parametrize("role", ("general", "classroom", "all"))
+def test_service_role_accepts_the_three_declared_topologies(
+    monkeypatch: pytest.MonkeyPatch, role: str
+) -> None:
+    monkeypatch.setenv("PATHLAB_SERVICE_ROLE", role)
+    monkeypatch.delenv("PATHLAB_CLASSROOM_SERVICE_URL", raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.service_role == role
+    assert settings.classroom_service_url == "http://classroom:8001"
+
+
+def test_production_rejects_the_combined_service_role() -> None:
+    with pytest.raises(ValidationError, match="combined service role"):
+        Settings(
+            _env_file=None,
+            environment="production",
+            service_role="all",
+            secret_key="unique-production-secret-that-is-long-enough",
+        )
+
+
+def test_production_general_role_does_not_require_the_classroom_singleton() -> None:
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        service_role="general",
+        secret_key="unique-production-secret-that-is-long-enough",
+        classroom_enabled=True,
+        classroom_singleton=False,
+    )
+
+    assert settings.service_role == "general"
+
+
+@pytest.mark.parametrize(
+    ("role", "path", "classroom_enabled", "expected_status"),
+    (
+        ("general", "/api/v1/auth/session", True, 422),
+        ("general", "/api/v1/classroom/join", True, 404),
+        ("classroom", "/api/v1/auth/session", True, 404),
+        ("classroom", "/api/v1/classroom/join", True, 422),
+        ("all", "/api/v1/auth/session", True, 422),
+        ("all", "/api/v1/classroom/join", True, 422),
+    ),
+)
+def test_service_roles_scope_http_route_families_and_preserve_combined_development(
+    tmp_path: Path,
+    role: str,
+    path: str,
+    classroom_enabled: bool,
+    expected_status: int,
+) -> None:
+    settings = Settings(
+        _env_file=None,
+        service_role=role,
+        classroom_enabled=classroom_enabled,
+        database_url=f"sqlite:///{tmp_path / f'{role}.sqlite3'}",
+        data_root=tmp_path / role,
+        secure_cookies=False,
+    )
+
+    with TestClient(create_app(settings)) as client:
+        response = client.post(path, json={})
+
+    assert response.status_code == expected_status
+
+
+def test_classroom_role_exposes_only_classroom_and_health_routes(tmp_path: Path) -> None:
+    app = create_app(
+        Settings(
+            _env_file=None,
+            service_role="classroom",
+            classroom_enabled=True,
+            database_url=f"sqlite:///{tmp_path / 'classroom-only.sqlite3'}",
+            data_root=tmp_path / "classroom-only",
+        )
+    )
+    paths = {getattr(route, "path", "") for route in app.routes}
+
+    assert "/livez" in paths
+    assert "/readyz" in paths
+    assert "/api/v1/classroom/join" in paths
+    assert "/api/v1/auth/session" not in paths
+    assert "/api/v1/admin/slides" not in paths
+    assert "/openapi.json" not in paths
+
+
 def test_production_classroom_requires_declared_singleton_topology() -> None:
     with pytest.raises(ValidationError, match="singleton topology"):
         Settings(
             _env_file=None,
             environment="production",
+            service_role="classroom",
             secret_key="unique-production-secret-that-is-long-enough",
             classroom_enabled=True,
             classroom_singleton=False,

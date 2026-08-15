@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { classroomReconnectDelay } from '../classroom/reconnect'
+import { classroomGuideDelay, classroomReconnectDelay } from '../classroom/reconnect'
 
 describe('classroom reconnect delay', () => {
   it('is deterministic per participant and differs across participants', () => {
@@ -12,12 +12,31 @@ describe('classroom reconnect delay', () => {
     )
   })
 
-  it('backs off within a bounded five-second window', () => {
-    const delays = Array.from({ length: 10 }, (_, attempt) => (
+  it('spreads the initial retry across 0.5–10 seconds, then caps exponential backoff', () => {
+    const initialDelays = Array.from({ length: 256 }, (_, index) => (
+      classroomReconnectDelay(`participant-${index}`, 0)
+    ))
+    expect(Math.min(...initialDelays)).toBeGreaterThanOrEqual(500)
+    expect(Math.max(...initialDelays)).toBeLessThanOrEqual(10_000)
+    expect(new Set(initialDelays).size).toBeGreaterThan(200)
+
+    const delays = Array.from({ length: 12 }, (_, attempt) => (
       classroomReconnectDelay('participant-a', attempt)
     ))
-    expect(Math.min(...delays)).toBeGreaterThanOrEqual(500)
-    expect(Math.max(...delays)).toBeLessThanOrEqual(5000)
-    expect(delays[3]).toBe(delays[9])
+    expect(delays.slice(1).every((delay, index) => delay >= delays[index])).toBe(true)
+    expect(delays.at(-1)).toBeLessThanOrEqual(30_000)
+    expect(delays.at(-1)).toBe(delays.at(-2))
+  })
+
+  it('deterministically spreads guided slide switches across 0–250 ms', () => {
+    const delays = Array.from({ length: 256 }, (_, index) => (
+      classroomGuideDelay(`participant-${index}`, 'slide-7')
+    ))
+    expect(classroomGuideDelay('participant-a', 'slide-7')).toBe(
+      classroomGuideDelay('participant-a', 'slide-7'),
+    )
+    expect(Math.min(...delays)).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...delays)).toBeLessThanOrEqual(250)
+    expect(new Set(delays).size).toBeGreaterThan(150)
   })
 })

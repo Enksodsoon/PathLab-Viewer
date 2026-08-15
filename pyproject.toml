@@ -27,9 +27,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "imagecodecs>=2025.8,<2027",
+  "jsonschema>=4.26,<5",
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
   "pytest-cov>=6.2,<7",
+  "tzdata>=2025.2,<2027",
   "ruff>=0.12,<1",
 ]
 

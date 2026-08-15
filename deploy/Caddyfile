@@ -34,9 +34,15 @@
 	@classroom_events path /api/v1/classroom/sessions/*/events /api/v1/admin/classroom/sessions/*/events
 	handle @classroom_events {
 		header Cache-Control "no-store"
-		reverse_proxy api:8000 {
+		reverse_proxy {$PATHLAB_CLASSROOM_SERVICE_URL} {
 			flush_interval -1
 		}
+	}
+
+	@classroom_api path /api/v1/classroom/* /api/v1/admin/classroom/*
+	handle @classroom_api {
+		header ?Cache-Control "no-store"
+		reverse_proxy {$PATHLAB_CLASSROOM_SERVICE_URL}
 	}
 
 	@backend path /api/* /livez /readyz

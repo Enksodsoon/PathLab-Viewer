@@ -131,17 +131,19 @@ def _ready_dynamic_slide(client: TestClient) -> tuple[str, str]:
 
 def test_production_settings_fail_closed() -> None:
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, environment="production")
+        Settings(_env_file=None, environment="production", service_role="general")
     with pytest.raises(ValidationError):
         Settings(
             _env_file=None,
             environment="production",
+            service_role="general",
             secret_key="replace-with-at-least-32-random-bytes",
         )
     with pytest.raises(ValidationError):
         Settings(
             _env_file=None,
             environment="production",
+            service_role="general",
             secret_key=STRONG_SECRET,
             secure_cookies=False,
         )
@@ -149,6 +151,7 @@ def test_production_settings_fail_closed() -> None:
     settings = Settings(
         _env_file=None,
         environment="production",
+        service_role="general",
         secret_key=STRONG_SECRET,
         secure_cookies=True,
     )

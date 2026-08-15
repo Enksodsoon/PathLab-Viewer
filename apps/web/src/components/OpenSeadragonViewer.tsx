@@ -6,6 +6,7 @@ import {
   nextViewerNetworkState,
   type ViewerConnectionHint,
   type ViewerLoadingMode,
+  type ViewerNetworkProfile,
 } from '../viewerNetwork'
 
 const NARROW_VIEWPORT_MAX = 768
@@ -33,6 +34,7 @@ interface Props {
   micronsPerPixel?: number | null
   onScaleChange?: (microns: number, width: number) => void
   onViewerAttach?: ViewerAttachmentCallback
+  networkProfile?: ViewerNetworkProfile
 }
 
 interface NavigatorWithConnection extends Navigator {
@@ -57,6 +59,7 @@ export function OpenSeadragonViewer({
   micronsPerPixel,
   onScaleChange,
   onViewerAttach,
+  networkProfile,
 }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
@@ -67,6 +70,7 @@ export function OpenSeadragonViewer({
   const micronsPerPixelRef = useRef(micronsPerPixel)
   const onScaleChangeRef = useRef(onScaleChange)
   const attachmentCallbackRef = useRef(onViewerAttach)
+  const networkProfileRef = useRef(networkProfile)
   const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
   const windowFailures = useRef(0)
@@ -86,6 +90,7 @@ export function OpenSeadragonViewer({
     mode,
     narrowViewport,
     (navigator as NavigatorWithConnection).connection,
+    networkProfile,
   ))
   const retryLoading = useCallback(() => {
     if (errorTimer.current !== null) {
@@ -181,15 +186,17 @@ export function OpenSeadragonViewer({
   }, [attachViewerAttachment, detachViewerAttachment, onViewerAttach])
   useEffect(() => {
     modeRef.current = mode
+    networkProfileRef.current = networkProfile
     localStorage.setItem(NETWORK_MODE_KEY, mode)
     const next = initialViewerNetworkState(
       mode,
       narrowViewport,
       mode === 'auto' ? (navigator as NavigatorWithConnection).connection : undefined,
+      networkProfile,
     )
     networkState.current = next
     if (viewerRef.current) viewerRef.current.imageLoader.jobLimit = next.jobLimit
-  }, [mode, narrowViewport])
+  }, [mode, narrowViewport, networkProfile])
   useEffect(() => {
     if (!element.current) return
     let viewer: OpenSeadragon.Viewer | null = null
@@ -335,7 +342,7 @@ export function OpenSeadragonViewer({
           sampleCount,
           failureRate: sampleCount ? failures / sampleCount : 0,
           p75Ms: sorted[p75Index] ?? 0,
-        }, mountedNarrowViewport, modeRef.current)
+        }, mountedNarrowViewport, modeRef.current, networkProfileRef.current)
         if (viewer) viewer.imageLoader.jobLimit = networkState.current.jobLimit
       }, NETWORK_WINDOW_MS)
     } catch {

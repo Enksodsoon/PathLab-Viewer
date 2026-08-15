@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import shutil
 import tarfile
@@ -15,7 +16,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session as OrmSession
 
 from .annotations import (
@@ -555,9 +556,7 @@ def register_desktop_routes(
                 | ((Slide.updated_at == cursor_time) & (Slide.id > cursor_id))
             )
         slides = list(
-            database.scalars(
-                statement.order_by(Slide.updated_at, Slide.id).limit(limit + 1)
-            )
+            database.scalars(statement.order_by(Slide.updated_at, Slide.id).limit(limit + 1))
         )
         page = slides[:limit]
         folders = list(
@@ -1296,5 +1295,28 @@ def register_desktop_routes(
                 detail={"code": error.code, **error.detail},
             ) from error
         return {**result, "autoMerged": merged}
+
+    @app.post(
+        "/api/v1/admin/capacity-sentinels/{run_id}/desktop-cleanup",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def cleanup_capacity_desktop(
+        run_id: str,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+        synthetic_run: str | None = Header(default=None, alias="X-PathLab-Synthetic-Run"),
+    ) -> None:
+        if re.fullmatch(r"[a-z0-9-]{1,64}", run_id) is None or synthetic_run != run_id:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
+        marker = f"capacity-{run_id}"
+        device_name = f"Synthetic capacity {run_id}"
+        database.execute(delete(DesktopIngest).where(DesktopIngest.artifact_revision_id == marker))
+        now = _now()
+        for item in database.scalars(
+            select(DesktopCredential).where(DesktopCredential.device_name == device_name)
+        ):
+            item.revoked_at = now
+        database.execute(delete(DesktopPairing).where(DesktopPairing.device_name == device_name))
+        database.commit()
 
     return finalizer

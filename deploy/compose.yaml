@@ -18,6 +18,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN in deploy/.env}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
+      PATHLAB_CLASSROOM_SERVICE_URL: http://classroom:8001
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -26,6 +27,8 @@ services:
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/private:/pathlab-private:ro
     depends_on:
       api:
+        condition: service_healthy
+      classroom:
         condition: service_healthy
       tile-service:
         condition: service_healthy
@@ -51,6 +54,7 @@ services:
     command: ["sh", "-c", "mkdir -p /data/database /data/tus && alembic upgrade head && pathlab-admin reconcile-storage && exec uvicorn wsi_viewer.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=*"]
     environment: &pathlab-environment
       PATHLAB_ENVIRONMENT: production
+      PATHLAB_SERVICE_ROLE: general
       PATHLAB_DATABASE_URL: sqlite:////data/database/pathlab.sqlite3
       PATHLAB_DATA_ROOT: /data
       PATHLAB_SECRET_KEY: ${PATHLAB_SECRET_KEY:?Set PATHLAB_SECRET_KEY in deploy/.env}
@@ -61,6 +65,7 @@ services:
       PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"
       PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-true}"
       PATHLAB_CLASSROOM_SINGLETON: "true"
+      PATHLAB_CLASSROOM_MAX_PARTICIPANTS: "${PATHLAB_CLASSROOM_MAX_PARTICIPANTS:-300}"
       PATHLAB_INTERNAL_FILE_REDIRECTS: "true"
       PATHLAB_TILE_SERVICE_URL: http://tile-service:8090
     volumes:
@@ -75,6 +80,38 @@ services:
       retries: 5
     mem_limit: 512m
     cpus: 0.50
+    cpu_shares: 1024
+
+  classroom:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["uvicorn", "wsi_viewer.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips=*"]
+    expose: ["8001"]
+    environment:
+      <<: *pathlab-environment
+      PATHLAB_SERVICE_ROLE: classroom
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - default
+      - pathlab-internal
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8001/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+    cpus: 1.00
     cpu_shares: 1024
 
   tile-service:

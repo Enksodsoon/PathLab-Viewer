@@ -39,13 +39,13 @@ describe('classroom disabled-mode resource contract', () => {
   it('keeps guide traffic opt-in and accepts intentionally coalesced movement', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
     const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
+    const streamSync = readFileSync(resolve('src/classroom/streamSync.ts'), 'utf8')
 
     expect(teacher).toContain('const [guideMode, setGuideMode] = useState(false)')
     expect(teacher).toContain('if (adminAuthFailed.current || !guideModeRef.current')
     expect(teacher).toContain('sequence(event, true)')
     expect(student).toContain('sequence(event, true)')
-    expect(teacher).toContain('!coalescible && next !== streamSequence.current + 1')
-    expect(student).toContain('!coalescible && next !== streamSequence.current + 1')
+    expect(streamSync).toContain('!options.coalescible && eventSequence !== cursor.eventSequence + 1')
   })
 
   it('keeps the teacher workspace bounded and uses one lightweight arrow tool', () => {
@@ -59,6 +59,28 @@ describe('classroom disabled-mode resource contract', () => {
     expect(styles).toContain('.classroom-participant-list')
     expect(styles).toContain('overflow-y: auto')
     expect(styles).toContain('max-height: min(30vh, 260px)')
+  })
+
+  it('uses the paginated roster signal instead of legacy participant bursts', () => {
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+    const styles = readFileSync(resolve('src/classroom/classroom.css'), 'utf8')
+
+    expect(teacher).toContain("events.addEventListener('roster-changed'")
+    expect(teacher).toContain('teacherParticipants(')
+    expect(teacher).not.toMatch(/'participant-(?:joined|left|reconnected)'/)
+    expect(teacher).toContain('type="search"')
+    expect(teacher).toContain('nextCursor')
+    expect(styles).toMatch(/\.classroom-participant-list\s*>\s*li[\s\S]*?content-visibility:\s*auto/)
+    expect(styles).toMatch(/\.classroom-participant-list\s*>\s*li[\s\S]*?contain-intrinsic-size:/)
+  })
+
+  it('uses one initial student snapshot and only resynchronizes stream gaps', () => {
+    const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
+
+    expect(student).toContain('createClassroomStreamCursor')
+    expect(student).toContain("decision === 'resync'")
+    expect(student).not.toContain("source.addEventListener('stream-ready', (event) => {\n        sequence(event)\n        recover()")
+    expect(student).not.toContain('void refresh(sessionId)\n    let events')
   })
 
   it('fails closed on expired teacher auth without continuing live traffic', () => {

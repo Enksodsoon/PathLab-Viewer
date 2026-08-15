@@ -3,6 +3,8 @@ import hmac
 import os
 import re
 import shutil
+import sqlite3
+import time
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import asynccontextmanager
@@ -14,6 +16,8 @@ from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Re
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
 from .annotation_routes import register_annotation_routes
@@ -28,7 +32,7 @@ from .auth import (
     recover_password,
 )
 from .classroom_hub import ClassroomHub
-from .classroom_routes import register_classroom_routes
+from .classroom_routes import CLASSROOM_RETRY_AFTER_SECONDS, register_classroom_routes
 from .classroom_runtime import ClassroomSingletonLock
 from .config import Settings
 from .database import session_factory
@@ -44,7 +48,7 @@ from .publication import (
     delivery_version,
     ensure_grant,
 )
-from .readiness import schema_is_current, tile_service_is_ready
+from .readiness import CachedReadiness, tile_service_is_ready
 from .request_limits import AuthBodyLimitMiddleware
 from .security import (
     MAX_VERIFICATION_PASSWORD_LENGTH,
@@ -70,6 +74,29 @@ MAX_LIBRARY_BODY_BYTES = 64 * 1024
 MAX_INTERNAL_BODY_BYTES = 64 * 1024
 MAX_ANNOTATION_BODY_BYTES = 256 * 1024
 MAX_ANNOTATION_IMPORT_BODY_BYTES = 8 * 1024 * 1024
+
+
+def _is_sqlite_busy_or_locked(error: SQLAlchemyOperationalError) -> bool:
+    original = error.orig
+    if not isinstance(original, sqlite3.OperationalError):
+        return False
+    error_code = getattr(original, "sqlite_errorcode", None)
+    if isinstance(error_code, int):
+        return error_code & 0xFF in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+    message = str(original).casefold()
+    return any(
+        marker in message
+        for marker in ("database is busy", "database is locked", "database table is locked")
+    )
+
+
+def _is_classroom_api_path(path: str) -> bool:
+    return (
+        path == "/api/v1/classroom"
+        or path.startswith("/api/v1/classroom/")
+        or path == "/api/v1/admin/classroom"
+        or path.startswith("/api/v1/admin/classroom/")
+    )
 
 
 class LoginRequest(BaseModel):
@@ -188,71 +215,83 @@ def _slide_json(
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     current = settings or Settings()
+    serves_general = current.service_role in {"general", "all"}
+    serves_classroom = current.service_role in {"classroom", "all"}
+    classroom_runtime_enabled = current.classroom_enabled and serves_classroom
     current.data_root.mkdir(parents=True, exist_ok=True)
     factory = session_factory(current)
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
     throttle = LoginThrottle()
     services: dict[str, Any] = {}
+    classroom_pressure: dict[str, int | float] = {
+        "poolWaitP95Ms": 0.0,
+        "poolTimeouts": 0,
+        "sqliteLockErrors": 0,
+    }
+    classroom_pool_waits_ms: deque[float] = deque(maxlen=2048)
     classroom_lock = ClassroomSingletonLock(current.data_root / "runtime" / "classroom-hub.lock")
     classroom_hub = ClassroomHub()
-    services["classroom_ready"] = not current.classroom_enabled
+    readiness = CachedReadiness()
+    services["classroom_ready"] = not classroom_runtime_enabled
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         finalizer = services.get("desktop_finalizer")
         finalizer_started = False
-        if current.internal_file_redirects:
-            tile_routes = TileRouteService(
-                storage,
-                None,
-                internal_redirects=True,
-            )
-        else:
-            cache_root = current.tile_cache_root
-            if not cache_root.is_absolute():
-                cache_root = current.data_root / "cache" / "ome-tiles"
-            tile_routes = TileRouteService(
-                storage,
-                OmeTileRenderer(
-                    TileCache(
-                        cache_root,
-                        max_bytes=current.tile_cache_max_bytes,
-                        low_water_bytes=current.tile_cache_low_water_bytes,
-                        max_temp_bytes=current.tile_cache_max_temp_bytes,
+        tile_route_service: TileRouteService | None = None
+        if serves_general:
+            if current.internal_file_redirects:
+                tile_route_service = TileRouteService(
+                    storage,
+                    None,
+                    internal_redirects=True,
+                )
+            else:
+                cache_root = current.tile_cache_root
+                if not cache_root.is_absolute():
+                    cache_root = current.data_root / "cache" / "ome-tiles"
+                tile_route_service = TileRouteService(
+                    storage,
+                    OmeTileRenderer(
+                        TileCache(
+                            cache_root,
+                            max_bytes=current.tile_cache_max_bytes,
+                            low_water_bytes=current.tile_cache_low_water_bytes,
+                            max_temp_bytes=current.tile_cache_max_temp_bytes,
+                        ),
+                        memory_cache=MemoryTileCache(current.tile_cache_memory_bytes),
+                        render_concurrency=current.tile_render_concurrency,
                     ),
-                    memory_cache=MemoryTileCache(current.tile_cache_memory_bytes),
-                    render_concurrency=current.tile_render_concurrency,
-                ),
-            )
-        services["tile_routes"] = tile_routes
-        with factory() as database:
-            schema_ready = schema_is_current(database)
-        if finalizer is not None and schema_ready:
+                )
+            services["tile_routes"] = tile_route_service
+        schema_ready = readiness.validate_startup(factory)
+        if serves_general and finalizer is not None and schema_ready:
             finalizer.start()
             finalizer_started = True
         classroom_lock_held = False
-        if current.classroom_enabled:
+        if classroom_runtime_enabled:
             classroom_lock_held = classroom_lock.acquire()
             services["classroom_ready"] = classroom_lock_held
             if classroom_lock_held:
                 classroom_hub.start()
                 classroom_presenter = services.get("classroom_presenter")
                 if classroom_presenter is not None:
-                    classroom_presenter.start()
+                    await classroom_presenter.start()
         try:
             yield
         finally:
             if finalizer is not None and finalizer_started:
                 finalizer.close()
             services.pop("tile_routes", None)
-            tile_routes.close()
+            if tile_route_service is not None:
+                tile_route_service.close()
             if classroom_lock_held:
                 classroom_presenter = services.get("classroom_presenter")
                 if classroom_presenter is not None:
                     await classroom_presenter.close()
                 classroom_hub.close()
                 classroom_lock.release()
-            services["classroom_ready"] = not current.classroom_enabled
+            services["classroom_ready"] = not classroom_runtime_enabled
 
     app = FastAPI(title="PathLab Viewer API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
@@ -278,9 +317,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
+        path = request.url.path
+        is_classroom_path = _is_classroom_api_path(path)
+        if current.service_role == "general" and is_classroom_path:
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        if current.service_role == "classroom" and not (
+            is_classroom_path or path in {"/livez", "/readyz"}
+        ):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
         if (
-            current.classroom_enabled
-            and "/classroom" in request.url.path
+            classroom_runtime_enabled
+            and is_classroom_path
             and not services.get("classroom_ready", False)
         ):
             return JSONResponse(
@@ -288,8 +335,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 content={"detail": {"code": "CLASSROOM_SINGLETON_NOT_READY"}},
                 headers={"Cache-Control": "no-store"},
             )
-        response = await call_next(request)
-        if "/classroom" in request.url.path:
+        try:
+            response = await call_next(request)
+        except SQLAlchemyTimeoutError:
+            if not is_classroom_path:
+                raise
+            classroom_pressure["poolTimeouts"] = int(classroom_pressure["poolTimeouts"]) + 1
+            return JSONResponse(
+                status_code=503,
+                content={"detail": {"code": "CLASSROOM_BUSY"}},
+                headers={
+                    "Cache-Control": "no-store",
+                    "Retry-After": CLASSROOM_RETRY_AFTER_SECONDS,
+                },
+            )
+        except SQLAlchemyOperationalError as error:
+            if not is_classroom_path or not _is_sqlite_busy_or_locked(error):
+                raise
+            classroom_pressure["sqliteLockErrors"] = int(classroom_pressure["sqliteLockErrors"]) + 1
+            return JSONResponse(
+                status_code=503,
+                content={"detail": {"code": "CLASSROOM_BUSY"}},
+                headers={
+                    "Cache-Control": "no-store",
+                    "Retry-After": CLASSROOM_RETRY_AFTER_SECONDS,
+                },
+            )
+        if is_classroom_path:
             response.headers["Cache-Control"] = "no-store"
             response.headers["Referrer-Policy"] = "no-referrer"
         return response
@@ -302,6 +374,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def database() -> Iterator[OrmSession]:
         with factory() as session:
+            yield session
+
+    def classroom_database() -> Iterator[OrmSession]:
+        with factory() as session:
+            started = time.monotonic()
+            session.connection()
+            classroom_pool_waits_ms.append((time.monotonic() - started) * 1000)
+            ordered = sorted(classroom_pool_waits_ms)
+            index = max(0, min(len(ordered) - 1, int(len(ordered) * 0.95)))
+            classroom_pressure["poolWaitP95Ms"] = round(ordered[index], 3)
             yield session
 
     Database = Annotated[OrmSession, Depends(database)]
@@ -373,57 +455,62 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     PasswordRecoveryPayload = Annotated[PasswordRecoveryRequest, Depends(password_recovery_payload)]
 
-    register_library_routes(
-        app,
-        factory=factory,
-        storage=storage,
-        database_dependency=database,
-        admin_dependency=admin_session,
-        csrf_dependency=csrf,
-        tile_routes=tile_routes,
-    )
-    register_annotation_routes(
-        app,
-        database_dependency=database,
-        admin_dependency=admin_session,
-        csrf_dependency=csrf,
-    )
-    services["desktop_finalizer"] = register_desktop_routes(
-        app,
-        database_dependency=database,
-        csrf_dependency=csrf,
-        storage=storage,
-        tile_routes=tile_routes,
-        ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
-        max_upload_bytes=current.max_upload_bytes,
-    )
-    services["classroom_presenter"] = register_classroom_routes(
-        app,
-        settings=current,
-        storage=storage,
-        factory=factory,
-        hub=classroom_hub,
-        database_dependency=database,
-        admin_dependency=admin_session,
-        csrf_dependency=csrf,
-    )
+    if serves_general:
+        register_library_routes(
+            app,
+            factory=factory,
+            storage=storage,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            tile_routes=tile_routes,
+        )
+        register_annotation_routes(
+            app,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+        )
+        services["desktop_finalizer"] = register_desktop_routes(
+            app,
+            database_dependency=database,
+            csrf_dependency=csrf,
+            storage=storage,
+            tile_routes=tile_routes,
+            ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
+            max_upload_bytes=current.max_upload_bytes,
+        )
+    if serves_classroom:
+        services["classroom_presenter"] = register_classroom_routes(
+            app,
+            settings=current,
+            storage=storage,
+            factory=factory,
+            hub=classroom_hub,
+            database_dependency=classroom_database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            pressure_metrics=classroom_pressure,
+        )
 
     @app.get("/livez")
     def livez() -> dict[str, str]:
         return {"status": "live"}
 
     @app.get("/readyz")
-    def readyz(db: Database) -> dict[str, str]:
-        if not schema_is_current(db):
+    def readyz() -> dict[str, str]:
+        if not readiness.database_is_ready(factory):
             raise HTTPException(status_code=503, detail={"code": "DATABASE_NOT_READY"})
-        if current.internal_file_redirects and not tile_service_is_ready(
-            current.tile_service_url
+        if (
+            serves_general
+            and current.internal_file_redirects
+            and not tile_service_is_ready(current.tile_service_url)
         ):
             raise HTTPException(
                 status_code=503,
                 detail={"code": "TILE_SERVICE_NOT_READY"},
             )
-        if current.classroom_enabled and not services.get("classroom_ready", False):
+        if classroom_runtime_enabled and not services.get("classroom_ready", False):
             raise HTTPException(
                 status_code=503,
                 detail={"code": "CLASSROOM_SINGLETON_NOT_READY"},
@@ -557,8 +644,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def list_slides(_: AdminSession, db: Database) -> list[dict[str, Any]]:
         slides = db.scalars(select(Slide).order_by(Slide.created_at.desc())).all()
         return [
-            _slide_json(slide, annotations_enabled=current.annotations_enabled)
-            for slide in slides
+            _slide_json(slide, annotations_enabled=current.annotations_enabled) for slide in slides
         ]
 
     @app.get("/api/v1/admin/slides/{slide_id}")
@@ -642,9 +728,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             source = (upload_root / upload_id).resolve(strict=True)
         except OSError as error:
-            raise HTTPException(
-                status_code=400, detail={"code": "INVALID_UPLOAD_PATH"}
-            ) from error
+            raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"}) from error
         if source.parent != upload_root or not source.is_file():
             raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
         slide = db.get(Slide, grant.slide_id)
@@ -875,9 +959,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             target = storage.public_tile(slide.public_id, tile_path)
         except (FileNotFoundError, ValueError):
-            raise HTTPException(
-                status_code=404, detail={"code": "TILE_NOT_FOUND"}
-            ) from None
+            raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"}) from None
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
         return deliver_file(
             target,
@@ -886,6 +968,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             media_type=media_type,
             cache_control="private, max-age=86400, immutable",
         )
+
+    if current.service_role == "classroom":
+        app.router.routes[:] = [
+            route
+            for route in app.router.routes
+            if (path := getattr(route, "path", "")) in {"/livez", "/readyz"}
+            or _is_classroom_api_path(path)
+        ]
 
     return app
 
