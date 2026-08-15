@@ -7,7 +7,10 @@ import { DesktopConnectPage } from '../pages/DesktopConnectPage'
 
 function renderPage(code: string) {
   return render(
-    <MemoryRouter initialEntries={[`/admin/connect?code=${encodeURIComponent(code)}`]}>
+    <MemoryRouter
+      initialEntries={[`/admin/connect?code=${encodeURIComponent(code)}`]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <DesktopConnectPage />
     </MemoryRouter>,
   )
