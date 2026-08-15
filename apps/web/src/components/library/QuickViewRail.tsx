@@ -23,8 +23,13 @@ export function QuickViewRail({
       <section>
         <h3><Grid2X2 /> Collections</h3>
         {navigation.collections.slice(0, 4).map((item) => (
-          <button key={item.id} type="button" onClick={() => onLocation(`collection:${item.id}`)}>
-            <span>{item.name}</span><strong>{item.itemCount}</strong>
+          <button
+            key={item.id}
+            type="button"
+            aria-label={`${item.name} ${item.itemCount}`}
+            onClick={() => onLocation(`collection:${item.id}`)}
+          >
+            <span>{item.name}</span><strong aria-hidden="true">{item.itemCount}</strong>
           </button>
         ))}
       </section>
