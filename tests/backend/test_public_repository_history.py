@@ -91,3 +91,20 @@ def test_history_scan_allows_privacy_safe_commit_metadata(tmp_path: Path) -> Non
 
     scanned = run_scan(repo, "--history-base", base)
     assert scanned.returncode == 0
+
+
+def test_history_scan_allows_dependabot_noreply_commit_metadata(tmp_path: Path) -> None:
+    repo, base = make_repo(tmp_path)
+    git(repo, "config", "user.name", "dependabot[bot]")
+    git(
+        repo,
+        "config",
+        "user.email",
+        "49699333+dependabot[bot]@users.noreply.github.com",
+    )
+    (repo / "clean.txt").write_text("safe\n", encoding="utf-8")
+    git(repo, "add", "clean.txt")
+    git(repo, "commit", "-m", "dependabot update")
+
+    scanned = run_scan(repo, "--history-base", base)
+    assert scanned.returncode == 0
