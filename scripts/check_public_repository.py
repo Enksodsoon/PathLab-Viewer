@@ -87,8 +87,13 @@ def is_allowed_email(value: str) -> bool:
     normalized = value.casefold()
     if normalized in ALLOWED_EXACT_EMAILS:
         return True
-    match = EMAIL_PATTERN.fullmatch(value)
-    return bool(match and match.group(2).casefold() in ALLOWED_EMAIL_DOMAINS)
+    local_part, separator, domain = normalized.rpartition("@")
+    return bool(
+        separator
+        and local_part
+        and "@" not in local_part
+        and domain in ALLOWED_EMAIL_DOMAINS
+    )
 
 
 def is_public_ip(value: str) -> bool:
