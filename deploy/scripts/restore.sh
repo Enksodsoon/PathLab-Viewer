@@ -16,7 +16,7 @@ test -f "${backup_dir}/database/pathlab.sqlite3"
 test -f "${backup_dir}/files.tar.gz"
 (cd "$backup_dir" && sha256sum --check SHA256SUMS)
 
-docker compose stop api worker tusd caddy
+docker compose stop caddy api classroom tile-service tusd worker
 recovery="${data_dir}.before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
 mv "$data_dir" "$recovery"
 mkdir -p "$data_dir/database"

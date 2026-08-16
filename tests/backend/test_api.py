@@ -95,6 +95,69 @@ def _desktop_authorization(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {exchanged.json()['accessToken']}"}
 
 
+def test_capacity_desktop_cleanup_is_run_bound_idempotent_and_revokes_credentials(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        pairing = client.post(
+            "/api/v1/desktop/pairings",
+            json={"deviceName": "Synthetic capacity 123456"},
+        ).json()
+        assert (
+            client.post(
+                "/api/v1/desktop/pairings/approve",
+                headers={"X-CSRF-Token": csrf},
+                json={"userCode": pairing["userCode"]},
+            ).status_code
+            == 204
+        )
+        exchanged = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        ).json()
+        authorization = {"Authorization": f"Bearer {exchanged['accessToken']}"}
+        created = client.post(
+            "/api/v1/desktop/ingests",
+            headers=authorization,
+            json={
+                "displayName": "Synthetic capacity 123456",
+                "artifactRevisionId": "capacity-123456",
+                "packageLength": 1,
+                "packageSha256": "a" * 64,
+                "manifestSha256": "b" * 64,
+            },
+        )
+        assert created.status_code == 201
+        ingest_id = created.json()["id"]
+
+        for _ in range(2):
+            cleanup = client.post(
+                "/api/v1/admin/capacity-sentinels/123456/desktop-cleanup",
+                headers={
+                    "X-CSRF-Token": csrf,
+                    "X-PathLab-Synthetic-Run": "123456",
+                },
+            )
+            assert cleanup.status_code == 204
+
+        assert client.get("/api/v1/desktop/credential", headers=authorization).status_code == 401
+        with session_factory(client.app.state.settings)() as database:
+            assert database.get(DesktopIngest, ingest_id) is None
+
+        replay = client.post(
+            "/api/v1/admin/capacity-sentinels/123456/desktop-cleanup",
+            headers={
+                "X-CSRF-Token": csrf,
+                "X-PathLab-Synthetic-Run": "other-run",
+            },
+        )
+        assert _has_error(replay, 400, "SYNTHETIC_RUN_REQUIRED")
+
+
 def _streaming_prepared_package(path: Path) -> tuple[str, str, int, int]:
     jpeg = io.BytesIO()
     Image.new("RGB", (1, 1), "white").save(jpeg, format="JPEG", quality=85)

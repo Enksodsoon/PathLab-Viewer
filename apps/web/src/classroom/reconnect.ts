@@ -1,6 +1,7 @@
-const BASE_RETRY_MS = 500
-const MAX_BACKOFF_MS = 4000
-const MAX_JITTER_MS = 1000
+const INITIAL_RETRY_MIN_MS = 500
+const INITIAL_RETRY_SPREAD_MS = 9500
+const MAX_BACKOFF_MS = 30_000
+const MAX_GUIDE_JITTER_MS = 250
 
 function participantHash(participantId: string): number {
   let value = 2166136261
@@ -12,8 +13,12 @@ function participantHash(participantId: string): number {
 }
 
 export function classroomReconnectDelay(participantId: string, attempt: number): number {
-  const boundedAttempt = Math.max(0, Math.min(3, Math.floor(attempt)))
-  const backoff = Math.min(MAX_BACKOFF_MS, BASE_RETRY_MS * (2 ** boundedAttempt))
-  const jitter = participantHash(participantId) % (MAX_JITTER_MS + 1)
-  return Math.min(MAX_BACKOFF_MS + MAX_JITTER_MS, backoff + jitter)
+  const boundedAttempt = Math.max(0, Math.min(8, Math.floor(attempt)))
+  const initialDelay = INITIAL_RETRY_MIN_MS
+    + participantHash(participantId) % (INITIAL_RETRY_SPREAD_MS + 1)
+  return Math.min(MAX_BACKOFF_MS, initialDelay * (2 ** boundedAttempt))
+}
+
+export function classroomGuideDelay(participantId: string, slideId: string): number {
+  return participantHash(`${participantId}\u0000${slideId}`) % (MAX_GUIDE_JITTER_MS + 1)
 }

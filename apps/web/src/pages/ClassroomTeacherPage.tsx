@@ -1,6 +1,15 @@
 import OpenSeadragon from 'openseadragon'
-import { FolderOpen } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Copy, FolderOpen, ShareNetwork } from '@phosphor-icons/react'
+import { QRCodeSVG } from 'qrcode.react'
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ApiError, getFolderChildren, getLibraryNavigation, listSlides } from '../api'
@@ -8,18 +17,26 @@ import {
   answerQuestion,
   clearTeacherPointer,
   clearTeachingAnnotations,
+  classroomReadiness,
   createClassroom,
   endActiveClassroom,
   endClassroom,
+  finishLiveClassroom,
   grantControl,
+  listClassrooms,
   openQuestion,
   publishTeacherPointer,
   publishTeacherViewport,
   publishTeachingAnnotation,
   removeTeachingAnnotation,
   revokeControl,
+  startLiveClassroom,
+  teacherParticipants,
   teacherState,
+  type ClassroomParticipant,
+  type ClassroomReadiness,
   type CreatedClassroom,
+  type TeacherParticipantsPage,
   type TeacherState,
   type TeachingAnnotation,
 } from '../classroom/api'
@@ -28,6 +45,17 @@ import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
+import { createRosterReconciler } from '../classroom/roster'
+import {
+  createClassroomSnapshotReconciler,
+  type ClassroomSnapshotReconciler,
+} from '../classroom/snapshotReconciler'
+import { classroomSlideSource } from '../classroom/slideSource'
+import {
+  applyClassroomStreamEvent,
+  createClassroomStreamCursor,
+  noteClassroomSnapshot,
+} from '../classroom/streamSync'
 import {
   StudentDrawingOverlay,
   type DrawingStroke,
@@ -39,9 +67,44 @@ import {
 } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
 import type { AdminSlide, LibraryFolder } from '../types'
+import { CLASSROOM_VIEWER_NETWORK_PROFILE } from '../viewerNetwork'
 import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
+
+function defaultReviewExpiry(): string {
+  const value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  value.setMinutes(value.getMinutes() - value.getTimezoneOffset())
+  return value.toISOString().slice(0, 16)
+}
+
+function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onClose: () => void }) {
+  const inviteUrl = `${window.location.origin}/classroom/invite/${classroom.publicId}`
+  const invitation = `PathLab Classroom\n${inviteUrl}\nAccess code: ${classroom.joinCode}`
+  const [message, setMessage] = useState('')
+  const copy = async (text: string, success: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setMessage(success)
+    } catch { setMessage('Copy failed. Select the visible link and code.') }
+  }
+  return <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
+    <div className="classroom-invite-card">
+      <p>PathLab classroom</p>
+      <h2 id="classroom-code-title">Review slides and join class</h2>
+      <QRCodeSVG value={inviteUrl} size={232} level="M" aria-label="Classroom invite QR code" />
+      <a className="classroom-invite-link" href={inviteUrl}>{inviteUrl}</a>
+      <span>Access code</span><strong>{classroom.joinCode}</strong>
+      <div className="classroom-invite-actions">
+        <button type="button" onClick={() => void copy(inviteUrl, 'Link copied.')}><Copy />Copy link</button>
+        <button type="button" onClick={() => void copy(invitation, 'Invitation copied.')}><Copy />Copy invitation</button>
+        {'share' in navigator ? <button type="button" onClick={() => void navigator.share({ title: 'PathLab Classroom', text: invitation })}><ShareNetwork />Share</button> : null}
+      </div>
+      {message ? <span role="status">{message}</span> : null}
+      <button type="button" autoFocus onClick={onClose}>Close</button>
+    </div>
+  </div>
+}
 
 interface ClassroomFolderOption {
   folder: LibraryFolder
@@ -140,7 +203,9 @@ function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks'
 function savedClassroom(): CreatedClassroom | null {
   try {
     const value = sessionStorage.getItem(ACTIVE_CLASSROOM_KEY)
-    return value ? JSON.parse(value) as CreatedClassroom : null
+    if (!value) return null
+    const parsed = JSON.parse(value) as CreatedClassroom
+    return { ...parsed, publicId: parsed.publicId ?? null, phase: parsed.phase ?? 'live', reviewExpiresAt: parsed.reviewExpiresAt ?? null }
   } catch {
     return null
   }
@@ -151,9 +216,26 @@ export function ClassroomTeacherPage() {
   const [slides, setSlides] = useState<AdminSlide[]>([])
   const [folders, setFolders] = useState<LibraryFolder[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [reviewExpiry, setReviewExpiry] = useState(defaultReviewExpiry)
+  const [readiness, setReadiness] = useState<ClassroomReadiness | null>(null)
+  const [recentClassrooms, setRecentClassrooms] = useState<Array<{
+    id: string; publicId: string; phase: 'preview' | 'live' | 'review' | 'revoked'; joinCode: string; reviewExpiresAt: string
+  }>>([])
   const [setupLoading, setSetupLoading] = useState(true)
   const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
   const [state, setState] = useState<TeacherState | null>(null)
+  const [roster, setRoster] = useState<TeacherParticipantsPage>({
+    items: [], total: 0, nextCursor: null, rosterVersion: 0,
+  })
+  const [rosterQuery, setRosterQuery] = useState('')
+  const deferredRosterQuery = useDeferredValue(rosterQuery.trim())
+  const [rosterLoading, setRosterLoading] = useState(false)
+  const [pinnedControlRequests, setPinnedControlRequests] = useState<ClassroomParticipant[]>([])
+  const [pendingControlPage, setPendingControlPage] = useState<{
+    total: number
+    nextCursor: string | null
+  }>({ total: 0, nextCursor: null })
+  const [pendingControlLoading, setPendingControlLoading] = useState(false)
   const [slideId, setSlideId] = useState('')
   const [error, setError] = useState('')
   const [activeConflict, setActiveConflict] = useState(false)
@@ -168,8 +250,14 @@ export function ClassroomTeacherPage() {
   const presenterRef = useRef<TeacherState['presenter'] | null>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const slideIdRef = useRef(slideId)
-  const streamEpoch = useRef('')
-  const streamSequence = useRef(0)
+  const streamCursor = useRef(createClassroomStreamCursor(0))
+  const snapshotReconciler = useRef<ClassroomSnapshotReconciler | null>(null)
+  const snapshotSession = useRef('')
+  const rosterRef = useRef(roster)
+  const rosterQueryRef = useRef('')
+  const rosterLoadedQueryRef = useRef('')
+  const rosterRequest = useRef(0)
+  const pendingControlRequest = useRef(0)
   const teachingToolRef = useRef(teachingTool)
   const guideModeRef = useRef(guideMode)
   const pointerColorRef = useRef(pointerColor)
@@ -178,6 +266,7 @@ export function ClassroomTeacherPage() {
   const localPointerElementRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => { stateRef.current = state }, [state])
+  useEffect(() => { rosterRef.current = roster }, [roster])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
   useEffect(() => { teachingToolRef.current = teachingTool }, [teachingTool])
   useEffect(() => { guideModeRef.current = guideMode }, [guideMode])
@@ -209,9 +298,7 @@ export function ClassroomTeacherPage() {
     void Promise.all([listSlides(), loadClassroomFolders()])
       .then(([items, nextFolders]) => {
         if (cancelled) return
-        setSlides(items.filter((slide) => (
-          slide.state === 'published' && slide.renderMode === 'static_dzi'
-        )))
+        setSlides(items)
         setFolders(nextFolders)
       })
       .catch((loadError: unknown) => {
@@ -228,6 +315,11 @@ export function ClassroomTeacherPage() {
     return () => { cancelled = true }
   }, [navigate])
 
+  useEffect(() => {
+    if (classroom) return
+    void listClassrooms().then((result) => setRecentClassrooms(result.sessions)).catch(() => undefined)
+  }, [classroom])
+
   const folderOptions = useMemo(
     () => classroomFolderOptions(folders, slides),
     [folders, slides],
@@ -237,48 +329,199 @@ export function ClassroomTeacherPage() {
     [folderOptions, selectedFolderId],
   )
 
-  const refresh = useCallback(async (sessionId: string) => {
-    const next = await teacherState(sessionId)
-    presenterRef.current = next.presenter
-    stateRef.current = next
-    setState(next)
-    teachingOverlayRef.current?.setPointer(
-      teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
-    )
-    if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+  useEffect(() => {
+    if (!selectedFolderId || classroom) {
+      setReadiness(null)
+      return
+    }
+    let active = true
+    void classroomReadiness(selectedFolderId).then((next) => {
+      if (active) setReadiness(next)
+    }).catch(() => {
+      if (active) setError('This folder could not be checked for classroom readiness.')
+    })
+    return () => { active = false }
+  }, [classroom, selectedFolderId])
+
+  const refresh = useCallback((sessionId: string, minimumVersion = 0): Promise<void> => {
+    if (!snapshotReconciler.current || snapshotSession.current !== sessionId) {
+      snapshotReconciler.current?.dispose()
+      snapshotSession.current = sessionId
+      snapshotReconciler.current = createClassroomSnapshotReconciler(
+        () => teacherState(sessionId),
+        (next) => {
+          noteClassroomSnapshot(streamCursor.current, next.stateVersion)
+          presenterRef.current = next.presenter
+          stateRef.current = next
+          setState(next)
+          teachingOverlayRef.current?.setPointer(
+            teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
+          )
+          if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+        },
+      )
+    }
+    return snapshotReconciler.current.request(minimumVersion)
   }, [])
+
+  useEffect(() => () => snapshotReconciler.current?.dispose(), [])
+
+  const refreshRoster = useCallback(async (
+    sessionId: string,
+    minimumVersion?: number,
+  ) => {
+    const query = rosterQueryRef.current
+    if (minimumVersion !== undefined
+      && rosterLoadedQueryRef.current === query
+      && minimumVersion <= rosterRef.current.rosterVersion) return
+    const request = ++rosterRequest.current
+    setRosterLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, { limit: 100, q: query })
+      if (request !== rosterRequest.current || query !== rosterQueryRef.current) return
+      rosterLoadedQueryRef.current = query
+      rosterRef.current = next
+      setRoster(next)
+      setPinnedControlRequests((current) => current.flatMap((participant) => {
+        const fresh = next.items.find((item) => item.id === participant.id)
+        if (!fresh) return [participant]
+        return fresh.controlRequested ? [fresh] : []
+      }))
+    } finally {
+      if (request === rosterRequest.current) setRosterLoading(false)
+    }
+  }, [])
+
+  const refreshPendingControlRequests = useCallback(async (sessionId: string) => {
+    const request = ++pendingControlRequest.current
+    setPendingControlLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, { limit: 100, requested: true })
+      if (request !== pendingControlRequest.current) return
+      setPinnedControlRequests(next.items.filter((participant) => participant.controlRequested))
+      setPendingControlPage({ total: next.total, nextCursor: next.nextCursor })
+    } finally {
+      if (request === pendingControlRequest.current) setPendingControlLoading(false)
+    }
+  }, [])
+
+  const loadMorePendingControlRequests = useCallback(async (sessionId: string) => {
+    const { nextCursor } = pendingControlPage
+    if (!nextCursor || pendingControlLoading) return
+    const request = ++pendingControlRequest.current
+    setPendingControlLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, {
+        after: nextCursor,
+        limit: 100,
+        requested: true,
+      })
+      if (request !== pendingControlRequest.current) return
+      setPinnedControlRequests((current) => {
+        const byId = new Map(current.map((participant) => [participant.id, participant]))
+        for (const participant of next.items) {
+          if (participant.controlRequested) byId.set(participant.id, participant)
+        }
+        return [...byId.values()]
+      })
+      setPendingControlPage({ total: next.total, nextCursor: next.nextCursor })
+    } finally {
+      if (request === pendingControlRequest.current) setPendingControlLoading(false)
+    }
+  }, [pendingControlLoading, pendingControlPage])
+
+  const loadMoreRoster = useCallback(async (sessionId: string) => {
+    const { nextCursor } = rosterRef.current
+    if (!nextCursor || rosterLoading) return
+    const query = rosterQueryRef.current
+    const request = ++rosterRequest.current
+    setRosterLoading(true)
+    try {
+      const next = await teacherParticipants(sessionId, {
+        after: nextCursor,
+        limit: 100,
+        q: query,
+      })
+      if (request !== rosterRequest.current || query !== rosterQueryRef.current) return
+      setRoster((current) => {
+        const byId = new Map(current.items.map((participant) => [participant.id, participant]))
+        for (const participant of next.items) byId.set(participant.id, participant)
+        const merged = {
+          ...next,
+          items: [...byId.values()],
+        }
+        rosterRef.current = merged
+        return merged
+      })
+      setPinnedControlRequests((current) => current.flatMap((participant) => {
+        const fresh = next.items.find((item) => item.id === participant.id)
+        if (!fresh) return [participant]
+        return fresh.controlRequested ? [fresh] : []
+      }))
+    } finally {
+      if (request === rosterRequest.current) setRosterLoading(false)
+    }
+  }, [rosterLoading])
+
+  useEffect(() => {
+    rosterQueryRef.current = deferredRosterQuery
+    if (!classroom || classroom.phase !== 'live') return
+    void refreshRoster(classroom.id).catch((caught: unknown) => {
+      handleAdminFailure(caught, 'The student roster could not be loaded.')
+    })
+  }, [classroom, deferredRosterQuery, handleAdminFailure, refreshRoster])
+
+  useEffect(() => {
+    if (!classroom || classroom.phase !== 'live') return
+    void refreshPendingControlRequests(classroom.id).catch((caught: unknown) => {
+      handleAdminFailure(caught, 'Pending control requests could not be loaded.')
+    })
+  }, [classroom, handleAdminFailure, refreshPendingControlRequests])
 
   useEffect(() => {
     if (!classroom) return
-    void refresh(classroom.id).catch((loadError: unknown) => {
-      if (loadError instanceof ApiError && loadError.status === 404) {
-        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
-        setClassroom(null)
-        setError('The previous classroom is no longer active.')
-        return
-      }
-      setError('The classroom connection was interrupted. Reconnecting…')
-    })
+    if (state?.session.id !== classroom.id) {
+      void refresh(classroom.id).catch((loadError: unknown) => {
+        if (loadError instanceof ApiError && loadError.status === 404) {
+          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          setClassroom(null)
+          setError('The previous classroom is no longer active.')
+          return
+        }
+        setError('The classroom connection was interrupted. Reconnecting…')
+      })
+      return
+    }
+    if (classroom.phase !== 'live') return
     const events = new EventSource(`/api/v1/admin/classroom/sessions/${classroom.id}/events`)
+    const rosterReconciler = createRosterReconciler(async (version) => {
+      try {
+        await Promise.all([
+          refreshRoster(classroom.id, version),
+          refreshPendingControlRequests(classroom.id),
+        ])
+      } catch (caught) {
+        handleAdminFailure(caught, 'The student roster could not be refreshed.')
+      }
+    })
+    let streamReadySeen = false
     const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
-        const epoch = typeof payload.hubEpoch === 'string' ? payload.hubEpoch : ''
-        const next = typeof payload.eventSequence === 'number' ? payload.eventSequence : 0
-        if (event.type === 'stream-ready') {
-          streamEpoch.current = epoch
-          streamSequence.current = next
-          return payload
-        }
-        if (epoch === streamEpoch.current && next <= streamSequence.current) return null
-        if (epoch !== streamEpoch.current || (!coalescible && next !== streamSequence.current + 1)) {
-          streamEpoch.current = epoch
-          streamSequence.current = next
-          void refresh(classroom.id).catch(() => undefined)
+        const decision = applyClassroomStreamEvent(
+          streamCursor.current,
+          event.type,
+          payload,
+          { coalescible },
+        )
+        if (decision === 'resync') {
+          void refresh(
+            classroom.id,
+            typeof payload.stateVersion === 'number' ? payload.stateVersion : 0,
+          ).catch(() => undefined)
           return null
         }
-        streamSequence.current = next
-        return payload
+        return decision === 'apply' ? payload : null
       } catch {
         void refresh(classroom.id).catch(() => undefined)
         return null
@@ -287,10 +530,31 @@ export function ClassroomTeacherPage() {
     const update = (event: Event) => {
       if (sequence(event)) void refresh(classroom.id).catch(() => undefined)
     }
-    for (const name of [
-      'stream-ready', 'participant-joined', 'participant-left',
-      'participant-reconnected', 'question-added', 'question-removed', 'control',
-    ]) events.addEventListener(name, update)
+    events.addEventListener('stream-ready', (event) => {
+      sequence(event)
+      if (streamReadySeen) {
+        rosterReconciler.notify(rosterRef.current.rosterVersion + 1)
+      }
+      streamReadySeen = true
+    })
+    for (const name of ['question-added', 'question-removed', 'control']) {
+      events.addEventListener(name, update)
+    }
+    events.addEventListener('roster-changed', (event) => {
+      const payload = sequence(event)
+      let rosterVersion = payload?.rosterVersion
+      if (typeof rosterVersion !== 'number') {
+        try {
+          const raw = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+          rosterVersion = raw.rosterVersion
+        } catch {
+          rosterVersion = undefined
+        }
+      }
+      if (typeof rosterVersion === 'number') {
+        rosterReconciler.notify(rosterVersion)
+      }
+    })
     events.addEventListener('presenter', (event) => {
       const payload = sequence(event, true)
       if (!payload || typeof payload.presenterSequence !== 'number'
@@ -383,25 +647,106 @@ export function ClassroomTeacherPage() {
         ),
       } : current)
     })
-    events.addEventListener('control-requested', update)
-    events.addEventListener('control-request-cancelled', update)
-    return () => events.close()
-  }, [classroom, refresh])
+    const updateControlRequest = (event: Event, requested: boolean) => {
+      const previousEpoch = streamCursor.current.hubEpoch
+      const previousSequence = streamCursor.current.eventSequence
+      let raw: Record<string, unknown>
+      try {
+        raw = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+      } catch {
+        sequence(event)
+        return
+      }
+      const sequenced = sequence(event)
+      const rawEpoch = typeof raw.hubEpoch === 'string' ? raw.hubEpoch : ''
+      const rawSequence = typeof raw.eventSequence === 'number' ? raw.eventSequence : -1
+      const duplicate = rawEpoch === previousEpoch && rawSequence <= previousSequence
+      if (!sequenced && (duplicate || !rawEpoch || !Number.isSafeInteger(rawSequence))) return
+      const payload = sequenced ?? raw
+      if (typeof payload.participantId !== 'string') return
+      pendingControlRequest.current += 1
+      setPendingControlLoading(false)
+      const participantId = payload.participantId
+      const eventParticipant = payload.participant as Partial<ClassroomParticipant> | undefined
+      const authoritative = eventParticipant
+        && eventParticipant.id === participantId
+        && typeof eventParticipant.alias === 'string'
+        && (eventParticipant.status === 'connected'
+          || eventParticipant.status === 'reconnecting'
+          || eventParticipant.status === 'disconnected')
+        ? {
+            id: participantId,
+            alias: eventParticipant.alias,
+            displayName: typeof eventParticipant.displayName === 'string'
+              ? eventParticipant.displayName
+              : null,
+            status: eventParticipant.status,
+            controlRequested: true,
+            controlRequestedAt: typeof eventParticipant.controlRequestedAt === 'number'
+              ? eventParticipant.controlRequestedAt
+              : Date.now(),
+          }
+        : null
+      const known = rosterRef.current.items.find((participant) => participant.id === participantId)
+        ?? stateRef.current?.participants.find((participant) => participant.id === participantId)
+      setPinnedControlRequests((current) => {
+        if (!requested) return current.filter((participant) => participant.id !== participantId)
+        const participant = authoritative ?? known ?? current.find(
+          (item) => item.id === participantId,
+        )
+        if (!participant) return current
+        return [{
+          ...participant,
+          controlRequested: true,
+          controlRequestedAt: participant.controlRequestedAt ?? Date.now(),
+        }, ...current.filter((item) => item.id !== participantId)]
+      })
+      setRoster((current) => {
+        const next = {
+          ...current,
+          items: current.items.map((participant) => participant.id === participantId
+            ? {
+                ...participant,
+                controlRequested: requested,
+                controlRequestedAt: requested ? Date.now() : null,
+              }
+            : participant),
+        }
+        rosterRef.current = next
+        return next
+      })
+    }
+    events.addEventListener('control-requested', (event) => updateControlRequest(event, true))
+    events.addEventListener('control-request-cancelled', (event) => updateControlRequest(event, false))
+    return () => {
+      rosterReconciler.dispose()
+      events.close()
+    }
+  }, [
+    classroom,
+    handleAdminFailure,
+    refresh,
+    refreshPendingControlRequests,
+    refreshRoster,
+    state?.session.id,
+  ])
 
   const currentSlide = useMemo(
     () => classroom?.slides.find((slide) => slide.id === slideId) ?? classroom?.slides[0],
     [classroom, slideId],
   )
 
-  const participants = useMemo(() => [...(state?.participants ?? [])].sort((left, right) => {
+  const participants = useMemo(() => {
+    const pinnedIds = new Set(pinnedControlRequests.map((participant) => participant.id))
+    return [...pinnedControlRequests, ...roster.items.filter(
+      (participant) => !pinnedIds.has(participant.id),
+    )].sort((left, right) => {
     if (left.controlRequested !== right.controlRequested) return left.controlRequested ? -1 : 1
     return (left.controlRequestedAt ?? Number.POSITIVE_INFINITY)
       - (right.controlRequestedAt ?? Number.POSITIVE_INFINITY)
-  }), [state?.participants])
-  const activeParticipantCount = useMemo(
-    () => participants.filter((participant) => participant.status === 'connected').length,
-    [participants],
-  )
+    })
+  }, [pinnedControlRequests, roster.items])
+  const activeParticipantCount = roster.total || state?.participantCount || participants.length
 
   const visiblePins = useMemo<ClassroomVisiblePin[]>(() => {
     const pins: ClassroomVisiblePin[] = focusedQuestion ? [{
@@ -433,14 +778,20 @@ export function ClassroomTeacherPage() {
   }, [applyRemote, state?.presenter, viewer])
 
   useEffect(() => {
+    if (!viewer || classroom?.phase !== 'live') return
     // Pointer mode is an additive presentation aid: keep the normal pan, zoom,
     // and touch gestures available while the screen-space arrow follows along.
-    viewer?.setMouseNavEnabled(teachingTool !== 'draw')
+    try {
+      viewer.setMouseNavEnabled(teachingTool !== 'draw')
+    } catch {
+      // The viewer may already be closing while live teaching transitions to review.
+      return
+    }
     if (teachingTool === 'pointer') teachingOverlayRef.current?.setPointer(null)
     if (teachingTool !== 'pointer' && localPointerElementRef.current) {
       localPointerElementRef.current.className = 'classroom-local-pointer'
     }
-    if (!classroom || teachingTool === 'pointer') return
+    if (teachingTool === 'pointer') return
     void clearTeacherPointer(classroom.id).catch(() => undefined)
   }, [classroom, teachingTool, viewer])
 
@@ -630,16 +981,24 @@ export function ClassroomTeacherPage() {
     setError('')
     setActiveConflict(false)
     try {
-      const created = await createClassroom(selected)
+      if (!selectedFolderId) return
+      const checked = await classroomReadiness(selectedFolderId)
+      setReadiness(checked)
+      if (checked.blocked.length) {
+        setError(`This folder is blocked: ${checked.blocked.map((item) => item.displayName).join(', ')} must be republished.`)
+        return
+      }
+      const created = await createClassroom(selectedFolderId, new Date(reviewExpiry).toISOString())
       setClassroom(created)
       sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(created))
       setSlideId(created.slides[0].id)
+      setShowCode(true)
     } catch (startError) {
       if (startError instanceof ApiError && startError.code === 'CLASSROOM_ALREADY_ACTIVE') {
         setError('A classroom is already active. End it before starting another.')
         setActiveConflict(true)
-      } else if (startError instanceof ApiError && startError.code === 'CLASSROOM_SLIDE_NOT_READY') {
-        setError('The classroom could not start. Only complete published static slides are allowed.')
+      } else if (startError instanceof ApiError && (startError.code === 'CLASSROOM_SLIDE_NOT_READY' || startError.code === 'CLASSROOM_SLIDES_BLOCKED')) {
+        setError('The classroom could not be prepared. One or more slides must be republished.')
       } else {
         setError('The classroom could not start. Try again.')
       }
@@ -655,9 +1014,9 @@ export function ClassroomTeacherPage() {
       </div>
     </header>
     <section className="classroom-entry__card">
-      <p className="classroom-kicker">Active classroom</p>
+      <p className="classroom-kicker">Prepare classroom</p>
       <h1>Choose a class folder</h1>
-      <p className="classroom-entry__intro">Every published static-DZI slide in the folder and its subfolders will open in this classroom.</p>
+      <p className="classroom-entry__intro">Create one protected link for review before, during, and after class.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
         sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
@@ -691,18 +1050,63 @@ export function ClassroomTeacherPage() {
             <span className="classroom-folder-picker__copy">
               <strong>{folder.name}</strong>
               <small>{count === 0
-                ? 'No eligible slides'
-                : `${count} eligible ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
+                ? 'No slides'
+                : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
             </span>
           </label>
         })}
       </div>
-      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length} onClick={() => void start()}>
+      {readiness?.blocked.length ? <div className="classroom-readiness-error" role="alert">
+        <strong>{readiness.blocked.length} slide{readiness.blocked.length === 1 ? '' : 's'} need attention</strong>
+        {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} · {item.reason.replaceAll('_', ' ')}</span>)}
+      </div> : null}
+      <label className="classroom-expiry">Review access expires
+        <input type="datetime-local" min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)} max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)} value={reviewExpiry} onChange={(event) => setReviewExpiry(event.target.value)} />
+      </label>
+      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length || Boolean(readiness?.blocked.length)} onClick={() => void start()}>
         {selected.length
-          ? `Start classroom with ${selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
+          ? `Prepare classroom with ${readiness?.ready.length ?? selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
           : 'Choose a class folder'}
       </button>
+      {recentClassrooms.some((item) => item.phase === 'review') ? <section className="classroom-recent-reviews">
+        <h2>Recent review links</h2>
+        {recentClassrooms.filter((item) => item.phase === 'review').map((item) => <div key={item.id}>
+          <span><strong>{item.joinCode}</strong><small>Expires {new Date(item.reviewExpiresAt).toLocaleString()}</small></span>
+          <button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/classroom/invite/${item.publicId}`)}>Copy link</button>
+          <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id)))}>Revoke</button>
+        </div>)}
+      </section> : null}
     </section>
+  </main>
+
+  if (classroom.phase !== 'live') return <main className="classroom-entry classroom-setup">
+    <header className="classroom-entry__header">
+      <Brand variant="library" />
+      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to="/admin">Back to library</Link></div>
+    </header>
+    <section className="classroom-entry__card classroom-prepared-card">
+      <p className="classroom-kicker">{classroom.phase === 'preview' ? 'Classroom prepared' : 'Post-class review'}</p>
+      <h1>{classroom.phase === 'preview' ? 'Invite students to review' : 'Review remains open'}</h1>
+      <p className="classroom-entry__intro">The protected link opens all {classroom.slides.length} slides. Students enter the separate access code once.</p>
+      <button className="classroom-join-code classroom-join-code--large" type="button" onClick={() => setShowCode(true)}>
+        <span>Access code</span><strong>{classroom.joinCode}</strong><small>Display QR and link</small>
+      </button>
+      {classroom.reviewExpiresAt ? <p className="classroom-review-expiry">Review expires {new Date(classroom.reviewExpiresAt).toLocaleString()}</p> : null}
+      <div className="classroom-prepared-actions">
+        {classroom.phase === 'preview' ? <button className="primary classroom-entry__primary" type="button" onClick={() => void startLiveClassroom(classroom.id).then(() => {
+          const next = { ...classroom, phase: 'live' as const }
+          setClassroom(next)
+          sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
+          setShowCode(true)
+        }).catch((caught: unknown) => handleAdminFailure(caught, 'The live class could not start.'))}>Start live class</button> : null}
+        <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
+          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          setClassroom(null)
+        }).catch((caught: unknown) => handleAdminFailure(caught, 'Review access could not be revoked.'))}>Revoke review access</button>
+      </div>
+      {error ? <p role="alert" className="classroom-error">{error}</p> : null}
+    </section>
+    {showCode && classroom.publicId ? <InviteDialog classroom={classroom} onClose={() => setShowCode(false)} /> : null}
   </main>
 
   return <div className="classroom-shell classroom-shell--teacher">
@@ -713,9 +1117,10 @@ export function ClassroomTeacherPage() {
       </button>
       <div className="classroom-topbar__actions">
         <ThemeControl compact />
-        <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
-          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
-          setClassroom(null)
+        <button className="classroom-danger-action" type="button" onClick={() => void finishLiveClassroom(classroom.id).then(() => {
+          const next = { ...classroom, phase: 'review' as const }
+          sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
+          setClassroom(next)
         })}>
           End class
         </button>
@@ -723,9 +1128,10 @@ export function ClassroomTeacherPage() {
     </header>
     <main className="classroom-viewer">
       {currentSlide && <OpenSeadragonViewer
-        tileSource={currentSlide.tileSource}
+        tileSource={classroomSlideSource(currentSlide.tileSource, classroom.id)}
         onReady={() => undefined}
         onViewerAttach={attachViewer}
+        networkProfile={CLASSROOM_VIEWER_NETWORK_PROFILE}
       />}
       <ClassroomPinOverlays pins={visiblePins} slideId={currentSlide?.id ?? ''} viewer={viewer} />
       <ClassroomTeachingOverlays
@@ -803,14 +1209,27 @@ export function ClassroomTeacherPage() {
     <aside className="classroom-panel" aria-label="Classroom activity">
       {error && <p role="alert" className="classroom-error">{error}</p>}
       <section className="classroom-panel__section">
-        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="students" />Students</span><strong className="classroom-panel__count" aria-label={`${activeParticipantCount} active students`}>{activeParticipantCount}</strong></h2>
-        {!state?.participants.length && <p className="classroom-empty">Students appear here after joining.</p>}
+        <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="students" />Students</span><strong className="classroom-panel__count" aria-label={`${activeParticipantCount} students`}>{activeParticipantCount}</strong></h2>
+        <label className="classroom-roster-search">
+          <span>Search students</span>
+          <input
+            type="search"
+            value={rosterQuery}
+            onChange={(event) => setRosterQuery(event.target.value)}
+            placeholder="Alias or name"
+            autoComplete="off"
+          />
+        </label>
+        {!rosterLoading && !participants.length && <p className="classroom-empty">
+          {deferredRosterQuery ? 'No students match this search.' : 'Students appear here after joining.'}
+        </p>}
+        {rosterLoading && !participants.length ? <p className="classroom-empty" role="status">Loading students…</p> : null}
         <ul className="classroom-participant-list" aria-label="Student roster">{participants.map((participant) => {
           const isController = state?.controller.participantId === participant.id
           return <li key={participant.id}>
             <div>
               <strong>{participant.alias}</strong>
-              <small>{isController
+              <small>{participant.displayName ? `${participant.displayName} · ` : ''}{isController
                 ? `${participant.status} · controller`
                 : participant.controlRequested
                   ? `${participant.status} · requested control`
@@ -819,13 +1238,50 @@ export function ClassroomTeacherPage() {
             {isController || participant.controlRequested ? <button className="classroom-icon-action" type="button" aria-label={isController ? `Take back control from ${participant.alias}` : `Give control to ${participant.alias}`} title={isController ? 'Take back control' : 'Give control'} disabled={participant.status === 'disconnected'} onClick={() => void (isController
               ? revokeControl(classroom.id)
               : grantControl(classroom.id, participant.id)
-            ).then(() => refresh(classroom.id)).catch(() => {
+            ).then(() => {
+              if (!isController) {
+                pendingControlRequest.current += 1
+                setPendingControlLoading(false)
+                setPinnedControlRequests((current) => current.filter(
+                  (item) => item.id !== participant.id,
+                ))
+                setRoster((current) => {
+                  const next = {
+                    ...current,
+                    items: current.items.map((item) => item.id === participant.id
+                      ? { ...item, controlRequested: false, controlRequestedAt: null }
+                      : item),
+                  }
+                  rosterRef.current = next
+                  return next
+                })
+              }
+              return refresh(classroom.id)
+            }).catch(() => {
               setError('Slide control could not be changed.')
             })}>
               <ClassroomPanelIcon name="control" />
             </button> : null}
           </li>
         })}</ul>
+        {pendingControlPage.nextCursor ? <button
+          className="classroom-roster-more"
+          type="button"
+          disabled={pendingControlLoading}
+          onClick={() => void loadMorePendingControlRequests(classroom.id).catch(() => {
+            setError('More control requests could not be loaded.')
+          })}
+        >{pendingControlLoading
+            ? 'Loading control requests…'
+            : `Load more control requests (${pinnedControlRequests.length} of ${pendingControlPage.total})`}</button> : null}
+        {roster.nextCursor ? <button
+          className="classroom-roster-more"
+          type="button"
+          disabled={rosterLoading}
+          onClick={() => void loadMoreRoster(classroom.id).catch(() => {
+            setError('More students could not be loaded.')
+          })}
+        >{rosterLoading ? 'Loading…' : `Load more (${roster.items.length} of ${roster.total})`}</button> : null}
       </section>
       <section className="classroom-panel__section">
         <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span><strong className="classroom-panel__count" aria-label={`${state?.pendingQuestions.length ?? 0} pending questions`}>{state?.pendingQuestions.length ?? 0}</strong></h2>
@@ -861,14 +1317,6 @@ export function ClassroomTeacherPage() {
         {state?.teachingAnnotations.length ? <button className="classroom-clear-marks" type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}><ClassroomPanelIcon name="clear" />Clear all</button> : null}
       </section>
     </aside>
-    {showCode ? <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
-      <div>
-        <p>PathLab classroom</p>
-        <h2 id="classroom-code-title">Join this slide session</h2>
-        <strong>{classroom.joinCode}</strong>
-        <span>Open PathLab Classroom and enter this code</span>
-        <button type="button" autoFocus onClick={() => setShowCode(false)}>Close</button>
-      </div>
-    </div> : null}
+    {showCode && classroom.publicId ? <InviteDialog classroom={classroom} onClose={() => setShowCode(false)} /> : null}
   </div>
 }

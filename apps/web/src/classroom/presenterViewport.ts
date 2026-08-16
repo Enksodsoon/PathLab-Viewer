@@ -5,7 +5,7 @@ export interface SharedPresenterViewport {
   x: number
   y: number
   zoom: number
-  zoomSpace: 'viewport'
+  zoomSpace: 'image'
 }
 
 export function readPresenterViewport(
@@ -20,7 +20,10 @@ export function readPresenterViewport(
   const dimensions = item?.source.dimensions
   const normalizedX = dimensions ? center.x / dimensions.x : 0.5
   const normalizedY = dimensions ? center.y / dimensions.y : 0.5
-  const zoom = viewer.viewport.getZoom(true)
+  const viewportZoom = viewer.viewport.getZoom(true)
+  const zoom = item
+    ? item.viewportToImageZoom(viewportZoom)
+    : viewer.viewport.viewportToImageZoom(viewportZoom)
   return {
     slideId,
     // OpenSeadragon can briefly report a center beyond the image while an
@@ -29,7 +32,7 @@ export function readPresenterViewport(
     x: Number.isFinite(normalizedX) ? Math.max(0, Math.min(1, normalizedX)) : 0.5,
     y: Number.isFinite(normalizedY) ? Math.max(0, Math.min(1, normalizedY)) : 0.5,
     zoom: Number.isFinite(zoom) ? Math.max(0.000001, Math.min(1000, zoom)) : 1,
-    zoomSpace: 'viewport',
+    zoomSpace: 'image',
   }
 }
 
@@ -44,16 +47,18 @@ export function applyPresenterViewport(
   const point = item
     ? item.imageToViewportCoordinates(imageX, imageY)
     : viewer.viewport.imageToViewportCoordinates(imageX, imageY)
-  // A short-lived local build emitted container-dependent image zoom. Replaying
-  // that value on a differently sized viewer misaligns the field, so preserve
-  // the receiver's current zoom until the next normalized viewport event.
-  if (viewport.zoomSpace !== 'image') {
-    const currentZoom = viewer.viewport.getZoom(true)
-    const relativeDelta = Math.abs(Math.log(viewport.zoom / currentZoom))
-    if (Number.isFinite(relativeDelta) && relativeDelta > 0.001) {
-      viewer.viewport.zoomTo(viewport.zoom, point, true)
-    }
+  const targetZoom = viewport.zoomSpace === 'image'
+    ? item?.imageToViewportZoom(viewport.zoom) ?? viewer.viewport.imageToViewportZoom(viewport.zoom)
+    : viewport.zoom
+  const currentZoom = viewer.viewport.getZoom(true)
+  const relativeDelta = Math.abs(Math.log(targetZoom / currentZoom))
+  if (Number.isFinite(relativeDelta) && relativeDelta > 0.001) {
+    viewer.viewport.zoomTo(targetZoom, point, true)
   }
   viewer.viewport.panTo(point, true)
-  viewer.viewport.applyConstraints(true)
+  // The presenter center is already clamped to the image on the wire. Applying
+  // local viewport constraints here would move that center again according to
+  // the receiver's aspect ratio. A tall teacher view and a wide student view
+  // would therefore land on different image coordinates near an edge. Preserve
+  // the shared center; any extra stage area is preferable to coordinate drift.
 }

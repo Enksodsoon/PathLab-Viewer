@@ -1,13 +1,71 @@
+import threading
+import time
+from collections.abc import Callable
+
 import httpx
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as OrmSession
+from sqlalchemy.orm import sessionmaker
 
 from .models import Base
 
-ALEMBIC_HEAD = "20260813_0019"
+ALEMBIC_HEAD = "20260813_0020"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
 ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
+READINESS_CACHE_SECONDS = 1.0
+
+
+class CachedReadiness:
+    """Validate schema once, then cache a cheap connection probe."""
+
+    def __init__(
+        self,
+        *,
+        cache_seconds: float = READINESS_CACHE_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._cache_seconds = cache_seconds
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._schema_ready = False
+        self._database_ready = False
+        self._checked_at = float("-inf")
+
+    @property
+    def schema_ready(self) -> bool:
+        return self._schema_ready
+
+    def validate_startup(self, factory: sessionmaker[OrmSession]) -> bool:
+        try:
+            with factory() as database:
+                ready = schema_is_current(database)
+        except SQLAlchemyError:
+            ready = False
+        with self._lock:
+            self._schema_ready = ready
+            self._database_ready = ready
+            self._checked_at = self._clock()
+        return ready
+
+    def database_is_ready(self, factory: sessionmaker[OrmSession]) -> bool:
+        if not self._schema_ready:
+            return False
+        now = self._clock()
+        if now - self._checked_at < self._cache_seconds:
+            return self._database_ready
+        with self._lock:
+            now = self._clock()
+            if now - self._checked_at < self._cache_seconds:
+                return self._database_ready
+            try:
+                with factory() as database:
+                    ready = bool(database.execute(text("SELECT 1")).scalar_one() == 1)
+            except SQLAlchemyError:
+                ready = False
+            self._database_ready = ready
+            self._checked_at = now
+            return ready
 
 
 def tile_service_is_ready(url: str) -> bool:

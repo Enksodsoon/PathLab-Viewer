@@ -37,7 +37,7 @@ Do not apply a plan that introduces unexpected paid services, open management po
 
 - Readiness: `curl --fail https://$DOMAIN/readyz`
 - Liveness: `curl --fail https://$DOMAIN/livez`
-- Logs: `docker compose -f deploy/compose.yaml logs --since 30m api worker tusd caddy`
+- Logs: `docker compose -f deploy/compose.yaml logs --since 30m api classroom tile-service worker tusd caddy`
 - Backup: `PATHLAB_BACKUP_DIR=/mnt/backup deploy/scripts/backup.sh`
 - Compose validation: `docker compose -f deploy/compose.yaml config`
 

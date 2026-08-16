@@ -243,7 +243,7 @@ export async function waitForSlideConversion(
 export async function csrfJson(
   page: Page,
   path: string,
-  init: { method: 'DELETE' | 'POST'; body?: unknown },
+  init: { method: 'DELETE' | 'POST'; body?: unknown; headers?: Record<string, string> },
 ): Promise<JsonResponse> {
   return page.evaluate(async ({ requestPath, requestInit }) => {
     const response = await fetch(requestPath, {
@@ -251,6 +251,7 @@ export async function csrfJson(
       credentials: 'same-origin',
       headers: {
         ...(requestInit.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...requestInit.headers,
         'X-CSRF-Token': sessionStorage.getItem('pathlab-csrf') ?? '',
       },
       ...(requestInit.body === undefined

@@ -1,12 +1,13 @@
 # ruff: noqa: B008
 
 import hashlib
+import re
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import case, func, select, update
@@ -33,6 +34,7 @@ from .library import (
     validate_saved_view,
 )
 from .models import (
+    AuditEvent,
     Collection,
     CollectionSlide,
     Folder,
@@ -971,9 +973,7 @@ def register_library_routes(
             slide.folder_id = payload.folder_id
         database.flush()
         for slide in slides:
-            record_sync_event(
-                database, "slide", slide.id, "upsert", revision_for(slide.updated_at)
-            )
+            record_sync_event(database, "slide", slide.id, "upsert", revision_for(slide.updated_at))
         database.commit()
         return {"items": [slide_json(slide) for slide in slides]}
 
@@ -1024,9 +1024,7 @@ def register_library_routes(
                 slide.privacy_scanned_at = None
         database.flush()
         for slide in slides:
-            record_sync_event(
-                database, "slide", slide.id, "upsert", revision_for(slide.updated_at)
-            )
+            record_sync_event(database, "slide", slide.id, "upsert", revision_for(slide.updated_at))
         database.commit()
         return {"items": [slide_json(slide) for slide in slides]}
 
@@ -1049,9 +1047,7 @@ def register_library_routes(
         slide.folder_id = None
         slide.trashed_at = utcnow()
         database.flush()
-        record_sync_event(
-            database, "slide", slide.id, "trash", revision_for(slide.updated_at)
-        )
+        record_sync_event(database, "slide", slide.id, "trash", revision_for(slide.updated_at))
         database.commit()
         return slide_json(slide)
 
@@ -1076,9 +1072,7 @@ def register_library_routes(
         slide.previous_folder_id = None
         slide.trashed_at = None
         database.flush()
-        record_sync_event(
-            database, "slide", slide.id, "restore", revision_for(slide.updated_at)
-        )
+        record_sync_event(database, "slide", slide.id, "restore", revision_for(slide.updated_at))
         database.commit()
         return slide_json(slide)
 
@@ -1148,9 +1142,7 @@ def register_library_routes(
                 .values(status="cancelled")
             )
             database.execute(
-                update(Slide)
-                .where(Slide.id.in_(batch))
-                .values(state=SlideState.DELETING)
+                update(Slide).where(Slide.id.in_(batch)).values(state=SlideState.DELETING)
             )
             database.add_all(Job(slide_id=slide_id, kind="delete") for slide_id in batch)
         database.commit()
@@ -1273,7 +1265,10 @@ def register_library_routes(
         payload: ShareCreateRequest,
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
+        synthetic_run: str | None = Header(default=None, alias="X-PathLab-Synthetic-Run"),
     ) -> Response:
+        if synthetic_run is not None and re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_INVALID"})
         if not app.state.settings.multi_share_enabled:
             raise HTTPException(
                 status_code=409,
@@ -1302,6 +1297,7 @@ def register_library_routes(
                 auto_include_new=payload.auto_include_new,
                 expires_at=expires_at,
                 slide_ids=payload.slide_ids,
+                synthetic_run_id=synthetic_run,
             )
         except ShareConflict as error:
             database.rollback()
@@ -1340,6 +1336,38 @@ def register_library_routes(
         }
 
     app.add_api_route("/api/v2/admin/shares", list_shares, methods=["GET"])
+
+    def cleanup_capacity_shares(
+        run_id: str,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+        synthetic_run: str | None = Header(default=None, alias="X-PathLab-Synthetic-Run"),
+    ) -> Response:
+        if re.fullmatch(r"[a-z0-9-]{1,64}", run_id) is None or synthetic_run != run_id:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
+        events = database.scalars(
+            select(AuditEvent).where(AuditEvent.action == "capacity.sentinel.share")
+        )
+        share_ids = {
+            item.target_id
+            for item in events
+            if item.target_id is not None
+            and isinstance(item.detail, dict)
+            and item.detail.get("runId") == run_id
+        }
+        for share_id in share_ids:
+            share = database.get(LibraryShare, share_id)
+            if share is not None and share.is_active:
+                remove_share_delivery_manifest(storage, share.public_id)
+                revoke_share(database, storage, share)
+        database.commit()
+        return Response(status_code=204)
+
+    app.add_api_route(
+        "/api/v1/admin/capacity-sentinels/{run_id}/share-cleanup",
+        cleanup_capacity_shares,
+        methods=["POST"],
+    )
 
     def rotate_library_share(
         share_id: str,
@@ -1512,9 +1540,7 @@ def register_library_routes(
         try:
             target = storage.public_tile(slide_public_id, tile_path)
         except (FileNotFoundError, ValueError):
-            raise HTTPException(
-                status_code=404, detail={"code": "SHARE_NOT_FOUND"}
-            ) from None
+            raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"}) from None
         media_type = "application/xml" if target.suffix.lower() == ".dzi" else "image/jpeg"
         return deliver_file(
             target,
