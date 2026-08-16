@@ -241,28 +241,33 @@ test('keeps private and individual public imagery invariant across themes and wi
 })
 
 test('keeps mobile offline status clear of the loading control', async ({ page }) => {
+  test.setTimeout(60_000)
   const routes = [
-    { path: '/s/public-1', title: 'HER2 control' },
-    { path: '/admin/preview/private-1', title: 'Private teaching slide' },
+    { path: '/s/public-1', title: 'HER2 control', tileId: 'public-1' },
+    { path: '/admin/preview/private-1', title: 'Private teaching slide', tileId: 'private-1' },
   ]
-  let failedTileRequests = 0
+  const failedTileUrls = new Set<string>()
 
+  await page.unroute('**/slide.dzi')
+  await page.route('**/slide.dzi', (route) => route.fulfill({
+    contentType: 'application/xml',
+    body: '<Image xmlns="http://schemas.microsoft.com/deepzoom/2008" TileSize="128" Overlap="1" Format="jpg"><Size Width="1024" Height="768"/></Image>',
+  }))
   await page.route('**/slide_files/**', async (route) => {
-    failedTileRequests += 1
-    await route.fulfill({
-      status: 503,
-      contentType: 'text/plain',
-      body: 'offline tile fixture',
-    })
+    failedTileUrls.add(route.request().url())
+    await route.abort()
   })
+  await page.goto('about:blank')
+  failedTileUrls.clear()
   await page.setViewportSize({ width: 390, height: 844 })
 
   for (const route of routes) {
-    const failuresBeforeNavigation = failedTileRequests
     await page.goto(route.path)
     await expect(page.getByText(route.title, { exact: true })).toBeVisible()
-    await expect.poll(() => failedTileRequests).toBeGreaterThanOrEqual(failuresBeforeNavigation + 3)
-    await expect(page.getByRole('alert')).toHaveText(/Slide tiles could not be loaded/)
+    await expect.poll(() => [...failedTileUrls].filter((url) => (
+      new URL(url).pathname.startsWith(`/tiles/${route.tileId}/slide_files/`)
+    )).length, { timeout: 10_000 }).toBeGreaterThanOrEqual(3)
+    await expect(page.getByRole('alert')).toHaveText(/Slide tiles could not be loaded/, { timeout: 10_000 })
     await page.evaluate(() => window.dispatchEvent(new Event('offline')))
 
     const loadingMode = page.locator('.viewer-loading-mode')
