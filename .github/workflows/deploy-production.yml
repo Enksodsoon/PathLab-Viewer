@@ -53,9 +53,8 @@ jobs:
             > "${RUNNER_TEMP}/check-runs.json"
           for check in backend browser web containers repository-and-dependencies \
             'CodeQL (python)' 'CodeQL (javascript-typescript)'; do
-            conclusion="$(jq -r --arg name "${check}" \
-              '[.check_runs[] | select(.name == $name and .head_sha == env.GITHUB_SHA)] \
-               | sort_by(.id) | last | .conclusion // empty' \
+            conclusion="$(jq -r --arg name "${check}" --arg sha "${GITHUB_SHA}" \
+              '[.check_runs[] | select(.name == $name and .head_sha == $sha)] | sort_by(.id) | last | .conclusion // empty' \
               "${RUNNER_TEMP}/check-runs.json")"
             test "${conclusion}" = success || {
               echo "Required check ${check} is ${conclusion:-missing}, not successful."
