@@ -273,7 +273,7 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
           <div className="auth-visual-grain" aria-hidden="true" />
           <div className="auth-visual-content">
             <h1 id="auth-visual-title">
-              See the whole
+              See the whole{' '}
               <br />
               picture.
             </h1>

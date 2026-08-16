@@ -478,7 +478,7 @@ it('loads annotation code and APIs only for an enabled private admin slide', asy
 
   expect(await screen.findByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
-  expect(screen.getByRole('button', { name: 'Point marker' })).toBeVisible()
+  expect(await screen.findByRole('button', { name: 'Point marker' })).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Open annotation inspector' }))
   fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
   expect(await screen.findByRole('button', { name: 'Findings' })).toBeVisible()

@@ -5,10 +5,18 @@ const apiTarget = process.env.PATHLAB_DEV_API_URL ?? 'http://127.0.0.1:8000'
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   test: {
     environment: 'jsdom',
     include: ['src/test/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: './src/test/setup.ts',
+    server: {
+      deps: {
+        inline: ['@phosphor-icons/react'],
+      },
+    },
   },
   server: {
     proxy: {
