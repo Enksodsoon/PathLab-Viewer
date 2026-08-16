@@ -245,12 +245,23 @@ test('keeps mobile offline status clear of the loading control', async ({ page }
     { path: '/s/public-1', title: 'HER2 control' },
     { path: '/admin/preview/private-1', title: 'Private teaching slide' },
   ]
+  let failedTileRequests = 0
 
+  await page.route('**/slide_files/**', async (route) => {
+    failedTileRequests += 1
+    await route.fulfill({
+      status: 503,
+      contentType: 'text/plain',
+      body: 'offline tile fixture',
+    })
+  })
   await page.setViewportSize({ width: 390, height: 844 })
 
   for (const route of routes) {
+    const failuresBeforeNavigation = failedTileRequests
     await page.goto(route.path)
     await expect(page.getByText(route.title, { exact: true })).toBeVisible()
+    await expect.poll(() => failedTileRequests).toBeGreaterThanOrEqual(failuresBeforeNavigation + 3)
     await expect(page.getByRole('alert')).toHaveText(/Slide tiles could not be loaded/)
     await page.evaluate(() => window.dispatchEvent(new Event('offline')))
 
