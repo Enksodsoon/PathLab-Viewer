@@ -125,18 +125,27 @@ set_limit() {
 }
 
 reload_capacity_services() {
+  local remaining
+  remaining="$((RESTORE_NOT_AFTER - $(date +%s) - 5))"
+  (( remaining > 0 )) || return 1
   (
     cd "${COMPOSE_DIR}"
-    docker compose up -d --no-deps --force-recreate api classroom || exit 1
-    running="$(docker compose ps --status running --services api classroom | sort)" || exit 1
+    timeout --signal=TERM --kill-after=5s "${remaining}s" \
+      docker compose up -d --no-deps --force-recreate api classroom || exit 1
+    remaining="$((RESTORE_NOT_AFTER - $(date +%s) - 5))"
+    (( remaining > 0 )) || exit 1
+    running="$(timeout --signal=TERM --kill-after=5s "${remaining}s" \
+      docker compose ps --status running --services api classroom | sort)" || exit 1
     [[ "${running}" == $'api\nclassroom' ]]
   )
 }
 
 contain_unsafe_runtime() {
+  local remaining="$((RESTORE_NOT_AFTER - $(date +%s) - 5))"
+  (( remaining > 0 )) || return 1
   (
     cd "${COMPOSE_DIR}"
-    docker compose stop api classroom
+    timeout --signal=TERM --kill-after=5s "${remaining}s" docker compose stop api classroom
   ) || true
 }
 
@@ -158,6 +167,11 @@ restore_prior() {
   mv -- "${restore_temporary}" "${RESTORE_EVIDENCE}"
   rm -f -- "${PRIOR_SNAPSHOT}"
   exit "${exit_code}"
+}
+RESTORE_NOT_AFTER="${PATHLAB_CAPACITY_RESTORE_NOT_AFTER:-${WINDOW_END_EPOCH}}"
+[[ "${RESTORE_NOT_AFTER}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "Capacity restoration deadline is invalid" >&2
+  exit 2
 }
 trap restore_prior EXIT
 trap 'exit 130' INT

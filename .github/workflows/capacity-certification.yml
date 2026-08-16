@@ -29,11 +29,11 @@ jobs:
     outputs:
       browser-ci-run-id: ${{ steps.release.outputs.browser-ci-run-id }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install locked OCI dependencies
@@ -62,11 +62,11 @@ jobs:
       - name: Build immutable synchronized plan
         run: |
           set -euo pipefail
-          # Admission is fixed at 02:05 ICT. Preflight is deliberately
+          # Admission is fixed at 02:09 ICT. Preflight is deliberately
           # non-mutating and only accepts dispatches with time to finish before arm.
           local_stamp="$(TZ=Asia/Bangkok date +%H%M)"
           (( 10#${local_stamp} >= 130 && 10#${local_stamp} <= 145 ))
-          start_epoch_ms="$(( $(TZ=Asia/Bangkok date -d 'today 02:05' +%s) * 1000 ))"
+          start_epoch_ms="$(( $(TZ=Asia/Bangkok date -d 'today 02:09' +%s) * 1000 ))"
           python tests/load/distributed_certification.py plan \
             --run-id "${GITHUB_RUN_ID}" \
             --workflow-sha "${GITHUB_SHA}" \
@@ -78,13 +78,13 @@ jobs:
             '{runId:$runId,workflowSha:$workflowSha,ciRunId:$ciRunId,approved:true,
               projects:["chromium","firefox","webkit","mobile-chromium"]}' \
             > "${RUNNER_TEMP}/browser-matrix.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-plan
           path: ${{ runner.temp }}/capacity-plan.json
           if-no-files-found: error
           retention-days: 1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-browser-matrix
           path: ${{ runner.temp }}/browser-matrix.json
@@ -162,7 +162,7 @@ jobs:
           jq -e '.monthToDateCost == 0 and .permanentResourcesAdded == false' \
             "${RUNNER_TEMP}/capacity-accounting.json" >/dev/null
           rm -f -- "${RUNNER_TEMP}"/oci-*-private.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-accounting
           path: ${{ runner.temp }}/capacity-accounting.json
@@ -178,12 +178,12 @@ jobs:
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {pattern: "capacity-*", path: "${{ runner.temp }}/evidence", merge-multiple: true}
       - name: Configure pinned OCI access
         env:
@@ -210,15 +210,15 @@ jobs:
           signature_file="${RUNNER_TEMP}/deploy-evidence.signature"
           install -m 600 /dev/null "${evidence_key}"
           printf '%s' "${DEPLOY_EVIDENCE_KEY}" > "${evidence_key}"
-          arm_epoch="$(TZ=Asia/Bangkok date -d 'today 02:00' +%s)"
+          window="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" describe)"
+          arm_epoch="$(jq -er .mutationStartEpoch <<< "${window}")"
           now_epoch="$(date +%s)"
-          (( now_epoch <= arm_epoch + 30 )) || { echo "Deterministic 02:00 arm deadline missed." >&2; exit 1; }
+          (( now_epoch <= $(jq -er .armNotAfterEpoch <<< "${window}") )) || {
+            echo "Deterministic arm deadline missed." >&2
+            exit 1
+          }
           (( arm_epoch > now_epoch )) && sleep "$((arm_epoch - now_epoch))"
-          rollback_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
-            "capacity-rollback-preflight rollback=${OCI_ROLLBACK_RELEASE_SHA}")"
-          jq -e --arg sha "${OCI_ROLLBACK_RELEASE_SHA}" \
-            '.rollbackSha == $sha and .directoryReady == true and .configValid == true and .serviceCount == 5' \
-            <<< "${rollback_status}" >/dev/null
           month_cost="$(jq -r .monthToDateCost "${RUNNER_TEMP}/evidence/capacity-accounting.json")"
           nonce="$(python -c 'import hashlib,hmac,os; print(hmac.new(os.environ["DEPLOY_EVIDENCE_KEY"].encode(), (os.environ["GITHUB_RUN_ID"]+":"+os.environ["GITHUB_RUN_ATTEMPT"]).encode(), hashlib.sha256).hexdigest())')"
           echo "::add-mask::${nonce}"
@@ -229,18 +229,22 @@ jobs:
             --month-to-date-cost-sgd "${month_cost}" --key-file "${evidence_key}" \
             --output "${evidence_file}" --signature-output "${signature_file}"
           plan_digest="$(jq -r .planDigest "${RUNNER_TEMP}/evidence/capacity-plan.json")"
-          deadline="$(python - "${RUNNER_TEMP}/evidence/capacity-plan.json" <<'PY'
-          import json, sys
-          plan = json.load(open(sys.argv[1], encoding="utf-8"))
-          print(plan["stages"][-1]["transitionEndEpochMs"] // 1000 + 900)
-          PY
-          )"
+          deadline="$(jq -er .cleanupExecutionDeadlineEpoch <<< "${window}")"
+          rollback_not_after="$(jq -er .restorationDeadlineEpoch <<< "${window}")"
           fault_start="$(jq -r '.stages[] | select(.name == "recovery-1200") | .holdStartEpochMs / 1000 | floor' "${RUNNER_TEMP}/evidence/capacity-plan.json")"
           fault_end="$(jq -r '.stages[] | select(.name == "recovery-1200") | .holdEndEpochMs / 1000 | floor' "${RUNNER_TEMP}/evidence/capacity-plan.json")"
           evidence_b64="$(base64 -w 0 "${evidence_file}" | tr '+/' '-_' | tr -d '=')"
-          arm_not_after="$((arm_epoch + 30))"
-          request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} arm-not-after=${arm_not_after} deadline=${deadline} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
-          bash deploy/scripts/capacity-control-via-bastion.sh "${request}"
+          arm_not_after="$(jq -er .armNotAfterEpoch <<< "${window}")"
+          request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} rollback=${OCI_ROLLBACK_RELEASE_SHA} arm-not-after=${arm_not_after} deadline=${deadline} rollback-not-after=${rollback_not_after} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
+          arm_remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase arm)"
+          combined_status="$(timeout --signal=TERM --kill-after=10s "${arm_remaining}s" \
+            bash deploy/scripts/capacity-control-via-bastion.sh \
+              "capacity-rollback-preflight rollback=${OCI_ROLLBACK_RELEASE_SHA}" "${request}")"
+          rollback_status="$(head -n 1 <<< "${combined_status}")"
+          jq -e --arg sha "${OCI_ROLLBACK_RELEASE_SHA}" \
+            '.rollbackSha == $sha and .directoryReady == true and .configValid == true and .serviceCount == 5' \
+            <<< "${rollback_status}" >/dev/null
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh; rm -f -- "${RUNNER_TEMP}/deploy-evidence.key"
 
@@ -262,14 +266,14 @@ jobs:
       PATHLAB_CLASSROOM_PROTECTED_REMOTE: "true"
       PATHLAB_CLASSROOM_SYNTHETIC_ONLY: "true"
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: capacity-plan
           path: ${{ runner.temp }}/capacity-plan
@@ -340,14 +344,14 @@ jobs:
           done
           test "$(cat "${RUNNER_TEMP}/capacity-observer.status")" = 0
           test -s "${RUNNER_TEMP}/capacity-host-samples.jsonl"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: capacity-shard-${{ matrix.shard-index }}
           path: ${{ runner.temp }}/shard-${{ matrix.shard-index }}.json
           if-no-files-found: error
           retention-days: 1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && matrix.shard-index == 0
         with:
           name: capacity-observer
@@ -364,12 +368,12 @@ jobs:
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {name: capacity-plan, path: "${{ runner.temp }}/capacity-plan"}
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: {node-version: "24.14.0", cache: pnpm}
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium firefox webkit
@@ -400,7 +404,7 @@ jobs:
           echo "::add-mask::${CAPACITY_CLASSROOM_SESSION_ID}"
           printf '{}\n' > "${CAPACITY_SENTINEL_RESULT}"
           bash deploy/scripts/run-capacity-sentinels.sh "${RUNNER_TEMP}/capacity-plan/capacity-plan.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: capacity-sentinels
@@ -415,11 +419,11 @@ jobs:
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {name: capacity-plan, path: "${{ runner.temp }}/capacity-plan"}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
       - name: Configure pinned OCI access
@@ -444,7 +448,7 @@ jobs:
           export CAPACITY_CLASSROOM_SESSION_ID="$(jq -er '."recovery-1200".sessionId' "${RUNNER_TEMP}/stage-manifest.json")"
           echo "::add-mask::${CAPACITY_CLASSROOM_SESSION_ID}"
           bash deploy/scripts/run-capacity-fault-recovery.sh "${RUNNER_TEMP}/capacity-plan/capacity-plan.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: capacity-fault
@@ -458,21 +462,24 @@ jobs:
     if: ${{ always() && needs.preflight.result == 'success' }}
     needs: [preflight, arm, shard, sentinels, fault-recovery]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 3
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {pattern: "capacity-*", path: "${{ runner.temp }}/evidence", merge-multiple: true}
       - name: Require and merge every shard before selecting a tier
         id: merge
         continue-on-error: true
         run: |
-          python tests/load/distributed_certification.py merge \
+          remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase decision)"
+          timeout --signal=TERM --kill-after=10s "${remaining}s" \
+            python tests/load/distributed_certification.py merge \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
             --shard "${RUNNER_TEMP}/evidence/shard-0.json" \
             --shard "${RUNNER_TEMP}/evidence/shard-1.json" \
@@ -492,7 +499,10 @@ jobs:
           nonce="$(python -c 'import hashlib,hmac,os; print(hmac.new(os.environ["DEPLOY_EVIDENCE_KEY"].encode(), (os.environ["GITHUB_RUN_ID"]+":"+os.environ["GITHUB_RUN_ATTEMPT"]).encode(), hashlib.sha256).hexdigest())')"
           echo "::add-mask::${nonce}"
           if [[ "${{ steps.merge.outcome }}" == success ]] && \
-            python tests/load/build_capacity_decision.py \
+             remaining="$(python deploy/scripts/capacity_window.py \
+               --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase decision)" && \
+             timeout --signal=TERM --kill-after=10s "${remaining}s" \
+               python tests/load/build_capacity_decision.py \
               --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
               --merged-shards "${RUNNER_TEMP}/merged-shards.json" \
               --sentinels "${RUNNER_TEMP}/evidence/capacity-sentinel.json" \
@@ -506,7 +516,10 @@ jobs:
           else
             rm -f -- "${RUNNER_TEMP}/capacity-decision.json" "${RUNNER_TEMP}/capacity-decision.json.sig"
             echo "NOT CERTIFIED: required evidence missing or invalid; selecting 300 and rollback candidate"
-            python tests/load/build_failure_decision.py \
+            remaining="$(python deploy/scripts/capacity_window.py \
+              --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase decision)"
+            timeout --signal=TERM --kill-after=10s "${remaining}s" \
+              python tests/load/build_failure_decision.py \
               --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
               --sentinels "${RUNNER_TEMP}/evidence/capacity-sentinel.json" \
               --nonce "${nonce}" --key-file "${key}" \
@@ -514,7 +527,7 @@ jobs:
               --signature-output "${RUNNER_TEMP}/capacity-decision.json.sig"
           fi
           rm -f -- "${key}"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: capacity-decision
@@ -528,16 +541,16 @@ jobs:
     if: ${{ always() }}
     needs: [preflight, shard, sentinels, fault-recovery, decision]
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 12
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {pattern: "capacity-*", path: "${{ runner.temp }}/evidence", merge-multiple: true}
       - name: Configure pinned OCI access
         env:
@@ -561,12 +574,16 @@ jobs:
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
           OCI_ROLLBACK_RELEASE_SHA: ${{ vars.OCI_ROLLBACK_RELEASE_SHA }}
-        run: bash deploy/scripts/cleanup-capacity-certification.sh \
-          "${RUNNER_TEMP}/evidence/capacity-plan.json" \
-          "${RUNNER_TEMP}/evidence/capacity-decision.json" \
-          "${RUNNER_TEMP}/evidence/capacity-decision.json.sig" \
-          "${RUNNER_TEMP}/evidence/capacity-sentinel.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        run: |
+          remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase cleanup)"
+          timeout --signal=TERM --kill-after=250s "${remaining}s" \
+            bash deploy/scripts/cleanup-capacity-certification.sh \
+              "${RUNNER_TEMP}/evidence/capacity-plan.json" \
+              "${RUNNER_TEMP}/evidence/capacity-decision.json" \
+              "${RUNNER_TEMP}/evidence/capacity-decision.json.sig" \
+              "${RUNNER_TEMP}/evidence/capacity-sentinel.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: capacity-cleanup
@@ -582,16 +599,16 @@ jobs:
     if: ${{ always() && needs.cleanup.result != 'skipped' }}
     needs: [preflight, decision, cleanup]
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 5
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {pattern: "capacity-*", path: "${{ runner.temp }}/evidence", merge-multiple: true}
       - name: Configure pinned OCI access
         env:
@@ -610,6 +627,12 @@ jobs:
         run: |
           set -euo pipefail
           plan="${RUNNER_TEMP}/evidence/capacity-plan.json"
+          bounded() {
+            local remaining
+            remaining="$(python deploy/scripts/capacity_window.py \
+              --plan "${plan}" remaining --phase postflight)"
+            timeout --signal=TERM --kill-after=10s "${remaining}s" "$@"
+          }
           decision="${RUNNER_TEMP}/evidence/capacity-decision.json"
           selected="$(jq -er .certification.selectedCapacity "${decision}")"
           expected_sha="${GITHUB_SHA}"
@@ -617,14 +640,16 @@ jobs:
           if [[ "${selected}" == 300 ]]; then
             host="$(cat "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json")"
           else
-            host="$(bash deploy/scripts/capacity-control-via-bastion.sh "capacity-postflight expected=${expected_sha}")"
+            host="$(bounded bash deploy/scripts/capacity-control-via-bastion.sh "capacity-postflight expected=${expected_sha}")"
           fi
-          curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/readyz" >/dev/null
-          curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/livez" >/dev/null
+          bounded curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/readyz" >/dev/null
+          bounded curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/livez" >/dev/null
           tenancy_id="$(awk -F= '/^tenancy=/{print $2; exit}' ~/.oci/config)"
-          cost="$(oci usage-api usage-summary request-summarized-usages --tenant-id "${tenancy_id}" \
-            --granularity MONTHLY --query-type COST --time-usage-started "$(date -u +%Y-%m-01T00:00:00Z)" \
-            --time-usage-ended "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | jq '[.data.items[]? | (."computed-amount" // 0 | tonumber)] | add // 0')"
+          cost_json="$(bounded oci usage-api usage-summary request-summarized-usages \
+            --tenant-id "${tenancy_id}" --granularity MONTHLY --query-type COST \
+            --time-usage-started "$(date -u +%Y-%m-01T00:00:00Z)" \
+            --time-usage-ended "$(date -u +%Y-%m-%dT%H:%M:%SZ)")"
+          cost="$(jq '[.data.items[]? | (."computed-amount" // 0 | tonumber)] | add // 0' <<< "${cost_json}")"
           jq -n --arg runId "$(jq -r .runId "${plan}")" --arg workflowSha "${GITHUB_SHA}" \
             --arg planDigest "$(jq -r .planDigest "${plan}")" --arg observedAt "$(date --iso-8601=seconds)" \
             --arg expectedSha "${expected_sha}" --arg deployedSha "$(jq -r .releaseSha <<< "${host}")" \
@@ -640,7 +665,7 @@ jobs:
             > "${RUNNER_TEMP}/capacity-postflight.json"
           test "$(jq -r .finalCapacity "${RUNNER_TEMP}/capacity-postflight.json")" = "${selected}"
           python tests/load/validate_postflight_evidence.py "${RUNNER_TEMP}/capacity-postflight.json"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with: {name: capacity-postflight, path: "${{ runner.temp }}/capacity-postflight.json", if-no-files-found: error, retention-days: 1}
       - if: always()
@@ -650,15 +675,15 @@ jobs:
     if: ${{ always() && needs.postflight.result == 'success' }}
     needs: [preflight, shard, sentinels, fault-recovery, cleanup, postflight]
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 3
     environment:
       name: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: {ref: "${{ github.sha }}", persist-credentials: false}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: capacity-*
           path: ${{ runner.temp }}/evidence
@@ -667,7 +692,10 @@ jobs:
         id: final-merge
         continue-on-error: true
         run: |
-          python tests/load/distributed_certification.py merge \
+          remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase aggregate)"
+          timeout --signal=TERM --kill-after=10s "${remaining}s" \
+            python tests/load/distributed_certification.py merge \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
             --shard "${RUNNER_TEMP}/evidence/shard-0.json" \
             --shard "${RUNNER_TEMP}/evidence/shard-1.json" \
@@ -681,10 +709,13 @@ jobs:
         env:
           DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
         run: |
+          remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase aggregate)"
           key="${RUNNER_TEMP}/decision-route.key"
           install -m 600 /dev/null "${key}"
           printf '%s' "${DEPLOY_EVIDENCE_KEY}" > "${key}"
-          route="$(python tests/load/build_failure_evidence.py verify-decision \
+          route="$(timeout --signal=TERM --kill-after=10s "${remaining}s" \
+            python tests/load/build_failure_evidence.py verify-decision \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
             --decision "${RUNNER_TEMP}/evidence/capacity-decision.json" \
             --signature "${RUNNER_TEMP}/evidence/capacity-decision.json.sig" \
@@ -697,7 +728,10 @@ jobs:
         env:
           CAPACITY_BROWSER_CI_RUN_ID: ${{ needs.preflight.outputs.browser-ci-run-id }}
         run: |
-          python tests/load/build_distributed_evidence.py \
+          remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase aggregate)"
+          timeout --signal=TERM --kill-after=10s "${remaining}s" \
+            python tests/load/build_distributed_evidence.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
             --merged-shards "${RUNNER_TEMP}/evidence/merged-shards.json" \
             --sentinels "${RUNNER_TEMP}/evidence/capacity-sentinel.json" \
@@ -713,10 +747,13 @@ jobs:
         env:
           DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
         run: |
+          remaining="$(python deploy/scripts/capacity_window.py \
+            --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase aggregate)"
           key="${RUNNER_TEMP}/failure-evidence.key"
           install -m 600 /dev/null "${key}"
           printf '%s' "${DEPLOY_EVIDENCE_KEY}" > "${key}"
-          python tests/load/build_failure_evidence.py \
+          timeout --signal=TERM --kill-after=10s "${remaining}s" \
+            python tests/load/build_failure_evidence.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
             --decision "${RUNNER_TEMP}/evidence/capacity-decision.json" \
             --signature "${RUNNER_TEMP}/evidence/capacity-decision.json.sig" --key-file "${key}" \
@@ -724,7 +761,7 @@ jobs:
             --output-json "${RUNNER_TEMP}/capacity-certification.json" \
             --output-markdown "${RUNNER_TEMP}/capacity-certification.md"
           rm -f -- "${key}"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-certification-${{ github.sha }}
           path: |
