@@ -24,6 +24,26 @@ class RestoreDrillFailure(RuntimeError):
     pass
 
 
+def _approved_restore_paths() -> tuple[Path, Path]:
+    data_root = Path(os.environ.get("PATHLAB_DATA_DIR", "/srv/pathlab/data"))
+    if not data_root.is_absolute():
+        raise RestoreDrillFailure("production data root must be absolute")
+    data_root = data_root.resolve(strict=True)
+    backup_root = Path(
+        os.environ.get("PATHLAB_BACKUP_DIR", str(data_root / "backups"))
+    )
+    scratch_root = Path(
+        os.environ.get("PATHLAB_RESTORE_DRILL_DIR", str(data_root / ".restore-drill"))
+    )
+    if backup_root != data_root / "backups":
+        raise RestoreDrillFailure("backup path is not on the approved data volume")
+    if scratch_root != data_root / ".restore-drill":
+        raise RestoreDrillFailure("restore drill scratch path is not approved")
+    backup_root = backup_root.resolve(strict=True)
+    scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return backup_root, scratch_root.resolve(strict=True)
+
+
 def _verify_checksums(backup: Path) -> None:
     manifest = backup / "SHA256SUMS"
     try:
@@ -133,15 +153,9 @@ def main() -> int:
         print("Restore drill requires an absolute backup path", file=sys.stderr)
         return 2
     try:
-        approved_backup_root = Path("/srv/pathlab/data/backups").resolve(strict=True)
+        approved_backup_root, scratch_root = _approved_restore_paths()
         if not backup.resolve(strict=True).is_relative_to(approved_backup_root):
             raise RestoreDrillFailure("backup path is not on the approved data volume")
-        scratch_root = Path(
-            os.environ.get("PATHLAB_RESTORE_DRILL_DIR", "/srv/pathlab/data/.restore-drill")
-        )
-        if scratch_root != Path("/srv/pathlab/data/.restore-drill"):
-            raise RestoreDrillFailure("restore drill scratch path is not approved")
-        scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
         result = verify_restore_drill(backup, scratch_root=scratch_root)
     except (OSError, RestoreDrillFailure) as error:
         print(f"Restore drill failed: {error}", file=sys.stderr)

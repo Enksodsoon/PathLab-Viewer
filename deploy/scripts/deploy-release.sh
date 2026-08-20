@@ -260,6 +260,12 @@ git clone --quiet --branch main --single-branch "${REPOSITORY_URL}" "${STAGE_DIR
 [[ "$(git -C "${STAGE_DIR}" rev-parse HEAD)" == "${TARGET_SHA}" ]] || \
   fail "staged checkout does not match the requested commit"
 install -m 600 "${LIVE_DIR}/deploy/.env" "${STAGE_DIR}/deploy/.env"
+if grep -q '^PATHLAB_RELEASE_IMAGE_TAG=' "${STAGE_DIR}/deploy/.env"; then
+  sed -i "s/^PATHLAB_RELEASE_IMAGE_TAG=.*/PATHLAB_RELEASE_IMAGE_TAG=${TARGET_SHA}/" \
+    "${STAGE_DIR}/deploy/.env"
+else
+  printf 'PATHLAB_RELEASE_IMAGE_TAG=%s\n' "${TARGET_SHA}" >> "${STAGE_DIR}/deploy/.env"
+fi
 if [[ -n "${CLASSROOM_ENABLED}" ]]; then
   if grep -q '^PATHLAB_PRODUCTION_CLASSROOM_ENABLED=' "${STAGE_DIR}/deploy/.env"; then
     sed -i "s/^PATHLAB_PRODUCTION_CLASSROOM_ENABLED=.*/PATHLAB_PRODUCTION_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}/" \
@@ -277,6 +283,16 @@ python3 "${STAGE_DIR}/deploy/scripts/production_safety.py" \
   fail "production preflight guards failed"
 ANNOTATIONS_ENABLED="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
 [[ "${ANNOTATIONS_ENABLED:-false}" == "false" ]] || fail "annotations must remain disabled"
+DATA_DIR="$(sed -n 's/^PATHLAB_DATA_DIR=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
+[[ -n "${DATA_DIR}" ]] || fail "PATHLAB_DATA_DIR must be explicit in production"
+DATA_DIR="${DATA_DIR%\"}"
+DATA_DIR="${DATA_DIR#\"}"
+DATA_DIR="${DATA_DIR%\'}"
+DATA_DIR="${DATA_DIR#\'}"
+[[ "${DATA_DIR}" =~ ^/[A-Za-z0-9._/-]+$ && "${DATA_DIR}" != */../* ]] || \
+  fail "PATHLAB_DATA_DIR is missing or invalid"
+BACKUP_DIR="${DATA_DIR%/}/backups"
+RESTORE_DRILL_DIR="${DATA_DIR%/}/.restore-drill"
 
 (
   cd "${STAGE_DIR}/deploy"
@@ -296,9 +312,11 @@ deployment_check "${STAGE_DIR}" || fail "worker job did not stop cleanly"
 
 BACKUP_PATH="$(
   cd "${LIVE_DIR}/deploy"
-  bash scripts/backup.sh
+  PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" bash scripts/backup.sh
 )" || fail "production backup failed"
-python3 "${STAGE_DIR}/deploy/scripts/verify_restore_drill.py" "${BACKUP_PATH}" || \
+PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
+  PATHLAB_RESTORE_DRILL_DIR="${RESTORE_DRILL_DIR}" \
+  python3 "${STAGE_DIR}/deploy/scripts/verify_restore_drill.py" "${BACKUP_PATH}" || \
   fail "production backup restore drill failed"
 
 mv "${LIVE_DIR}" "${ROLLBACK_DIR}"

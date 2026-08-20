@@ -449,7 +449,9 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
                 assert "@sha256:" in image
                 assert len(image.rsplit("@sha256:", 1)[1]) == 64
     tusd_line = next(
-        line.strip() for line in compose.splitlines() if line.strip().startswith("image:")
+        line.strip()
+        for line in compose.splitlines()
+        if line.strip().startswith("image: tusproject/tusd:")
     )
     assert "tusproject/tusd:v2.9.2@sha256:" in tusd_line
     assert len(tusd_line.rsplit("@sha256:", 1)[1]) == 64
@@ -571,6 +573,21 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert 'cat "${LIVE_DIR}/.pathlab-release"' in script
     assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
     assert "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\ntile-service\\ntusd\\nworker'" in script
+
+
+def test_candidate_builds_are_release_tagged_and_backup_paths_share_one_data_root() -> None:
+    script = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+
+    assert "PATHLAB_RELEASE_IMAGE_TAG=${TARGET_SHA}" in script
+    assert script.index("PATHLAB_RELEASE_IMAGE_TAG=${TARGET_SHA}") < script.index(
+        "docker compose build"
+    )
+    assert 'PATHLAB_DATA_DIR="${DATA_DIR}"' in script
+    assert 'PATHLAB_BACKUP_DIR="${BACKUP_DIR}"' in script
+    assert 'PATHLAB_RESTORE_DRILL_DIR="${RESTORE_DRILL_DIR}"' in script
+    for service in ("api", "caddy", "classroom", "tile-service", "worker"):
+        assert f"image: pathlab-viewer-{service}:${{PATHLAB_RELEASE_IMAGE_TAG:-live}}" in compose
 
 
 def test_release_script_preserves_environment_and_never_touches_data() -> None:
