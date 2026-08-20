@@ -513,6 +513,8 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "trap cleanup_bastion_session EXIT" in script
     assert "oci bastion session delete" in script
     assert "StrictHostKeyChecking=yes" in script
+    assert "ServerAliveInterval=15" in script
+    assert "ServerAliveCountMax=40" in script
     assert "deploy ${TARGET_SHA}" in script
     assert '"${CLASSROOM_ENABLED}" =~ ^(true|false)$' in script
     assert "classroom=${CLASSROOM_ENABLED}" in script

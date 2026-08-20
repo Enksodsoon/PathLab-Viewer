@@ -128,7 +128,7 @@ SSH_COMMAND="$(
 
 SSH_COMMAND="${SSH_COMMAND//<privateKey>/${KEY_FILE}}"
 SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
-SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE}"
+SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes"
 SSH_COMMAND="${SSH_COMMAND//ssh /ssh ${SSH_OPTIONS} }"
 
 if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
