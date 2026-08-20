@@ -161,6 +161,23 @@ def test_restore_drill_rejects_corrupt_database(tmp_path: Path) -> None:
         verifier.verify_restore_drill(backup, scratch_root=tmp_path / "scratch")
 
 
+def test_restore_drill_uses_the_configured_data_volume(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    verifier = _load_restore_drill()
+    data_root = tmp_path / "production-data"
+    backup_root = data_root / "backups"
+    backup_root.mkdir(parents=True)
+    monkeypatch.setenv("PATHLAB_DATA_DIR", str(data_root))
+    monkeypatch.setenv("PATHLAB_BACKUP_DIR", str(backup_root))
+    monkeypatch.setenv("PATHLAB_RESTORE_DRILL_DIR", str(data_root / ".restore-drill"))
+
+    approved_backup, approved_scratch = verifier._approved_restore_paths()
+
+    assert approved_backup == backup_root.resolve()
+    assert approved_scratch == (data_root / ".restore-drill").resolve()
+
+
 def test_sqlite_backup_preserves_private_annotation_state(tmp_path: Path) -> None:
     source_path = tmp_path / "pathlab.sqlite3"
     backup_path = tmp_path / "backup.sqlite3"
