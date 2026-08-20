@@ -505,9 +505,13 @@ def test_release_flow_installs_watchdog_and_runs_guards() -> None:
     assert "restore_watchdog" in release
     assert "systemctl disable --now pathlab-viewer-watchdog.timer" in release
     assert '"${ROLLBACK_DIR}/deploy/scripts/install-watchdog.sh" uninstall' not in release
-    assert release.index("docker compose stop worker") < release.index("bash scripts/backup.sh")
+    assert release.index("docker compose stop worker") < release.index(
+        'bash "${STAGE_DIR}/deploy/scripts/backup.sh"'
+    )
     assert release.index("OLD_SERVICES_STOPPED=1") < release.index("docker compose stop worker")
-    assert release.index("docker compose stop caddy tusd") < release.index("bash scripts/backup.sh")
+    assert release.index("docker compose stop caddy tusd") < release.index(
+        'bash "${STAGE_DIR}/deploy/scripts/backup.sh"'
+    )
     old_topology_stop = release[
         release.index("OLD_WORKER_STOPPED=1") : release.index("BACKUP_PATH=")
     ]
@@ -516,6 +520,20 @@ def test_release_flow_installs_watchdog_and_runs_guards() -> None:
     assert '"https://${DOMAIN}/"' in release
     assert "Tus-Resumable: 1.0.0" in release
     assert ".State.Health.Status" in release
+
+
+def test_release_flow_uses_candidate_backup_format_against_live_compose() -> None:
+    release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
+        encoding="utf-8"
+    )
+
+    backup_start = release.index("BACKUP_PATH=")
+    backup_block = release[
+        backup_start : release.index('mv "${LIVE_DIR}"', backup_start)
+    ]
+    assert 'cd "${LIVE_DIR}/deploy"' in backup_block
+    assert 'bash "${STAGE_DIR}/deploy/scripts/backup.sh"' in backup_block
+    assert "bash scripts/backup.sh" not in backup_block
 
 
 def test_release_flow_has_exact_release_bound_one_time_evidence_key_provisioning() -> None:
