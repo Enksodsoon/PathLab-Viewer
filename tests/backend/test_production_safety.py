@@ -551,6 +551,21 @@ def test_release_flow_atomically_refreshes_forced_command_after_health() -> None
     )
 
 
+def test_release_flow_contains_transport_loss_before_and_after_swap() -> None:
+    release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "interrupt_deployment()" in release
+    assert "trap interrupt_deployment HUP INT TERM" in release
+    interrupt = release[
+        release.index("interrupt_deployment()") : release.index("restart_old_worker()")
+    ]
+    assert 'if [[ "${SWAPPED}" -eq 1 ]]' in interrupt
+    assert "rollback_release" in interrupt
+    assert "restart_old_worker" in interrupt
+
+
 def test_release_flow_has_exact_release_bound_one_time_evidence_key_provisioning() -> None:
     release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
         encoding="utf-8"

@@ -29,6 +29,15 @@ fail() {
   exit 1
 }
 
+interrupt_deployment() {
+  trap - HUP INT TERM
+  if [[ "${SWAPPED}" -eq 1 ]]; then
+    rollback_release
+  fi
+  restart_old_worker
+  exit 1
+}
+
 restart_old_worker() {
   if [[ "${OLD_SERVICES_STOPPED}" -eq 1 && -d "${LIVE_DIR}/deploy" ]]; then
     (
@@ -50,7 +59,7 @@ restart_old_worker() {
 
 rollback_release() {
   set +e
-  trap - ERR
+  trap - ERR HUP INT TERM
   echo "Health verification failed; restoring the previous release." >&2
   if [[ -d "${LIVE_DIR}" && -d "${ROLLBACK_DIR}" ]]; then
     mv "${LIVE_DIR}" "${LIVE_DIR}.failed-$(date -u +%Y%m%dT%H%M%SZ)"
@@ -293,6 +302,7 @@ CLASSROOM_ENABLED="${BASH_REMATCH[6]:-}"
 DEPLOY_EVIDENCE="$(mktemp /run/pathlab-deploy-evidence-XXXXXX.json)"
 chmod 600 "${DEPLOY_EVIDENCE}"
 trap cleanup_exit EXIT
+trap interrupt_deployment HUP INT TERM
 python3 - "${EVIDENCE_B64}" "${DEPLOY_EVIDENCE}" <<'PY' || fail "deployment evidence transfer failed"
 import base64
 import pathlib
