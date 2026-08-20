@@ -3,14 +3,19 @@ set -Eeuo pipefail
 
 TARGET_SHA="${1:-}"
 CLASSROOM_ENABLED="${2:-}"
+PROVISION_EVIDENCE_KEY="${PATHLAB_PROVISION_DEPLOY_EVIDENCE_KEY:-0}"
 TARGET_USER="${OCI_TARGET_USER:-pathlab-deploy}"
 SESSION_ID=""
 SESSION_NAME="pathlab-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
 WORK_DIR="$(mktemp -d)"
 KEY_FILE="${WORK_DIR}/bastion-session"
-: "${PATHLAB_DEPLOY_EVIDENCE_FILE:?PATHLAB_DEPLOY_EVIDENCE_FILE is required}"
-: "${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE:?PATHLAB_DEPLOY_EVIDENCE_SIGNATURE is required}"
-: "${PATHLAB_DEPLOY_EVIDENCE_NONCE:?PATHLAB_DEPLOY_EVIDENCE_NONCE is required}"
+if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
+  : "${PATHLAB_DEPLOY_EVIDENCE_KEY:?PATHLAB_DEPLOY_EVIDENCE_KEY is required}"
+else
+  : "${PATHLAB_DEPLOY_EVIDENCE_FILE:?PATHLAB_DEPLOY_EVIDENCE_FILE is required}"
+  : "${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE:?PATHLAB_DEPLOY_EVIDENCE_SIGNATURE is required}"
+  : "${PATHLAB_DEPLOY_EVIDENCE_NONCE:?PATHLAB_DEPLOY_EVIDENCE_NONCE is required}"
+fi
 
 fail() {
   echo "Bastion deployment failed: $*" >&2
@@ -44,7 +49,14 @@ cleanup_bastion_session() {
 trap cleanup_bastion_session EXIT
 
 [[ "${TARGET_SHA}" =~ ^[0-9a-f]{40}$ ]] || fail "a full lowercase commit SHA is required"
-if [[ -n "${CLASSROOM_ENABLED}" && ! "${CLASSROOM_ENABLED}" =~ ^(true|false)$ ]]; then
+if [[ "${PROVISION_EVIDENCE_KEY}" != 0 && "${PROVISION_EVIDENCE_KEY}" != 1 ]]; then
+  fail "PATHLAB_PROVISION_DEPLOY_EVIDENCE_KEY must be 0 or 1"
+fi
+if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
+  [[ "${PATHLAB_DEPLOY_EVIDENCE_KEY}" =~ ^[0-9a-f]{64}$ ]] || \
+    fail "deployment evidence key must be 64 lowercase hex characters"
+  [[ -z "${CLASSROOM_ENABLED}" ]] || fail "classroom mode is invalid during key provisioning"
+elif [[ -n "${CLASSROOM_ENABLED}" && ! "${CLASSROOM_ENABLED}" =~ ^(true|false)$ ]]; then
   fail "classroom enabled must be true, false, or empty"
 fi
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
@@ -52,13 +64,15 @@ fi
 : "${OCI_TARGET_PRIVATE_IP:?OCI_TARGET_PRIVATE_IP is required}"
 : "${OCI_KNOWN_HOSTS_FILE:?OCI_KNOWN_HOSTS_FILE is required}"
 [[ -f "${OCI_KNOWN_HOSTS_FILE}" ]] || fail "pinned SSH host keys are missing"
-[[ -f "${PATHLAB_DEPLOY_EVIDENCE_FILE}" ]] || fail "deployment evidence is missing"
-[[ "$(wc -c < "${PATHLAB_DEPLOY_EVIDENCE_FILE}")" -le 65536 ]] || \
-  fail "deployment evidence is too large"
-[[ "${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE}" =~ ^[0-9a-f]{64}$ ]] || \
-  fail "deployment evidence signature is invalid"
-[[ "${PATHLAB_DEPLOY_EVIDENCE_NONCE}" =~ ^[A-Za-z0-9._-]{8,128}$ ]] || \
-  fail "deployment evidence nonce is invalid"
+if [[ "${PROVISION_EVIDENCE_KEY}" == 0 ]]; then
+  [[ -f "${PATHLAB_DEPLOY_EVIDENCE_FILE}" ]] || fail "deployment evidence is missing"
+  [[ "$(wc -c < "${PATHLAB_DEPLOY_EVIDENCE_FILE}")" -le 65536 ]] || \
+    fail "deployment evidence is too large"
+  [[ "${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE}" =~ ^[0-9a-f]{64}$ ]] || \
+    fail "deployment evidence signature is invalid"
+  [[ "${PATHLAB_DEPLOY_EVIDENCE_NONCE}" =~ ^[A-Za-z0-9._-]{8,128}$ ]] || \
+    fail "deployment evidence nonce is invalid"
+fi
 
 ACTIVE_SESSIONS="$(
   oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
@@ -117,9 +131,14 @@ SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
 SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE}"
 SSH_COMMAND="${SSH_COMMAND//ssh /ssh ${SSH_OPTIONS} }"
 
-EVIDENCE_B64="$(base64 -w 0 "${PATHLAB_DEPLOY_EVIDENCE_FILE}" | tr '+/' '-_' | tr -d '=')"
-REMOTE_REQUEST="deploy ${TARGET_SHA} evidence=${EVIDENCE_B64} signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE} nonce=${PATHLAB_DEPLOY_EVIDENCE_NONCE}"
-if [[ -n "${CLASSROOM_ENABLED}" ]]; then
-  REMOTE_REQUEST="${REMOTE_REQUEST} classroom=${CLASSROOM_ENABLED}"
+if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
+  REMOTE_REQUEST="provision-evidence-key sha=${TARGET_SHA}"
+  printf '%s\n' "${PATHLAB_DEPLOY_EVIDENCE_KEY}" | bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
+else
+  EVIDENCE_B64="$(base64 -w 0 "${PATHLAB_DEPLOY_EVIDENCE_FILE}" | tr '+/' '-_' | tr -d '=')"
+  REMOTE_REQUEST="deploy ${TARGET_SHA} evidence=${EVIDENCE_B64} signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE} nonce=${PATHLAB_DEPLOY_EVIDENCE_NONCE}"
+  if [[ -n "${CLASSROOM_ENABLED}" ]]; then
+    REMOTE_REQUEST="${REMOTE_REQUEST} classroom=${CLASSROOM_ENABLED}"
+  fi
+  bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
 fi
-bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""

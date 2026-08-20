@@ -15,6 +15,8 @@ WATCHDOG_CHANGED=0
 DEPLOY_EVIDENCE=""
 EVIDENCE_SIGNATURE=""
 EVIDENCE_NONCE=""
+EVIDENCE_KEY_PATH="/etc/pathlab-viewer/deploy-evidence.key"
+TEMP_KEY=""
 
 fail() {
   echo "Deployment failed: $*" >&2
@@ -86,6 +88,10 @@ cleanup_exit() {
   if [[ "${DEPLOY_EVIDENCE}" == /run/pathlab-deploy-evidence-* ]]; then
     rm -f -- "${DEPLOY_EVIDENCE}"
   fi
+  if [[ -n "${TEMP_KEY}" && \
+    "${TEMP_KEY}" == "$(dirname "${EVIDENCE_KEY_PATH}")"/.deploy-evidence.key.* ]]; then
+    rm -f -- "${TEMP_KEY}"
+  fi
 }
 
 deployment_check() {
@@ -96,11 +102,89 @@ deployment_check() {
   )
 }
 
+provision_evidence_key() {
+  local provision_sha="$1"
+  local provision_key="$2"
+  local current_release_sha remote_main_sha key_directory
+  [[ "${provision_sha}" =~ ^[0-9a-f]{40}$ ]] || fail "provisioning release SHA is invalid"
+  [[ "${provision_key}" =~ ^[0-9a-f]{64}$ ]] || fail "deployment evidence key is invalid"
+  command -v flock >/dev/null || fail "flock is required"
+  exec 9>"${LOCK_FILE}"
+  flock -n 9 || fail "another production deployment is already running"
+  current_release_sha="$(tr -d '\r\n' < "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)"
+  [[ "${current_release_sha}" == "${provision_sha}" ]] || \
+    fail "evidence key provisioning is not bound to the live release"
+  if [[ "${PATHLAB_DEPLOY_RELEASE_LIBRARY_ONLY:-}" == 1 && \
+    -n "${PATHLAB_DEPLOY_TEST_REMOTE_MAIN_SHA:-}" ]]; then
+    remote_main_sha="${PATHLAB_DEPLOY_TEST_REMOTE_MAIN_SHA}"
+  else
+    remote_main_sha="$(git ls-remote "${REPOSITORY_URL}" refs/heads/main | awk '{print $1}')"
+  fi
+  [[ "${remote_main_sha}" == "${provision_sha}" ]] || \
+    fail "evidence key provisioning is not bound to current main"
+  key_directory="$(dirname "${EVIDENCE_KEY_PATH}")"
+  install -d -m 755 "${key_directory}"
+  if [[ -e "${EVIDENCE_KEY_PATH}" ]]; then
+    [[ ! -L "${EVIDENCE_KEY_PATH}" && -f "${EVIDENCE_KEY_PATH}" ]] || \
+      fail "existing deployment evidence key is not a regular file"
+    [[ "$(cat "${EVIDENCE_KEY_PATH}")" == "${provision_key}" ]] || \
+      fail "a different deployment evidence key is already provisioned"
+    if [[ "${EUID}" -eq 0 ]]; then
+      chown root:root "${EVIDENCE_KEY_PATH}"
+    fi
+    chmod 600 "${EVIDENCE_KEY_PATH}"
+    echo "Deployment evidence key provisioned for ${provision_sha}"
+    return 0
+  fi
+  TEMP_KEY="$(mktemp "${key_directory}/.deploy-evidence.key.XXXXXX")"
+  trap cleanup_exit EXIT
+  printf '%s' "${provision_key}" > "${TEMP_KEY}"
+  chmod 600 "${TEMP_KEY}"
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown root:root "${TEMP_KEY}"
+  fi
+  python3 - "${TEMP_KEY}" <<'PY'
+import os
+import pathlib
+import sys
+
+with pathlib.Path(sys.argv[1]).open("rb") as handle:
+    os.fsync(handle.fileno())
+PY
+  mv -f -- "${TEMP_KEY}" "${EVIDENCE_KEY_PATH}"
+  TEMP_KEY=""
+  chmod 600 "${EVIDENCE_KEY_PATH}"
+  python3 - "${key_directory}" <<'PY'
+import os
+import sys
+
+descriptor = os.open(sys.argv[1], os.O_RDONLY | os.O_DIRECTORY)
+try:
+    os.fsync(descriptor)
+finally:
+    os.close(descriptor)
+PY
+  echo "Deployment evidence key provisioned for ${provision_sha}"
+}
+
 if [[ "${PATHLAB_DEPLOY_RELEASE_LIBRARY_ONLY:-}" == 1 ]]; then
   return 0 2>/dev/null || exit 0
 fi
 
 [[ "${EUID}" -eq 0 ]] || fail "this script must run as root"
+if [[ "${REQUEST}" =~ ^provision-evidence-key[[:space:]]sha=([0-9a-f]{40})$ ]]; then
+  PROVISION_SHA="${BASH_REMATCH[1]}"
+  IFS= read -r PROVISION_KEY || fail "deployment evidence key was not provided on standard input"
+  [[ "${PROVISION_KEY}" =~ ^[0-9a-f]{64}$ ]] || fail "deployment evidence key is invalid"
+  if IFS= read -r _EXTRA_PROVISION_INPUT; then
+    fail "unexpected additional evidence key input"
+  fi
+  CURRENT_RELEASE_SHA="$(tr -d '\r\n' < "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)"
+  [[ "${CURRENT_RELEASE_SHA}" == "${PROVISION_SHA}" ]] || \
+    fail "evidence key provisioning is not bound to the live release"
+  provision_evidence_key "${PROVISION_SHA}" "${PROVISION_KEY}"
+  exit 0
+fi
 if [[ "${REQUEST}" =~ ^observe-load[[:space:]]([0-9]{2,5})([[:space:]]start=([0-9]{10}))?$ ]]; then
   OBSERVE_DURATION="${BASH_REMATCH[1]}"
   OBSERVE_START="${BASH_REMATCH[3]:-}"
@@ -124,7 +208,7 @@ if [[ "${REQUEST}" == capacity-arm\ * || "${REQUEST}" == capacity-status\ * \
 fi
 
 [[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})([[:space:]]classroom=(true|false))?$ ]] || \
-  fail "expected an authenticated deploy, observe-load, or capacity control request"
+  fail "expected an authenticated deploy, one-time evidence-key provision, observe-load, or capacity control request"
 TARGET_SHA="${BASH_REMATCH[1]}"
 EVIDENCE_B64="${BASH_REMATCH[2]}"
 EVIDENCE_SIGNATURE="${BASH_REMATCH[3]}"
