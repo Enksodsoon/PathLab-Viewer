@@ -18,3 +18,15 @@ def test_production_ci_gate_keeps_the_jq_filter_on_one_quoted_line() -> None:
 
     assert f"'{jq_filter}'" in workflow
     assert f"'{jq_filter} \\" not in workflow
+
+
+def test_production_workflow_rejects_missing_evidence_configuration_early() -> None:
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
+
+    validation = workflow.index("Validate production deployment configuration")
+    install_oci = workflow.index("Install OCI CLI")
+    assert validation < install_oci
+    assert '[[ "${#DEPLOY_EVIDENCE_KEY}" -ge 32 ]]' in workflow
+    assert '[[ "${PROJECTED_EGRESS_BYTES}" =~ ^[0-9]+$ ]]' in workflow
+    assert "PATHLAB_DEPLOY_EVIDENCE_KEY is missing or too short" in workflow
+    assert "OCI_PROJECTED_MONTHLY_EGRESS_BYTES must be an integer" in workflow

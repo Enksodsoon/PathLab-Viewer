@@ -44,6 +44,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Validate production deployment configuration
+        env:
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+          PROJECTED_EGRESS_BYTES: ${{ vars.OCI_PROJECTED_MONTHLY_EGRESS_BYTES }}
+        run: |
+          [[ "${#DEPLOY_EVIDENCE_KEY}" -ge 32 ]] || {
+            echo "PATHLAB_DEPLOY_EVIDENCE_KEY is missing or too short in the production environment." >&2
+            exit 1
+          }
+          [[ "${PROJECTED_EGRESS_BYTES}" =~ ^[0-9]+$ ]] || {
+            echo "OCI_PROJECTED_MONTHLY_EGRESS_BYTES must be an integer in the production environment." >&2
+            exit 1
+          }
+          [[ "${PROJECTED_EGRESS_BYTES}" -lt 9000000000000 ]] || {
+            echo "OCI_PROJECTED_MONTHLY_EGRESS_BYTES must remain below the 9 TB guard." >&2
+            exit 1
+          }
+
       - name: Require successful CI checks
         env:
           GH_TOKEN: ${{ github.token }}

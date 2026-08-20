@@ -518,6 +518,102 @@ def test_release_flow_installs_watchdog_and_runs_guards() -> None:
     assert ".State.Health.Status" in release
 
 
+def test_release_flow_has_exact_release_bound_one_time_evidence_key_provisioning() -> None:
+    release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "provision-evidence-key" in release
+    assert "sha=([0-9a-f]{40})" in release
+    assert "IFS= read -r PROVISION_KEY" in release
+    assert '[[ "${PROVISION_KEY}" =~ ^[0-9a-f]{64}$ ]]' in release
+    assert '[[ "${current_release_sha}" == "${provision_sha}" ]]' in release
+    assert '[[ "${remote_main_sha}" == "${provision_sha}" ]]' in release
+    assert 'install -d -m 755 "${key_directory}"' in release
+    assert 'chmod 600 "${EVIDENCE_KEY_PATH}"' in release
+    assert 'mv -f -- "${TEMP_KEY}" "${EVIDENCE_KEY_PATH}"' in release
+    assert "Deployment evidence key provisioned" in release
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_evidence_key_provisioning_is_atomic_idempotent_and_release_bound(
+    tmp_path: Path,
+) -> None:
+    release_dir = tmp_path / "live"
+    release_dir.mkdir()
+    sha = "a" * 40
+    (release_dir / ".pathlab-release").write_text(f"{sha}\n", encoding="utf-8")
+    key_path = tmp_path / "etc" / "deploy-evidence.key"
+    lock_path = tmp_path / "deploy.lock"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_flock = fake_bin / "flock"
+    fake_flock.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    fake_flock.chmod(0o755)
+    fake_python = fake_bin / "python3"
+    fake_python.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    fake_python.chmod(0o755)
+    script = ROOT / "deploy" / "scripts" / "deploy-release.sh"
+    first_key = "b" * 64
+    second_key = "c" * 64
+
+    common = f"""
+export PATHLAB_DEPLOY_RELEASE_LIBRARY_ONLY=1
+export PATHLAB_DEPLOY_TEST_REMOTE_MAIN_SHA={sha}
+export PATH='{_bash_path(fake_bin)}':$PATH
+source '{_bash_path(script)}'
+LIVE_DIR='{_bash_path(release_dir)}'
+LOCK_FILE='{_bash_path(lock_path)}'
+EVIDENCE_KEY_PATH='{_bash_path(key_path)}'
+"""
+    success = subprocess.run(
+        [
+            str(BASH),
+            "-lc",
+            common
+            + f"provision_evidence_key {sha} {first_key}\n"
+            + f"provision_evidence_key {sha} {first_key}\n",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert success.returncode == 0, success.stderr
+    assert key_path.read_text(encoding="utf-8") == first_key
+    if os.name != "nt":
+        assert key_path.stat().st_mode & 0o777 == 0o600
+
+    conflict = subprocess.run(
+        [str(BASH), "-lc", common + f"provision_evidence_key {sha} {second_key}\n"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert conflict.returncode != 0
+    assert "different deployment evidence key" in conflict.stderr
+    assert key_path.read_text(encoding="utf-8") == first_key
+
+    wrong_release = tmp_path / "wrong-live"
+    wrong_release.mkdir()
+    (wrong_release / ".pathlab-release").write_text(f"{'d' * 40}\n", encoding="utf-8")
+    wrong_key_path = tmp_path / "wrong-etc" / "deploy-evidence.key"
+    mismatch_script = common.replace(
+        f"LIVE_DIR='{_bash_path(release_dir)}'", f"LIVE_DIR='{_bash_path(wrong_release)}'"
+    ).replace(
+        f"EVIDENCE_KEY_PATH='{_bash_path(key_path)}'",
+        f"EVIDENCE_KEY_PATH='{_bash_path(wrong_key_path)}'",
+    )
+    mismatch = subprocess.run(
+        [str(BASH), "-lc", mismatch_script + f"provision_evidence_key {sha} {first_key}\n"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert mismatch.returncode != 0
+    assert "not bound to the live release" in mismatch.stderr
+    assert not wrong_key_path.exists()
+
+
 def test_deploy_workflow_produces_and_transports_authenticated_evidence() -> None:
     workflow = (ROOT / ".github" / "workflows" / "deploy-production.yml").read_text(
         encoding="utf-8"
@@ -529,6 +625,9 @@ def test_deploy_workflow_produces_and_transports_authenticated_evidence() -> Non
     assert "PATHLAB_DEPLOY_EVIDENCE_KEY" in workflow
     assert "evidence=${EVIDENCE_B64}" in bastion
     assert "signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE}" in bastion
+    assert 'REMOTE_REQUEST="provision-evidence-key sha=${TARGET_SHA}"' in bastion
+    assert "printf '%s\\n' \"${PATHLAB_DEPLOY_EVIDENCE_KEY}\" | bash -c" in bastion
+    assert "provision-evidence-key sha=${TARGET_SHA} key=" not in bastion
     assert 'length(data[?"lifecycle-state" == `ACTIVE`])' in bastion
     assert workflow.index("Remove temporary cloud credentials") < workflow.index(
         "Record deployment result"
