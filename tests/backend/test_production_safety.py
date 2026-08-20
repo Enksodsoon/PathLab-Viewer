@@ -536,6 +536,21 @@ def test_release_flow_uses_candidate_backup_format_against_live_compose() -> Non
     assert "bash scripts/backup.sh" not in backup_block
 
 
+def test_release_flow_atomically_refreshes_forced_command_after_health() -> None:
+    release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
+        encoding="utf-8"
+    )
+
+    install_call = 'install_stable_dispatcher "${LIVE_DIR}/deploy/scripts/deploy-release.sh"'
+    assert 'STABLE_DISPATCHER="/usr/local/sbin/pathlab-viewer-deploy"' in release
+    assert "mktemp \"${dispatcher_directory}/.pathlab-viewer-deploy.XXXXXX\"" in release
+    assert 'mv -f -- "${TEMP_DISPATCHER}" "${STABLE_DISPATCHER}"' in release
+    assert "os.fsync" in release
+    assert release.index('[[ "$(cat "${LIVE_DIR}/.pathlab-release")"') < release.index(
+        install_call
+    )
+
+
 def test_release_flow_has_exact_release_bound_one_time_evidence_key_provisioning() -> None:
     release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
         encoding="utf-8"
