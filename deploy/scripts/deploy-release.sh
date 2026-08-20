@@ -312,7 +312,8 @@ deployment_check "${STAGE_DIR}" || fail "worker job did not stop cleanly"
 
 BACKUP_PATH="$(
   cd "${LIVE_DIR}/deploy"
-  PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" bash scripts/backup.sh
+  PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
+    bash "${STAGE_DIR}/deploy/scripts/backup.sh"
 )" || fail "production backup failed"
 PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
   PATHLAB_RESTORE_DRILL_DIR="${RESTORE_DRILL_DIR}" \
