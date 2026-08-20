@@ -17,6 +17,8 @@ EVIDENCE_SIGNATURE=""
 EVIDENCE_NONCE=""
 EVIDENCE_KEY_PATH="/etc/pathlab-viewer/deploy-evidence.key"
 TEMP_KEY=""
+STABLE_DISPATCHER="/usr/local/sbin/pathlab-viewer-deploy"
+TEMP_DISPATCHER=""
 
 fail() {
   echo "Deployment failed: $*" >&2
@@ -92,6 +94,80 @@ cleanup_exit() {
     "${TEMP_KEY}" == "$(dirname "${EVIDENCE_KEY_PATH}")"/.deploy-evidence.key.* ]]; then
     rm -f -- "${TEMP_KEY}"
   fi
+  if [[ -n "${TEMP_DISPATCHER}" && \
+    "${TEMP_DISPATCHER}" == "$(dirname "${STABLE_DISPATCHER}")"/.pathlab-viewer-deploy.* ]]; then
+    rm -f -- "${TEMP_DISPATCHER}"
+  fi
+}
+
+fsync_file() {
+  python3 - "$1" <<'PY'
+import os
+import pathlib
+import sys
+
+with pathlib.Path(sys.argv[1]).open("rb") as handle:
+    os.fsync(handle.fileno())
+PY
+}
+
+fsync_directory() {
+  python3 - "$1" <<'PY'
+import os
+import sys
+
+descriptor = os.open(sys.argv[1], os.O_RDONLY | os.O_DIRECTORY)
+try:
+    os.fsync(descriptor)
+finally:
+    os.close(descriptor)
+PY
+}
+
+install_stable_dispatcher() {
+  local source="$1"
+  local dispatcher_directory backup_dispatcher had_existing=0
+  [[ -f "${source}" && ! -L "${source}" ]] || return 1
+  dispatcher_directory="$(dirname "${STABLE_DISPATCHER}")"
+  [[ -d "${dispatcher_directory}" ]] || return 1
+  TEMP_DISPATCHER="$(mktemp "${dispatcher_directory}/.pathlab-viewer-deploy.XXXXXX")"
+  backup_dispatcher="$(mktemp "${dispatcher_directory}/.pathlab-viewer-deploy.backup.XXXXXX")"
+  if [[ -e "${STABLE_DISPATCHER}" ]]; then
+    [[ -f "${STABLE_DISPATCHER}" && ! -L "${STABLE_DISPATCHER}" ]] || {
+      rm -f -- "${backup_dispatcher}"
+      return 1
+    }
+    install -o root -g root -m 755 "${STABLE_DISPATCHER}" "${backup_dispatcher}" || {
+      rm -f -- "${backup_dispatcher}"
+      return 1
+    }
+    had_existing=1
+  else
+    rm -f -- "${backup_dispatcher}"
+  fi
+  install -o root -g root -m 755 "${source}" "${TEMP_DISPATCHER}" || {
+    rm -f -- "${backup_dispatcher}"
+    return 1
+  }
+  fsync_file "${TEMP_DISPATCHER}" || {
+    rm -f -- "${backup_dispatcher}"
+    return 1
+  }
+  if ! mv -f -- "${TEMP_DISPATCHER}" "${STABLE_DISPATCHER}"; then
+    rm -f -- "${backup_dispatcher}"
+    return 1
+  fi
+  TEMP_DISPATCHER=""
+  if ! fsync_directory "${dispatcher_directory}"; then
+    if [[ "${had_existing}" -eq 1 ]]; then
+      mv -f -- "${backup_dispatcher}" "${STABLE_DISPATCHER}" || true
+    else
+      rm -f -- "${STABLE_DISPATCHER}"
+    fi
+    fsync_directory "${dispatcher_directory}" || true
+    return 1
+  fi
+  rm -f -- "${backup_dispatcher}"
 }
 
 deployment_check() {
@@ -359,6 +435,8 @@ for service in api classroom tile-service worker; do
 done
 [[ "$(cat "${LIVE_DIR}/.pathlab-release")" == "${TARGET_SHA}" ]] || \
   fail "live checkout does not match the requested commit"
+install_stable_dispatcher "${LIVE_DIR}/deploy/scripts/deploy-release.sh" || \
+  fail "stable forced-command dispatcher refresh failed"
 
 trap - ERR
 SWAPPED=0
