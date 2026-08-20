@@ -113,7 +113,7 @@ jobs:
           tenancy_id="$(awk -F= '/^tenancy=/{print $2; exit}' ~/.oci/config)"
           test -n "${tenancy_id}"
           usage_start="$(date -u +%Y-%m-01T00:00:00Z)"
-          usage_end="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          usage_end="$(date -u +%Y-%m-%dT00:00:00Z)"
           oci usage-api usage-summary request-summarized-usages \
             --tenant-id "${tenancy_id}" --granularity MONTHLY --query-type COST \
             --time-usage-started "${usage_start}" --time-usage-ended "${usage_end}" \

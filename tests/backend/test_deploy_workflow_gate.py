@@ -30,3 +30,11 @@ def test_production_workflow_rejects_missing_evidence_configuration_early() -> N
     assert '[[ "${PROJECTED_EGRESS_BYTES}" =~ ^[0-9]+$ ]]' in workflow
     assert "PATHLAB_DEPLOY_EVIDENCE_KEY is missing or too short" in workflow
     assert "OCI_PROJECTED_MONTHLY_EGRESS_BYTES must be an integer" in workflow
+
+
+def test_production_cost_query_uses_monthly_utc_day_boundaries() -> None:
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
+
+    assert 'usage_start="$(date -u +%Y-%m-01T00:00:00Z)"' in workflow
+    assert 'usage_end="$(date -u +%Y-%m-%dT00:00:00Z)"' in workflow
+    assert 'usage_end="$(date -u +%Y-%m-%dT%H:%M:%SZ)"' not in workflow
