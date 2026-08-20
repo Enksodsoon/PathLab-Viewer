@@ -158,6 +158,42 @@ def test_arm_persists_immutable_rollback_release_and_deadline(tmp_path: Path) ->
     assert persisted["rollbackNotAfter"] == rollback_deadline
 
 
+def test_arm_persists_and_enforces_the_explicit_three_hour_window(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    now = 1_800_000_000
+    monkeypatch.setattr(capacity_control.time, "time", lambda: now)
+    state = arm(
+        tmp_path,
+        "run-window",
+        SHA,
+        DIGEST,
+        NONCE,
+        now + 9_900,
+        rollback_sha="d" * 40,
+        rollback_not_after=now + 10_170,
+        window_start_epoch=now,
+        window_end_epoch=now + 10_800,
+    )
+
+    assert state["windowStartEpoch"] == now
+    assert state["windowEndEpoch"] == now + 10_800
+
+    with pytest.raises(CapacityControlError, match="exactly three hours"):
+        arm(
+            tmp_path / "other",
+            "run-invalid-window",
+            SHA,
+            DIGEST,
+            NONCE,
+            now + 9_900,
+            rollback_sha="d" * 40,
+            rollback_not_after=now + 10_170,
+            window_start_epoch=now,
+            window_end_epoch=now + 10_799,
+        )
+
+
 def test_fault_is_one_shot_and_only_consumed_inside_bound_recovery_window(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -337,7 +373,8 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     preflight = f"capacity-rollback-preflight rollback={'d' * 40}"
     arm_request = (
         f"capacity-arm {'a' * 40} run=run-1 digest={'b' * 64} "
-        f"rollback={'d' * 40} arm-not-after=1800000000 deadline=1800008000 "
+        f"rollback={'d' * 40} arm-not-after=1800000000 window-start=1799999760 "
+        "window-end=1800010560 deadline=1800008000 "
         "rollback-not-after=1800009000 fault-start=1800001000 "
         f"fault-end=1800002000 evidence=YQ signature={'c' * 64} nonce={'n' * 32}"
     )
@@ -617,7 +654,8 @@ log.open('a').write(' '.join(sys.argv[1:]) + '\\n')
 def test_host_rejects_expired_arm_before_reading_or_mutating_live_release() -> None:
     request = (
         f"capacity-arm {'a' * 40} run=run-1 digest={'b' * 64} "
-        f"rollback={'d' * 40} arm-not-after=1000000000 deadline=2000000000 "
+        f"rollback={'d' * 40} arm-not-after=1000000000 window-start=1000000000 "
+        "window-end=1000010800 deadline=2000000000 "
         "rollback-not-after=2000000300 fault-start=1900000000 "
         f"fault-end=1900000100 evidence=YQ signature={'c' * 64} nonce={'n' * 32}"
     )

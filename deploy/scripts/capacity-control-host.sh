@@ -41,12 +41,13 @@ path.chmod(0o600)
 PY
 }
 
-if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})[[:space:]]rollback=([0-9a-f]{40})[[:space:]]arm-not-after=([0-9]{10})[[:space:]]deadline=([0-9]{10})[[:space:]]rollback-not-after=([0-9]{10})[[:space:]]fault-start=([0-9]{10})[[:space:]]fault-end=([0-9]{10})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})$ ]]; then
+if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})[[:space:]]rollback=([0-9a-f]{40})[[:space:]]arm-not-after=([0-9]{10})[[:space:]]window-start=([0-9]{10})[[:space:]]window-end=([0-9]{10})[[:space:]]deadline=([0-9]{10})[[:space:]]rollback-not-after=([0-9]{10})[[:space:]]fault-start=([0-9]{10})[[:space:]]fault-end=([0-9]{10})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})$ ]]; then
   SHA="${BASH_REMATCH[1]}"; RUN_ID="${BASH_REMATCH[2]}"; DIGEST="${BASH_REMATCH[3]}"
   ROLLBACK_SHA="${BASH_REMATCH[4]}"; ARM_NOT_AFTER="${BASH_REMATCH[5]}"
-  DEADLINE="${BASH_REMATCH[6]}"; ROLLBACK_NOT_AFTER="${BASH_REMATCH[7]}"
-  FAULT_START="${BASH_REMATCH[8]}"; FAULT_END="${BASH_REMATCH[9]}"
-  EVIDENCE_B64="${BASH_REMATCH[10]}"; SIGNATURE="${BASH_REMATCH[11]}"; NONCE="${BASH_REMATCH[12]}"
+  WINDOW_START="${BASH_REMATCH[6]}"; WINDOW_END="${BASH_REMATCH[7]}"
+  DEADLINE="${BASH_REMATCH[8]}"; ROLLBACK_NOT_AFTER="${BASH_REMATCH[9]}"
+  FAULT_START="${BASH_REMATCH[10]}"; FAULT_END="${BASH_REMATCH[11]}"
+  EVIDENCE_B64="${BASH_REMATCH[12]}"; SIGNATURE="${BASH_REMATCH[13]}"; NONCE="${BASH_REMATCH[14]}"
   (( $(date +%s) <= ARM_NOT_AFTER )) || fail "arm authorization expired before host mutation"
   (( DEADLINE < ROLLBACK_NOT_AFTER )) || fail "rollback deadline must follow the control deadline"
   [[ "${ROLLBACK_SHA}" != "${SHA}" ]] || fail "rollback release must differ from the candidate"
@@ -84,6 +85,7 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
     --run-id "${RUN_ID}" --workflow-sha "${SHA}" --plan-digest "${DIGEST}" \
     --nonce "${NONCE}" --deadline-epoch "${DEADLINE}" \
     --rollback-sha "${ROLLBACK_SHA}" --rollback-not-after "${ROLLBACK_NOT_AFTER}" \
+    --window-start-epoch "${WINDOW_START}" --window-end-epoch "${WINDOW_END}" \
     --fault-start-epoch "${FAULT_START}" --fault-end-epoch "${FAULT_END}"
   ARMED=true
   RUNTIME_SECONDS="$((DEADLINE - $(date +%s)))"

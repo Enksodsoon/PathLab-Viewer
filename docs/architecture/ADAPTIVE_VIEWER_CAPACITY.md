@@ -67,8 +67,10 @@ The preferred production procedure is the manually approved **Capacity
 certification** GitHub Actions workflow. It is serialized with production
 deployments, accepts only the exact current `main` commit after CI and security
 checks succeed, and runs from a GitHub-hosted runner rather than the OCI host.
-It requires the literal confirmation `CERTIFY_PRODUCTION_300` and approval of
-the protected `production` environment.
+It requires the literal confirmation `CERTIFY_PRODUCTION_MAX_STRESS`, an
+explicit three-hour ICT window start, and approval of the protected
+`production` environment. The entered time may be changed per manual run;
+deadlines remain fixed to that signed window and cannot drift later.
 
 The protected environment supplies:
 

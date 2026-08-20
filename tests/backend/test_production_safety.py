@@ -186,6 +186,8 @@ def _capacity_evidence(strict_1200: bool, strict_1500: bool) -> dict[str, Any]:
         "nonce": "capacity-nonce",
         "startedAt": 1_786_649_400,
         "completedAt": 1_786_653_600,
+        "authorizedWindowStart": 1_786_647_600,
+        "authorizedWindowEnd": 1_786_658_400,
         "withinAuthorizedIctWindow": True,
         "allPreflightGatesPassed": True,
         "fixtureCleanupSucceeded": True,
@@ -340,6 +342,10 @@ def test_watchdog_timer_and_installer_contract() -> None:
     assert "trap 'exit 143' TERM" in override
     assert "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000" in override
     assert 'RESTORE_LIMIT="300"' in override
+    assert "PATHLAB_CAPACITY_WINDOW_START_EPOCH" in override
+    assert "PATHLAB_CAPACITY_WINDOW_END_EPOCH" in override
+    assert "WINDOW_END_EPOCH - WINDOW_START_EPOCH" in override
+    assert "today 05:00:00" not in override
     assert override.index('"$@"') < override.index('FINAL_LIMIT="$("${PYTHON_BIN}"')
 
 
@@ -485,7 +491,7 @@ def test_final_capacity_rejects_completion_after_authorized_window() -> None:
     evidence = _capacity_evidence(True, True)
     evidence["startedAt"] = 1_786_658_340  # 04:59 ICT
     evidence["completedAt"] = 1_786_662_540
-    with pytest.raises(safety.GuardFailure, match="02:00-05:00"):
+    with pytest.raises(safety.GuardFailure, match="authorized capacity window"):
         safety.select_final_capacity(
             evidence,
             expected_sha="d" * 40,
@@ -493,6 +499,23 @@ def test_final_capacity_rejects_completion_after_authorized_window() -> None:
             expected_nonce="capacity-nonce",
             not_before=1_786_658_340,
         )
+
+
+def test_final_capacity_accepts_a_signed_custom_three_hour_window() -> None:
+    safety = _load_script("production_safety")
+    evidence = _capacity_evidence(True, True)
+    evidence["authorizedWindowStart"] = 1_786_676_400  # 10:00 ICT
+    evidence["authorizedWindowEnd"] = 1_786_687_200  # 13:00 ICT
+    evidence["startedAt"] = 1_786_678_200
+    evidence["completedAt"] = 1_786_682_400
+
+    assert safety.select_final_capacity(
+        evidence,
+        expected_sha="d" * 40,
+        expected_run_id="run-456",
+        expected_nonce="capacity-nonce",
+        not_before=1_786_676_400,
+    ) == 1500
 
 
 def test_release_flow_installs_watchdog_and_runs_guards() -> None:
@@ -1028,7 +1051,7 @@ def test_capacity_shell_refuses_0459_before_raising_limit(tmp_path: Path) -> Non
         check=False,
     )
     assert result.returncode == 2
-    assert "two hours before the 05:00 ICT hard stop" in result.stderr
+    assert "two hours before the authorized hard stop" in result.stderr
     assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
     assert not marker.exists()
 

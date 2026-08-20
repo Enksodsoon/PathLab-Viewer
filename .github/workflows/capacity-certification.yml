@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: Type CERTIFY_PRODUCTION_1200 to run the protected production certification
+        description: Type CERTIFY_PRODUCTION_MAX_STRESS to run the full guarded 2,000-seat certification
+        required: true
+        type: string
+      window_start_ict:
+        description: Protected 3-hour window start as YYYY-MM-DDTHH:MM:00+07:00; dispatch 5-20 minutes beforehand
         required: true
         type: string
 
@@ -21,7 +25,7 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main'
       && github.event.repository.visibility == 'public'
-      && inputs.confirmation == 'CERTIFY_PRODUCTION_1200'
+      && inputs.confirmation == 'CERTIFY_PRODUCTION_MAX_STRESS'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
@@ -60,17 +64,26 @@ jobs:
           test -n "${browser_id}"
           echo "browser-ci-run-id=${browser_id}" >> "${GITHUB_OUTPUT}"
       - name: Build immutable synchronized plan
+        env:
+          WINDOW_START_ICT: ${{ inputs.window_start_ict }}
         run: |
           set -euo pipefail
-          # Admission is fixed at 02:09 ICT. Preflight is deliberately
-          # non-mutating and only accepts dispatches with time to finish before arm.
-          local_stamp="$(TZ=Asia/Bangkok date +%H%M)"
-          (( 10#${local_stamp} >= 130 && 10#${local_stamp} <= 145 ))
-          start_epoch_ms="$(( $(TZ=Asia/Bangkok date -d 'today 02:09' +%s) * 1000 ))"
+          window_start_raw="${WINDOW_START_ICT}"
+          [[ "${window_start_raw}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:00\+07:00$ ]]
+          window_start_epoch="$(date -d "${window_start_raw}" +%s)"
+          now_epoch="$(date +%s)"
+          lead_seconds="$((window_start_epoch - now_epoch))"
+          (( lead_seconds >= 300 && lead_seconds <= 1200 )) || {
+            echo "Custom protected window must start 5-20 minutes after dispatch." >&2
+            exit 1
+          }
+          window_start_epoch_ms="$((window_start_epoch * 1000))"
+          start_epoch_ms="$(((window_start_epoch + 9 * 60) * 1000))"
           python tests/load/distributed_certification.py plan \
             --run-id "${GITHUB_RUN_ID}" \
             --workflow-sha "${GITHUB_SHA}" \
             --browser-ci-run-id "${{ steps.release.outputs.browser-ci-run-id }}" \
+            --window-start-epoch-ms "${window_start_epoch_ms}" \
             --start-epoch-ms "${start_epoch_ms}" \
             --output "${RUNNER_TEMP}/capacity-plan.json"
           jq -n --arg runId "${GITHUB_RUN_ID}" --arg workflowSha "${GITHUB_SHA}" \
@@ -191,7 +204,7 @@ jobs:
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
-      - name: Arm at deterministic 02:00 ICT
+      - name: Arm at the explicitly authorized custom ICT window
         env:
           GH_TOKEN: ${{ github.token }}
           DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
@@ -235,7 +248,9 @@ jobs:
           fault_end="$(jq -r '.stages[] | select(.name == "recovery-1200") | .holdEndEpochMs / 1000 | floor' "${RUNNER_TEMP}/evidence/capacity-plan.json")"
           evidence_b64="$(base64 -w 0 "${evidence_file}" | tr '+/' '-_' | tr -d '=')"
           arm_not_after="$(jq -er .armNotAfterEpoch <<< "${window}")"
-          request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} rollback=${OCI_ROLLBACK_RELEASE_SHA} arm-not-after=${arm_not_after} deadline=${deadline} rollback-not-after=${rollback_not_after} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
+          window_start="$(jq -er .mutationStartEpoch <<< "${window}")"
+          window_end="$(jq -er .windowEndEpoch <<< "${window}")"
+          request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} rollback=${OCI_ROLLBACK_RELEASE_SHA} arm-not-after=${arm_not_after} window-start=${window_start} window-end=${window_end} deadline=${deadline} rollback-not-after=${rollback_not_after} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
           arm_remaining="$(python deploy/scripts/capacity_window.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase arm)"
           combined_status="$(timeout --signal=TERM --kill-after=10s "${arm_remaining}s" \

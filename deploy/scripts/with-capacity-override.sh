@@ -40,52 +40,50 @@ fi
   "${PATHLAB_CAPACITY_CANDIDATE_SHA}" \
   --signature "${PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE}" \
   --nonce "${PATHLAB_CAPACITY_NONCE}"
-if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
-  ICT_HOUR="${PATHLAB_CAPACITY_TEST_ICT_HOUR:-}"
-  ICT_SECONDS_SINCE_MIDNIGHT="${PATHLAB_CAPACITY_TEST_ICT_SECONDS:-}"
-else
-  ICT_HOUR="$(TZ=Asia/Bangkok date +%H)"
-  ICT_TIME="$(TZ=Asia/Bangkok date +%H:%M:%S)"
-  IFS=: read -r ict_hour ict_minute ict_second <<< "${ICT_TIME}"
-  ICT_SECONDS_SINCE_MIDNIGHT="$((10#${ict_hour} * 3600 + 10#${ict_minute} * 60 + 10#${ict_second}))"
-fi
-[[ "${ICT_HOUR}" =~ ^0[234]$ ]] || {
-  echo "Capacity override is restricted to 02:00-05:00 ICT" >&2
-  exit 2
-}
-if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" && -z "${ICT_SECONDS_SINCE_MIDNIGHT}" ]]; then
-  ICT_SECONDS_SINCE_MIDNIGHT="$((10#${ICT_HOUR} * 3600))"
-fi
-[[ "${ICT_SECONDS_SINCE_MIDNIGHT}" =~ ^[0-9]+$ ]] || {
-  echo "Capacity override could not determine the ICT runtime window" >&2
-  exit 2
-}
-SECONDS_UNTIL_WINDOW_END="$((5 * 3600 - ICT_SECONDS_SINCE_MIDNIGHT))"
+NOW_EPOCH="$(date +%s)"
 if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
   REQUIRED_RUNTIME_SECONDS="${PATHLAB_CAPACITY_TEST_REQUIRED_RUNTIME_SECONDS:-7200}"
   KILL_AFTER_SECONDS="${PATHLAB_CAPACITY_TEST_KILL_AFTER_SECONDS:-5}"
   DEADLINE_SAFETY_SECONDS="${PATHLAB_CAPACITY_TEST_DEADLINE_SAFETY_SECONDS:-1}"
-  TEST_LAUNCH_REMAINING="${PATHLAB_CAPACITY_TEST_LAUNCH_SECONDS_UNTIL_END:-${SECONDS_UNTIL_WINDOW_END}}"
+  DEFAULT_TEST_REMAINING=10800
+  if [[ "${PATHLAB_CAPACITY_TEST_ICT_SECONDS:-}" =~ ^[0-9]+$ ]]; then
+    DEFAULT_TEST_REMAINING="$((5 * 3600 - PATHLAB_CAPACITY_TEST_ICT_SECONDS))"
+  fi
+  TEST_LAUNCH_REMAINING="${PATHLAB_CAPACITY_TEST_LAUNCH_SECONDS_UNTIL_END:-${DEFAULT_TEST_REMAINING}}"
   [[ "${TEST_LAUNCH_REMAINING}" =~ ^[1-9][0-9]*$ ]] || {
     echo "Capacity test deadline is invalid" >&2
     exit 2
   }
   WINDOW_END_EPOCH="$(($(date +%s) + TEST_LAUNCH_REMAINING))"
+  WINDOW_START_EPOCH="${PATHLAB_CAPACITY_WINDOW_START_EPOCH:-${NOW_EPOCH}}"
 else
+  : "${PATHLAB_CAPACITY_WINDOW_START_EPOCH:?authorized capacity window start is required}"
+  : "${PATHLAB_CAPACITY_WINDOW_END_EPOCH:?authorized capacity window end is required}"
   REQUIRED_RUNTIME_SECONDS=7200
   KILL_AFTER_SECONDS=30
   DEADLINE_SAFETY_SECONDS=5
-  WINDOW_END_EPOCH="$(TZ=Asia/Bangkok date -d 'today 05:00:00' +%s)"
+  WINDOW_START_EPOCH="${PATHLAB_CAPACITY_WINDOW_START_EPOCH}"
+  WINDOW_END_EPOCH="${PATHLAB_CAPACITY_WINDOW_END_EPOCH}"
 fi
 [[ "${REQUIRED_RUNTIME_SECONDS}" =~ ^[1-9][0-9]*$ && \
   "${KILL_AFTER_SECONDS}" =~ ^[1-9][0-9]*$ && \
   "${DEADLINE_SAFETY_SECONDS}" =~ ^[1-9][0-9]*$ && \
+  "${WINDOW_START_EPOCH}" =~ ^[1-9][0-9]*$ && \
   "${WINDOW_END_EPOCH}" =~ ^[1-9][0-9]*$ ]] || {
   echo "Capacity runtime deadline is invalid" >&2
   exit 2
 }
+if [[ -z "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
+  [[ "$((WINDOW_END_EPOCH - WINDOW_START_EPOCH))" -eq 10800 && \
+    "${NOW_EPOCH}" -ge "${WINDOW_START_EPOCH}" && \
+    "${NOW_EPOCH}" -le "$((WINDOW_START_EPOCH + 300))" ]] || {
+    echo "Capacity override is outside its explicit three-hour authorized window" >&2
+    exit 2
+  }
+fi
+SECONDS_UNTIL_WINDOW_END="$((WINDOW_END_EPOCH - NOW_EPOCH))"
 [[ "${SECONDS_UNTIL_WINDOW_END}" -ge "${REQUIRED_RUNTIME_SECONDS}" ]] || {
-  echo "Capacity override lacks two hours before the 05:00 ICT hard stop" >&2
+  echo "Capacity override lacks two hours before the authorized hard stop" >&2
   exit 2
 }
 

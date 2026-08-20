@@ -14,13 +14,14 @@ def _epoch(hour: int, minute: int, second: int = 0) -> int:
     return int(datetime(2026, 8, 15, hour, minute, second, tzinfo=ICT).timestamp())
 
 
-def _write_plan(path: Path) -> None:
+def _write_plan(path: Path, *, window_hour: int = 2) -> None:
     plan = build_plan(
         run_id="window-proof",
         workflow_sha="b" * 40,
         browser_ci_run_id=42,
-        start_epoch_ms=_epoch(2, 9) * 1000,
-        now_epoch_ms=_epoch(1, 30) * 1000,
+        start_epoch_ms=_epoch(window_hour, 9) * 1000,
+        window_start_epoch_ms=_epoch(window_hour, 0) * 1000,
+        now_epoch_ms=_epoch(window_hour - 1, 50) * 1000,
     )
     path.write_text(json.dumps(plan), encoding="utf-8")
 
@@ -62,6 +63,21 @@ def test_window_description_proves_every_phase_and_safety_margin(tmp_path: Path)
         "windowEndEpoch": _epoch(5, 0),
         "safetyMarginSeconds": 150,
     }
+
+
+def test_window_description_supports_an_explicit_custom_ict_window(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.json"
+    _write_plan(plan_path, window_hour=10)
+
+    completed = _run_window_tool(plan_path, "describe")
+
+    assert completed.returncode == 0, completed.stderr
+    value = json.loads(completed.stdout)
+    assert value["mutationStartEpoch"] == _epoch(10, 0)
+    assert value["admissionStartEpoch"] == _epoch(10, 9)
+    assert value["windowEndEpoch"] == _epoch(13, 0)
+    assert value["workflowCutoffEpoch"] == _epoch(12, 57, 30)
+    assert value["safetyMarginSeconds"] == 150
 
 
 def test_phase_remaining_fails_closed_before_and_after_its_window(tmp_path: Path) -> None:

@@ -58,6 +58,8 @@ def build(plan: dict[str, Any], sentinels: dict[str, Any] | None, *, nonce: str)
             "nonce": nonce,
             "startedAt": 0,
             "completedAt": 0,
+            "authorizedWindowStart": plan["windowStartEpochMs"] // 1_000,
+            "authorizedWindowEnd": plan["windowEndEpochMs"] // 1_000,
             "withinAuthorizedIctWindow": False,
             "allPreflightGatesPassed": False,
             "fixtureCleanupSucceeded": False,

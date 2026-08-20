@@ -9,7 +9,6 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from distributed_certification import validate_plan
 from validate_sentinel_evidence import validate as validate_sentinel_evidence
@@ -413,16 +412,15 @@ def build_decision(
         # substitute scheduled timestamps for missing observations.
         started = 0
         completed = 0
-    ict = ZoneInfo("Asia/Bangkok")
-    started_ict = datetime.fromtimestamp(started, ict)
-    completed_ict = datetime.fromtimestamp(completed, ict)
+    authorized_start_ms = plan.get("windowStartEpochMs")
+    authorized_end_ms = plan.get("windowEndEpochMs")
+    authorized_start = (
+        authorized_start_ms // 1_000 if isinstance(authorized_start_ms, int) else 0
+    )
+    authorized_end = authorized_end_ms // 1_000 if isinstance(authorized_end_ms, int) else 0
     within_window = (
-        plan.get("window") == "02:00-05:00 ICT"
-        and started > 0
-        and completed > 0
-        and started_ict.date() == completed_ict.date()
-        and 2 <= started_ict.hour < 5
-        and 2 <= completed_ict.hour < 5
+        authorized_end - authorized_start == 3 * 3600
+        and authorized_start <= started <= completed <= authorized_end
         and host_pass
     )
     digest = hashlib.sha256(
@@ -447,6 +445,8 @@ def build_decision(
             "nonce": nonce,
             "startedAt": started,
             "completedAt": completed,
+            "authorizedWindowStart": authorized_start,
+            "authorizedWindowEnd": authorized_end,
             "withinAuthorizedIctWindow": within_window,
             "allPreflightGatesPassed": host_pass and isinstance(plan.get("browserCiRunId"), int),
             "fixtureCleanupSucceeded": sentinels.get("cleanupSucceeded") is True,
