@@ -4,6 +4,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -12,6 +13,13 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Annotation, AnnotationLayer, AnnotationRevision, Slide
+
+BASH = Path(r"C:\Program Files\Git\bin\bash.exe")
+
+
+def _bash_path(path: Path) -> str:
+    resolved = path.resolve().as_posix()
+    return f"/{resolved[0].lower()}{resolved[2:]}"
 
 
 def _load_restore_drill():
@@ -28,7 +36,8 @@ def _write_backup_checksums(backup: Path) -> None:
     for relative in (Path("database/pathlab.sqlite3"), Path("files.tar.gz")):
         digest = hashlib.sha256((backup / relative).read_bytes()).hexdigest()
         entries.append(f"{digest}  {relative.as_posix()}")
-    (backup / "SHA256SUMS").write_text("\n".join(entries) + "\n", encoding="utf-8")
+    with (backup / "SHA256SUMS").open("w", encoding="utf-8", newline="\n") as manifest:
+        manifest.write("\n".join(entries) + "\n")
 
 
 @pytest.mark.skipif(shutil.which("tar") is None, reason="tar is unavailable")
@@ -115,6 +124,95 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     assert "cache/ome-tiles" not in backup
     assert "pathlab-tiles --purge-cache" in restore
     assert "docker compose stop caddy api classroom tile-service tusd worker" in restore
+    assert 'staged="${data_dir}.restore-staged-${timestamp}"' in restore
+    assert 'mv "$staged" "$data_dir"' in restore
+    assert 'mv "${recovery}/backups" "${data_dir}/backups"' in restore
+    assert "docker compose exec -T api" not in backup
+    assert "docker compose run --rm --no-deps --entrypoint python api" in backup
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_deploy_rollback_restores_verified_database_and_preserves_failed_revision(
+    tmp_path: Path,
+) -> None:
+    data = tmp_path / "data"
+    database_dir = data / "database"
+    backup = data / "backups" / "pathlab-test"
+    backup_database_dir = backup / "database"
+    database_dir.mkdir(parents=True)
+    backup_database_dir.mkdir(parents=True)
+
+    live_database = database_dir / "pathlab.sqlite3"
+    backup_database = backup_database_dir / "pathlab.sqlite3"
+    for path, revision in (
+        (live_database, "20260822_0022"),
+        (backup_database, "20260821_0021"),
+    ):
+        database = sqlite3.connect(path)
+        try:
+            database.execute("CREATE TABLE alembic_version (version_num TEXT NOT NULL)")
+            database.execute("INSERT INTO alembic_version VALUES (?)", (revision,))
+            database.commit()
+        finally:
+            database.close()
+    with tarfile.open(backup / "files.tar.gz", "w:gz"):
+        pass
+    _write_backup_checksums(backup)
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker_log = tmp_path / "docker.log"
+    for command in ("chown", "chmod", "sync"):
+        executable = fake_bin / command
+        executable.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        executable.chmod(0o755)
+    python3 = fake_bin / "python3"
+    python3.write_text(
+        "#!/usr/bin/env bash\n"
+        f"exec '{_bash_path(Path(sys.executable))}' \"$@\"\n",
+        encoding="utf-8",
+    )
+    python3.chmod(0o755)
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        f"printf '%s\\n' \"$*\" >> '{_bash_path(docker_log)}'\n",
+        encoding="utf-8",
+    )
+    docker.chmod(0o755)
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
+            "PATHLAB_DATA_DIR": _bash_path(data),
+            "PATHLAB_BACKUP_DIR": _bash_path(data / "backups"),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(BASH),
+            _bash_path(Path("deploy/scripts/restore-deploy-rollback-database.sh")),
+            _bash_path(backup),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    with sqlite3.connect(live_database) as database:
+        assert database.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            "20260821_0021",
+        )
+    preserved = list(database_dir.glob("pathlab.sqlite3.failed-deploy-*"))
+    assert len(preserved) == 1
+    with sqlite3.connect(preserved[0]) as database:
+        assert database.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            "20260822_0022",
+        )
+    assert docker_log.read_text(encoding="utf-8").strip() == (
+        "compose stop caddy api classroom tile-service tusd worker"
+    )
 
 
 def test_restore_drill_streams_backup_with_bounded_scratch(

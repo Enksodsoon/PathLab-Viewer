@@ -19,6 +19,9 @@ EVIDENCE_KEY_PATH="/etc/pathlab-viewer/deploy-evidence.key"
 TEMP_KEY=""
 STABLE_DISPATCHER="/usr/local/sbin/pathlab-viewer-deploy"
 TEMP_DISPATCHER=""
+BACKUP_PATH=""
+DATA_DIR=""
+BACKUP_DIR=""
 
 fail() {
   echo "Deployment failed: $*" >&2
@@ -57,14 +60,45 @@ restart_old_worker() {
   fi
 }
 
+restore_predeploy_database() {
+  [[ -n "${BACKUP_PATH}" && -d "${BACKUP_PATH}" ]] || {
+    echo "Deployment rollback blocked: verified pre-deployment backup is unavailable" >&2
+    return 1
+  }
+  [[ -n "${DATA_DIR}" && -n "${BACKUP_DIR}" ]] || {
+    echo "Deployment rollback blocked: data paths are unavailable" >&2
+    return 1
+  }
+  (
+    cd "${LIVE_DIR}/deploy"
+    PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
+      bash "${LIVE_DIR}/deploy/scripts/restore-deploy-rollback-database.sh" \
+        "${BACKUP_PATH}"
+  )
+}
+
 rollback_release() {
   set +e
   trap - ERR HUP INT TERM
-  echo "Health verification failed; restoring the previous release." >&2
+  echo "Health verification failed; restoring the pre-deployment database and previous release." >&2
   if [[ -d "${LIVE_DIR}" && -d "${ROLLBACK_DIR}" ]]; then
-    mv "${LIVE_DIR}" "${LIVE_DIR}.failed-$(date -u +%Y%m%dT%H%M%SZ)"
-    mv "${ROLLBACK_DIR}" "${LIVE_DIR}"
-    systemctl reload pathlab-viewer
+    if ! restore_predeploy_database; then
+      echo "Deployment rollback failed closed: candidate release retained for schema compatibility." >&2
+      systemctl restart pathlab-viewer || true
+      exit 1
+    fi
+    failed_release="${LIVE_DIR}.failed-$(date -u +%Y%m%dT%H%M%SZ)"
+    if ! mv "${LIVE_DIR}" "${failed_release}" || \
+      ! mv "${ROLLBACK_DIR}" "${LIVE_DIR}"; then
+      echo "Deployment rollback failed closed during release restoration." >&2
+      exit 1
+    fi
+    systemctl reset-failed pathlab-viewer
+    if systemctl is-active --quiet pathlab-viewer; then
+      systemctl reload pathlab-viewer
+    else
+      systemctl start pathlab-viewer
+    fi
     restore_watchdog
   fi
   OLD_WORKER_STOPPED=0
@@ -409,7 +443,7 @@ OLD_SERVICES_STOPPED=1
 deployment_check "${STAGE_DIR}" || fail "worker job did not stop cleanly"
 
 BACKUP_PATH="$(
-  cd "${LIVE_DIR}/deploy"
+  cd "${STAGE_DIR}/deploy"
   PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
     bash "${STAGE_DIR}/deploy/scripts/backup.sh"
 )" || fail "production backup failed"
