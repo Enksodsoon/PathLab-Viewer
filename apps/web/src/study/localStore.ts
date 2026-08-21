@@ -68,8 +68,7 @@ export async function appendLocalRecord(
   expiresAt: string | null,
 ): Promise<LocalStudyRecord[]> {
   const document = await loadLocalStudy(courseId)
-  const records = [...document.records.filter((item) => item.taskId !== record.taskId), record]
-    .slice(-MAX_RECORDS)
+  const records = [...document.records, record].slice(-MAX_RECORDS)
   await saveLocalStudy({ ...document, expiresAt, records })
   return records
 }
@@ -83,10 +82,8 @@ export async function clearLocalStudy(courseId?: string): Promise<void> {
 }
 
 export async function verifyCachePersistence(courseId: string): Promise<boolean> {
-  const marker: LocalDocument = {
-    courseId, records: [], outbox: [], expiresAt: null, revoked: false,
-  }
-  await saveLocalStudy(marker)
+  const existing = await loadLocalStudy(courseId)
+  await saveLocalStudy(existing)
   const loaded = await loadLocalStudy(courseId)
-  return loaded.courseId === courseId
+  return loaded.courseId === courseId && loaded.records.length === existing.records.length
 }

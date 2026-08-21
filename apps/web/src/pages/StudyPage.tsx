@@ -10,12 +10,13 @@ import { ThemeControl } from '../theme/ThemeControl'
 import {
   getStudySession,
   redeemStudyInvitation,
+  reportStudyAiEvent,
   reportStudyReadiness,
   submitStudyTask,
   withdrawStudy,
 } from '../study/api'
 import { studyActionCopy, studyReasonCopy, type StudyLocale } from '../study/copy'
-import { appendLocalRecord, clearLocalStudy, verifyCachePersistence } from '../study/localStore'
+import { appendLocalRecord, clearLocalStudy, loadLocalStudy, verifyCachePersistence } from '../study/localStore'
 import { inferTraceSim, prepareTraceSim, reasonForAction, resetTraceSim } from '../study/traceSim'
 import type { LocalStudyRecord, StudyAction, StudyReason, StudySession } from '../study/types'
 import './StudyPage.css'
@@ -49,7 +50,13 @@ export function StudyPage() {
   const [aiReady, setAiReady] = useState(false)
   const [aiAction, setAiAction] = useState<StudyAction | null>(null)
   const [aiReason, setAiReason] = useState<StudyReason | null>(null)
+  const [aiIntervened, setAiIntervened] = useState(false)
   const startedAt = useRef(Date.now())
+  const lastCompletedAt = useRef(0)
+  const navigation = useRef({
+    panDistance: 0, zoomReversals: 0, revisitCount: 0, zoomDirection: 0,
+    lastCenter: null as OpenSeadragon.Point | null, lastZoom: null as number | null, regions: new Set<string>(),
+  })
 
   const task = session?.pack.tasks[taskIndex]
   const slide = session?.pack.slides.find((item) => item.viewerSlideId === task?.slideId)
@@ -64,6 +71,9 @@ export function StudyPage() {
     ))
     setTaskIndex(firstOpen >= 0 ? firstOpen : 0)
     setError('')
+    void loadLocalStudy(next.course.id).then((stored) => {
+      lastCompletedAt.current = Math.max(0, ...stored.records.map((record) => record.completedAt))
+    })
   }, [])
 
   useEffect(() => {
@@ -94,7 +104,27 @@ export function StudyPage() {
       setLocation({ x: Math.max(0, Math.min(1, point.x / size.x)), y: Math.max(0, Math.min(1, point.y / size.y)) })
     }
     viewer.addHandler('canvas-click', selectPoint)
-    return () => viewer.removeHandler('canvas-click', selectPoint)
+    const observePan = () => {
+      const center = viewer.viewport.getCenter(true)
+      const previous = navigation.current.lastCenter
+      if (previous) navigation.current.panDistance = Math.min(1, navigation.current.panDistance + center.distanceTo(previous))
+      navigation.current.lastCenter = center
+      const region = `${Math.round(center.x * 8)}:${Math.round(center.y * 8)}`
+      if (navigation.current.regions.has(region)) navigation.current.revisitCount += 1
+      navigation.current.regions.add(region)
+    }
+    const observeZoom = () => {
+      const zoom = viewer.viewport.getZoom(true)
+      const previous = navigation.current.lastZoom
+      if (previous !== null) {
+        const direction = Math.sign(zoom - previous)
+        if (direction && navigation.current.zoomDirection && direction !== navigation.current.zoomDirection) navigation.current.zoomReversals += 1
+        if (direction) navigation.current.zoomDirection = direction
+      }
+      navigation.current.lastZoom = zoom
+    }
+    viewer.addHandler('pan', observePan); viewer.addHandler('zoom', observeZoom)
+    return () => { viewer.removeHandler('canvas-click', selectPoint); viewer.removeHandler('pan', observePan); viewer.removeHandler('zoom', observeZoom) }
   }, [])
 
   const enableAi = async () => {
@@ -117,21 +147,27 @@ export function StudyPage() {
       ? { selectedOption }
       : location ? { x: location.x, y: location.y } : null
     if (!answer) return
-    setBusy(true); setError(''); setFeedback(null); setAiAction(null); setAiReason(null)
+    setBusy(true); setError(''); setFeedback(null); setAiAction(null); setAiReason(null); setAiIntervened(false)
     try {
       const result = await submitStudyTask(task.id, answer)
       setFeedback(result)
       const activeMs = Math.max(0, Date.now() - startedAt.current)
+      const now = Date.now()
+      const gap = lastCompletedAt.current ? Math.min((now - lastCompletedAt.current) / 3_600_000, 1) : 0
+      const spatialMissing = result.spatialError === undefined ? 1 : 0
       const record: LocalStudyRecord = {
         taskId: task.id,
-        completedAt: Date.now(),
+        completedAt: now,
         completed: result.status === 'completed',
         features: [
           Number(result.correct), Math.min(activeMs / 60_000, 1), Number(hintCount > 0),
           confidence / 5, Number(sourceOpened), Math.min(activeMs / 60_000, 1),
-          0, 0, 0, 0, 0, 0,
+          gap, navigation.current.panDistance, Math.min(navigation.current.zoomReversals / 10, 1),
+          Math.min(navigation.current.revisitCount / 10, 1), result.spatialError ?? 0,
+          spatialMissing / 12,
         ],
       }
+      if (record.completed) lastCompletedAt.current = now
       const records = await appendLocalRecord(session.course.id, record, session.course.endsAt)
       const progress = session.progress.filter((item) => item.taskId !== task.id)
       progress.push({
@@ -142,15 +178,18 @@ export function StudyPage() {
       setSession({ ...session, progress })
       let action: StudyAction = result.correct ? 'continue' : 'offer_hint'
       let reason: StudyReason = result.correct ? 'CONTINUE_PRACTICE' : 'HINT_SUPPORT'
-      const distinctCompleted = records.filter((item) => item.completed).length
+      const distinctCompleted = new Set(records.filter((item) => item.completed).map((item) => item.taskId)).size
       if (aiOptIn && aiReady && distinctCompleted >= 5) {
         try {
-          action = (await inferTraceSim(records)).action
+          action = suppressAction((await inferTraceSim(records)).action, task, hintCount, session.pack.tasks.length)
           reason = reasonForAction(action, records)
+          setAiIntervened(true)
+          await reportStudyAiEvent(task.id, action).catch(() => undefined)
         } catch {
           setAiReady(false)
           action = result.correct ? 'continue' : 'offer_hint'
           reason = result.correct ? 'CONTINUE_PRACTICE' : 'HINT_SUPPORT'
+          await reportStudyAiEvent(task.id, 'fallback').catch(() => undefined)
         }
       }
       setAiAction(action); setAiReason(reason)
@@ -162,8 +201,9 @@ export function StudyPage() {
     if (!session) return
     setTaskIndex((current) => (current + 1) % session.pack.tasks.length)
     setSelectedOption(''); setLocation(null); setConfidence(3); setHintCount(0)
-    setSourceOpened(false); setFeedback(null); setAiAction(null); setAiReason(null); setError('')
+    setSourceOpened(false); setFeedback(null); setAiAction(null); setAiReason(null); setAiIntervened(false); setError('')
     startedAt.current = Date.now()
+    navigation.current = { panDistance: 0, zoomReversals: 0, revisitCount: 0, zoomDirection: 0, lastCenter: null, lastZoom: null, regions: new Set() }
   }
 
   const clearDevice = async () => {
@@ -211,7 +251,7 @@ export function StudyPage() {
     {session.course.status === 'preparation' ? <p className="study-preparation" role="status">This course is preparing. Slides and optional local AI can be checked, but answers open after activation.</p> : null}
     <div className="study-workspace">
       <section className="study-slide" aria-label="Teaching slide">
-        {slide ? <OpenSeadragonViewer tileSource={slide.tileSource} onReady={() => undefined} onViewerAttach={task?.type === 'spatial' ? attachSpatialSelection : undefined} /> : <p>Slide unavailable.</p>}
+        {slide ? <OpenSeadragonViewer tileSource={slide.tileSource} onReady={() => undefined} onViewerAttach={attachSpatialSelection} /> : <p>Slide unavailable.</p>}
         {task?.type === 'spatial' && location ? <p className="study-location" role="status">Region selected at {location.x.toFixed(3)}, {location.y.toFixed(3)}</p> : null}
       </section>
       <section className="study-task" aria-labelledby="study-task-title">
@@ -228,11 +268,11 @@ export function StudyPage() {
         {feedback ? <section className={`study-feedback ${feedback.correct ? 'correct' : 'incorrect'}`} aria-live="polite" aria-atomic="true">
           <h3>{feedback.correct ? 'Correct' : 'Review this task'}</h3><p>{feedback.explanation}</p>
           <ul>{feedback.sources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer" onClick={() => setSourceOpened(true)}>{source.title}</a></li>)}</ul>
-          {aiAction && aiReason ? <div className="study-prompt-reason"><Brain aria-hidden="true" /><div><strong>{studyActionCopy(locale, aiAction)}</strong><button type="button" className="study-why" aria-describedby="study-reason">Why this prompt?</button><p id="study-reason">{studyReasonCopy(locale, aiReason)}</p>{aiOptIn && aiReady ? <small>Experimental local AI trained on simulated learners.</small> : <small>Deterministic faculty-guided suggestion.</small>}</div></div> : null}
+          {aiAction && aiReason ? <div className="study-prompt-reason"><Brain aria-hidden="true" /><div><strong>{studyActionCopy(locale, aiAction)}</strong><button type="button" className="study-why" aria-describedby="study-reason">Why this prompt?</button><p id="study-reason">{studyReasonCopy(locale, aiReason)}</p>{aiIntervened ? <small>Experimental local AI trained on simulated learners.</small> : <small>Deterministic faculty-guided suggestion.</small>}</div></div> : null}
           <button type="button" onClick={nextTask}>Next task <ArrowRight aria-hidden="true" /></button>
         </section> : null}
         <aside className="study-ai-panel" aria-label="Optional local AI">
-          {session.ai.eligible ? aiReady ? <p><CheckCircle aria-hidden="true" /> Local AI ready. You can disable it at any time.</p> : <button type="button" disabled={busy} onClick={() => void enableAi()}><Brain aria-hidden="true" /> Enable experimental local AI</button> : <p>Faculty-guided deterministic mode. Local AI is unavailable until its release approval is complete.</p>}
+          {session.ai.eligible ? aiReady ? <p><CheckCircle aria-hidden="true" /> Local AI ready. You can disable it at any time.</p> : <><p>Closed pilot — unapproved model trained on simulated learners. Inference and study-pattern signals remain on this device.</p><button type="button" disabled={busy} onClick={() => void enableAi()}><Brain aria-hidden="true" /> Enable experimental local AI</button></> : <p>Faculty-guided deterministic mode. Local AI is not assigned to this course.</p>}
           {session.ai.eligible && aiReady ? <button type="button" className="study-link-button" onClick={() => { setAiReady(false); setAiOptIn(false); resetTraceSim() }}>Disable local AI</button> : null}
           {aiOptIn && completedCount < 5 ? <p role="status">Learning your study pattern — {completedCount} of 5 distinct tasks.</p> : null}
         </aside>
@@ -241,4 +281,15 @@ export function StudyPage() {
     </div>
     <footer className="study-footer"><button type="button" onClick={() => void clearDevice()}><Trash aria-hidden="true" /> Clear this device</button><button type="button" onClick={() => void withdraw()} disabled={busy}><SignOut aria-hidden="true" /> Withdraw and delete progress</button></footer>
   </main>
+}
+
+function suppressAction(
+  action: StudyAction,
+  task: NonNullable<StudySession['pack']['tasks'][number]>,
+  hintCount: number,
+  taskCount: number,
+): StudyAction {
+  if (action === 'offer_hint' && hintCount >= task.hints.length) return 'continue'
+  if (action === 'retrieve' && taskCount < 2) return 'continue'
+  return action
 }

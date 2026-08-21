@@ -1,0 +1,29 @@
+.study-admin-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.study-admin-heading-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.study-pilot-ack {
+  grid-column: 1 / -2;
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.study-pilot-ack input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}

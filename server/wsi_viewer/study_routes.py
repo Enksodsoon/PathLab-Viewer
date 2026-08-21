@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Response, status
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select
@@ -35,12 +35,21 @@ from .models import (
     StudyReadinessAggregate,
 )
 from .storage import StorageLayout
-from .study_pack_contract import learner_definition, score_task
+from .study_pack_contract import (
+    MAX_PACK_BYTES,
+    learner_definition,
+    normalized_spatial_error,
+    prepare_study_pack,
+    score_task,
+    validate_study_pack,
+)
+from .study_pack_contract import parse_json as parse_study_pack_json
 from .tile_routes import private_static_target
 
 STUDY_COOKIE = "pathlab_study"
 SUBMISSION_INTERVAL_SECONDS = 30
 MODEL_APPROVAL_STATUS = "public_beta_bounded_safe_actions"
+PILOT_AUTHORIZATION = "closed_pilot_unapproved"
 ALLOWED_AI_ACTIONS = {
     "continue",
     "offer_hint",
@@ -95,6 +104,10 @@ class CreateCourseRequest(StudyModel):
     retention_days: int = Field(default=30, ge=0, le=90)
     learner_limit: int = Field(default=500, ge=1, le=500)
     ends_at: datetime | None = None
+    ai_mode: str = Field(
+        default="deterministic", pattern=r"^(deterministic|closed_pilot_trace_sim)$"
+    )
+    pilot_acknowledged: bool = False
 
 
 class UpdateCourseRequest(StudyModel):
@@ -119,6 +132,13 @@ class TaskSubmission(StudyModel):
 
 class ReadinessReport(StudyModel):
     outcome: str = Field(pattern=r"^(ready|fallback)$")
+
+
+class AiEventReport(StudyModel):
+    task_id: str = Field(min_length=1, max_length=120)
+    outcome: str = Field(
+        pattern=r"^(continue|offer_hint|ask_confidence|ask_source_check|retrieve|pause|fallback)$"
+    )
 
 
 class StudyPurger:
@@ -184,16 +204,36 @@ def register_study_routes(
     csrf_dependency: Callable[..., Any],
     enabled: bool,
     ai_enabled: bool,
+    pilot_enabled: bool,
+    csrf_secret: str,
     max_learners: int,
     secure_cookies: bool,
     internal_file_redirects: bool,
 ) -> StudyPurger:
     purger = StudyPurger(factory)
     submission_times: dict[str, float] = {}
+    ai_event_times: dict[str, float] = {}
 
     def require_enabled() -> None:
         if not enabled:
             raise HTTPException(status_code=404, detail={"code": "STUDY_MODE_DISABLED"})
+
+    def csrf_value(token: str) -> str:
+        return hmac.new(
+            csrf_secret.encode("utf-8"),
+            ("pathlab-study-csrf:" + token).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def pilot_eligible(course: StudyCourse, manifest: dict[str, Any]) -> bool:
+        return bool(
+            ai_enabled
+            and pilot_enabled
+            and course.ai_mode == "closed_pilot_trace_sim"
+            and course.pilot_acknowledged_at is not None
+            and course.model_manifest_id == manifest.get("id")
+            and manifest.get("pilotAuthorization") == PILOT_AUTHORIZATION
+        )
 
     def learner_session(
         database: OrmSession = Depends(database_dependency),
@@ -222,8 +262,9 @@ def register_study_routes(
     def learner_csrf(
         stored: StudyLearnerSession = Depends(learner_session),
         csrf_token: str | None = Header(default=None, alias="X-Study-CSRF"),
+        token: str | None = Cookie(default=None, alias=STUDY_COOKIE),
     ) -> StudyLearnerSession:
-        if not csrf_token or not hmac.compare_digest(stored.csrf_hash, _hash(csrf_token)):
+        if not token or not csrf_token or not hmac.compare_digest(csrf_token, csrf_value(token)):
             raise HTTPException(status_code=403, detail={"code": "STUDY_CSRF_INVALID"})
         return stored
 
@@ -260,9 +301,18 @@ def register_study_routes(
             "purgeAfter": course.purge_after.replace(tzinfo=UTC).isoformat()
             if course.purge_after
             else None,
+            "aiMode": course.ai_mode,
+            "modelManifestId": course.model_manifest_id,
+            "pilotAcknowledgedAt": course.pilot_acknowledged_at.replace(tzinfo=UTC).isoformat()
+            if course.pilot_acknowledged_at
+            else None,
             "readiness": {
                 "ready": readiness.ready_count if readiness else 0,
                 "fallback": readiness.fallback_count if readiness else 0,
+            },
+            "aiActions": {
+                action: getattr(readiness, f"{action}_count", 0) if readiness else 0
+                for action in sorted(ALLOWED_AI_ACTIONS)
             },
         }
 
@@ -274,7 +324,9 @@ def register_study_routes(
         if pack is None:
             raise HTTPException(status_code=410, detail={"code": "STUDY_PACK_UNAVAILABLE"})
         manifest = _release_manifest()
-        ai_eligible = ai_enabled and manifest.get("approvalStatus") == MODEL_APPROVAL_STATUS
+        ai_eligible = pilot_eligible(course, manifest) or (
+            ai_enabled and manifest.get("approvalStatus") == MODEL_APPROVAL_STATUS
+        )
         progress = list(
             database.scalars(
                 select(StudyProgress)
@@ -311,6 +363,9 @@ def register_study_routes(
                 "manifest": manifest if ai_eligible else None,
                 "coldStartDistinctTasks": 5,
                 "allowedActions": sorted(ALLOWED_AI_ACTIONS),
+                "authorizationMode": (
+                    "closed_pilot" if pilot_eligible(course, manifest) else "approved"
+                ),
             },
         }
 
@@ -331,6 +386,118 @@ def register_study_routes(
             }
             for pack in database.scalars(select(StudyPack).order_by(StudyPack.created_at.desc()))
         ]
+
+    def accepted_study_slides(database: OrmSession) -> list[Slide]:
+        return list(
+            database.scalars(
+                select(Slide)
+                .where(
+                    Slide.render_mode == "static_dzi",
+                    Slide.privacy_status == "passed",
+                    Slide.state.in_([SlideState.READY_PRIVATE, SlideState.PUBLISHED]),
+                    Slide.trashed_at.is_(None),
+                )
+                .order_by(Slide.display_name)
+            )
+        )
+
+    def verify_pack_slides(definition: dict[str, Any], database: OrmSession) -> None:
+        accepted = {slide.id: slide for slide in accepted_study_slides(database)}
+        for reference in definition["slides"]:
+            slide = accepted.get(reference["viewerSlideId"])
+            if slide is None or slide.sha256 != reference["sha256"]:
+                raise HTTPException(
+                    status_code=409, detail={"code": "STUDY_PACK_SLIDE_NOT_ACCEPTED"}
+                )
+
+    async def study_pack_body(request: Request) -> dict[str, Any]:
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_PACK_BYTES:
+                raise HTTPException(status_code=413, detail={"code": "STUDY_PACK_SIZE_INVALID"})
+        try:
+            return parse_study_pack_json(bytes(body))
+        except (ValueError, json.JSONDecodeError) as error:
+            code = str(error) if str(error).startswith("STUDY_") else "STUDY_PACK_INVALID"
+            raise HTTPException(status_code=422, detail={"code": code}) from error
+
+    @app.get("/api/v1/admin/study/authoring/slides")
+    def authoring_slides(
+        _: Session = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> list[dict[str, str]]:
+        require_enabled()
+        return [
+            {"id": slide.id, "displayName": slide.display_name, "sha256": slide.sha256 or ""}
+            for slide in accepted_study_slides(database)
+        ]
+
+    @app.post("/api/v1/admin/study/packs/validate")
+    async def validate_pack_for_preview(
+        request: Request,
+        _: Session = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_enabled()
+        definition = await study_pack_body(request)
+        try:
+            core, checksum = prepare_study_pack(definition)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": str(error)}) from error
+        verify_pack_slides(core, database)
+        return {"canonicalCore": core, "checksum": checksum}
+
+    @app.post("/api/v1/admin/study/packs", status_code=status.HTTP_201_CREATED)
+    async def publish_viewer_pack(
+        request: Request,
+        authenticated: Session = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_enabled()
+        definition = await study_pack_body(request)
+        try:
+            checksum = validate_study_pack(definition)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": str(error)}) from error
+        verify_pack_slides(definition, database)
+        existing = database.scalar(
+            select(StudyPack).where(
+                StudyPack.pack_key == definition["packKey"],
+                StudyPack.version == definition["version"],
+            )
+        )
+        if existing is not None:
+            if existing.checksum != checksum:
+                raise HTTPException(
+                    status_code=409, detail={"code": "STUDY_PACK_VERSION_IMMUTABLE"}
+                )
+            stored = existing
+        else:
+            stored = StudyPack(
+                pack_key=definition["packKey"],
+                version=definition["version"],
+                title=definition["title"],
+                checksum=checksum,
+                definition=definition,
+                created_by_user_id=authenticated.user_id,
+            )
+            database.add(stored)
+            try:
+                database.commit()
+            except IntegrityError as error:
+                database.rollback()
+                raise HTTPException(
+                    status_code=409, detail={"code": "STUDY_PACK_VERSION_IMMUTABLE"}
+                ) from error
+        return {
+            "id": stored.id,
+            "packKey": stored.pack_key,
+            "version": stored.version,
+            "title": stored.title,
+            "checksum": stored.checksum,
+            "createdAt": stored.created_at.replace(tzinfo=UTC).isoformat(),
+        }
 
     @app.get("/api/v1/admin/study/courses")
     def list_courses(
@@ -358,12 +525,19 @@ def register_study_routes(
         ends_at = payload.ends_at.replace(tzinfo=None) if payload.ends_at else None
         if ends_at is not None and ends_at <= _now():
             raise HTTPException(status_code=422, detail={"code": "STUDY_END_DATE_INVALID"})
+        manifest = _release_manifest()
+        is_pilot = payload.ai_mode == "closed_pilot_trace_sim"
+        if is_pilot and (not pilot_enabled or not payload.pilot_acknowledged):
+            raise HTTPException(status_code=422, detail={"code": "STUDY_AI_PILOT_ACK_REQUIRED"})
         course = StudyCourse(
             pack_id=payload.pack_id,
             title=payload.title.strip(),
             retention_days=payload.retention_days,
             learner_limit=payload.learner_limit,
             ends_at=ends_at,
+            ai_mode=payload.ai_mode,
+            pilot_acknowledged_at=_now() if is_pilot else None,
+            model_manifest_id=manifest.get("id") if is_pilot else None,
             created_by_user_id=authenticated.user_id,
         )
         database.add(course)
@@ -593,7 +767,7 @@ def register_study_routes(
         if current_count >= course.learner_limit:
             raise HTTPException(status_code=409, detail={"code": "STUDY_COURSE_FULL"})
         token = _token(48)
-        csrf_token = _token(32)
+        csrf_token = csrf_value(token)
         expires_at = course.ends_at or (_now() + timedelta(days=90))
         stored = StudyLearnerSession(
             course_id=course.id,
@@ -622,8 +796,11 @@ def register_study_routes(
     def get_session(
         stored: StudyLearnerSession = Depends(learner_session),
         database: OrmSession = Depends(database_dependency),
+        token: str | None = Cookie(default=None, alias=STUDY_COOKIE),
     ) -> dict[str, Any]:
-        return session_json(stored, database)
+        if token is None:
+            raise HTTPException(status_code=401, detail={"code": "STUDY_SESSION_REQUIRED"})
+        return {"csrfToken": csrf_value(token), **session_json(stored, database)}
 
     @app.post("/api/v1/study/tasks/{task_id}/submit")
     def submit_task(
@@ -648,7 +825,8 @@ def register_study_routes(
         if task is None:
             raise HTTPException(status_code=404, detail={"code": "STUDY_TASK_NOT_FOUND"})
         try:
-            correct = score_task(task, payload.model_dump(by_alias=True, exclude_none=True))
+            submission = payload.model_dump(by_alias=True, exclude_none=True)
+            correct = score_task(task, submission)
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": str(error)}) from error
         progress = database.scalar(
@@ -674,7 +852,7 @@ def register_study_routes(
                 progress.status = "completed"
         database.commit()
         submission_times[stored.id] = now_mono
-        return {
+        result = {
             "taskId": task_id,
             "correct": correct,
             "status": progress.status,
@@ -683,11 +861,20 @@ def register_study_routes(
             "explanation": task["explanation"],
             "sources": task["sources"],
         }
+        spatial_error = normalized_spatial_error(task, submission)
+        if spatial_error is not None:
+            result["spatialError"] = spatial_error
+        return result
 
     @app.get("/api/v1/study/readiness")
     def readiness(stored: StudyLearnerSession = Depends(learner_session)) -> dict[str, Any]:
         manifest = _release_manifest()
-        eligible = ai_enabled and manifest.get("approvalStatus") == MODEL_APPROVAL_STATUS
+        with factory() as database:
+            course = database.get(StudyCourse, stored.course_id)
+            eligible = course is not None and (
+                pilot_eligible(course, manifest)
+                or (ai_enabled and manifest.get("approvalStatus") == MODEL_APPROVAL_STATUS)
+            )
         return {"aiEligible": eligible, "manifest": manifest if eligible else None}
 
     @app.post("/api/v1/study/readiness", status_code=status.HTTP_204_NO_CONTENT)
@@ -705,10 +892,48 @@ def register_study_routes(
             aggregate = StudyReadinessAggregate(course_id=stored.course_id)
             database.add(aggregate)
         if payload.outcome == "ready":
-            aggregate.ready_count += 1
+            aggregate.ready_count = (aggregate.ready_count or 0) + 1
         else:
-            aggregate.fallback_count += 1
+            aggregate.fallback_count = (aggregate.fallback_count or 0) + 1
         database.commit()
+
+    @app.post("/api/v1/study/ai-events", status_code=status.HTTP_204_NO_CONTENT)
+    def report_ai_event(
+        payload: AiEventReport,
+        stored: StudyLearnerSession = Depends(learner_csrf),
+        database: OrmSession = Depends(database_dependency),
+    ) -> None:
+        manifest = _release_manifest()
+        course = database.get(StudyCourse, stored.course_id)
+        if course is None or not pilot_eligible(course, manifest):
+            raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"})
+        progress = database.scalar(
+            select(StudyProgress).where(
+                StudyProgress.session_id == stored.id,
+                StudyProgress.task_id == payload.task_id,
+            )
+        )
+        now_mono = time.monotonic()
+        if progress is None or now_mono - ai_event_times.get(stored.id, float("-inf")) < 1:
+            raise HTTPException(status_code=409, detail={"code": "STUDY_AI_EVENT_INVALID"})
+        aggregate = database.scalar(
+            select(StudyReadinessAggregate).where(
+                StudyReadinessAggregate.course_id == stored.course_id
+            )
+        )
+        if aggregate is None:
+            aggregate = StudyReadinessAggregate(course_id=stored.course_id)
+            database.add(aggregate)
+        if payload.outcome == "fallback":
+            aggregate.fallback_count = (aggregate.fallback_count or 0) + 1
+        else:
+            setattr(
+                aggregate,
+                f"{payload.outcome}_count",
+                (getattr(aggregate, f"{payload.outcome}_count") or 0) + 1,
+            )
+        database.commit()
+        ai_event_times[stored.id] = now_mono
 
     @app.post("/api/v1/study/withdraw", status_code=status.HTTP_204_NO_CONTENT)
     def withdraw(
@@ -717,6 +942,7 @@ def register_study_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> None:
         submission_times.pop(stored.id, None)
+        ai_event_times.pop(stored.id, None)
         database.delete(stored)
         database.commit()
         response.delete_cookie(STUDY_COOKIE, path="/api/v1/study")
@@ -728,13 +954,18 @@ def register_study_routes(
     @app.get("/api/v1/study/assets/{asset_name}")
     def study_model_asset(
         asset_name: str,
-        _: StudyLearnerSession = Depends(learner_session),
+        stored: StudyLearnerSession = Depends(learner_session),
+        database: OrmSession = Depends(database_dependency),
     ) -> Response:
         manifest = _release_manifest()
         expected_name = manifest.get("assetFile")
+        course = database.get(StudyCourse, stored.course_id)
+        eligible = course is not None and (
+            pilot_eligible(course, manifest)
+            or (ai_enabled and manifest.get("approvalStatus") == MODEL_APPROVAL_STATUS)
+        )
         if (
-            not ai_enabled
-            or manifest.get("approvalStatus") != MODEL_APPROVAL_STATUS
+            not eligible
             or not isinstance(expected_name, str)
             or asset_name != expected_name
         ):

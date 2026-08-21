@@ -8,13 +8,25 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
-from wsi_viewer.models import Slide, StudyLearnerSession, StudyProgress, User
+from wsi_viewer.models import (
+    Slide,
+    StudyLearnerSession,
+    StudyProgress,
+    StudyReadinessAggregate,
+    User,
+)
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 from wsi_viewer.study_pack_contract import content_checksum
 
 
-def _client(tmp_path: Path, *, ai_enabled: bool = False, study_enabled: bool = True) -> TestClient:
+def _client(
+    tmp_path: Path,
+    *,
+    ai_enabled: bool = False,
+    pilot_enabled: bool = False,
+    study_enabled: bool = True,
+) -> TestClient:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'study.sqlite3'}",
         data_root=tmp_path / "data",
@@ -23,6 +35,7 @@ def _client(tmp_path: Path, *, ai_enabled: bool = False, study_enabled: bool = T
         tus_internal_upload_dir=tmp_path / "tus",
         study_mode_enabled=study_enabled,
         study_coach_ai_enabled=ai_enabled,
+        study_coach_ai_pilot_enabled=pilot_enabled,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -43,27 +56,6 @@ def _admin(client: TestClient) -> dict[str, str]:
     )
     assert response.status_code == 201
     return {"X-CSRF-Token": response.json()["csrfToken"]}
-
-
-def _desktop(client: TestClient, admin_headers: dict[str, str]) -> dict[str, str]:
-    pairing = client.post(
-        "/api/v1/desktop/pairings", json={"deviceName": "Forge Study Pack test"}
-    ).json()
-    assert (
-        client.post(
-            "/api/v1/desktop/pairings/approve",
-            headers=admin_headers,
-            json={"userCode": pairing["userCode"]},
-        ).status_code
-        == 204
-    )
-    exchange = client.post(
-        "/api/v1/desktop/pairings/exchange",
-        json={"deviceCode": pairing["deviceCode"], "deviceSecret": pairing["deviceSecret"]},
-    )
-    assert exchange.status_code == 200
-    assert "study-packs:write" in exchange.json()["scopes"]
-    return {"Authorization": f"Bearer {exchange.json()['accessToken']}"}
 
 
 def _slide(client: TestClient) -> Slide:
@@ -132,32 +124,35 @@ def _pack(slide: Slide, *, version: int = 1) -> dict[str, object]:
 
 
 def _publish_pack(
-    client: TestClient, desktop_headers: dict[str, str], slide: Slide
+    client: TestClient, admin_headers: dict[str, str], slide: Slide
 ) -> dict[str, object]:
-    response = client.post(
-        "/api/v1/desktop/study-packs", headers=desktop_headers, json=_pack(slide)
-    )
+    response = client.post("/api/v1/admin/study/packs", headers=admin_headers, json=_pack(slide))
     assert response.status_code == 201, response.text
     return response.json()
 
 
-def test_study_pack_capabilities_preview_checksum_and_immutable_version(tmp_path: Path) -> None:
+def test_viewer_authoring_preview_checksum_and_immutable_version(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         admin = _admin(client)
-        desktop = _desktop(client, admin)
-        capabilities = client.get("/api/v1/desktop/capabilities", headers=desktop).json()
-        assert capabilities["studyPackSchemas"] == ["pathlab.study-pack/1"]
-        assert capabilities["studyPackMaxBytes"] == 2 * 1024 * 1024
-        assert capabilities["studyPackMaxTasks"] == 500
         slide = _slide(client)
-        first = _publish_pack(client, desktop, slide)
-        duplicate = client.post("/api/v1/desktop/study-packs", headers=desktop, json=_pack(slide))
+        authoring_slides = client.get("/api/v1/admin/study/authoring/slides").json()
+        assert authoring_slides == [
+            {"id": slide.id, "displayName": slide.display_name, "sha256": slide.sha256}
+        ]
+        core = _pack(slide)
+        core.pop("checksum")
+        core.pop("facultyPreview")
+        preview = client.post("/api/v1/admin/study/packs/validate", headers=admin, json=core)
+        assert preview.status_code == 200
+        assert preview.json()["checksum"] == content_checksum(core)
+        first = _publish_pack(client, admin, slide)
+        duplicate = client.post("/api/v1/admin/study/packs", headers=admin, json=_pack(slide))
         assert duplicate.status_code == 201
         assert duplicate.json()["id"] == first["id"]
 
         changed = _pack(slide)
         changed["title"] = "Changed after preview"
-        rejected = client.post("/api/v1/desktop/study-packs", headers=desktop, json=changed)
+        rejected = client.post("/api/v1/admin/study/packs", headers=admin, json=changed)
         assert rejected.status_code == 422
         assert rejected.json()["detail"]["code"] == "STUDY_PACK_CHECKSUM_INVALID"
 
@@ -165,8 +160,7 @@ def test_study_pack_capabilities_preview_checksum_and_immutable_version(tmp_path
 def test_study_course_redeem_score_minimal_progress_and_withdrawal(tmp_path: Path) -> None:
     with _client(tmp_path, ai_enabled=True) as client:
         admin = _admin(client)
-        desktop = _desktop(client, admin)
-        pack = _publish_pack(client, desktop, _slide(client))
+        pack = _publish_pack(client, admin, _slide(client))
         course = client.post(
             "/api/v1/admin/study/courses",
             headers=admin,
@@ -215,6 +209,9 @@ def test_study_course_redeem_score_minimal_progress_and_withdrawal(tmp_path: Pat
         assert document["ai"]["eligible"] is False
         assert client.get("/api/v1/study/assets/trace-sim.9ca7e812951712eb.onnx").status_code == 404
         csrf = {"X-Study-CSRF": document["csrfToken"]}
+        restored = client.get("/api/v1/study/session")
+        assert restored.status_code == 200
+        assert restored.json()["csrfToken"] == document["csrfToken"]
         result = client.post(
             "/api/v1/study/tasks/task-1/submit",
             headers=csrf,
@@ -240,12 +237,66 @@ def test_study_course_redeem_score_minimal_progress_and_withdrawal(tmp_path: Pat
             assert database.scalar(select(StudyProgress)) is None
 
 
+def test_closed_pilot_is_course_scoped_and_stores_only_aggregate_actions(tmp_path: Path) -> None:
+    with _client(tmp_path, ai_enabled=True, pilot_enabled=True) as client:
+        admin = _admin(client)
+        pack = _publish_pack(client, admin, _slide(client))
+        course_response = client.post(
+            "/api/v1/admin/study/courses",
+            headers=admin,
+            json={
+                "packId": pack["id"],
+                "title": "Private TRACE-SIM pilot",
+                "learnerLimit": 1,
+                "aiMode": "closed_pilot_trace_sim",
+                "pilotAcknowledged": True,
+            },
+        )
+        assert course_response.status_code == 201, course_response.text
+        course = course_response.json()
+        assert course["aiMode"] == "closed_pilot_trace_sim"
+        assert course["pilotAcknowledgedAt"] is not None
+        client.post(f"/api/v1/admin/study/courses/{course['id']}/prepare", headers=admin)
+        invitation = client.post(
+            f"/api/v1/admin/study/courses/{course['id']}/invitations",
+            headers=admin,
+            json={"count": 1},
+        )
+        code = list(csv.DictReader(io.StringIO(invitation.text)))[0]["invitation_code"]
+        client.post(f"/api/v1/admin/study/courses/{course['id']}/activate", headers=admin)
+        redeemed = client.post(
+            "/api/v1/study/redeem", json={"code": code, "noticeAccepted": True}
+        ).json()
+        assert redeemed["ai"]["eligible"] is True
+        assert redeemed["ai"]["authorizationMode"] == "closed_pilot"
+        assert redeemed["ai"]["manifest"]["approvalStatus"].startswith("not_approved")
+        csrf = {"X-Study-CSRF": redeemed["csrfToken"]}
+        submitted = client.post(
+            "/api/v1/study/tasks/task-1/submit",
+            headers=csrf,
+            json={"selectedOption": "Approved"},
+        )
+        assert submitted.status_code == 200
+        reported = client.post(
+            "/api/v1/study/ai-events",
+            headers=csrf,
+            json={"taskId": "task-1", "outcome": "continue"},
+        )
+        assert reported.status_code == 204
+        with session_factory(client.app.state.settings)() as database:
+            aggregate = database.scalar(select(StudyReadinessAggregate))
+            assert aggregate is not None and aggregate.continue_count == 1
+            assert not hasattr(aggregate, "task_id")
+            assert not hasattr(aggregate, "session_id")
+            assert not hasattr(aggregate, "probability")
+
+
 def test_retention_can_only_shorten_after_invites_and_disabled_mode_is_hidden(
     tmp_path: Path,
 ) -> None:
     with _client(tmp_path) as client:
         admin = _admin(client)
-        pack = _publish_pack(client, _desktop(client, admin), _slide(client))
+        pack = _publish_pack(client, admin, _slide(client))
         course = client.post(
             "/api/v1/admin/study/courses",
             headers=admin,

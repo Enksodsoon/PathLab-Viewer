@@ -35,7 +35,8 @@ async function sha256(value: ArrayBuffer): Promise<string> {
 }
 
 async function stableToken(taskId: string): Promise<bigint> {
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(taskId)))
+  const identity = `${taskId}|${taskId}|attempt`
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity)))
   let value = 0n
   for (const byte of digest.slice(0, 8)) value = (value << 8n) | BigInt(byte)
   return BigInt.asIntN(64, value % 20000n)
@@ -77,7 +78,10 @@ function actionFor(result: Record<string, number>): StudyAction {
 }
 
 async function prepare(next: StudyModelManifest) {
-  if (next.approvalStatus !== 'public_beta_bounded_safe_actions') {
+  if (
+    next.approvalStatus !== 'public_beta_bounded_safe_actions'
+    && next.pilotAuthorization !== 'closed_pilot_unapproved'
+  ) {
     throw new Error('TRACE_SIM_NOT_APPROVED')
   }
   if (!next.knownVector.expectedOutputs) throw new Error('TRACE_SIM_SELF_TEST_VECTOR_MISSING')

@@ -190,6 +190,25 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
     return checksum
 
 
+def prepare_study_pack(definition: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    """Validate an unpublished core using the exact publication contract."""
+    core = {
+        key: value for key, value in definition.items() if key not in {"checksum", "facultyPreview"}
+    }
+    checksum = content_checksum(core)
+    candidate = {
+        **core,
+        "checksum": checksum,
+        "facultyPreview": {
+            "packChecksum": checksum,
+            "previewVersion": PREVIEW_VERSION,
+            "reviewedAt": "validation-only",
+        },
+    }
+    validate_study_pack(candidate)
+    return core, checksum
+
+
 def learner_definition(definition: dict[str, Any]) -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     for source in definition["tasks"]:
@@ -234,3 +253,18 @@ def score_task(task: dict[str, Any], submission: dict[str, Any]) -> bool:
     center_y = task["targetY"] + task["targetHeight"] / 2
     tolerance = task["tolerance"]
     return bool(abs(float(x) - center_x) <= tolerance and abs(float(y) - center_y) <= tolerance)
+
+
+def normalized_spatial_error(task: dict[str, Any], submission: dict[str, Any]) -> float | None:
+    if task.get("type") != "spatial":
+        return None
+    x = submission.get("x")
+    y = submission.get("y")
+    if not isinstance(x, (int, float)) or isinstance(x, bool):
+        return None
+    if not isinstance(y, (int, float)) or isinstance(y, bool):
+        return None
+    center_x = float(task["targetX"]) + float(task["targetWidth"]) / 2
+    center_y = float(task["targetY"]) + float(task["targetHeight"]) / 2
+    distance = math.hypot(float(x) - center_x, float(y) - center_y)
+    return min(1.0, distance / math.sqrt(2))

@@ -19,15 +19,24 @@
     "pause"
   ],
   "approvalStatus": "not_approved_fixed_order_only_release",
+  "pilotAuthorization": "closed_pilot_unapproved",
   "knownLimitations": [
     "Not validated as evidence of learning effectiveness",
     "Not clinical software and does not inspect slide pixels",
-    "Public AI activation is prohibited until approvalStatus is public_beta_bounded_safe_actions"
+    "Public AI activation is prohibited until approvalStatus is public_beta_bounded_safe_actions",
+    "Closed-pilot use requires explicit course acknowledgement and learner opt-in"
   ],
   "assetFile": "trace-sim.9ca7e812951712eb.onnx",
   "assetUrl": "/api/v1/study/assets/trace-sim.9ca7e812951712eb.onnx",
   "knownVector": {
     "inputLength": 3072,
+    "expectedOutputs": {
+      "retention": 0.8422525681633762,
+      "effort": 9.397967332141386e-8,
+      "hint_need": 0.024747069560147966,
+      "calibration_risk": 0.00017672794913358163,
+      "source_risk": 0.9999517760557544
+    },
     "expectedOutputTolerance": 0.0001
   }
 }

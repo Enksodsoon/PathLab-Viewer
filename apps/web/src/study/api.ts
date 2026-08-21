@@ -1,5 +1,8 @@
 import { ApiError, csrfFetch } from '../api'
-import type { StudyCourseSummary, StudyPackSummary, StudySession } from './types'
+import type {
+  StudyAction, StudyAuthoringSlide, StudyCourseSummary, StudyPackDefinition, StudyPackSummary,
+  StudySession,
+} from './types'
 
 const STUDY_CSRF_KEY = 'pathlab-study-csrf'
 
@@ -36,9 +39,11 @@ export async function redeemStudyInvitation(code: string): Promise<StudySession>
 }
 
 export async function getStudySession(): Promise<StudySession> {
-  return body<StudySession>(await fetch('/api/v1/study/session', {
+  const result = await body<StudySession & { csrfToken: string }>(await fetch('/api/v1/study/session', {
     credentials: 'same-origin', cache: 'no-store',
   }))
+  sessionStorage.setItem(STUDY_CSRF_KEY, result.csrfToken)
+  return result
 }
 
 export async function submitStudyTask(
@@ -53,6 +58,7 @@ export async function submitStudyTask(
     hints: string[]
     explanation: string
     sources: Array<{ title: string; url: string }>
+    spatialError?: number
   }>(await studyFetch(`/api/v1/study/tasks/${encodeURIComponent(taskId)}/submit`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(submission),
   }))
@@ -63,6 +69,14 @@ export async function reportStudyReadiness(outcome: 'ready' | 'fallback') {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outcome }),
   })
   if (!response.ok) throw new ApiError(response.status, 'STUDY_READINESS_FAILED')
+}
+
+export async function reportStudyAiEvent(taskId: string, outcome: StudyAction | 'fallback') {
+  const response = await studyFetch('/api/v1/study/ai-events', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ taskId, outcome }),
+  })
+  if (!response.ok) throw new ApiError(response.status, 'STUDY_AI_EVENT_FAILED')
 }
 
 export async function withdrawStudy(): Promise<void> {
@@ -81,9 +95,27 @@ export async function listStudyCourses(): Promise<StudyCourseSummary[]> {
 
 export async function createStudyCourse(payload: {
   packId: string; title: string; retentionDays: number; learnerLimit: number; endsAt?: string
+  aiMode: 'deterministic' | 'closed_pilot_trace_sim'; pilotAcknowledged: boolean
 }): Promise<StudyCourseSummary> {
   return body(await csrfFetch('/api/v1/admin/study/courses', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }))
+}
+
+export async function listStudyAuthoringSlides(): Promise<StudyAuthoringSlide[]> {
+  return body(await fetch('/api/v1/admin/study/authoring/slides', { credentials: 'same-origin' }))
+}
+
+export async function validateStudyPack(definition: StudyPackDefinition) {
+  return body<{ canonicalCore: StudyPackDefinition; checksum: string }>(await csrfFetch(
+    '/api/v1/admin/study/packs/validate',
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(definition) },
+  ))
+}
+
+export async function publishStudyPack(definition: StudyPackDefinition): Promise<StudyPackSummary> {
+  return body(await csrfFetch('/api/v1/admin/study/packs', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(definition),
   }))
 }
 

@@ -1,26 +1,40 @@
-# Study Coach public beta operations
+# Study Coach closed-pilot operations
 
 Study Coach is an educational, pseudonymous feature. It is not clinical software, a diagnostic tool, an assessment certification, or evidence of improved learning.
 
-## Release boundaries
+## Ownership and release boundaries
 
-- `PATHLAB_STUDY_MODE_ENABLED` and `PATHLAB_STUDY_COACH_AI_ENABLED` default to `false`.
+- Viewer owns Study Pack authoring, faculty preview, publication, courses, and learner Study Mode. Forge only prepares slides and uploads accepted static DZI content.
+- `PATHLAB_STUDY_MODE_ENABLED`, `PATHLAB_STUDY_COACH_AI_ENABLED`, and `PATHLAB_STUDY_COACH_AI_PILOT_ENABLED` default to `false`.
 - Deterministic scoring, faculty hints, explanations, and sources do not depend on AI.
-- The checked TRACE-SIM release manifest is deliberately not approved. No model binary is in this repository, so AI activation fails closed.
-- The model may be added only after its license, provenance, exact artifact/runtime hashes, known-vector outputs, privacy review, and physical-device results are approved with status `public_beta_bounded_safe_actions`.
-- Merge, deployment, Study Mode activation, AI activation, device qualification, and 500-learner capacity certification are separate decisions.
+- The checked TRACE-SIM manifest remains truthfully unapproved and synthetic-only. The separate `closed_pilot_unapproved` authorization can expose it only to an acknowledged private course.
+- Public AI activation remains unavailable. Merge, deployment, pilot activation, physical-device qualification, capacity certification, and public approval are separate decisions.
 
-## Deployment sequence
+## Exact private artifact
 
-1. Back up the database and deploy with both flags disabled.
-2. Apply migrations through `20260821_0022` and check `/readyz` and `/livez`.
-3. Enable Study Mode only for preparation and import an immutable faculty-previewed Study Pack from Forge.
-4. Complete privacy review and owned/borrowed physical-device checks.
-5. Run `tests/load/study_coach_capacity.js` against a non-production certification course with exactly 500 one-time invitations. Record API errors and p95 plus server CPU, RAM, database, connection-pool, and disk deltas.
-6. Activate one deterministic beta course. Enable local AI separately only after its release and per-device preparation gates pass.
+The model binary is not committed to Git. Install it atomically under the configured private data root:
 
-The capacity script requires `PATHLAB_BASE_URL`, `PATHLAB_STUDY_INVITATIONS_CSV`, `PATHLAB_STUDY_TASK_ID`, and `PATHLAB_STUDY_ANSWER`. Its thresholds are error rate below 0.1% and submission p95 below 500 ms. A successful script run is not sufficient without the recorded server deltas and an explicit check for database-lock, pool, and stream exhaustion.
+```text
+pathlab-viewer install-study-model --artifact C:\private\trace-sim.int8.onnx
+```
+
+Installation rejects the wrong name, byte size, or SHA-256. The accepted artifact is exactly 3,257,665 bytes with SHA-256 `9ca7e812951712eb29fd24c1fbf825afdb0b8a743ed941d96e186dab4d90c8a1`; its checkpoint identity is `2d625b1fad5c97584e1f7c69c3a95a6761fd934adaf17b1cecce329247e9fa0d`.
+
+The browser runtime is pinned to ONNX Runtime Web 1.27.0 because npm does not publish a stable 1.29.0 package. It runs single-threaded WASM in a dedicated worker with no WebGPU, CDN, cross-origin isolation, or server inference. A future runtime change requires regenerated content hashes and exact-runtime known-vector evidence.
+
+## Deployment and private-pilot sequence
+
+1. Back up the database and deploy with all three flags disabled.
+2. Apply migrations through `20260821_0023`; verify `/readyz` and `/livez`.
+3. Install the exact artifact and confirm the installation command succeeds.
+4. Enable Study Mode, keeping both AI flags disabled, and author/preview an immutable pack in Viewer.
+5. Complete privacy review and owned or borrowed physical-device checks.
+6. Enable both AI flags only for one acknowledged `closed_pilot_trace_sim` course. Generate invitations only after acknowledgement.
+7. Confirm learner preparation passes model/WASM hashes, exact-runtime known vectors, persistence/offline reload, timeout handling, and worker-memory checks before opt-in appears.
+8. Monitor API health, aggregate readiness/fallback/action counts, purge jobs, and server resource deltas. Never add learner-level AI telemetry.
+
+Capacity certification uses `tests/load/study_coach_capacity.js` against a non-production course with 500 one-time invitations. Record error rate and p95 together with server CPU, RAM, database, connection-pool, and disk deltas; a script pass alone is not certification.
 
 ## Rollback and privacy
 
-Disable AI first, then Study Mode if necessary. Revoke learner sessions before any migration downgrade. Retain or purge pseudonymous progress according to the shortened course policy; dependent course data must be purged before downgrade. The hourly purge worker keeps due-data removal inside the six-hour requirement. Never add learner-level AI telemetry to operational monitoring.
+Disable AI first; learners immediately retain deterministic Study Mode. Disable Study Mode and revoke sessions only if needed. Retain or purge pseudonymous progress according to the shortened course policy, and purge dependent course data before any migration downgrade. Never persist learner/action associations, local feature records, coordinates, answers, model outputs, or reasons.

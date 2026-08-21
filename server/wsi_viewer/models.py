@@ -863,6 +863,10 @@ class StudyCourse(Base):
         ),
         CheckConstraint("retention_days >= 0 AND retention_days <= 90", name="ck_study_retention"),
         CheckConstraint("learner_limit >= 1 AND learner_limit <= 500", name="ck_study_learners"),
+        CheckConstraint(
+            "ai_mode IN ('deterministic', 'closed_pilot_trace_sim')",
+            name="ck_study_courses_ai_mode",
+        ),
         Index(
             "uq_study_courses_one_live",
             "status",
@@ -884,6 +888,8 @@ class StudyCourse(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     purge_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     model_manifest_id: Mapped[str | None] = mapped_column(String(100))
+    ai_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="deterministic")
+    pilot_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by_user_id: Mapped[str] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
@@ -973,6 +979,12 @@ class StudyReadinessAggregate(Base):
     )
     ready_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     fallback_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    continue_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    offer_hint_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ask_confidence_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ask_source_check_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    retrieve_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pause_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )

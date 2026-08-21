@@ -43,6 +43,7 @@ export type StudySession = {
     manifest: StudyModelManifest | null
     coldStartDistinctTasks: 5
     allowedActions: StudyAction[]
+    authorizationMode: 'approved' | 'closed_pilot'
   }
 }
 
@@ -53,6 +54,7 @@ export type StudyModelManifest = {
   artifactBytes: number
   assetUrl: string
   approvalStatus: string
+  pilotAuthorization?: 'closed_pilot_unapproved'
   allowedActions: StudyAction[]
   knownVector: {
     inputLength: number
@@ -106,4 +108,37 @@ export type StudyCourseSummary = {
   endsAt: string | null
   purgeAfter: string | null
   readiness: { ready: number; fallback: number }
+  aiMode: 'deterministic' | 'closed_pilot_trace_sim'
+  modelManifestId: string | null
+  pilotAcknowledgedAt: string | null
+  aiActions: Record<StudyAction, number>
+}
+
+export type StudyAuthoringSlide = { id: string; displayName: string; sha256: string }
+
+export type StudyPackTaskDefinition = StudyTask & {
+  answerKey?: string
+  targetX?: number
+  targetY?: number
+  targetWidth?: number
+  targetHeight?: number
+  tolerance?: number
+  explanation: string
+  sources: Array<{ title: string; url: string }>
+}
+
+export type StudyPackDefinition = {
+  schema: 'pathlab.study-pack/1'
+  packKey: string
+  version: number
+  title: string
+  author: string
+  license: string
+  provenance: string
+  revision: string
+  languages: Array<'en' | 'th'>
+  slides: Array<{ viewerSlideId: string; sha256: string; displayName: string }>
+  tasks: StudyPackTaskDefinition[]
+  checksum?: string
+  facultyPreview?: { packChecksum: string; previewVersion: 'pathlab.study-preview/1'; reviewedAt: string }
 }
