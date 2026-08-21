@@ -80,6 +80,60 @@ def test_deployment_check_does_not_require_credentials() -> None:
     assert args.command == "deployment-check"
 
 
+def test_postgres_migration_parser_requires_explicit_verification() -> None:
+    args = _build_parser().parse_args(
+        [
+            "migrate-sqlite-to-postgres",
+            "--source",
+            "source.sqlite3",
+            "--target",
+            "postgresql+psycopg://localhost/pathlab",
+        ]
+    )
+    assert args.source == Path("source.sqlite3")
+    assert args.verify is False
+
+
+def test_postgres_migration_command_is_noninteractive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "source.sqlite3"
+    manifest = tmp_path / "manifest.json"
+    captured: dict[str, object] = {}
+
+    def migrate(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"tables": [{"table": "users"}]}
+
+    monkeypatch.setenv("PATHLAB_SECRET_KEY", "synthetic-migration-manifest-key-32-bytes")
+    monkeypatch.setattr("wsi_viewer.cli.migrate_sqlite_to_postgres", migrate)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "pathlab-admin",
+            "migrate-sqlite-to-postgres",
+            "--source",
+            str(source),
+            "--target",
+            "postgresql+psycopg://localhost/pathlab",
+            "--manifest",
+            str(manifest),
+            "--verify",
+        ],
+    )
+
+    main()
+
+    assert captured["source_path"] == source
+    assert captured["manifest_path"] == manifest
+    assert captured["verify"] is True
+    assert capsys.readouterr().out == (
+        f"Migration verified: tables=1 manifest={manifest}\n"
+    )
+
+
 def test_deployment_check_allows_no_running_job(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -83,7 +83,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: "3.12" }
       - run: pip install -e .[dev]
-      - run: pytest tests/backend/test_postgres_foundation.py
+      - run: >-
+          pytest
+          tests/backend/test_postgres_foundation.py
+          tests/backend/test_postgres_migration.py
 
   web:
     runs-on: ubuntu-24.04

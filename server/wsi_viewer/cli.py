@@ -1,6 +1,7 @@
 import argparse
 import getpass
 import sys
+from pathlib import Path
 
 from sqlalchemy import select
 
@@ -8,6 +9,7 @@ from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
 from .models import ClassroomSession, Job, User
+from .postgres_migration import PostgresMigrationError, migrate_sqlite_to_postgres
 from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
@@ -28,7 +30,7 @@ def _read_password(password_stdin: bool) -> str:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Manage the single PathLab administrator")
+    parser = argparse.ArgumentParser(description="Manage PathLab runtime and administration")
     parser.add_argument(
         "command",
         choices=[
@@ -37,6 +39,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "issue-recovery-code",
             "deployment-check",
             "reconcile-storage",
+            "migrate-sqlite-to-postgres",
         ],
     )
     parser.add_argument("--username", default="admin")
@@ -45,12 +48,40 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Read one password line from standard input for unattended deployment",
     )
+    parser.add_argument("--source", type=Path, help="Closed SQLite source file")
+    parser.add_argument("--target", help="Psycopg 3 PostgreSQL SQLAlchemy URL")
+    parser.add_argument("--manifest", type=Path, help="Private verification manifest path")
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Require complete row, key, hash, and foreign-key verification",
+    )
     return parser
 
 
 def main() -> None:
     args = _build_parser().parse_args()
     settings = Settings()
+    if args.command == "migrate-sqlite-to-postgres":
+        if args.source is None or args.target is None:
+            raise SystemExit("--source and --target are required")
+        manifest = args.manifest or args.source.with_suffix(
+            args.source.suffix + ".postgres-migration-manifest.json"
+        )
+        try:
+            result = migrate_sqlite_to_postgres(
+                source_path=args.source,
+                target_url=args.target,
+                manifest_path=manifest,
+                signing_key=settings.secret_key,
+                verify=args.verify,
+            )
+        except PostgresMigrationError as error:
+            raise SystemExit(str(error)) from error
+        print(
+            f"Migration verified: tables={len(result['tables'])} manifest={manifest}"
+        )
+        return
     factory = session_factory(settings)
     if args.command == "reconcile-storage":
         summary = reconcile_storage(
