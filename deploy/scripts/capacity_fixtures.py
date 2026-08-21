@@ -105,6 +105,7 @@ class Client:
             "/api/v1/auth/session",
             method="POST",
             body={"username": username, "password": password},
+            expected=(201,),
         )
         token = result.get("csrfToken") if isinstance(result, dict) else None
         if not isinstance(token, str) or len(token) < 32:
