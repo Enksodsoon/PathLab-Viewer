@@ -145,7 +145,8 @@ os.replace(temporary, path)
 PY
 jq -s '.[0] + .[1]' \
   <(jq '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
-    phase,finalLimit,faultConsumed}' "${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json") \
+    windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' \
+    "${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json") \
   "${STATE_DIR}/pathlab-capacity-${RUN_ID}-rollback.json" > "\${final_tmp}"
 chmod 600 "\${final_tmp}"
 mv -- "\${final_tmp}" "${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json"
@@ -265,7 +266,7 @@ PY
     'select(.planDigest == $digest) | .rollbackNotAfter' "${CONTROL_STATE}")"
   while (( $(date +%s) < ROLLBACK_NOT_AFTER )); do
     STATUS="$(jq -c '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
-      phase,finalLimit,faultConsumed}' "${CONTROL_STATE}")"
+      windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' "${CONTROL_STATE}")"
     if jq -e '.phase == "restored"' <<< "${STATUS}" >/dev/null && \
        [[ -s "${FINAL_RESULT}" ]]; then
       cat "${FINAL_RESULT}"
@@ -341,7 +342,7 @@ if [[ "${REQUEST}" =~ ^capacity-abort[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]
   fi
   while (( $(date +%s) < ROLLBACK_NOT_AFTER )); do
     STATUS="$(jq -c '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
-      phase,finalLimit,faultConsumed}' "${CONTROL_STATE}")"
+      windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' "${CONTROL_STATE}")"
     if jq -e '.phase == "aborted-restored" and .finalLimit == null' <<< "${STATUS}" >/dev/null && \
        [[ "$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)" == "${ROLLBACK_SHA}" ]] && \
        [[ -s "${FINAL_RESULT}" ]]; then

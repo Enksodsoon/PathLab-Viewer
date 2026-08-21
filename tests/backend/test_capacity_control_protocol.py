@@ -541,6 +541,7 @@ def test_finalize_abort_and_ack_replay_from_retained_host_results() -> None:
     assert "abort-reconcile.service" in host and "reconcile-abort.sh" in host
     assert "capacity-ack" in host and "controllerAcknowledged:true" in host
     assert "write_final_result" in unit and "FINAL_EVIDENCE" in unit
+    assert host.count("windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed") >= 3
     assert '"capacity-ack run=${run_id} digest=${digest}"' in cleanup
     assert rollback.index('rollback_dir="${candidates[') < rollback.index(
         'docker compose down'
