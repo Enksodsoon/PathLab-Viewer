@@ -1,6 +1,7 @@
 import { ApiError, csrfFetch } from '../api'
 import type {
-  StudyAction, StudyAuthoringSlide, StudyCourseSummary, StudyPackDefinition, StudyPackSummary,
+  EvidenceBundle, KnowledgePack, StudyAction, StudyAuthoringSlide, StudyCourseSummary,
+  StudyPackDefinition, StudyPackSummary,
   StudySession,
 } from './types'
 
@@ -59,9 +60,19 @@ export async function submitStudyTask(
     explanation: string
     sources: Array<{ title: string; url: string }>
     spatialError?: number
+    claimIds?: string[]
+    evidence?: { manifestSha256: string; url: string }
   }>(await studyFetch(`/api/v1/study/tasks/${encodeURIComponent(taskId)}/submit`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(submission),
   }))
+}
+
+export async function getStudyKnowledgePack(url: string): Promise<KnowledgePack> {
+  return body(await studyFetch(url, { cache: 'no-store' }))
+}
+
+export async function getStudyEvidence(url: string): Promise<EvidenceBundle> {
+  return body(await studyFetch(url, { cache: 'no-store' }))
 }
 
 export async function reportStudyReadiness(outcome: 'ready' | 'fallback') {

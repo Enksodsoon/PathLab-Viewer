@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any, NoReturn
 
 SCHEMA = "pathlab.study-pack/1"
+SCHEMA_V2 = "pathlab.study-pack/2"
 MAX_PACK_BYTES = 2 * 1024 * 1024
 MAX_SLIDES = 50
 MAX_TASKS = 500
@@ -90,7 +91,8 @@ def _unit(value: Any, *, positive: bool = False) -> float:
 def validate_study_pack(definition: dict[str, Any]) -> str:
     if len(canonical_json(definition).encode("utf-8")) > MAX_PACK_BYTES:
         raise ValueError("STUDY_PACK_SIZE_INVALID")
-    if definition.get("schema") != SCHEMA:
+    schema = definition.get("schema")
+    if schema not in {SCHEMA, SCHEMA_V2}:
         raise ValueError("STUDY_PACK_SCHEMA_UNSUPPORTED")
     pack_key = _text(definition.get("packKey"), maximum=120)
     if not re.fullmatch(r"[A-Za-z0-9._-]+", pack_key):
@@ -113,6 +115,12 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
         or not all(language in {"en", "th"} for language in languages)
     ):
         raise ValueError("STUDY_PACK_LANGUAGES_INVALID")
+    if schema == SCHEMA_V2:
+        if languages != ["en"]:
+            raise ValueError("STUDY_PACK_V2_ENGLISH_ONLY")
+        knowledge_checksum = _text(definition.get("knowledgePackChecksum"), maximum=64)
+        if not re.fullmatch(r"[a-f0-9]{64}", knowledge_checksum):
+            raise ValueError("STUDY_PACK_KNOWLEDGE_INVALID")
 
     slides = definition.get("slides")
     if not isinstance(slides, list) or not 1 <= len(slides) <= MAX_SLIDES:
@@ -127,6 +135,10 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
         if slide_id in slide_ids or not re.fullmatch(r"[a-f0-9]{64}", checksum):
             raise ValueError("STUDY_PACK_SLIDE_INVALID")
         slide_ids.add(slide_id)
+        if schema == SCHEMA_V2:
+            evidence_checksum = _text(slide.get("evidenceBundleSha256"), maximum=64)
+            if not re.fullmatch(r"[a-f0-9]{64}", evidence_checksum):
+                raise ValueError("STUDY_PACK_EVIDENCE_INVALID")
 
     tasks = definition.get("tasks")
     if not isinstance(tasks, list) or not 1 <= len(tasks) <= MAX_TASKS:
@@ -158,6 +170,15 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
             url = _text(source.get("url"), maximum=1000)
             if not url.startswith("https://"):
                 raise ValueError("STUDY_PACK_SOURCE_INVALID")
+        if schema == SCHEMA_V2:
+            claim_ids = task.get("claimIds")
+            if not isinstance(claim_ids, list) or not 1 <= len(claim_ids) <= 10:
+                raise ValueError("STUDY_PACK_CLAIMS_INVALID")
+            if len(set(claim_ids)) != len(claim_ids):
+                raise ValueError("STUDY_PACK_CLAIMS_INVALID")
+            for claim_id in claim_ids:
+                if not re.fullmatch(r"[A-Za-z0-9._-]{1,160}", _text(claim_id, maximum=160)):
+                    raise ValueError("STUDY_PACK_CLAIMS_INVALID")
         task_type = task.get("type")
         if task_type == "multiple-choice":
             options = task.get("options")
@@ -214,11 +235,11 @@ def learner_definition(definition: dict[str, Any]) -> dict[str, Any]:
     for source in definition["tasks"]:
         task = {
             key: source[key]
-            for key in ("id", "type", "slideId", "prompt", "options", "hints")
+            for key in ("id", "type", "slideId", "prompt", "options", "hints", "claimIds")
             if key in source
         }
         tasks.append(task)
-    return {
+    result = {
         "schema": definition["schema"],
         "packKey": definition["packKey"],
         "version": definition["version"],
@@ -229,11 +250,28 @@ def learner_definition(definition: dict[str, Any]) -> dict[str, Any]:
                 "viewerSlideId": slide["viewerSlideId"],
                 "displayName": slide["displayName"],
                 "tileSource": f"/api/v1/study/slides/{slide['viewerSlideId']}/tiles/slide.dzi",
+                **(
+                    {
+                        "evidenceBundleSha256": slide["evidenceBundleSha256"],
+                        "evidenceUrl": (
+                            f"/api/v1/study/slides/{slide['viewerSlideId']}/evidence/"
+                            f"{slide['evidenceBundleSha256']}"
+                        ),
+                    }
+                    if definition["schema"] == SCHEMA_V2
+                    else {}
+                ),
             }
             for slide in definition["slides"]
         ],
         "tasks": tasks,
     }
+    if definition["schema"] == SCHEMA_V2:
+        result["knowledgePackChecksum"] = definition["knowledgePackChecksum"]
+        result["knowledgePackUrl"] = (
+            f"/api/v1/study/knowledge/{definition['knowledgePackChecksum']}"
+        )
+    return result
 
 
 def score_task(task: dict[str, Any], submission: dict[str, Any]) -> bool:

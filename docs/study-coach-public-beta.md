@@ -25,7 +25,7 @@ The browser runtime is pinned to ONNX Runtime Web 1.27.0 because npm does not pu
 ## Deployment and private-pilot sequence
 
 1. Back up the database and deploy with all three flags disabled.
-2. Apply migrations through `20260821_0023`; verify `/readyz` and `/livez`.
+2. Apply migrations through `20260822_0024`; verify `/readyz` and `/livez`.
 3. Install the exact artifact and confirm the installation command succeeds.
 4. Enable Study Mode, keeping both AI flags disabled, and author/preview an immutable pack in Viewer.
 5. Complete privacy review and owned or borrowed physical-device checks.
