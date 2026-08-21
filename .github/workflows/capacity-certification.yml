@@ -154,7 +154,7 @@ jobs:
             block_gb="$((block_gb + size))"
           done < <(jq -r '.data[]? | ."volume-id" // empty' "${RUNNER_TEMP}/oci-volume-attachments-private.json")
           storage_gb="$((boot_gb + block_gb))"
-          oci search resource structured-search --all \
+          oci search resource structured-search --limit 1000 \
             --query-text "query all resources where compartmentId = '${compartment_id}'" \
             > "${RUNNER_TEMP}/oci-inventory-private.json"
           observed_resources="$(jq -er '.data.items | length' "${RUNNER_TEMP}/oci-inventory-private.json")"
