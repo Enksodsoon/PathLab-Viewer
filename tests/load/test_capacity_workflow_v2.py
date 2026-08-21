@@ -72,7 +72,9 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "cleanup",
         "postflight",
     ]
-    assert jobs["cleanup"]["if"] == "${{ always() }}"
+    assert jobs["cleanup"]["if"] == (
+        "${{ always() && needs.preflight.result == 'success' }}"
+    )
     assert jobs["cleanup"]["needs"] == [
         "preflight",
         "shard",
@@ -83,6 +85,24 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
     assert jobs["decision"]["if"] == "${{ always() && needs.preflight.result == 'success' }}"
     assert jobs["postflight"]["if"] == "${{ always() && needs.cleanup.result != 'skipped' }}"
     assert jobs["postflight"]["needs"] == ["preflight", "decision", "cleanup"]
+
+
+def test_capacity_cost_queries_use_monthly_utc_day_boundaries() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    assert serialized.count('usage_end="$(date -u +%Y-%m-%dT00:00:00Z)"') == 2
+    assert "%Y-%m-%dT%H:%M:%SZ" not in serialized
+
+
+def test_capacity_preflight_rejects_missing_accounting_baseline_before_oci_query() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    validation = serialized.index("Validate zero-cost accounting configuration")
+    query = serialized.index("request-summarized-usages")
+    assert validation < query
+    assert '[[ "${PROJECTED_MONTHLY_RUNS}" =~ ^[1-9][0-9]*$ ]]' in serialized
+    assert '[[ "${APPROVED_RESOURCE_COUNT}" =~ ^[1-9][0-9]*$ ]]' in serialized
+    assert '[[ "${APPROVED_RESOURCE_DIGEST}" =~ ^[0-9a-f]{64}$ ]]' in serialized
 
 
 def test_capacity_workflow_retains_only_sanitized_aggregate_evidence() -> None:

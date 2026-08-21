@@ -109,7 +109,7 @@ jobs:
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
-      - name: Build aggregate zero-cost accounting evidence
+      - name: Validate zero-cost accounting configuration and build evidence
         env:
           PROJECTED_EGRESS_BYTES: ${{ vars.OCI_PROJECTED_MONTHLY_EGRESS_BYTES }}
           PROJECTED_MONTHLY_RUNS: ${{ vars.CAPACITY_PROJECTED_MONTHLY_RUNS }}
@@ -118,9 +118,14 @@ jobs:
           APPROVED_RESOURCE_DIGEST: ${{ secrets.OCI_APPROVED_RESOURCE_DIGEST }}
         run: |
           set -euo pipefail
+          [[ "${PROJECTED_EGRESS_BYTES}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${PROJECTED_MONTHLY_RUNS}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${OCI_INSTANCE_ID}" == ocid1.instance.* ]]
+          [[ "${APPROVED_RESOURCE_COUNT}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${APPROVED_RESOURCE_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           tenancy_id="$(awk -F= '/^tenancy=/{print $2; exit}' ~/.oci/config)"
           usage_start="$(date -u +%Y-%m-01T00:00:00Z)"
-          usage_end="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          usage_end="$(date -u +%Y-%m-%dT00:00:00Z)"
           oci usage-api usage-summary request-summarized-usages \
             --tenant-id "${tenancy_id}" --granularity MONTHLY --query-type COST \
             --time-usage-started "${usage_start}" --time-usage-ended "${usage_end}" \
@@ -553,7 +558,7 @@ jobs:
           retention-days: 1
 
   cleanup:
-    if: ${{ always() }}
+    if: ${{ always() && needs.preflight.result == 'success' }}
     needs: [preflight, shard, sentinels, fault-recovery, decision]
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -660,10 +665,11 @@ jobs:
           bounded curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/readyz" >/dev/null
           bounded curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/livez" >/dev/null
           tenancy_id="$(awk -F= '/^tenancy=/{print $2; exit}' ~/.oci/config)"
+          usage_end="$(date -u +%Y-%m-%dT00:00:00Z)"
           cost_json="$(bounded oci usage-api usage-summary request-summarized-usages \
             --tenant-id "${tenancy_id}" --granularity MONTHLY --query-type COST \
             --time-usage-started "$(date -u +%Y-%m-01T00:00:00Z)" \
-            --time-usage-ended "$(date -u +%Y-%m-%dT%H:%M:%SZ)")"
+            --time-usage-ended "${usage_end}")"
           cost="$(jq '[.data.items[]? | (."computed-amount" // 0 | tonumber)] | add // 0' <<< "${cost_json}")"
           jq -n --arg runId "$(jq -r .runId "${plan}")" --arg workflowSha "${GITHUB_SHA}" \
             --arg planDigest "$(jq -r .planDigest "${plan}")" --arg observedAt "$(date --iso-8601=seconds)" \
