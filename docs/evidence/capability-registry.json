@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "baselineReleaseSha": "b9d56022dea04940ffa8d262460a15b51074a37b",
+  "generatedAt": "2026-08-21",
+  "evidenceStates": [
+    "NOT_IMPLEMENTED",
+    "BUILT",
+    "SYNTHETICALLY_VERIFIED",
+    "EXTERNALLY_CONFORMANT",
+    "PILOT_VALIDATED",
+    "PRODUCTION_CERTIFIED",
+    "CLINICALLY_QUALIFIED"
+  ],
+  "capabilities": [
+    {
+      "id": "classroom",
+      "displayName": "Lightweight live Classroom",
+      "domain": "Classroom",
+      "evidenceState": "BUILT",
+      "releaseSha": "b9d56022dea04940ffa8d262460a15b51074a37b",
+      "featureFlag": "PATHLAB_CLASSROOM_ENABLED",
+      "supportingEvidence": [
+        "docs/classroom/IMPLEMENTATION.md",
+        "artifacts/classroom/capacity-certification-run-1/hardening-summary.md"
+      ],
+      "requiredTests": [
+        "tests/backend/test_classroom.py",
+        "apps/web/src/test/classroom-student-sync-page.test.tsx"
+      ],
+      "claimRestrictions": [
+        "not production-certified",
+        "not pilot-validated",
+        "historical synthetic capacity evidence is not evidence for the current release SHA"
+      ]
+    },
+    {
+      "id": "admin-annotations",
+      "displayName": "Private administrator annotation layers",
+      "domain": "Library",
+      "evidenceState": "BUILT",
+      "releaseSha": "b9d56022dea04940ffa8d262460a15b51074a37b",
+      "featureFlag": "PATHLAB_ANNOTATIONS_ENABLED",
+      "supportingEvidence": [
+        "docs/architecture/ADMIN_ANNOTATIONS.md"
+      ],
+      "requiredTests": [
+        "tests/backend/test_annotations.py",
+        "apps/web/src/test/annotation-workspace.test.tsx"
+      ],
+      "claimRestrictions": [
+        "not collaborative",
+        "not available on public viewer routes",
+        "not production-qualified"
+      ]
+    },
+    {
+      "id": "calibrated-measurements",
+      "displayName": "Annotation geometry measurements",
+      "domain": "Library",
+      "evidenceState": "BUILT",
+      "releaseSha": "b9d56022dea04940ffa8d262460a15b51074a37b",
+      "featureFlag": "PATHLAB_ANNOTATIONS_ENABLED",
+      "supportingEvidence": [
+        "apps/web/src/annotations/measurement.ts"
+      ],
+      "requiredTests": [
+        "apps/web/src/test/annotation-measurement-spatial.test.ts"
+      ],
+      "claimRestrictions": [
+        "requires valid slide calibration",
+        "uncalibrated slides report pixel units",
+        "not a clinical measurement device"
+      ]
+    },
+    {
+      "id": "qupath-geojson",
+      "displayName": "QuPath-compatible GeoJSON annotation exchange",
+      "domain": "Library",
+      "evidenceState": "BUILT",
+      "releaseSha": "b9d56022dea04940ffa8d262460a15b51074a37b",
+      "featureFlag": "PATHLAB_ANNOTATIONS_ENABLED",
+      "supportingEvidence": [
+        "apps/web/src/annotations/interchange.ts"
+      ],
+      "requiredTests": [
+        "apps/web/src/test/annotation-interchange-api.test.ts"
+      ],
+      "claimRestrictions": [
+        "not a complete QuPath project exchange",
+        "single-ring GeoJSON contract only",
+        "import remains administrator-only"
+      ]
+    }
+  ]
+}

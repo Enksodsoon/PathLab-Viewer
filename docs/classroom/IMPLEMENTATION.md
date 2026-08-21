@@ -13,7 +13,7 @@ This implementation is deliberately limited to the active-learning loop:
 
 `PATHLAB_CLASSROOM_ENABLED=false` remains the default. No classroom route is registered
 and the lazy classroom page bundles are not requested during ordinary disabled-mode use.
-This branch does not authorize a merge, deployment, or production activation.
+Repository availability does not authorize deployment or production activation.
 
 ## Resource boundaries
 
@@ -136,7 +136,9 @@ Use `tests/load/classroom_sse.py` for protocol-level clients. It refuses non-loc
 requires an explicitly created ephemeral classroom. It continuously consumes SSE while
 publishing presenter movement, requesting a real tile, exercising questions and control, and
 creating bounded churn. Browser rendering and screenshot checks remain separate from protocol
-scale. The 300-user protected certification is a later explicit run.
+scale. Historical local 300-client evidence belongs only to its recorded candidate; it does not
+promote a later release above `BUILT`. Exact-release protected certification remains a separate,
+explicit run.
 
 Production remains **NOT CERTIFIED** until the exact release SHA passes the protected
 baseline-versus-candidate capacity, restart, churn, cold-tile, question, control, and soak
@@ -144,13 +146,15 @@ gates. Never load-test production.
 
 ## Deployment and rollback
 
-1. Back up the SQLite database and apply Alembic revision `20260813_0019` while the feature
-   remains disabled.
-2. Verify one API service, one Uvicorn worker, local SQLite/WAL, Caddy SSE flushing, static
-   tile delivery, and readiness.
+1. Back up the current database and data root, verify the backup, and run
+   `alembic upgrade head` while the feature remains disabled.
+2. Verify the dedicated Classroom API service has one Uvicorn worker, owns the singleton
+   lock, uses short database scopes, and has working Caddy SSE flushing, static tile delivery,
+   liveness, and readiness. The current SQLite/WAL runtime remains in place until the separately
+   reviewed PostgreSQL foundation program is complete.
 3. Run the exact-release certification before considering activation.
 4. Activation, if separately authorized, is only `PATHLAB_CLASSROOM_ENABLED=true` with the
    singleton declaration already true.
-5. Roll back by disabling the flag first. The migration downgrade drops only classroom
-   tables; export/backup any required classroom rows before downgrade. Local student notes
-   are browser-owned and are not part of server rollback.
+5. Roll back by disabling the flag first. Preserve Classroom rows and restore from the verified
+   backup rather than assuming a schema downgrade is lossless. Local student notes are
+   browser-owned and are not part of server rollback.
