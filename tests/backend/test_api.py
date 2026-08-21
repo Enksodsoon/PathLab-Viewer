@@ -338,9 +338,10 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "annotations:sync",
             "results:sync",
             "library:read",
-            "slides:offline:read",
-            "library:sync",
-        }
+                "slides:offline:read",
+                "library:sync",
+                "study-packs:write",
+            }
 
         replay = client.post(
             "/api/v1/desktop/pairings/exchange",

@@ -17,6 +17,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Res
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 
 from .annotations import (
@@ -57,9 +58,13 @@ from .models import (
     ResultDelivery,
     Session,
     Slide,
+    StudyPack,
 )
 from .ome_ingest import desktop_quarantine_path
 from .storage import GIB, StorageLayout, admission_required
+from .study_pack_contract import MAX_PACK_BYTES, MAX_TASKS, validate_study_pack
+from .study_pack_contract import SCHEMA as STUDY_PACK_SCHEMA
+from .study_pack_contract import parse_json as parse_study_pack_json
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
 
 PAIRING_MINUTES = 10
@@ -72,6 +77,7 @@ DESKTOP_SCOPES = [
     "library:read",
     "slides:offline:read",
     "library:sync",
+    "study-packs:write",
 ]
 MAX_DESKTOP_CHUNK_BYTES = 64 * 1024 * 1024
 LEGACY_DESKTOP_CHUNK_BYTES = 16 * 1024 * 1024
@@ -529,6 +535,81 @@ def register_desktop_routes(
             "maxResultBytes": MAX_RESULT_BYTES,
             "maxResultObjects": MAX_RESULT_OBJECTS,
             "maxMaskBytes": MAX_RESULT_MASK_BYTES,
+            "studyPackSchemas": [STUDY_PACK_SCHEMA],
+            "studyPackMaxBytes": MAX_PACK_BYTES,
+            "studyPackMaxTasks": MAX_TASKS,
+        }
+
+    @app.post("/api/v1/desktop/study-packs", status_code=status.HTTP_201_CREATED)
+    async def publish_study_pack(
+        request: Request,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_scope(authenticated, "study-packs:write")
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_PACK_BYTES:
+                raise HTTPException(status_code=413, detail={"code": "STUDY_PACK_SIZE_INVALID"})
+        try:
+            definition = parse_study_pack_json(bytes(body))
+            checksum = validate_study_pack(definition)
+        except (ValueError, json.JSONDecodeError) as error:
+            code = str(error) if str(error).startswith("STUDY_") else "STUDY_PACK_INVALID"
+            raise HTTPException(status_code=422, detail={"code": code}) from error
+        for reference in definition["slides"]:
+            slide = database.get(Slide, reference["viewerSlideId"])
+            if (
+                slide is None
+                or slide.sha256 != reference["sha256"]
+                or slide.render_mode != "static_dzi"
+                or slide.privacy_status != "passed"
+                or slide.state not in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
+            ):
+                raise HTTPException(
+                    status_code=409, detail={"code": "STUDY_PACK_SLIDE_NOT_ACCEPTED"}
+                )
+        existing = database.scalar(
+            select(StudyPack).where(
+                StudyPack.pack_key == definition["packKey"],
+                StudyPack.version == definition["version"],
+            )
+        )
+        if existing is not None:
+            if existing.checksum != checksum:
+                raise HTTPException(
+                    status_code=409, detail={"code": "STUDY_PACK_VERSION_IMMUTABLE"}
+                )
+            return {
+                "id": existing.id,
+                "packKey": existing.pack_key,
+                "version": existing.version,
+                "checksum": existing.checksum,
+                "status": "available",
+            }
+        stored = StudyPack(
+            pack_key=definition["packKey"],
+            version=definition["version"],
+            title=definition["title"],
+            checksum=checksum,
+            definition=definition,
+            created_by_user_id=authenticated.user_id,
+        )
+        database.add(stored)
+        try:
+            database.commit()
+        except IntegrityError as error:
+            database.rollback()
+            raise HTTPException(
+                status_code=409, detail={"code": "STUDY_PACK_VERSION_IMMUTABLE"}
+            ) from error
+        return {
+            "id": stored.id,
+            "packKey": stored.pack_key,
+            "version": stored.version,
+            "checksum": stored.checksum,
+            "status": "available",
         }
 
     @app.get("/api/v2/desktop/library/items")

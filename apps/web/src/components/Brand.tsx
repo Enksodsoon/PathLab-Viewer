@@ -1,8 +1,9 @@
 interface BrandProps {
   variant?: 'default' | 'library'
+  product?: string
 }
 
-export function Brand({ variant = 'default' }: BrandProps) {
+export function Brand({ variant = 'default', product = 'Viewer' }: BrandProps) {
   return (
     <div className={`brand${variant === 'library' ? ' brand-library' : ''}`} aria-label="PathLab Viewer">
       <span className={`brand-mark${variant === 'library' ? ' brand-mark-layers' : ''}`}>
@@ -19,7 +20,7 @@ export function Brand({ variant = 'default' }: BrandProps) {
         </svg>
       </span>
       <span>PathLab</span>
-      <span className="brand-product">Viewer</span>
+      <span className="brand-product">{product}</span>
     </div>
   )
 }

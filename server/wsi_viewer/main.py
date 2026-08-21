@@ -65,6 +65,7 @@ from .storage import (
     StorageLayout,
 )
 from .storage_accounting import reserve_new_slide, reserve_retry
+from .study_routes import register_study_routes
 from .tile_cache import TileCache
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
 
@@ -268,6 +269,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if serves_general and finalizer is not None and schema_ready:
             finalizer.start()
             finalizer_started = True
+        study_purger = services.get("study_purger")
+        if serves_general and study_purger is not None and schema_ready:
+            study_purger.start()
         classroom_lock_held = False
         if classroom_runtime_enabled:
             classroom_lock_held = classroom_lock.acquire()
@@ -282,6 +286,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             if finalizer is not None and finalizer_started:
                 finalizer.close()
+            if study_purger is not None and schema_ready:
+                await study_purger.close()
             services.pop("tile_routes", None)
             if tile_route_service is not None:
                 tile_route_service.close()
@@ -479,6 +485,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tile_routes=tile_routes,
             ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
             max_upload_bytes=current.max_upload_bytes,
+        )
+        services["study_purger"] = register_study_routes(
+            app,
+            factory=factory,
+            storage=storage,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            enabled=current.study_mode_enabled,
+            ai_enabled=current.study_coach_ai_enabled,
+            max_learners=current.study_max_learners,
+            secure_cookies=current.secure_cookies,
+            internal_file_redirects=current.internal_file_redirects,
         )
     if serves_classroom:
         services["classroom_presenter"] = register_classroom_routes(

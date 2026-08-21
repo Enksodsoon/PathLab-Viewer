@@ -98,7 +98,7 @@ import { startTusUpload } from '../upload'
 import '../library.css'
 
 const EMPTY_NAVIGATION: LibraryNavigation = {
-  capabilities: { classroom: false },
+  capabilities: { classroom: false, study: false },
   counts: { all: 0, unfiled: 0, shared: 0, processing: 0, failed: 0, trash: 0 },
   folders: [],
   collections: [],
@@ -1337,6 +1337,9 @@ export function AdminPage() {
         onUpload={() => openNamedDialog('upload')}
         onClassroom={navigation.capabilities?.classroom
           ? () => navigate('/admin/classroom')
+          : undefined}
+        onStudy={navigation.capabilities?.study
+          ? () => navigate('/admin/study')
           : undefined}
         onSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void signOut()}

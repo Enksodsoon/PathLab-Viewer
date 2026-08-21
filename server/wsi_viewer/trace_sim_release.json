@@ -1,0 +1,33 @@
+{
+  "schema": "pathlab.study-model-release/1",
+  "id": "trace-sim-int8-20260802",
+  "model": "TRACE-SIM",
+  "artifactSha256": "9ca7e812951712eb29fd24c1fbf825afdb0b8a743ed941d96e186dab4d90c8a1",
+  "checkpointSha256": "2d625b1fad5c97584e1f7c69c3a95a6761fd934adaf17b1cecce329247e9fa0d",
+  "artifactBytes": 3257665,
+  "runtime": "onnxruntime-web@1.27.0",
+  "runtimeMode": "wasm-single-thread",
+  "trainingScope": "Simulated learners only",
+  "license": "Release pending model-owner and institutional review",
+  "attribution": "PathLab TRACE-SIM educational research workflow",
+  "allowedActions": [
+    "continue",
+    "offer_hint",
+    "ask_confidence",
+    "ask_source_check",
+    "retrieve",
+    "pause"
+  ],
+  "approvalStatus": "not_approved_fixed_order_only_release",
+  "knownLimitations": [
+    "Not validated as evidence of learning effectiveness",
+    "Not clinical software and does not inspect slide pixels",
+    "Public AI activation is prohibited until approvalStatus is public_beta_bounded_safe_actions"
+  ],
+  "assetFile": "trace-sim.9ca7e812951712eb.onnx",
+  "assetUrl": "/api/v1/study/assets/trace-sim.9ca7e812951712eb.onnx",
+  "knownVector": {
+    "inputLength": 3072,
+    "expectedOutputTolerance": 0.0001
+  }
+}
