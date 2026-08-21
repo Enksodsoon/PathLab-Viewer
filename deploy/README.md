@@ -116,6 +116,16 @@ Trash metadata, and thumbnail references. It does not remove originals or DZI
 trees. Do not downgrade after administrators begin relying on library metadata
 unless that metadata loss is accepted and the verified backup is available.
 
+### Classroom rollout
+
+Classroom is built but remains disabled by default in both the deployment
+template and the Compose fallback. An existing deployment retains an explicit
+environment value during release; publishing code does not activate the
+feature. Keep `PATHLAB_PRODUCTION_CLASSROOM_ENABLED=false` through backup,
+restore, migration, readiness, browser, restart, and exact-release synthetic
+checks. Activation requires a separate authorized configuration change.
+Disable the flag first during rollback and preserve Classroom records.
+
 ### Administrator annotation rollout
 
 Private administrator annotations are documented in

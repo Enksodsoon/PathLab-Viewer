@@ -607,12 +607,12 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
     assert "docker compose down" not in script
 
 
-def test_production_classroom_is_enabled_without_mutating_the_preserved_environment() -> None:
+def test_production_classroom_is_default_off_without_mutating_the_preserved_environment() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     example = Path("deploy/.env.example").read_text(encoding="utf-8")
 
-    assert 'PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-true}"' in compose
-    assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=true" in example
+    assert 'PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-false}"' in compose
+    assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=false" in example
 
 
 def test_release_script_interlocks_before_worker_disruption() -> None:

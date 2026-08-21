@@ -2,6 +2,24 @@
 
 This ledger separates reproducible evidence from product or architecture claims. Results are historical unless they are reproduced for the current candidate. CI is the source of truth for the current branch's automated checks.
 
+The machine-readable source for capability claims is
+[`capability-registry.json`](capability-registry.json). Each entry has exactly
+one evidence state, supporting evidence, required tests, and explicit claim
+restrictions. The state ladder is ordered but non-transitive: `BUILT` does not
+imply `SYNTHETICALLY_VERIFIED`, and no state implies a later state.
+
+## 2026-08-21 Program 0A baseline
+
+The registry baseline is exact `origin/main` SHA
+`b9d56022dea04940ffa8d262460a15b51074a37b`. On that unchanged baseline, 632
+backend tests passed with 6 intentional skips, 276 frontend tests passed, and
+72 browser tests passed across desktop Chromium, Firefox, WebKit, and mobile
+Chromium. Ruff, strict mypy, ESLint, the production web build, the public
+repository scan, registry validation, and Docker Compose configuration also
+passed locally. These are baseline results, not protected CI evidence for this
+candidate and not deployment, activation, capacity, pilot, production, or
+clinical evidence.
+
 ## Acceptance gates
 
 | Gate | Evidence recorded | Status |

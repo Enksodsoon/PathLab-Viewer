@@ -14,6 +14,10 @@ PathLab Viewer is a private-first web application for reviewing and publishing O
 - Nested folders, many-to-many collections, saved views, and restorable Trash
 - Bounded server-side library search, filters, facets, and cursor pagination
 - Conversion-time cached thumbnails for library browsing
+- Default-disabled live Classroom sessions with teacher follow, bounded
+  questions and control, transient teaching marks, and browser-owned notes
+- Default-disabled private administrator annotations, calibrated measurements,
+  and bounded GeoJSON/QuPath interchange
 - Dormant, privacy-gated folder and collection share contracts with a reusable
   multi-slide viewer; production activation remains disabled by default
 - Docker Compose deployment with Caddy HTTPS termination
