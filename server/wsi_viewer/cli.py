@@ -1,5 +1,9 @@
 import argparse
 import getpass
+import hashlib
+import json
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -40,9 +44,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "deployment-check",
             "reconcile-storage",
             "migrate-sqlite-to-postgres",
+            "install-study-model",
         ],
     )
     parser.add_argument("--username", default="admin")
+    parser.add_argument("--artifact", type=Path)
     parser.add_argument(
         "--password-stdin",
         action="store_true",
@@ -83,6 +89,28 @@ def main() -> None:
         )
         return
     factory = session_factory(settings)
+    if args.command == "install-study-model":
+        if args.artifact is None or not args.artifact.is_file():
+            raise SystemExit("--artifact must identify the TRACE-SIM ONNX file")
+        manifest_path = Path(__file__).with_name("trace_sim_release.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        payload = args.artifact.read_bytes()
+        digest = hashlib.sha256(payload).hexdigest()
+        if len(payload) != manifest["artifactBytes"] or digest != manifest["artifactSha256"]:
+            raise SystemExit(
+                "TRACE-SIM artifact size or SHA-256 does not match the release manifest"
+            )
+        target_dir = settings.data_root / "private" / "study-models"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / manifest["assetFile"]
+        temporary = target.with_suffix(target.suffix + ".installing")
+        with args.artifact.open("rb") as source, temporary.open("wb") as destination:
+            shutil.copyfileobj(source, destination)
+            destination.flush()
+            os.fsync(destination.fileno())
+        os.replace(temporary, target)
+        print(f"Installed {target.name} ({digest})")
+        return
     if args.command == "reconcile-storage":
         summary = reconcile_storage(
             factory,

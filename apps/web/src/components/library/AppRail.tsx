@@ -13,6 +13,7 @@ interface AppRailProps {
   onNavigator: () => void
   onUpload: () => void
   onClassroom?: () => void
+  onStudy?: () => void
   onSecurity: () => void
   onSignOut: () => void
 }
@@ -27,6 +28,7 @@ export function AppRail({
   onNavigator,
   onUpload,
   onClassroom,
+  onStudy,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
@@ -42,6 +44,7 @@ export function AppRail({
       onNavigator={onNavigator}
       onUpload={onUpload}
       onClassroom={onClassroom}
+      onStudy={onStudy}
       onSecurity={onSecurity}
       onSignOut={onSignOut}
     />

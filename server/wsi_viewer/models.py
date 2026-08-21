@@ -833,3 +833,158 @@ class ClassroomQuestionReceipt(Base):
     idempotency_key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     original_question_id: Mapped[str] = mapped_column(String(36), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class StudyPack(Base):
+    __tablename__ = "study_packs"
+    __table_args__ = (
+        UniqueConstraint("pack_key", "version", name="uq_study_packs_key_version"),
+        UniqueConstraint("checksum", name="uq_study_packs_checksum"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    pack_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    definition: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_by_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class StudyCourse(Base):
+    __tablename__ = "study_courses"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'preparation', 'active', 'ended', 'purged')",
+            name="ck_study_courses_status",
+        ),
+        CheckConstraint("retention_days >= 0 AND retention_days <= 90", name="ck_study_retention"),
+        CheckConstraint("learner_limit >= 1 AND learner_limit <= 500", name="ck_study_learners"),
+        CheckConstraint(
+            "ai_mode IN ('deterministic', 'closed_pilot_trace_sim')",
+            name="ck_study_courses_ai_mode",
+        ),
+        Index(
+            "uq_study_courses_one_live",
+            "status",
+            unique=True,
+            sqlite_where=text("status IN ('preparation', 'active')"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    pack_id: Mapped[str] = mapped_column(
+        ForeignKey("study_packs.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    retention_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    learner_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=500)
+    invitations_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purge_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    model_manifest_id: Mapped[str | None] = mapped_column(String(100))
+    ai_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="deterministic")
+    pilot_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class StudyInvitation(Base):
+    __tablename__ = "study_invitations"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('issued', 'redeemed', 'revoked')", name="ck_study_invitations_status"
+        ),
+        Index("ix_study_invitations_course_status", "course_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    course_id: Mapped[str] = mapped_column(
+        ForeignKey("study_courses.id", ondelete="CASCADE"), nullable=False
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="issued")
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class StudyLearnerSession(Base):
+    __tablename__ = "study_learner_sessions"
+    __table_args__ = (
+        UniqueConstraint("invitation_id", name="uq_study_session_invitation"),
+        UniqueConstraint("course_id", "pseudonym", name="uq_study_session_pseudonym"),
+        CheckConstraint(
+            "status IN ('active', 'withdrawn', 'expired')", name="ck_study_sessions_status"
+        ),
+        Index("ix_study_sessions_course_status", "course_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    course_id: Mapped[str] = mapped_column(
+        ForeignKey("study_courses.id", ondelete="CASCADE"), nullable=False
+    )
+    invitation_id: Mapped[str] = mapped_column(
+        ForeignKey("study_invitations.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    csrf_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    pseudonym: Mapped[str] = mapped_column(String(24), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    withdrew_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class StudyProgress(Base):
+    __tablename__ = "study_progress"
+    __table_args__ = (
+        UniqueConstraint("session_id", "task_id", name="uq_study_progress_task"),
+        CheckConstraint("status IN ('attempted', 'completed')", name="ck_study_progress_status"),
+        CheckConstraint("attempt_count >= 1", name="ck_study_attempt_count"),
+        Index("ix_study_progress_session_updated", "session_id", "updated_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("study_learner_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    task_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    latest_correctness: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    model_manifest_id: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class StudyReadinessAggregate(Base):
+    __tablename__ = "study_readiness_aggregates"
+    __table_args__ = (UniqueConstraint("course_id", name="uq_study_readiness_course"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    course_id: Mapped[str] = mapped_column(
+        ForeignKey("study_courses.id", ondelete="CASCADE"), nullable=False
+    )
+    ready_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    fallback_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    continue_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    offer_hint_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ask_confidence_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ask_source_check_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    retrieve_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pause_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )

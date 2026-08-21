@@ -40,7 +40,7 @@ def test_postgres_migrations_constraints_and_round_trip(
 
     with engine.begin() as connection:
         assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
-            "20260821_0021"
+            "20260821_0023"
         )
         assert "slide_search" not in inspect(connection).get_table_names()
         assert connection.scalar(
@@ -54,7 +54,8 @@ def test_postgres_migrations_constraints_and_round_trip(
                 "SELECT indexname, indexdef FROM pg_indexes "
                 "WHERE schemaname = 'public' AND indexname IN "
                 "('uq_folders_root_normalized_name', "
-                "'uq_classroom_sessions_one_active')"
+                "'uq_classroom_sessions_one_active', "
+                "'uq_study_courses_one_live')"
             )
         ).all()
         definitions = {str(name): str(definition) for name, definition in index_rows}
@@ -63,6 +64,9 @@ def test_postgres_migrations_constraints_and_round_trip(
         ]
         assert "WHERE ((status)::text = 'active'::text)" in definitions[
             "uq_classroom_sessions_one_active"
+        ]
+        assert "WHERE ((status)::text = ANY" in definitions[
+            "uq_study_courses_one_live"
         ]
 
     with Session(engine) as database:

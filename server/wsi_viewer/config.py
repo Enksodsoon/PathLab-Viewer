@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     classroom_singleton: bool = False
     classroom_service_url: str = "http://classroom:8001"
     classroom_max_participants: int = Field(default=300, ge=1, le=2000)
+    study_mode_enabled: bool = False
+    study_coach_ai_enabled: bool = False
+    study_coach_ai_pilot_enabled: bool = False
+    study_max_learners: int = Field(default=500, ge=1, le=500)
     libvips_concurrency: PositiveInt = 1
     libvips_cache_max_mem_bytes: PositiveInt = 256 * 1024**2
     libvips_cache_max_files: PositiveInt = 128

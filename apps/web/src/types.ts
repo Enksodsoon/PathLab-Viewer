@@ -110,6 +110,7 @@ export interface SavedView {
 export interface LibraryNavigation {
   capabilities?: {
     classroom: boolean
+    study?: boolean
   }
   counts: {
     all: number

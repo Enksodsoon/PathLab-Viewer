@@ -2,6 +2,7 @@ import {
   CaretDoubleLeft,
   CaretDoubleRight,
   ChalkboardTeacher,
+  Brain,
   Key,
   List as Menu,
   SignOut,
@@ -25,10 +26,12 @@ export interface PathLabProductRailProps {
   onNavigator: () => void
   onUpload: () => void
   onClassroom?: () => void
+  onStudy?: () => void
   onSecurity: () => void
   onSignOut: () => void
   uploadLabel?: string
   classroomLabel?: string
+  studyLabel?: string
   accountLabel?: string
   signOutLabel?: string
 }
@@ -44,10 +47,12 @@ export function PathLabProductRail({
   onNavigator,
   onUpload,
   onClassroom,
+  onStudy,
   onSecurity,
   onSignOut,
   uploadLabel = 'Upload',
   classroomLabel = 'Classroom',
+  studyLabel = 'Study Coach',
   accountLabel = 'Account',
   signOutLabel = 'Sign out',
 }: PathLabProductRailProps) {
@@ -101,6 +106,12 @@ export function PathLabProductRail({
           <button type="button" aria-label={classroomLabel} onClick={onClassroom}>
             <ChalkboardTeacher aria-hidden="true" />
             <span>{classroomLabel}</span>
+          </button>
+        ) : null}
+        {onStudy ? (
+          <button type="button" aria-label={studyLabel} onClick={onStudy}>
+            <Brain aria-hidden="true" />
+            <span>{studyLabel}</span>
           </button>
         ) : null}
       </nav>
