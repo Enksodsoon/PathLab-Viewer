@@ -136,6 +136,8 @@ def validate_saved_view(definition: dict[str, Any], sort: str) -> None:
 
 
 def _search_ids(database: OrmSession, query: str) -> list[str] | None:
+    if database.get_bind().dialect.name != "sqlite":
+        return None
     has_fts = database.scalar(
         text(
             "SELECT 1 FROM sqlite_master "

@@ -293,6 +293,7 @@ class Folder(Base):
             "normalized_name",
             unique=True,
             sqlite_where=text("parent_id IS NULL"),
+            postgresql_where=text("parent_id IS NULL"),
         ),
         UniqueConstraint(
             "parent_id",
@@ -697,6 +698,7 @@ class ClassroomSession(Base):
             "status",
             unique=True,
             sqlite_where=text("status = 'active'"),
+            postgresql_where=text("status = 'active'"),
         ),
         Index("ix_classroom_sessions_join_code", "join_code_hash", "status"),
         Index("ix_classroom_sessions_expires", "expires_at", "status"),
