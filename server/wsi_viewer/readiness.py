@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .models import Base
 
-ALEMBIC_HEAD = "20260821_0023"
+ALEMBIC_HEAD = "20260822_0024"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
 ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
 READINESS_CACHE_SECONDS = 1.0
@@ -75,8 +75,7 @@ def tile_service_is_ready(url: str) -> bool:
         return (
             response.status_code == 200
             and payload.get("status") == "ready"
-            and int(payload.get("cacheBytes", -1))
-            <= int(payload.get("cacheMaxBytes", -2))
+            and int(payload.get("cacheBytes", -1)) <= int(payload.get("cacheMaxBytes", -2))
         )
     except (httpx.HTTPError, TypeError, ValueError):
         return False
@@ -100,12 +99,9 @@ def schema_is_current(database: OrmSession) -> bool:
             if not {column.name for column in table.columns} <= actual_columns:
                 return False
         audit_indexes = {index["name"] for index in inspector.get_indexes("audit_events")}
-        annotation_indexes = {
-            index["name"] for index in inspector.get_indexes("annotations")
-        }
+        annotation_indexes = {index["name"] for index in inspector.get_indexes("annotations")}
         return (
-            AUDIT_RETENTION_INDEX in audit_indexes
-            and ANNOTATION_ACTIVE_INDEX in annotation_indexes
+            AUDIT_RETENTION_INDEX in audit_indexes and ANNOTATION_ACTIVE_INDEX in annotation_indexes
         )
     except SQLAlchemyError:
         return False
