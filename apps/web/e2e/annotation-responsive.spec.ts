@@ -346,15 +346,19 @@ test('shows selected annotations moving with the pointer before release', async 
   const startX = before!.x + before!.width / 2
   const startY = before!.y + before!.height / 2
 
-  await page.mouse.move(startX, startY)
+  await shape.hover({
+    position: { x: before!.width / 2, y: before!.height / 2 },
+  })
   await page.mouse.down()
-  await page.mouse.move(startX + 36, startY + 24)
+  await page.mouse.move(startX + 36, startY + 24, { steps: 4 })
 
   await expect(overlay).toHaveClass(/is-moving-annotation/)
-  await expect(page.locator('.annotation-move-preview')).toHaveCSS(
-    'transform',
-    /matrix\(1, 0, 0, 1, 36, 24\)/,
-  )
+  const previewTranslation = await page.locator('.annotation-move-preview').evaluate((node) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform)
+    return { x: matrix.m41, y: matrix.m42 }
+  })
+  expect(Math.abs(previewTranslation.x - 36)).toBeLessThanOrEqual(0.1)
+  expect(Math.abs(previewTranslation.y - 24)).toBeLessThanOrEqual(0.1)
   const during = await shape.boundingBox()
   expect(Math.abs(during!.x - (before!.x + 36))).toBeLessThanOrEqual(3)
   expect(Math.abs(during!.y - (before!.y + 24))).toBeLessThanOrEqual(3)

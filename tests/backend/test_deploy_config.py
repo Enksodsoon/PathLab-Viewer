@@ -552,6 +552,10 @@ def test_bastion_target_has_no_interactive_deployment_access() -> None:
     assert "PasswordAuthentication no" in script
     assert "ForceCommand /usr/local/sbin/pathlab-viewer-deploy-entrypoint" in script
     assert "NOPASSWD: /usr/local/sbin/pathlab-viewer-deploy" in script
+    assert "systemctl disable --now ssh.socket" in script
+    assert "systemctl enable --now ssh.service" in script
+    assert "systemctl is-active --quiet ssh.service" in script
+    assert "systemctl is-enabled --quiet ssh.service" in script
 
 
 def test_shell_scripts_are_checked_out_with_unix_line_endings() -> None:

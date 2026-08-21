@@ -46,4 +46,12 @@ install -o root -g root -m 440 "${sudoers_file}" "${SUDOERS_CONFIG}"
 
 visudo -cf "${SUDOERS_CONFIG}" >/dev/null
 sshd -t
-systemctl reload ssh
+
+# OCI's Bastion plugin validates the ssh.service process, not an idle
+# ssh.socket listener. Ubuntu 24.04 enables socket activation by default,
+# which leaves managed sessions in CREATING until another client wakes sshd.
+systemctl disable --now ssh.socket
+systemctl enable --now ssh.service
+systemctl is-active --quiet ssh.service
+systemctl is-enabled --quiet ssh.service
+systemctl reload ssh.service
