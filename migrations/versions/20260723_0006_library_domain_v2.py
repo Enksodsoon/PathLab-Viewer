@@ -1,6 +1,7 @@
 """Add bounded library organization, search, trash, and generic grants."""
 
 from collections.abc import Sequence
+from uuid import uuid4
 
 import sqlalchemy as sa
 from alembic import op
@@ -46,6 +47,7 @@ def upgrade() -> None:
         ["normalized_name"],
         unique=True,
         sqlite_where=sa.text("parent_id IS NULL"),
+        postgresql_where=sa.text("parent_id IS NULL"),
     )
 
     with op.batch_alter_table("slides") as batch:
@@ -252,26 +254,31 @@ def upgrade() -> None:
         "publication_grants",
         ["source_type", "source_id"],
     )
-    op.execute(
+    bind = op.get_bind()
+    published = bind.execute(
         sa.text(
-            """
-            INSERT INTO publication_grants
-                (id, slide_id, source_type, source_id, created_at)
-            SELECT lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' ||
-                   substr(lower(hex(randomblob(2))), 2) || '-' ||
-                   substr('89ab', abs(random()) % 4 + 1, 1) ||
-                   substr(lower(hex(randomblob(2))), 2) || '-' ||
-                   lower(hex(randomblob(6))),
-                   id, 'individual', id, COALESCE(published_at, created_at)
-            FROM slides
-            WHERE state = 'published'
-            """
+            "SELECT id, COALESCE(published_at, created_at) AS grant_created_at "
+            "FROM slides WHERE state = 'published'"
         )
-    )
+    ).mappings()
+    for slide in published:
+        bind.execute(
+            sa.text(
+                "INSERT INTO publication_grants "
+                "(id, slide_id, source_type, source_id, created_at) "
+                "VALUES (:id, :slide_id, 'individual', :slide_id, :created_at)"
+            ),
+            {
+                "id": str(uuid4()),
+                "slide_id": slide["id"],
+                "created_at": slide["grant_created_at"],
+            },
+        )
 
     # Search remains optional at runtime: SQLite builds without FTS5 use the
     # bounded LIKE adapter. The migration skips only this accelerator.
-    bind = op.get_bind()
+    if bind.dialect.name != "sqlite":
+        return
     try:
         bind.exec_driver_sql(
             """
@@ -345,10 +352,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
-    bind.exec_driver_sql("DROP TRIGGER IF EXISTS slide_search_au")
-    bind.exec_driver_sql("DROP TRIGGER IF EXISTS slide_search_ad")
-    bind.exec_driver_sql("DROP TRIGGER IF EXISTS slide_search_ai")
-    bind.exec_driver_sql("DROP TABLE IF EXISTS slide_search")
+    if bind.dialect.name == "sqlite":
+        bind.exec_driver_sql("DROP TRIGGER IF EXISTS slide_search_au")
+        bind.exec_driver_sql("DROP TRIGGER IF EXISTS slide_search_ad")
+        bind.exec_driver_sql("DROP TRIGGER IF EXISTS slide_search_ai")
+        bind.exec_driver_sql("DROP TABLE IF EXISTS slide_search")
 
     op.drop_index("ix_publication_grants_source", table_name="publication_grants")
     op.drop_index("ix_publication_grants_slide", table_name="publication_grants")

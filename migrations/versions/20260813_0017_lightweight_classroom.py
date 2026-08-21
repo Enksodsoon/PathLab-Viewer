@@ -36,6 +36,7 @@ def upgrade() -> None:
         ["status"],
         unique=True,
         sqlite_where=sa.text("status = 'active'"),
+        postgresql_where=sa.text("status = 'active'"),
     )
     op.create_index(
         "ix_classroom_sessions_join_code",

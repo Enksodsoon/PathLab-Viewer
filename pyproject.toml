@@ -17,6 +17,7 @@ dependencies = [
   "lxml>=5,<7",
   "ome-types>=0.6,<1",
   "pillow>=11.3,<13",
+  "psycopg[binary]==3.3.4",
   "pydantic-settings>=2.10,<3",
   "pyvips>=3.0,<4",
   "sqlalchemy>=2.0,<3",
