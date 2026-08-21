@@ -40,6 +40,7 @@ from distributed_certification import (
 from distributed_shard import (
     ShardCancelled,
     _cleanup_synthetic_session,
+    _read_linux_process,
     atomic_write_json,
     cancellation_handler,
     completed_stage_marker,
@@ -712,6 +713,19 @@ def test_partial_shard_result_is_run_bound_and_records_completed_prefix() -> Non
 def test_process_signal_becomes_a_caught_cancellation_abort() -> None:
     with pytest.raises(ShardCancelled, match="signal 15"):
         cancellation_handler(15, None)
+
+
+def test_process_sample_tolerates_zombie_without_vmrss(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def read_text(path, *args, **kwargs) -> str:  # type: ignore[no-untyped-def]
+        if path.name == "stat":
+            return " ".join(["0"] * 20)
+        return "Name:\tpython\nState:\tZ (zombie)\n"
+
+    monkeypatch.setattr("distributed_shard.Path.read_text", read_text)
+
+    assert _read_linux_process(1234) is None
 
 
 def test_failed_execution_is_not_recorded_in_completed_partial_prefix() -> None:

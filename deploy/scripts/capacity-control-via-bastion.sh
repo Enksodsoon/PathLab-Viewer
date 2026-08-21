@@ -21,12 +21,22 @@ WORK_DIR="$(mktemp -d)"
 KEY_FILE="${WORK_DIR}/bastion-session"
 
 fail() { echo "Capacity Bastion control failed: $*" >&2; exit 1; }
+delete_session() {
+  local state=""
+  [[ -n "${SESSION_ID}" ]] || return 0
+  "${OCI_COMMAND}" bastion session delete --session-id "${SESSION_ID}" --force \
+    >/dev/null 2>&1 || return 0
+  for _ in $(seq 1 12); do
+    state="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
+      --query 'data."lifecycle-state"' --raw-output 2>/dev/null || true)"
+    [[ -z "${state}" || "${state}" == DELETED ]] && return 0
+    sleep 2
+  done
+}
 cleanup() {
   local result=$?
   trap - EXIT
-  if [[ -n "${SESSION_ID}" ]]; then
-    "${OCI_COMMAND}" bastion session delete --session-id "${SESSION_ID}" --force >/dev/null 2>&1 || true
-  fi
+  delete_session
   rm -rf -- "${WORK_DIR}"
   exit "${result}"
 }

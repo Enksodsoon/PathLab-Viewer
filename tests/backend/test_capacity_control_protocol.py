@@ -319,8 +319,11 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     fake_oci.write_text(
         "#!/usr/bin/env bash\n"
         'printf \'%s\\n\' "$*" >> "$OCI_LOG"\n'
-        'if [[ "$*" == *"create-managed-ssh"* ]]; then echo "ocid1.bastionsession.test"; '
-        'elif [[ "$*" == *"lifecycle-state"* ]]; then echo ACTIVE; '
+        'if [[ "$*" == *"create-managed-ssh"* ]]; then '
+        'rm -f "$OCI_DELETE_MARKER"; echo "ocid1.bastionsession.test"; '
+        'elif [[ "$*" == *"session delete"* ]]; then touch "$OCI_DELETE_MARKER"; '
+        'elif [[ "$*" == *"lifecycle-state"* ]]; then '
+        'if [[ -f "$OCI_DELETE_MARKER" ]]; then echo DELETED; else echo ACTIVE; fi; '
         'elif [[ "$*" == *"ssh-metadata"* ]]; then echo "ssh fake-target"; fi\n',
         encoding="utf-8",
     )
@@ -393,6 +396,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
             "PATHLAB_CAPACITY_SSH_COMMAND": f"{bash_bin}/ssh",
             "PATHLAB_CAPACITY_JQ_COMMAND": f"{bash_bin}/jq",
             "OCI_LOG": str(command_log),
+            "OCI_DELETE_MARKER": str(tmp_path / "oci-delete-marker"),
             "SSH_LOG": str(ssh_log),
             "OCI_BASTION_ID": "ocid1.bastion.test",
             "OCI_INSTANCE_ID": "ocid1.instance.test",
@@ -454,6 +458,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     failed_oci = command_log.read_text(encoding="utf-8")
     assert failed_oci.count("create-managed-ssh") == 1
     assert failed_oci.count("session delete") == 1
+    assert failed_oci.rfind("lifecycle-state") > failed_oci.rfind("session delete")
     assert "n" * 32 not in failed.stdout + failed.stderr
 
     command_log.unlink()

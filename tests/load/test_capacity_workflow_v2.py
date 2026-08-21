@@ -182,6 +182,16 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert "steps.signed-decision.outputs.selected == '300'" in serialized
 
 
+def test_postflight_queries_live_host_when_failed_cleanup_has_no_rollback_artifact() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    assert (
+        'if [[ "${selected}" == 300 && '
+        '-s "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json" ]]' in serialized
+    )
+    assert serialized.count('capacity-postflight expected=${expected_sha}') >= 1
+
+
 def test_capacity_workflow_runs_the_complete_guarded_maximum_stress_scope() -> None:
     serialized = WORKFLOW.read_text(encoding="utf-8")
     planner = Path("tests/load/distributed_certification.py").read_text(encoding="utf-8")
