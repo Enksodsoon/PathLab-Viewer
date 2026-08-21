@@ -177,8 +177,6 @@ jobs:
               observedInventoryDigest:$observedDigest,approvedInventoryDigest:$approvedDigest,
               computeOcpus:$ocpus,memoryGb:$memory,storageGb:$storage}' \
             > "${RUNNER_TEMP}/capacity-accounting.json"
-          jq -e '.monthToDateCost == 0 and .permanentResourcesAdded == false' \
-            "${RUNNER_TEMP}/capacity-accounting.json" >/dev/null
           rm -f -- "${RUNNER_TEMP}"/oci-*-private.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -186,6 +184,14 @@ jobs:
           path: ${{ runner.temp }}/capacity-accounting.json
           if-no-files-found: error
           retention-days: 1
+      - name: Enforce zero-cost accounting baseline
+        run: |
+          set -euo pipefail
+          jq '{monthToDateCost,permanentResourcesAdded,observedResourceCount,
+            approvedResourceCount,observedInventoryDigest,computeOcpus,memoryGb,storageGb}' \
+            "${RUNNER_TEMP}/capacity-accounting.json"
+          jq -e '.monthToDateCost == 0 and .permanentResourcesAdded == false' \
+            "${RUNNER_TEMP}/capacity-accounting.json" >/dev/null
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh
 
