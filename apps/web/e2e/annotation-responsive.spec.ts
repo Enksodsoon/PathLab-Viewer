@@ -346,18 +346,9 @@ test('shows selected annotations moving with the pointer before release', async 
   const startX = before!.x + before!.width / 2
   const startY = before!.y + before!.height / 2
 
-  await shape.dispatchEvent('pointerdown', {
-    clientX: startX,
-    clientY: startY,
-    pointerId: 17,
-    pointerType: 'mouse',
-  })
-  await overlay.dispatchEvent('pointermove', {
-    clientX: startX + 36,
-    clientY: startY + 24,
-    pointerId: 17,
-    pointerType: 'mouse',
-  })
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(startX + 36, startY + 24)
 
   await expect(overlay).toHaveClass(/is-moving-annotation/)
   await expect(page.locator('.annotation-move-preview')).toHaveCSS(
@@ -368,12 +359,7 @@ test('shows selected annotations moving with the pointer before release', async 
   expect(Math.abs(during!.x - (before!.x + 36))).toBeLessThanOrEqual(3)
   expect(Math.abs(during!.y - (before!.y + 24))).toBeLessThanOrEqual(3)
 
-  await overlay.dispatchEvent('pointerup', {
-    clientX: startX + 36,
-    clientY: startY + 24,
-    pointerId: 17,
-    pointerType: 'mouse',
-  })
+  await page.mouse.up()
   await expect(overlay).not.toHaveClass(/is-moving-annotation/)
   await expect(page.locator('.annotation-move-preview')).toHaveCount(0)
 })
