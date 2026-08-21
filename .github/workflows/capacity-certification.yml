@@ -91,6 +91,90 @@ jobs:
             '{runId:$runId,workflowSha:$workflowSha,ciRunId:$ciRunId,approved:true,
               projects:["chromium","firefox","webkit","mobile-chromium"]}' \
             > "${RUNNER_TEMP}/browser-matrix.json"
+      - name: Validate protected capacity fixtures
+        env:
+          CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
+          LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
+          LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets.LOAD_TEST_ADMIN_SLIDE_ID }}
+          LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
+          CAPACITY_MEDIA_MANIFEST_JSON: ${{ secrets.CAPACITY_MEDIA_MANIFEST_JSON }}
+          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ secrets.CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON }}
+          CAPACITY_ANNOTATION_SLIDE_ID: ${{ secrets.CAPACITY_ANNOTATION_SLIDE_ID }}
+          CAPACITY_ANNOTATION_ITEM_ID: ${{ secrets.CAPACITY_ANNOTATION_ITEM_ID }}
+          CAPACITY_SHARE_TARGET_ID: ${{ secrets.CAPACITY_SHARE_TARGET_ID }}
+          CAPACITY_DYNAMIC_PUBLIC_ID: ${{ secrets.CAPACITY_DYNAMIC_PUBLIC_ID }}
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+        run: |
+          set -Eeuo pipefail
+          for value in "${CAPACITY_BASE_URL}" "${LOAD_TEST_ADMIN_USERNAME}" \
+            "${LOAD_TEST_ADMIN_PASSWORD}" "${LOAD_TEST_ADMIN_SLIDE_ID}" \
+            "${LOAD_TEST_PUBLIC_ID}" "${CAPACITY_MEDIA_MANIFEST_JSON}" \
+            "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}" \
+            "${CAPACITY_ANNOTATION_SLIDE_ID}" "${CAPACITY_ANNOTATION_ITEM_ID}" \
+            "${CAPACITY_SHARE_TARGET_ID}" "${CAPACITY_DYNAMIC_PUBLIC_ID}" \
+            "${DEPLOY_EVIDENCE_KEY}"; do
+            test -n "${value}" || {
+              echo "Protected capacity configuration is incomplete." >&2
+              exit 1
+            }
+            echo "::add-mask::${value}"
+          done
+          stage_manifest="${RUNNER_TEMP}/capacity-stage-manifest.json"
+          media_manifest="${RUNNER_TEMP}/capacity-media-manifest.json"
+          cookie_jar="${RUNNER_TEMP}/capacity-preflight-cookies"
+          printf '%s' "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}" > "${stage_manifest}"
+          printf '%s' "${CAPACITY_MEDIA_MANIFEST_JSON}" > "${media_manifest}"
+          chmod 600 "${stage_manifest}" "${media_manifest}"
+          jq -e --slurpfile plan "${RUNNER_TEMP}/capacity-plan.json" '
+            ($plan[0].stages | map(.name) | sort) as $planned |
+            (keys | sort) == $planned and
+            all(.[];
+              (keys | sort) == [("join" + "Code"),"safetyNonce","sessionId","slideId"] and
+              all(.[]; type == "string" and length > 0) and
+              (.safetyNonce | length >= 32 and length <= 128)) and
+            ([.[].sessionId] | unique | length) == 1 and
+            ([.[][("join" + "Code")]] | unique | length) == 1 and
+            ([.[].safetyNonce] | unique | length) == ($planned | length)
+          ' "${stage_manifest}" >/dev/null || {
+            echo "every planned stage requires one protected credential entry" >&2
+            exit 1
+          }
+          jq -e '
+            (.descriptor | type == "string" and length > 0) and
+            (.poster | type == "string" and length > 0) and
+            (.commonTiles | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) and
+            (.randomTiles | type == "array" and length > 0 and all(.[]; type == "string" and length > 0))
+          ' "${media_manifest}" >/dev/null || {
+            echo "media manifest is incomplete" >&2
+            exit 1
+          }
+          login="$(curl --fail --silent --show-error --max-time 10 \
+            --cookie-jar "${cookie_jar}" --header 'Content-Type: application/json' \
+            --data "$(jq -cn --arg username "${LOAD_TEST_ADMIN_USERNAME}" \
+              --arg password "${LOAD_TEST_ADMIN_PASSWORD}" \
+              '{username:$username,password:$password}')" \
+            "${CAPACITY_BASE_URL%/}/api/v1/auth/session")"
+          jq -e '.csrfToken | type == "string" and length >= 32' <<< "${login}" >/dev/null
+          session_id="$(jq -er '.[].sessionId' "${stage_manifest}" | head -n 1)"
+          curl --fail --silent --show-error --max-time 15 --cookie "${cookie_jar}" \
+            "${CAPACITY_BASE_URL%/}/api/v1/admin/slides/${LOAD_TEST_ADMIN_SLIDE_ID}" >/dev/null
+          curl --fail --silent --show-error --max-time 15 --cookie "${cookie_jar}" \
+            "${CAPACITY_BASE_URL%/}/api/v1/admin/classroom/sessions/${session_id}" >/dev/null
+          curl --fail --silent --show-error --max-time 15 \
+            "${CAPACITY_BASE_URL%/}/api/v1/public/slides/${LOAD_TEST_PUBLIC_ID}" >/dev/null
+          curl --fail --silent --show-error --max-time 15 \
+            "${CAPACITY_BASE_URL%/}/api/v1/public/slides/${CAPACITY_DYNAMIC_PUBLIC_ID}" >/dev/null
+          annotations="$(curl --fail --silent --show-error --max-time 15 --cookie "${cookie_jar}" \
+            "${CAPACITY_BASE_URL%/}/api/v2/admin/annotations/slides/${CAPACITY_ANNOTATION_SLIDE_ID}/items?limit=5000")"
+          jq -e --arg id "${CAPACITY_ANNOTATION_ITEM_ID}" \
+            'any(.items[]; .id == $id)' <<< "${annotations}" >/dev/null
+          while IFS= read -r path; do
+            curl --fail --silent --show-error --max-time 15 \
+              "${CAPACITY_BASE_URL%/}${path}" >/dev/null
+          done < <(jq -er '[.descriptor,.poster,.commonTiles[0],.randomTiles[0]] | unique[]' \
+            "${media_manifest}")
+          rm -f -- "${stage_manifest}" "${media_manifest}" "${cookie_jar}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-plan

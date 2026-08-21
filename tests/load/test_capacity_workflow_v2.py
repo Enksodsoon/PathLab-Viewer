@@ -336,6 +336,41 @@ def test_plan_is_retained_before_arm_and_stage_reset_requires_six_ack_barrier() 
     assert "PATHLAB_CLASSROOM_SHARD_INDEX" in shard
 
 
+def test_private_capacity_inputs_are_validated_before_arm() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    validation = serialized.index("Validate protected capacity fixtures")
+    arm = serialized.index("  arm:")
+    assert validation < arm
+    for name in (
+        "CAPACITY_MEDIA_MANIFEST_JSON",
+        "CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON",
+        "CAPACITY_ANNOTATION_SLIDE_ID",
+        "CAPACITY_ANNOTATION_ITEM_ID",
+        "CAPACITY_SHARE_TARGET_ID",
+        "CAPACITY_DYNAMIC_PUBLIC_ID",
+    ):
+        assert name in serialized[validation:arm]
+    assert "every planned stage requires one protected credential entry" in serialized
+    assert "media manifest is incomplete" in serialized
+
+
+def test_cleanup_installs_abort_trap_before_fixture_validation() -> None:
+    cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(
+        encoding="utf-8"
+    )
+
+    trap_index = cleanup.index("trap write_result EXIT")
+    assert trap_index < cleanup.index(
+        ': "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON:?'
+    )
+    assert trap_index < cleanup.index(': "${DEPLOY_EVIDENCE_KEY:?')
+    assert trap_index < cleanup.index(': "${CAPACITY_BASE_URL:?')
+    assert trap_index < cleanup.index(': "${LOAD_TEST_ADMIN_USERNAME:?')
+    assert trap_index < cleanup.index(': "${CAPACITY_ANNOTATION_SLIDE_ID:?')
+    assert trap_index < cleanup.index(': "${CAPACITY_ANNOTATION_ITEM_ID:?')
+
+
 def test_fault_job_can_wait_for_the_late_recovery_stage() -> None:
     jobs = workflow()["jobs"]  # type: ignore[index]
     assert int(jobs["fault-recovery"]["timeout-minutes"]) >= 170

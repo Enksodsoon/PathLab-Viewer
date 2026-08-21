@@ -6,14 +6,7 @@ DECISION_PATH="${2:?decision path is required}"
 SIGNATURE_PATH="${3:?decision signature path is required}"
 SENTINEL_PATH="${4:?sentinel path is required}"
 : "${CAPACITY_CLEANUP_RESULT:?CAPACITY_CLEANUP_RESULT is required}"
-: "${DEPLOY_EVIDENCE_KEY:?DEPLOY_EVIDENCE_KEY is required}"
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
-: "${CAPACITY_BASE_URL:?CAPACITY_BASE_URL is required}"
-: "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
-: "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
-: "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON:?CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON is required}"
-: "${CAPACITY_ANNOTATION_SLIDE_ID:?CAPACITY_ANNOTATION_SLIDE_ID is required}"
-: "${CAPACITY_ANNOTATION_ITEM_ID:?CAPACITY_ANNOTATION_ITEM_ID is required}"
 
 for path in "${PLAN_PATH}"; do
   [[ -f "${path}" ]] || { echo "Capacity cleanup input is missing." >&2; exit 1; }
@@ -81,6 +74,13 @@ write_result() {
   exit "${result}"
 }
 trap write_result EXIT
+: "${DEPLOY_EVIDENCE_KEY:?DEPLOY_EVIDENCE_KEY is required}"
+: "${CAPACITY_BASE_URL:?CAPACITY_BASE_URL is required}"
+: "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
+: "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
+: "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON:?CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON is required}"
+: "${CAPACITY_ANNOTATION_SLIDE_ID:?CAPACITY_ANNOTATION_SLIDE_ID is required}"
+: "${CAPACITY_ANNOTATION_ITEM_ID:?CAPACITY_ANNOTATION_ITEM_ID is required}"
 nonce="$(python -c 'import hashlib,hmac,os; print(hmac.new(os.environ["DEPLOY_EVIDENCE_KEY"].encode(), (os.environ["GITHUB_RUN_ID"]+":"+os.environ["GITHUB_RUN_ATTEMPT"]).encode(), hashlib.sha256).hexdigest())')"
 echo "::add-mask::${nonce}"
 
