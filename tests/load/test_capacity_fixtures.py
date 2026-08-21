@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import time
+from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,35 @@ from deploy.scripts import capacity_fixtures
 KEY = "e" * 64
 SHA = "a" * 40
 RUN = "123456"
+
+
+def test_fixture_login_accepts_api_created_status() -> None:
+    csrf = "c" * 40
+
+    class CreatedResponse:
+        status = 201
+        headers = Message()
+
+        def __enter__(self) -> CreatedResponse:
+            self.headers["Content-Type"] = "application/json"
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+        def read(self, _: int) -> bytes:
+            return json.dumps({"csrfToken": csrf}).encode()
+
+    class CreatedOpener:
+        def open(self, *_: object, **__: object) -> CreatedResponse:
+            return CreatedResponse()
+
+    client = capacity_fixtures.Client("https://viewer.example")
+    client.opener = CreatedOpener()  # type: ignore[assignment]
+
+    client.login("synthetic-admin", "synthetic-password")
+
+    assert client.csrf == csrf
 
 
 def plan(path: Path) -> dict[str, Any]:
