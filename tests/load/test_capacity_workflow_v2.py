@@ -112,6 +112,27 @@ def test_capacity_inventory_search_uses_supported_bounded_pagination() -> None:
     assert "oci search resource structured-search --all" not in serialized
 
 
+def test_capacity_accounting_evidence_is_uploaded_before_strict_gate() -> None:
+    jobs = workflow()["jobs"]  # type: ignore[index]
+    steps = jobs["preflight"]["steps"]
+    upload_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("with", {}).get("name") == "capacity-accounting"
+    )
+    gate_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Enforce zero-cost accounting baseline"
+    )
+
+    assert upload_index < gate_index
+    gate = steps[gate_index]["run"]
+    assert ".monthToDateCost == 0 and .permanentResourcesAdded == false" in gate
+    assert "observedResourceCount" in gate
+    assert "observedInventoryDigest" in gate
+
+
 def test_capacity_workflow_retains_only_sanitized_aggregate_evidence() -> None:
     loaded = workflow()
     serialized = WORKFLOW.read_text(encoding="utf-8")
