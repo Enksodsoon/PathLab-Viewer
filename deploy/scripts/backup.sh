@@ -18,7 +18,7 @@ required_bytes="$((source_bytes + source_bytes / 100 + database_bytes + 10737418
   rmdir "${destination}/database" "${destination}"
   exit 1
 }
-docker compose exec -T api python -c \
+docker compose run --rm --no-deps --entrypoint python api -c \
   "import sqlite3; source=sqlite3.connect('/data/database/pathlab.sqlite3'); target=sqlite3.connect('/data/database/backup.sqlite3'); source.backup(target); target.close(); source.close()"
 mv "${data_dir}/database/backup.sqlite3" "${destination}/database/pathlab.sqlite3"
 tar --create --gzip --file "${destination}/files.tar.gz" \

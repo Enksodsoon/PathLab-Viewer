@@ -561,18 +561,21 @@ def test_release_flow_installs_watchdog_and_runs_guards() -> None:
     assert ".State.Health.Status" in release
 
 
-def test_release_flow_uses_candidate_backup_format_against_live_compose() -> None:
+def test_release_flow_uses_candidate_backup_format_against_candidate_compose() -> None:
     release = (ROOT / "deploy" / "scripts" / "deploy-release.sh").read_text(
         encoding="utf-8"
     )
 
-    backup_start = release.index("BACKUP_PATH=")
+    backup_start = release.index('BACKUP_PATH="$(')
     backup_block = release[
         backup_start : release.index('mv "${LIVE_DIR}"', backup_start)
     ]
-    assert 'cd "${LIVE_DIR}/deploy"' in backup_block
+    assert 'cd "${STAGE_DIR}/deploy"' in backup_block
     assert 'bash "${STAGE_DIR}/deploy/scripts/backup.sh"' in backup_block
     assert "bash scripts/backup.sh" not in backup_block
+    backup = (ROOT / "deploy" / "scripts" / "backup.sh").read_text(encoding="utf-8")
+    assert "docker compose run --rm --no-deps --entrypoint python api" in backup
+    assert "docker compose exec -T api" not in backup
 
 
 def test_release_flow_atomically_refreshes_forced_command_after_health() -> None:
@@ -828,7 +831,18 @@ def test_release_rollback_restores_previous_tree_behaviorally(tmp_path: Path) ->
     live.mkdir()
     rollback.mkdir()
     (live / "candidate").write_text("candidate", encoding="utf-8")
+    restore_script = live / "deploy" / "scripts" / "restore-deploy-rollback-database.sh"
+    restore_script.parent.mkdir(parents=True)
+    restore_marker = tmp_path / "database-restored"
+    restore_script.write_text(
+        "#!/usr/bin/env bash\n"
+        f"touch '{_bash_path(restore_marker)}'\n",
+        encoding="utf-8",
+    )
+    restore_script.chmod(0o755)
     (rollback / "previous").write_text("previous", encoding="utf-8")
+    backup = tmp_path / "data" / "backups" / "backup-1"
+    backup.mkdir(parents=True)
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     systemctl = fake_bin / "systemctl"
@@ -837,6 +851,7 @@ def test_release_rollback_restores_previous_tree_behaviorally(tmp_path: Path) ->
     shell = (
         "set -Eeuo pipefail; export PATHLAB_DEPLOY_RELEASE_LIBRARY_ONLY=1; "
         'source "$1"; LIVE_DIR="$2"; ROLLBACK_DIR="$3"; SWAPPED=1; '
+        'BACKUP_PATH="$4"; DATA_DIR="$5"; BACKUP_DIR="$6"; '
         "WATCHDOG_CHANGED=0; OLD_WORKER_STOPPED=0; OLD_SERVICES_STOPPED=0; "
         "rollback_release"
     )
@@ -851,6 +866,9 @@ def test_release_rollback_restores_previous_tree_behaviorally(tmp_path: Path) ->
             _bash_path(ROOT / "deploy" / "scripts" / "deploy-release.sh"),
             _bash_path(live),
             _bash_path(rollback),
+            _bash_path(backup),
+            _bash_path(tmp_path / "data"),
+            _bash_path(tmp_path / "data" / "backups"),
         ],
         env=env,
         text=True,
@@ -858,10 +876,62 @@ def test_release_rollback_restores_previous_tree_behaviorally(tmp_path: Path) ->
         check=False,
     )
     assert result.returncode == 1
+    assert restore_marker.exists()
     assert (live / "previous").read_text(encoding="utf-8") == "previous"
     failed = list(tmp_path.glob("live.failed-*"))
     assert len(failed) == 1
     assert (failed[0] / "candidate").read_text(encoding="utf-8") == "candidate"
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_release_rollback_fails_closed_when_database_restore_fails(tmp_path: Path) -> None:
+    live = tmp_path / "live"
+    rollback = tmp_path / "rollback"
+    restore_script = live / "deploy" / "scripts" / "restore-deploy-rollback-database.sh"
+    restore_script.parent.mkdir(parents=True)
+    restore_script.write_text("#!/usr/bin/env bash\nexit 42\n", encoding="utf-8")
+    restore_script.chmod(0o755)
+    rollback.mkdir()
+    (live / "candidate").write_text("candidate", encoding="utf-8")
+    (rollback / "previous").write_text("previous", encoding="utf-8")
+    backup = tmp_path / "data" / "backups" / "backup-1"
+    backup.mkdir(parents=True)
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    systemctl.chmod(0o755)
+    shell = (
+        "set -Eeuo pipefail; export PATHLAB_DEPLOY_RELEASE_LIBRARY_ONLY=1; "
+        'source "$1"; LIVE_DIR="$2"; ROLLBACK_DIR="$3"; SWAPPED=1; '
+        'BACKUP_PATH="$4"; DATA_DIR="$5"; BACKUP_DIR="$6"; '
+        "WATCHDOG_CHANGED=0; OLD_WORKER_STOPPED=0; OLD_SERVICES_STOPPED=0; "
+        "rollback_release"
+    )
+    env = os.environ.copy()
+    env["PATH"] = f"{_bash_path(fake_bin)}:{env['PATH']}"
+    result = subprocess.run(
+        [
+            str(BASH),
+            "-c",
+            shell,
+            "rollback-test",
+            _bash_path(ROOT / "deploy" / "scripts" / "deploy-release.sh"),
+            _bash_path(live),
+            _bash_path(rollback),
+            _bash_path(backup),
+            _bash_path(tmp_path / "data"),
+            _bash_path(tmp_path / "data" / "backups"),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "candidate release retained for schema compatibility" in result.stderr
+    assert (live / "candidate").read_text(encoding="utf-8") == "candidate"
+    assert (rollback / "previous").read_text(encoding="utf-8") == "previous"
 
 
 @pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")

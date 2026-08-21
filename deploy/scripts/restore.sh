@@ -16,12 +16,14 @@ test -f "${backup_dir}/database/pathlab.sqlite3"
 test -f "${backup_dir}/files.tar.gz"
 (cd "$backup_dir" && sha256sum --check SHA256SUMS)
 
-docker compose stop caddy api classroom tile-service tusd worker
-recovery="${data_dir}.before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
-mv "$data_dir" "$recovery"
-mkdir -p "$data_dir/database"
-cp "${backup_dir}/database/pathlab.sqlite3" "$data_dir/database/pathlab.sqlite3"
-python3 - "${backup_dir}/files.tar.gz" "$data_dir" <<'PY'
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+recovery="${data_dir}.before-restore-${timestamp}"
+staged="${data_dir}.restore-staged-${timestamp}"
+test ! -e "$recovery"
+test ! -e "$staged"
+mkdir -p "$staged/database"
+cp "${backup_dir}/database/pathlab.sqlite3" "$staged/database/pathlab.sqlite3"
+python3 - "${backup_dir}/files.tar.gz" "$staged" <<'PY'
 import sys
 import tarfile
 
@@ -29,7 +31,19 @@ archive, destination = sys.argv[1:]
 with tarfile.open(archive, "r:gz") as stored:
     stored.extractall(destination, filter="data")
 PY
-chown -R 10001:10001 "$data_dir"
+chown -R 10001:10001 "$staged"
+
+docker compose stop caddy api classroom tile-service tusd worker
+mv "$data_dir" "$recovery"
+if ! mv "$staged" "$data_dir"; then
+  mv "$recovery" "$data_dir"
+  docker compose up -d
+  echo "Restore failed before data activation; original data was restarted" >&2
+  exit 1
+fi
+if [[ -d "${recovery}/backups" && ! -e "${data_dir}/backups" ]]; then
+  mv "${recovery}/backups" "${data_dir}/backups"
+fi
 docker compose run --rm --no-deps tile-service pathlab-tiles --purge-cache
 docker compose up -d
 echo "Restored. Previous data remains at $recovery"
