@@ -71,6 +71,7 @@ def upgrade() -> None:
         ["status"],
         unique=True,
         sqlite_where=sa.text("status IN ('preparation', 'active')"),
+        postgresql_where=sa.text("status IN ('preparation', 'active')"),
     )
     op.create_table(
         "study_invitations",
