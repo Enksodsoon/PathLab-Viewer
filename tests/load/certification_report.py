@@ -332,16 +332,18 @@ def _validate_context(context: dict[str, Any]) -> dict[str, Any]:
     run = _object(context, "run")
     _exact_fields(run, {"runId", "startedAt", "endedAt", "window"}, "run")
     _safe_id(run["runId"], "run.runId")
-    if run["window"] != "02:00-05:00 ICT":
-        raise ReportError("run.window must be 02:00-05:00 ICT")
+    if not isinstance(run["window"], str) or run["window"].count("/") != 1:
+        raise ReportError("run.window must be an explicit ICT start/end interval")
+    window_start_raw, window_end_raw = run["window"].split("/", 1)
+    window_start = _timestamp(window_start_raw, "run.window start", ict=True)
+    window_end = _timestamp(window_end_raw, "run.window end", ict=True)
+    if window_end - window_start != timedelta(hours=3):
+        raise ReportError("run.window must be exactly three hours")
     run_started = _timestamp(run["startedAt"], "run.startedAt", ict=True)
     run_ended = _timestamp(run["endedAt"], "run.endedAt", ict=True)
     if run_ended <= run_started:
         raise ReportError("run timestamps must be ordered")
-    if run_started.time() < datetime.strptime("02:00", "%H:%M").time():
-        raise ReportError("run starts before the protected ICT window")
-    window_end = run_started.replace(hour=5, minute=0, second=0, microsecond=0)
-    if run_ended > window_end or run_started.date() != run_ended.date():
+    if run_started < window_start or run_ended > window_end:
         raise ReportError("run falls outside the protected ICT window")
 
     browser_ci = _object(context, "browserCi")

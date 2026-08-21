@@ -7,13 +7,12 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT / "tests" / "load"))
 
-from distributed_certification import ICT, build_plan, validate_plan  # noqa: E402
+from distributed_certification import build_plan, validate_plan  # noqa: E402
 
 ARM_RUNWAY_SECONDS = 240
 DECISION_SECONDS = 180
@@ -42,15 +41,17 @@ def describe(plan: dict[str, object]) -> dict[str, int]:
     stages = plan.get("stages")
     if not isinstance(start_epoch_ms, int) or not isinstance(stages, list) or not stages:
         raise WindowError("capacity plan schedule is incomplete")
-    start = datetime.fromtimestamp(start_epoch_ms / 1_000, ICT)
-    if (start.hour, start.minute, start.second, start.microsecond) != (2, 9, 0, 0):
-        raise WindowError("capacity admission must start at exactly 02:09 ICT")
+    window_start_epoch_ms = plan.get("windowStartEpochMs")
+    window_end_epoch_ms = plan.get("windowEndEpochMs")
+    if not isinstance(window_start_epoch_ms, int) or not isinstance(window_end_epoch_ms, int):
+        raise WindowError("capacity protected window is incomplete")
 
     expected = build_plan(
         run_id=str(plan.get("runId", "")),
         workflow_sha=str(plan.get("workflowSha", "")),
         browser_ci_run_id=plan.get("browserCiRunId", 0),  # type: ignore[arg-type]
         start_epoch_ms=start_epoch_ms,
+        window_start_epoch_ms=window_start_epoch_ms,
         now_epoch_ms=start_epoch_ms - 120_000,
     )
     if plan != expected:
@@ -63,8 +64,8 @@ def describe(plan: dict[str, object]) -> dict[str, int]:
     if not isinstance(final_transition_ms, int) or final_transition_ms % 1_000:
         raise WindowError("capacity final transition must use whole seconds")
 
-    mutation_start = int(start.replace(hour=2, minute=0, second=0, microsecond=0).timestamp())
-    window_end = int(start.replace(hour=5, minute=0, second=0, microsecond=0).timestamp())
+    mutation_start = window_start_epoch_ms // 1_000
+    window_end = window_end_epoch_ms // 1_000
     final_transition = final_transition_ms // 1_000
     result = {
         "mutationStartEpoch": mutation_start,
@@ -108,7 +109,7 @@ def remaining_seconds(plan: dict[str, object], phase: str, now_epoch: int) -> in
     if phase not in deadlines:
         raise WindowError("capacity phase is invalid")
     if phase in {"arm", "cleanup"} and now_epoch < bounds["mutationStartEpoch"]:
-        raise WindowError("production mutation cannot start before 02:00 ICT")
+        raise WindowError("production mutation cannot start before the authorized window")
     remaining = deadlines[phase] - now_epoch
     if remaining <= 0:
         raise WindowError(f"capacity {phase} deadline has elapsed")

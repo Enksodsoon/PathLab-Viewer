@@ -16,7 +16,6 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
-from zoneinfo import ZoneInfo
 
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -222,14 +221,16 @@ def select_final_capacity(
     )
     assert isinstance(started, int)
     assert isinstance(completed, int)
-    ict_zone = ZoneInfo("Asia/Bangkok")
-    started_ict = datetime.fromtimestamp(started, UTC).astimezone(ict_zone)
-    completed_ict = datetime.fromtimestamp(completed, UTC).astimezone(ict_zone)
+    authorized_start = certification.get("authorizedWindowStart")
+    authorized_end = certification.get("authorizedWindowEnd")
     _require(
-        started_ict.date() == completed_ict.date()
-        and 2 <= started_ict.hour < 5
-        and 2 <= completed_ict.hour < 5,
-        "capacity run was outside 02:00-05:00 ICT",
+        isinstance(authorized_start, int)
+        and not isinstance(authorized_start, bool)
+        and isinstance(authorized_end, int)
+        and not isinstance(authorized_end, bool)
+        and authorized_end - authorized_start == 3 * 3600
+        and authorized_start <= started <= completed <= authorized_end,
+        "capacity run was outside the authorized capacity window",
     )
     _require(
         certification.get("withinAuthorizedIctWindow") is True,

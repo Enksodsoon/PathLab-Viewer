@@ -56,11 +56,11 @@ write_final_result() {
   if [[ -s "${ROLLBACK_EVIDENCE}" ]]; then
     jq -s '.[0] + .[1]' \
       <(jq '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
-        phase,finalLimit,faultConsumed}' "${CONTROL_STATE}") \
+        windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' "${CONTROL_STATE}") \
       "${ROLLBACK_EVIDENCE}" > "${temporary}"
   else
     jq '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
-      phase,finalLimit,faultConsumed}' "${CONTROL_STATE}" > "${temporary}"
+      windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' "${CONTROL_STATE}" > "${temporary}"
   fi
   chmod 600 "${temporary}"
   mv -- "${temporary}" "${FINAL_EVIDENCE}"
@@ -102,6 +102,8 @@ trap 'forward_interrupt USR1 143' USR1
 
 [[ "$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)" == "${WORKFLOW_SHA}" ]] || exit 2
 install -m 700 "${LIVE_DIR}/deploy/scripts/rollback-capacity-candidate.sh" "${RECOVERY_SCRIPT}"
+WINDOW_START_EPOCH="$(jq -er .windowStartEpoch "${CONTROL_STATE}")"
+WINDOW_END_EPOCH="$(jq -er .windowEndEpoch "${CONTROL_STATE}")"
 
 PATHLAB_CAPACITY_DECISION_FILE="${DECISION_FILE}" \
 PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE="${DECISION_SIGNATURE_FILE}" \
@@ -112,6 +114,8 @@ PATHLAB_CAPACITY_RUN_ID="${RUN_ID}" \
 PATHLAB_CAPACITY_NONCE="${NONCE}" \
 PATHLAB_CAPACITY_RESTORE_EVIDENCE="${RESTORE_EVIDENCE}" \
 PATHLAB_CAPACITY_RESTORE_NOT_AFTER="$((ROLLBACK_NOT_AFTER - 210))" \
+PATHLAB_CAPACITY_WINDOW_START_EPOCH="${WINDOW_START_EPOCH}" \
+PATHLAB_CAPACITY_WINDOW_END_EPOCH="${WINDOW_END_EPOCH}" \
 setsid bash "${LIVE_DIR}/deploy/scripts/with-capacity-override.sh" \
   python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" --state-dir "${STATE_DIR}" hold \
     --run-id "${RUN_ID}" --workflow-sha "${WORKFLOW_SHA}" \

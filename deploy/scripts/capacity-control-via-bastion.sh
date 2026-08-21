@@ -32,7 +32,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-ARM_PATTERN='^capacity-arm [0-9a-f]{40} run=[a-z0-9-]{1,64} digest=[0-9a-f]{64} rollback=[0-9a-f]{40} arm-not-after=[0-9]{10} deadline=[0-9]{10} rollback-not-after=[0-9]{10} fault-start=[0-9]{10} fault-end=[0-9]{10} evidence=[A-Za-z0-9_-]+ signature=[0-9a-f]{64} nonce=[A-Za-z0-9._-]{8,128}$'
+ARM_PATTERN='^capacity-arm [0-9a-f]{40} run=[a-z0-9-]{1,64} digest=[0-9a-f]{64} rollback=[0-9a-f]{40} arm-not-after=[0-9]{10} window-start=[0-9]{10} window-end=[0-9]{10} deadline=[0-9]{10} rollback-not-after=[0-9]{10} fault-start=[0-9]{10} fault-end=[0-9]{10} evidence=[A-Za-z0-9_-]+ signature=[0-9a-f]{64} nonce=[A-Za-z0-9._-]{8,128}$'
 STATUS_PATTERN='^capacity-status run=[a-z0-9-]{1,64}$'
 FINALIZE_PATTERN='^capacity-finalize [0-9a-f]{40} run=[a-z0-9-]{1,64} digest=[0-9a-f]{64} evidence=[A-Za-z0-9_-]+ signature=[0-9a-f]{64} nonce=[A-Za-z0-9._-]{8,128}$'
 FAULT_PATTERN='^capacity-fault run=[a-z0-9-]{1,64} digest=[0-9a-f]{64}$'

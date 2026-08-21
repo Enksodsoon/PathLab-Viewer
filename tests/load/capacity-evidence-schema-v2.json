@@ -70,7 +70,12 @@
         "runId": {"$ref": "#/$defs/safeId"},
         "startedAt": {"$ref": "#/$defs/timestamp"},
         "endedAt": {"$ref": "#/$defs/timestamp"},
-        "window": {"const": "02:00-05:00 ICT"}
+        "window": {
+          "type": "string",
+          "minLength": 51,
+          "maxLength": 80,
+          "pattern": "^.+\\+07:00/.+\\+07:00$"
+        }
       }
     },
     "generator": {

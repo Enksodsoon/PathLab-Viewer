@@ -22,6 +22,8 @@ SHARD_START_TOLERANCE_MS = 1_000
 ADMISSION_SECONDS = 60
 TRANSITION_SECONDS = 30
 POST_RUN_BUFFER_SECONDS = 900
+WINDOW_DURATION_SECONDS = 3 * 60 * 60
+ADMISSION_OFFSET_SECONDS = 9 * 60
 STAGE_SPECS = (
     ("smoke-2", 2, 30, False),
     ("acceptance-100", 100, 600, False),
@@ -65,6 +67,7 @@ def build_plan(
     workflow_sha: str,
     browser_ci_run_id: int,
     start_epoch_ms: int,
+    window_start_epoch_ms: int | None = None,
     now_epoch_ms: int | None = None,
 ) -> dict[str, object]:
     """Build the immutable public schedule shared by all six shards."""
@@ -77,9 +80,20 @@ def build_plan(
         raise CertificationError("browser CI run ID must be positive")
     if start_epoch_ms < now + 120_000:
         raise CertificationError("a future start epoch at least 120 seconds away is required")
-    start = datetime.fromtimestamp(start_epoch_ms / 1_000, ICT)
-    if start.hour < 2 or start.hour >= 5:
-        raise CertificationError("the start epoch must be inside 02:00-05:00 ICT")
+    window_start_epoch_ms = (
+        start_epoch_ms - ADMISSION_OFFSET_SECONDS * 1_000
+        if window_start_epoch_ms is None
+        else window_start_epoch_ms
+    )
+    if window_start_epoch_ms % 60_000 or start_epoch_ms % 60_000:
+        raise CertificationError("the protected window and admission must use whole ICT minutes")
+    if start_epoch_ms != window_start_epoch_ms + ADMISSION_OFFSET_SECONDS * 1_000:
+        raise CertificationError(
+            "capacity admission must begin nine minutes after the window starts"
+        )
+    window_end_epoch_ms = window_start_epoch_ms + WINDOW_DURATION_SECONDS * 1_000
+    window_start = datetime.fromtimestamp(window_start_epoch_ms / 1_000, ICT)
+    window_end = datetime.fromtimestamp(window_end_epoch_ms / 1_000, ICT)
 
     cursor = start_epoch_ms
     stages: list[dict[str, object]] = []
@@ -105,19 +119,19 @@ def build_plan(
             }
         )
         cursor = transition_end
-    end_with_buffer = datetime.fromtimestamp(
-        (cursor + POST_RUN_BUFFER_SECONDS * 1_000) / 1_000, ICT
-    )
-    if end_with_buffer.date() != start.date() or end_with_buffer.hour >= 5:
+    end_with_buffer_epoch_ms = cursor + POST_RUN_BUFFER_SECONDS * 1_000
+    if end_with_buffer_epoch_ms > window_end_epoch_ms:
         raise CertificationError(
-            "the run and its post-run restoration buffer must finish inside 02:00-05:00 ICT"
+            "the run and its post-run restoration buffer must finish inside the authorized window"
         )
     unsigned: dict[str, object] = {
         "schemaVersion": 1,
         "runId": run_id,
         "workflowSha": workflow_sha,
         "browserCiRunId": browser_ci_run_id,
-        "window": "02:00-05:00 ICT",
+        "window": f"{window_start.isoformat()}/{window_end.isoformat()}",
+        "windowStartEpochMs": window_start_epoch_ms,
+        "windowEndEpochMs": window_end_epoch_ms,
         "startEpochMs": start_epoch_ms,
         "stages": stages,
     }
@@ -145,6 +159,8 @@ def validate_plan(plan: dict[str, object]) -> None:
             "workflowSha",
             "browserCiRunId",
             "window",
+            "windowStartEpochMs",
+            "windowEndEpochMs",
             "startEpochMs",
             "stages",
             "planDigest",
@@ -456,6 +472,7 @@ def main() -> None:
     plan_parser.add_argument("--workflow-sha", required=True)
     plan_parser.add_argument("--browser-ci-run-id", required=True, type=int)
     plan_parser.add_argument("--start-epoch-ms", required=True, type=int)
+    plan_parser.add_argument("--window-start-epoch-ms", required=True, type=int)
     plan_parser.add_argument("--output", required=True, type=Path)
     merge_parser = subparsers.add_parser("merge")
     merge_parser.add_argument("--plan", required=True, type=Path)
@@ -468,6 +485,7 @@ def main() -> None:
             workflow_sha=args.workflow_sha,
             browser_ci_run_id=args.browser_ci_run_id,
             start_epoch_ms=args.start_epoch_ms,
+            window_start_epoch_ms=args.window_start_epoch_ms,
         )
     else:
         result = merge_shards(_load(args.plan), [_load(path) for path in args.shard])

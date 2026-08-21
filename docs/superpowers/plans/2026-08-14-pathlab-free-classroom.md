@@ -8,7 +8,7 @@ Implement the approved design in `docs/superpowers/specs/2026-08-14-pathlab-free
 
 - Permanent cost is $0: existing OCI A1 2 OCPU/12 GB and existing 200 GB storage only.
 - One active static-DZI Classroom; one Classroom Uvicorn worker and singleton in-memory hub.
-- Production stress only 02:00–05:00 ICT after backup/restore, exact-SHA CI/security, no-real-room, rollback, egress, and cost gates.
+- Production stress only inside an explicitly entered, environment-approved three-hour ICT window (normally 02:00–05:00) after backup/restore, exact-SHA CI/security, no-real-room, rollback, egress, and cost gates.
 - Configured capacity is 1..2000; final production ceiling follows strict evidence: 1500, 1200, or rollback to 300/NOT CERTIFIED.
 - Never claim certification from local tests, protocol clients as browsers, historical evidence, a partial stage, or a different SHA.
 - TDD for behavior changes; aggregate-only evidence; masked credentials; trap-based restoration and cleanup.

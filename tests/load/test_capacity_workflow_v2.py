@@ -26,7 +26,10 @@ def test_capacity_workflow_is_manual_read_only_and_production_protected() -> Non
         "cancel-in-progress": "false",
     }
     confirmation = loaded["on"]["workflow_dispatch"]["inputs"]["confirmation"]  # type: ignore[index]
-    assert "CERTIFY_PRODUCTION_1200" in confirmation["description"]
+    assert "CERTIFY_PRODUCTION_MAX_STRESS" in confirmation["description"]
+    window = loaded["on"]["workflow_dispatch"]["inputs"]["window_start_ict"]  # type: ignore[index]
+    assert window["required"] == "true"
+    assert "YYYY-MM-DDTHH:MM:00+07:00" in window["description"]
 
 
 def test_capacity_workflow_uses_exactly_six_standard_linux_shards() -> None:
@@ -104,7 +107,10 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert "--start-epoch-ms" in serialized
     assert "distributed_certification.py plan" in serialized
     assert "distributed_certification.py merge" in serialized
-    assert "02:09" in serialized
+    assert "inputs.window_start_ict" in serialized
+    assert "window_start_epoch_ms" in serialized
+    assert "window-start=${window_start}" in serialized
+    assert "window-end=${window_end}" in serialized
     assert "browser-matrix.json" in serialized
     assert "capacity-postflight.json" in serialized
     assert "OCI_ROLLBACK_RELEASE_SHA" in serialized
@@ -119,6 +125,28 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert '.cleanupExecutionDeadlineEpoch' in serialized
     assert "steps.signed-decision.outputs.selected != '300'" in serialized
     assert "steps.signed-decision.outputs.selected == '300'" in serialized
+
+
+def test_capacity_workflow_runs_the_complete_guarded_maximum_stress_scope() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+    planner = Path("tests/load/distributed_certification.py").read_text(encoding="utf-8")
+
+    for stage in (
+        "smoke-2",
+        "acceptance-100",
+        "boundary-300",
+        "boundary-600",
+        "boundary-900",
+        "sustained-1200",
+        "headroom-1500",
+        "breakpoint-1750",
+        "breakpoint-2000",
+        "recovery-1200",
+    ):
+        assert stage in planner
+    assert "max-parallel: 6" in serialized
+    assert "run-capacity-sentinels.sh" in serialized
+    assert "run-capacity-fault-recovery.sh" in serialized
 
 
 def test_capacity_workflow_bounds_each_final_phase_by_absolute_wall_clock() -> None:

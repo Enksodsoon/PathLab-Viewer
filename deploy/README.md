@@ -156,18 +156,24 @@ and requires an operator-provided URL and manifest. Follow the full resource,
 administrator, conversion, and degraded-network gates in
 [`docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md`](../docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md).
 
-For the production certification, configure the protected `production`
-environment with `PRODUCTION_BASE_URL`, `LOAD_TEST_ADMIN_USERNAME`, and
-`LOAD_TEST_ADMIN_PASSWORD`. Then use **Actions → Capacity certification → Run
-workflow**, enter `CERTIFY_PRODUCTION_300`, and approve the environment. The
-workflow creates, publishes, verifies, and removes its own non-patient
-synthetic load fixture; it does not select or publish an existing slide.
+For production certification, configure the protected `production` environment
+with the variables and secrets referenced by
+`.github/workflows/capacity-certification.yml`. Use **Actions → Capacity
+certification → Run workflow**, enter `CERTIFY_PRODUCTION_MAX_STRESS`, and enter
+an explicit three-hour ICT window start such as
+`2026-08-21T10:00:00+07:00`. Dispatch 5–20 minutes before that time and approve
+the environment. The window is immutable once the run plan is issued; all
+mutation, rollback, cleanup, postflight, and evidence deadlines remain inside
+it.
 
-The workflow runs baseline/smoke, 100-viewer acceptance, and the 300-viewer
-capacity profile. It starts the real administrator and degraded-network browser
-checks only after k6 reports 300 active virtual users. Do not upload its
-temporary working directory or browser logs. The retained artifact is limited
-to `capacity-certification.md` and `capacity-certification.json`.
+The workflow exercises 2/100 smoke, 300/600/900 boundaries, a 60-minute 1,200
+strict hold, a 10-minute 1,500 strict hold, guarded 1,750 and 2,000 breakpoint
+stress, and recovery to 1,200 across six synchronized runners. Concurrent
+sentinels cover upload/conversion, annotations, library/share, dynamic viewing,
+Desktop integration, and real teacher/student browser journeys on Chromium,
+Firefox, WebKit, and mobile Chromium. Heavy stages stop before destructive
+failure; fail-closed cleanup restores 300 when strict evidence is incomplete.
+Only aggregate evidence is retained.
 
 ## Optional CDN policy
 

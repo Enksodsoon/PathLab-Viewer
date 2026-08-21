@@ -104,7 +104,7 @@ def healthy_evidence_context() -> dict[str, object]:
             "runId": "capacity-run-123",
             "startedAt": "2026-08-14T02:00:00+07:00",
             "endedAt": cleanup_ended.isoformat(),
-            "window": "02:00-05:00 ICT",
+            "window": "2026-08-14T02:00:00+07:00/2026-08-14T05:00:00+07:00",
         },
         "deployedSha": commit_sha,
         "browserCi": {

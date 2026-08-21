@@ -394,7 +394,8 @@ def test_capacity_certification_is_manual_protected_and_serialized_with_deploys(
     workflow = Path(".github/workflows/capacity-certification.yml").read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
-    assert "CERTIFY_PRODUCTION_1200" in workflow
+    assert "CERTIFY_PRODUCTION_MAX_STRESS" in workflow
+    assert "window_start_ict" in workflow
     assert "github.ref == 'refs/heads/main'" in workflow
     assert "name: production" in workflow
     assert "group: production-control" in workflow
