@@ -666,15 +666,84 @@ class PublicationGrant(Base):
 class Job(Base):
     __tablename__ = "jobs"
 
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'blocked_classroom', 'running', 'checkpointing', "
+            "'retry_wait', 'succeeded', 'failed_terminal', 'cancelled')",
+            name="ck_jobs_status",
+        ),
+        CheckConstraint(
+            "resource_class IN ('live_critical', 'interactive', 'background', 'isolated')",
+            name="ck_jobs_resource_class",
+        ),
+        Index("ix_jobs_claim", "status", "next_attempt_at", "created_at"),
+        Index(
+            "uq_jobs_idempotency",
+            "organization_id",
+            "kind",
+            "idempotency_key_hash",
+            unique=True,
+            sqlite_where=text("idempotency_key_hash IS NOT NULL"),
+            postgresql_where=text("idempotency_key_hash IS NOT NULL"),
+        ),
+    )
+
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    slide_id: Mapped[str] = mapped_column(ForeignKey("slides.id", ondelete="CASCADE"), index=True)
+    slide_id: Mapped[str | None] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), index=True
+    )
+    organization_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    actor_type: Mapped[str | None] = mapped_column(String(20))
+    actor_id: Mapped[str | None] = mapped_column(String(100))
     kind: Mapped[str] = mapped_column(String(40), default="ingest")
     status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
+    resource_class: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="background", server_default="background"
+    )
+    idempotency_key_hash: Mapped[str | None] = mapped_column(String(64))
+    input_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    policy_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    cancellation_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resource_limits: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    output_manifest: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    evidence_location: Mapped[str | None] = mapped_column(String(500))
+    failure_code: Mapped[str | None] = mapped_column(String(100))
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    slide: Mapped[Slide] = relationship()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+    slide: Mapped[Slide | None] = relationship()
+
+
+class RuntimeGuard(Base):
+    __tablename__ = "runtime_guards"
+    __table_args__ = (
+        CheckConstraint(
+            "mode IN ('idle', 'draining_for_classroom', 'classroom_live', "
+            "'classroom_cooldown')",
+            name="ck_runtime_guards_mode",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    mode: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="idle", server_default="idle"
+    )
+    classroom_session_id: Mapped[str | None] = mapped_column(String(36))
+    cooldown_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
 
 
 class AuditEvent(Base):

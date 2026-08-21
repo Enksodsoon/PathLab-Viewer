@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ClassroomTeacherPage } from '../pages/ClassroomTeacherPage'
+import { ApiError } from '../api'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import type { AdminSlide, LibraryFolder, LibraryNavigation } from '../types'
 
@@ -16,6 +17,7 @@ const api = vi.hoisted(() => ({
 const classroomApi = vi.hoisted(() => ({
   classroomReadiness: vi.fn(),
   createClassroom: vi.fn(),
+  startLiveClassroom: vi.fn(),
 }))
 
 vi.mock('../api', async (importOriginal) => ({
@@ -154,5 +156,35 @@ describe('Classroom folder setup', () => {
     await waitFor(() => expect(classroomApi.createClassroom).toHaveBeenCalledWith(
       'folder-course', expect.any(String),
     ))
+  })
+
+  it('explains that background jobs are draining without polling', async () => {
+    classroomApi.createClassroom.mockResolvedValue({
+      id: 'classroom-1',
+      joinCode: 'MINT-1234',
+      publicId: 'public-classroom-1',
+      phase: 'preview',
+      reviewExpiresAt: '2026-08-23T00:00:00Z',
+      stateVersion: 1,
+      slides: [{
+        id: 'slide-root', position: 0, displayName: 'Root H&E', assetVersion: 'v1',
+        tileSource: '/tiles/slide-root/v1/slide.dzi', width: 1000, height: 800,
+        tileSize: 512, format: 'jpg', folderPath: ['Pathology 101'],
+      }],
+    })
+    classroomApi.startLiveClassroom.mockRejectedValue(
+      new ApiError(409, 'CLASSROOM_DRAINING'),
+    )
+    renderSetup()
+
+    const group = await screen.findByRole('radiogroup', { name: 'Class folder' })
+    await userEvent.click(within(group).getByRole('radio', { name: /Pathology 101/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare classroom with 2 slides' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Start live class' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Background preparation is stopping to protect the live class',
+    )
+    expect(classroomApi.startLiveClassroom).toHaveBeenCalledTimes(1)
   })
 })

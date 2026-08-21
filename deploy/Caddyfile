@@ -28,6 +28,9 @@
 	@uploads path /api/v1/uploads/*
 	handle @uploads {
 		header Cache-Control "no-store"
+		forward_auth api:8000 {
+			uri /api/v1/internal/uploads/admission
+		}
 		reverse_proxy tusd:8080
 	}
 

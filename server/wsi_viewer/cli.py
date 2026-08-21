@@ -12,8 +12,9 @@ from sqlalchemy import select
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
-from .models import ClassroomSession, Job, User
+from .models import ClassroomSession, Job, RuntimeGuard, User
 from .postgres_migration import PostgresMigrationError, migrate_sqlite_to_postgres
+from .runtime_protection import CLASSROOM_GUARD_ID, IDLE
 from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
@@ -126,7 +127,9 @@ def main() -> None:
     with factory() as database:
         if args.command == "deployment-check":
             running_job = database.scalar(
-                select(Job.id).where(Job.status == "running").limit(1)
+                select(Job.id)
+                .where(Job.status.in_({"running", "checkpointing"}))
+                .limit(1)
             )
             if running_job is not None:
                 raise SystemExit("Deployment blocked: worker job is active")
@@ -137,6 +140,11 @@ def main() -> None:
             )
             if active_classroom is not None:
                 raise SystemExit("Deployment blocked: a Classroom session is active")
+            runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
+            if runtime_guard is not None and runtime_guard.mode != IDLE:
+                raise SystemExit(
+                    f"Deployment blocked: Classroom protection is {runtime_guard.mode}"
+                )
             return
         user = database.scalar(select(User).where(User.username == args.username))
         if args.command == "issue-recovery-code":

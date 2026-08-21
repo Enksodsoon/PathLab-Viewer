@@ -32,7 +32,9 @@ from wsi_viewer.models import (
     ClassroomParticipant,
     ClassroomSession,
     Folder,
+    Job,
     PublicationGrant,
+    RuntimeGuard,
     Slide,
     User,
 )
@@ -47,6 +49,7 @@ def _client(
     enabled: bool,
     role: str = "all",
     max_participants: int = 300,
+    protection_enabled: bool = False,
 ) -> TestClient:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
@@ -55,6 +58,7 @@ def _client(
         secure_cookies=False,
         tus_internal_upload_dir=tmp_path / "tus",
         classroom_enabled=enabled,
+        classroom_protection_enabled=protection_enabled,
         classroom_max_participants=max_participants,
         service_role=role,
     )
@@ -173,6 +177,60 @@ def _classroom_event_stream(
 def test_classroom_routes_are_absent_when_disabled(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=False) as client:
         assert client.post("/api/v1/classroom/join", json={"joinCode": "ABC123"}).status_code == 404
+
+
+def test_classroom_protection_drains_worker_before_live_session(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True, protection_enabled=True) as client:
+        headers = _admin_headers(client)
+        settings = cast(Settings, client.app.state.settings)
+        factory = session_factory(settings)
+        with factory() as database:
+            job = Job(slide_id="slide-1", kind="ingest", status="running")
+            database.add(job)
+            database.commit()
+            job_id = job.id
+
+        draining = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert draining.status_code == 409
+        assert draining.json()["detail"] == {
+            "code": "CLASSROOM_DRAINING",
+            "runningJobs": 1,
+        }
+        with factory() as database:
+            stored = database.get(Job, job_id)
+            assert stored is not None
+            assert stored.cancellation_requested_at is not None
+            guard = database.get(RuntimeGuard, "classroom-protection")
+            assert guard is not None
+            assert guard.mode == "draining_for_classroom"
+            stored.status = "succeeded"
+            database.commit()
+
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert created.status_code == 201, created.text
+        admission = client.get("/api/v1/internal/uploads/admission")
+        assert admission.status_code == 423
+        assert admission.json()["detail"]["code"] == "CLASSROOM_PROTECTION_ACTIVE"
+        with factory() as database:
+            guard = database.get(RuntimeGuard, "classroom-protection")
+            assert guard is not None
+            assert guard.mode == "classroom_live"
+            assert guard.classroom_session_id == created.json()["id"]
+
+        ended = client.delete("/api/v1/admin/classroom/sessions/active", headers=headers)
+        assert ended.status_code == 204
+        with factory() as database:
+            guard = database.get(RuntimeGuard, "classroom-protection")
+            assert guard is not None
+            assert guard.mode == "classroom_cooldown"
 
 
 def test_synthetic_classroom_is_durably_run_owned_and_cleanup_is_exact(tmp_path: Path) -> None:

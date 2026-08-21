@@ -53,6 +53,21 @@ def test_tusd_uses_pathlab_data_owner() -> None:
     assert 'user: "10001:10001"' in tusd_service
 
 
+def test_uploads_use_fail_closed_classroom_admission() -> None:
+    caddy = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    uploads = caddy.split("@uploads path", maxsplit=1)[1].split(
+        "@classroom_events", maxsplit=1
+    )[0]
+    assert "forward_auth api:8000" in uploads
+    assert "uri /api/v1/internal/uploads/admission" in uploads
+
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    assert (
+        'PATHLAB_CLASSROOM_PROTECTION_ENABLED: '
+        '"${PATHLAB_CLASSROOM_PROTECTION_ENABLED:-false}"'
+    ) in compose
+
+
 def test_conversion_resource_limits_are_worker_and_tile_service_only() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]

@@ -9,7 +9,14 @@ from wsi_viewer.cli import _build_parser, _read_password, main
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import ClassroomSession, Job, PasswordRecoveryCode, Slide, User
+from wsi_viewer.models import (
+    ClassroomSession,
+    Job,
+    PasswordRecoveryCode,
+    RuntimeGuard,
+    Slide,
+    User,
+)
 from wsi_viewer.security import hash_password, recovery_code_hash
 
 
@@ -210,6 +217,34 @@ def test_deployment_check_blocks_an_active_real_classroom_session(
     assert captured.value.code == "Deployment blocked: a Classroom session is active"
     output = capsys.readouterr()
     assert "a" * 64 not in output.err
+
+
+def test_deployment_check_blocks_classroom_cooldown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "deployment-check-cooldown.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.add(
+            RuntimeGuard(
+                id="classroom-protection",
+                mode="classroom_cooldown",
+                cooldown_until=datetime.now(UTC) + timedelta(minutes=2),
+            )
+        )
+        database.commit()
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    with pytest.raises(SystemExit) as captured:
+        main()
+
+    assert captured.value.code == (
+        "Deployment blocked: Classroom protection is classroom_cooldown"
+    )
 
 
 def test_reconcile_storage_is_noninteractive_and_prints_aggregate_only(
