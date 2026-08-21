@@ -704,6 +704,7 @@ class ClassroomSession(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     join_code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    synthetic_run_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     public_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     phase: Mapped[str] = mapped_column(
         String(12), nullable=False, default="live", server_default="live"

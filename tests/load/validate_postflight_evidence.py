@@ -24,6 +24,7 @@ FIELDS = {
     "watchdogExpected",
     "watchdogActive",
     "finalCapacity",
+    "annotationsEnabled",
     "monthToDateCost",
     "currency",
     "aggregateOnly",
@@ -37,6 +38,8 @@ def validate(value: object) -> dict[str, object]:
         raise ValueError("postflight cost evidence failed")
     if value["finalCapacity"] not in (300, 1200, 1500):
         raise ValueError("postflight capacity is invalid")
+    if value["annotationsEnabled"] is not (value["finalCapacity"] in (1200, 1500)):
+        raise ValueError("postflight annotation activation is inconsistent")
     if not all(
         value[name] is True
         for name in (

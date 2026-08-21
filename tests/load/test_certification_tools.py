@@ -173,6 +173,13 @@ def healthy_evidence_context() -> dict[str, object]:
             "readinessRestored": True,
             "usersAchieved": 1200,
         },
+        "fixturePreparation": {
+            "prepared": True,
+            "encrypted": True,
+            "syntheticOnly": True,
+            "identifiersIncluded": False,
+            "endpointsValidated": 4,
+        },
         "cleanup": {
             "startedAt": stage_started.isoformat(),
             "completedAt": cleanup_ended.isoformat(),
@@ -350,6 +357,7 @@ def test_report_schema_v2_contains_every_approved_evidence_boundary() -> None:
         "resources",
         "abort",
         "recovery",
+        "fixturePreparation",
         "cleanup",
         "privacy",
         "egress",

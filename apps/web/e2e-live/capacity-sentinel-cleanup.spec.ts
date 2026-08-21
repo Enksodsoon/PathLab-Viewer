@@ -13,6 +13,7 @@ interface PrivateState {
     originalMetadata: Record<string, unknown>
     version: number
     manifestVersion: number
+    created: boolean
   } | null
   shareId?: string | null
   desktopToken?: string | null
@@ -53,25 +54,35 @@ test('idempotently reconciles every locally recorded synthetic sentinel fixture'
         fetch(`/api/v2/admin/annotations/slides/${encodeURIComponent(slideId)}/manifest`, { credentials: 'same-origin' }),
         fetch(`/api/v2/admin/annotations/slides/${encodeURIComponent(slideId)}/items?limit=5000`, { credentials: 'same-origin' }),
       ])
-      if (!manifestResponse.ok || !itemsResponse.ok) return null
+      if (!manifestResponse.ok || !itemsResponse.ok) return { available: false as const }
       const manifest = await manifestResponse.json() as { version: number }
       const items = await itemsResponse.json() as { items: Array<{ id: string, version: number }> }
       const item = items.items.find((candidate) => candidate.id === annotationId)
-      return item ? { manifestVersion: manifest.version, itemVersion: item.version } : null
+      return {
+        available: true as const,
+        manifestVersion: manifest.version,
+        itemVersion: item?.version ?? null,
+      }
     }, { slideId: state.annotation.slideId, annotationId: state.annotation.annotationId })
-    const response = await csrfJson(page, `/api/v2/admin/annotations/slides/${encodeURIComponent(state.annotation.slideId)}/batch`, {
-      method: 'POST',
-      body: {
-        mutationId: randomUUID(),
-        baseVersion: current?.manifestVersion ?? state.annotation.manifestVersion,
-        operations: [{
-          type: 'update', id: state.annotation.annotationId,
-          version: current?.itemVersion ?? state.annotation.version,
-          metadata: state.annotation.originalMetadata,
-        }],
-      },
-    })
-    clean = response.ok && clean
+    if (!current.available || (!state.annotation.created && current.itemVersion === null)) {
+      clean = false
+    } else if (current.itemVersion !== null) {
+      const response = await csrfJson(page, `/api/v2/admin/annotations/slides/${encodeURIComponent(state.annotation.slideId)}/batch`, {
+        method: 'POST',
+        body: {
+          mutationId: randomUUID(),
+          baseVersion: current.manifestVersion,
+          operations: [state.annotation.created
+            ? { type: 'delete', id: state.annotation.annotationId, version: current.itemVersion }
+            : {
+                type: 'update', id: state.annotation.annotationId,
+                version: current.itemVersion,
+                metadata: state.annotation.originalMetadata,
+              }],
+        },
+      })
+      clean = response.ok && clean
+    }
   }
   if (state.syntheticSlideId) {
     const response = await csrfJson(page, `/api/v1/admin/slides/${encodeURIComponent(state.syntheticSlideId)}`, { method: 'DELETE' })

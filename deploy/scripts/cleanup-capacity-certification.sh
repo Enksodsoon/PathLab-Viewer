@@ -45,7 +45,7 @@ fail_safe_recovery() {
   if jq -e '((.phase == "aborted-restored" and .finalLimit == null) or
       (.phase == "restored" and .finalLimit == 300)) and
       .releaseExact == true and .servicesExact == true and .ready == true and
-      .finalCapacity == 300' \
+      .finalCapacity == 300 and .annotationsEnabled == false' \
     <<< "${abort_status}" >/dev/null 2>&1; then
     configuration_restored=true
   fi
@@ -79,8 +79,7 @@ trap write_result EXIT
 : "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
 : "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
 : "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON:?CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON is required}"
-: "${CAPACITY_ANNOTATION_SLIDE_ID:?CAPACITY_ANNOTATION_SLIDE_ID is required}"
-: "${CAPACITY_ANNOTATION_ITEM_ID:?CAPACITY_ANNOTATION_ITEM_ID is required}"
+: "${CAPACITY_PRIVATE_FIXTURE_BUNDLE:?CAPACITY_PRIVATE_FIXTURE_BUNDLE is required}"
 nonce="$(python -c 'import hashlib,hmac,os; print(hmac.new(os.environ["DEPLOY_EVIDENCE_KEY"].encode(), (os.environ["GITHUB_RUN_ID"]+":"+os.environ["GITHUB_RUN_ATTEMPT"]).encode(), hashlib.sha256).hexdigest())')"
 echo "::add-mask::${nonce}"
 
@@ -133,30 +132,13 @@ curl --fail --silent --show-error --max-time 20 --cookie "${cookie_jar}" \
   "${CAPACITY_BASE_URL%/}/api/v1/admin/capacity-sentinels/${run_id}/share-cleanup" \
   >/dev/null
 
-manifest="$(curl --fail --silent --show-error --max-time 20 --cookie "${cookie_jar}" \
-  "${CAPACITY_BASE_URL%/}/api/v2/admin/annotations/slides/${CAPACITY_ANNOTATION_SLIDE_ID}/manifest")"
-items="$(curl --fail --silent --show-error --max-time 20 --cookie "${cookie_jar}" \
-  "${CAPACITY_BASE_URL%/}/api/v2/admin/annotations/slides/${CAPACITY_ANNOTATION_SLIDE_ID}/items?limit=5000")"
-annotation="$(jq -cer --arg id "${CAPACITY_ANNOTATION_ITEM_ID}" \
-  '.items[] | select(.id == $id)' <<< "${items}")"
-if [[ "$(jq -r '.metadata.notes // ""' <<< "${annotation}")" == "Synthetic capacity ${run_id}" ]]; then
-  mutation_id="$(python -c 'import uuid; print(uuid.uuid4())')"
-  payload="$(jq -cn --arg mutation "${mutation_id}" \
-    --arg id "${CAPACITY_ANNOTATION_ITEM_ID}" \
-    --argjson base "$(jq -r .version <<< "${manifest}")" \
-    --argjson version "$(jq -r .version <<< "${annotation}")" \
-    --argjson metadata "$(jq '.metadata | del(.notes)' <<< "${annotation}")" \
-    '{mutationId:$mutation,baseVersion:$base,operations:[{type:"update",id:$id,version:$version,metadata:$metadata}]}')"
-  curl --fail --silent --show-error --max-time 20 --cookie "${cookie_jar}" \
-    --request POST --header 'Content-Type: application/json' \
-    --header "X-CSRF-Token: ${csrf}" --data "${payload}" \
-    "${CAPACITY_BASE_URL%/}/api/v2/admin/annotations/slides/${CAPACITY_ANNOTATION_SLIDE_ID}/batch" \
-    >/dev/null
-fi
-
 if [[ "$(jq -r '.certification.selectedCapacity // empty' "${DECISION_PATH}" 2>/dev/null || true)" != 300 ]]; then
   python tests/load/validate_sentinel_evidence.py "${SENTINEL_PATH}" --require-cleanup
 fi
+python deploy/scripts/capacity_fixtures.py cleanup \
+  --input "${CAPACITY_PRIVATE_FIXTURE_BUNDLE}" --evidence-key "${DEPLOY_EVIDENCE_KEY}" \
+  --run-id "${run_id}" --workflow-sha "${sha}" --base-url "${CAPACITY_BASE_URL}" \
+  --username "${LOAD_TEST_ADMIN_USERNAME}" --password "${LOAD_TEST_ADMIN_PASSWORD}"
 fixtures_removed=true
 
 # Reconciliation and the pre-finalize Bastion audit must pass while the host is
@@ -199,7 +181,7 @@ jq -e --arg run "${run_id}" --arg digest "${digest}" \
 if [[ "${selected_capacity}" == 300 ]]; then
   : "${CAPACITY_ROLLBACK_RESULT:?CAPACITY_ROLLBACK_RESULT is required}"
   jq -e '.releaseExact == true and .servicesExact == true and .serviceCount == 5 and
-    .ready == true and .finalCapacity == 300' <<< "${status}" >/dev/null
+    .ready == true and .finalCapacity == 300 and .annotationsEnabled == false' <<< "${status}" >/dev/null
   printf '%s\n' "${status}" > "${CAPACITY_ROLLBACK_RESULT}"
   rollback_completed=true
   containment_complete=true

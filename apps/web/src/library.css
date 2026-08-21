@@ -1544,6 +1544,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   background: var(--surface-elevated);
   box-shadow: 0 -14px 30px -26px color-mix(in srgb, var(--shadow-color) 82%, transparent);
   transition: transform 360ms cubic-bezier(.22, .61, .36, 1);
+  pointer-events: none;
 }
 
 @media (hover: hover) {

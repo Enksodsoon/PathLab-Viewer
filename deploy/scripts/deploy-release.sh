@@ -368,7 +368,19 @@ python3 "${STAGE_DIR}/deploy/scripts/production_safety.py" \
   --signature "${EVIDENCE_SIGNATURE}" --nonce "${EVIDENCE_NONCE}" || \
   fail "production preflight guards failed"
 ANNOTATIONS_ENABLED="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
-[[ "${ANNOTATIONS_ENABLED:-false}" == "false" ]] || fail "annotations must remain disabled"
+if [[ "${ANNOTATIONS_ENABLED:-false}" == "true" ]]; then
+  ACTIVATION="/var/lib/pathlab-viewer/annotation-activation.json"
+  ACTIVATION_SIGNATURE="${ACTIVATION}.sig"
+  for protected in "${ACTIVATION}" "${ACTIVATION_SIGNATURE}"; do
+    [[ -f "${protected}" && ! -L "${protected}" && "$(stat -c '%U:%G:%a' "${protected}")" == "root:root:600" ]] || \
+      fail "annotation activation evidence is unavailable or unsafe"
+  done
+  python3 "${STAGE_DIR}/deploy/scripts/production_safety.py" \
+    annotation-activation "${ACTIVATION}" --signature "$(cat "${ACTIVATION_SIGNATURE}")" || \
+    fail "annotations lack a valid strict capacity certification"
+else
+  [[ "${ANNOTATIONS_ENABLED:-false}" == "false" ]] || fail "annotation feature state is invalid"
+fi
 DATA_DIR="$(sed -n 's/^PATHLAB_DATA_DIR=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
 [[ -n "${DATA_DIR}" ]] || fail "PATHLAB_DATA_DIR must be explicit in production"
 DATA_DIR="${DATA_DIR%\"}"

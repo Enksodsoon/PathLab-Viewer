@@ -95,7 +95,7 @@ if [[ "${#REMOTE_REQUESTS[@]}" -eq 1 ]]; then
        (.phase == "restored" and .finalLimit == 300)) and
        .runId == $run and .planDigest == $digest and .releaseExact == true and
        .servicesExact == true and .serviceCount == 5 and .ready == true and
-       .finalCapacity == 300' <<< "${single_status}" >/dev/null || \
+       .finalCapacity == 300 and .annotationsEnabled == false' <<< "${single_status}" >/dev/null || \
       fail "capacity abort did not restore and roll back the candidate"
     "${JQ_COMMAND}" -c . <<< "${single_status}"
   else

@@ -641,13 +641,16 @@ test('uses a bottom tool dock and focus-restoring inspector sheet at 760px and b
 
   await page.getByRole('button', { name: 'Point marker' }).click()
   const overlay = page.locator('.annotation-svg-overlay')
-  await expect(overlay).toBeAttached()
-  await overlay.dispatchEvent('pointerdown', {
-    clientX: 180,
-    clientY: 360,
-    pointerId: 7,
-    pointerType: 'touch',
-  })
+  await expect(overlay).toBeVisible()
+  const persisted = page.waitForResponse((response) => (
+    response.request().method() === 'POST'
+    && response.url().includes('/api/v2/admin/annotations/slides/private-1/batch')
+    && response.ok()
+  ))
+  // Use Playwright's complete pointer sequence. A synthetic pointerdown can be
+  // dropped by Firefox before React commits the annotation and persistence effect.
+  await overlay.click({ position: { x: 180, y: 360 } })
+  await persisted
   await page.getByRole('button', { name: 'Open annotations' }).click()
   await expect(page.getByRole('button', { name: /point annotation/i })).toBeVisible()
   await expect.poll(() => page.evaluate(() => (

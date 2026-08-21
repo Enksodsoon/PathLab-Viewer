@@ -175,6 +175,40 @@ def test_classroom_routes_are_absent_when_disabled(tmp_path: Path) -> None:
         assert client.post("/api/v1/classroom/join", json={"joinCode": "ABC123"}).status_code == 404
 
 
+def test_synthetic_classroom_is_durably_run_owned_and_cleanup_is_exact(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        run_id = "123456"
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers={**headers, "X-PathLab-Synthetic-Run": run_id},
+            json={"slideIds": ["slide-1"]},
+        )
+        assert created.status_code == 201
+        assert created.json()["syntheticRunId"] == run_id
+        session_id = created.json()["id"]
+        state = client.get(
+            f"/api/v1/admin/classroom/sessions/{session_id}", headers=headers
+        )
+        assert state.json()["session"]["syntheticRunId"] == run_id
+        mismatch = client.delete(
+            f"/api/v1/admin/classroom/sessions/{session_id}",
+            headers={**headers, "X-PathLab-Synthetic-Run": "another-run"},
+        )
+        assert mismatch.status_code == 409
+        removed = client.delete(
+            f"/api/v1/admin/classroom/sessions/{session_id}",
+            headers={**headers, "X-PathLab-Synthetic-Run": run_id},
+        )
+        assert removed.status_code == 204
+        assert (
+            client.get(
+                f"/api/v1/admin/classroom/sessions/{session_id}", headers=headers
+            ).status_code
+            == 404
+        )
+
+
 def test_saturated_classroom_mutation_fails_fast_with_retry_after(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:

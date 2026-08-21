@@ -49,6 +49,7 @@ CONTEXT_FIELDS = {
     "resources",
     "abort",
     "recovery",
+    "fixturePreparation",
     "cleanup",
     "privacy",
     "egress",
@@ -69,6 +70,7 @@ REPORT_FIELDS = {
     "resources",
     "abort",
     "recovery",
+    "fixturePreparation",
     "cleanup",
     "privacy",
     "egress",
@@ -106,6 +108,7 @@ CHECK_FIELDS = {
     "resources",
     "abort",
     "recovery",
+    "fixturePreparation",
     "cleanup",
     "privacy",
     "egress",
@@ -547,6 +550,23 @@ def _validate_context(context: dict[str, Any]) -> dict[str, Any]:
         _boolean(recovery[name], f"recovery.{name}")
     _integer(recovery["usersAchieved"], "recovery.usersAchieved", maximum=2000)
 
+    fixture_preparation = _object(context, "fixturePreparation")
+    fixture_fields = {
+        "prepared",
+        "encrypted",
+        "syntheticOnly",
+        "identifiersIncluded",
+        "endpointsValidated",
+    }
+    _exact_fields(fixture_preparation, fixture_fields, "fixturePreparation")
+    for name in ("prepared", "encrypted", "syntheticOnly", "identifiersIncluded"):
+        _boolean(fixture_preparation[name], f"fixturePreparation.{name}")
+    _integer(
+        fixture_preparation["endpointsValidated"],
+        "fixturePreparation.endpointsValidated",
+        maximum=100,
+    )
+
     cleanup = _object(context, "cleanup")
     cleanup_fields = {
         "startedAt",
@@ -730,6 +750,7 @@ def _context_checks(context: dict[str, Any], commit_sha: str) -> dict[str, bool]
     resources = context["resources"]
     abort = context["abort"]
     recovery = context["recovery"]
+    fixture_preparation = context["fixturePreparation"]
     cleanup = context["cleanup"]
     privacy = context["privacy"]
     egress = context["egress"]
@@ -789,6 +810,11 @@ def _context_checks(context: dict[str, Any], commit_sha: str) -> dict[str, bool]
         and recovery["succeeded"]
         and recovery["readinessRestored"]
         and recovery["usersAchieved"] >= 1200,
+        "fixturePreparation": fixture_preparation["prepared"]
+        and fixture_preparation["encrypted"]
+        and fixture_preparation["syntheticOnly"]
+        and not fixture_preparation["identifiersIncluded"]
+        and fixture_preparation["endpointsValidated"] >= 4,
         "cleanup": cleanup["attempted"]
         and cleanup["succeeded"]
         and cleanup["configurationRestored"]

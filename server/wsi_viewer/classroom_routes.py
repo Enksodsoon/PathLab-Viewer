@@ -635,8 +635,14 @@ def register_classroom_routes(
         status_code=status.HTTP_201_CREATED,
     )
     def create_session(
-        payload: CreateSessionRequest, _: CsrfSession, _guard: MutationGuard, db: Database
+        payload: CreateSessionRequest,
+        _: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
+        synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
     ) -> dict[str, Any]:
+        if synthetic_run is not None and re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
+            raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_INVALID"})
         now = _now()
         expired = list(
             db.scalars(
@@ -699,6 +705,7 @@ def register_classroom_routes(
         )
         classroom = ClassroomSession(
             join_code_hash=_hash(join_code),
+            synthetic_run_id=synthetic_run,
             public_id=public_id,
             phase="preview" if is_smart_invite else "live",
             folder_id=payload.folder_id,
@@ -738,6 +745,7 @@ def register_classroom_routes(
         request_prewarm(classroom.id, classroom.current_slide_id or slide_ids[0], db)
         return {
             "id": classroom.id,
+            "syntheticRunId": classroom.synthetic_run_id,
             "joinCode": join_code,
             "publicId": classroom.public_id,
             "phase": classroom.phase,
@@ -1160,6 +1168,7 @@ def register_classroom_routes(
                 "status": classroom.status,
                 "phase": classroom.phase,
                 "publicId": classroom.public_id,
+                "syntheticRunId": classroom.synthetic_run_id,
                 "joinCode": access_code(classroom.public_id, classroom.code_generation)
                 if classroom.public_id
                 else None,
@@ -2062,10 +2071,29 @@ def register_classroom_routes(
         "/api/v1/admin/classroom/sessions/{session_id}",
         status_code=status.HTTP_204_NO_CONTENT,
     )
-    def end_session(session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database) -> None:
+    def end_session(
+        session_id: str,
+        _: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
+        synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
+    ) -> None:
         classroom = db.get(ClassroomSession, session_id)
         if classroom is None:
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        if classroom.synthetic_run_id is not None and not (
+            synthetic_run is not None
+            and secrets.compare_digest(classroom.synthetic_run_id, synthetic_run)
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SYNTHETIC_RUN_MISMATCH"})
+        if classroom.synthetic_run_id is not None:
+            final_state_version = classroom.state_version + 1
+            db.delete(classroom)
+            db.commit()
+            presenter_runtime.forget(session_id)
+            prewarmer.clear()
+            hub.terminate_session(session_id, state_version=final_state_version)
+            return
         classroom.status = "ended"
         classroom.phase = "revoked"
         classroom.ended_at = _now()

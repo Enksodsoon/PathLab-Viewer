@@ -88,6 +88,7 @@ def build(
     merged: dict[str, Any],
     sentinels: dict[str, Any],
     fault: dict[str, Any],
+    fixture_preparation: dict[str, Any],
     cleanup: dict[str, Any],
     observer: list[dict[str, Any]],
     accounting: dict[str, Any],
@@ -106,6 +107,7 @@ def build(
     for label, artifact in (
         ("sentinel", sentinels),
         ("fault", fault),
+        ("fixture preparation", fixture_preparation),
         ("cleanup", cleanup),
         ("postflight", postflight),
     ):
@@ -202,6 +204,16 @@ def build(
             "succeeded": fault_succeeded,
             "readinessRestored": fault["readinessRecoverySeconds"] <= 90,
             "usersAchieved": recovery_stage["achievedUsers"],
+        },
+        "fixturePreparation": {
+            key: fixture_preparation[key]
+            for key in (
+                "prepared",
+                "encrypted",
+                "syntheticOnly",
+                "identifiersIncluded",
+                "endpointsValidated",
+            )
         },
         "cleanup": {
             key: cleanup[key]
@@ -320,6 +332,7 @@ def main() -> None:
         "merged-shards",
         "sentinels",
         "fault",
+        "fixture-preparation",
         "cleanup",
         "observer",
         "accounting",
@@ -334,6 +347,7 @@ def main() -> None:
         load_object(args.merged_shards),
         load_object(args.sentinels),
         load_object(args.fault),
+        load_object(args.fixture_preparation),
         load_object(args.cleanup),
         load_ndjson(args.observer),
         load_object(args.accounting),

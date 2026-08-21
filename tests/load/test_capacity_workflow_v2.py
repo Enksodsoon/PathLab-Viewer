@@ -55,6 +55,7 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
 
     assert set(jobs) == {
         "preflight",
+        "fixtures",
         "arm",
         "shard",
         "sentinels",
@@ -66,6 +67,7 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
     }
     assert jobs["aggregate"]["needs"] == [
         "preflight",
+        "fixtures",
         "shard",
         "sentinels",
         "fault-recovery",
@@ -73,16 +75,21 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "postflight",
     ]
     assert jobs["cleanup"]["if"] == (
-        "${{ always() && needs.preflight.result == 'success' }}"
+        "${{ always() && needs.preflight.result == 'success' "
+        "&& needs.fixtures.result == 'success' }}"
     )
     assert jobs["cleanup"]["needs"] == [
         "preflight",
+        "fixtures",
         "shard",
         "sentinels",
         "fault-recovery",
         "decision",
     ]
-    assert jobs["decision"]["if"] == "${{ always() && needs.preflight.result == 'success' }}"
+    assert jobs["decision"]["if"] == (
+        "${{ always() && needs.preflight.result == 'success' "
+        "&& needs.fixtures.result == 'success' }}"
+    )
     assert jobs["postflight"]["if"] == "${{ always() && needs.cleanup.result != 'skipped' }}"
     assert jobs["postflight"]["needs"] == ["preflight", "decision", "cleanup"]
 
@@ -251,7 +258,7 @@ def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_r
         "/synthetic-reset",
         "/desktop-cleanup",
         "/share-cleanup",
-        "/api/v2/admin/annotations/",
+            "capacity_fixtures.py cleanup",
         "validate_sentinel_evidence.py",
         "oci bastion session list",
     ):
@@ -339,10 +346,10 @@ def test_plan_is_retained_before_arm_and_stage_reset_requires_six_ack_barrier() 
 def test_private_capacity_inputs_are_validated_before_arm() -> None:
     serialized = WORKFLOW.read_text(encoding="utf-8")
 
-    validation = serialized.index("Validate protected capacity fixtures")
+    validation = serialized.index("Create and encrypt exact run-owned fixtures")
     arm = serialized.index("  arm:")
     assert validation < arm
-    for name in (
+    for removed_secret in (
         "CAPACITY_MEDIA_MANIFEST_JSON",
         "CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON",
         "CAPACITY_ANNOTATION_SLIDE_ID",
@@ -350,9 +357,23 @@ def test_private_capacity_inputs_are_validated_before_arm() -> None:
         "CAPACITY_SHARE_TARGET_ID",
         "CAPACITY_DYNAMIC_PUBLIC_ID",
     ):
-        assert name in serialized[validation:arm]
-    assert "every planned stage requires one protected credential entry" in serialized
-    assert "media manifest is incomplete" in serialized
+        assert f"secrets.{removed_secret}" not in serialized
+    assert "capacity_fixtures.py create" in serialized[validation:arm]
+    assert "capacity-fixtures.fernet" in serialized[validation:arm]
+    assert "retention-days: 1" in serialized[validation:arm]
+
+
+def test_fixture_job_creates_before_publication_and_consumers_materialize_after_download() -> None:
+    jobs = workflow()["jobs"]  # type: ignore[index]
+    fixture_steps = jobs["fixtures"]["steps"]
+    fixture_text = "\n".join(str(step) for step in fixture_steps)
+    sentinel_text = "\n".join(str(step) for step in jobs["sentinels"]["steps"])
+
+    assert "capacity_fixtures.py create" in fixture_text
+    assert "Materialize exact run-owned sentinel fixtures" not in fixture_text
+    assert "capacity_fixtures.py materialize" in sentinel_text
+    assert "capacity-fixtures-private" in sentinel_text
+    assert jobs["sentinels"]["needs"] == ["preflight", "fixtures", "arm"]
 
 
 def test_cleanup_installs_abort_trap_before_fixture_validation() -> None:
@@ -367,8 +388,7 @@ def test_cleanup_installs_abort_trap_before_fixture_validation() -> None:
     assert trap_index < cleanup.index(': "${DEPLOY_EVIDENCE_KEY:?')
     assert trap_index < cleanup.index(': "${CAPACITY_BASE_URL:?')
     assert trap_index < cleanup.index(': "${LOAD_TEST_ADMIN_USERNAME:?')
-    assert trap_index < cleanup.index(': "${CAPACITY_ANNOTATION_SLIDE_ID:?')
-    assert trap_index < cleanup.index(': "${CAPACITY_ANNOTATION_ITEM_ID:?')
+    assert trap_index < cleanup.index(': "${CAPACITY_PRIVATE_FIXTURE_BUNDLE:?')
 
 
 def test_fault_job_can_wait_for_the_late_recovery_stage() -> None:

@@ -16,7 +16,10 @@ from validate_postflight_evidence import validate as validate_postflight
 
 
 def build(
-    plan: dict[str, Any], decision: dict[str, Any], postflight: dict[str, Any]
+    plan: dict[str, Any],
+    decision: dict[str, Any],
+    fixture_preparation: dict[str, Any],
+    postflight: dict[str, Any],
 ) -> dict[str, Any]:
     validate_plan(plan)
     validate_postflight(postflight)
@@ -34,6 +37,12 @@ def build(
         raise ValueError("failure decision must select 300")
     if postflight["finalCapacity"] != 300:
         raise ValueError("postflight did not prove the 300-seat floor")
+    if (
+        fixture_preparation.get("runId") != plan["runId"]
+        or fixture_preparation.get("workflowSha") != plan["workflowSha"]
+        or fixture_preparation.get("planDigest") != plan["planDigest"]
+    ):
+        raise ValueError("fixture preparation evidence is not plan-bound")
     return {
         "schemaVersion": 2,
         "certified": False,
@@ -45,6 +54,16 @@ def build(
         "planDigest": plan["planDigest"],
         "evidenceDigest": certification["evidenceDigest"],
         "postflight": postflight,
+        "fixturePreparation": {
+            key: fixture_preparation[key]
+            for key in (
+                "prepared",
+                "encrypted",
+                "syntheticOnly",
+                "identifiersIncluded",
+                "endpointsValidated",
+            )
+        },
         "aggregateOnly": True,
         "syntheticOnly": True,
     }
@@ -83,6 +102,7 @@ def main() -> None:
         "decision",
         "signature",
         "key-file",
+        "fixture-preparation",
         "postflight",
         "output-json",
         "output-markdown",
@@ -111,12 +131,14 @@ def main() -> None:
         )
         return
     if any(
-        getattr(args, name) is None for name in ("postflight", "output_json", "output_markdown")
+        getattr(args, name) is None
+        for name in ("fixture_preparation", "postflight", "output_json", "output_markdown")
     ):
         parser.error("postflight, output-json, and output-markdown are required to build evidence")
     report = build(
         plan,
         decision,
+        json.loads(args.fixture_preparation.read_text()),
         json.loads(args.postflight.read_text()),
     )
     if re.fullmatch(r"[0-9a-f]{64}", report["evidenceDigest"]) is None:
