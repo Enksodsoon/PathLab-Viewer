@@ -458,7 +458,7 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     backend = dockerfiles[0]
     assert "pip install --no-cache-dir --require-hashes" in backend
     lockfile = Path("deploy/backend-requirements.txt").read_text(encoding="utf-8")
-    assert "fastapi==0.139.2" in lockfile
+    assert "fastapi==0.141.1" in lockfile
     assert "pyvips==3.1.1" in lockfile
     assert "--hash=sha256:" in lockfile
     package = Path("package.json").read_text(encoding="utf-8")
