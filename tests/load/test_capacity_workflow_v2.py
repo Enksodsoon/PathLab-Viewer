@@ -105,6 +105,13 @@ def test_capacity_preflight_rejects_missing_accounting_baseline_before_oci_query
     assert '[[ "${APPROVED_RESOURCE_DIGEST}" =~ ^[0-9a-f]{64}$ ]]' in serialized
 
 
+def test_capacity_inventory_search_uses_supported_bounded_pagination() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "oci search resource structured-search --limit 1000" in serialized
+    assert "oci search resource structured-search --all" not in serialized
+
+
 def test_capacity_workflow_retains_only_sanitized_aggregate_evidence() -> None:
     loaded = workflow()
     serialized = WORKFLOW.read_text(encoding="utf-8")
