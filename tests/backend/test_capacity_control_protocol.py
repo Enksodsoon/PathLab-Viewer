@@ -581,6 +581,25 @@ def test_capacity_unit_waits_for_child_restoration_and_routes_rollback(
     nonce_file.write_text(NONCE, encoding="utf-8")
     preflight.write_text("{}", encoding="utf-8")
     signature_file.write_text("c" * 64, encoding="utf-8")
+    now = int(time.time())
+    (state / "pathlab-capacity-run-1-control.json").write_text(
+        json.dumps(
+            {
+                "runId": "run-1",
+                "workflowSha": SHA,
+                "planDigest": DIGEST,
+                "deadlineEpoch": now + 30,
+                "rollbackSha": "d" * 40,
+                "rollbackNotAfter": now + 60,
+                "windowStartEpoch": now,
+                "windowEndEpoch": now + 10_800,
+                "phase": "armed",
+                "finalLimit": None,
+                "faultConsumed": False,
+            }
+        ),
+        encoding="utf-8",
+    )
     (deploy / "with-capacity-override.sh").write_text(
         """#!/usr/bin/env bash
 set -Eeuo pipefail
@@ -627,7 +646,7 @@ log.open('a').write(' '.join(sys.argv[1:]) + '\\n')
             str(preflight),
             str(signature_file),
             "d" * 40,
-            str(int(time.time()) + 60),
+            str(now + 60),
             str(controller),
         ],
         env=env,
