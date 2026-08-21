@@ -7,7 +7,7 @@
   "required": [
     "schemaVersion", "certified", "certifiedTier", "release", "browserCi", "run", "stages",
     "journeys", "realtime", "pressure", "resources", "abort", "recovery",
-    "cleanup", "privacy", "egress", "cost", "functionalSentinels", "checks", "metrics", "browser"
+    "fixturePreparation", "cleanup", "privacy", "egress", "cost", "functionalSentinels", "checks", "metrics", "browser"
   ],
   "properties": {
     "schemaVersion": {"const": 2},
@@ -26,6 +26,7 @@
     "resources": {"$ref": "#/$defs/resources"},
     "abort": {"$ref": "#/$defs/abort"},
     "recovery": {"$ref": "#/$defs/recovery"},
+    "fixturePreparation": {"$ref": "#/$defs/fixturePreparation"},
     "cleanup": {"$ref": "#/$defs/cleanup"},
     "privacy": {"$ref": "#/$defs/privacy"},
     "egress": {"$ref": "#/$defs/egress"},
@@ -240,6 +241,17 @@
         "bastionSessionsRemaining": {"$ref": "#/$defs/nonnegativeInteger"}
       }
     },
+    "fixturePreparation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["prepared", "encrypted", "syntheticOnly", "identifiersIncluded", "endpointsValidated"],
+      "properties": {
+        "prepared": {"type": "boolean"},
+        "encrypted": {"type": "boolean"},
+        "syntheticOnly": {"type": "boolean"},
+        "identifiersIncluded": {"type": "boolean"},
+        "endpointsValidated": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
     "privacy": {
       "type": "object", "additionalProperties": false,
       "required": ["aggregateOnly", "credentialsMasked", "syntheticFixturesOnly"],
@@ -282,7 +294,7 @@
         "swap", "restarts", "oom", "services", "readiness", "disk", "observerRelease",
         "admin", "conversion", "browserCleanup", "degradedViewer", "release", "browserCi",
         "stages", "shards", "journeys", "realtime", "pressure", "resources", "abort",
-        "recovery", "cleanup", "privacy", "egress", "cost", "functionalSentinels"
+        "recovery", "fixturePreparation", "cleanup", "privacy", "egress", "cost", "functionalSentinels"
       ],
       "properties": {
         "requestFailures": {"type": "boolean"}, "tileFailures": {"type": "boolean"},
@@ -298,7 +310,8 @@
         "shards": {"type": "boolean"}, "journeys": {"type": "boolean"},
         "realtime": {"type": "boolean"}, "pressure": {"type": "boolean"},
         "resources": {"type": "boolean"}, "abort": {"type": "boolean"},
-        "recovery": {"type": "boolean"}, "cleanup": {"type": "boolean"},
+        "recovery": {"type": "boolean"}, "fixturePreparation": {"type": "boolean"},
+        "cleanup": {"type": "boolean"},
         "privacy": {"type": "boolean"}, "egress": {"type": "boolean"},
         "cost": {"type": "boolean"},
         "functionalSentinels": {"type": "boolean"}

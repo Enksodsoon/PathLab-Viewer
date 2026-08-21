@@ -207,6 +207,22 @@ def _capacity_evidence(strict_1200: bool, strict_1500: bool) -> dict[str, Any]:
     }
 
 
+def test_annotation_activation_requires_signed_strict_capacity_and_sentinel() -> None:
+    safety = _load_script("production_safety")
+    key = b"test-only-deployment-evidence-key-32-bytes"
+    evidence = {"certification": _capacity_evidence(True, False)}
+    signature = safety.sign_evidence(evidence, key)
+    assert safety.validate_annotation_activation(evidence, signature, key) == 1200
+
+    evidence["certification"]["functionalSentinels"]["annotations"] = False
+    signature = safety.sign_evidence(evidence, key)
+    with pytest.raises(safety.GuardFailure, match="sentinel"):
+        safety.validate_annotation_activation(evidence, signature, key)
+
+    with pytest.raises(safety.GuardFailure, match="signature"):
+        safety.validate_annotation_activation(evidence, "0" * 64, key)
+
+
 def test_watchdog_restarts_only_failed_component_after_third_failure(tmp_path: Path) -> None:
     watchdog = _load_script("component_watchdog")
     runner = FakeRunner({"classroom"})

@@ -222,15 +222,18 @@ if [[ "${REQUEST}" =~ ^capacity-postflight[[:space:]]expected=([0-9a-f]{40})$ ]]
   SERVICES="$(docker compose ps --services --status running | sort)"
   EXPECTED_SERVICES=$'api\ncaddy\nclassroom\ntile-service\ntusd\nworker'
   LIMIT="$(awk -F= '/^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=/{print $2; exit}' .env)"
+  ANNOTATIONS="$(awk -F= '/^PATHLAB_ANNOTATIONS_ENABLED=/{print $2; exit}' .env)"
   READY=false
   curl --fail --silent --insecure --max-time 10 https://127.0.0.1/readyz >/dev/null && \
     curl --fail --silent --insecure --max-time 10 https://127.0.0.1/livez >/dev/null && READY=true
   WATCHDOG=false; systemctl is-active --quiet pathlab-viewer-watchdog.timer && WATCHDOG=true
   jq -n --arg release "${RELEASE}" --arg expected "${EXPECTED}" --argjson ready "${READY}" \
     --argjson watchdog "${WATCHDOG}" --argjson capacity "${LIMIT:-0}" \
+    --argjson annotations "${ANNOTATIONS:-false}" \
     --argjson exact "$([[ "${SERVICES}" == "${EXPECTED_SERVICES}" ]] && echo true || echo false)" \
     '{releaseSha:$release,expectedSha:$expected,releaseExact:($release==$expected),servicesExact:$exact,
-      serviceCount:6,ready:$ready,watchdogExpected:true,watchdogActive:$watchdog,finalCapacity:$capacity}'
+      serviceCount:6,ready:$ready,watchdogExpected:true,watchdogActive:$watchdog,
+      finalCapacity:$capacity,annotationsEnabled:$annotations}'
   exit 0
 fi
 
@@ -322,7 +325,7 @@ if [[ "${REQUEST}" =~ ^capacity-abort[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]
     jq -e '(.phase == "aborted-restored" and .finalLimit == null) or
       (.phase == "restored" and .finalLimit == 300)' "${CONTROL_STATE}" >/dev/null && \
     jq -e '.releaseExact == true and .servicesExact == true and .serviceCount == 5 and
-      .ready == true and .finalCapacity == 300' "${FINAL_RESULT}" >/dev/null; then
+      .ready == true and .finalCapacity == 300 and .annotationsEnabled == false' "${FINAL_RESULT}" >/dev/null; then
     cat "${FINAL_RESULT}"
     exit 0
   fi

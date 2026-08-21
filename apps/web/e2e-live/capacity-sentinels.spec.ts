@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 
 import { csrfJson, signIn } from './capacity-helpers'
 
@@ -8,7 +8,6 @@ const resultPath = required('CAPACITY_SENTINEL_RESULT')
 const username = required('LOAD_TEST_ADMIN_USERNAME')
 const password = required('LOAD_TEST_ADMIN_PASSWORD')
 const slideId = required('CAPACITY_ANNOTATION_SLIDE_ID')
-const annotationId = required('CAPACITY_ANNOTATION_ITEM_ID')
 const shareTargetId = required('CAPACITY_SHARE_TARGET_ID')
 const publicId = required('CAPACITY_DYNAMIC_PUBLIC_ID')
 const privateStatePath = required('CAPACITY_SENTINEL_PRIVATE_STATE')
@@ -32,38 +31,69 @@ function update(patch: Record<string, unknown>) {
   writeFileSync(resultPath, `${JSON.stringify({ ...current, ...patch }, null, 2)}\n`)
 }
 
+function deterministicAnnotationId(id: string): string {
+  const value = createHash('sha256').update(`pathlab-capacity-annotation:${id}`).digest().subarray(0, 16)
+  value[6] = (value[6] & 0x0f) | 0x50
+  value[8] = (value[8] & 0x3f) | 0x80
+  const hex = value.toString('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 test('runs mutation, sharing, dynamic-viewer, and Desktop sentinels with cleanup', async ({ page }) => {
   const startedAt = new Date().toISOString()
   await signIn(page, username, password)
   const csrf = await page.evaluate(() => sessionStorage.getItem('pathlab-csrf') ?? '')
   let annotationVersion = 0
   let annotationItemVersion = 0
+  let annotationCreated = false
   let originalMetadata: Record<string, unknown> | null = null
   let shareId: string | null = null
   let desktopToken: string | null = null
   let ingestId: string | null = null
+  const annotationId = deterministicAnnotationId(slideId)
   const passed = { uploadConversion: false, annotations: false, libraryShare: false, dynamicViewer: false, desktop: false }
   let cleanup = true
   try {
-    const annotation = await page.evaluate(async ({ id, itemId }) => {
+    let annotation = await page.evaluate(async ({ id, itemId }) => {
       const [manifestResponse, itemsResponse] = await Promise.all([
         fetch(`/api/v2/admin/annotations/slides/${encodeURIComponent(id)}/manifest`, { credentials: 'same-origin' }),
         fetch(`/api/v2/admin/annotations/slides/${encodeURIComponent(id)}/items?limit=5000`, { credentials: 'same-origin' }),
       ])
       if (!manifestResponse.ok || !itemsResponse.ok) throw new Error('annotation sentinel unavailable')
-      const manifest = await manifestResponse.json() as { version: number }
+      const manifest = await manifestResponse.json() as { version: number, layers: Array<{ id: string }> }
       const items = await itemsResponse.json() as { items: Array<{ id: string; version: number; metadata: Record<string, unknown> }> }
       const item = items.items.find((candidate) => candidate.id === itemId)
-      if (!item) throw new Error('dedicated annotation sentinel item is missing')
       return { manifest, item }
     }, { id: slideId, itemId: annotationId })
+    if (!annotation.item) {
+      annotationCreated = true
+      const layerId = annotation.manifest.layers[0]?.id
+      if (!layerId) throw new Error('annotation sentinel requires an existing clean layer')
+      const baseline = { title: 'PathLab capacity sentinel', classification: '', tags: [], notes: '' }
+      const created = await csrfJson(page, `/api/v2/admin/annotations/slides/${encodeURIComponent(slideId)}/batch`, {
+        method: 'POST',
+        body: {
+          mutationId: randomUUID(), baseVersion: annotation.manifest.version,
+          operations: [{ type: 'create', item: {
+            id: annotationId, layerId, geometry: { type: 'point', x: 1, y: 1 },
+            style: { strokeColor: '#c43d3d', fillColor: '#c43d3d', strokeWidth: 2, opacity: 0.35, labelVisible: true },
+            metadata: baseline,
+          } }],
+        },
+      })
+      if (!created.ok) throw new Error('dedicated annotation sentinel item could not be provisioned')
+      annotation = {
+        manifest: { ...annotation.manifest, version: (created.body as { version: number }).version },
+        item: { id: annotationId, version: (created.body as { results: Array<{ version: number }> }).results[0].version, metadata: baseline },
+      }
+    }
     annotationVersion = annotation.manifest.version
     annotationItemVersion = annotation.item.version
     originalMetadata = annotation.item.metadata
     if (originalMetadata.notes !== undefined && originalMetadata.notes !== '') {
       throw new Error('dedicated annotation sentinel item does not have the clean baseline')
     }
-    privateState({ annotation: { slideId, annotationId, originalMetadata, version: annotationItemVersion, manifestVersion: annotationVersion } })
+    privateState({ annotation: { slideId, annotationId, originalMetadata, version: annotationItemVersion, manifestVersion: annotationVersion, created: annotationCreated } })
     const saved = await csrfJson(page, `/api/v2/admin/annotations/slides/${encodeURIComponent(slideId)}/batch`, {
       method: 'POST',
       body: {
@@ -75,7 +105,7 @@ test('runs mutation, sharing, dynamic-viewer, and Desktop sentinels with cleanup
     if (!saved.ok) throw new Error('annotation save failed')
     annotationVersion = (saved.body as { version: number }).version
     annotationItemVersion = (saved.body as { results: Array<{ version: number }> }).results[0].version
-    privateState({ annotation: { slideId, annotationId, originalMetadata, version: annotationItemVersion, manifestVersion: annotationVersion } })
+    privateState({ annotation: { slideId, annotationId, originalMetadata, version: annotationItemVersion, manifestVersion: annotationVersion, created: annotationCreated } })
     const reloaded = await page.evaluate(async ({ id, itemId }) => {
       const response = await fetch(`/api/v2/admin/annotations/slides/${encodeURIComponent(id)}/items?limit=5000`, { credentials: 'same-origin' })
       if (!response.ok) return false
@@ -87,7 +117,7 @@ test('runs mutation, sharing, dynamic-viewer, and Desktop sentinels with cleanup
 
     const share = await csrfJson(page, '/api/v2/admin/shares', {
       method: 'POST', headers: { 'X-PathLab-Synthetic-Run': required('GITHUB_RUN_ID') }, body: {
-      targetType: 'folder', targetId: shareTargetId, includeDescendants: false,
+      targetType: 'slide', targetId: shareTargetId, includeDescendants: false,
       autoIncludeNew: false, deidentifiedConfirmed: true,
     } })
     if (!share.ok) throw new Error('library share sentinel failed')
@@ -119,7 +149,14 @@ test('runs mutation, sharing, dynamic-viewer, and Desktop sentinels with cleanup
     if (ingestId && desktopToken) cleanup = (await page.request.delete(`/api/v2/desktop/ingests/${encodeURIComponent(ingestId)}`, { headers: { Authorization: `Bearer ${desktopToken}` } })).ok() && cleanup
     if (desktopToken) cleanup = (await page.request.post('/api/v1/desktop/credential/revoke', { headers: { Authorization: `Bearer ${desktopToken}` } })).ok() && cleanup
     if (shareId) cleanup = (await csrfJson(page, `/api/v2/admin/shares/${encodeURIComponent(shareId)}`, { method: 'DELETE' })).ok && cleanup
-    if (originalMetadata) cleanup = (await csrfJson(page, `/api/v2/admin/annotations/slides/${encodeURIComponent(slideId)}/batch`, { method: 'POST', body: { mutationId: randomUUID(), baseVersion: annotationVersion, operations: [{ type: 'update', id: annotationId, version: annotationItemVersion, metadata: originalMetadata }] } })).ok && cleanup
+    if (originalMetadata) {
+      const operation = annotationCreated
+        ? { type: 'delete', id: annotationId, version: annotationItemVersion }
+        : { type: 'update', id: annotationId, version: annotationItemVersion, metadata: originalMetadata }
+      cleanup = (await csrfJson(page, `/api/v2/admin/annotations/slides/${encodeURIComponent(slideId)}/batch`, {
+        method: 'POST', body: { mutationId: randomUUID(), baseVersion: annotationVersion, operations: [operation] },
+      })).ok && cleanup
+    }
     if (cleanup) privateState({ annotation: null, shareId: null, desktopToken: null, ingestId: null })
     const current = JSON.parse(readFileSync(resultPath, 'utf8')) as { cleanupSucceeded?: boolean, conversionSucceeded?: boolean }
     passed.uploadConversion = current.conversionSucceeded === true

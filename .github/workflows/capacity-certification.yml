@@ -91,64 +91,26 @@ jobs:
             '{runId:$runId,workflowSha:$workflowSha,ciRunId:$ciRunId,approved:true,
               projects:["chromium","firefox","webkit","mobile-chromium"]}' \
             > "${RUNNER_TEMP}/browser-matrix.json"
-      - name: Validate protected capacity fixtures
+      - name: Validate protected fixture principals
         env:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
           LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets.LOAD_TEST_ADMIN_SLIDE_ID }}
           LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
-          CAPACITY_MEDIA_MANIFEST_JSON: ${{ secrets.CAPACITY_MEDIA_MANIFEST_JSON }}
-          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ secrets.CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON }}
-          CAPACITY_ANNOTATION_SLIDE_ID: ${{ secrets.CAPACITY_ANNOTATION_SLIDE_ID }}
-          CAPACITY_ANNOTATION_ITEM_ID: ${{ secrets.CAPACITY_ANNOTATION_ITEM_ID }}
-          CAPACITY_SHARE_TARGET_ID: ${{ secrets.CAPACITY_SHARE_TARGET_ID }}
-          CAPACITY_DYNAMIC_PUBLIC_ID: ${{ secrets.CAPACITY_DYNAMIC_PUBLIC_ID }}
           DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
         run: |
           set -Eeuo pipefail
           for value in "${CAPACITY_BASE_URL}" "${LOAD_TEST_ADMIN_USERNAME}" \
             "${LOAD_TEST_ADMIN_PASSWORD}" "${LOAD_TEST_ADMIN_SLIDE_ID}" \
-            "${LOAD_TEST_PUBLIC_ID}" "${CAPACITY_MEDIA_MANIFEST_JSON}" \
-            "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}" \
-            "${CAPACITY_ANNOTATION_SLIDE_ID}" "${CAPACITY_ANNOTATION_ITEM_ID}" \
-            "${CAPACITY_SHARE_TARGET_ID}" "${CAPACITY_DYNAMIC_PUBLIC_ID}" \
-            "${DEPLOY_EVIDENCE_KEY}"; do
+            "${LOAD_TEST_PUBLIC_ID}" "${DEPLOY_EVIDENCE_KEY}"; do
             test -n "${value}" || {
               echo "Protected capacity configuration is incomplete." >&2
               exit 1
             }
             echo "::add-mask::${value}"
           done
-          stage_manifest="${RUNNER_TEMP}/capacity-stage-manifest.json"
-          media_manifest="${RUNNER_TEMP}/capacity-media-manifest.json"
           cookie_jar="${RUNNER_TEMP}/capacity-preflight-cookies"
-          printf '%s' "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}" > "${stage_manifest}"
-          printf '%s' "${CAPACITY_MEDIA_MANIFEST_JSON}" > "${media_manifest}"
-          chmod 600 "${stage_manifest}" "${media_manifest}"
-          jq -e --slurpfile plan "${RUNNER_TEMP}/capacity-plan.json" '
-            ($plan[0].stages | map(.name) | sort) as $planned |
-            (keys | sort) == $planned and
-            all(.[];
-              (keys | sort) == [("join" + "Code"),"safetyNonce","sessionId","slideId"] and
-              all(.[]; type == "string" and length > 0) and
-              (.safetyNonce | length >= 32 and length <= 128)) and
-            ([.[].sessionId] | unique | length) == 1 and
-            ([.[][("join" + "Code")]] | unique | length) == 1 and
-            ([.[].safetyNonce] | unique | length) == ($planned | length)
-          ' "${stage_manifest}" >/dev/null || {
-            echo "every planned stage requires one protected credential entry" >&2
-            exit 1
-          }
-          jq -e '
-            (.descriptor | type == "string" and length > 0) and
-            (.poster | type == "string" and length > 0) and
-            (.commonTiles | type == "array" and length > 0 and all(.[]; type == "string" and length > 0)) and
-            (.randomTiles | type == "array" and length > 0 and all(.[]; type == "string" and length > 0))
-          ' "${media_manifest}" >/dev/null || {
-            echo "media manifest is incomplete" >&2
-            exit 1
-          }
           login="$(curl --fail --silent --show-error --max-time 10 \
             --cookie-jar "${cookie_jar}" --header 'Content-Type: application/json' \
             --data "$(jq -cn --arg username "${LOAD_TEST_ADMIN_USERNAME}" \
@@ -156,25 +118,11 @@ jobs:
               '{username:$username,password:$password}')" \
             "${CAPACITY_BASE_URL%/}/api/v1/auth/session")"
           jq -e '.csrfToken | type == "string" and length >= 32' <<< "${login}" >/dev/null
-          session_id="$(jq -er '.[].sessionId' "${stage_manifest}" | head -n 1)"
           curl --fail --silent --show-error --max-time 15 --cookie "${cookie_jar}" \
             "${CAPACITY_BASE_URL%/}/api/v1/admin/slides/${LOAD_TEST_ADMIN_SLIDE_ID}" >/dev/null
-          curl --fail --silent --show-error --max-time 15 --cookie "${cookie_jar}" \
-            "${CAPACITY_BASE_URL%/}/api/v1/admin/classroom/sessions/${session_id}" >/dev/null
           curl --fail --silent --show-error --max-time 15 \
             "${CAPACITY_BASE_URL%/}/api/v1/public/slides/${LOAD_TEST_PUBLIC_ID}" >/dev/null
-          curl --fail --silent --show-error --max-time 15 \
-            "${CAPACITY_BASE_URL%/}/api/v1/public/slides/${CAPACITY_DYNAMIC_PUBLIC_ID}" >/dev/null
-          annotations="$(curl --fail --silent --show-error --max-time 15 --cookie "${cookie_jar}" \
-            "${CAPACITY_BASE_URL%/}/api/v2/admin/annotations/slides/${CAPACITY_ANNOTATION_SLIDE_ID}/items?limit=5000")"
-          jq -e --arg id "${CAPACITY_ANNOTATION_ITEM_ID}" \
-            'any(.items[]; .id == $id)' <<< "${annotations}" >/dev/null
-          while IFS= read -r path; do
-            curl --fail --silent --show-error --max-time 15 \
-              "${CAPACITY_BASE_URL%/}${path}" >/dev/null
-          done < <(jq -er '[.descriptor,.poster,.commonTiles[0],.randomTiles[0]] | unique[]' \
-            "${media_manifest}")
-          rm -f -- "${stage_manifest}" "${media_manifest}" "${cookie_jar}"
+          rm -f -- "${cookie_jar}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-plan
@@ -279,8 +227,85 @@ jobs:
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh
 
-  arm:
+  fixtures:
     needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {ref: "${{ github.sha }}", persist-credentials: false}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: {python-version: "3.12"}
+      - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: {name: capacity-plan, path: "${{ runner.temp }}/capacity-plan"}
+      - name: Create and encrypt exact run-owned fixtures
+        env:
+          CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
+          LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
+          LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets.LOAD_TEST_ADMIN_SLIDE_ID }}
+          LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+        run: |
+          set -Eeuo pipefail
+          bundle="${RUNNER_TEMP}/capacity-fixtures.fernet"
+          reconcile() {
+            [[ -s "${bundle}" ]] || return 0
+            python deploy/scripts/capacity_fixtures.py cleanup \
+              --input "${bundle}" --evidence-key "${DEPLOY_EVIDENCE_KEY}" \
+              --run-id "${GITHUB_RUN_ID}" --workflow-sha "${GITHUB_SHA}" \
+              --base-url "${CAPACITY_BASE_URL}" --username "${LOAD_TEST_ADMIN_USERNAME}" \
+              --password "${LOAD_TEST_ADMIN_PASSWORD}" || true
+          }
+          trap reconcile ERR INT TERM
+          python deploy/scripts/capacity_fixtures.py create \
+            --plan "${RUNNER_TEMP}/capacity-plan/capacity-plan.json" \
+            --run-id "${GITHUB_RUN_ID}" --workflow-sha "${GITHUB_SHA}" \
+            --base-url "${CAPACITY_BASE_URL}" --username "${LOAD_TEST_ADMIN_USERNAME}" \
+            --password "${LOAD_TEST_ADMIN_PASSWORD}" \
+            --slide-id "${LOAD_TEST_ADMIN_SLIDE_ID}" --public-id "${LOAD_TEST_PUBLIC_ID}" \
+            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --output "${bundle}"
+          jq -n --arg runId "${GITHUB_RUN_ID}" --arg workflowSha "${GITHUB_SHA}" \
+            --arg planDigest "$(jq -er .planDigest "${RUNNER_TEMP}/capacity-plan/capacity-plan.json")" \
+            --arg preparedAt "$(date --iso-8601=seconds)" \
+            '{schemaVersion:1,runId:$runId,workflowSha:$workflowSha,planDigest:$planDigest,preparedAt:$preparedAt,
+              prepared:true,encrypted:true,syntheticOnly:true,identifiersIncluded:false,
+              endpointsValidated:4}' > "${RUNNER_TEMP}/capacity-fixture-status.json"
+          trap - ERR INT TERM
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capacity-fixtures-private
+          path: ${{ runner.temp }}/capacity-fixtures.fernet
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capacity-fixture-status
+          path: ${{ runner.temp }}/capacity-fixture-status.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Reconcile fixture if publication failed
+        if: failure()
+        env:
+          CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
+          LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+        run: |
+          [[ -s "${RUNNER_TEMP}/capacity-fixtures.fernet" ]] || exit 0
+          python deploy/scripts/capacity_fixtures.py cleanup \
+            --input "${RUNNER_TEMP}/capacity-fixtures.fernet" \
+            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --run-id "${GITHUB_RUN_ID}" \
+            --workflow-sha "${GITHUB_SHA}" --base-url "${CAPACITY_BASE_URL}" \
+            --username "${LOAD_TEST_ADMIN_USERNAME}" --password "${LOAD_TEST_ADMIN_PASSWORD}"
+      - if: always()
+        run: rm -f -- "${RUNNER_TEMP}/capacity-fixtures.fernet" "${RUNNER_TEMP}/capacity-fixture-status.json"
+
+  arm:
+    needs: [preflight, fixtures]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment:
@@ -387,6 +412,10 @@ jobs:
         with:
           name: capacity-plan
           path: ${{ runner.temp }}/capacity-plan
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: capacity-fixtures-private
+          path: ${{ runner.temp }}/capacity-fixtures-private
       - name: Mask protected identifiers and install locked dependencies
         run: |
           set -euo pipefail
@@ -396,16 +425,19 @@ jobs:
             echo "::add-mask::${value}"
           done
           pip install --require-hashes -r deploy/backend-requirements.txt
+          pip install --require-hashes -r deploy/oci-cli-requirements.txt
       - name: Materialize synthetic DZI request plan
         env:
-          CAPACITY_MEDIA_MANIFEST_JSON: ${{ secrets.CAPACITY_MEDIA_MANIFEST_JSON }}
-          CAPACITY_STAGE_MANIFEST_JSON: ${{ secrets.CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON }}
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
         run: |
           set -euo pipefail
-          test -n "${CAPACITY_MEDIA_MANIFEST_JSON}" -a -n "${CAPACITY_STAGE_MANIFEST_JSON}"
-          echo "::add-mask::${CAPACITY_MEDIA_MANIFEST_JSON}"
-          printf '%s' "${CAPACITY_MEDIA_MANIFEST_JSON}" > "${RUNNER_TEMP}/media-manifest.json"
-          printf '%s' "${CAPACITY_STAGE_MANIFEST_JSON}" > "${RUNNER_TEMP}/stage-manifest.json"
+          python deploy/scripts/capacity_fixtures.py materialize \
+            --input "${RUNNER_TEMP}/capacity-fixtures-private/capacity-fixtures.fernet" \
+            --output-dir "${RUNNER_TEMP}/capacity-fixtures" \
+            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --run-id "${GITHUB_RUN_ID}" \
+            --workflow-sha "${GITHUB_SHA}"
+          cp "${RUNNER_TEMP}/capacity-fixtures/media-manifest.json" "${RUNNER_TEMP}/media-manifest.json"
+          cp "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json" "${RUNNER_TEMP}/stage-manifest.json"
           jq -r '.. | strings' "${RUNNER_TEMP}/stage-manifest.json" | \
             while IFS= read -r value; do echo "::add-mask::${value}"; done
           echo "PATHLAB_CLASSROOM_MEDIA_MANIFEST=${RUNNER_TEMP}/media-manifest.json" >> "${GITHUB_ENV}"
@@ -470,9 +502,11 @@ jobs:
           retention-days: 1
       - if: always() && matrix.shard-index == 0
         run: rm -rf -- ~/.oci ~/.ssh; rm -f -- "${RUNNER_TEMP}/capacity-observer-private.log"
+      - if: always()
+        run: rm -rf -- "${RUNNER_TEMP}/capacity-fixtures" "${RUNNER_TEMP}/capacity-fixtures-private"
 
   sentinels:
-    needs: [preflight, arm]
+    needs: [preflight, fixtures, arm]
     runs-on: ubuntu-24.04
     timeout-minutes: 100
     environment:
@@ -482,6 +516,26 @@ jobs:
         with: {ref: "${{ github.sha }}", persist-credentials: false}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {name: capacity-plan, path: "${{ runner.temp }}/capacity-plan"}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: {name: capacity-fixtures-private, path: "${{ runner.temp }}/capacity-fixtures-private"}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: {python-version: "3.12"}
+      - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
+      - name: Materialize exact run-owned sentinel fixtures
+        env:
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+        run: |
+          set -euo pipefail
+          python deploy/scripts/capacity_fixtures.py materialize \
+            --input "${RUNNER_TEMP}/capacity-fixtures-private/capacity-fixtures.fernet" \
+            --output-dir "${RUNNER_TEMP}/capacity-fixtures" \
+            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --run-id "${GITHUB_RUN_ID}" \
+            --workflow-sha "${GITHUB_SHA}"
+          while IFS= read -r value; do echo "::add-mask::${value}"; done \
+            < <(jq -r '.. | strings' "${RUNNER_TEMP}/capacity-fixtures/fixture-private.json")
+          echo "CAPACITY_ANNOTATION_SLIDE_ID=$(jq -er .annotationSlideId "${RUNNER_TEMP}/capacity-fixtures/sentinels.json")" >> "${GITHUB_ENV}"
+          echo "CAPACITY_SHARE_TARGET_ID=$(jq -er .shareTargetId "${RUNNER_TEMP}/capacity-fixtures/sentinels.json")" >> "${GITHUB_ENV}"
+          echo "CAPACITY_DYNAMIC_PUBLIC_ID=$(jq -er .dynamicPublicId "${RUNNER_TEMP}/capacity-fixtures/sentinels.json")" >> "${GITHUB_ENV}"
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: {node-version: "24.14.0", cache: pnpm}
@@ -497,17 +551,10 @@ jobs:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
-          LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
-          LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets.LOAD_TEST_ADMIN_SLIDE_ID }}
           CAPACITY_SYNTHETIC_330MB: ${{ runner.temp }}/synthetic-capacity-330mb.ome.tiff
-          CAPACITY_ANNOTATION_SLIDE_ID: ${{ secrets.CAPACITY_ANNOTATION_SLIDE_ID }}
-          CAPACITY_ANNOTATION_ITEM_ID: ${{ secrets.CAPACITY_ANNOTATION_ITEM_ID }}
-          CAPACITY_SHARE_TARGET_ID: ${{ secrets.CAPACITY_SHARE_TARGET_ID }}
-          CAPACITY_DYNAMIC_PUBLIC_ID: ${{ secrets.CAPACITY_DYNAMIC_PUBLIC_ID }}
-          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ secrets.CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON }}
           CAPACITY_SENTINEL_RESULT: ${{ runner.temp }}/capacity-sentinel.json
         run: |
-          printf '%s' "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}" > "${RUNNER_TEMP}/sentinel-stage-manifest.json"
+          cp "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json" "${RUNNER_TEMP}/sentinel-stage-manifest.json"
           export CAPACITY_CLASSROOM_JOIN_CODE="$(jq -er '.["sustained-1200"]["join" + "Code"]' "${RUNNER_TEMP}/sentinel-stage-manifest.json")"
           export CAPACITY_CLASSROOM_SESSION_ID="$(jq -er '.["sustained-1200"]["session" + "Id"]' "${RUNNER_TEMP}/sentinel-stage-manifest.json")"
           echo "::add-mask::${CAPACITY_CLASSROOM_JOIN_CODE}"
@@ -521,9 +568,11 @@ jobs:
           path: ${{ runner.temp }}/capacity-sentinel.json
           if-no-files-found: error
           retention-days: 1
+      - if: always()
+        run: rm -rf -- "${RUNNER_TEMP}/capacity-fixtures" "${RUNNER_TEMP}/capacity-fixtures-private"
 
   fault-recovery:
-    needs: arm
+    needs: [fixtures, arm]
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     environment:
@@ -533,9 +582,22 @@ jobs:
         with: {ref: "${{ github.sha }}", persist-credentials: false}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: {name: capacity-plan, path: "${{ runner.temp }}/capacity-plan"}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: {name: capacity-fixtures-private, path: "${{ runner.temp }}/capacity-fixtures-private"}
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r deploy/oci-cli-requirements.txt
+      - name: Materialize exact run-owned recovery fixture
+        env:
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+        run: |
+          python deploy/scripts/capacity_fixtures.py materialize \
+            --input "${RUNNER_TEMP}/capacity-fixtures-private/capacity-fixtures.fernet" \
+            --output-dir "${RUNNER_TEMP}/capacity-fixtures" \
+            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --run-id "${GITHUB_RUN_ID}" \
+            --workflow-sha "${GITHUB_SHA}"
+          jq -r '.. | strings' "${RUNNER_TEMP}/capacity-fixtures/fixture-private.json" | \
+            while IFS= read -r value; do echo "::add-mask::${value}"; done
       - name: Configure pinned OCI access
         env:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
@@ -545,7 +607,6 @@ jobs:
       - name: Wedge only Classroom and prove bounded recovery
         env:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
-          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ secrets.CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
@@ -554,7 +615,7 @@ jobs:
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
         run: |
-          printf '%s' "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}" > "${RUNNER_TEMP}/stage-manifest.json"
+          cp "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json" "${RUNNER_TEMP}/stage-manifest.json"
           export CAPACITY_CLASSROOM_SESSION_ID="$(jq -er '."recovery-1200".sessionId' "${RUNNER_TEMP}/stage-manifest.json")"
           echo "::add-mask::${CAPACITY_CLASSROOM_SESSION_ID}"
           bash deploy/scripts/run-capacity-fault-recovery.sh "${RUNNER_TEMP}/capacity-plan/capacity-plan.json"
@@ -566,11 +627,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
       - if: always()
-        run: rm -rf -- ~/.oci ~/.ssh
+        run: rm -rf -- ~/.oci ~/.ssh "${RUNNER_TEMP}/capacity-fixtures" "${RUNNER_TEMP}/capacity-fixtures-private"
 
   decision:
-    if: ${{ always() && needs.preflight.result == 'success' }}
-    needs: [preflight, arm, shard, sentinels, fault-recovery]
+    if: ${{ always() && needs.preflight.result == 'success' && needs.fixtures.result == 'success' }}
+    needs: [preflight, fixtures, arm, shard, sentinels, fault-recovery]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     environment:
@@ -648,8 +709,8 @@ jobs:
           retention-days: 1
 
   cleanup:
-    if: ${{ always() && needs.preflight.result == 'success' }}
-    needs: [preflight, shard, sentinels, fault-recovery, decision]
+    if: ${{ always() && needs.preflight.result == 'success' && needs.fixtures.result == 'success' }}
+    needs: [preflight, fixtures, shard, sentinels, fault-recovery, decision]
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     environment:
@@ -673,9 +734,6 @@ jobs:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
-          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ secrets.CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON }}
-          CAPACITY_ANNOTATION_SLIDE_ID: ${{ secrets.CAPACITY_ANNOTATION_SLIDE_ID }}
-          CAPACITY_ANNOTATION_ITEM_ID: ${{ secrets.CAPACITY_ANNOTATION_ITEM_ID }}
           CAPACITY_CLEANUP_RESULT: ${{ runner.temp }}/capacity-cleanup.json
           CAPACITY_ROLLBACK_RESULT: ${{ runner.temp }}/capacity-rollback-postflight.json
           DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
@@ -685,6 +743,16 @@ jobs:
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
           OCI_ROLLBACK_RELEASE_SHA: ${{ vars.OCI_ROLLBACK_RELEASE_SHA }}
         run: |
+          python deploy/scripts/capacity_fixtures.py materialize \
+            --input "${RUNNER_TEMP}/evidence/capacity-fixtures.fernet" \
+            --output-dir "${RUNNER_TEMP}/capacity-fixtures" \
+            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --run-id "${GITHUB_RUN_ID}" \
+            --workflow-sha "${GITHUB_SHA}"
+          jq -r '.. | strings' "${RUNNER_TEMP}/capacity-fixtures/fixture-private.json" | \
+            while IFS= read -r value; do echo "::add-mask::${value}"; done
+          export CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON
+          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON="$(cat "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json")"
+          export CAPACITY_PRIVATE_FIXTURE_BUNDLE="${RUNNER_TEMP}/evidence/capacity-fixtures.fernet"
           remaining="$(python deploy/scripts/capacity_window.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase cleanup)"
           timeout --signal=TERM --kill-after=250s "${remaining}s" \
@@ -703,7 +771,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
       - if: always()
-        run: rm -rf -- ~/.oci ~/.ssh
+        run: rm -rf -- ~/.oci ~/.ssh "${RUNNER_TEMP}/capacity-fixtures"
 
   postflight:
     if: ${{ always() && needs.cleanup.result != 'skipped' }}
@@ -769,12 +837,19 @@ jobs:
             --argjson watchdogExpected "$(jq .watchdogExpected <<< "${host}")" \
             --argjson watchdogActive "$(jq .watchdogActive <<< "${host}")" \
             --argjson capacity "$(jq .finalCapacity <<< "${host}")" --argjson cost "${cost}" \
+            --argjson annotationsEnabled "$(jq .annotationsEnabled <<< "${host}")" \
             '{schemaVersion:1,runId:$runId,workflowSha:$workflowSha,planDigest:$planDigest,observedAt:$observedAt,
               expectedSha:$expectedSha,deployedSha:$deployedSha,releaseExact:$releaseExact,servicesExact:$servicesExact,
               serviceCount:$serviceCount,hostReady:$ready,endpointsHealthy:true,watchdogExpected:$watchdogExpected,
-              watchdogActive:$watchdogActive,finalCapacity:$capacity,monthToDateCost:$cost,currency:"SGD",aggregateOnly:true}' \
+              watchdogActive:$watchdogActive,finalCapacity:$capacity,annotationsEnabled:$annotationsEnabled,
+              monthToDateCost:$cost,currency:"SGD",aggregateOnly:true}' \
             > "${RUNNER_TEMP}/capacity-postflight.json"
           test "$(jq -r .finalCapacity "${RUNNER_TEMP}/capacity-postflight.json")" = "${selected}"
+          if [[ "${selected}" == 300 ]]; then
+            test "$(jq -r .annotationsEnabled "${RUNNER_TEMP}/capacity-postflight.json")" = false
+          else
+            test "$(jq -r .annotationsEnabled "${RUNNER_TEMP}/capacity-postflight.json")" = true
+          fi
           python tests/load/validate_postflight_evidence.py "${RUNNER_TEMP}/capacity-postflight.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -784,7 +859,7 @@ jobs:
 
   aggregate:
     if: ${{ always() && needs.postflight.result == 'success' }}
-    needs: [preflight, shard, sentinels, fault-recovery, cleanup, postflight]
+    needs: [preflight, fixtures, shard, sentinels, fault-recovery, cleanup, postflight]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     environment:
@@ -847,6 +922,7 @@ jobs:
             --merged-shards "${RUNNER_TEMP}/evidence/merged-shards.json" \
             --sentinels "${RUNNER_TEMP}/evidence/capacity-sentinel.json" \
             --fault "${RUNNER_TEMP}/evidence/capacity-fault.json" \
+            --fixture-preparation "${RUNNER_TEMP}/evidence/capacity-fixture-status.json" \
             --cleanup "${RUNNER_TEMP}/evidence/capacity-cleanup.json" \
             --observer "${RUNNER_TEMP}/evidence/capacity-host-samples.jsonl" \
             --accounting "${RUNNER_TEMP}/evidence/capacity-accounting.json" \
@@ -868,6 +944,7 @@ jobs:
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" \
             --decision "${RUNNER_TEMP}/evidence/capacity-decision.json" \
             --signature "${RUNNER_TEMP}/evidence/capacity-decision.json.sig" --key-file "${key}" \
+            --fixture-preparation "${RUNNER_TEMP}/evidence/capacity-fixture-status.json" \
             --postflight "${RUNNER_TEMP}/evidence/capacity-postflight.json" \
             --output-json "${RUNNER_TEMP}/capacity-certification.json" \
             --output-markdown "${RUNNER_TEMP}/capacity-certification.md"

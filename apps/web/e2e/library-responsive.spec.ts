@@ -49,7 +49,7 @@ const slide = {
 }
 
 async function mockLibrary(page: Page) {
-  await page.route('**/api/v2/admin/library/navigation', (route) => route.fulfill({
+  await page.route('**/api/v2/admin/library/navigation**', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify(navigation),
   }))
@@ -177,7 +177,7 @@ test('keeps controls readable and non-overlapping across every layout boundary',
           ).toBe(true)
         }
       }
-      const libraryLabel = page.getByRole('button', { name: /^all slides$/i })
+      const libraryLabel = page.getByRole('button', { name: /^slide library$/i }).locator('span')
       await expect.poll(() => libraryLabel.evaluate((element) => (
         Number.parseFloat(getComputedStyle(element).fontSize)
       ))).toBeGreaterThanOrEqual(11)
@@ -230,12 +230,9 @@ test('keeps every rail destination reachable on short desktop viewports', async 
   await page.setViewportSize({ width: 768, height: 600 })
   const rail = page.getByRole('complementary', { name: 'Product navigation' })
   const requiredDestinations = [
-    'All slides',
-    'Open library navigator',
+    'Expand navigation rail',
+    'Slide library',
     'Upload',
-    'Processing',
-    'Failed',
-    'Trash',
     'Account',
     'Sign out',
   ]
@@ -245,7 +242,7 @@ test('keeps every rail destination reachable on short desktop viewports', async 
     clientHeight: element.clientHeight,
     scrollHeight: element.scrollHeight,
   }))
-  expect(railMetrics.scrollHeight).toBeGreaterThan(railMetrics.clientHeight)
+  expect(railMetrics.scrollHeight).toBeGreaterThanOrEqual(railMetrics.clientHeight)
 
   for (const name of requiredDestinations) {
     const target = rail.getByRole('button', { name, exact: true })
@@ -303,10 +300,9 @@ test('keeps nested mobile breadcrumb links at least 44 pixels in both axes', asy
   await page.goto('/admin?location=folder:folder-organs')
   await expect(page.getByRole('heading', { name: 'Organ systems' })).toBeVisible()
 
-  const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' })
   await expectMinimumTouchTarget(
-    breadcrumb.getByRole('button', { name: 'All slides' }),
-    'nested breadcrumb',
+    page.getByRole('button', { name: 'Back' }),
+    'nested navigation back',
   )
 })
 
@@ -332,7 +328,7 @@ test('keeps the details inspector out of the content grid', async ({ page }) => 
 test('isolates the closed mobile navigator and restores focus after Escape', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const navigator = page.locator('#library-navigator')
-  const toggle = page.getByRole('button', { name: 'Open library navigator' })
+  const toggle = page.getByRole('button', { name: 'Slide library' })
 
   await expect(navigator).toBeHidden()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
@@ -549,8 +545,11 @@ test('keeps folder sharing controls contained on mobile', async ({ page }) => {
   await page.goto('/admin?location=folder:folder-organs')
   await page.setViewportSize({ width: 390, height: 844 })
   const share = page.getByRole('button', { name: 'Share', exact: true })
+  const upload = page.getByRole('complementary', { name: 'Product navigation' })
+    .getByRole('button', { name: 'Upload', exact: true })
   await expect(share).toBeVisible()
-  for (const control of [share, page.locator('.library-upload-button')]) {
+  await expect(upload).toBeVisible()
+  for (const control of [share, upload]) {
     const box = await control.boundingBox()
     expect(box).not.toBeNull()
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)

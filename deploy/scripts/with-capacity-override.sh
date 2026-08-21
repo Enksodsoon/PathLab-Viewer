@@ -94,6 +94,12 @@ existing="$(sed -n 's/^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=//p' "${ENV_FILE}")"
 }
 PRIOR_LIMIT="${existing:-300}"
 RESTORE_LIMIT="300"
+existing_annotations="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${ENV_FILE}" | tail -n 1)"
+[[ "${existing_annotations:-false}" =~ ^(true|false)$ ]] || {
+  echo "Existing annotation feature state is invalid" >&2
+  exit 2
+}
+RESTORE_ANNOTATIONS="${existing_annotations:-__absent__}"
 if [[ "${RUNTIME_DIR}" == /run ]]; then
   install -d -m 0700 "${RUNTIME_DIR}"
 else
@@ -104,8 +110,9 @@ install -m 0600 "${ENV_FILE}" "${PRIOR_SNAPSHOT}"
 START_EPOCH="$(date +%s)"
 rm -f -- "${PATHLAB_CAPACITY_DECISION_FILE}" "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}"
 
-set_limit() {
+set_environment() {
   local limit="$1"
+  local annotations="$2"
   local temporary
   temporary="$(mktemp "${ENV_FILE}.XXXXXX")"
   awk -v value="${limit}" '
@@ -117,6 +124,19 @@ set_limit() {
     }
     { print }
     END { if (!found) print "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=" value }
+  ' "${ENV_FILE}" > "${temporary}"
+  chmod --reference="${ENV_FILE}" "${temporary}"
+  mv -- "${temporary}" "${ENV_FILE}"
+  temporary="$(mktemp "${ENV_FILE}.XXXXXX")"
+  awk -v value="${annotations}" '
+    BEGIN { found=0 }
+    /^PATHLAB_ANNOTATIONS_ENABLED=/ {
+      if (!found && value != "__absent__") print "PATHLAB_ANNOTATIONS_ENABLED=" value
+      found=1
+      next
+    }
+    { print }
+    END { if (!found && value != "__absent__") print "PATHLAB_ANNOTATIONS_ENABLED=" value }
   ' "${ENV_FILE}" > "${temporary}"
   chmod --reference="${ENV_FILE}" "${temporary}"
   mv -- "${temporary}" "${ENV_FILE}"
@@ -147,10 +167,30 @@ contain_unsafe_runtime() {
   ) || true
 }
 
+ACTIVATION_DIR="${PATHLAB_ANNOTATION_ACTIVATION_DIR:-/var/lib/pathlab-viewer}"
+if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
+  ACTIVATION_DIR="${RUNTIME_DIR}/annotation-activation"
+fi
+mkdir -p -- "${ACTIVATION_DIR}"
+ACTIVATION_DECISION_READY=0
+
+apply_activation_decision() {
+  (( ACTIVATION_DECISION_READY == 1 )) || return 0
+  if [[ "${RESTORE_ANNOTATIONS}" == true ]]; then
+    install -m 0600 "${PATHLAB_CAPACITY_DECISION_FILE}" \
+      "${ACTIVATION_DIR}/annotation-activation.json" || return 1
+    install -m 0600 "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}" \
+      "${ACTIVATION_DIR}/annotation-activation.json.sig" || return 1
+  else
+    rm -f -- "${ACTIVATION_DIR}/annotation-activation.json" \
+      "${ACTIVATION_DIR}/annotation-activation.json.sig"
+  fi
+}
+
 restore_prior() {
   local exit_code=$?
   trap - EXIT INT TERM
-  if ! set_limit "${RESTORE_LIMIT}" || ! reload_capacity_services; then
+  if ! set_environment "${RESTORE_LIMIT}" "${RESTORE_ANNOTATIONS}" || ! reload_capacity_services; then
     install -m 0600 "${PRIOR_SNAPSHOT}" "${ENV_FILE}" || true
     contain_unsafe_runtime
     echo "Capacity restoration failed; API and Classroom were stopped" >&2
@@ -158,6 +198,21 @@ restore_prior() {
     exit 1
   fi
   grep -qx "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=${RESTORE_LIMIT}" "${ENV_FILE}" || exit 1
+  if [[ "${RESTORE_ANNOTATIONS}" == __absent__ ]]; then
+    ! grep -q '^PATHLAB_ANNOTATIONS_ENABLED=' "${ENV_FILE}" || exit 1
+  else
+    grep -qx "PATHLAB_ANNOTATIONS_ENABLED=${RESTORE_ANNOTATIONS}" "${ENV_FILE}" || exit 1
+  fi
+  if ! apply_activation_decision; then
+    rm -f -- "${ACTIVATION_DIR}/annotation-activation.json" \
+      "${ACTIVATION_DIR}/annotation-activation.json.sig"
+    if ! set_environment "${RESTORE_LIMIT}" false || ! reload_capacity_services; then
+      contain_unsafe_runtime
+    fi
+    echo "Annotation activation marker installation failed; annotations were disabled" >&2
+    rm -f -- "${PRIOR_SNAPSHOT}"
+    exit 1
+  fi
   local restore_temporary="${RESTORE_EVIDENCE}.tmp"
   printf '{"configurationRestored":true,"finalLimit":%s,"servicesReady":true}\n' \
     "${RESTORE_LIMIT}" > "${restore_temporary}"
@@ -175,8 +230,9 @@ trap restore_prior EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-set_limit 2000
+set_environment 2000 true
 grep -qx 'PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000' "${ENV_FILE}"
+grep -qx 'PATHLAB_ANNOTATIONS_ENABLED=true' "${ENV_FILE}"
 reload_capacity_services
 LAUNCH_REMAINING_SECONDS="$((WINDOW_END_EPOCH - $(date +%s)))"
 COMMAND_TIMEOUT_SECONDS="$((LAUNCH_REMAINING_SECONDS - KILL_AFTER_SECONDS - DEADLINE_SAFETY_SECONDS))"
@@ -210,3 +266,9 @@ FINAL_LIMIT="$("${PYTHON_BIN}" "${COMPOSE_DIR}/scripts/production_safety.py" \
   exit 2
 }
 RESTORE_LIMIT="${FINAL_LIMIT}"
+if [[ "${FINAL_LIMIT}" == 1200 || "${FINAL_LIMIT}" == 1500 ]]; then
+  RESTORE_ANNOTATIONS="true"
+else
+  RESTORE_ANNOTATIONS="false"
+fi
+ACTIVATION_DECISION_READY=1

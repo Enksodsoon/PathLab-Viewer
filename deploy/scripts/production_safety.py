@@ -366,9 +366,39 @@ def _load_protected_key(path: Path) -> bytes:
     return path.read_bytes().strip()
 
 
+def validate_annotation_activation(evidence: dict[str, Any], signature: str, key: bytes) -> int:
+    _require(
+        DIGEST_PATTERN.fullmatch(signature) is not None
+        and hmac.compare_digest(signature, sign_evidence(evidence, key)),
+        "annotation activation signature verification failed",
+    )
+    certification = _mapping(evidence.get("certification"), "certification")
+    candidate_sha = certification.get("candidateSha")
+    run_id = certification.get("runId")
+    nonce = certification.get("nonce")
+    not_before = certification.get("authorizedWindowStart")
+    _require(isinstance(candidate_sha, str), "annotation activation SHA is invalid")
+    _require(isinstance(run_id, str), "annotation activation run is invalid")
+    _require(isinstance(nonce, str), "annotation activation nonce is invalid")
+    _require(isinstance(not_before, int), "annotation activation window is invalid")
+    selected = select_final_capacity(
+        certification,
+        expected_sha=candidate_sha,
+        expected_run_id=run_id,
+        expected_nonce=nonce,
+        not_before=not_before,
+    )
+    sentinels = _mapping(certification.get("functionalSentinels"), "functionalSentinels")
+    _require(selected in {1200, 1500}, "annotations require a strict 1200-seat certification")
+    _require(sentinels.get("annotations") is True, "annotation sentinel did not pass")
+    return selected
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=("preflight", "capacity-decision"))
+    parser.add_argument(
+        "phase", choices=("preflight", "capacity-decision", "annotation-activation")
+    )
     parser.add_argument("evidence", type=Path)
     parser.add_argument("candidate_sha", nargs="?")
     parser.add_argument("--signature")
@@ -381,6 +411,14 @@ def main() -> int:
     args = parser.parse_args()
     try:
         evidence = _load_evidence(args.evidence)
+        if args.phase == "annotation-activation":
+            _require(args.signature is not None, "annotation activation signature is required")
+            print(
+                validate_annotation_activation(
+                    evidence, args.signature, _load_protected_key(args.key_file)
+                )
+            )
+            return 0
         if args.phase == "capacity-decision":
             _require(args.candidate_sha is not None, "candidate SHA is required")
             _require(args.run_id is not None, "capacity run ID is required")

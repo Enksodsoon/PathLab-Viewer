@@ -224,6 +224,21 @@ def healthy_accounting() -> dict[str, object]:
     }
 
 
+def healthy_fixture_preparation(schedule: dict[str, object]) -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "runId": schedule["runId"],
+        "workflowSha": schedule["workflowSha"],
+        "planDigest": schedule["planDigest"],
+        "preparedAt": "2026-08-14T01:58:00+07:00",
+        "prepared": True,
+        "encrypted": True,
+        "syntheticOnly": True,
+        "identifiersIncluded": False,
+        "endpointsValidated": 4,
+    }
+
+
 def healthy_postflight(schedule: dict[str, object], *, capacity: int = 1500) -> dict[str, object]:
     return {
         "schemaVersion": 1,
@@ -241,6 +256,7 @@ def healthy_postflight(schedule: dict[str, object], *, capacity: int = 1500) -> 
         "watchdogExpected": True,
         "watchdogActive": True,
         "finalCapacity": capacity,
+        "annotationsEnabled": capacity in (1200, 1500),
         "monthToDateCost": 0,
         "currency": "SGD",
         "aggregateOnly": True,
@@ -257,7 +273,9 @@ def test_strict_shard_failure_produces_bound_300_not_certified_evidence() -> Non
     postflight["serviceCount"] = 5
     postflight["watchdogExpected"] = False
     postflight["watchdogActive"] = False
-    report = build_failure_evidence(schedule, decision, postflight)
+    report = build_failure_evidence(
+        schedule, decision, healthy_fixture_preparation(schedule), postflight
+    )
 
     assert report["certified"] is False
     assert report["certifiedTier"] is None
@@ -1144,6 +1162,7 @@ def test_final_builder_accepts_protected_heavy_stop_without_discarding_strict_ti
         merged,
         sentinels,
         fault,
+        healthy_fixture_preparation(schedule),
         cleanup,
         healthy_host_samples(schedule),
         healthy_accounting(),
@@ -1167,6 +1186,7 @@ def test_final_builder_reports_1200_tier_when_headroom_strict_slo_fails() -> Non
         merged,
         sentinels,
         fault,
+        healthy_fixture_preparation(schedule),
         cleanup,
         healthy_host_samples(schedule),
         healthy_accounting(),
@@ -1195,6 +1215,7 @@ def test_final_builder_does_not_count_the_intentional_classroom_fault_as_unexpec
         merged,
         sentinels,
         fault,
+        healthy_fixture_preparation(schedule),
         cleanup,
         observer,
         healthy_accounting(),

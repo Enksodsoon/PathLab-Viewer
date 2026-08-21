@@ -95,4 +95,5 @@ jq -n --arg release "${ROLLBACK_SHA}" --arg expected "${ROLLBACK_SHA}" \
   --argjson ready "${ready}" --argjson watchdog "${watchdog}" --argjson capacity "${limit:-0}" \
   --argjson exact "$([[ "${services}" == "${expected_services}" ]] && echo true || echo false)" \
   '{releaseSha:$release,expectedSha:$expected,releaseExact:true,servicesExact:$exact,
-    serviceCount:5,ready:$ready,watchdogExpected:false,watchdogActive:$watchdog,finalCapacity:$capacity}'
+    serviceCount:5,ready:$ready,watchdogExpected:false,watchdogActive:$watchdog,
+    finalCapacity:$capacity,annotationsEnabled:false}'
