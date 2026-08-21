@@ -3,11 +3,11 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-import sqlite3
 import stat
 import threading
 import time
 import uuid
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -59,6 +59,14 @@ class _Flight:
     error: BaseException | None = None
 
 
+@dataclass(slots=True)
+class _Entry:
+    path: Path
+    slide_sha256: str
+    size: int
+    last_access_ns: int
+
+
 class TileCache:
     def __init__(
         self,
@@ -82,45 +90,20 @@ class TileCache:
         self._lock = threading.RLock()
         self._flights_lock = threading.Lock()
         self._flights: dict[str, _Flight] = {}
-        self._database = sqlite3.connect(
-            self.root / "index.sqlite3",
-            timeout=30,
-            check_same_thread=False,
-        )
-        self._database.execute("PRAGMA journal_mode=DELETE")
-        self._database.execute("PRAGMA synchronous=FULL")
-        self._database.execute(
-            """
-            CREATE TABLE IF NOT EXISTS entries (
-                digest TEXT PRIMARY KEY,
-                slide_sha256 TEXT NOT NULL,
-                bytes INTEGER NOT NULL CHECK (bytes > 0),
-                last_access_ns INTEGER NOT NULL
-            )
-            """
-        )
-        columns = {
-            str(row[1])
-            for row in self._database.execute("PRAGMA table_info(entries)").fetchall()
-        }
-        if "slide_sha256" not in columns:
-            self._database.execute(
-                "ALTER TABLE entries ADD COLUMN slide_sha256 TEXT NOT NULL DEFAULT ''"
-            )
-        self._database.execute(
-            "CREATE INDEX IF NOT EXISTS ix_entries_lru ON entries(last_access_ns, digest)"
-        )
-        self._database.commit()
+        self._entries: OrderedDict[str, _Entry] = OrderedDict()
+        self._tile_bytes_total = 0
         self._hits = 0
         self._misses = 0
         self._evictions = 0
         self._coalesced = 0
         self._reconcile()
 
-    def _path(self, digest: str) -> Path:
+    def _path(self, digest: str, slide_sha256: str) -> Path:
         if not HEX_SHA256.fullmatch(digest):
             raise TileCacheError("Invalid cache digest")
-        return self.root / digest[:2] / f"{digest}.jpg"
+        if not HEX_SHA256.fullmatch(slide_sha256):
+            raise TileCacheError("Invalid slide hash")
+        return self.root / slide_sha256[:2] / slide_sha256 / f"{digest}.jpg"
 
     @staticmethod
     def _safe_regular(path: Path) -> bool:
@@ -139,15 +122,13 @@ class TileCache:
 
     def _reconcile(self) -> None:
         with self._lock:
-            slide_hashes = {
-                str(row[0]): str(row[1])
-                for row in self._database.execute(
-                    "SELECT digest, slide_sha256 FROM entries"
-                ).fetchall()
-            }
-            known: dict[str, int] = {}
+            self._entries.clear()
+            self._tile_bytes_total = 0
+            known: list[tuple[str, _Entry]] = []
             for path in self.root.rglob("*"):
-                if path.name == "index.sqlite3":
+                if path.name in {"index.sqlite3", "index.sqlite3-wal", "index.sqlite3-shm"}:
+                    if path.is_symlink() or self._safe_regular(path):
+                        path.unlink(missing_ok=True)
                     continue
                 if path.suffix == ".tmp" or path.name.endswith(".tmp"):
                     if path.is_symlink() or self._safe_regular(path):
@@ -156,65 +137,75 @@ class TileCache:
                 if path.suffix != ".jpg":
                     continue
                 digest = path.stem
-                if not HEX_SHA256.fullmatch(digest) or not self._safe_regular(path):
+                try:
+                    relative = path.relative_to(self.root)
+                except ValueError:
+                    relative = Path()
+                parts = relative.parts
+                slide_sha256 = parts[1] if len(parts) == 3 else ""
+                valid_layout = (
+                    len(parts) == 3
+                    and HEX_SHA256.fullmatch(slide_sha256) is not None
+                    and parts[0] == slide_sha256[:2]
+                    and parts[2] == f"{digest}.jpg"
+                )
+                if (
+                    not valid_layout
+                    or not HEX_SHA256.fullmatch(digest)
+                    or not self._safe_regular(path)
+                ):
                     path.unlink(missing_ok=True)
                     continue
-                size = path.stat().st_size
+                details = path.stat()
+                size = details.st_size
                 if size <= 0 or size > self.max_temp_bytes:
                     path.unlink(missing_ok=True)
                     continue
-                known[digest] = size
-
-            self._database.execute("DELETE FROM entries")
-            now = time.time_ns()
-            self._database.executemany(
-                """
-                INSERT INTO entries(digest, slide_sha256, bytes, last_access_ns)
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    (digest, slide_hashes.get(digest, ""), size, now)
-                    for digest, size in known.items()
-                ),
+                known.append(
+                    (
+                        digest,
+                        _Entry(
+                            path=path,
+                            slide_sha256=slide_sha256,
+                            size=size,
+                            last_access_ns=details.st_mtime_ns,
+                        ),
+                    )
+                )
+                self._tile_bytes_total += size
+            self._entries = OrderedDict(
+                sorted(known, key=lambda item: (item[1].last_access_ns, item[0]))
             )
-            self._database.commit()
             if self._tile_bytes() > self.max_bytes:
                 self._evict_to(self.low_water_bytes)
 
     def _tile_bytes(self) -> int:
-        row = self._database.execute(
-            "SELECT COALESCE(SUM(bytes), 0) FROM entries"
-        ).fetchone()
-        return int(row[0]) if row is not None else 0
+        return self._tile_bytes_total
 
     def _tile_entries(self) -> int:
-        row = self._database.execute("SELECT COUNT(*) FROM entries").fetchone()
-        return int(row[0]) if row is not None else 0
+        return len(self._entries)
 
     def get(self, key: TileKey) -> Path | None:
         digest = key.digest()
         with self._lock:
-            row = self._database.execute(
-                "SELECT bytes FROM entries WHERE digest = ?",
-                (digest,),
-            ).fetchone()
-            if row is None:
+            entry = self._entries.get(digest)
+            if entry is None:
                 self._misses += 1
                 return None
-            path = self._path(digest)
-            if not self._safe_regular(path) or path.stat().st_size != int(row[0]):
-                path.unlink(missing_ok=True)
-                self._database.execute("DELETE FROM entries WHERE digest = ?", (digest,))
-                self._database.commit()
+            if (
+                entry.slide_sha256 != key.slide_sha256
+                or not self._safe_regular(entry.path)
+                or entry.path.stat().st_size != entry.size
+            ):
+                entry.path.unlink(missing_ok=True)
+                self._entries.pop(digest, None)
+                self._tile_bytes_total -= entry.size
                 self._misses += 1
                 return None
-            self._database.execute(
-                "UPDATE entries SET last_access_ns = ? WHERE digest = ?",
-                (time.time_ns(), digest),
-            )
-            self._database.commit()
+            entry.last_access_ns = time.time_ns()
+            self._entries.move_to_end(digest)
             self._hits += 1
-            return path
+            return entry.path
 
     def get_or_create(self, key: TileKey, producer: Callable[[], bytes]) -> Path:
         existing = self.get(key)
@@ -259,12 +250,9 @@ class TileCache:
             raise TileCacheError("Tile exceeds the cache limit")
 
         with self._lock:
-            existing = self._database.execute(
-                "SELECT bytes FROM entries WHERE digest = ?",
-                (digest,),
-            ).fetchone()
+            existing = self._entries.get(digest)
             if existing is not None:
-                return self._path(digest)
+                return existing.path
             current = self._tile_bytes()
             if current + len(payload) > self.max_bytes:
                 self._evict_to(self.low_water_bytes)
@@ -272,7 +260,7 @@ class TileCache:
             if current + len(payload) > self.max_bytes:
                 raise TileCacheError("Tile cache has insufficient bounded capacity")
 
-            target = self._path(digest)
+            target = self._path(digest, key.slide_sha256)
             target.parent.mkdir(parents=True, exist_ok=True)
             temporary = target.with_name(f"{digest}.{uuid.uuid4().hex}.tmp")
             descriptor = os.open(
@@ -286,36 +274,32 @@ class TileCache:
                     output.flush()
                     os.fsync(output.fileno())
                 os.replace(temporary, target)
-                self._database.execute(
-                    """
-                    INSERT INTO entries(
-                        digest, slide_sha256, bytes, last_access_ns
-                    ) VALUES (?, ?, ?, ?)
-                    """,
-                    (digest, key.slide_sha256, len(payload), time.time_ns()),
+                self._entries[digest] = _Entry(
+                    path=target,
+                    slide_sha256=key.slide_sha256,
+                    size=len(payload),
+                    last_access_ns=time.time_ns(),
                 )
-                self._database.commit()
+                self._tile_bytes_total += len(payload)
             except Exception:
                 temporary.unlink(missing_ok=True)
                 target.unlink(missing_ok=True)
-                self._database.rollback()
+                removed = self._entries.pop(digest, None)
+                if removed is not None:
+                    self._tile_bytes_total -= removed.size
                 raise
             return target
 
     def _evict_to(self, target_bytes: int) -> None:
         current = self._tile_bytes()
         while current > target_bytes:
-            row = self._database.execute(
-                "SELECT digest, bytes FROM entries ORDER BY last_access_ns, digest LIMIT 1"
-            ).fetchone()
-            if row is None:
+            if not self._entries:
                 break
-            digest, size = str(row[0]), int(row[1])
-            self._path(digest).unlink(missing_ok=True)
-            self._database.execute("DELETE FROM entries WHERE digest = ?", (digest,))
-            current -= size
+            _, entry = self._entries.popitem(last=False)
+            entry.path.unlink(missing_ok=True)
+            self._tile_bytes_total -= entry.size
+            current = self._tile_bytes_total
             self._evictions += 1
-        self._database.commit()
 
     def stats(self) -> TileCacheStats:
         with self._lock:
@@ -336,26 +320,23 @@ class TileCache:
             for path in self.root.rglob("*.tmp"):
                 if path.is_symlink() or self._safe_regular(path):
                     path.unlink(missing_ok=True)
-            self._database.execute("DELETE FROM entries")
-            self._database.commit()
+            self._entries.clear()
+            self._tile_bytes_total = 0
 
     def purge_slide(self, slide_sha256: str) -> int:
         if not HEX_SHA256.fullmatch(slide_sha256):
             raise TileCacheError("Invalid slide hash")
         with self._lock:
-            rows = self._database.execute(
-                "SELECT digest FROM entries WHERE slide_sha256 = ?",
-                (slide_sha256,),
-            ).fetchall()
-            for row in rows:
-                self._path(str(row[0])).unlink(missing_ok=True)
-            self._database.execute(
-                "DELETE FROM entries WHERE slide_sha256 = ?",
-                (slide_sha256,),
-            )
-            self._database.commit()
-            return len(rows)
+            digests = [
+                digest
+                for digest, entry in self._entries.items()
+                if entry.slide_sha256 == slide_sha256
+            ]
+            for digest in digests:
+                entry = self._entries.pop(digest)
+                entry.path.unlink(missing_ok=True)
+                self._tile_bytes_total -= entry.size
+            return len(digests)
 
     def close(self) -> None:
-        with self._lock:
-            self._database.close()
+        return

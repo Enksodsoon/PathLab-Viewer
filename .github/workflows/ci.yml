@@ -87,6 +87,29 @@ jobs:
           pytest
           tests/backend/test_postgres_foundation.py
           tests/backend/test_postgres_migration.py
+      - name: Verify PostgreSQL backup and disposable restore
+        env:
+          PATHLAB_DATABASE_URL: postgresql+psycopg://pathlab_test:pathlab_test@127.0.0.1:5432/pathlab_test
+          PATHLAB_RELEASE_SHA: ${{ github.sha }}
+          PATHLAB_BACKUP_SIGNING_KEY: synthetic-ci-postgres-backup-key-32-bytes
+          POSTGRES_DB: pathlab_test
+          POSTGRES_USER: pathlab_test
+        run: |
+          set -euo pipefail
+          alembic upgrade head
+          mapfile -t POSTGRES_CONTAINERS < <(docker ps --filter publish=5432 --format '{{.ID}}')
+          [[ "${#POSTGRES_CONTAINERS[@]}" -eq 1 ]]
+          POSTGRES_CONTAINER="${POSTGRES_CONTAINERS[0]}"
+          [[ "$(docker inspect --format '{{.Config.Image}}' "${POSTGRES_CONTAINER}")" == \
+            "postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2" ]]
+          DATA_DIR="${RUNNER_TEMP}/pathlab-data"
+          install -d -m 700 "${DATA_DIR}"/{originals,private,public,backups}
+          printf 'synthetic,non-PHI\n' > "${DATA_DIR}/private/restore-proof.txt"
+          export PATHLAB_POSTGRES_CONTAINER="${POSTGRES_CONTAINER}"
+          export PATHLAB_DATA_DIR="${DATA_DIR}"
+          export PATHLAB_BACKUP_DIR="${DATA_DIR}/backups"
+          BACKUP_PATH="$(bash deploy/scripts/backup-postgres.sh)"
+          bash deploy/scripts/verify-postgres-restore-drill.sh "${BACKUP_PATH}"
 
   web:
     runs-on: ubuntu-24.04

@@ -2,6 +2,12 @@ name: Deploy production
 
 on:
   workflow_dispatch:
+    inputs:
+      classroom_enabled:
+        description: Explicitly activate the production Classroom capability
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -136,12 +142,13 @@ jobs:
 
       - name: Deploy through temporary OCI Bastion session
         env:
+          PATHLAB_CLASSROOM_ENABLED: ${{ inputs.classroom_enabled }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_TARGET_USER: pathlab-deploy
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-        run: deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA"
+        run: deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"
 
       - name: Remove temporary cloud credentials
         if: always()
@@ -160,5 +167,6 @@ jobs:
             echo "## Production deployment"
             echo ""
             echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Classroom enabled: \`${{ inputs.classroom_enabled }}\`"
             echo "- Result: deployed and health-checked"
           } >> "${GITHUB_STEP_SUMMARY}"

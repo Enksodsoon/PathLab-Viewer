@@ -106,6 +106,38 @@ def test_startup_reconciles_orphan_and_removes_stale_temp(tmp_path: Path) -> Non
     reopened.close()
 
 
+def test_startup_discards_legacy_sqlite_index_and_unowned_tiles(tmp_path: Path) -> None:
+    legacy_digest = _key(0).digest()
+    legacy_shard = tmp_path / legacy_digest[:2]
+    legacy_shard.mkdir(parents=True)
+    legacy_tile = legacy_shard / f"{legacy_digest}.jpg"
+    legacy_tile.write_bytes(b"\xff\xd8legacy\xff\xd9")
+    (tmp_path / "index.sqlite3").write_bytes(b"disposable legacy metadata")
+    (tmp_path / "index.sqlite3-wal").write_bytes(b"stale")
+
+    cache = TileCache(tmp_path, max_bytes=1024, low_water_bytes=768, max_temp_bytes=512)
+
+    assert not legacy_tile.exists()
+    assert not (tmp_path / "index.sqlite3").exists()
+    assert not (tmp_path / "index.sqlite3-wal").exists()
+    assert cache.stats().tile_entries == 0
+    cache.close()
+
+
+def test_cache_hit_refreshes_in_memory_lru_order(tmp_path: Path) -> None:
+    cache = TileCache(tmp_path, max_bytes=100, low_water_bytes=60, max_temp_bytes=60)
+    payload = b"\xff\xd8" + b"x" * 36 + b"\xff\xd9"
+    first = cache.get_or_create(_key(0), lambda: payload)
+    second = cache.get_or_create(_key(1), lambda: payload)
+    assert cache.get(_key(0)) == first
+
+    cache.get_or_create(_key(2), lambda: payload)
+
+    assert first.exists()
+    assert not second.exists()
+    cache.close()
+
+
 def test_startup_rejects_symlinked_cache_entry(tmp_path: Path) -> None:
     digest = _key(0).digest()
     shard = tmp_path / digest[:2]
@@ -149,3 +181,20 @@ def test_purge_slide_removes_only_matching_slide_hash(tmp_path: Path) -> None:
     assert second_path.is_file()
     assert cache.get(second) == second_path
     cache.close()
+
+
+def test_rebuilt_index_preserves_slide_scoped_purge(tmp_path: Path) -> None:
+    first = TileCache(tmp_path, max_bytes=1024, low_water_bytes=768, max_temp_bytes=512)
+    first_key = _key(0)
+    second_key = TileKey("b" * 64, 17, 0, 0, "ome-dynamic-v1-q95")
+    first_path = first.get_or_create(first_key, lambda: b"\xff\xd8a\xff\xd9")
+    second_path = first.get_or_create(second_key, lambda: b"\xff\xd8b\xff\xd9")
+    first.close()
+
+    reopened = TileCache(tmp_path, max_bytes=1024, low_water_bytes=768, max_temp_bytes=512)
+
+    assert reopened.purge_slide(first_key.slide_sha256) == 1
+    assert not first_path.exists()
+    assert second_path.exists()
+    assert reopened.get(second_key) == second_path
+    reopened.close()
