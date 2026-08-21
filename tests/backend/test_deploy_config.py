@@ -494,7 +494,14 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
     assert "secrets.OCI_BASTION_KNOWN_HOSTS" in workflow
     assert "deploy/scripts/deploy-via-bastion.sh" in workflow
-    assert 'deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA"' in workflow
+    assert "classroom_enabled:" in workflow
+    assert "type: boolean" in workflow
+    assert "default: false" in workflow
+    assert "PATHLAB_CLASSROOM_ENABLED: ${{ inputs.classroom_enabled }}" in workflow
+    assert (
+        'deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" '
+        '"${PATHLAB_CLASSROOM_ENABLED}"'
+    ) in workflow
     assert "vars.PATHLAB_CLASSROOM_ENABLED" not in workflow
     assert "secrets.OCI_DEPLOY_KEY" not in workflow
     assert "vars.OCI_HOST" not in workflow
