@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "baselineReleaseSha": "b9d56022dea04940ffa8d262460a15b51074a37b",
-  "generatedAt": "2026-08-21",
+  "generatedAt": "2026-08-22",
   "evidenceStates": [
     "NOT_IMPLEMENTED",
     "BUILT",
@@ -89,6 +89,29 @@
         "not a complete QuPath project exchange",
         "single-ring GeoJSON contract only",
         "import remains administrator-only"
+      ]
+    },
+    {
+      "id": "classroom-background-protection",
+      "displayName": "Feature-gated Classroom background-work protection",
+      "domain": "Classroom",
+      "evidenceState": "BUILT",
+      "releaseSha": "438bea06dd358638af1bbe5bfed32e770cc31cef",
+      "featureFlag": "PATHLAB_CLASSROOM_PROTECTION_ENABLED",
+      "supportingEvidence": [
+        "docs/architecture/CLASSROOM_PROTECTED_JOBS.md"
+      ],
+      "requiredTests": [
+        "tests/backend/test_runtime_protection.py",
+        "tests/backend/test_classroom.py",
+        "tests/backend/test_deploy_config.py",
+        "apps/web/src/test/classroom-folder-setup.test.tsx"
+      ],
+      "claimRestrictions": [
+        "disabled by default and not production-activated",
+        "not synthetically capacity verified",
+        "native libvips work already in progress is not forcibly preempted",
+        "not production-certified"
       ]
     }
   ]
