@@ -96,12 +96,16 @@ def _read_linux_process(pid: int) -> tuple[float, int] | None:
     try:
         stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()
         status = Path(f"/proc/{pid}/status").read_text(encoding="utf-8").splitlines()
-    except OSError:
+        ticks = int(stat[13]) + int(stat[14])
+        rss_kib = next(
+            int(line.split()[1]) for line in status if line.startswith("VmRSS:")
+        )
+        ticks_per_second = int(cast(Any, os).sysconf("SC_CLK_TCK"))
+        return ticks / ticks_per_second, rss_kib * 1024
+    except (IndexError, OSError, StopIteration, ValueError):
+        # A child can become a zombie between poll() and the /proc reads. Linux
+        # then omits VmRSS even though the status file still exists.
         return None
-    ticks = int(stat[13]) + int(stat[14])
-    rss_kib = next(int(line.split()[1]) for line in status if line.startswith("VmRSS:"))
-    ticks_per_second = int(cast(Any, os).sysconf("SC_CLK_TCK"))
-    return ticks / ticks_per_second, rss_kib * 1024
 
 
 def _total_memory() -> int:

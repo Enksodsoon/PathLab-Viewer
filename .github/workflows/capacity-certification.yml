@@ -815,7 +815,7 @@ jobs:
           selected="$(jq -er .certification.selectedCapacity "${decision}")"
           expected_sha="${GITHUB_SHA}"
           [[ "${selected}" == 300 ]] && expected_sha="${OCI_ROLLBACK_RELEASE_SHA}"
-          if [[ "${selected}" == 300 ]]; then
+          if [[ "${selected}" == 300 && -s "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json" ]]; then
             host="$(cat "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json")"
           else
             host="$(bounded bash deploy/scripts/capacity-control-via-bastion.sh "capacity-postflight expected=${expected_sha}")"
