@@ -22,7 +22,7 @@ _engines: dict[EngineKey, Engine] = {}
 _factories: dict[EngineKey, sessionmaker[OrmSession]] = {}
 
 
-def _database_target(settings: Settings) -> str | URL:
+def database_target_for(settings: Settings) -> str | URL:
     password_file = settings.database_password_file
     if password_file is None:
         return settings.database_url
@@ -91,7 +91,7 @@ def engine_for(settings: Settings) -> Engine:
                 f"-c lock_timeout={lock_timeout_ms}"
             )
         engine = create_engine(
-            _database_target(settings),
+            database_target_for(settings),
             connect_args=connect_args,
             **pool_options_for(settings),
         )

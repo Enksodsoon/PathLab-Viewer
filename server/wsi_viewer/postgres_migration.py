@@ -7,8 +7,7 @@ import os
 import re
 import sqlite3
 import subprocess
-from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -19,6 +18,9 @@ from alembic.config import Config
 from sqlalchemy import MetaData, Table, create_engine, inspect, select, text, tuple_
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.engine import URL, Connection, Engine, make_url
+
+from .config import Settings
+from .database import database_target_for
 
 MIGRATION_SCHEMA_VERSION = 1
 EXCLUDED_SQLITE_TABLE_PREFIXES = ("sqlite_", "slide_search")
@@ -115,22 +117,11 @@ def _validate_target(target_url: str) -> URL:
     return target
 
 
-@contextmanager
-def _target_environment(target_url: str) -> Iterator[None]:
-    previous = os.environ.get("PATHLAB_DATABASE_URL")
-    os.environ["PATHLAB_DATABASE_URL"] = target_url
-    try:
-        yield
-    finally:
-        if previous is None:
-            os.environ.pop("PATHLAB_DATABASE_URL", None)
-        else:
-            os.environ["PATHLAB_DATABASE_URL"] = previous
-
-
-def _upgrade_target(target_url: str) -> None:
-    with _target_environment(target_url):
-        command.upgrade(Config("alembic.ini"), "head")
+def _upgrade_target(target_engine: Engine) -> None:
+    with target_engine.connect() as connection:
+        config = Config("alembic.ini")
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
 
 
 def _release_sha() -> str:
@@ -315,6 +306,7 @@ def migrate_sqlite_to_postgres(
     *,
     source_path: Path,
     target_url: str,
+    target_password_file: Path | None = None,
     manifest_path: Path,
     signing_key: str,
     verify: bool,
@@ -335,7 +327,11 @@ def migrate_sqlite_to_postgres(
     release_sha = _release_sha()
 
     source_engine = _source_engine(source_path)
-    target_engine = create_engine(target_url, pool_pre_ping=True)
+    target_settings = Settings(
+        database_url=target_url,
+        database_password_file=target_password_file,
+    )
+    target_engine = create_engine(database_target_for(target_settings), pool_pre_ping=True)
     lock_connection = target_engine.connect()
     try:
         locked = lock_connection.scalar(
@@ -344,7 +340,7 @@ def migrate_sqlite_to_postgres(
         )
         if locked is not True:
             raise PostgresMigrationError("Another SQLite migration is already running")
-        _upgrade_target(target_url)
+        _upgrade_target(target_engine)
         with source_engine.connect() as source, target_engine.connect() as destination:
             source_revision = source.scalar(text("SELECT version_num FROM alembic_version"))
             target_revision = destination.scalar(text("SELECT version_num FROM alembic_version"))

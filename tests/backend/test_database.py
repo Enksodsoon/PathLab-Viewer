@@ -7,8 +7,8 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from wsi_viewer.config import Settings
 from wsi_viewer.database import (
-    _database_target,
     create_schema,
+    database_target_for,
     pool_options_for,
     postgres_timeouts_for,
     session_factory,
@@ -82,7 +82,7 @@ def test_postgres_password_file_is_injected_without_mutating_settings(tmp_path: 
         database_password_file=password_file,
     )
 
-    target = _database_target(settings)
+    target = database_target_for(settings)
 
     assert not isinstance(target, str)
     assert target.password == "p@ss:/word"
@@ -94,7 +94,7 @@ def test_database_password_file_rejects_non_postgres_and_multiline(tmp_path: Pat
     password_file.write_text("one\ntwo", encoding="utf-8")
 
     with pytest.raises(ValueError, match="require PostgreSQL"):
-        _database_target(
+        database_target_for(
             Settings(
                 _env_file=None,
                 database_url="sqlite:///pathlab.sqlite3",
@@ -102,7 +102,7 @@ def test_database_password_file_rejects_non_postgres_and_multiline(tmp_path: Pat
             )
         )
     with pytest.raises(ValueError, match="one non-empty line"):
-        _database_target(
+        database_target_for(
             Settings(
                 _env_file=None,
                 database_url="postgresql+psycopg://pathlab@postgres/pathlab",

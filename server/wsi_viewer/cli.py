@@ -57,6 +57,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--source", type=Path, help="Closed SQLite source file")
     parser.add_argument("--target", help="Psycopg 3 PostgreSQL SQLAlchemy URL")
+    parser.add_argument(
+        "--target-password-file",
+        type=Path,
+        help="Regular file containing the PostgreSQL password",
+    )
     parser.add_argument("--manifest", type=Path, help="Private verification manifest path")
     parser.add_argument(
         "--verify",
@@ -79,6 +84,7 @@ def main() -> None:
             result = migrate_sqlite_to_postgres(
                 source_path=args.source,
                 target_url=args.target,
+                target_password_file=args.target_password_file,
                 manifest_path=manifest,
                 signing_key=settings.secret_key,
                 verify=args.verify,

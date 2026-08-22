@@ -95,9 +95,12 @@ def test_postgres_migration_parser_requires_explicit_verification() -> None:
             "source.sqlite3",
             "--target",
             "postgresql+psycopg://localhost/pathlab",
+            "--target-password-file",
+            "postgres-password",
         ]
     )
     assert args.source == Path("source.sqlite3")
+    assert args.target_password_file == Path("postgres-password")
     assert args.verify is False
 
 
@@ -125,6 +128,8 @@ def test_postgres_migration_command_is_noninteractive(
             str(source),
             "--target",
             "postgresql+psycopg://localhost/pathlab",
+            "--target-password-file",
+            str(tmp_path / "postgres-password"),
             "--manifest",
             str(manifest),
             "--verify",
@@ -135,6 +140,7 @@ def test_postgres_migration_command_is_noninteractive(
 
     assert captured["source_path"] == source
     assert captured["manifest_path"] == manifest
+    assert captured["target_password_file"] == tmp_path / "postgres-password"
     assert captured["verify"] is True
     assert capsys.readouterr().out == (
         f"Migration verified: tables=1 manifest={manifest}\n"

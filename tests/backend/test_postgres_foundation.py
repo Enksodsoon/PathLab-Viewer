@@ -6,6 +6,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from wsi_viewer.config import Settings
 from wsi_viewer.database import engine_for, session_factory
@@ -93,7 +94,15 @@ def test_postgres_runtime_timeouts_and_worker_claims_are_isolated(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assert POSTGRES_TEST_URL is not None
-    monkeypatch.setenv("PATHLAB_DATABASE_URL", POSTGRES_TEST_URL)
+    target = make_url(POSTGRES_TEST_URL)
+    assert target.password is not None
+    password_file = tmp_path / "alembic-postgres-password"
+    password_file.write_text(target.password + "\n", encoding="utf-8")
+    monkeypatch.setenv(
+        "PATHLAB_DATABASE_URL",
+        target.set(password=None).render_as_string(hide_password=False),
+    )
+    monkeypatch.setenv("PATHLAB_DATABASE_PASSWORD_FILE", str(password_file))
     command.upgrade(Config("alembic.ini"), "head")
     classroom = Settings(
         _env_file=None,
