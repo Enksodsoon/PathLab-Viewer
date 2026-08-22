@@ -89,8 +89,11 @@ def test_postgres_migrations_constraints_and_round_trip(
     POSTGRES_TEST_URL is None,
     reason="PATHLAB_POSTGRES_TEST_URL is required for the isolated PostgreSQL test",
 )
-def test_postgres_runtime_timeouts_and_worker_claims_are_isolated(tmp_path: Path) -> None:
+def test_postgres_runtime_timeouts_and_worker_claims_are_isolated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     assert POSTGRES_TEST_URL is not None
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", POSTGRES_TEST_URL)
     command.upgrade(Config("alembic.ini"), "head")
     classroom = Settings(
         _env_file=None,
@@ -130,6 +133,9 @@ def test_postgres_runtime_timeouts_and_worker_claims_are_isolated(tmp_path: Path
         second_session.rollback()
         first_session.close()
         second_session.close()
+    with factory() as database:
+        database.query(Job).delete()
+        database.commit()
 
     upload_root = tmp_path / "tus"
     upload_root.mkdir()
