@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: false
+      annotations_enabled:
+        description: Explicitly activate production annotation writes
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -143,12 +148,15 @@ jobs:
       - name: Deploy through temporary OCI Bastion session
         env:
           PATHLAB_CLASSROOM_ENABLED: ${{ inputs.classroom_enabled }}
+          PATHLAB_ANNOTATIONS_ENABLED: ${{ inputs.annotations_enabled }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_TARGET_USER: pathlab-deploy
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-        run: deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"
+        run: |
+          deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" \
+            "${PATHLAB_CLASSROOM_ENABLED}" "${PATHLAB_ANNOTATIONS_ENABLED}"
 
       - name: Remove temporary cloud credentials
         if: always()
@@ -168,5 +176,6 @@ jobs:
             echo ""
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Classroom enabled: \`${{ inputs.classroom_enabled }}\`"
+            echo "- Annotations enabled: \`${{ inputs.annotations_enabled }}\`"
             echo "- Result: deployed and health-checked"
           } >> "${GITHUB_STEP_SUMMARY}"

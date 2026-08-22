@@ -11,6 +11,7 @@ import http.cookiejar
 import json
 import math
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,6 +25,8 @@ from cryptography.fernet import Fernet, InvalidToken
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_COMMON_PER_LEVEL = 4
 MAX_RANDOM_TOTAL = 256
+RUN_ID = re.compile(r"^[a-z0-9-]{1,64}$")
+RECOVERY_RETENTION_SECONDS = 14 * 24 * 60 * 60
 
 
 class FixtureError(RuntimeError):
@@ -205,9 +208,13 @@ def create(args: argparse.Namespace) -> None:
         raise FixtureError("fixture release does not match the capacity plan")
     client = Client(args.base_url)
     client.login(args.username, args.password)
-    existing = client.request("/api/v1/admin/classroom/sessions")
+    existing = client.request("/api/v1/admin/classroom/capacity-inventory")
     sessions = existing.get("sessions") if isinstance(existing, dict) else None
-    if not isinstance(sessions, list):
+    if (
+        not isinstance(sessions, list)
+        or not isinstance(existing, dict)
+        or existing.get("truncated") is not False
+    ):
         raise FixtureError("Classroom inventory response is malformed")
     if sessions:
         raise FixtureError("refusing to create fixtures while a Classroom is active")
@@ -254,12 +261,13 @@ def create(args: argparse.Namespace) -> None:
         }
         now = int(datetime.now(UTC).timestamp())
         bundle = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "runId": run_id,
             "workflowSha": plan["workflowSha"],
             "planDigest": plan["planDigest"],
             "createdAtEpoch": now,
-            "expiresAtEpoch": int(plan["windowEndEpochMs"] // 1000) + 3600,
+            "materializeExpiresAtEpoch": int(plan["windowEndEpochMs"] // 1000) + 3600,
+            "cleanupExpiresAtEpoch": now + RECOVERY_RETENTION_SECONDS,
             "classroom": {
                 "sessionId": created_id,
                 "syntheticRunId": run_id,
@@ -287,26 +295,48 @@ def create(args: argparse.Namespace) -> None:
         raise
 
 
-def decrypt_bundle(path: Path, evidence_key: str, run_id: str, workflow_sha: str) -> dict[str, Any]:
+def decrypt_bundle(
+    path: Path,
+    evidence_key: str,
+    run_id: str,
+    workflow_sha: str,
+    *,
+    purpose: str = "materialize",
+) -> dict[str, Any]:
     try:
         plaintext = Fernet(_key(evidence_key)).decrypt(path.read_bytes())
         bundle = json.loads(plaintext)
     except (OSError, InvalidToken, json.JSONDecodeError) as error:
         raise FixtureError("private capacity fixture bundle is invalid") from error
     now = int(datetime.now(UTC).timestamp())
+    version = bundle.get("schemaVersion")
     if (
-        bundle.get("schemaVersion") != 1
+        version not in {1, 2}
         or bundle.get("runId") != run_id
         or bundle.get("workflowSha") != workflow_sha
-        or not isinstance(bundle.get("expiresAtEpoch"), int)
-        or now > bundle["expiresAtEpoch"]
     ):
+        raise FixtureError("private capacity fixture bundle is stale or cross-run")
+    if purpose == "materialize":
+        expires = (
+            bundle.get("materializeExpiresAtEpoch")
+            if version == 2
+            else bundle.get("expiresAtEpoch")
+        )
+    elif purpose == "cleanup":
+        expires = bundle.get("cleanupExpiresAtEpoch") if version == 2 else None
+    else:
+        raise FixtureError("private capacity fixture purpose is invalid")
+    if not isinstance(expires, int) and not (purpose == "cleanup" and version == 1):
+        raise FixtureError("private capacity fixture bundle is stale or cross-run")
+    if isinstance(expires, int) and now > expires:
         raise FixtureError("private capacity fixture bundle is stale or cross-run")
     return bundle
 
 
 def materialize(args: argparse.Namespace) -> None:
-    bundle = decrypt_bundle(args.input, args.evidence_key, args.run_id, args.workflow_sha)
+    bundle = decrypt_bundle(
+        args.input, args.evidence_key, args.run_id, args.workflow_sha, purpose="materialize"
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name, value in (
         ("stage-manifest.json", bundle["stages"]),
@@ -321,7 +351,9 @@ def materialize(args: argparse.Namespace) -> None:
 
 
 def cleanup(args: argparse.Namespace) -> None:
-    bundle = decrypt_bundle(args.input, args.evidence_key, args.run_id, args.workflow_sha)
+    bundle = decrypt_bundle(
+        args.input, args.evidence_key, args.run_id, args.workflow_sha, purpose="cleanup"
+    )
     client = Client(args.base_url)
     client.login(args.username, args.password)
     fixture = bundle["classroom"]
@@ -343,6 +375,59 @@ def cleanup(args: argparse.Namespace) -> None:
         synthetic_run=args.run_id,
         expected=(204,),
     )
+
+
+def reconcile(args: argparse.Namespace) -> None:
+    if RUN_ID.fullmatch(args.run_id) is None:
+        raise FixtureError("capacity recovery run identity is invalid")
+    client = Client(args.base_url)
+    client.login(args.username, args.password)
+    query = urllib.parse.urlencode({"syntheticRunId": args.run_id})
+    inventory = client.request(f"/api/v1/admin/classroom/capacity-inventory?{query}")
+    sessions = inventory.get("sessions") if isinstance(inventory, dict) else None
+    if (
+        not isinstance(sessions, list)
+        or not isinstance(inventory, dict)
+        or inventory.get("truncated") is not False
+    ):
+        raise FixtureError("capacity recovery inventory is malformed or truncated")
+    for session in sessions:
+        if not isinstance(session, dict) or not hmac.compare_digest(
+            str(session.get("syntheticRunId") or ""), args.run_id
+        ):
+            raise FixtureError("refusing to remove a Classroom not owned by this workflow run")
+        session_id = str(session.get("id", ""))
+        if len(session_id) != 36:
+            raise FixtureError("capacity recovery session identity is invalid")
+        client.request(
+            f"/api/v1/admin/classroom/sessions/{session_id}",
+            method="DELETE",
+            synthetic_run=args.run_id,
+            expected=(204,),
+        )
+    verified = client.request(f"/api/v1/admin/classroom/capacity-inventory?{query}")
+    remaining = verified.get("sessions") if isinstance(verified, dict) else None
+    if (
+        not isinstance(verified, dict)
+        or remaining != []
+        or verified.get("truncated") is not False
+    ):
+        raise FixtureError("capacity recovery did not remove every run-owned Classroom")
+
+
+def assert_empty(args: argparse.Namespace) -> None:
+    client = Client(args.base_url)
+    client.login(args.username, args.password)
+    inventory = client.request("/api/v1/admin/classroom/capacity-inventory")
+    sessions = inventory.get("sessions") if isinstance(inventory, dict) else None
+    if (
+        not isinstance(inventory, dict)
+        or not isinstance(sessions, list)
+        or inventory.get("truncated") is not False
+    ):
+        raise FixtureError("Classroom inventory response is malformed or truncated")
+    if sessions:
+        raise FixtureError("refusing capacity admission while a Classroom is active")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -373,6 +458,17 @@ def parser() -> argparse.ArgumentParser:
     cleanup_parser.add_argument("--username", required=True)
     cleanup_parser.add_argument("--password", required=True)
     cleanup_parser.set_defaults(handler=cleanup)
+    reconcile_parser = commands.add_parser("reconcile")
+    reconcile_parser.add_argument("--run-id", required=True)
+    reconcile_parser.add_argument("--base-url", required=True)
+    reconcile_parser.add_argument("--username", required=True)
+    reconcile_parser.add_argument("--password", required=True)
+    reconcile_parser.set_defaults(handler=reconcile)
+    empty_parser = commands.add_parser("assert-empty")
+    empty_parser.add_argument("--base-url", required=True)
+    empty_parser.add_argument("--username", required=True)
+    empty_parser.add_argument("--password", required=True)
+    empty_parser.set_defaults(handler=assert_empty)
     return result
 
 

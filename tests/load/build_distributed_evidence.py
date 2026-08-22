@@ -314,8 +314,8 @@ def build(
         and presenter_fanout_passes(merged["headroomMeasurements"])
     ):
         report["certifiedTier"] = 1500
-    expected_capacity = report["certifiedTier"] if report["certified"] else 300
-    expected_sha = plan["workflowSha"] if report["certified"] else postflight["expectedSha"]
+    expected_capacity = 300
+    expected_sha = plan["workflowSha"]
     if (
         postflight["finalCapacity"] != expected_capacity
         or postflight["deployedSha"] != expected_sha

@@ -1966,7 +1966,7 @@ def test_dedicated_synthetic_room_reset_removes_participants_but_keeps_room_live
         headers = _admin_headers(client)
         created = client.post(
             "/api/v1/admin/classroom/sessions",
-            headers=headers,
+            headers={**headers, "X-PathLab-Synthetic-Run": "123456"},
             json={"slideIds": ["slide-1"]},
         ).json()
         joined = client.post(
@@ -2011,6 +2011,13 @@ def test_dedicated_synthetic_room_reset_removes_participants_but_keeps_room_live
             classroom.presenter_viewport = {"x": 0.8, "y": 0.7, "zoom": 9}
             database.commit()
 
+        wrong_reset = client.post(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/synthetic-reset",
+            headers={**headers, "X-PathLab-Synthetic-Run": "654321"},
+        )
+        assert wrong_reset.status_code == 409
+        assert wrong_reset.json()["detail"]["code"] == "SYNTHETIC_RUN_MISMATCH"
+
         reset = client.post(
             f"/api/v1/admin/classroom/sessions/{created['id']}/synthetic-reset",
             headers={**headers, "X-PathLab-Synthetic-Run": "123456"},
@@ -2035,3 +2042,35 @@ def test_dedicated_synthetic_room_reset_removes_participants_but_keeps_room_live
             ).status_code
             == 201
         )
+
+
+def test_capacity_inventory_is_bounded_and_exposes_only_synthetic_ownership(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers={**headers, "X-PathLab-Synthetic-Run": "capacity-run-1"},
+            json={"slideIds": ["slide-1"]},
+        ).json()
+
+        inventory = client.get(
+            "/api/v1/admin/classroom/capacity-inventory",
+            headers=headers,
+            params={"syntheticRunId": "capacity-run-1"},
+        )
+
+        assert inventory.status_code == 200
+        assert inventory.json() == {
+            "sessions": [
+                {
+                    "id": created["id"],
+                    "status": "active",
+                    "phase": "live",
+                    "syntheticRunId": "capacity-run-1",
+                }
+            ],
+            "truncated": False,
+        }
+        assert "joinCode" not in inventory.text
