@@ -21,6 +21,7 @@ RUNTIME_EVIDENCE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-runtime.json"
 FINAL_EVIDENCE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json"
 CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
 RESTORE_SCRIPT="${STATE_DIR}/pathlab-capacity-${RUN_ID}-restore.sh"
+READY_FILE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-ready.json"
 START_EPOCH="$(date +%s)"
 [[ "${CONTROLLER_DIR}" == "${STATE_DIR}/pathlab-capacity-${RUN_ID}-controller" ]] || exit 2
 [[ "${NONCE_FILE}" == "${STATE_DIR}/pathlab-capacity-${RUN_ID}-nonce" ]] || exit 2
@@ -82,6 +83,7 @@ PY
     python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" --state-dir "${STATE_DIR}" \
     finish --run-id "${RUN_ID}" "${restored[@]}" >/dev/null 2>&1 || true
   rm -f -- "${NONCE_FILE}" "${PREFLIGHT_EVIDENCE}" "${PREFLIGHT_SIGNATURE_FILE}" \
+    "${READY_FILE}" \
     "${DECISION_FILE}" "${DECISION_SIGNATURE_FILE}" "${RESTORE_EVIDENCE}"
   if restore_safe_runtime; then
     python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" --state-dir "${STATE_DIR}" \
@@ -115,6 +117,7 @@ PATHLAB_CAPACITY_CANDIDATE_SHA="${WORKFLOW_SHA}" \
 PATHLAB_CAPACITY_RUN_ID="${RUN_ID}" \
 PATHLAB_CAPACITY_NONCE="${NONCE}" \
 PATHLAB_CAPACITY_RESTORE_EVIDENCE="${RESTORE_EVIDENCE}" \
+PATHLAB_CAPACITY_READY_FILE="${READY_FILE}" \
 PATHLAB_CAPACITY_RESTORE_NOT_AFTER="$((RESTORE_NOT_AFTER - 210))" \
 PATHLAB_CAPACITY_WINDOW_START_EPOCH="${WINDOW_START_EPOCH}" \
 PATHLAB_CAPACITY_WINDOW_END_EPOCH="${WINDOW_END_EPOCH}" \
@@ -145,4 +148,5 @@ restore_safe_runtime
 write_final_result
 trap - EXIT
 rm -f -- "${NONCE_FILE}" "${PREFLIGHT_EVIDENCE}" "${PREFLIGHT_SIGNATURE_FILE}" \
+  "${READY_FILE}" \
   "${DECISION_FILE}" "${DECISION_SIGNATURE_FILE}" "${RESTORE_EVIDENCE}"
