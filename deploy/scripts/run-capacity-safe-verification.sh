@@ -93,7 +93,7 @@ delete_owned_bastion() {
       sleep 2
     done
     deleted=false
-    for _ in $(seq 1 20); do
+    for _ in $(seq 1 60); do
       if state="$(oci bastion session get --session-id "${session_id}" \
           --query 'data."lifecycle-state"' --raw-output 2>&1)"; then
         [[ "${state}" == DELETED ]] && { deleted=true; break; }
@@ -101,7 +101,7 @@ delete_owned_bastion() {
         deleted=true
         break
       fi
-      sleep 2
+      sleep 5
     done
     [[ "${deleted}" == true ]] || {
       [[ "${delete_requested}" == true ]] && echo "Bastion deletion was not terminal." >&2

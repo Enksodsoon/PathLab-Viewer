@@ -41,7 +41,9 @@ delete_session() {
     fi
     return 1
   fi
-  for _ in $(seq 1 20); do
+  # OCI may retain a session in DELETING for several minutes. Keep this
+  # bounded, but do not turn a normal lifecycle delay into false residue.
+  for _ in $(seq 1 60); do
     if output="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
         --query 'data."lifecycle-state"' --raw-output 2>&1)"; then
       state="${output}"
@@ -51,7 +53,7 @@ delete_session() {
     else
       return 1
     fi
-    sleep 2
+    sleep 5
   done
   return 1
 }
