@@ -41,9 +41,10 @@ delete_session() {
     fi
     return 1
   fi
-  # OCI may retain a session in DELETING for several minutes. Keep this
-  # bounded, but do not turn a normal lifecycle delay into false residue.
-  for _ in $(seq 1 60); do
+  # Prove that OCI accepted cleanup and reached a terminal or deleting state.
+  # The workflow-level exact-run drain owns the slower terminal proof so
+  # several sessions delete concurrently instead of serially blocking here.
+  for _ in $(seq 1 12); do
     if output="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
         --query 'data."lifecycle-state"' --raw-output 2>&1)"; then
       state="${output}"
@@ -55,7 +56,7 @@ delete_session() {
     fi
     sleep 5
   done
-  return 1
+  [[ "${state}" == DELETING ]]
 }
 cleanup() {
   local result=$?

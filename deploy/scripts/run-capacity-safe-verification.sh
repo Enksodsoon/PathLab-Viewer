@@ -171,11 +171,17 @@ finish() {
       primary_failure="POSTFLIGHT_NOT_PROVED"
     fi
   fi
-  bastion_remaining="$(owned_bastion_count 2>/dev/null)" || {
+  if delete_owned_bastion "${GITHUB_RUN_ID}" >/dev/null 2>&1; then
+    bastion_remaining="$(owned_bastion_count 2>/dev/null)" || {
+      bastion_remaining=-1
+      result=1
+      primary_failure="BASTION_CLEANUP_NOT_PROVED"
+    }
+  else
     bastion_remaining=-1
     result=1
     primary_failure="BASTION_CLEANUP_NOT_PROVED"
-  }
+  fi
   if [[ "${bastion_remaining}" != 0 ]]; then
     result=1
     primary_failure="BASTION_RESIDUE"
@@ -357,6 +363,7 @@ jq -e --arg sha "${GITHUB_SHA}" --arg manifest "${manifest_digest}" \
   <<< "${post}" >/dev/null
 printf '%s\n' "${post}" > "${runtime_path}"
 restored=true
+delete_owned_bastion "${GITHUB_RUN_ID}"
 bastion_remaining="$(owned_bastion_count)"
 [[ "${bastion_remaining}" == 0 ]]
 trap - EXIT INT TERM
