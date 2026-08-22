@@ -568,6 +568,9 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
     assert "secrets.OCI_BASTION_KNOWN_HOSTS" in workflow
     assert "deploy/scripts/deploy-via-bastion.sh" in workflow
+    assert "deploy/scripts/reconcile-bastion-sessions.sh" in workflow
+    assert "actions: read" in workflow
+    assert "timeout-minutes: 45" in workflow
     assert "classroom_enabled:" in workflow
     assert "type: boolean" in workflow
     assert "default: false" in workflow
@@ -594,6 +597,12 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "--wait-for-state" not in script
     assert "trap cleanup_bastion_session EXIT" in script
     assert "oci bastion session delete" in script
+    assert 'SESSION_NAME="pathlab-deploy-${GITHUB_RUN_ID:-manual}-' in script
+    assert "activation_deadline=$((SECONDS + 900))" in script
+    assert "cleanup_deadline=$((SECONDS + 600))" in script
+    assert "SESSION_SEEN" in script
+    assert "zero active sessions" not in script
+    assert "zero nonterminal sessions" in script
     assert "StrictHostKeyChecking=yes" in script
     assert "ServerAliveInterval=15" in script
     assert "ServerAliveCountMax=40" in script
@@ -603,6 +612,24 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert '"${ANNOTATIONS_ENABLED}" =~ ^(true|false)$' in script
     assert "annotations=${ANNOTATIONS_ENABLED}" in script
     assert '[[ "${ANNOTATIONS_ENABLED}" == true ]]' in script
+
+
+def test_deployment_reconciles_only_exact_terminal_pathlab_sessions() -> None:
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
+    reconcile = Path("deploy/scripts/reconcile-bastion-sessions.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert workflow.index("Reconcile terminal PathLab Bastion sessions") < workflow.index(
+        "Deploy through temporary OCI Bastion session"
+    )
+    for prefix in ("pathlab-capacity-", "pathlab-observe-", "pathlab-deploy-"):
+        assert prefix in reconcile
+    assert "actions/runs/${owner_run}" in reconcile
+    assert "failure|cancelled|timed_out" in reconcile
+    assert '[[ "${run_status}" == completed ]]' in reconcile
+    assert "session delete" in reconcile
+    assert "SECONDS + 600" in reconcile
 
 
 def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> None:

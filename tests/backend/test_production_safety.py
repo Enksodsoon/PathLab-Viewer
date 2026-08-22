@@ -3,7 +3,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 from types import ModuleType
@@ -13,11 +15,18 @@ import pytest
 
 ROOT = Path(__file__).parents[2]
 BASH = Path(r"C:\Program Files\Git\bin\bash.exe")
+PORTABLE_BASH = str(BASH) if BASH.exists() else shutil.which("bash")
 
 
 def _bash_path(path: Path) -> str:
     resolved = path.resolve().as_posix()
     return f"/{resolved[0].lower()}{resolved[2:]}"
+
+
+def _shell_path(path: Path) -> str:
+    if os.name == "nt":
+        return _bash_path(path)
+    return path.resolve().as_posix()
 
 
 def _load_script(name: str) -> ModuleType:
@@ -721,10 +730,195 @@ def test_deploy_workflow_produces_and_transports_authenticated_evidence() -> Non
     assert 'REMOTE_REQUEST="provision-evidence-key sha=${TARGET_SHA}"' in bastion
     assert "printf '%s\\n' \"${PATHLAB_DEPLOY_EVIDENCE_KEY}\" | bash -c" in bastion
     assert "provision-evidence-key sha=${TARGET_SHA} key=" not in bastion
-    assert 'length(data[?"lifecycle-state" == `ACTIVE`])' in bastion
+    assert '"lifecycle-state" == `ACTIVE`' in bastion
+    assert '"lifecycle-state" == `CREATING`' in bastion
+    assert '"lifecycle-state" == `DELETING`' in bastion
     assert workflow.index("Remove temporary cloud credentials") < workflow.index(
         "Record deployment result"
     )
+
+
+def _write_bastion_reconcile_fakes(tmp_path: Path) -> tuple[Path, Path, Path]:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    inventory = tmp_path / "inventory.json"
+    delete_marker = tmp_path / "deleted.txt"
+    oci = fake_bin / "oci"
+    oci.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"bastion session list"* ]]; then
+  if [[ -s "${DELETE_MARKER}" ]]; then
+    printf '{"data":[]}\n'
+  else
+    cat "${OCI_INVENTORY}"
+  fi
+elif [[ "$*" == *"bastion session delete"* ]]; then
+  printf '%s\n' "$*" >> "${DELETE_MARKER}"
+else
+  exit 90
+fi
+""",
+        encoding="utf-8",
+    )
+    gh = fake_bin / "gh"
+    gh.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+printf '{"status":"%s","conclusion":"%s"}\n' "${GH_RUN_STATUS}" "${GH_RUN_CONCLUSION}"
+""",
+        encoding="utf-8",
+    )
+    jq = fake_bin / "jq"
+    jq.write_text(
+        f"""#!{_shell_path(Path(sys.executable))}
+import json
+import sys
+
+args = sys.argv[1:]
+query = next((value for value in args if value.startswith(".")), "")
+payload = json.loads(open(args[-1], encoding="utf-8").read())
+if 'type == "array"' in query:
+    raise SystemExit(0 if isinstance(payload.get("data"), list) else 1)
+if query == ".status // empty":
+    print(payload.get("status", ""))
+elif query == ".conclusion // empty":
+    print(payload.get("conclusion", ""))
+elif "@tsv" in query:
+    for item in payload.get("data", []):
+        if item.get("lifecycle-state") in ("ACTIVE", "CREATING", "DELETING"):
+            print("\\t".join((item["id"], item.get("display-name", ""), item["lifecycle-state"])))
+elif "select(.id == $id)" in query:
+    wanted = args[args.index("--arg") + 2]
+    for item in payload.get("data", []):
+        if item.get("id") == wanted:
+            print(item.get("lifecycle-state", ""))
+""",
+        encoding="utf-8",
+    )
+    oci.chmod(0o755)
+    gh.chmod(0o755)
+    jq.chmod(0o755)
+    return fake_bin, inventory, delete_marker
+
+
+@pytest.mark.skipif(PORTABLE_BASH is None, reason="Bash is required")
+def test_bastion_reconciliation_deletes_only_failed_terminal_owned_sessions(
+    tmp_path: Path,
+) -> None:
+    fake_bin, inventory, delete_marker = _write_bastion_reconcile_fakes(tmp_path)
+    inventory.write_text(
+        json.dumps(
+            {
+                "data": [
+                    {
+                        "id": "ocid1.bastionsession.first",
+                        "display-name": "pathlab-capacity-12345-arm",
+                        "lifecycle-state": "DELETING",
+                    },
+                    {
+                        "id": "ocid1.bastionsession.second",
+                        "display-name": "pathlab-deploy-12345-1780000000",
+                        "lifecycle-state": "CREATING",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_shell_path(fake_bin)}:/usr/bin:/bin",
+            "PATHLAB_OCI_COMMAND": _shell_path(fake_bin / "oci"),
+            "PATHLAB_GH_COMMAND": _shell_path(fake_bin / "gh"),
+            "OCI_INVENTORY": _shell_path(inventory),
+            "DELETE_MARKER": _shell_path(delete_marker),
+            "GH_RUN_STATUS": "completed",
+            "GH_RUN_CONCLUSION": "failure",
+            "GH_TOKEN": "test-token",
+            "GITHUB_REPOSITORY": "example/pathlab",
+            "OCI_BASTION_ID": "masked-test-bastion",
+        }
+    )
+    result = subprocess.run(
+        [
+            str(PORTABLE_BASH),
+            str(ROOT / "deploy" / "scripts" / "reconcile-bastion-sessions.sh"),
+            "99999",
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Reconciled 2 terminal PathLab Bastion session(s)." in result.stdout
+    assert len(delete_marker.read_text(encoding="utf-8").splitlines()) == 2
+
+
+@pytest.mark.skipif(PORTABLE_BASH is None, reason="Bash is required")
+@pytest.mark.parametrize(
+    ("display_name", "run_status", "run_conclusion", "failure"),
+    [
+        ("pathlab-capacity-12345-arm", "in_progress", "", "not terminal"),
+        ("operator-maintenance", "completed", "failure", "not owned"),
+        ("pathlab-capacity-12345-arm", "completed", "success", "not an approved"),
+    ],
+)
+def test_bastion_reconciliation_fails_closed_for_unsafe_ownership(
+    tmp_path: Path,
+    display_name: str,
+    run_status: str,
+    run_conclusion: str,
+    failure: str,
+) -> None:
+    fake_bin, inventory, delete_marker = _write_bastion_reconcile_fakes(tmp_path)
+    inventory.write_text(
+        json.dumps(
+            {
+                "data": [
+                    {
+                        "id": "ocid1.bastionsession.unsafe",
+                        "display-name": display_name,
+                        "lifecycle-state": "ACTIVE",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{_shell_path(fake_bin)}:/usr/bin:/bin",
+            "PATHLAB_OCI_COMMAND": _shell_path(fake_bin / "oci"),
+            "PATHLAB_GH_COMMAND": _shell_path(fake_bin / "gh"),
+            "OCI_INVENTORY": _shell_path(inventory),
+            "DELETE_MARKER": _shell_path(delete_marker),
+            "GH_RUN_STATUS": run_status,
+            "GH_RUN_CONCLUSION": run_conclusion,
+            "GH_TOKEN": "test-token",
+            "GITHUB_REPOSITORY": "example/pathlab",
+            "OCI_BASTION_ID": "masked-test-bastion",
+        }
+    )
+    result = subprocess.run(
+        [
+            str(PORTABLE_BASH),
+            str(ROOT / "deploy" / "scripts" / "reconcile-bastion-sessions.sh"),
+            "99999",
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert failure in result.stderr
+    assert not delete_marker.exists()
 
 
 @pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
