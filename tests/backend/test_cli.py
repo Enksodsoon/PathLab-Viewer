@@ -4,10 +4,12 @@ from io import StringIO
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import inspect, select, text
 from wsi_viewer.cli import _build_parser, _read_password, main
 from wsi_viewer.config import Settings
-from wsi_viewer.database import create_schema, session_factory
+from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import (
     ClassroomSession,
@@ -162,6 +164,47 @@ def test_deployment_check_allows_no_running_job(
     output = capsys.readouterr()
     assert output.out == ""
     assert output.err == ""
+
+
+def test_deployment_check_accepts_immediate_pre_runtime_guard_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    database_path = tmp_path / "deployment-check-pre-runtime-guard.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    command.upgrade(Config("alembic.ini"), "20260821_0023")
+    assert not inspect(engine_for(settings)).has_table("runtime_guards")
+    capsys.readouterr()
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    main()
+
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == ""
+
+
+def test_deployment_check_rejects_unrecognized_missing_runtime_guard_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_path = tmp_path / "deployment-check-unknown-schema.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    command.upgrade(Config("alembic.ini"), "20260821_0023")
+    with engine_for(settings).begin() as connection:
+        connection.execute(
+            text("UPDATE alembic_version SET version_num = 'unexpected_revision'")
+        )
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    with pytest.raises(SystemExit) as captured:
+        main()
+
+    assert captured.value.code == (
+        "Deployment blocked: Classroom protection schema is unavailable"
+    )
 
 
 def test_deployment_check_blocks_running_job_without_private_details(
