@@ -575,6 +575,12 @@ def test_host_unit_owns_same_release_restoration_before_the_hard_deadline() -> N
     assert "prior-dispatcher" in host and "controller-cleanup" in host
     assert "RESTORE_NOT_AFTER" in override
     assert 'timeout --signal=TERM --kill-after=5s "${remaining}s"' in override
+    assert "--force-recreate --wait api classroom" in override
+    assert "PATHLAB_CAPACITY_READY_FILE" in unit
+    assert "capacity services did not become ready" in host
+    assert host.index('systemctl is-active --quiet "${UNIT}.service"') < host.index(
+        '[[ "${ready}" == true ]]'
+    )
     assert "trap finish_failed EXIT" in unit
     assert unit.index("restore_safe_runtime()") < unit.index("trap finish_failed EXIT")
     assert "timeout --signal=TERM --kill-after=10s" in unit

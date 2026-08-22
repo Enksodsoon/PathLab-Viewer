@@ -66,14 +66,21 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
   PREFLIGHT="${STATE_DIR}/pathlab-capacity-${RUN_ID}-preflight.json"
   PREFLIGHT_SIG="${PREFLIGHT}.sig"
   NONCE_FILE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-nonce"
+  READY_FILE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-ready.json"
   CONTROLLER_DIR="${STATE_DIR}/pathlab-capacity-${RUN_ID}-controller"
   CONTROLLER_POINTER="${STATE_DIR}/pathlab-capacity-controller"
   STABLE_DISPATCHER="/usr/local/sbin/pathlab-viewer-deploy"
   ARMED=false
   CONTROLLER_INSTALLED=false
+  CONTROLLER_STARTED=false
+  UNIT="pathlab-capacity-${RUN_ID}"
   arm_failed() {
     local result=$?
     trap - EXIT
+    if [[ "${CONTROLLER_STARTED}" == true ]]; then
+      timeout --signal=TERM --kill-after=10s "${RESTORE_GRACE_SECONDS:-300}s" \
+        systemctl stop "${UNIT}.service" >/dev/null 2>&1 || true
+    fi
     if [[ "${ARMED}" == true ]]; then
       python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" finish \
         --run-id "${RUN_ID}" --restoration-verified >/dev/null 2>&1 || true
@@ -84,7 +91,7 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
       rm -f -- "${CONTROLLER_POINTER}"
       rm -rf -- "${CONTROLLER_DIR}"
     fi
-    rm -f -- "${PREFLIGHT}" "${PREFLIGHT_SIG}" "${NONCE_FILE}"
+    rm -f -- "${PREFLIGHT}" "${PREFLIGHT_SIG}" "${NONCE_FILE}" "${READY_FILE}"
     exit "${result}"
   }
   trap arm_failed EXIT
@@ -193,13 +200,38 @@ descriptor = os.open(sys.argv[1], os.O_RDONLY)
 try: os.fsync(descriptor)
 finally: os.close(descriptor)
 PY
-  UNIT="pathlab-capacity-${RUN_ID}"
   systemd-run --unit "${UNIT}" --collect --property="RuntimeMaxSec=${RUNTIME_SECONDS}" \
     --property="TimeoutStopSec=${RESTORE_GRACE_SECONDS}" \
     bash "${LIVE_DIR}/deploy/scripts/capacity-control-unit.sh" \
       "${RUN_ID}" "${SHA}" "${DIGEST}" "${NONCE_FILE}" "${PREFLIGHT}" "${PREFLIGHT_SIG}" \
       "${MANIFEST_DIGEST}" "${RESTORE_NOT_AFTER}" "${CONTROLLER_DIR}"
+  CONTROLLER_STARTED=true
   systemctl is-active --quiet "${UNIT}.service" || fail "capacity unit did not start"
+  ready_deadline=$((SECONDS + 120))
+  ready=false
+  while (( SECONDS < ready_deadline )); do
+    systemctl is-active --quiet "${UNIT}.service" || fail "capacity unit stopped before readiness"
+    if [[ -f "${READY_FILE}" ]] && python3 - "${READY_FILE}" "${RUN_ID}" "${SHA}" <<'PY'
+import json
+import sys
+
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+valid = value == {
+    "annotationsEnabled": True,
+    "capacity": 2000,
+    "releaseSha": sys.argv[3],
+    "runId": sys.argv[2],
+    "servicesReady": True,
+}
+raise SystemExit(0 if valid else 1)
+PY
+    then
+      ready=true
+      break
+    fi
+    sleep 1
+  done
+  [[ "${ready}" == true ]] || fail "capacity services did not become ready"
   trap - EXIT
   exit 0
 fi

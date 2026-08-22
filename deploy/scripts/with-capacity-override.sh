@@ -13,6 +13,7 @@ COMPOSE_DIR="${PATHLAB_COMPOSE_DIR:-/opt/pathlab-viewer/deploy}"
 PYTHON_BIN="${PATHLAB_PYTHON:-python3}"
 RUNTIME_DIR="${PATHLAB_CAPACITY_RUNTIME_DIR:-/run}"
 RESTORE_EVIDENCE="${PATHLAB_CAPACITY_RESTORE_EVIDENCE:-${RUNTIME_DIR}/pathlab-capacity-${PATHLAB_CAPACITY_RUN_ID}-restore.json}"
+READY_FILE="${PATHLAB_CAPACITY_READY_FILE:-${RUNTIME_DIR}/pathlab-capacity-${PATHLAB_CAPACITY_RUN_ID}-ready.json}"
 [[ "$#" -gt 0 ]] || { echo "Usage: with-capacity-override.sh command [args...]" >&2; exit 2; }
 if [[ "${ENV_FILE}" == /opt/pathlab-viewer/deploy/.env ]]; then
   [[ "${COMPOSE_DIR}" == /opt/pathlab-viewer/deploy && "${RUNTIME_DIR}" == /run ]] || {
@@ -32,6 +33,10 @@ fi
 }
 [[ "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}" == "${PATHLAB_CAPACITY_DECISION_FILE}.sig" ]] || {
   echo "Capacity decision signature path is not run-bound" >&2
+  exit 2
+}
+[[ "${READY_FILE}" == "${RUNTIME_DIR}/pathlab-capacity-${PATHLAB_CAPACITY_RUN_ID}-ready.json" ]] || {
+  echo "Capacity readiness path is not run-bound" >&2
   exit 2
 }
 
@@ -147,7 +152,7 @@ reload_capacity_services() {
   (
     cd "${COMPOSE_DIR}"
     timeout --signal=TERM --kill-after=5s "${remaining}s" \
-      docker compose up -d --no-deps --force-recreate api classroom || exit 1
+      docker compose up -d --no-deps --force-recreate --wait api classroom || exit 1
     remaining="$((RESTORE_NOT_AFTER - $(date +%s) - 5))"
     (( remaining > 0 )) || exit 1
     running="$(timeout --signal=TERM --kill-after=5s "${remaining}s" \
@@ -172,7 +177,7 @@ restore_prior() {
     install -m 0600 "${PRIOR_SNAPSHOT}" "${ENV_FILE}" || true
     contain_unsafe_runtime
     echo "Capacity restoration failed; API and Classroom were stopped" >&2
-    rm -f -- "${PRIOR_SNAPSHOT}"
+    rm -f -- "${PRIOR_SNAPSHOT}" "${READY_FILE}"
     exit 1
   fi
   grep -qx "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=${RESTORE_LIMIT}" "${ENV_FILE}" || exit 1
@@ -182,7 +187,7 @@ restore_prior() {
     "${RESTORE_LIMIT}" > "${restore_temporary}"
   chmod 0600 "${restore_temporary}"
   mv -- "${restore_temporary}" "${RESTORE_EVIDENCE}"
-  rm -f -- "${PRIOR_SNAPSHOT}"
+  rm -f -- "${PRIOR_SNAPSHOT}" "${READY_FILE}"
   exit "${exit_code}"
 }
 RESTORE_NOT_AFTER="${PATHLAB_CAPACITY_RESTORE_NOT_AFTER:-${WINDOW_END_EPOCH}}"
@@ -197,7 +202,30 @@ trap 'exit 143' TERM
 set_environment 2000 true
 grep -qx 'PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000' "${ENV_FILE}"
 grep -qx 'PATHLAB_ANNOTATIONS_ENABLED=true' "${ENV_FILE}"
+rm -f -- "${READY_FILE}"
 reload_capacity_services
+ready_temporary="${READY_FILE}.tmp"
+printf '{"annotationsEnabled":true,"capacity":2000,"releaseSha":"%s","runId":"%s","servicesReady":true}\n' \
+  "${PATHLAB_CAPACITY_CANDIDATE_SHA}" "${PATHLAB_CAPACITY_RUN_ID}" > "${ready_temporary}"
+chmod 600 "${ready_temporary}"
+"${PYTHON_BIN}" - "${ready_temporary}" <<'PY'
+import os
+import sys
+
+with open(sys.argv[1], "rb") as handle:
+    os.fsync(handle.fileno())
+PY
+mv -- "${ready_temporary}" "${READY_FILE}"
+"${PYTHON_BIN}" - "${RUNTIME_DIR}" <<'PY'
+import os
+import sys
+
+descriptor = os.open(sys.argv[1], os.O_RDONLY)
+try:
+    os.fsync(descriptor)
+finally:
+    os.close(descriptor)
+PY
 LAUNCH_REMAINING_SECONDS="$((WINDOW_END_EPOCH - $(date +%s)))"
 COMMAND_TIMEOUT_SECONDS="$((LAUNCH_REMAINING_SECONDS - KILL_AFTER_SECONDS - DEADLINE_SAFETY_SECONDS))"
 [[ "${COMMAND_TIMEOUT_SECONDS}" -ge 1 ]] || {

@@ -821,10 +821,9 @@ async def run() -> int:
     login.raise_for_status()
     admin_csrf = login.json()["csrfToken"]
     initial_metrics_response = await asyncio.wait_for(
-        admin.get("/api/v1/admin/classroom/metrics"),
+        get_with_retry(admin, "/api/v1/admin/classroom/metrics"),
         timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
     )
-    initial_metrics_response.raise_for_status()
     initial_metrics = initial_metrics_response.json()
 
     async def join(sequence: int) -> Participant:
