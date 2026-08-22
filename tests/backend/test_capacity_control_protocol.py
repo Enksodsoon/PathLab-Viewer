@@ -129,17 +129,17 @@ def test_status_is_strictly_sanitized_and_never_exposes_nonce_or_paths(tmp_path:
         "workflowSha": SHA,
         "planDigest": DIGEST,
         "deadlineEpoch": expiry,
-        "rollbackSha": "0" * 40,
-        "rollbackNotAfter": expiry + 300,
+        "runtimeManifestDigest": "0" * 64,
+        "restoreNotAfter": expiry + 300,
         "phase": "armed",
         "finalLimit": None,
         "faultConsumed": False,
     }
 
 
-def test_arm_persists_immutable_rollback_release_and_deadline(tmp_path: Path) -> None:
+def test_arm_persists_immutable_runtime_manifest_and_restore_deadline(tmp_path: Path) -> None:
     expiry = deadline()
-    rollback_deadline = expiry + 270
+    restore_deadline = expiry + 270
     state = arm(
         tmp_path,
         "run-1",
@@ -147,15 +147,15 @@ def test_arm_persists_immutable_rollback_release_and_deadline(tmp_path: Path) ->
         DIGEST,
         NONCE,
         expiry,
-        rollback_sha="d" * 40,
-        rollback_not_after=rollback_deadline,
+        runtime_manifest_digest="d" * 64,
+        restore_not_after=restore_deadline,
     )
 
-    assert state["rollbackSha"] == "d" * 40
-    assert state["rollbackNotAfter"] == rollback_deadline
+    assert state["runtimeManifestDigest"] == "d" * 64
+    assert state["restoreNotAfter"] == restore_deadline
     persisted = json.loads((tmp_path / "pathlab-capacity-run-1-control.json").read_text())
-    assert persisted["rollbackSha"] == "d" * 40
-    assert persisted["rollbackNotAfter"] == rollback_deadline
+    assert persisted["runtimeManifestDigest"] == "d" * 64
+    assert persisted["restoreNotAfter"] == restore_deadline
 
 
 def test_arm_persists_and_enforces_the_explicit_three_hour_window(
@@ -170,8 +170,8 @@ def test_arm_persists_and_enforces_the_explicit_three_hour_window(
         DIGEST,
         NONCE,
         now + 9_900,
-        rollback_sha="d" * 40,
-        rollback_not_after=now + 10_170,
+        runtime_manifest_digest="d" * 64,
+        restore_not_after=now + 10_170,
         window_start_epoch=now,
         window_end_epoch=now + 10_800,
     )
@@ -187,8 +187,8 @@ def test_arm_persists_and_enforces_the_explicit_three_hour_window(
             DIGEST,
             NONCE,
             now + 9_900,
-            rollback_sha="d" * 40,
-            rollback_not_after=now + 10_170,
+            runtime_manifest_digest="d" * 64,
+            restore_not_after=now + 10_170,
             window_start_epoch=now,
             window_end_epoch=now + 10_799,
         )
@@ -340,17 +340,17 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     fake_ssh.write_text(
         "#!/usr/bin/env bash\n"
         'request="${!#}"\nprintf \'%s\\n\' "$request" >> "$SSH_LOG"\n'
-        'if [[ "$request" == capacity-rollback-preflight* ]]; then '
+        'if [[ "$request" == capacity-runtime-preflight* ]]; then '
         'if [[ "${INVALID_PREFLIGHT:-}" == true ]]; then echo \'{"directoryReady":false}\'; '
-        f"else echo '{{\"rollbackSha\":\"{'d' * 40}\",\"directoryReady\":true,"
-        '"configValid":true,"serviceCount":5}\'; fi; '
+        f"else echo '{{\"releaseSha\":\"{'a' * 40}\",\"releaseExact\":true,"
+        f"\"runtimeManifestDigest\":\"{'d' * 64}\",\"servicesExact\":true,"
+        '"ready":true,"classroomEnabled":true,"finalCapacity":300,'
+        '"annotationsEnabled":false}\'; fi; '
         'elif [[ "$request" == capacity-abort* ]]; then '
         f"echo '{{\"runId\":\"run-1\",\"planDigest\":\"{'b' * 64}\","
         '"phase":"aborted-restored","finalLimit":null,"releaseExact":true,'
-        '"servicesExact":true,"serviceCount":5,"ready":true,"finalCapacity":300}\'; '
-        'elif [[ "$request" == capacity-rollback* ]]; then '
-        'echo \'{"releaseExact":true,"servicesExact":true,"serviceCount":5,'
-        '"ready":true,"finalCapacity":300}\'; '
+        '"servicesExact":true,"ready":true,"classroomEnabled":true,'
+        '"finalCapacity":300,"annotationsEnabled":false}\'; '
         'elif [[ "${FAIL_ARM:-}" == true ]]; then exit 9; else echo \'{"phase":"armed"}\'; fi\n',
         encoding="utf-8",
     )
@@ -359,8 +359,8 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
         "#!/usr/bin/env bash\n"
         "value=\"$(cat)\"\n"
         'if [[ "$1" == -c ]]; then printf \'%s\\n\' "$value"; '
-        'elif [[ "$*" == *rollbackSha* ]]; then '
-        '[[ "$value" == *\'"directoryReady":true\'* && "$value" == *\'"configValid":true\'* ]]; '
+        'elif [[ "$*" == *runtimeManifestDigest* ]]; then '
+        '[[ "$value" == *\'"releaseExact":true\'* && "$value" == *\'"servicesExact":true\'* ]]; '
         'elif [[ "$*" == *finalLimit* ]]; then '
         '[[ "$value" == *\'"phase":"aborted-restored"\'* && '
         '"$value" == *\'"finalLimit":null\'* && "$value" == *\'"runId":"run-1"\'* && '
@@ -373,12 +373,12 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     for executable in (fake_oci, fake_keygen, fake_ssh, fake_jq):
         executable.chmod(0o755)
 
-    preflight = f"capacity-rollback-preflight rollback={'d' * 40}"
+    preflight = f"capacity-runtime-preflight expected={'a' * 40} manifest={'d' * 64}"
     arm_request = (
         f"capacity-arm {'a' * 40} run=run-1 digest={'b' * 64} "
-        f"rollback={'d' * 40} arm-not-after=1800000000 window-start=1799999760 "
+        f"manifest={'d' * 64} arm-not-after=1800000000 window-start=1799999760 "
         "window-end=1800010560 deadline=1800008000 "
-        "rollback-not-after=1800009000 fault-start=1800001000 "
+        "restore-not-after=1800009000 fault-start=1800001000 "
         f"fault-end=1800002000 evidence=YQ signature={'c' * 64} nonce={'n' * 32}"
     )
     env = os.environ.copy()
@@ -478,38 +478,36 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     assert ssh_log.read_text(encoding="utf-8").splitlines() == [abort]
 
 
-def test_host_unit_owns_failure_rollback_before_the_hard_deadline() -> None:
+def test_host_unit_owns_same_release_restoration_before_the_hard_deadline() -> None:
     host = Path("deploy/scripts/capacity-control-host.sh").read_text(encoding="utf-8")
     unit = Path("deploy/scripts/capacity-control-unit.sh").read_text(encoding="utf-8")
-    rollback = Path("deploy/scripts/rollback-capacity-candidate.sh").read_text(encoding="utf-8")
+    restore = Path("deploy/scripts/restore-capacity-runtime.sh").read_text(encoding="utf-8")
     override = Path("deploy/scripts/with-capacity-override.sh").read_text(encoding="utf-8")
     control = Path("deploy/scripts/capacity_control.py").read_text(encoding="utf-8")
 
-    assert "rollback=([0-9a-f]{40})" in host
-    assert "rollback-not-after=([0-9]{10})" in host
-    assert '"${ROLLBACK_SHA}" "${ROLLBACK_NOT_AFTER}"' in host
-    assert '--property="TimeoutStopSec=${ROLLBACK_GRACE_SECONDS}"' in host
-    assert "rollback_failed_candidate" in unit
+    assert "manifest=([0-9a-f]{64})" in host
+    assert "restore-not-after=([0-9]{10})" in host
+    assert '"${MANIFEST_DIGEST}" "${RESTORE_NOT_AFTER}"' in host
+    assert '--property="TimeoutStopSec=${RESTORE_GRACE_SECONDS}"' in host
+    assert "restore_safe_runtime" in unit
     assert "systemctl kill --kill-whom=main --signal=USR1" in host
     assert 'kill -TERM -- "-${CHILD_PID}"' in unit
     assert "setsid bash" in unit
     assert "PATHLAB_CAPACITY_RESTORE_NOT_AFTER" in unit
-    assert "ROLLBACK_NOT_AFTER - 210" in unit
-    assert 'if [[ "${FINAL_LIMIT}" == 300 ]]' in unit
-    assert "rollbackSha" in control and "rollbackNotAfter" in control
+    assert "runtimeManifestDigest" in control and "restoreNotAfter" in control
     assert "-control.json" in host
-    assert '.rollbackSha, (.rollbackNotAfter | tostring)' in host
+    assert '.runtimeManifestDigest, (.restoreNotAfter | tostring)' in host
     assert "pathlab-capacity-controller" in host
     assert "prior-dispatcher" in host and "controller-cleanup" in host
     assert "RESTORE_NOT_AFTER" in override
     assert 'timeout --signal=TERM --kill-after=5s "${remaining}s"' in override
     assert "trap finish_failed EXIT" in unit
-    assert unit.index("rollback_failed_candidate") < unit.index("trap finish_failed EXIT")
+    assert unit.index("restore_safe_runtime()") < unit.index("trap finish_failed EXIT")
     assert "timeout --signal=TERM --kill-after=10s" in unit
-    assert "ROLLBACK_NOT_AFTER" in rollback
-    assert 'timeout_seconds="$((remaining - 5))"' in rollback
-    assert "sleep_bounded" in rollback
-    assert "rollback deadline elapsed" in rollback
+    assert "EXPECTED_SHA" in restore
+    assert "runtime_safety_manifest.py" in restore
+    assert '"PATHLAB_CLASSROOM_MAX_PARTICIPANTS": "300"' in restore
+    assert "rollback" not in restore.lower()
 
 
 def test_stable_capacity_dispatcher_is_installed_atomically_and_always_restored() -> None:
@@ -538,7 +536,7 @@ def test_finalize_abort_and_ack_replay_from_retained_host_results() -> None:
     host = Path("deploy/scripts/capacity-control-host.sh").read_text(encoding="utf-8")
     unit = Path("deploy/scripts/capacity-control-unit.sh").read_text(encoding="utf-8")
     cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(encoding="utf-8")
-    rollback = Path("deploy/scripts/rollback-capacity-candidate.sh").read_text(encoding="utf-8")
+    restore = Path("deploy/scripts/restore-capacity-runtime.sh").read_text(encoding="utf-8")
 
     assert host.count('FINAL_RESULT="${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json"') >= 2
     assert 'state.get("evidenceDigest")' in host
@@ -548,15 +546,9 @@ def test_finalize_abort_and_ack_replay_from_retained_host_results() -> None:
     assert "write_final_result" in unit and "FINAL_EVIDENCE" in unit
     assert host.count("windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed") >= 3
     assert '"capacity-ack run=${run_id} digest=${digest}"' in cleanup
-    assert rollback.index('rollback_dir="${candidates[') < rollback.index(
-        'docker compose down'
-    )
-    assert rollback.index('[[ -f "${rollback_dir}/deploy/.env" ]]') < rollback.index(
-        'docker compose down'
-    )
-    assert rollback.index("docker compose config --services") < rollback.index(
-        'docker compose down'
-    )
+    assert '.pathlab-release' in restore and '"${EXPECTED_SHA}"' in restore
+    assert '.pathlab-runtime-safety.json' in restore
+    assert 'stop api classroom' in restore
     assert '(.phase == "restored" and .finalLimit == 300)' in host
 
 
@@ -565,11 +557,11 @@ def test_finalize_abort_and_ack_replay_from_retained_host_results() -> None:
     reason="POSIX process-group signals are required",
 )
 @pytest.mark.parametrize(
-    ("interrupt", "rollback_expected"),
+    ("interrupt", "restore_expected"),
     ((SIGUSR1, True), (signal.SIGTERM, True)),
 )
-def test_capacity_unit_waits_for_child_restoration_and_routes_rollback(
-    tmp_path: Path, interrupt: int, rollback_expected: bool
+def test_capacity_unit_waits_for_child_same_release_restoration(
+    tmp_path: Path, interrupt: int, restore_expected: bool
 ) -> None:
     live = tmp_path / "live"
     deploy = live / "deploy" / "scripts"
@@ -595,8 +587,8 @@ def test_capacity_unit_waits_for_child_restoration_and_routes_rollback(
                 "workflowSha": SHA,
                 "planDigest": DIGEST,
                 "deadlineEpoch": now + 30,
-                "rollbackSha": "d" * 40,
-                "rollbackNotAfter": now + 60,
+                "runtimeManifestDigest": "d" * 64,
+                "restoreNotAfter": now + 60,
                 "windowStartEpoch": now,
                 "windowEndEpoch": now + 10_800,
                 "phase": "armed",
@@ -628,8 +620,9 @@ log.open('a').write(' '.join(sys.argv[1:]) + '\\n')
 """,
         encoding="utf-8",
     )
-    (deploy / "rollback-capacity-candidate.sh").write_text(
-        '#!/usr/bin/env bash\nprintf rollback > "${PATHLAB_LIVE_DIR}/rollback"\n',
+    (deploy / "restore-capacity-runtime.sh").write_text(
+        '#!/usr/bin/env bash\nprintf \'{"configurationRestored":true,"servicesReady":true}\'\n'
+        'printf restored > "${PATHLAB_LIVE_DIR}/restored"\n',
         encoding="utf-8",
     )
     env = os.environ.copy()
@@ -651,7 +644,7 @@ log.open('a').write(' '.join(sys.argv[1:]) + '\\n')
             str(nonce_file),
             str(preflight),
             str(signature_file),
-            "d" * 40,
+            "d" * 64,
             str(now + 60),
             str(controller),
         ],
@@ -670,7 +663,7 @@ log.open('a').write(' '.join(sys.argv[1:]) + '\\n')
             process.kill()
             process.wait(timeout=5)
     assert (live / "stopped").read_text(encoding="utf-8") == "stopped"
-    assert (live / "rollback").exists() is rollback_expected
+    assert (live / "restored").exists() is restore_expected
     control_log = (live / "control.log").read_text(encoding="utf-8")
     assert "finish --run-id run-1 --restoration-verified" in control_log
 
@@ -679,9 +672,9 @@ log.open('a').write(' '.join(sys.argv[1:]) + '\\n')
 def test_host_rejects_expired_arm_before_reading_or_mutating_live_release() -> None:
     request = (
         f"capacity-arm {'a' * 40} run=run-1 digest={'b' * 64} "
-        f"rollback={'d' * 40} arm-not-after=1000000000 window-start=1000000000 "
+        f"manifest={'d' * 64} arm-not-after=1000000000 window-start=1000000000 "
         "window-end=1000010800 deadline=2000000000 "
-        "rollback-not-after=2000000300 fault-start=1900000000 "
+        "restore-not-after=2000000300 fault-start=1900000000 "
         f"fault-end=1900000100 evidence=YQ signature={'c' * 64} nonce={'n' * 32}"
     )
 

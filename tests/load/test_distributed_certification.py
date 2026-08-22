@@ -241,6 +241,8 @@ def healthy_fixture_preparation(schedule: dict[str, object]) -> dict[str, object
 
 
 def healthy_postflight(schedule: dict[str, object], *, capacity: int = 1500) -> dict[str, object]:
+    del capacity
+    services = ["api", "caddy", "classroom", "tile-service", "tusd", "worker"]
     return {
         "schemaVersion": 1,
         "runId": schedule["runId"],
@@ -249,15 +251,19 @@ def healthy_postflight(schedule: dict[str, object], *, capacity: int = 1500) -> 
         "observedAt": "2026-08-14T04:55:00+07:00",
         "expectedSha": schedule["workflowSha"],
         "deployedSha": schedule["workflowSha"],
+        "runtimeManifestDigest": "e" * 64,
+        "schemaRevision": "20260821_0021",
+        "databaseEngine": "sqlite",
+        "services": services,
         "releaseExact": True,
         "servicesExact": True,
-        "serviceCount": 6,
+        "serviceCount": len(services),
         "hostReady": True,
         "endpointsHealthy": True,
         "watchdogExpected": True,
         "watchdogActive": True,
-        "finalCapacity": capacity,
-        "annotationsEnabled": capacity in (1200, 1500),
+        "finalCapacity": 300,
+        "annotationsEnabled": False,
         "monthToDateCost": 0,
         "currency": "SGD",
         "aggregateOnly": True,
@@ -269,11 +275,6 @@ def test_strict_shard_failure_produces_bound_300_not_certified_evidence() -> Non
     sentinels, _, _ = bound_run_evidence(schedule)
     decision = build_failure_decision(schedule, sentinels, nonce="n" * 32)
     postflight = healthy_postflight(schedule, capacity=300)
-    postflight["expectedSha"] = "d" * 40
-    postflight["deployedSha"] = "d" * 40
-    postflight["serviceCount"] = 5
-    postflight["watchdogExpected"] = False
-    postflight["watchdogActive"] = False
     report = build_failure_evidence(
         schedule, decision, healthy_fixture_preparation(schedule), postflight
     )

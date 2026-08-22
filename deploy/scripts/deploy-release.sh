@@ -316,9 +316,8 @@ if [[ "${REQUEST}" =~ ^observe-load[[:space:]]([0-9]{2,5})([[:space:]]start=([0-
 fi
 if [[ "${REQUEST}" == capacity-arm\ * || "${REQUEST}" == capacity-status\ * \
   || "${REQUEST}" == capacity-finalize\ * || "${REQUEST}" == capacity-fault\ * \
-  || "${REQUEST}" == capacity-abort\ * || "${REQUEST}" == capacity-rollback\ * \
-  || "${REQUEST}" == capacity-ack\ * \
-  || "${REQUEST}" == capacity-postflight\ * || "${REQUEST}" == capacity-rollback-preflight\ * ]]; then
+  || "${REQUEST}" == capacity-abort\ * || "${REQUEST}" == capacity-ack\ * \
+  || "${REQUEST}" == capacity-postflight\ * || "${REQUEST}" == capacity-runtime-preflight\ * ]]; then
   if [[ -f /run/pathlab-capacity-controller ]]; then
     CONTROLLER_DIR="$(cat /run/pathlab-capacity-controller)"
     [[ "${CONTROLLER_DIR}" =~ ^/run/pathlab-capacity-[a-z0-9-]{1,64}-controller$ && \
@@ -328,14 +327,18 @@ if [[ "${REQUEST}" == capacity-arm\ * || "${REQUEST}" == capacity-status\ * \
   fi
   exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" "${REQUEST}"
 fi
+if [[ "${REQUEST}" == capacity-recover\ * ]]; then
+  exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" "${REQUEST}"
+fi
 
-[[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})([[:space:]]classroom=(true|false))?$ ]] || \
+[[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})([[:space:]]classroom=(true|false))?([[:space:]]annotations=(true|false))?$ ]] || \
   fail "expected an authenticated deploy, one-time evidence-key provision, observe-load, or capacity control request"
 TARGET_SHA="${BASH_REMATCH[1]}"
 EVIDENCE_B64="${BASH_REMATCH[2]}"
 EVIDENCE_SIGNATURE="${BASH_REMATCH[3]}"
 EVIDENCE_NONCE="${BASH_REMATCH[4]}"
 CLASSROOM_ENABLED="${BASH_REMATCH[6]:-}"
+ANNOTATIONS_ENABLED="${BASH_REMATCH[8]:-}"
 DEPLOY_EVIDENCE="$(mktemp /run/pathlab-deploy-evidence-XXXXXX.json)"
 chmod 600 "${DEPLOY_EVIDENCE}"
 trap cleanup_exit EXIT
@@ -397,6 +400,15 @@ if [[ -n "${CLASSROOM_ENABLED}" ]]; then
     printf 'PATHLAB_PRODUCTION_CLASSROOM_ENABLED=%s\n' "${CLASSROOM_ENABLED}" >> "${STAGE_DIR}/deploy/.env"
   fi
 fi
+if [[ -n "${ANNOTATIONS_ENABLED}" ]]; then
+  if grep -q '^PATHLAB_ANNOTATIONS_ENABLED=' "${STAGE_DIR}/deploy/.env"; then
+    sed -i "s/^PATHLAB_ANNOTATIONS_ENABLED=.*/PATHLAB_ANNOTATIONS_ENABLED=${ANNOTATIONS_ENABLED}/" \
+      "${STAGE_DIR}/deploy/.env"
+  else
+    printf 'PATHLAB_ANNOTATIONS_ENABLED=%s\n' "${ANNOTATIONS_ENABLED}" >> \
+      "${STAGE_DIR}/deploy/.env"
+  fi
+fi
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"
 chown -R ubuntu:ubuntu "${STAGE_DIR}"
 
@@ -404,8 +416,8 @@ python3 "${STAGE_DIR}/deploy/scripts/production_safety.py" \
   preflight "${DEPLOY_EVIDENCE}" "${TARGET_SHA}" \
   --signature "${EVIDENCE_SIGNATURE}" --nonce "${EVIDENCE_NONCE}" || \
   fail "production preflight guards failed"
-ANNOTATIONS_ENABLED="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
-if [[ "${ANNOTATIONS_ENABLED:-false}" == "true" ]]; then
+DEPLOYED_ANNOTATIONS_ENABLED="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
+if [[ "${DEPLOYED_ANNOTATIONS_ENABLED:-false}" == "true" ]]; then
   ACTIVATION="/var/lib/pathlab-viewer/annotation-activation.json"
   ACTIVATION_SIGNATURE="${ACTIVATION}.sig"
   for protected in "${ACTIVATION}" "${ACTIVATION_SIGNATURE}"; do
@@ -416,7 +428,8 @@ if [[ "${ANNOTATIONS_ENABLED:-false}" == "true" ]]; then
     annotation-activation "${ACTIVATION}" --signature "$(cat "${ACTIVATION_SIGNATURE}")" || \
     fail "annotations lack a valid strict capacity certification"
 else
-  [[ "${ANNOTATIONS_ENABLED:-false}" == "false" ]] || fail "annotation feature state is invalid"
+  [[ "${DEPLOYED_ANNOTATIONS_ENABLED:-false}" == "false" ]] || \
+    fail "annotation feature state is invalid"
 fi
 DATA_DIR="$(sed -n 's/^PATHLAB_DATA_DIR=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
 [[ -n "${DATA_DIR}" ]] || fail "PATHLAB_DATA_DIR must be explicit in production"
@@ -500,6 +513,9 @@ for service in "${HEALTH_SERVICES[@]}"; do
 done
 [[ "$(cat "${LIVE_DIR}/.pathlab-release")" == "${TARGET_SHA}" ]] || \
   fail "live checkout does not match the requested commit"
+python3 "${LIVE_DIR}/deploy/scripts/runtime_safety_manifest.py" create \
+  --live-dir "${LIVE_DIR}" --output "${LIVE_DIR}/.pathlab-runtime-safety.json" >/dev/null || \
+  fail "runtime safety manifest creation failed"
 install_stable_dispatcher "${LIVE_DIR}/deploy/scripts/deploy-release.sh" || \
   fail "stable forced-command dispatcher refresh failed"
 

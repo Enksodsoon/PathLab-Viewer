@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 TARGET_SHA="${1:-}"
 CLASSROOM_ENABLED="${2:-}"
+ANNOTATIONS_ENABLED="${3:-}"
 PROVISION_EVIDENCE_KEY="${PATHLAB_PROVISION_DEPLOY_EVIDENCE_KEY:-0}"
 TARGET_USER="${OCI_TARGET_USER:-pathlab-deploy}"
 SESSION_ID=""
@@ -55,9 +56,12 @@ fi
 if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
   [[ "${PATHLAB_DEPLOY_EVIDENCE_KEY}" =~ ^[0-9a-f]{64}$ ]] || \
     fail "deployment evidence key must be 64 lowercase hex characters"
-  [[ -z "${CLASSROOM_ENABLED}" ]] || fail "classroom mode is invalid during key provisioning"
+  [[ -z "${CLASSROOM_ENABLED}${ANNOTATIONS_ENABLED}" ]] || \
+    fail "feature modes are invalid during key provisioning"
 elif [[ -n "${CLASSROOM_ENABLED}" && ! "${CLASSROOM_ENABLED}" =~ ^(true|false)$ ]]; then
   fail "classroom enabled must be true, false, or empty"
+elif [[ -n "${ANNOTATIONS_ENABLED}" && ! "${ANNOTATIONS_ENABLED}" =~ ^(true|false)$ ]]; then
+  fail "annotations enabled must be true, false, or empty"
 fi
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
 : "${OCI_INSTANCE_ID:?OCI_INSTANCE_ID is required}"
@@ -139,6 +143,9 @@ else
   REMOTE_REQUEST="deploy ${TARGET_SHA} evidence=${EVIDENCE_B64} signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE} nonce=${PATHLAB_DEPLOY_EVIDENCE_NONCE}"
   if [[ -n "${CLASSROOM_ENABLED}" ]]; then
     REMOTE_REQUEST="${REMOTE_REQUEST} classroom=${CLASSROOM_ENABLED}"
+  fi
+  if [[ -n "${ANNOTATIONS_ENABLED}" ]]; then
+    REMOTE_REQUEST="${REMOTE_REQUEST} annotations=${ANNOTATIONS_ENABLED}"
   fi
   bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
 fi

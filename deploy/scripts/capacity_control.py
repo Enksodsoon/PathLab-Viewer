@@ -82,8 +82,8 @@ def arm(
     nonce: str,
     deadline_epoch: int,
     *,
-    rollback_sha: str = "0" * 40,
-    rollback_not_after: int | None = None,
+    runtime_manifest_digest: str = "0" * 64,
+    restore_not_after: int | None = None,
     window_start_epoch: int | None = None,
     window_end_epoch: int | None = None,
     fault_start_epoch: int | None = None,
@@ -93,8 +93,8 @@ def arm(
         raise CapacityControlError("capacity run identity is invalid")
     if not DIGEST.fullmatch(plan_digest) or not NONCE.fullmatch(nonce):
         raise CapacityControlError("capacity run binding is invalid")
-    if rollback_not_after is None:
-        rollback_not_after = deadline_epoch + 300
+    if restore_not_after is None:
+        restore_not_after = deadline_epoch + 300
     now = int(time.time())
     if window_start_epoch is None and window_end_epoch is None:
         # Library callers use a current bounded window; the production CLI
@@ -107,14 +107,14 @@ def arm(
         raise CapacityControlError("capacity authorized window must be exactly three hours")
     if not window_start_epoch <= now <= window_start_epoch + 240:
         raise CapacityControlError("capacity arm is outside the authorized window runway")
-    if not SHA.fullmatch(rollback_sha) or rollback_sha == workflow_sha:
-        raise CapacityControlError("capacity rollback release is invalid")
-    if not deadline_epoch + 180 <= rollback_not_after <= deadline_epoch + 900:
-        raise CapacityControlError("capacity rollback deadline is outside the bounded window")
+    if not DIGEST.fullmatch(runtime_manifest_digest):
+        raise CapacityControlError("runtime safety manifest binding is invalid")
+    if not deadline_epoch + 180 <= restore_not_after <= deadline_epoch + 900:
+        raise CapacityControlError("capacity restore deadline is outside the bounded window")
     if deadline_epoch < now + 120 or deadline_epoch > window_end_epoch:
         raise CapacityControlError("capacity deadline is outside the bounded window")
-    if rollback_not_after > window_end_epoch:
-        raise CapacityControlError("capacity rollback exceeds the authorized window")
+    if restore_not_after > window_end_epoch:
+        raise CapacityControlError("capacity restoration exceeds the authorized window")
     if (fault_start_epoch is None) != (fault_end_epoch is None):
         raise CapacityControlError("fault recovery window is incomplete")
     if fault_start_epoch is not None:
@@ -130,8 +130,8 @@ def arm(
         "planDigest": plan_digest,
         "nonceHash": hashlib.sha256(nonce.encode()).hexdigest(),
         "deadlineEpoch": deadline_epoch,
-        "rollbackSha": rollback_sha,
-        "rollbackNotAfter": rollback_not_after,
+        "runtimeManifestDigest": runtime_manifest_digest,
+        "restoreNotAfter": restore_not_after,
         "windowStartEpoch": window_start_epoch,
         "windowEndEpoch": window_end_epoch,
         "phase": "armed",
@@ -261,8 +261,8 @@ def sanitized_status(state_dir: Path, run_id: str) -> dict[str, Any]:
             "workflowSha",
             "planDigest",
             "deadlineEpoch",
-            "rollbackSha",
-            "rollbackNotAfter",
+            "runtimeManifestDigest",
+            "restoreNotAfter",
             "phase",
             "finalLimit",
             "faultConsumed",
@@ -308,8 +308,8 @@ def main() -> int:
         target.add_argument("--plan-digest", required=True)
         target.add_argument("--nonce", required=True)
     arm_parser.add_argument("--deadline-epoch", required=True, type=int)
-    arm_parser.add_argument("--rollback-sha", required=True)
-    arm_parser.add_argument("--rollback-not-after", required=True, type=int)
+    arm_parser.add_argument("--runtime-manifest-digest", required=True)
+    arm_parser.add_argument("--restore-not-after", required=True, type=int)
     arm_parser.add_argument("--window-start-epoch", required=True, type=int)
     arm_parser.add_argument("--window-end-epoch", required=True, type=int)
     arm_parser.add_argument("--fault-start-epoch", required=True, type=int)
@@ -344,8 +344,8 @@ def main() -> int:
             args.plan_digest,
             args.nonce,
             args.deadline_epoch,
-            rollback_sha=args.rollback_sha,
-            rollback_not_after=args.rollback_not_after,
+            runtime_manifest_digest=args.runtime_manifest_digest,
+            restore_not_after=args.restore_not_after,
             window_start_epoch=args.window_start_epoch,
             window_end_epoch=args.window_end_epoch,
             fault_start_epoch=args.fault_start_epoch,

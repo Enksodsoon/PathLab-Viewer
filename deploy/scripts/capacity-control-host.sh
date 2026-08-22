@@ -41,18 +41,28 @@ path.chmod(0o600)
 PY
 }
 
-if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})[[:space:]]rollback=([0-9a-f]{40})[[:space:]]arm-not-after=([0-9]{10})[[:space:]]window-start=([0-9]{10})[[:space:]]window-end=([0-9]{10})[[:space:]]deadline=([0-9]{10})[[:space:]]rollback-not-after=([0-9]{10})[[:space:]]fault-start=([0-9]{10})[[:space:]]fault-end=([0-9]{10})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})$ ]]; then
+runtime_status() {
+  local expected_sha="$1" manifest_digest="${2:-}"
+  local arguments=(verify-live --live-dir "${LIVE_DIR}" --expected-sha "${expected_sha}" --require-safe)
+  if [[ -n "${manifest_digest}" ]]; then
+    arguments+=(--manifest-digest "${manifest_digest}")
+  fi
+  python3 "${LIVE_DIR}/deploy/scripts/runtime_safety_manifest.py" "${arguments[@]}"
+}
+
+if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})[[:space:]]manifest=([0-9a-f]{64})[[:space:]]arm-not-after=([0-9]{10})[[:space:]]window-start=([0-9]{10})[[:space:]]window-end=([0-9]{10})[[:space:]]deadline=([0-9]{10})[[:space:]]restore-not-after=([0-9]{10})[[:space:]]fault-start=([0-9]{10})[[:space:]]fault-end=([0-9]{10})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})$ ]]; then
   SHA="${BASH_REMATCH[1]}"; RUN_ID="${BASH_REMATCH[2]}"; DIGEST="${BASH_REMATCH[3]}"
-  ROLLBACK_SHA="${BASH_REMATCH[4]}"; ARM_NOT_AFTER="${BASH_REMATCH[5]}"
+  MANIFEST_DIGEST="${BASH_REMATCH[4]}"; ARM_NOT_AFTER="${BASH_REMATCH[5]}"
   WINDOW_START="${BASH_REMATCH[6]}"; WINDOW_END="${BASH_REMATCH[7]}"
-  DEADLINE="${BASH_REMATCH[8]}"; ROLLBACK_NOT_AFTER="${BASH_REMATCH[9]}"
+  DEADLINE="${BASH_REMATCH[8]}"; RESTORE_NOT_AFTER="${BASH_REMATCH[9]}"
   FAULT_START="${BASH_REMATCH[10]}"; FAULT_END="${BASH_REMATCH[11]}"
   EVIDENCE_B64="${BASH_REMATCH[12]}"; SIGNATURE="${BASH_REMATCH[13]}"; NONCE="${BASH_REMATCH[14]}"
   (( $(date +%s) <= ARM_NOT_AFTER )) || fail "arm authorization expired before host mutation"
-  (( DEADLINE < ROLLBACK_NOT_AFTER )) || fail "rollback deadline must follow the control deadline"
-  [[ "${ROLLBACK_SHA}" != "${SHA}" ]] || fail "rollback release must differ from the candidate"
+  (( DEADLINE < RESTORE_NOT_AFTER )) || fail "restore deadline must follow the control deadline"
   [[ "$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)" == "${SHA}" ]] || \
     fail "deployed release does not match the workflow SHA"
+  runtime_status "${SHA}" "${MANIFEST_DIGEST}" >/dev/null || \
+    fail "runtime safety manifest did not match the live release"
   PREFLIGHT="${STATE_DIR}/pathlab-capacity-${RUN_ID}-preflight.json"
   PREFLIGHT_SIG="${PREFLIGHT}.sig"
   NONCE_FILE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-nonce"
@@ -84,15 +94,15 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
   python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" arm \
     --run-id "${RUN_ID}" --workflow-sha "${SHA}" --plan-digest "${DIGEST}" \
     --nonce "${NONCE}" --deadline-epoch "${DEADLINE}" \
-    --rollback-sha "${ROLLBACK_SHA}" --rollback-not-after "${ROLLBACK_NOT_AFTER}" \
+    --runtime-manifest-digest "${MANIFEST_DIGEST}" --restore-not-after "${RESTORE_NOT_AFTER}" \
     --window-start-epoch "${WINDOW_START}" --window-end-epoch "${WINDOW_END}" \
     --fault-start-epoch "${FAULT_START}" --fault-end-epoch "${FAULT_END}"
   ARMED=true
   RUNTIME_SECONDS="$((DEADLINE - $(date +%s)))"
   (( RUNTIME_SECONDS >= 120 && RUNTIME_SECONDS <= 10800 )) || fail "deadline is invalid"
-  ROLLBACK_GRACE_SECONDS="$((ROLLBACK_NOT_AFTER - DEADLINE))"
-  (( ROLLBACK_GRACE_SECONDS >= 180 && ROLLBACK_GRACE_SECONDS <= 900 )) || \
-    fail "rollback grace period is invalid"
+  RESTORE_GRACE_SECONDS="$((RESTORE_NOT_AFTER - DEADLINE))"
+  (( RESTORE_GRACE_SECONDS >= 180 && RESTORE_GRACE_SECONDS <= 900 )) || \
+    fail "restore grace period is invalid"
   install -d -o root -g root -m 700 "${CONTROLLER_DIR}"
   atomic_install "${STABLE_DISPATCHER}" "${CONTROLLER_DIR}/prior-dispatcher"
   CONTROLLER_INSTALLED=true
@@ -126,12 +136,12 @@ EOF
   cat > "${reconcile_script}" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
-rollback_tmp="${STATE_DIR}/pathlab-capacity-${RUN_ID}-rollback.json.tmp"
-final_tmp="${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json.tmp"
-bash "${STATE_DIR}/pathlab-capacity-${RUN_ID}-rollback.sh" \
-  "${SHA}" "${ROLLBACK_SHA}" "${ROLLBACK_NOT_AFTER}" > "\${rollback_tmp}"
-chmod 600 "\${rollback_tmp}"
-mv -- "\${rollback_tmp}" "${STATE_DIR}/pathlab-capacity-${RUN_ID}-rollback.json"
+  runtime_tmp="${STATE_DIR}/pathlab-capacity-${RUN_ID}-runtime.json.tmp"
+  final_tmp="${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json.tmp"
+  bash "${STATE_DIR}/pathlab-capacity-${RUN_ID}-restore.sh" \
+    "${SHA}" "${MANIFEST_DIGEST}" "${RESTORE_NOT_AFTER}" > "\${runtime_tmp}"
+chmod 600 "\${runtime_tmp}"
+mv -- "\${runtime_tmp}" "${STATE_DIR}/pathlab-capacity-${RUN_ID}-runtime.json"
 python3 - "${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json" <<'PY'
 import json, os, pathlib, sys
 path = pathlib.Path(sys.argv[1])
@@ -144,10 +154,10 @@ os.chmod(temporary, 0o600)
 os.replace(temporary, path)
 PY
 jq -s '.[0] + .[1]' \
-  <(jq '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
+  <(jq '{runId,workflowSha,planDigest,deadlineEpoch,runtimeManifestDigest,restoreNotAfter,
     windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' \
     "${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json") \
-  "${STATE_DIR}/pathlab-capacity-${RUN_ID}-rollback.json" > "\${final_tmp}"
+  "${STATE_DIR}/pathlab-capacity-${RUN_ID}-runtime.json" > "\${final_tmp}"
 chmod 600 "\${final_tmp}"
 mv -- "\${final_tmp}" "${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json"
 EOF
@@ -159,7 +169,7 @@ for path in sys.argv[1:]:
     try: os.fsync(descriptor)
     finally: os.close(descriptor)
 PY
-  cleanup_epoch="$((ROLLBACK_NOT_AFTER - 2))"
+  cleanup_epoch="$((RESTORE_NOT_AFTER - 2))"
   (( cleanup_epoch > $(date +%s) )) || fail "stable controller cleanup deadline elapsed"
   systemd-run --unit "pathlab-capacity-${RUN_ID}-controller-cleanup" --collect \
     --on-calendar="@${cleanup_epoch}" --timer-property=AccuracySec=1s bash "${restore_script}"
@@ -185,10 +195,10 @@ finally: os.close(descriptor)
 PY
   UNIT="pathlab-capacity-${RUN_ID}"
   systemd-run --unit "${UNIT}" --collect --property="RuntimeMaxSec=${RUNTIME_SECONDS}" \
-    --property="TimeoutStopSec=${ROLLBACK_GRACE_SECONDS}" \
+    --property="TimeoutStopSec=${RESTORE_GRACE_SECONDS}" \
     bash "${LIVE_DIR}/deploy/scripts/capacity-control-unit.sh" \
       "${RUN_ID}" "${SHA}" "${DIGEST}" "${NONCE_FILE}" "${PREFLIGHT}" "${PREFLIGHT_SIG}" \
-      "${ROLLBACK_SHA}" "${ROLLBACK_NOT_AFTER}" "${CONTROLLER_DIR}"
+      "${MANIFEST_DIGEST}" "${RESTORE_NOT_AFTER}" "${CONTROLLER_DIR}"
   systemctl is-active --quiet "${UNIT}.service" || fail "capacity unit did not start"
   trap - EXIT
   exit 0
@@ -198,42 +208,13 @@ if [[ "${REQUEST}" =~ ^capacity-status[[:space:]]run=([a-z0-9-]{1,64})$ ]]; then
   exec python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" status --run-id "${BASH_REMATCH[1]}"
 fi
 
-if [[ "${REQUEST}" =~ ^capacity-rollback-preflight[[:space:]]rollback=([0-9a-f]{40})$ ]]; then
-  ROLLBACK_SHA="${BASH_REMATCH[1]}"
-  mapfile -t candidates < <(find /opt -maxdepth 1 -type d \
-    -name "pathlab-viewer.rollback-${ROLLBACK_SHA:0:12}-*" -print | sort)
-  [[ "${#candidates[@]}" -ge 1 ]] || fail "rollback snapshot is missing"
-  rollback_dir="${candidates[${#candidates[@]}-1]}"
-  [[ "$(cat "${rollback_dir}/.pathlab-release" 2>/dev/null || true)" == "${ROLLBACK_SHA}" ]] || \
-    fail "rollback snapshot SHA mismatch"
-  [[ -f "${rollback_dir}/deploy/.env" ]] || fail "rollback environment is missing"
-  services="$(cd "${rollback_dir}/deploy" && docker compose config --services | sort)"
-  expected=$'api\ncaddy\ntile-service\ntusd\nworker'
-  [[ "${services}" == "${expected}" ]] || fail "rollback topology is not the approved five services"
-  jq -n --arg sha "${ROLLBACK_SHA}" \
-    '{rollbackSha:$sha,directoryReady:true,configValid:true,serviceCount:5}'
+if [[ "${REQUEST}" =~ ^capacity-runtime-preflight[[:space:]]expected=([0-9a-f]{40})([[:space:]]manifest=([0-9a-f]{64}))?$ ]]; then
+  runtime_status "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]:-}"
   exit 0
 fi
 
-if [[ "${REQUEST}" =~ ^capacity-postflight[[:space:]]expected=([0-9a-f]{40})$ ]]; then
-  EXPECTED="${BASH_REMATCH[1]}"
-  RELEASE="$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)"
-  cd "${LIVE_DIR}/deploy"
-  SERVICES="$(docker compose ps --services --status running | sort)"
-  EXPECTED_SERVICES=$'api\ncaddy\nclassroom\ntile-service\ntusd\nworker'
-  LIMIT="$(awk -F= '/^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=/{print $2; exit}' .env)"
-  ANNOTATIONS="$(awk -F= '/^PATHLAB_ANNOTATIONS_ENABLED=/{print $2; exit}' .env)"
-  READY=false
-  curl --fail --silent --insecure --max-time 10 https://127.0.0.1/readyz >/dev/null && \
-    curl --fail --silent --insecure --max-time 10 https://127.0.0.1/livez >/dev/null && READY=true
-  WATCHDOG=false; systemctl is-active --quiet pathlab-viewer-watchdog.timer && WATCHDOG=true
-  jq -n --arg release "${RELEASE}" --arg expected "${EXPECTED}" --argjson ready "${READY}" \
-    --argjson watchdog "${WATCHDOG}" --argjson capacity "${LIMIT:-0}" \
-    --argjson annotations "${ANNOTATIONS:-false}" \
-    --argjson exact "$([[ "${SERVICES}" == "${EXPECTED_SERVICES}" ]] && echo true || echo false)" \
-    '{releaseSha:$release,expectedSha:$expected,releaseExact:($release==$expected),servicesExact:$exact,
-      serviceCount:6,ready:$ready,watchdogExpected:true,watchdogActive:$watchdog,
-      finalCapacity:$capacity,annotationsEnabled:$annotations}'
+if [[ "${REQUEST}" =~ ^capacity-postflight[[:space:]]expected=([0-9a-f]{40})[[:space:]]manifest=([0-9a-f]{64})$ ]]; then
+  runtime_status "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
   exit 0
 fi
 
@@ -265,10 +246,10 @@ PY
   python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" finalize \
     --run-id "${RUN_ID}" --workflow-sha "${SHA}" --plan-digest "${DIGEST}" \
     --nonce "${NONCE}" --evidence "${EVIDENCE}" --signature "${SIGNATURE_FILE}"
-  ROLLBACK_NOT_AFTER="$(jq -er --arg digest "${DIGEST}" \
-    'select(.planDigest == $digest) | .rollbackNotAfter' "${CONTROL_STATE}")"
-  while (( $(date +%s) < ROLLBACK_NOT_AFTER )); do
-    STATUS="$(jq -c '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
+  RESTORE_NOT_AFTER="$(jq -er --arg digest "${DIGEST}" \
+    'select(.planDigest == $digest) | .restoreNotAfter' "${CONTROL_STATE}")"
+  while (( $(date +%s) < RESTORE_NOT_AFTER )); do
+    STATUS="$(jq -c '{runId,workflowSha,planDigest,deadlineEpoch,runtimeManifestDigest,restoreNotAfter,
       windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' "${CONTROL_STATE}")"
     if jq -e '.phase == "restored"' <<< "${STATUS}" >/dev/null && \
        [[ -s "${FINAL_RESULT}" ]]; then
@@ -277,7 +258,7 @@ PY
     fi
     jq -e '.phase == "restore-failed"' <<< "${STATUS}" >/dev/null && \
       fail "capacity restoration failed"
-    remaining="$((ROLLBACK_NOT_AFTER - $(date +%s)))"
+    remaining="$((RESTORE_NOT_AFTER - $(date +%s)))"
     (( remaining > 0 )) || break
     (( remaining > 2 )) && sleep 2 || sleep "${remaining}"
   done
@@ -304,11 +285,66 @@ if [[ "${REQUEST}" =~ ^capacity-ack[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]di
      (.phase == "restored" or .phase == "aborted-restored")' \
     "${CONTROL_STATE}" >/dev/null || fail "capacity acknowledgment binding is invalid"
   [[ -s "${FINAL_RESULT}" ]] || fail "capacity final result is unavailable"
-  ROLLBACK_NOT_AFTER="$(jq -er .rollbackNotAfter "${CONTROL_STATE}")"
+  RESTORE_NOT_AFTER="$(jq -er .restoreNotAfter "${CONTROL_STATE}")"
   jq -n --arg runId "${RUN_ID}" --arg planDigest "${DIGEST}" \
-    --argjson cleanupNotAfter "${ROLLBACK_NOT_AFTER}" \
+    --argjson cleanupNotAfter "${RESTORE_NOT_AFTER}" \
     '{runId:$runId,planDigest:$planDigest,controllerAcknowledged:true,
       cleanupScheduled:true,cleanupNotAfter:$cleanupNotAfter}'
+  exit 0
+fi
+
+if [[ "${REQUEST}" =~ ^capacity-recover[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]sha=([0-9a-f]{40})$ ]]; then
+  RUN_ID="${BASH_REMATCH[1]}"
+  FAILED_SHA="${BASH_REMATCH[2]}"
+  CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
+  CONTROLLER_DIR="${STATE_DIR}/pathlab-capacity-${RUN_ID}-controller"
+  CONTROLLER_POINTER="${STATE_DIR}/pathlab-capacity-controller"
+  CURRENT_SHA="$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)"
+  MANIFEST_DIGEST="$(jq -er .manifestDigest "${LIVE_DIR}/.pathlab-runtime-safety.json")"
+  CONTROLLER_FOUND=false
+  if [[ -f "${CONTROL_STATE}" || -d "${CONTROLLER_DIR}" ]]; then
+    CONTROLLER_FOUND=true
+  fi
+  if [[ -f "${CONTROL_STATE}" ]]; then
+    jq -e --arg run "${RUN_ID}" --arg sha "${FAILED_SHA}" \
+      '.runId == $run and .workflowSha == $sha' "${CONTROL_STATE}" >/dev/null || \
+      fail "failed-run recovery binding does not match"
+  fi
+  systemctl stop "pathlab-capacity-${RUN_ID}.service" \
+    "pathlab-capacity-${RUN_ID}-abort-reconcile.service" \
+    "pathlab-capacity-${RUN_ID}-controller-cleanup.timer" >/dev/null 2>&1 || true
+  RESTORE_NOT_AFTER="$(( $(date +%s) + 300 ))"
+  status="$(bash "${LIVE_DIR}/deploy/scripts/restore-capacity-runtime.sh" \
+    "${CURRENT_SHA}" "${MANIFEST_DIGEST}" "${RESTORE_NOT_AFTER}")" || \
+    fail "failed-run runtime recovery did not restore the safety floor"
+  if [[ -f "${CONTROLLER_POINTER}" ]]; then
+    pointer="$(cat "${CONTROLLER_POINTER}")"
+    [[ "${pointer}" == "${CONTROLLER_DIR}" ]] || fail "another capacity controller is active"
+    rm -f -- "${CONTROLLER_POINTER}"
+  fi
+  rm -rf -- "${CONTROLLER_DIR}"
+  if [[ -f "${CONTROL_STATE}" ]]; then
+    python3 - "${CONTROL_STATE}" "${STATE_DIR}/pathlab-capacity-active.json" "${RUN_ID}" <<'PY'
+import json, os, pathlib, sys
+state_path, active_path = map(pathlib.Path, sys.argv[1:3])
+run_id = sys.argv[3]
+value = json.loads(state_path.read_text(encoding="utf-8"))
+if value.get("runId") != run_id:
+    raise SystemExit(1)
+value["phase"] = "aborted-restored"
+value["finalLimit"] = None
+temporary = state_path.with_suffix(state_path.suffix + ".tmp")
+temporary.write_text(json.dumps(value, sort_keys=True) + "\n", encoding="utf-8")
+os.chmod(temporary, 0o600)
+os.replace(temporary, state_path)
+if active_path.exists():
+    active = json.loads(active_path.read_text(encoding="utf-8"))
+    if active.get("runId") == run_id:
+        active_path.unlink()
+PY
+  fi
+  jq -c --arg run "${RUN_ID}" --argjson found "${CONTROLLER_FOUND}" \
+    '. + {recoveredRunId:$run,controllerFound:$found,controllerReconciled:true}' <<< "${status}"
   exit 0
 fi
 
@@ -316,25 +352,28 @@ if [[ "${REQUEST}" =~ ^capacity-abort[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]
   RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
   CONTROL="$(cat "${CONTROL_STATE}")"
-  mapfile -t rollback_binding < <(jq -er --arg digest "${DIGEST}" \
-    'select(.planDigest == $digest) | .rollbackSha, (.rollbackNotAfter | tostring)' <<< "${CONTROL}")
-  [[ "${#rollback_binding[@]}" -eq 2 ]] || fail "abort binding is invalid"
-  ROLLBACK_SHA="${rollback_binding[0]}"; ROLLBACK_NOT_AFTER="${rollback_binding[1]}"
+  mapfile -t restore_binding < <(jq -er --arg digest "${DIGEST}" \
+    'select(.planDigest == $digest) | .runtimeManifestDigest, (.restoreNotAfter | tostring)' <<< "${CONTROL}")
+  [[ "${#restore_binding[@]}" -eq 2 ]] || fail "abort binding is invalid"
+  MANIFEST_DIGEST="${restore_binding[0]}"; RESTORE_NOT_AFTER="${restore_binding[1]}"
+  WORKFLOW_SHA="$(jq -er .workflowSha "${CONTROL_STATE}")"
   FINAL_RESULT="${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json"
   if [[ -s "${FINAL_RESULT}" ]] && \
     jq -e '(.phase == "aborted-restored" and .finalLimit == null) or
       (.phase == "restored" and .finalLimit == 300)' "${CONTROL_STATE}" >/dev/null && \
-    jq -e '.releaseExact == true and .servicesExact == true and .serviceCount == 5 and
-      .ready == true and .finalCapacity == 300 and .annotationsEnabled == false' "${FINAL_RESULT}" >/dev/null; then
+    jq -e --arg manifest "${MANIFEST_DIGEST}" \
+      '.releaseExact == true and .servicesExact == true and .ready == true and
+       .runtimeManifestDigest == $manifest and .classroomEnabled == true and
+       .finalCapacity == 300 and .annotationsEnabled == false' "${FINAL_RESULT}" >/dev/null; then
     cat "${FINAL_RESULT}"
     exit 0
   fi
-  # The detached host unit owns both restoration and rollback; the SSH caller
+  # The detached host unit owns restoration; the SSH caller
   # only requests abort and waits for the retained, host-produced result.
   if jq -e '.phase == "restored" and (.finalLimit == 1200 or .finalLimit == 1500)' \
     "${CONTROL_STATE}" >/dev/null; then
     if ! systemctl is-active --quiet "pathlab-capacity-${RUN_ID}-abort-reconcile.service"; then
-      remaining="$((ROLLBACK_NOT_AFTER - $(date +%s)))"
+      remaining="$((RESTORE_NOT_AFTER - $(date +%s)))"
       (( remaining > 10 )) || fail "abort reconciliation deadline elapsed"
       systemd-run --unit "pathlab-capacity-${RUN_ID}-abort-reconcile" --collect \
         --property="RuntimeMaxSec=${remaining}" \
@@ -343,20 +382,20 @@ if [[ "${REQUEST}" =~ ^capacity-abort[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]
   else
     systemctl kill --kill-whom=main --signal=USR1 "pathlab-capacity-${RUN_ID}.service" || true
   fi
-  while (( $(date +%s) < ROLLBACK_NOT_AFTER )); do
-    STATUS="$(jq -c '{runId,workflowSha,planDigest,deadlineEpoch,rollbackSha,rollbackNotAfter,
+  while (( $(date +%s) < RESTORE_NOT_AFTER )); do
+    STATUS="$(jq -c '{runId,workflowSha,planDigest,deadlineEpoch,runtimeManifestDigest,restoreNotAfter,
       windowStartEpoch,windowEndEpoch,phase,finalLimit,faultConsumed}' "${CONTROL_STATE}")"
     if jq -e '.phase == "aborted-restored" and .finalLimit == null' <<< "${STATUS}" >/dev/null && \
-       [[ "$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)" == "${ROLLBACK_SHA}" ]] && \
+       [[ "$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)" == "${WORKFLOW_SHA}" ]] && \
        [[ -s "${FINAL_RESULT}" ]]; then
       cat "${FINAL_RESULT}"
       exit 0
     fi
-    remaining="$((ROLLBACK_NOT_AFTER - $(date +%s)))"
+    remaining="$((RESTORE_NOT_AFTER - $(date +%s)))"
     (( remaining > 0 )) || break
     (( remaining > 2 )) && sleep 2 || sleep "${remaining}"
   done
-  fail "capacity abort did not restore and roll back before its bound deadline"
+  fail "capacity abort did not restore the safe runtime before its bound deadline"
 fi
 
 fail "request is not an approved capacity control operation"

@@ -94,12 +94,7 @@ existing="$(sed -n 's/^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=//p' "${ENV_FILE}")"
 }
 PRIOR_LIMIT="${existing:-300}"
 RESTORE_LIMIT="300"
-existing_annotations="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${ENV_FILE}" | tail -n 1)"
-[[ "${existing_annotations:-false}" =~ ^(true|false)$ ]] || {
-  echo "Existing annotation feature state is invalid" >&2
-  exit 2
-}
-RESTORE_ANNOTATIONS="${existing_annotations:-__absent__}"
+RESTORE_ANNOTATIONS="false"
 if [[ "${RUNTIME_DIR}" == /run ]]; then
   install -d -m 0700 "${RUNTIME_DIR}"
 else
@@ -167,26 +162,6 @@ contain_unsafe_runtime() {
   ) || true
 }
 
-ACTIVATION_DIR="${PATHLAB_ANNOTATION_ACTIVATION_DIR:-/var/lib/pathlab-viewer}"
-if [[ -n "${PATHLAB_CAPACITY_TEST_MODE:-}" ]]; then
-  ACTIVATION_DIR="${RUNTIME_DIR}/annotation-activation"
-fi
-mkdir -p -- "${ACTIVATION_DIR}"
-ACTIVATION_DECISION_READY=0
-
-apply_activation_decision() {
-  (( ACTIVATION_DECISION_READY == 1 )) || return 0
-  if [[ "${RESTORE_ANNOTATIONS}" == true ]]; then
-    install -m 0600 "${PATHLAB_CAPACITY_DECISION_FILE}" \
-      "${ACTIVATION_DIR}/annotation-activation.json" || return 1
-    install -m 0600 "${PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE}" \
-      "${ACTIVATION_DIR}/annotation-activation.json.sig" || return 1
-  else
-    rm -f -- "${ACTIVATION_DIR}/annotation-activation.json" \
-      "${ACTIVATION_DIR}/annotation-activation.json.sig"
-  fi
-}
-
 restore_prior() {
   local exit_code=$?
   trap - EXIT INT TERM
@@ -198,21 +173,7 @@ restore_prior() {
     exit 1
   fi
   grep -qx "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=${RESTORE_LIMIT}" "${ENV_FILE}" || exit 1
-  if [[ "${RESTORE_ANNOTATIONS}" == __absent__ ]]; then
-    ! grep -q '^PATHLAB_ANNOTATIONS_ENABLED=' "${ENV_FILE}" || exit 1
-  else
-    grep -qx "PATHLAB_ANNOTATIONS_ENABLED=${RESTORE_ANNOTATIONS}" "${ENV_FILE}" || exit 1
-  fi
-  if ! apply_activation_decision; then
-    rm -f -- "${ACTIVATION_DIR}/annotation-activation.json" \
-      "${ACTIVATION_DIR}/annotation-activation.json.sig"
-    if ! set_environment "${RESTORE_LIMIT}" false || ! reload_capacity_services; then
-      contain_unsafe_runtime
-    fi
-    echo "Annotation activation marker installation failed; annotations were disabled" >&2
-    rm -f -- "${PRIOR_SNAPSHOT}"
-    exit 1
-  fi
+  grep -qx "PATHLAB_ANNOTATIONS_ENABLED=false" "${ENV_FILE}" || exit 1
   local restore_temporary="${RESTORE_EVIDENCE}.tmp"
   printf '{"configurationRestored":true,"finalLimit":%s,"servicesReady":true}\n' \
     "${RESTORE_LIMIT}" > "${restore_temporary}"
@@ -265,10 +226,7 @@ FINAL_LIMIT="$("${PYTHON_BIN}" "${COMPOSE_DIR}/scripts/production_safety.py" \
   echo "Capacity decision is invalid" >&2
   exit 2
 }
-RESTORE_LIMIT="${FINAL_LIMIT}"
-if [[ "${FINAL_LIMIT}" == 1200 || "${FINAL_LIMIT}" == 1500 ]]; then
-  RESTORE_ANNOTATIONS="true"
-else
-  RESTORE_ANNOTATIONS="false"
-fi
-ACTIVATION_DECISION_READY=1
+# Capacity evidence never activates production features. The exact release is
+# always returned to its 300-seat, annotations-disabled safety floor.
+RESTORE_LIMIT=300
+RESTORE_ANNOTATIONS=false
