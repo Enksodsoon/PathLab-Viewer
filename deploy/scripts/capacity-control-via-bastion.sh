@@ -209,10 +209,14 @@ PY
     TUNNEL_PID=""
     error_class="$(classify_tunnel_error)"
     case "${error_class}" in
-      HOST_KEY_REJECTED|AUTH_REJECTED|DNS_FAILED)
+      HOST_KEY_REJECTED|DNS_FAILED)
         fail "Bastion tunnel failed closed (${error_class})"
         ;;
-      ENDPOINT_NOT_READY|LOCAL_PORT_COLLISION)
+      # OCI can report a port-forwarding session ACTIVE before its ephemeral
+      # public key has propagated to the Bastion SSH endpoint.  Retry the same
+      # key and same session only; target-host authentication happens later and
+      # remains fail-closed through TARGET_SSH.
+      AUTH_REJECTED|ENDPOINT_NOT_READY|LOCAL_PORT_COLLISION)
         sleep "$((attempt * 3))"
         ;;
       *)

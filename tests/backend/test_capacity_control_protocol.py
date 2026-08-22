@@ -310,6 +310,7 @@ def test_bastion_client_fully_anchors_every_allowlisted_request() -> None:
     assert "OCI_TARGET_KEY_FILE" in script
     assert "OCI_TARGET_KNOWN_HOSTS_FILE" in script
     assert "HOST_KEY_REJECTED" in script
+    assert "AUTH_REJECTED|ENDPOINT_NOT_READY|LOCAL_PORT_COLLISION" in script
     assert "ENDPOINT_NOT_READY" in script
     assert "for attempt in 1 2 3" in script
 
@@ -353,9 +354,13 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     fake_ssh.write_text(
         "#!/usr/bin/env bash\n"
         'if [[ " $* " == *" -N "* ]]; then '
+        'printf \'tunnel\\n\' >> "$TUNNEL_LOG"; '
+        'if [[ -n "${FAIL_EVERY_TUNNEL:-}" ]]; then '
+        'echo "$FAIL_EVERY_TUNNEL" >&2; exit 255; fi; '
         'if [[ "${FAIL_FIRST_TUNNEL:-}" == true && '
         '! -f "$TUNNEL_RETRY_MARKER" ]]; then '
-        'touch "$TUNNEL_RETRY_MARKER"; echo "Connection refused" >&2; exit 255; fi; '
+        'touch "$TUNNEL_RETRY_MARKER"; '
+        'echo "${FIRST_TUNNEL_ERROR:-Connection refused}" >&2; exit 255; fi; '
         "trap 'exit 0' TERM INT; while true; do sleep 1; done; fi\n"
         'request="${!#}"\nprintf \'%s\\n\' "$request" >> "$SSH_LOG"\n'
         'if [[ "$request" == capacity-runtime-preflight* ]]; then '
@@ -416,6 +421,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
             "OCI_LOG": str(command_log),
             "OCI_DELETE_MARKER": str(tmp_path / "oci-delete-marker"),
             "SSH_LOG": str(ssh_log),
+            "TUNNEL_LOG": str(tmp_path / "tunnel.log"),
             "TUNNEL_RETRY_MARKER": str(tmp_path / "tunnel-retry-marker"),
             "OCI_BASTION_ID": "ocid1.bastion.test",
             "OCI_INSTANCE_ID": "ocid1.instance.test",
@@ -451,9 +457,54 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     assert command_log.read_text(encoding="utf-8").count("create-port-forwarding") == 1
     assert ssh_log.read_text(encoding="utf-8").splitlines() == [preflight, arm_request]
     assert (tmp_path / "tunnel-retry-marker").exists()
+    assert (tmp_path / "tunnel.log").read_text(encoding="utf-8").splitlines() == [
+        "tunnel",
+        "tunnel",
+    ]
 
     command_log.unlink()
     ssh_log.unlink()
+    (tmp_path / "tunnel.log").unlink()
+    (tmp_path / "tunnel-retry-marker").unlink()
+    env["FIRST_TUNNEL_ERROR"] = "Permission denied (publickey)."
+    transient_bastion_auth = subprocess.run(
+        [str(BASH), "deploy/scripts/capacity-control-via-bastion.sh", preflight, arm_request],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert transient_bastion_auth.returncode == 0, transient_bastion_auth.stderr
+    assert command_log.read_text(encoding="utf-8").count("create-port-forwarding") == 1
+    assert ssh_log.read_text(encoding="utf-8").splitlines() == [preflight, arm_request]
+    assert (tmp_path / "tunnel.log").read_text(encoding="utf-8").splitlines() == [
+        "tunnel",
+        "tunnel",
+    ]
+    env.pop("FIRST_TUNNEL_ERROR")
+
+    command_log.unlink()
+    ssh_log.unlink()
+    (tmp_path / "tunnel.log").unlink()
+    (tmp_path / "tunnel-retry-marker").unlink()
+    env["FAIL_EVERY_TUNNEL"] = "Host key verification failed."
+    rejected_host_key = subprocess.run(
+        [str(BASH), "deploy/scripts/capacity-control-via-bastion.sh", preflight, arm_request],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert rejected_host_key.returncode != 0
+    assert "HOST_KEY_REJECTED" in rejected_host_key.stderr
+    assert command_log.read_text(encoding="utf-8").count("create-port-forwarding") == 1
+    assert (tmp_path / "tunnel.log").read_text(encoding="utf-8").splitlines() == ["tunnel"]
+    env.pop("FAIL_EVERY_TUNNEL")
+
+    command_log.unlink()
+    if ssh_log.exists():
+        ssh_log.unlink()
+    (tmp_path / "tunnel.log").unlink()
     env["INVALID_PREFLIGHT"] = "true"
     invalid_preflight = subprocess.run(
         [str(BASH), "deploy/scripts/capacity-control-via-bastion.sh", preflight, arm_request],
