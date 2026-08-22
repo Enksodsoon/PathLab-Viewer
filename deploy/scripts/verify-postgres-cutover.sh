@@ -64,6 +64,9 @@ import json
 import os
 import sys
 
+def complete(path: str) -> bool:
+    return os.path.isfile(path) and os.path.getsize(path) > 0
+
 payload = {
     "jobId": os.environ["PATHLAB_STATUS_JOB_ID"],
     "kind": "postgres-cutover-evidence",
@@ -73,10 +76,10 @@ payload = {
     "finishedAt": os.environ["PATHLAB_STATUS_FINISHED"],
     "attempt": 1,
     "progressCounters": {
-        "sourceChecks": 1 if os.path.isfile(os.environ["PATHLAB_STATUS_SOURCE"]) else 0,
-        "migrations": 1 if os.path.isfile(os.environ["PATHLAB_STATUS_MIGRATION"]) else 0,
+        "sourceChecks": 1 if complete(os.environ["PATHLAB_STATUS_SOURCE"]) else 0,
+        "migrations": 1 if complete(os.environ["PATHLAB_STATUS_MIGRATION"]) else 0,
         "backups": 1 if os.environ["PATHLAB_STATUS_BACKUP"] else 0,
-        "restoreDrills": 1 if os.path.isfile(os.environ["PATHLAB_STATUS_RESTORE"]) else 0,
+        "restoreDrills": 1 if complete(os.environ["PATHLAB_STATUS_RESTORE"]) else 0,
     },
     "resultManifest": {
         "source": os.environ["PATHLAB_STATUS_SOURCE"],
