@@ -17,38 +17,39 @@ SSH_KEYGEN_COMMAND="${PATHLAB_CAPACITY_SSH_KEYGEN_COMMAND:-ssh-keygen}"
 SSH_COMMAND_EXECUTABLE="${PATHLAB_CAPACITY_SSH_COMMAND:-ssh}"
 JQ_COMMAND="${PATHLAB_CAPACITY_JQ_COMMAND:-jq}"
 SESSION_ID=""
+TUNNEL_PID=""
 WORK_DIR="$(mktemp -d)"
 KEY_FILE="${WORK_DIR}/bastion-session"
+TARGET_KEY_FILE="${OCI_TARGET_KEY_FILE:-${HOME}/.ssh/target_deploy_key}"
+TARGET_KNOWN_HOSTS_FILE="${OCI_TARGET_KNOWN_HOSTS_FILE:-${HOME}/.ssh/target_known_hosts}"
 
 fail() { echo "Capacity Bastion control failed: $*" >&2; exit 1; }
 delete_session() {
-  local state="" output="" deleted=false
+  local state="" output="" delete_requested=false cleanup_deadline
   [[ -n "${SESSION_ID}" ]] || return 0
   for _ in $(seq 1 3); do
     if "${OCI_COMMAND}" bastion session delete --session-id "${SESSION_ID}" --force \
       >/dev/null 2>&1; then
-      deleted=true
+      delete_requested=true
       break
     fi
     sleep 2
   done
-  if [[ "${deleted}" != true ]]; then
-    if output="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
-        --query 'data."lifecycle-state"' --raw-output 2>&1)"; then
-      [[ "${output}" == DELETED ]] && return 0
-    elif grep -Eq 'NotAuthorizedOrNotFound|NotFound|404' <<< "${output}"; then
-      return 0
-    fi
-    return 1
-  fi
-  # Prove that OCI accepted cleanup and reached a terminal or deleting state.
-  # The workflow-level exact-run drain owns the slower terminal proof so
-  # several sessions delete concurrently instead of serially blocking here.
-  for _ in $(seq 1 12); do
+  cleanup_deadline=$((SECONDS + 600))
+  while (( SECONDS < cleanup_deadline )); do
     if output="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
         --query 'data."lifecycle-state"' --raw-output 2>&1)"; then
       state="${output}"
       [[ "${state}" == DELETED ]] && return 0
+      if [[ "${delete_requested}" != true && \
+            "${state}" =~ ^(ACTIVE|CREATING|FAILED)$ ]]; then
+        if "${OCI_COMMAND}" bastion session delete --session-id "${SESSION_ID}" --force \
+          >/dev/null 2>&1; then
+          delete_requested=true
+        fi
+      elif [[ ! "${state}" =~ ^(ACTIVE|CREATING|FAILED|DELETING)$ ]]; then
+        return 1
+      fi
     elif grep -Eq 'NotAuthorizedOrNotFound|NotFound|404' <<< "${output}"; then
       return 0
     else
@@ -56,11 +57,15 @@ delete_session() {
     fi
     sleep 5
   done
-  [[ "${state}" == DELETING ]]
+  return 1
 }
 cleanup() {
   local result=$?
   trap - EXIT
+  if [[ -n "${TUNNEL_PID}" ]] && kill -0 "${TUNNEL_PID}" >/dev/null 2>&1; then
+    kill "${TUNNEL_PID}" >/dev/null 2>&1 || true
+    wait "${TUNNEL_PID}" >/dev/null 2>&1 || true
+  fi
   if ! delete_session; then
     echo "Capacity Bastion control failed: session deletion could not be proved" >&2
     result=1
@@ -98,18 +103,21 @@ done
 : "${OCI_TARGET_PRIVATE_IP:?OCI_TARGET_PRIVATE_IP is required}"
 : "${OCI_KNOWN_HOSTS_FILE:?OCI_KNOWN_HOSTS_FILE is required}"
 [[ -f "${OCI_KNOWN_HOSTS_FILE}" ]] || fail "pinned SSH host keys are missing"
+[[ -f "${TARGET_KEY_FILE}" ]] || fail "target deployment key is missing"
+[[ -f "${TARGET_KNOWN_HOSTS_FILE}" ]] || fail "pinned target host keys are missing"
 
 "${SSH_KEYGEN_COMMAND}" -q -t ed25519 -N "" -f "${KEY_FILE}"
 action="${REMOTE_REQUESTS[0]%% *}"
 action="${action#capacity-}"
-SESSION_ID="$("${OCI_COMMAND}" bastion session create-managed-ssh \
+SESSION_ID="$("${OCI_COMMAND}" bastion session create-port-forwarding \
   --bastion-id "${OCI_BASTION_ID}" --display-name "pathlab-capacity-${GITHUB_RUN_ID:-manual}-${action}" \
   --key-type PUB --ssh-public-key-file "${KEY_FILE}.pub" \
   --target-resource-id "${OCI_INSTANCE_ID}" --target-private-ip "${OCI_TARGET_PRIVATE_IP}" \
-  --target-port 22 --target-os-username "${TARGET_USER}" --session-ttl 1800 \
+  --target-port 22 --session-ttl 1800 \
   --query 'data.id' --raw-output)"
 [[ "${SESSION_ID}" == ocid1.bastionsession.* ]] || fail "OCI did not return a session OCID"
-for _ in $(seq 1 40); do
+activation_deadline=$((SECONDS + 300))
+while (( SECONDS < activation_deadline )); do
   STATE="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
     --query 'data."lifecycle-state"' --raw-output)"
   [[ "${STATE}" == ACTIVE ]] && break
@@ -119,13 +127,71 @@ done
 [[ "${STATE:-}" == ACTIVE ]] || fail "Bastion session did not become active"
 SSH_COMMAND="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}" \
   --query 'data."ssh-metadata".command' --raw-output)"
-[[ "${SSH_COMMAND}" == ssh\ * ]] || fail "OCI did not return an SSH command"
+[[ "${SSH_COMMAND}" == ssh\ * && "${SSH_COMMAND}" == *"<localPort>"* ]] || \
+  fail "OCI did not return a port-forwarding SSH command"
 SSH_COMMAND="${SSH_COMMAND//<privateKey>/${KEY_FILE}}"
+if [[ "${PATHLAB_CAPACITY_TEST_MODE:-}" == true && \
+      -n "${PATHLAB_CAPACITY_SSH_COMMAND:-}" ]]; then
+  LOCAL_PORT=45678
+else
+  LOCAL_PORT="$(python3 - <<'PY'
+import socket
+
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    print(listener.getsockname()[1])
+PY
+)"
+fi
+[[ "${LOCAL_PORT}" =~ ^[0-9]{4,5}$ ]] || fail "local tunnel port allocation failed"
+SSH_COMMAND="${SSH_COMMAND//<localPort>/${LOCAL_PORT}}"
 SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
-SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ConnectTimeout=10 -o ConnectionAttempts=1 -o ServerAliveInterval=5 -o ServerAliveCountMax=2"
-SSH_COMMAND="${SSH_COMMAND#ssh }"
+SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes"
+SSH_COMMAND="${SSH_COMMAND//ssh /${SSH_COMMAND_EXECUTABLE} ${SSH_OPTIONS} }"
+if [[ "${PATHLAB_CAPACITY_TEST_MODE:-}" == true && \
+      -n "${PATHLAB_CAPACITY_SSH_COMMAND:-}" ]]; then
+  bash -c "${SSH_COMMAND}" >"${WORK_DIR}/tunnel.out" 2>"${WORK_DIR}/tunnel.err" &
+  TUNNEL_PID=$!
+  sleep 1
+  kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 || fail "Bastion tunnel exited before readiness"
+else
+  bash -c "${SSH_COMMAND}" >"${WORK_DIR}/tunnel.out" 2>"${WORK_DIR}/tunnel.err" &
+  TUNNEL_PID=$!
+  for _ in $(seq 1 60); do
+    kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 || fail "Bastion tunnel exited before readiness"
+    if python3 - "${LOCAL_PORT}" <<'PY'
+import socket
+import sys
+
+try:
+    with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.25):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+    then
+      break
+    fi
+    sleep 0.5
+  done
+  python3 - "${LOCAL_PORT}" <<'PY' || fail "Bastion tunnel did not become ready"
+import socket
+import sys
+
+with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.5):
+    pass
+PY
+fi
+TARGET_SSH=(
+  "${SSH_COMMAND_EXECUTABLE}" -i "${TARGET_KEY_FILE}" -p "${LOCAL_PORT}"
+  -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+  -o HostKeyAlias=pathlab-target -o UserKnownHostsFile="${TARGET_KNOWN_HOSTS_FILE}"
+  -o ConnectTimeout=10 -o ConnectionAttempts=1
+  -o ServerAliveInterval=5 -o ServerAliveCountMax=2 -o TCPKeepAlive=yes
+  "${TARGET_USER}@127.0.0.1"
+)
 run_remote() {
-  bash -c "\"${SSH_COMMAND_EXECUTABLE}\" ${SSH_OPTIONS} ${SSH_COMMAND} \"$1\""
+  "${TARGET_SSH[@]}" "$1"
 }
 if [[ "${#REMOTE_REQUESTS[@]}" -eq 1 ]]; then
   single_status="$(run_remote "${REMOTE_REQUESTS[0]}")"

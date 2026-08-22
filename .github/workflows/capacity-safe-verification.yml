@@ -62,6 +62,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Mask production infrastructure identifiers
         env:

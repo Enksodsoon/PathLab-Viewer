@@ -646,6 +646,11 @@ def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> 
     assert "ssh-keygen" in client
     assert "trap cleanup_bastion_session EXIT" in client
     assert "oci bastion session delete" in client
+    assert "oci bastion session create-port-forwarding" in client
+    assert "create-managed-ssh" not in client
+    assert "HostKeyAlias=pathlab-target" in client
+    assert "OCI_TARGET_KEY_FILE" in client
+    assert "OCI_TARGET_KNOWN_HOSTS_FILE" in client
     assert "StrictHostKeyChecking=yes" in client
     assert "observe-load ${DURATION}" in client
     assert "DURATION <= 10000" in client

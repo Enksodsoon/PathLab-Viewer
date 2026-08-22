@@ -304,6 +304,11 @@ def test_bastion_client_fully_anchors_every_allowlisted_request() -> None:
     assert "ConnectTimeout=10" in script
     assert "ConnectionAttempts=1" in script
     assert "ServerAliveCountMax=2" in script
+    assert "create-port-forwarding" in script
+    assert "create-managed-ssh" not in script
+    assert "HostKeyAlias=pathlab-target" in script
+    assert "OCI_TARGET_KEY_FILE" in script
+    assert "OCI_TARGET_KNOWN_HOSTS_FILE" in script
 
 
 @pytest.mark.skipif(BASH is None, reason="bash is unavailable")
@@ -314,17 +319,22 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     ssh_log = tmp_path / "ssh.log"
     known_hosts = tmp_path / "known-hosts"
     known_hosts.write_text("pinned\n", encoding="utf-8")
+    target_key = tmp_path / "target-key"
+    target_key.write_text("test-key\n", encoding="utf-8")
+    target_known_hosts = tmp_path / "target-known-hosts"
+    target_known_hosts.write_text("target-pinned\n", encoding="utf-8")
 
     fake_oci = fake_bin / "oci"
     fake_oci.write_text(
         "#!/usr/bin/env bash\n"
         'printf \'%s\\n\' "$*" >> "$OCI_LOG"\n'
-        'if [[ "$*" == *"create-managed-ssh"* ]]; then '
+        'if [[ "$*" == *"create-port-forwarding"* ]]; then '
         'rm -f "$OCI_DELETE_MARKER"; echo "ocid1.bastionsession.test"; '
         'elif [[ "$*" == *"session delete"* ]]; then touch "$OCI_DELETE_MARKER"; '
         'elif [[ "$*" == *"lifecycle-state"* ]]; then '
         'if [[ -f "$OCI_DELETE_MARKER" ]]; then echo DELETED; else echo ACTIVE; fi; '
-        'elif [[ "$*" == *"ssh-metadata"* ]]; then echo "ssh fake-target"; fi\n',
+        'elif [[ "$*" == *"ssh-metadata"* ]]; then '
+        'echo "ssh -i <privateKey> -N -L <localPort>:10.0.0.1:22 -p 22 test@bastion.example"; fi\n',
         encoding="utf-8",
     )
     fake_keygen = fake_bin / "ssh-keygen"
@@ -339,6 +349,8 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     fake_ssh = fake_bin / "ssh"
     fake_ssh.write_text(
         "#!/usr/bin/env bash\n"
+        'if [[ " $* " == *" -N "* ]]; then '
+        "trap 'exit 0' TERM INT; while true; do sleep 1; done; fi\n"
         'request="${!#}"\nprintf \'%s\\n\' "$request" >> "$SSH_LOG"\n'
         'if [[ "$request" == capacity-runtime-preflight* ]]; then '
         'if [[ "${INVALID_PREFLIGHT:-}" == true ]]; then echo \'{"directoryReady":false}\'; '
@@ -402,6 +414,8 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
             "OCI_INSTANCE_ID": "ocid1.instance.test",
             "OCI_TARGET_PRIVATE_IP": "10.0.0.1",
             "OCI_KNOWN_HOSTS_FILE": str(known_hosts),
+            "OCI_TARGET_KEY_FILE": str(target_key),
+            "OCI_TARGET_KNOWN_HOSTS_FILE": str(target_known_hosts),
             "GITHUB_RUN_ID": "123",
         }
     )
@@ -426,7 +440,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert command_log.read_text(encoding="utf-8").count("create-managed-ssh") == 1
+    assert command_log.read_text(encoding="utf-8").count("create-port-forwarding") == 1
     assert ssh_log.read_text(encoding="utf-8").splitlines() == [preflight, arm_request]
 
     command_log.unlink()
@@ -456,7 +470,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
 
     assert failed.returncode != 0
     failed_oci = command_log.read_text(encoding="utf-8")
-    assert failed_oci.count("create-managed-ssh") == 1
+    assert failed_oci.count("create-port-forwarding") == 1
     assert failed_oci.count("session delete") == 1
     assert failed_oci.rfind("lifecycle-state") > failed_oci.rfind("session delete")
     assert "n" * 32 not in failed.stdout + failed.stderr
@@ -474,7 +488,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     )
 
     assert recovery.returncode == 0, recovery.stderr
-    assert command_log.read_text(encoding="utf-8").count("create-managed-ssh") == 1
+    assert command_log.read_text(encoding="utf-8").count("create-port-forwarding") == 1
     assert ssh_log.read_text(encoding="utf-8").splitlines() == [abort]
 
 

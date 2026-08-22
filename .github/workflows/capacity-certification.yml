@@ -146,6 +146,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Reconcile an exact terminal failed-run fixture
         if: inputs.recovery_run_id != ''
@@ -424,6 +426,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Arm at the explicitly authorized custom ICT window
         env:
@@ -552,6 +556,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: |
           pip install --require-hashes -r deploy/oci-cli-requirements.txt
           bash deploy/scripts/configure-capacity-oci.sh
@@ -707,6 +713,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Wedge only Classroom and prove bounded recovery
         env:
@@ -832,6 +840,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Restore capacity configuration and remove every synthetic fixture
         env:
@@ -887,6 +897,8 @@ jobs:
           OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+          OCI_TARGET_DEPLOY_KEY: ${{ secrets.OCI_TARGET_DEPLOY_KEY }}
+          OCI_TARGET_KNOWN_HOSTS: ${{ secrets.OCI_TARGET_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Verify exact release, manifest topology, endpoints, watchdog, and safety floor
         env:

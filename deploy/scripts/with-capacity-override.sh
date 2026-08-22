@@ -96,7 +96,10 @@ PRIOR_LIMIT="${existing:-300}"
 RESTORE_LIMIT="300"
 RESTORE_ANNOTATIONS="false"
 if [[ "${RUNTIME_DIR}" == /run ]]; then
-  install -d -m 0700 "${RUNTIME_DIR}"
+  [[ -d "${RUNTIME_DIR}" && "$(stat -c '%a:%U:%G' "${RUNTIME_DIR}")" == 755:root:root ]] || {
+    echo "Capacity override refused: /run must remain 755 and owned by root." >&2
+    exit 1
+  }
 else
   mkdir -p -- "${RUNTIME_DIR}"
 fi
