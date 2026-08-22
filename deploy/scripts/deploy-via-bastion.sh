@@ -7,7 +7,9 @@ ANNOTATIONS_ENABLED="${3:-}"
 PROVISION_EVIDENCE_KEY="${PATHLAB_PROVISION_DEPLOY_EVIDENCE_KEY:-0}"
 TARGET_USER="${OCI_TARGET_USER:-pathlab-deploy}"
 SESSION_ID=""
-SESSION_NAME="pathlab-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
+SESSION_NAME="pathlab-deploy-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
+SESSION_CREATE_ACCEPTED=0
+SESSION_SEEN=0
 WORK_DIR="$(mktemp -d)"
 KEY_FILE="${WORK_DIR}/bastion-session"
 if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
@@ -26,23 +28,57 @@ fail() {
 cleanup_bastion_session() {
   local exit_code=$?
   local cleanup_failed=0
+  local cleanup_deadline session_state sessions_file
   trap - EXIT
-  if [[ -n "${SESSION_ID}" ]]; then
-    oci bastion session delete --session-id "${SESSION_ID}" --force >/dev/null 2>&1 || \
-      cleanup_failed=1
-    for _ in $(seq 1 30); do
-      active_count="$(
-        oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
-          --query 'length(data[?"lifecycle-state" == `ACTIVE`])' --raw-output 2>/dev/null
-      )" || { cleanup_failed=1; break; }
-      [[ "${active_count}" == 0 ]] && break
-      sleep 2
+  if [[ "${SESSION_CREATE_ACCEPTED}" == 1 ]]; then
+    sessions_file="${WORK_DIR}/cleanup-sessions.json"
+    cleanup_deadline=$((SECONDS + 600))
+    while (( SECONDS < cleanup_deadline )); do
+      oci bastion session list --bastion-id "${OCI_BASTION_ID}" \
+        --display-name "${SESSION_NAME}" --all > "${sessions_file}" 2>/dev/null || {
+          cleanup_failed=1
+          break
+        }
+      SESSION_ID="$(jq -r '.data[0].id // empty' "${sessions_file}")"
+      session_state="$(jq -r '.data[0]."lifecycle-state" // empty' "${sessions_file}")"
+      if [[ "${SESSION_ID}" == ocid1.bastionsession.* ]]; then
+        SESSION_SEEN=1
+      elif [[ "${SESSION_SEEN}" == 1 ]]; then
+        break
+      else
+        sleep 5
+        continue
+      fi
+      case "${session_state}" in
+        DELETED)
+          break
+          ;;
+        ACTIVE|CREATING|FAILED)
+          oci bastion session delete --session-id "${SESSION_ID}" --force \
+            >/dev/null 2>&1 || true
+          ;;
+        DELETING)
+          ;;
+        *)
+          cleanup_failed=1
+          break
+          ;;
+      esac
+      sleep 5
     done
-    [[ "${active_count:-}" == 0 ]] || cleanup_failed=1
+    if [[ "${SESSION_SEEN}" != 1 ]]; then
+      cleanup_failed=1
+    elif [[ "${session_state:-}" != DELETED ]]; then
+      session_state="$(
+        oci bastion session get --session-id "${SESSION_ID}" \
+          --query 'data."lifecycle-state"' --raw-output 2>/dev/null
+      )" || session_state=DELETED
+    fi
+    [[ "${session_state:-}" == DELETED ]] || cleanup_failed=1
   fi
   rm -rf -- "${WORK_DIR}"
   if [[ "${cleanup_failed}" -ne 0 ]]; then
-    echo "Bastion session cleanup or zero-session verification failed." >&2
+    echo "Exact Bastion session terminal deletion could not be proved." >&2
     exit 1
   fi
   exit "${exit_code}"
@@ -78,11 +114,13 @@ if [[ "${PROVISION_EVIDENCE_KEY}" == 0 ]]; then
     fail "deployment evidence nonce is invalid"
 fi
 
-ACTIVE_SESSIONS="$(
+NONTERMINAL_SESSIONS="$(
   oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
-    --query 'length(data[?"lifecycle-state" == `ACTIVE`])' --raw-output
-)" || fail "Bastion preflight could not verify active sessions"
-[[ "${ACTIVE_SESSIONS}" == 0 ]] || fail "Bastion preflight requires zero active sessions"
+    --query 'length(data[?"lifecycle-state" == `ACTIVE` || "lifecycle-state" == `CREATING` || "lifecycle-state" == `DELETING`])' \
+    --raw-output
+)" || fail "Bastion preflight could not verify nonterminal sessions"
+[[ "${NONTERMINAL_SESSIONS}" == 0 ]] || \
+  fail "Bastion preflight requires zero nonterminal sessions"
 
 ssh-keygen -q -t ed25519 -N "" -f "${KEY_FILE}"
 
@@ -97,8 +135,10 @@ oci bastion session create-managed-ssh \
   --target-os-username "${TARGET_USER}" \
   --session-ttl 1800 \
   >/dev/null
+SESSION_CREATE_ACCEPTED=1
 
-for _ in $(seq 1 40); do
+activation_deadline=$((SECONDS + 900))
+while (( SECONDS < activation_deadline )); do
   SESSION_ID="$(
     oci bastion session list \
       --bastion-id "${OCI_BASTION_ID}" \
@@ -108,6 +148,7 @@ for _ in $(seq 1 40); do
       --raw-output
   )"
   if [[ "${SESSION_ID}" == ocid1.bastionsession.* ]]; then
+    SESSION_SEEN=1
     SESSION_STATE="$(
       oci bastion session get \
         --session-id "${SESSION_ID}" \
@@ -116,6 +157,8 @@ for _ in $(seq 1 40); do
     )"
     [[ "${SESSION_STATE}" == "ACTIVE" ]] && break
     [[ "${SESSION_STATE}" == "FAILED" ]] && fail "OCI Bastion session creation failed"
+    [[ "${SESSION_STATE}" == "DELETING" || "${SESSION_STATE}" == "DELETED" ]] && \
+      fail "OCI Bastion session was deleted before activation"
   fi
   sleep 5
 done

@@ -15,6 +15,7 @@ on:
         default: false
 
 permissions:
+  actions: read
   contents: read
   checks: read
   deployments: write
@@ -27,6 +28,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     environment:
       name: production
     steps:
@@ -108,6 +110,12 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s\n' "${OCI_BASTION_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+      - name: Reconcile terminal PathLab Bastion sessions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+        run: deploy/scripts/reconcile-bastion-sessions.sh "${GITHUB_RUN_ID}"
 
       - name: Build authenticated deployment evidence
         env:
