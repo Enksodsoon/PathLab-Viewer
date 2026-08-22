@@ -16,7 +16,7 @@ def test_capability_registry_validator_accepts_the_repository_registry() -> None
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "Capability registry valid: 6 entries\n"
+    assert result.stdout == "Capability registry valid: 7 entries\n"
 
 
 def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
@@ -30,6 +30,7 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         "calibrated-measurements",
         "classroom",
         "classroom-background-protection",
+        "identity-governance-foundation",
         "postgres-runtime-cutover",
         "qupath-geojson",
     }
@@ -40,31 +41,37 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
     existing = {
         key: value
         for key, value in capabilities.items()
-        if key not in {"classroom-background-protection", "postgres-runtime-cutover"}
+        if key
+        not in {
+            "classroom-background-protection",
+            "identity-governance-foundation",
+            "postgres-runtime-cutover",
+        }
     }
-    assert {item["releaseSha"] for item in existing.values()} == {
-        registry["baselineReleaseSha"]
-    }
+    assert {item["releaseSha"] for item in existing.values()} == {registry["baselineReleaseSha"]}
     protection = capabilities["classroom-background-protection"]
     assert protection["releaseSha"] == "b331171fa15a8ad4d08c62fa8a5e9c0af94c0f79"
-    assert "disabled by default and not production-activated" in protection[
-        "claimRestrictions"
-    ]
+    assert "disabled by default and not production-activated" in protection["claimRestrictions"]
     postgres = capabilities["postgres-runtime-cutover"]
     assert postgres["evidenceState"] == "SYNTHETICALLY_VERIFIED"
     assert postgres["releaseSha"] == "6a97058cc8cbfe27bedb9ff039908199f4496aeb"
     assert "staging and synthetic evidence only" in postgres["claimRestrictions"]
-    assert "production remains on its current database engine" in postgres[
-        "claimRestrictions"
-    ]
+    assert "production remains on its current database engine" in postgres["claimRestrictions"]
+    identity = capabilities["identity-governance-foundation"]
+    assert identity["evidenceState"] == "BUILT"
+    assert identity["releaseSha"] == "92e90714a964b025c5ad02979e249b45c5d3123d"
+    assert "disabled by default and not production-activated" in identity["claimRestrictions"]
+    assert "temporary Classroom participants remain separate" in identity["claimRestrictions"]
     assert "not production-certified" in capabilities["classroom"]["claimRestrictions"]
     assert "not collaborative" in capabilities["admin-annotations"]["claimRestrictions"]
-    assert "requires valid slide calibration" in capabilities["calibrated-measurements"][
-        "claimRestrictions"
-    ]
-    assert "not a complete QuPath project exchange" in capabilities["qupath-geojson"][
-        "claimRestrictions"
-    ]
+    assert (
+        "requires valid slide calibration"
+        in capabilities["calibrated-measurements"]["claimRestrictions"]
+    )
+    assert (
+        "not a complete QuPath project exchange"
+        in capabilities["qupath-geojson"]["claimRestrictions"]
+    )
 
 
 def test_validator_rejects_duplicate_capability_ids(tmp_path: Path) -> None:
@@ -121,8 +128,6 @@ def test_validator_rejects_missing_repository_paths(tmp_path: Path) -> None:
 
 def test_backend_ci_executes_the_capability_registry_validator() -> None:
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
-    backend_job = workflow.split("\n  backend:\n", maxsplit=1)[1].split(
-        "\n  web:\n", maxsplit=1
-    )[0]
+    backend_job = workflow.split("\n  backend:\n", maxsplit=1)[1].split("\n  web:\n", maxsplit=1)[0]
 
     assert "python scripts/validate_capability_registry.py" in backend_job
