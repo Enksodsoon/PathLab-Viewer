@@ -85,8 +85,8 @@ def test_classroom_participant_limit_accepts_environment_override(
     assert Settings(_env_file=None).classroom_max_participants == 1500
 
 
-@pytest.mark.parametrize("role", ("general", "classroom", "all"))
-def test_service_role_accepts_the_three_declared_topologies(
+@pytest.mark.parametrize("role", ("general", "classroom", "worker", "tile", "all"))
+def test_service_role_accepts_the_declared_process_topologies(
     monkeypatch: pytest.MonkeyPatch, role: str
 ) -> None:
     monkeypatch.setenv("PATHLAB_SERVICE_ROLE", role)

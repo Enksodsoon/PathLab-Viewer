@@ -50,6 +50,7 @@ from .publication import (
 )
 from .readiness import CachedReadiness, tile_service_is_ready
 from .request_limits import AuthBodyLimitMiddleware
+from .runtime_protection import read_protection_snapshot
 from .security import (
     MAX_VERIFICATION_PASSWORD_LENGTH,
     InvalidToken,
@@ -785,6 +786,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=401, detail={"code": "INVALID_UPLOAD_TOKEN"}) from error
         return finalize_upload(grant, payload.path, payload.length, db)
 
+    @app.get("/api/v1/internal/uploads/admission", status_code=status.HTTP_204_NO_CONTENT)
+    def upload_admission(db: Database) -> Response:
+        if current.classroom_protection_enabled:
+            snapshot = read_protection_snapshot(db)
+            if snapshot.blocks_background_work:
+                raise HTTPException(
+                    status_code=423,
+                    detail={"code": "CLASSROOM_PROTECTION_ACTIVE", "mode": snapshot.mode},
+                    headers={"Retry-After": "120"},
+                )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     @app.post("/api/v1/internal/tus/hooks")
     def tus_hook(payload: dict[str, Any], db: Database) -> dict[str, Any]:
         try:
@@ -796,6 +809,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (KeyError, TypeError, ValueError) as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_TUS_HOOK"}) from error
         if hook_type == "pre-create":
+            if current.classroom_protection_enabled:
+                snapshot = read_protection_snapshot(db)
+                if snapshot.blocks_background_work:
+                    return {
+                        "RejectUpload": True,
+                        "HTTPResponse": {
+                            "StatusCode": 423,
+                            "Body": '{"code":"CLASSROOM_PROTECTION_ACTIVE"}',
+                            "Header": {
+                                "Content-Type": "application/json",
+                                "Retry-After": "120",
+                            },
+                        },
+                    }
             try:
                 grant = verify_upload_token(token, current.secret_key)
                 slide = db.get(Slide, grant.slide_id)

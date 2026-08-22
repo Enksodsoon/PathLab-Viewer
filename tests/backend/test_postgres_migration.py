@@ -8,6 +8,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from wsi_viewer.postgres_migration import (
     MIGRATION_ADVISORY_LOCK,
     PostgresMigrationError,
@@ -77,13 +78,19 @@ def test_verified_migration_is_signed_read_only_and_resumable(
     assert POSTGRES_TEST_URL is not None
     source = tmp_path / "source.sqlite3"
     manifest_path = tmp_path / "migration-manifest.json"
+    target = make_url(POSTGRES_TEST_URL)
+    assert target.password is not None
+    password_file = tmp_path / "postgres-password"
+    password_file.write_text(target.password + "\n", encoding="utf-8")
+    passwordless_target = target.set(password=None).render_as_string(hide_password=False)
     _seed_source(source, monkeypatch)
     source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
     _downgrade(POSTGRES_TEST_URL, "base", monkeypatch)
 
     manifest = migrate_sqlite_to_postgres(
         source_path=source,
-        target_url=POSTGRES_TEST_URL,
+        target_url=passwordless_target,
+        target_password_file=password_file,
         manifest_path=manifest_path,
         signing_key=SIGNING_KEY,
         verify=True,
@@ -109,7 +116,8 @@ def test_verified_migration_is_signed_read_only_and_resumable(
     manifest_path.unlink()
     resumed = migrate_sqlite_to_postgres(
         source_path=source,
-        target_url=POSTGRES_TEST_URL,
+        target_url=passwordless_target,
+        target_password_file=password_file,
         manifest_path=manifest_path,
         signing_key=SIGNING_KEY,
         verify=True,
@@ -130,7 +138,8 @@ def test_verified_migration_is_signed_read_only_and_resumable(
     with pytest.raises(PostgresMigrationError, match="Conflicting or missing rows"):
         migrate_sqlite_to_postgres(
             source_path=source,
-            target_url=POSTGRES_TEST_URL,
+            target_url=passwordless_target,
+            target_password_file=password_file,
             manifest_path=manifest_path,
             signing_key=SIGNING_KEY,
             verify=True,
@@ -148,7 +157,8 @@ def test_verified_migration_is_signed_read_only_and_resumable(
         with pytest.raises(PostgresMigrationError, match="already running"):
             migrate_sqlite_to_postgres(
                 source_path=source,
-                target_url=POSTGRES_TEST_URL,
+                target_url=passwordless_target,
+                target_password_file=password_file,
                 manifest_path=manifest_path,
                 signing_key=SIGNING_KEY,
                 verify=True,

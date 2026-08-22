@@ -11,9 +11,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import Select
 
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
@@ -21,6 +22,7 @@ from .database import session_factory
 from .domain import SlideState
 from .models import AuditEvent, Job, Slide
 from .ome import OmeError, validate_ome_tiff
+from .runtime_protection import protection_snapshot
 from .storage import StorageLayout
 from .worker_health import HeartbeatWriter
 
@@ -30,6 +32,19 @@ TUS_CLEANUP_INTERVAL_SECONDS = 30.0 * 60.0
 STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS = 60.0
 STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
+
+
+def _next_job_statement(*, now: datetime, postgres: bool) -> Select[tuple[Job]]:
+    statement = (
+        select(Job)
+        .where(
+            Job.status.in_({"queued", "retry_wait"}),
+            or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
+        )
+        .order_by(Job.created_at)
+        .limit(1)
+    )
+    return statement.with_for_update(skip_locked=True) if postgres else statement
 
 
 class DiskUsage(Protocol):
@@ -90,6 +105,7 @@ class WorkerScheduler:
         cleanup_uploads: Callable[[], object],
         process_job: Callable[[], bool],
         report_capacity: Callable[[], object] = lambda: None,
+        background_allowed: Callable[[], bool] = lambda: True,
         shutdown_requested: Callable[[], bool] = lambda: False,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -97,6 +113,7 @@ class WorkerScheduler:
         self._cleanup_uploads = cleanup_uploads
         self._process_job = process_job
         self._report_capacity = report_capacity
+        self._background_allowed = background_allowed
         self._shutdown_requested = shutdown_requested
         self._monotonic = monotonic
         self._next_job_poll = float("-inf")
@@ -106,6 +123,15 @@ class WorkerScheduler:
 
     def run_due(self) -> float:
         now = self._monotonic()
+        if not self._background_allowed():
+            self._next_job_poll = now + JOB_POLL_INTERVAL_SECONDS
+            self._next_stale_recovery = max(
+                self._next_stale_recovery, now + STALE_RECOVERY_INTERVAL_SECONDS
+            )
+            self._next_tus_cleanup = max(
+                self._next_tus_cleanup, now + TUS_CLEANUP_INTERVAL_SECONDS
+            )
+            return JOB_POLL_INTERVAL_SECONDS
         if now >= self._next_stale_recovery:
             self._recover_stale()
             self._next_stale_recovery = now + STALE_RECOVERY_INTERVAL_SECONDS
@@ -132,6 +158,17 @@ class WorkerScheduler:
         )
 
 
+def background_work_is_allowed(
+    factory: sessionmaker[OrmSession], *, enabled: bool
+) -> bool:
+    if not enabled:
+        return True
+    with factory() as database:
+        snapshot = protection_snapshot(database)
+        database.commit()
+        return not snapshot.blocks_background_work
+
+
 def recover_stale_jobs(
     factory: sessionmaker[OrmSession], *, stale_after: timedelta = timedelta(minutes=5)
 ) -> int:
@@ -143,7 +180,10 @@ def recover_stale_jobs(
         for job in jobs:
             job.status = "queued"
             job.heartbeat_at = None
-            if job.slide.state in {SlideState.VALIDATING, SlideState.CONVERTING}:
+            if job.slide is not None and job.slide.state in {
+                SlideState.VALIDATING,
+                SlideState.CONVERTING,
+            }:
                 job.slide.state = SlideState.QUEUED
         database.commit()
         return len(jobs)
@@ -183,8 +223,12 @@ def expire_incomplete_uploads(
             expired += 1
             continue
         with factory() as database:
-            database.connection().exec_driver_sql("BEGIN IMMEDIATE")
-            slide = database.get(Slide, upload_id)
+            dialect = database.get_bind().dialect.name
+            if dialect == "sqlite":
+                database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+                slide = database.get(Slide, upload_id)
+            else:
+                slide = database.get(Slide, upload_id, with_for_update=True)
             if slide is None:
                 for artifact in artifacts:
                     _unlink_upload_artifact(artifact)
@@ -229,21 +273,39 @@ def process_next(
     layout: StorageLayout,
     *,
     shutdown_requested: Callable[[], bool] = lambda: False,
+    protection_enabled: bool = False,
 ) -> bool:
     if shutdown_requested():
         return False
     with factory() as database:
         if shutdown_requested():
             return False
-        job = database.scalar(
-            select(Job).where(Job.status == "queued").order_by(Job.created_at).limit(1)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        if protection_enabled:
+            snapshot = protection_snapshot(database, now=now)
+            if snapshot.blocks_background_work:
+                database.commit()
+                return False
+        statement = _next_job_statement(
+            now=now,
+            postgres=database.get_bind().dialect.name == "postgresql"
         )
+        job = database.scalar(statement)
         if job is None:
             return False
         job.status = "running"
         job.attempts += 1
-        job.heartbeat_at = datetime.now(UTC)
+        job.heartbeat_at = now
+        job.lease_expires_at = now + timedelta(seconds=60)
         slide = job.slide
+        if slide is None:
+            job.status = "failed_terminal"
+            job.failure_code = "JOB_TARGET_MISSING"
+            job.error = "Job has no supported target"
+            job.heartbeat_at = None
+            job.lease_expires_at = None
+            database.commit()
+            return True
         if job.kind == "delete":
             remove_slide(layout, slide.id, slide.public_id)
             database.delete(slide)
@@ -268,7 +330,16 @@ def process_next(
             }
             slide.state = SlideState.CONVERTING
             job.heartbeat_at = datetime.now(UTC)
+            job.lease_expires_at = datetime.now(UTC) + timedelta(seconds=60)
             database.commit()
+            database.refresh(job)
+            if job.cancellation_requested_at is not None:
+                slide.state = SlideState.QUEUED
+                job.status = "blocked_classroom"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
             result = generate_dzi(
                 paths.original,
                 paths.private_derivative,
@@ -280,16 +351,20 @@ def process_next(
             slide.thumbnail_filename = "thumbnail.jpg"
             slide.reserved_bytes = 0
             slide.state = SlideState.READY_PRIVATE
-            job.status = "complete"
-            job.heartbeat_at = datetime.now(UTC)
+            job.status = "succeeded"
+            job.heartbeat_at = None
+            job.lease_expires_at = None
             database.commit()
         except Exception as error:
             slide.reserved_bytes = 0
             slide.state = SlideState.FAILED
             slide.error_code = error.code if isinstance(error, OmeError) else "CONVERSION_FAILED"
             slide.error_message = str(error)
-            job.status = "failed"
+            job.status = "failed_terminal"
+            job.failure_code = error.code if isinstance(error, OmeError) else "CONVERSION_FAILED"
             job.error = str(error)
+            job.heartbeat_at = None
+            job.lease_expires_at = None
             database.commit()
         return True
 
@@ -345,8 +420,12 @@ def main() -> None:
             factory,
             layout,
             shutdown_requested=shutdown.is_set,
+            protection_enabled=settings.classroom_protection_enabled,
         ),
         report_capacity=capacity_monitor.check,
+        background_allowed=lambda: background_work_is_allowed(
+            factory, enabled=settings.classroom_protection_enabled
+        ),
         shutdown_requested=shutdown.is_set,
     )
     heartbeat = HeartbeatWriter(

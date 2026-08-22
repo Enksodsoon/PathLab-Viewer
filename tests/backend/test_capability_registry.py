@@ -16,7 +16,7 @@ def test_capability_registry_validator_accepts_the_repository_registry() -> None
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "Capability registry valid: 4 entries\n"
+    assert result.stdout == "Capability registry valid: 5 entries\n"
 
 
 def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
@@ -29,12 +29,23 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         "admin-annotations",
         "calibrated-measurements",
         "classroom",
+        "classroom-background-protection",
         "qupath-geojson",
     }
     assert {item["evidenceState"] for item in capabilities.values()} == {"BUILT"}
-    assert {item["releaseSha"] for item in capabilities.values()} == {
+    existing = {
+        key: value
+        for key, value in capabilities.items()
+        if key != "classroom-background-protection"
+    }
+    assert {item["releaseSha"] for item in existing.values()} == {
         registry["baselineReleaseSha"]
     }
+    protection = capabilities["classroom-background-protection"]
+    assert protection["releaseSha"] == "b331171fa15a8ad4d08c62fa8a5e9c0af94c0f79"
+    assert "disabled by default and not production-activated" in protection[
+        "claimRestrictions"
+    ]
     assert "not production-certified" in capabilities["classroom"]["claimRestrictions"]
     assert "not collaborative" in capabilities["admin-annotations"]["claimRestrictions"]
     assert "requires valid slide calibration" in capabilities["calibrated-measurements"][

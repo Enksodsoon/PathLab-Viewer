@@ -19,8 +19,9 @@ class Settings(BaseSettings):
     )
 
     environment: Literal["development", "test", "production"] = "development"
-    service_role: Literal["general", "classroom", "all"] = "all"
+    service_role: Literal["general", "classroom", "worker", "tile", "all"] = "all"
     database_url: str = "sqlite:///./var/pathlab.sqlite3"
+    database_password_file: Path | None = None
     data_root: Path = Path("./var/data")
     secret_key: str = "change-this-before-deployment"
     secure_cookies: bool = True
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
     annotations_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False
+    classroom_protection_enabled: bool = False
     classroom_singleton: bool = False
     classroom_service_url: str = "http://classroom:8001"
     classroom_max_participants: int = Field(default=300, ge=1, le=2000)

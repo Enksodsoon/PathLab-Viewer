@@ -53,6 +53,21 @@ def test_tusd_uses_pathlab_data_owner() -> None:
     assert 'user: "10001:10001"' in tusd_service
 
 
+def test_uploads_use_fail_closed_classroom_admission() -> None:
+    caddy = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    uploads = caddy.split("@uploads path", maxsplit=1)[1].split(
+        "@classroom_events", maxsplit=1
+    )[0]
+    assert "forward_auth api:8000" in uploads
+    assert "uri /api/v1/internal/uploads/admission" in uploads
+
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    assert (
+        'PATHLAB_CLASSROOM_PROTECTION_ENABLED: '
+        '"${PATHLAB_CLASSROOM_PROTECTION_ENABLED:-false}"'
+    ) in compose
+
+
 def test_conversion_resource_limits_are_worker_and_tile_service_only() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     caddy_service = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]
@@ -143,6 +158,41 @@ def test_classroom_uses_the_existing_backend_image_with_a_single_bounded_worker(
     assert "cpus: 1.00" in classroom_service
     assert "mem_limit: 512m" in api_service
     assert "cpus: 0.50" in api_service
+
+
+def test_worker_and_tile_service_use_dedicated_database_pool_roles() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
+        "\nvolumes:\n", maxsplit=1
+    )[0]
+
+    assert "PATHLAB_SERVICE_ROLE: tile" in tile_service
+    assert "PATHLAB_SERVICE_ROLE: worker" in worker_service
+
+
+def test_postgres_staging_overlay_is_pinned_bounded_and_fail_closed() -> None:
+    overlay = Path("deploy/compose.postgres.yaml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    example = Path("deploy/.env.example").read_text(encoding="utf-8")
+
+    assert (
+        "postgres:18.6-alpine@sha256:"
+        "d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"
+    ) in overlay
+    assert "POSTGRES_PASSWORD_FILE: /run/secrets/pathlab-postgres-password" in overlay
+    assert overlay.count("PATHLAB_DATABASE_PASSWORD_FILE: /run/secrets/") == 3
+    assert "PATHLAB_POSTGRES_PASSWORD_FILE:?Set PATHLAB_POSTGRES_PASSWORD_FILE" in overlay
+    assert "max_connections=20" in overlay
+    assert "shared_buffers=128MB" in overlay
+    assert "mem_limit: 768m" in overlay
+    assert "cpus: 0.75" in overlay
+    assert "condition: service_healthy" in overlay
+    assert overlay.count("postgresql+psycopg://") == 3
+    assert "PATHLAB_POSTGRES_PASSWORD_FILE=/srv/pathlab/secrets/postgres-password" in example
+    assert "-f deploy/compose.postgres.yaml config" in workflow
 
 
 def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:

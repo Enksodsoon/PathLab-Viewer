@@ -38,6 +38,11 @@ from .models import (
     User,
 )
 from .publication import INDIVIDUAL, delivery_version
+from .runtime_protection import (
+    begin_classroom_cooldown,
+    bind_classroom_session,
+    request_classroom_protection,
+)
 from .storage import StorageLayout
 
 PARTICIPANT_COOKIE = "pathlab_classroom_participant"
@@ -697,6 +702,20 @@ def register_classroom_routes(
         slides_by_id = {slide.id: slide for slide in slides}
         if len(slides_by_id) != len(set(slide_ids)):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
+        if settings.classroom_protection_enabled and not is_smart_invite:
+            protection = request_classroom_protection(
+                db, classroom_session_id=None, now=now
+            )
+            if protection.running_jobs:
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "CLASSROOM_DRAINING",
+                        "runningJobs": protection.running_jobs,
+                    },
+                    headers={"Retry-After": "2"},
+                )
         public_id = secrets.token_urlsafe(24) if is_smart_invite else None
         join_code = (
             access_code(public_id, 1)
@@ -717,6 +736,8 @@ def register_classroom_routes(
         )
         db.add(classroom)
         db.flush()
+        if settings.classroom_protection_enabled and not is_smart_invite:
+            bind_classroom_session(db, classroom.id)
         snapshot: list[ClassroomSessionSlide] = []
         for position, slide_id in enumerate(slide_ids):
             slide = slides_by_id[slide_id]
@@ -768,6 +789,21 @@ def register_classroom_routes(
             or classroom.review_expires_at <= _now()
         ):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        if settings.classroom_protection_enabled:
+            protection = request_classroom_protection(
+                db, classroom_session_id=classroom.id
+            )
+            if protection.running_jobs:
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "CLASSROOM_DRAINING",
+                        "runningJobs": protection.running_jobs,
+                    },
+                    headers={"Retry-After": "2"},
+                )
+            bind_classroom_session(db, classroom.id)
         classroom.phase = "live"
         classroom.started_at = _now()
         classroom.live_expires_at = _now() + timedelta(hours=8)
@@ -794,6 +830,8 @@ def register_classroom_routes(
         classroom.expires_at = classroom.review_expires_at or _now()
         classroom.ended_at = _now()
         classroom.state_version += 1
+        if settings.classroom_protection_enabled:
+            begin_classroom_cooldown(db)
         db.commit()
         presenter_runtime.forget(session_id)
         prewarmer.clear()
@@ -807,12 +845,15 @@ def register_classroom_routes(
         classroom = db.scalar(select(ClassroomSession).where(ClassroomSession.status == "active"))
         if classroom is None:
             return
+        was_live = classroom.phase == "live"
         session_id = classroom.id
         next_state_version = classroom.state_version + 1
         classroom.status = "ended"
         classroom.phase = "revoked"
         classroom.ended_at = _now()
         classroom.state_version = next_state_version
+        if settings.classroom_protection_enabled and was_live:
+            begin_classroom_cooldown(db)
         db.commit()
         presenter_runtime.forget(session_id)
         prewarmer.clear()
@@ -2088,16 +2129,21 @@ def register_classroom_routes(
             raise HTTPException(status_code=409, detail={"code": "SYNTHETIC_RUN_MISMATCH"})
         if classroom.synthetic_run_id is not None:
             final_state_version = classroom.state_version + 1
+            if settings.classroom_protection_enabled and classroom.phase == "live":
+                begin_classroom_cooldown(db)
             db.delete(classroom)
             db.commit()
             presenter_runtime.forget(session_id)
             prewarmer.clear()
             hub.terminate_session(session_id, state_version=final_state_version)
             return
+        was_live = classroom.phase == "live"
         classroom.status = "ended"
         classroom.phase = "revoked"
         classroom.ended_at = _now()
         classroom.state_version += 1
+        if settings.classroom_protection_enabled and was_live:
+            begin_classroom_cooldown(db)
         db.commit()
         presenter_runtime.forget(session_id)
         prewarmer.clear()
