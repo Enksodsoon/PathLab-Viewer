@@ -95,12 +95,21 @@ while IFS= read -r session_id; do
     echo "Synthetic Classroom session ID is invalid." >&2
     exit 1
   }
-  curl --fail --silent --show-error --max-time 20 \
+  reset_body="${work_dir}/synthetic-reset.json"
+  reset_status="$(curl --silent --show-error --max-time 20 \
     --cookie "${cookie_jar}" --request POST \
     --header "X-CSRF-Token: ${csrf}" \
     --header "X-PathLab-Synthetic-Run: ${run_id}" \
     "${CAPACITY_BASE_URL%/}/api/v1/admin/classroom/sessions/${session_id}/synthetic-reset" \
-    >/dev/null
+    --output "${reset_body}" --write-out '%{http_code}')"
+  if [[ "${reset_status}" == 409 ]]; then
+    jq -e '.detail.code == "CLASSROOM_TRANSITION_INVALID"' "${reset_body}" >/dev/null
+  else
+    [[ "${reset_status}" == 204 ]] || {
+      echo "Synthetic Classroom reset returned unexpected status ${reset_status}." >&2
+      exit 1
+    }
+  fi
 done < <(jq -er '[to_entries[].value.sessionId] | unique[]' \
   <<< "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}")
 
