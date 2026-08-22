@@ -10,7 +10,6 @@ import { ThemeControl } from '../theme/ThemeControl'
 import {
   getStudySession,
   getStudyEvidence,
-  getStudyKnowledgePack,
   redeemStudyInvitation,
   reportStudyAiEvent,
   reportStudyReadiness,
@@ -61,6 +60,7 @@ export function StudyPage() {
   const [question, setQuestion] = useState('')
   const [tutorClaims, setTutorClaims] = useState<KnowledgeClaim[]>([])
   const [tutorStatus, setTutorStatus] = useState('')
+  const tutorWorker = useRef<Worker | null>(null)
   const startedAt = useRef(Date.now())
   const lastCompletedAt = useRef(0)
   const navigation = useRef({
@@ -88,7 +88,8 @@ export function StudyPage() {
 
   useEffect(() => {
     void getStudySession().then(restore).catch(() => undefined)
-    return () => resetTraceSim()
+    tutorWorker.current = new Worker(new URL('../study/groundedTutor.worker.ts', import.meta.url), { type: 'module' })
+    return () => { resetTraceSim(); tutorWorker.current?.terminate(); tutorWorker.current = null }
   }, [restore])
 
   useEffect(() => {
@@ -97,19 +98,14 @@ export function StudyPage() {
 
   useEffect(() => {
     setEvidence(null); setKnowledge(null); setTutorClaims([]); setQuestion(''); setTutorStatus('')
-    if (session?.pack.schema !== 'pathlab.study-pack/2') return
-    if (session.pack.knowledgePackUrl) {
-      void getStudyKnowledgePack(session.pack.knowledgePackUrl).then(setKnowledge).catch(() => setKnowledge(null))
-    }
-    if (slide?.evidenceUrl) {
-      void getStudyEvidence(slide.evidenceUrl).then(setEvidence).catch(() => setEvidence(null))
-    }
-  }, [session?.pack.schema, session?.pack.knowledgePackUrl, slide?.evidenceUrl])
+  }, [session?.pack.schema, slide?.viewerSlideId])
 
   const askTutor = async () => {
-    if (!knowledge || !task?.claimIds?.length || !question.trim()) return
+    const allowedClaimIds = feedback?.claimIds ?? []
+    if (!knowledge || !allowedClaimIds.length || !question.trim()) return
     setBusy(true); setTutorClaims([]); setTutorStatus('')
-    const worker = new Worker(new URL('../study/groundedTutor.worker.ts', import.meta.url), { type: 'module' })
+    const worker = tutorWorker.current
+    if (!worker) { setTutorStatus('Local tutor unavailable. Reviewed feedback and citations remain available.'); return }
     try {
       const requestId = crypto.randomUUID()
       const claimIds = await new Promise<string[]>((resolve, reject) => {
@@ -119,7 +115,7 @@ export function StudyPage() {
           window.clearTimeout(timer); resolve(event.data.claimIds)
         }
         worker.onerror = () => { window.clearTimeout(timer); reject(new Error('LOCAL_TUTOR_FAILED')) }
-        worker.postMessage({ requestId, pack: knowledge, question, allowedClaimIds: task.claimIds })
+        worker.postMessage({ requestId, pack: knowledge, question, allowedClaimIds })
       })
       const selected = claimIds.flatMap((id) => knowledge.claims.filter((claim) => claim.id === id))
       setTutorClaims(selected)
@@ -127,7 +123,7 @@ export function StudyPage() {
     } catch {
       setTutorStatus('Local tutor unavailable. Reviewed feedback and citations remain available.')
     } finally {
-      worker.terminate(); setBusy(false)
+      worker.onmessage = null; worker.onerror = null; setBusy(false)
     }
   }
 
@@ -197,6 +193,15 @@ export function StudyPage() {
     try {
       const result = await submitStudyTask(task.id, answer)
       setFeedback(result)
+      if (result.evidence) {
+        void getStudyEvidence(result.evidence.url).then(setEvidence).catch(() => setEvidence(null))
+      }
+      if (result.claims?.length) {
+        setKnowledge({
+          schema: 'pathlab.knowledge-pack/1', packId: 'task-scoped-grant', version: '1',
+          language: 'en', claims: result.claims, checksum: 'task-scoped',
+        })
+      }
       const activeMs = Math.max(0, Date.now() - startedAt.current)
       const now = Date.now()
       const gap = lastCompletedAt.current ? Math.min((now - lastCompletedAt.current) / 3_600_000, 1) : 0
@@ -317,13 +322,13 @@ export function StudyPage() {
           <ul>{feedback.sources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer" onClick={() => setSourceOpened(true)}>{source.title}</a></li>)}</ul>
           {evidence ? <section className="study-evidence" aria-labelledby="study-evidence-title">
             <h4 id="study-evidence-title">Reviewed research evidence</h4>
-            <p><strong>{evidence.evidence.length}</strong> evidence regions · <strong>{evidence.cellAggregates.reduce((sum, item) => sum + item.count, 0)}</strong> described nuclei · uncertainty {Math.round(evidence.qc.uncertainty * 100)}%</p>
-            {evidence.ihcDescriptors.map((item) => <p key={`${item.regionId}-${item.marker}`}><strong>{item.marker.toUpperCase()}</strong> {item.compartment}: DAB area {Math.round(item.dabAreaFraction * 100)}%, mean OD {item.meanDabOd.toFixed(2)}. {item.calibrationStatus === 'calibrated' ? 'Control-calibrated.' : 'Within-slide relative measurement.'} {item.abstentionReason ? `Limitation: ${item.abstentionReason}. ` : ''}Research estimate only.</p>)}
+            <p><strong>{(evidence.regions ?? evidence.evidence ?? []).length}</strong> evidence regions · <strong>{evidence.cellAggregates.reduce((sum, item) => sum + item.count, 0)}</strong> described nuclei · uncertainty {Math.round(evidence.qc.uncertainty * 100)}%</p>
+            {evidence.ihcDescriptors.map((item) => <p key={`${item.regionId}-${item.marker ?? item.markerId}`}><strong>{(item.marker ?? item.markerId ?? 'IHC').toUpperCase()}</strong> {item.compartment ?? item.analysisMode}: {item.dabAreaFraction === undefined ? 'bounded descriptive measurements' : `DAB area ${Math.round(item.dabAreaFraction * 100)}%`}{item.meanDabOd === undefined ? '' : `, mean OD ${item.meanDabOd.toFixed(2)}`}. {item.calibrationStatus === 'calibrated' ? 'Control-calibrated.' : 'Within-slide relative measurement.'} {item.abstentionReason ? `Limitation: ${item.abstentionReason}. ` : ''}Research estimate only.</p>)}
             {evidence.qc.warnings?.map((warning) => <p key={warning} className="study-hint">QC warning: {warning}</p>)}
             {evidence.qc.abstentionReasons.map((reason) => <p key={reason} className="study-hint">Abstention: {reason}</p>)}
             <small>Signed bundle {evidence.manifestSha256.slice(0, 12)}… · non-diagnostic</small>
           </section> : null}
-          {knowledge && task?.claimIds?.length ? <section className="study-tutor" aria-labelledby="study-tutor-title">
+          {knowledge && feedback.claimIds?.length ? <section className="study-tutor" aria-labelledby="study-tutor-title">
             <h4 id="study-tutor-title">Ask reviewed pathology sources</h4>
             <p>Your question stays in browser memory. Responses can only display reviewed claim cards.</p>
             <label htmlFor="study-tutor-question">Question</label>

@@ -61,6 +61,7 @@ export async function submitStudyTask(
     sources: Array<{ title: string; url: string }>
     spatialError?: number
     claimIds?: string[]
+    claims?: KnowledgePack['claims']
     evidence?: { manifestSha256: string; url: string }
   }>(await studyFetch(`/api/v1/study/tasks/${encodeURIComponent(taskId)}/submit`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(submission),
@@ -73,6 +74,30 @@ export async function getStudyKnowledgePack(url: string): Promise<KnowledgePack>
 
 export async function getStudyEvidence(url: string): Promise<EvidenceBundle> {
   return body(await studyFetch(url, { cache: 'no-store' }))
+}
+
+export type EvidenceReviewSummary = {
+  id: string; slideId: string; bundleId: string; manifestSha256: string
+  packId: string; packVersion: string; status: string; validationStatus: string
+  reviewedAt: string | null; createdAt: string
+}
+
+export async function listEvidenceForReview(): Promise<EvidenceReviewSummary[]> {
+  return body(await csrfFetch('/api/v1/admin/study/evidence', { cache: 'no-store' }))
+}
+
+export async function getEvidenceForReview(id: string): Promise<{
+  id: string; slideId: string; manifestSha256: string; manifest: Record<string, unknown>
+  reviewedAt: string | null
+}> {
+  return body(await csrfFetch(`/api/v1/admin/study/evidence/${encodeURIComponent(id)}`, { cache: 'no-store' }))
+}
+
+export async function approveEvidence(id: string, checksum: string): Promise<void> {
+  await body(await csrfFetch(`/api/v1/admin/study/evidence/${encodeURIComponent(id)}/review`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ previewChecksum: checksum }),
+  }))
 }
 
 export async function reportStudyReadiness(outcome: 'ready' | 'fallback') {

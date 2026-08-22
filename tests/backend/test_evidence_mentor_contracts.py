@@ -11,6 +11,8 @@ from wsi_viewer.evidence_contract import validate_evidence
 from wsi_viewer.knowledge_pack_contract import retrieve_claims, validate_knowledge_pack
 from wsi_viewer.study_pack_contract import canonical_json
 
+_TRUSTED_SIGNERS: dict[str, bytes] = {}
+
 
 def _signed_evidence(
     *, aggregate_region_id: str = "region-1", ihc_descriptor: dict[str, object] | None = None
@@ -94,17 +96,20 @@ def _signed_evidence(
         .decode()
         .rstrip("="),
     }
+    _TRUSTED_SIGNERS[hashlib.sha256(public_bytes).hexdigest()] = public_bytes
     return value
 
 
 def test_evidence_signature_identity_and_slide_binding() -> None:
     value = _signed_evidence()
     assert (
-        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
         == value["manifestSha256"]
     )
     with pytest.raises(ValueError, match="SLIDE_IDENTITY_MISMATCH"):
-        validate_evidence(value, slide_sha256="c" * 64, slide_revision="slide-revision-1")
+        validate_evidence(value, slide_sha256="c" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
 
 
 def test_evidence_rejects_tamper_benchmark_rights_and_clinical_fields() -> None:
@@ -112,21 +117,25 @@ def test_evidence_rejects_tamper_benchmark_rights_and_clinical_fields() -> None:
     tampered = deepcopy(value)
     tampered["qc"]["focus"] = 0.1  # type: ignore[index]
     with pytest.raises(ValueError, match="MANIFEST_HASH_MISMATCH"):
-        validate_evidence(tampered, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+        validate_evidence(tampered, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
     benchmark = deepcopy(value)
     benchmark["pack"]["allowedUse"] = "benchmark-only"  # type: ignore[index]
     with pytest.raises(ValueError, match="RIGHTS_BLOCKED"):
-        validate_evidence(benchmark, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+        validate_evidence(benchmark, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
     clinical = deepcopy(value)
     clinical["clinicalScore"] = "positive"
     with pytest.raises(ValueError, match="FIELDS_INVALID|PROHIBITED"):
-        validate_evidence(clinical, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+        validate_evidence(clinical, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
 
 
 def test_evidence_rejects_aggregates_outside_signed_regions() -> None:
     value = _signed_evidence(aggregate_region_id="missing-region")
     with pytest.raises(ValueError, match="REGION_REFERENCE_INVALID"):
-        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
 
 
 def test_pd_l1_compartment_requires_faculty_review_and_generic_fallback() -> None:
@@ -147,7 +156,8 @@ def test_pd_l1_compartment_requires_faculty_review_and_generic_fallback() -> Non
     }
     with pytest.raises(ValueError, match="COMPARTMENT_REVIEW_REQUIRED"):
         value = _signed_evidence(ihc_descriptor=base)
-        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+                          trusted_signers=_TRUSTED_SIGNERS)
 
     fallback = {
         **base,
@@ -157,7 +167,8 @@ def test_pd_l1_compartment_requires_faculty_review_and_generic_fallback() -> Non
     }
     value = _signed_evidence(ihc_descriptor=fallback)
     assert validate_evidence(
-        value, slide_sha256="a" * 64, slide_revision="slide-revision-1"
+        value, slide_sha256="a" * 64, slide_revision="slide-revision-1",
+        trusted_signers=_TRUSTED_SIGNERS,
     ) == value["manifestSha256"]
 
 

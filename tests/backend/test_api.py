@@ -39,8 +39,23 @@ from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 from wsi_viewer.study_pack_contract import canonical_json
 
+_EVIDENCE_PRIVATE_KEY = Ed25519PrivateKey.generate()
+_EVIDENCE_PUBLIC_KEY = _EVIDENCE_PRIVATE_KEY.public_key().public_bytes(
+    serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+)
+
 
 def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    signer_path = tmp_path / "trusted-evidence-signers.json"
+    signer_path.write_text(json.dumps({
+        "schema": "pathlab.trusted-signers/1",
+        "keys": [{
+            "keyId": hashlib.sha256(_EVIDENCE_PUBLIC_KEY).hexdigest(),
+            "publicKeyDer": base64.urlsafe_b64encode(_EVIDENCE_PUBLIC_KEY).decode().rstrip("="),
+            "allowedUse": "evidence",
+        }],
+    }))
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
@@ -49,6 +64,7 @@ def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
         tus_internal_upload_dir=tmp_path / "tus",
         annotations_enabled=True,
         desktop_ome_dynamic_enabled=ome_dynamic_enabled,
+        evidence_trusted_signers_path=signer_path,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -76,11 +92,8 @@ def _has_error(response: Response, status_code: int, code: str) -> bool:
 
 
 def _signed_evidence(slide_sha: str, revision: str) -> dict[str, object]:
-    private = Ed25519PrivateKey.generate()
-    public = private.public_key().public_bytes(
-        serialization.Encoding.DER,
-        serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
+    private = _EVIDENCE_PRIVATE_KEY
+    public = _EVIDENCE_PUBLIC_KEY
     value: dict[str, object] = {
         "schema": "pathlab.ai-evidence/1",
         "bundleId": "bundle-delivery-1",

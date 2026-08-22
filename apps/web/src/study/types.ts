@@ -29,13 +29,17 @@ export type KnowledgePack = {
 }
 
 export type EvidenceBundle = {
-  schema: 'pathlab.ai-evidence/1'
+  schema: 'pathlab.ai-evidence/1' | 'pathlab.ai-evidence/2'
   manifestSha256: string
   status: 'completed' | 'partial' | 'abstained' | 'unsupported' | 'failed'
   researchOnly: true
   notDiagnostic: true
-  evidence: Array<{
-    id: string; stage: 'coarse' | 'refined'; kind: 'support' | 'similar' | 'contrast'
+  evidence?: Array<{
+    id: string; stage: 'coarse' | 'refined'; kind: string
+    x: number; y: number; width: number; height: number; score: number; thumbnail?: string
+  }>
+  regions?: Array<{
+    id: string; stage: 'coarse' | 'refined'; kind: string; reviewStatus: string
     x: number; y: number; width: number; height: number; score: number; thumbnail?: string
   }>
   cellAggregates: Array<{
@@ -45,8 +49,8 @@ export type EvidenceBundle = {
     meanNucleusSolidity?: number | null; uncertainty?: number
   }>
   ihcDescriptors: Array<{
-    regionId: string; marker: string; compartment: string
-    dabAreaFraction: number; meanDabOd: number; researchEstimate: true
+    regionId: string; marker?: string; compartment?: string
+    dabAreaFraction?: number; meanDabOd?: number; measurements?: Record<string, unknown>; researchEstimate: true
     markerId?: string; analysisMode?: 'marker-aware' | 'generic-fallback'
     cellMaskSource?: 'hovernet-fast' | 'od-watershed'
     compartmentSource?: 'none' | 'faculty-authored' | 'faculty-approved' | 'model-suggested'
@@ -70,7 +74,7 @@ export type StudySession = {
     endsAt: string | null
   }
   pack: {
-    schema: 'pathlab.study-pack/1' | 'pathlab.study-pack/2'
+    schema: 'pathlab.study-pack/1' | 'pathlab.study-pack/2' | 'pathlab.study-pack/3'
     packKey: string
     version: number
     title: string
@@ -80,6 +84,7 @@ export type StudySession = {
       displayName: string
       tileSource: string
       evidenceBundleSha256?: string
+      evidenceSetSha256?: string
       evidenceUrl?: string
     }>
     tasks: StudyTask[]
@@ -185,7 +190,7 @@ export type StudyPackTaskDefinition = StudyTask & {
 }
 
 export type StudyPackDefinition = {
-  schema: 'pathlab.study-pack/1' | 'pathlab.study-pack/2'
+  schema: 'pathlab.study-pack/1' | 'pathlab.study-pack/2' | 'pathlab.study-pack/3'
   packKey: string
   version: number
   title: string
@@ -195,7 +200,8 @@ export type StudyPackDefinition = {
   revision: string
   languages: Array<'en' | 'th'>
   slides: Array<{
-    viewerSlideId: string; sha256: string; displayName: string; evidenceBundleSha256?: string
+    viewerSlideId: string; sha256: string; displayName: string
+    evidenceBundleSha256?: string; evidenceSetSha256?: string
   }>
   tasks: StudyPackTaskDefinition[]
   knowledgePackChecksum?: string

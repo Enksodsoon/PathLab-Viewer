@@ -499,6 +499,31 @@ class EvidenceBundle(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class EvidenceSet(Base):
+    __tablename__ = "evidence_sets"
+    __table_args__ = (
+        UniqueConstraint("manifest_sha256", name="uq_evidence_sets_manifest"),
+        UniqueConstraint("slide_id", "set_id", name="uq_evidence_sets_slide_set"),
+        CheckConstraint(
+            "status IN ('completed', 'partial', 'abstained')", name="ck_evidence_sets_status"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    set_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    reviewed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class AnalysisRun(Base):
     __tablename__ = "analysis_runs"
     __table_args__ = (UniqueConstraint("slide_id", "external_id"),)

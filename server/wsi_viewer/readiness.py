@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .models import Base
 
-ALEMBIC_HEAD = "20260822_0025"
+ALEMBIC_HEAD = "20260822_0027"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
 ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
 READINESS_CACHE_SECONDS = 1.0
