@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hashlib
 import inspect
 import io
@@ -13,6 +14,8 @@ import numpy as np
 import pytest
 import tifffile
 from argon2 import PasswordHasher
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
 from httpx import Response
 from PIL import Image
@@ -25,6 +28,7 @@ from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AnalysisRun,
     DesktopIngest,
+    EvidenceBundle,
     Job,
     PathObjectMeasurement,
     PathObjectMetadata,
@@ -33,9 +37,25 @@ from wsi_viewer.models import (
 )
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
+from wsi_viewer.study_pack_contract import canonical_json
+
+_EVIDENCE_PRIVATE_KEY = Ed25519PrivateKey.generate()
+_EVIDENCE_PUBLIC_KEY = _EVIDENCE_PRIVATE_KEY.public_key().public_bytes(
+    serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+)
 
 
 def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    signer_path = tmp_path / "trusted-evidence-signers.json"
+    signer_path.write_text(json.dumps({
+        "schema": "pathlab.trusted-signers/1",
+        "keys": [{
+            "keyId": hashlib.sha256(_EVIDENCE_PUBLIC_KEY).hexdigest(),
+            "publicKeyDer": base64.urlsafe_b64encode(_EVIDENCE_PUBLIC_KEY).decode().rstrip("="),
+            "allowedUse": "evidence",
+        }],
+    }))
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
@@ -44,6 +64,7 @@ def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
         tus_internal_upload_dir=tmp_path / "tus",
         annotations_enabled=True,
         desktop_ome_dynamic_enabled=ome_dynamic_enabled,
+        evidence_trusted_signers_path=signer_path,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -68,6 +89,62 @@ def _login(client: TestClient) -> str:
 
 def _has_error(response: Response, status_code: int, code: str) -> bool:
     return response.status_code == status_code and response.json() == {"detail": {"code": code}}
+
+
+def _signed_evidence(slide_sha: str, revision: str) -> dict[str, object]:
+    private = _EVIDENCE_PRIVATE_KEY
+    public = _EVIDENCE_PUBLIC_KEY
+    value: dict[str, object] = {
+        "schema": "pathlab.ai-evidence/1",
+        "bundleId": "bundle-delivery-1",
+        "source": {"slideSha256": slide_sha, "revision": revision},
+        "pack": {
+            "id": "od-watershed-v1",
+            "version": "1",
+            "manifestSha256": "c" * 64,
+            "preprocessing": "od-v1",
+            "artifacts": [],
+            "allowedUse": "private-research",
+            "validationStatus": "experimental",
+        },
+        "status": "completed",
+        "researchOnly": True,
+        "notDiagnostic": True,
+        "reviewRequired": True,
+        "coordinates": {
+            "space": "source-pixel",
+            "originX": 0,
+            "originY": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+        },
+        "evidence": [],
+        "cellAggregates": [],
+        "ihcDescriptors": [],
+        "citations": [],
+        "qc": {
+            "focus": 0.9,
+            "tissueFraction": 0.7,
+            "uncertainty": 0.2,
+            "abstentionReasons": [],
+        },
+        "provenance": {
+            "createdAt": "2026-08-22T00:00:00Z",
+            "codeRevision": "test",
+            "offlineAnalysis": True,
+        },
+    }
+    digest = hashlib.sha256(canonical_json(value).encode()).hexdigest()
+    value["manifestSha256"] = digest
+    value["signature"] = {
+        "algorithm": "Ed25519",
+        "keyId": hashlib.sha256(public).hexdigest(),
+        "publicKeyDer": base64.urlsafe_b64encode(public).decode().rstrip("="),
+        "value": base64.urlsafe_b64encode(private.sign(f"pathlab.ai-evidence/1\n{digest}".encode()))
+        .decode()
+        .rstrip("="),
+    }
+    return value
 
 
 def _desktop_authorization(client: TestClient) -> dict[str, str]:
@@ -338,9 +415,9 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "annotations:sync",
             "results:sync",
             "library:read",
-                "slides:offline:read",
-                "library:sync",
-            }
+            "slides:offline:read",
+            "library:sync",
+        }
 
         replay = client.post(
             "/api/v1/desktop/pairings/exchange",
@@ -610,6 +687,7 @@ def test_private_result_bundle_applies_objects_and_measurements_atomically(
             b'"geometry":{"type":"point","x":10,"y":20},"style":{"color":"#f00"}}\n'
         ),
         "measurements.ndjson": (b'{"objectId":"object-1","name":"x","value":10,"unit":"px"}\n'),
+        "evidence.json": json.dumps(_signed_evidence(slide_sha, "revision-1")).encode(),
     }
     with tarfile.open(fileobj=stream, mode="w:gz") as archive:
         for name, payload in documents.items():
@@ -658,6 +736,11 @@ def test_private_result_bundle_applies_objects_and_measurements_atomically(
             assert len(list(database.scalars(select(PathObjectMetadata)))) == 1
             assert len(list(database.scalars(select(PathObjectMeasurement)))) == 1
             assert database.scalar(select(PathObjectMetadata)).hidden is False
+            evidence = database.scalar(select(EvidenceBundle))
+            assert evidence is not None
+            assert evidence.slide_id == slide_id
+            assert evidence.manifest_sha256 == evidence.manifest["manifestSha256"]
+            assert evidence.reviewed_at is None
 
 
 def test_desktop_ome_kill_switch_removes_capability_and_rejects_ingest(

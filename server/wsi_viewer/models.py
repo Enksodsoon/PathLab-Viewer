@@ -463,6 +463,67 @@ class ResultDelivery(Base):
     )
 
 
+class EvidenceBundle(Base):
+    __tablename__ = "evidence_bundles"
+    __table_args__ = (
+        UniqueConstraint("manifest_sha256", name="uq_evidence_bundles_manifest"),
+        UniqueConstraint("slide_id", "bundle_id", name="uq_evidence_bundles_slide_bundle"),
+        CheckConstraint(
+            "status IN ('completed', 'partial', 'abstained', 'unsupported', 'failed')",
+            name="ck_evidence_bundles_status",
+        ),
+        CheckConstraint(
+            "validation_status IN ('experimental', 'qualified')",
+            name="ck_evidence_bundles_validation",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    delivery_id: Mapped[str] = mapped_column(
+        ForeignKey("result_deliveries.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bundle_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    pack_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    pack_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    validation_status: Mapped[str] = mapped_column(String(24), nullable=False)
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    reviewed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class EvidenceSet(Base):
+    __tablename__ = "evidence_sets"
+    __table_args__ = (
+        UniqueConstraint("manifest_sha256", name="uq_evidence_sets_manifest"),
+        UniqueConstraint("slide_id", "set_id", name="uq_evidence_sets_slide_set"),
+        CheckConstraint(
+            "status IN ('completed', 'partial', 'abstained')", name="ck_evidence_sets_status"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    set_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    reviewed_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class AnalysisRun(Base):
     __tablename__ = "analysis_runs"
     __table_args__ = (UniqueConstraint("slide_id", "external_id"),)
@@ -1184,6 +1245,25 @@ class StudyPack(Base):
     pack_key: Mapped[str] = mapped_column(String(120), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str] = mapped_column(String(240), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    definition: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_by_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class KnowledgePack(Base):
+    __tablename__ = "knowledge_packs"
+    __table_args__ = (
+        UniqueConstraint("pack_key", "version", name="uq_knowledge_packs_key_version"),
+        UniqueConstraint("checksum", name="uq_knowledge_packs_checksum"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    pack_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    language: Mapped[str] = mapped_column(String(8), nullable=False)
     checksum: Mapped[str] = mapped_column(String(64), nullable=False)
     definition: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_by_user_id: Mapped[str] = mapped_column(
