@@ -334,7 +334,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
         'elif [[ "$*" == *"lifecycle-state"* ]]; then '
         'if [[ -f "$OCI_DELETE_MARKER" ]]; then echo DELETED; else echo ACTIVE; fi; '
         'elif [[ "$*" == *"ssh-metadata"* ]]; then '
-        'echo "ssh -i <privateKey> -N -L <localPort>:10.0.0.1:22 -p 22 test@bastion.example"; fi\n',
+        'echo "ssh -i <privateKey> -N -L <localPort>:10.0.0.1:22 -p 22 test@example.com"; fi\n',
         encoding="utf-8",
     )
     fake_keygen = fake_bin / "ssh-keygen"
