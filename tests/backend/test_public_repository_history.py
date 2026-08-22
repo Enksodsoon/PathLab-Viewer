@@ -83,6 +83,30 @@ def test_current_tree_catches_local_workstation_path(tmp_path: Path) -> None:
     assert "local workstation path" in scanned.stderr
 
 
+def test_current_tree_allows_reserved_example_subdomain(tmp_path: Path) -> None:
+    repo, _ = make_repo(tmp_path)
+    (repo / "fixture.txt").write_text(
+        "ssh-user=test@bastion.example\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "fixture.txt")
+
+    assert run_scan(repo).returncode == 0
+
+
+def test_current_tree_rejects_example_lookalike_domain(tmp_path: Path) -> None:
+    repo, _ = make_repo(tmp_path)
+    (repo / "fixture.txt").write_text(
+        "ssh-user=test@bastion.example." + "invalid-domain.com\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "fixture.txt")
+
+    scanned = run_scan(repo)
+    assert scanned.returncode == 1
+    assert "non-example email address" in scanned.stderr
+
+
 def test_history_scan_allows_privacy_safe_commit_metadata(tmp_path: Path) -> None:
     repo, base = make_repo(tmp_path)
     (repo / "clean.txt").write_text("safe\n", encoding="utf-8")
