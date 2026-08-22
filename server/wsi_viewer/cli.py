@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
@@ -22,6 +22,8 @@ from .runtime_protection import CLASSROOM_GUARD_ID, IDLE
 from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
+
+RUNTIME_GUARD_PREDECESSOR_REVISION = "20260821_0023"
 
 
 def _read_password(password_stdin: bool) -> str:
@@ -160,11 +162,18 @@ def main() -> None:
             )
             if active_classroom is not None:
                 raise SystemExit("Deployment blocked: a Classroom session is active")
-            runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
-            if runtime_guard is not None and runtime_guard.mode != IDLE:
-                raise SystemExit(
-                    f"Deployment blocked: Classroom protection is {runtime_guard.mode}"
-                )
+            if inspect(database.get_bind()).has_table(RuntimeGuard.__tablename__):
+                runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
+                if runtime_guard is not None and runtime_guard.mode != IDLE:
+                    raise SystemExit(
+                        f"Deployment blocked: Classroom protection is {runtime_guard.mode}"
+                    )
+            else:
+                revision = database.scalar(text("SELECT version_num FROM alembic_version"))
+                if revision != RUNTIME_GUARD_PREDECESSOR_REVISION:
+                    raise SystemExit(
+                        "Deployment blocked: Classroom protection schema is unavailable"
+                    )
             return
         user = database.scalar(select(User).where(User.username == args.username))
         if args.command == "issue-recovery-code":
