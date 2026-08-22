@@ -71,6 +71,7 @@ ARM_PATTERN='^capacity-arm [0-9a-f]{40} run=[a-z0-9-]{1,64} digest=[0-9a-f]{64} 
 STATUS_PATTERN='^capacity-status run=[a-z0-9-]{1,64}$'
 FINALIZE_PATTERN='^capacity-finalize [0-9a-f]{40} run=[a-z0-9-]{1,64} digest=[0-9a-f]{64} evidence=[A-Za-z0-9_-]+ signature=[0-9a-f]{64} nonce=[A-Za-z0-9._-]{8,128}$'
 FAULT_PATTERN='^capacity-fault run=[a-z0-9-]{1,64} digest=[0-9a-f]{64}$'
+TERMINATE_PATTERN='^capacity-terminate-controller run=[a-z0-9-]{1,64} digest=[0-9a-f]{64}$'
 ABORT_PATTERN='^capacity-abort run=[a-z0-9-]{1,64} digest=[0-9a-f]{64}$'
 ACK_PATTERN='^capacity-ack run=[a-z0-9-]{1,64} digest=[0-9a-f]{64}$'
 POSTFLIGHT_PATTERN='^capacity-postflight expected=[0-9a-f]{40} manifest=[0-9a-f]{64}$'
@@ -84,6 +85,7 @@ fi
 for remote_request in "${REMOTE_REQUESTS[@]}"; do
   [[ "${remote_request}" =~ ${ARM_PATTERN} || "${remote_request}" =~ ${STATUS_PATTERN} || \
      "${remote_request}" =~ ${FINALIZE_PATTERN} || "${remote_request}" =~ ${FAULT_PATTERN} || \
+      "${remote_request}" =~ ${TERMINATE_PATTERN} || \
       "${remote_request}" =~ ${ABORT_PATTERN} || "${remote_request}" =~ ${ACK_PATTERN} || \
       "${remote_request}" =~ ${POSTFLIGHT_PATTERN} || "${remote_request}" =~ ${RECOVER_PATTERN} || \
       "${remote_request}" =~ ${RUNTIME_PREFLIGHT_PATTERN} ]] || fail "request is not allowlisted"
