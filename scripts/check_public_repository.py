@@ -64,6 +64,7 @@ ALLOWED_EMAIL_DOMAINS = {
     "users.noreply.github.com",
 }
 ALLOWED_EXACT_EMAILS = {"noreply@github.com"}
+ALLOWED_RESERVED_EMAIL_SUFFIXES = (".example", ".invalid", ".test")
 LOCK_NAMES = {"pnpm-lock.yaml", "package-lock.json", "yarn.lock"}
 
 Finding = tuple[str, int, str]
@@ -92,7 +93,10 @@ def is_allowed_email(value: str) -> bool:
         separator
         and local_part
         and "@" not in local_part
-        and domain in ALLOWED_EMAIL_DOMAINS
+        and (
+            domain in ALLOWED_EMAIL_DOMAINS
+            or domain.endswith(ALLOWED_RESERVED_EMAIL_SUFFIXES)
+        )
     )
 
 
