@@ -567,6 +567,8 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "secrets.OCI_CONFIG" in workflow
     assert "secrets.OCI_API_PRIVATE_KEY" in workflow
     assert "secrets.OCI_BASTION_KNOWN_HOSTS" in workflow
+    assert "secrets.OCI_TARGET_DEPLOY_KEY" in workflow
+    assert "secrets.OCI_TARGET_KNOWN_HOSTS" in workflow
     assert "deploy/scripts/deploy-via-bastion.sh" in workflow
     assert "deploy/scripts/reconcile-bastion-sessions.sh" in workflow
     assert "actions: read" in workflow
@@ -592,17 +594,21 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     script = Path("deploy/scripts/deploy-via-bastion.sh").read_text(encoding="utf-8")
 
     assert "ssh-keygen" in script
-    assert "oci bastion session create-managed-ssh" in script
+    assert "oci bastion session create-port-forwarding" in script
+    assert "create-managed-ssh" not in script
     assert "oci bastion session list" in script
     assert "--wait-for-state" not in script
     assert "trap cleanup_bastion_session EXIT" in script
     assert "oci bastion session delete" in script
     assert 'SESSION_NAME="pathlab-deploy-${GITHUB_RUN_ID:-manual}-' in script
-    assert "activation_deadline=$((SECONDS + 900))" in script
+    assert "activation_deadline=$((SECONDS + 300))" in script
     assert "cleanup_deadline=$((SECONDS + 600))" in script
     assert "SESSION_SEEN" in script
     assert "zero active sessions" not in script
     assert "zero nonterminal sessions" in script
+    assert "<localPort>" in script
+    assert "HostKeyAlias=pathlab-target" in script
+    assert '"${TARGET_SSH[@]}" "${REMOTE_REQUEST}"' in script
     assert "StrictHostKeyChecking=yes" in script
     assert "ServerAliveInterval=15" in script
     assert "ServerAliveCountMax=40" in script

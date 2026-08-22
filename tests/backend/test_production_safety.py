@@ -728,7 +728,7 @@ def test_deploy_workflow_produces_and_transports_authenticated_evidence() -> Non
     assert "evidence=${EVIDENCE_B64}" in bastion
     assert "signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE}" in bastion
     assert 'REMOTE_REQUEST="provision-evidence-key sha=${TARGET_SHA}"' in bastion
-    assert "printf '%s\\n' \"${PATHLAB_DEPLOY_EVIDENCE_KEY}\" | bash -c" in bastion
+    assert "printf '%s\\n' \"${PATHLAB_DEPLOY_EVIDENCE_KEY}\" | \"${TARGET_SSH[@]}\"" in bastion
     assert "provision-evidence-key sha=${TARGET_SHA} key=" not in bastion
     assert '"lifecycle-state" == `ACTIVE`' in bastion
     assert '"lifecycle-state" == `CREATING`' in bastion

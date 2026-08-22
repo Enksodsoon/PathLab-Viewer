@@ -10,6 +10,7 @@ SESSION_ID=""
 SESSION_NAME="pathlab-deploy-${GITHUB_RUN_ID:-manual}-$(date -u +%s)"
 SESSION_CREATE_ACCEPTED=0
 SESSION_SEEN=0
+TUNNEL_PID=""
 WORK_DIR="$(mktemp -d)"
 KEY_FILE="${WORK_DIR}/bastion-session"
 if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
@@ -30,6 +31,10 @@ cleanup_bastion_session() {
   local cleanup_failed=0
   local cleanup_deadline session_state sessions_file
   trap - EXIT
+  if [[ -n "${TUNNEL_PID}" ]] && kill -0 "${TUNNEL_PID}" >/dev/null 2>&1; then
+    kill "${TUNNEL_PID}" >/dev/null 2>&1 || true
+    wait "${TUNNEL_PID}" >/dev/null 2>&1 || true
+  fi
   if [[ "${SESSION_CREATE_ACCEPTED}" == 1 ]]; then
     sessions_file="${WORK_DIR}/cleanup-sessions.json"
     cleanup_deadline=$((SECONDS + 600))
@@ -103,7 +108,11 @@ fi
 : "${OCI_INSTANCE_ID:?OCI_INSTANCE_ID is required}"
 : "${OCI_TARGET_PRIVATE_IP:?OCI_TARGET_PRIVATE_IP is required}"
 : "${OCI_KNOWN_HOSTS_FILE:?OCI_KNOWN_HOSTS_FILE is required}"
+: "${OCI_TARGET_KEY_FILE:?OCI_TARGET_KEY_FILE is required}"
+: "${OCI_TARGET_KNOWN_HOSTS_FILE:?OCI_TARGET_KNOWN_HOSTS_FILE is required}"
 [[ -f "${OCI_KNOWN_HOSTS_FILE}" ]] || fail "pinned SSH host keys are missing"
+[[ -f "${OCI_TARGET_KEY_FILE}" ]] || fail "target deployment key is missing"
+[[ -f "${OCI_TARGET_KNOWN_HOSTS_FILE}" ]] || fail "pinned target host keys are missing"
 if [[ "${PROVISION_EVIDENCE_KEY}" == 0 ]]; then
   [[ -f "${PATHLAB_DEPLOY_EVIDENCE_FILE}" ]] || fail "deployment evidence is missing"
   [[ "$(wc -c < "${PATHLAB_DEPLOY_EVIDENCE_FILE}")" -le 65536 ]] || \
@@ -124,7 +133,7 @@ NONTERMINAL_SESSIONS="$(
 
 ssh-keygen -q -t ed25519 -N "" -f "${KEY_FILE}"
 
-oci bastion session create-managed-ssh \
+oci bastion session create-port-forwarding \
   --bastion-id "${OCI_BASTION_ID}" \
   --display-name "${SESSION_NAME}" \
   --key-type PUB \
@@ -132,12 +141,11 @@ oci bastion session create-managed-ssh \
   --target-resource-id "${OCI_INSTANCE_ID}" \
   --target-private-ip "${OCI_TARGET_PRIVATE_IP}" \
   --target-port 22 \
-  --target-os-username "${TARGET_USER}" \
   --session-ttl 1800 \
   >/dev/null
 SESSION_CREATE_ACCEPTED=1
 
-activation_deadline=$((SECONDS + 900))
+activation_deadline=$((SECONDS + 300))
 while (( SECONDS < activation_deadline )); do
   SESSION_ID="$(
     oci bastion session list \
@@ -171,16 +179,57 @@ SSH_COMMAND="$(
     --query 'data."ssh-metadata".command' \
     --raw-output
 )"
-[[ "${SSH_COMMAND}" == ssh\ * ]] || fail "OCI did not return a managed SSH command"
+[[ "${SSH_COMMAND}" == ssh\ * && "${SSH_COMMAND}" == *"<localPort>"* ]] || \
+  fail "OCI did not return a port-forwarding SSH command"
 
 SSH_COMMAND="${SSH_COMMAND//<privateKey>/${KEY_FILE}}"
+LOCAL_PORT="$(python3 - <<'PY'
+import socket
+
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    print(listener.getsockname()[1])
+PY
+)"
+[[ "${LOCAL_PORT}" =~ ^[0-9]{4,5}$ ]] || fail "local tunnel port allocation failed"
+SSH_COMMAND="${SSH_COMMAND//<localPort>/${LOCAL_PORT}}"
 SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
-SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes"
+SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes"
 SSH_COMMAND="${SSH_COMMAND//ssh /ssh ${SSH_OPTIONS} }"
+bash -c "${SSH_COMMAND}" >"${WORK_DIR}/tunnel.out" 2>"${WORK_DIR}/tunnel.err" &
+TUNNEL_PID=$!
+for _ in $(seq 1 60); do
+  kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 || fail "Bastion tunnel exited before readiness"
+  if python3 - "${LOCAL_PORT}" <<'PY'
+import socket
+import sys
+
+try:
+    with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.25):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+  then
+    TUNNEL_READY=1
+    break
+  fi
+  sleep 0.5
+done
+[[ "${TUNNEL_READY:-0}" == 1 ]] || fail "Bastion tunnel did not become ready"
+
+TARGET_SSH=(
+  ssh -i "${OCI_TARGET_KEY_FILE}" -p "${LOCAL_PORT}"
+  -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+  -o HostKeyAlias=pathlab-target -o UserKnownHostsFile="${OCI_TARGET_KNOWN_HOSTS_FILE}"
+  -o ConnectTimeout=10 -o ConnectionAttempts=1
+  -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes
+  "${TARGET_USER}@127.0.0.1"
+)
 
 if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
   REMOTE_REQUEST="provision-evidence-key sha=${TARGET_SHA}"
-  printf '%s\n' "${PATHLAB_DEPLOY_EVIDENCE_KEY}" | bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
+  printf '%s\n' "${PATHLAB_DEPLOY_EVIDENCE_KEY}" | "${TARGET_SSH[@]}" "${REMOTE_REQUEST}"
 else
   EVIDENCE_B64="$(base64 -w 0 "${PATHLAB_DEPLOY_EVIDENCE_FILE}" | tr '+/' '-_' | tr -d '=')"
   REMOTE_REQUEST="deploy ${TARGET_SHA} evidence=${EVIDENCE_B64} signature=${PATHLAB_DEPLOY_EVIDENCE_SIGNATURE} nonce=${PATHLAB_DEPLOY_EVIDENCE_NONCE}"
@@ -192,5 +241,5 @@ else
   if [[ "${ANNOTATIONS_ENABLED}" == true ]]; then
     REMOTE_REQUEST="${REMOTE_REQUEST} annotations=${ANNOTATIONS_ENABLED}"
   fi
-  bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
+  "${TARGET_SSH[@]}" "${REMOTE_REQUEST}"
 fi
