@@ -71,6 +71,7 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "aggregate",
         "cleanup",
         "postflight",
+        "terminal-summary",
     }
     assert jobs["aggregate"]["needs"] == [
         "preflight",
@@ -175,7 +176,8 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert "window-end=${window_end}" in serialized
     assert "browser-matrix.json" in serialized
     assert "capacity-postflight.json" in serialized
-    assert "OCI_ROLLBACK_RELEASE_SHA" in serialized
+    assert "OCI_ROLLBACK_RELEASE_SHA" not in serialized
+    assert "capacity-runtime-preflight" in serialized
     assert "NOT CERTIFIED" in serialized
     assert "capacity_window.py" in serialized
     assert "capacity-decision.json.sig" in serialized
@@ -183,20 +185,18 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert "playwright.capacity-metrics.config.ts" in sentinel_runner
     assert "chromium firefox webkit" in serialized
     assert "arm-not-after=${arm_not_after}" in serialized
-    assert "rollback-not-after=${rollback_not_after}" in serialized
+    assert "restore-not-after=${restore_not_after}" in serialized
     assert '.cleanupExecutionDeadlineEpoch' in serialized
     assert "steps.signed-decision.outputs.selected != '300'" in serialized
     assert "steps.signed-decision.outputs.selected == '300'" in serialized
 
 
-def test_postflight_queries_live_host_when_failed_cleanup_has_no_rollback_artifact() -> None:
+def test_postflight_always_queries_the_same_release_runtime_manifest() -> None:
     serialized = WORKFLOW.read_text(encoding="utf-8")
 
-    assert (
-        'if [[ "${selected}" == 300 && '
-        '-s "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json" ]]' in serialized
-    )
-    assert serialized.count('capacity-postflight expected=${expected_sha}') >= 1
+    assert 'expected_sha="${GITHUB_SHA}"' in serialized
+    assert 'capacity-postflight expected=${expected_sha} manifest=${manifest_digest}' in serialized
+    assert "capacity-rollback-postflight.json" not in serialized
 
 
 def test_capacity_workflow_runs_the_complete_guarded_maximum_stress_scope() -> None:
@@ -236,7 +236,7 @@ def test_capacity_workflow_bounds_each_final_phase_by_absolute_wall_clock() -> N
     assert "--kill-after=250s" in serialized
 
 
-def test_capacity_workflow_validates_only_rollback_before_fixture_mutation() -> None:
+def test_capacity_workflow_validates_runtime_manifest_before_fixture_mutation() -> None:
     jobs = workflow()["jobs"]  # type: ignore[index]
     preflight_runs = "\n".join(
         str(step.get("run", "")) for step in jobs["preflight"]["steps"]  # type: ignore[index]
@@ -245,11 +245,13 @@ def test_capacity_workflow_validates_only_rollback_before_fixture_mutation() -> 
         str(step.get("run", "")) for step in jobs["arm"]["steps"]  # type: ignore[index]
     )
 
-    assert preflight_runs.count("capacity-control-via-bastion.sh") == 1
-    assert "capacity-rollback-preflight" in preflight_runs
+    assert preflight_runs.count("capacity-control-via-bastion.sh") >= 1
+    assert "capacity-runtime-preflight" in preflight_runs
     assert "capacity-arm" not in preflight_runs
     gate_index = arm_runs.index("remaining --phase arm")
-    assert gate_index < arm_runs.index("capacity-rollback-preflight")
+    execution_index = arm_runs.index("bash deploy/scripts/capacity-control-via-bastion.sh")
+    assert arm_runs.index("capacity-runtime-preflight") < execution_index
+    assert gate_index < execution_index
     assert arm_runs.count("capacity-control-via-bastion.sh") == 1
 
 
@@ -257,26 +259,33 @@ def test_capacity_recovery_is_exact_terminal_run_bound_and_precedes_new_fixtures
     serialized = WORKFLOW.read_text(encoding="utf-8")
     preflight = serialized[: serialized.index("  fixtures:")]
 
-    rollback = preflight.index("Validate retained rollback before fixture mutation")
     recovery = preflight.index("Reconcile an exact terminal failed-run fixture")
+    admission = preflight.index("Reject admission while any real or synthetic Classroom is present")
+    runtime = preflight.index("Validate the exact same-release runtime safety checkpoint")
     fixtures = serialized.index("Create and encrypt exact run-owned fixtures")
-    assert rollback < recovery < fixtures
+    assert recovery < admission < runtime < fixtures
     assert 'inputs.recovery_run_id != \'\'' in preflight
-    assert '.status == "completed" and .conclusion == "failure"' in preflight
+    assert (
+        '.conclusion == "failure" or .conclusion == "cancelled" or '
+        '.conclusion == "timed_out"'
+    ) in preflight
     assert '.workflowName == "Capacity certification"' in preflight
-    assert "capacity-fixtures-private" in preflight
-    assert "capacity_fixtures.py cleanup" in preflight
-    assert "trap 'rm -rf --" in preflight
+    assert "capacity_fixtures.py reconcile" in preflight
+    assert "capacity-recover run=${RECOVERY_RUN_ID} sha=${failed_sha}" in preflight
+    assert "capacity_fixtures.py assert-empty" in preflight
+    assert 'pathlab-capacity-${RECOVERY_RUN_ID}-' in preflight
     assert "/api/v1/admin/classroom/sessions\")" not in preflight
 
 
-def test_legacy_rollback_waits_for_health_and_preserves_observed_result() -> None:
-    rollback = Path("deploy/scripts/rollback-capacity-candidate.sh").read_text(encoding="utf-8")
+def test_same_release_restore_uses_runtime_manifest_and_fails_closed() -> None:
+    restore = Path("deploy/scripts/restore-capacity-runtime.sh").read_text(encoding="utf-8")
 
-    assert "for _ in $(seq 1 30)" in rollback
-    assert "sleep_bounded" in rollback
-    assert "serviceCount:5" in rollback
-    assert "finalCapacity:$capacity" in rollback
+    assert '.pathlab-runtime-safety.json' in restore
+    assert '"PATHLAB_CLASSROOM_MAX_PARTICIPANTS": "300"' in restore
+    assert '"PATHLAB_ANNOTATIONS_ENABLED": "false"' in restore
+    assert 'runtime_safety_manifest.py"' in restore and "verify-live" in restore
+    assert 'stop api classroom' in restore
+    assert "rollback" not in restore.lower()
 
 
 def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_rollback() -> None:
@@ -290,7 +299,6 @@ def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_r
     assert '"capacity-abort run=${run_id} digest=${digest}"' in cleanup
     for reconciliation_gate in (
         'login="$(curl',
-        "/synthetic-reset",
         "/desktop-cleanup",
         "/share-cleanup",
             "capacity_fixtures.py cleanup",
@@ -315,46 +323,38 @@ def test_cleanup_timeout_signals_the_entire_process_tree_before_recovery_reserve
     assert "timeout --foreground --signal=TERM --kill-after=250s" not in cleanup_run
 
 
-def test_cleanup_accepts_only_transition_invalid_reset_conflict_before_exact_deletion() -> None:
+def test_cleanup_uses_exact_owned_delete_without_synthetic_reset() -> None:
     cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(
         encoding="utf-8"
     )
 
-    assert "reset_status" in cleanup
-    assert '[[ "${reset_status}" == 409 ]]' in cleanup
-    assert '.detail.code == "CLASSROOM_TRANSITION_INVALID"' in cleanup
-    assert '[[ "${reset_status}" == 204 ]]' in cleanup
-    assert cleanup.index("reset_status") < cleanup.index("capacity_fixtures.py cleanup")
+    assert "synthetic-reset" not in cleanup
+    assert "capacity_fixtures.py cleanup" in cleanup
 
 
-def test_aborted_restored_state_can_only_rollback_to_bound_300_release() -> None:
+def test_aborted_restored_state_can_only_restore_the_bound_same_release() -> None:
     host = Path("deploy/scripts/capacity-control-host.sh").read_text(encoding="utf-8")
     unit = Path("deploy/scripts/capacity-control-unit.sh").read_text(encoding="utf-8")
-    rollback = Path("deploy/scripts/rollback-capacity-candidate.sh").read_text(encoding="utf-8")
+    restore = Path("deploy/scripts/restore-capacity-runtime.sh").read_text(encoding="utf-8")
 
     assert "capacity-rollback candidate=" not in host
     assert "capacity-rollback candidate=" not in Path(
         "deploy/scripts/cleanup-capacity-certification.sh"
     ).read_text(encoding="utf-8")
-    assert 'if [[ "${FINAL_LIMIT}" == 300 ]]' in unit
-    assert '"${current}" == "${ROLLBACK_SHA}" || -z "${current}"' in unit
-    resumable_states = (
-        '"${current}" == "${EXPECTED_CANDIDATE}" || "${current}" == "${ROLLBACK_SHA}"'
-    )
-    assert resumable_states in rollback
+    assert '[[ "$(cat "${LIVE_DIR}/.pathlab-release"' in unit
+    assert '"${WORKFLOW_SHA}" "${RUNTIME_MANIFEST_DIGEST}"' in unit
+    assert '.pathlab-release' in restore and '"${EXPECTED_SHA}"' in restore
+    assert "rollback-capacity-candidate" not in host + unit + restore
 
 
-def test_missing_decision_aborts_rolls_back_and_reports_cleanup_failure() -> None:
+def test_missing_decision_restores_safe_floor_and_reports_cleanup_failure() -> None:
     cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(encoding="utf-8")
 
     assert "decision_present=false" in cleanup
     assert "decision_valid=false" in cleanup
-    assert "selected_capacity=300" in cleanup
-    rollback_index = cleanup.index('if [[ "${selected_capacity}" == 300 ]]')
     missing_index = cleanup.index('if [[ "${decision_valid}" != true ]]')
-    assert rollback_index < missing_index
     missing_branch = cleanup[missing_index : cleanup.index("cleanup_committed=true")]
-    assert "candidate rolled back at the 300-seat floor" in missing_branch
+    assert "same release was restored to the 300-seat floor" in missing_branch
     assert "exit 1" in missing_branch
 
 
@@ -376,12 +376,11 @@ def test_sentinel_fixture_is_generated_sparse_and_not_supplied_by_secret() -> No
     assert "330000000" in serialized
 
 
-def test_plan_is_retained_before_arm_and_stage_reset_requires_six_ack_barrier() -> None:
+def test_plan_is_retained_before_arm_and_stage_barrier_remains_run_bound() -> None:
     serialized = WORKFLOW.read_text(encoding="utf-8")
 
     assert serialized.index("name: capacity-plan") < serialized.index("capacity-arm")
-    assert "CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON" in serialized
-    assert "PATHLAB_CLASSROOM_STAGE_MANIFEST" in serialized
+    assert "capacity-fixtures-private" in serialized
     assert "if: always()" in serialized
     assert "if-no-files-found: error" in serialized
     shard = Path("tests/load/distributed_shard.py").read_text(encoding="utf-8")
@@ -407,7 +406,7 @@ def test_private_capacity_inputs_are_validated_before_arm() -> None:
         assert f"secrets.{removed_secret}" not in serialized
     assert "capacity_fixtures.py create" in serialized[validation:arm]
     assert "capacity-fixtures.fernet" in serialized[validation:arm]
-    assert "retention-days: 1" in serialized[validation:arm]
+    assert "retention-days: 14" in serialized[validation:arm]
 
 
 def test_fixture_job_creates_before_publication_and_consumers_materialize_after_download() -> None:
@@ -429,9 +428,6 @@ def test_cleanup_installs_abort_trap_before_fixture_validation() -> None:
     )
 
     trap_index = cleanup.index("trap write_result EXIT")
-    assert trap_index < cleanup.index(
-        ': "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON:?'
-    )
     assert trap_index < cleanup.index(': "${DEPLOY_EVIDENCE_KEY:?')
     assert trap_index < cleanup.index(': "${CAPACITY_BASE_URL:?')
     assert trap_index < cleanup.index(': "${LOAD_TEST_ADMIN_USERNAME:?')

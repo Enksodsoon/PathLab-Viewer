@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       window_start_ict:
-        description: Protected 3-hour window start as YYYY-MM-DDTHH:MM:00+07:00; dispatch 5-20 minutes beforehand
+        description: Protected 3-hour window start as YYYY-MM-DDTHH:MM:00+07:00; dispatch 20-40 minutes beforehand
         required: true
         type: string
       recovery_run_id:
@@ -79,8 +79,8 @@ jobs:
           window_start_epoch="$(date -d "${window_start_raw}" +%s)"
           now_epoch="$(date +%s)"
           lead_seconds="$((window_start_epoch - now_epoch))"
-          (( lead_seconds >= 300 && lead_seconds <= 1200 )) || {
-            echo "Custom protected window must start 5-20 minutes after dispatch." >&2
+          (( lead_seconds >= 1200 && lead_seconds <= 2400 )) || {
+            echo "Custom protected window must start 20-40 minutes after dispatch." >&2
             exit 1
           }
           window_start_epoch_ms="$((window_start_epoch * 1000))"
@@ -147,19 +147,6 @@ jobs:
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
-      - name: Validate retained rollback before fixture mutation
-        env:
-          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
-          OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
-          OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
-          OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-          OCI_ROLLBACK_RELEASE_SHA: ${{ vars.OCI_ROLLBACK_RELEASE_SHA }}
-        run: |
-          set -euo pipefail
-          [[ "${OCI_ROLLBACK_RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${OCI_ROLLBACK_RELEASE_SHA}" != "${GITHUB_SHA}" ]]
-          bash deploy/scripts/capacity-control-via-bastion.sh \
-            "capacity-rollback-preflight rollback=${OCI_ROLLBACK_RELEASE_SHA}" >/dev/null
       - name: Reconcile an exact terminal failed-run fixture
         if: inputs.recovery_run_id != ''
         env:
@@ -168,30 +155,93 @@ jobs:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
-          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+          OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
         run: |
           set -Eeuo pipefail
           [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]{5,19}$ ]]
           [[ "${RECOVERY_RUN_ID}" != "${GITHUB_RUN_ID}" ]]
           failed_run="$(gh run view "${RECOVERY_RUN_ID}" \
             --json status,conclusion,headSha,headBranch,event,workflowName)"
-          jq -e '.status == "completed" and .conclusion == "failure" and
+          jq -e '.status == "completed" and
+            (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") and
             .headBranch == "main" and .event == "workflow_dispatch" and
             .workflowName == "Capacity certification" and
             (.headSha | test("^[0-9a-f]{40}$"))' <<< "${failed_run}" >/dev/null
           failed_sha="$(jq -er .headSha <<< "${failed_run}")"
-          recovery_dir="${RUNNER_TEMP}/capacity-recovery"
-          install -d -m 700 "${recovery_dir}"
-          trap 'rm -rf -- "${recovery_dir}"' EXIT
-          gh run download "${RECOVERY_RUN_ID}" --name capacity-fixtures-private \
-            --dir "${recovery_dir}"
-          bundle="${recovery_dir}/capacity-fixtures.fernet"
-          [[ -f "${bundle}" && ! -L "${bundle}" ]]
-          python deploy/scripts/capacity_fixtures.py cleanup \
-            --input "${bundle}" --evidence-key "${DEPLOY_EVIDENCE_KEY}" \
-            --run-id "${RECOVERY_RUN_ID}" --workflow-sha "${failed_sha}" \
+          python deploy/scripts/capacity_fixtures.py reconcile \
+            --run-id "${RECOVERY_RUN_ID}" \
             --base-url "${CAPACITY_BASE_URL}" --username "${LOAD_TEST_ADMIN_USERNAME}" \
             --password "${LOAD_TEST_ADMIN_PASSWORD}"
+          bash deploy/scripts/capacity-control-via-bastion.sh \
+            "capacity-recover run=${RECOVERY_RUN_ID} sha=${failed_sha}" \
+            > "${RUNNER_TEMP}/capacity-recovery.json"
+          sessions="${RUNNER_TEMP}/recovery-bastion-sessions.json"
+          oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}"
+          while IFS= read -r session_id; do
+            deleted=false
+            for _ in 1 2 3; do
+              if oci bastion session delete --session-id "${session_id}" --force \
+                  >/dev/null 2>&1; then
+                deleted=true
+                break
+              fi
+              sleep 2
+            done
+            if [[ "${deleted}" != true ]]; then
+              state="$(oci bastion session get --session-id "${session_id}" \
+                --query 'data."lifecycle-state"' --raw-output 2>&1 || true)"
+              [[ "${state}" == DELETED || "${state}" == *NotFound* || "${state}" == *404* ]]
+            fi
+          done < <(jq -r --arg prefix "pathlab-capacity-${RECOVERY_RUN_ID}-" \
+            '.data[] | select((."display-name" // "") | startswith($prefix)) |
+             select(."lifecycle-state" != "DELETED") | .id' "${sessions}")
+          oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}"
+          remaining="$(jq --arg prefix "pathlab-capacity-${RECOVERY_RUN_ID}-" \
+            '[.data[] | select((."display-name" // "") | startswith($prefix)) |
+              select(."lifecycle-state" == "ACTIVE" or ."lifecycle-state" == "CREATING" or
+                ."lifecycle-state" == "DELETING")] | length' "${sessions}")"
+          [[ "${remaining}" == 0 ]]
+          jq -e --arg sha "${GITHUB_SHA}" \
+            '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
+             .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
+             .annotationsEnabled == false and .controllerReconciled == true' \
+            "${RUNNER_TEMP}/capacity-recovery.json" >/dev/null
+      - name: Reject admission while any real or synthetic Classroom is present
+        env:
+          CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
+          LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
+        run: |
+          python deploy/scripts/capacity_fixtures.py assert-empty \
+            --base-url "${CAPACITY_BASE_URL}" --username "${LOAD_TEST_ADMIN_USERNAME}" \
+            --password "${LOAD_TEST_ADMIN_PASSWORD}"
+      - name: Validate the exact same-release runtime safety checkpoint
+        env:
+          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+          OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
+        run: |
+          set -euo pipefail
+          bash deploy/scripts/capacity-control-via-bastion.sh \
+            "capacity-runtime-preflight expected=${GITHUB_SHA}" \
+            > "${RUNNER_TEMP}/capacity-runtime-preflight.json"
+          jq -e --arg sha "${GITHUB_SHA}" \
+            '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
+             .ready == true and .watchdogExpected == true and .watchdogActive == true and
+             .classroomEnabled == true and .finalCapacity == 300 and
+             .annotationsEnabled == false and
+             (.runtimeManifestDigest | test("^[0-9a-f]{64}$"))' \
+            "${RUNNER_TEMP}/capacity-runtime-preflight.json" >/dev/null
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capacity-runtime-preflight
+          path: ${{ runner.temp }}/capacity-runtime-preflight.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Validate zero-cost accounting configuration and build evidence
         env:
           PROJECTED_EGRESS_BYTES: ${{ vars.OCI_PROJECTED_MONTHLY_EGRESS_BYTES }}
@@ -331,7 +381,7 @@ jobs:
           name: capacity-fixtures-private
           path: ${{ runner.temp }}/capacity-fixtures.fernet
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: capacity-fixture-status
@@ -384,7 +434,6 @@ jobs:
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-          OCI_ROLLBACK_RELEASE_SHA: ${{ vars.OCI_ROLLBACK_RELEASE_SHA }}
         run: |
           set -euo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?filter=latest&per_page=100" \
@@ -414,23 +463,27 @@ jobs:
             --output "${evidence_file}" --signature-output "${signature_file}"
           plan_digest="$(jq -r .planDigest "${RUNNER_TEMP}/evidence/capacity-plan.json")"
           deadline="$(jq -er .cleanupExecutionDeadlineEpoch <<< "${window}")"
-          rollback_not_after="$(jq -er .restorationDeadlineEpoch <<< "${window}")"
+          restore_not_after="$(jq -er .restorationDeadlineEpoch <<< "${window}")"
           fault_start="$(jq -r '.stages[] | select(.name == "recovery-1200") | .holdStartEpochMs / 1000 | floor' "${RUNNER_TEMP}/evidence/capacity-plan.json")"
           fault_end="$(jq -r '.stages[] | select(.name == "recovery-1200") | .holdEndEpochMs / 1000 | floor' "${RUNNER_TEMP}/evidence/capacity-plan.json")"
           evidence_b64="$(base64 -w 0 "${evidence_file}" | tr '+/' '-_' | tr -d '=')"
+          manifest_digest="$(jq -er .runtimeManifestDigest \
+            "${RUNNER_TEMP}/evidence/capacity-runtime-preflight.json")"
           arm_not_after="$(jq -er .armNotAfterEpoch <<< "${window}")"
           window_start="$(jq -er .mutationStartEpoch <<< "${window}")"
           window_end="$(jq -er .windowEndEpoch <<< "${window}")"
-          request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} rollback=${OCI_ROLLBACK_RELEASE_SHA} arm-not-after=${arm_not_after} window-start=${window_start} window-end=${window_end} deadline=${deadline} rollback-not-after=${rollback_not_after} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
+          request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} manifest=${manifest_digest} arm-not-after=${arm_not_after} window-start=${window_start} window-end=${window_end} deadline=${deadline} restore-not-after=${restore_not_after} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
           arm_remaining="$(python deploy/scripts/capacity_window.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase arm)"
           combined_status="$(timeout --signal=TERM --kill-after=10s "${arm_remaining}s" \
             bash deploy/scripts/capacity-control-via-bastion.sh \
-              "capacity-rollback-preflight rollback=${OCI_ROLLBACK_RELEASE_SHA}" "${request}")"
-          rollback_status="$(head -n 1 <<< "${combined_status}")"
-          jq -e --arg sha "${OCI_ROLLBACK_RELEASE_SHA}" \
-            '.rollbackSha == $sha and .directoryReady == true and .configValid == true and .serviceCount == 5' \
-            <<< "${rollback_status}" >/dev/null
+              "capacity-runtime-preflight expected=${GITHUB_SHA} manifest=${manifest_digest}" "${request}")"
+          runtime_status="$(head -n 1 <<< "${combined_status}")"
+          jq -e --arg sha "${GITHUB_SHA}" --arg manifest "${manifest_digest}" \
+            '.releaseSha == $sha and .runtimeManifestDigest == $manifest and
+             .releaseExact == true and .servicesExact == true and .ready == true and
+             .classroomEnabled == true and .finalCapacity == 300 and .annotationsEnabled == false' \
+            <<< "${runtime_status}" >/dev/null
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh; rm -f -- "${RUNNER_TEMP}/deploy-evidence.key"
 
@@ -737,7 +790,7 @@ jobs:
             :
           else
             rm -f -- "${RUNNER_TEMP}/capacity-decision.json" "${RUNNER_TEMP}/capacity-decision.json.sig"
-            echo "NOT CERTIFIED: required evidence missing or invalid; selecting 300 and rollback candidate"
+            echo "NOT CERTIFIED: required evidence missing or invalid; restoring same-release safety floor"
             remaining="$(python deploy/scripts/capacity_window.py \
               --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase decision)"
             timeout --signal=TERM --kill-after=10s "${remaining}s" \
@@ -786,23 +839,13 @@ jobs:
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
           CAPACITY_CLEANUP_RESULT: ${{ runner.temp }}/capacity-cleanup.json
-          CAPACITY_ROLLBACK_RESULT: ${{ runner.temp }}/capacity-rollback-postflight.json
+          CAPACITY_RUNTIME_RESULT: ${{ runner.temp }}/capacity-runtime-restoration.json
           DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
           OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
-          OCI_ROLLBACK_RELEASE_SHA: ${{ vars.OCI_ROLLBACK_RELEASE_SHA }}
         run: |
-          python deploy/scripts/capacity_fixtures.py materialize \
-            --input "${RUNNER_TEMP}/evidence/capacity-fixtures.fernet" \
-            --output-dir "${RUNNER_TEMP}/capacity-fixtures" \
-            --evidence-key "${DEPLOY_EVIDENCE_KEY}" --run-id "${GITHUB_RUN_ID}" \
-            --workflow-sha "${GITHUB_SHA}"
-          jq -r '.. | strings' "${RUNNER_TEMP}/capacity-fixtures/fixture-private.json" | \
-            while IFS= read -r value; do echo "::add-mask::${value}"; done
-          export CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON
-          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON="$(cat "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json")"
           export CAPACITY_PRIVATE_FIXTURE_BUNDLE="${RUNNER_TEMP}/evidence/capacity-fixtures.fernet"
           remaining="$(python deploy/scripts/capacity_window.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase cleanup)"
@@ -818,11 +861,11 @@ jobs:
           name: capacity-cleanup
           path: |
             ${{ runner.temp }}/capacity-cleanup.json
-            ${{ runner.temp }}/capacity-rollback-postflight.json
+            ${{ runner.temp }}/capacity-runtime-restoration.json
           if-no-files-found: error
           retention-days: 1
       - if: always()
-        run: rm -rf -- ~/.oci ~/.ssh "${RUNNER_TEMP}/capacity-fixtures"
+        run: rm -rf -- ~/.oci ~/.ssh
 
   postflight:
     if: ${{ always() && needs.cleanup.result != 'skipped' }}
@@ -845,10 +888,9 @@ jobs:
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
-      - name: Verify release, six services, endpoints, watchdog, capacity, and refreshed cost
+      - name: Verify exact release, manifest topology, endpoints, watchdog, and safety floor
         env:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
-          OCI_ROLLBACK_RELEASE_SHA: ${{ vars.OCI_ROLLBACK_RELEASE_SHA }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
           OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
@@ -863,13 +905,14 @@ jobs:
             timeout --signal=TERM --kill-after=10s "${remaining}s" "$@"
           }
           decision="${RUNNER_TEMP}/evidence/capacity-decision.json"
-          selected="$(jq -er .certification.selectedCapacity "${decision}")"
           expected_sha="${GITHUB_SHA}"
-          [[ "${selected}" == 300 ]] && expected_sha="${OCI_ROLLBACK_RELEASE_SHA}"
-          if [[ "${selected}" == 300 && -s "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json" ]]; then
-            host="$(cat "${RUNNER_TEMP}/evidence/capacity-rollback-postflight.json")"
+          manifest_digest="$(jq -er .runtimeManifestDigest \
+            "${RUNNER_TEMP}/evidence/capacity-runtime-preflight.json")"
+          if [[ -s "${RUNNER_TEMP}/evidence/capacity-runtime-restoration.json" ]]; then
+            host="$(cat "${RUNNER_TEMP}/evidence/capacity-runtime-restoration.json")"
           else
-            host="$(bounded bash deploy/scripts/capacity-control-via-bastion.sh "capacity-postflight expected=${expected_sha}")"
+            host="$(bounded bash deploy/scripts/capacity-control-via-bastion.sh \
+              "capacity-postflight expected=${expected_sha} manifest=${manifest_digest}")"
           fi
           bounded curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/readyz" >/dev/null
           bounded curl --fail --silent --show-error --max-time 15 "${CAPACITY_BASE_URL%/}/livez" >/dev/null
@@ -883,6 +926,10 @@ jobs:
           jq -n --arg runId "$(jq -r .runId "${plan}")" --arg workflowSha "${GITHUB_SHA}" \
             --arg planDigest "$(jq -r .planDigest "${plan}")" --arg observedAt "$(date --iso-8601=seconds)" \
             --arg expectedSha "${expected_sha}" --arg deployedSha "$(jq -r .releaseSha <<< "${host}")" \
+            --arg runtimeManifestDigest "$(jq -r .runtimeManifestDigest <<< "${host}")" \
+            --arg schemaRevision "$(jq -r .schemaRevision <<< "${host}")" \
+            --arg databaseEngine "$(jq -r .databaseEngine <<< "${host}")" \
+            --argjson services "$(jq .services <<< "${host}")" \
             --argjson releaseExact "$(jq .releaseExact <<< "${host}")" --argjson servicesExact "$(jq .servicesExact <<< "${host}")" \
             --argjson serviceCount "$(jq .serviceCount <<< "${host}")" --argjson ready "$(jq .ready <<< "${host}")" \
             --argjson watchdogExpected "$(jq .watchdogExpected <<< "${host}")" \
@@ -890,17 +937,15 @@ jobs:
             --argjson capacity "$(jq .finalCapacity <<< "${host}")" --argjson cost "${cost}" \
             --argjson annotationsEnabled "$(jq .annotationsEnabled <<< "${host}")" \
             '{schemaVersion:1,runId:$runId,workflowSha:$workflowSha,planDigest:$planDigest,observedAt:$observedAt,
-              expectedSha:$expectedSha,deployedSha:$deployedSha,releaseExact:$releaseExact,servicesExact:$servicesExact,
+              expectedSha:$expectedSha,deployedSha:$deployedSha,runtimeManifestDigest:$runtimeManifestDigest,
+              schemaRevision:$schemaRevision,databaseEngine:$databaseEngine,services:$services,
+              releaseExact:$releaseExact,servicesExact:$servicesExact,
               serviceCount:$serviceCount,hostReady:$ready,endpointsHealthy:true,watchdogExpected:$watchdogExpected,
               watchdogActive:$watchdogActive,finalCapacity:$capacity,annotationsEnabled:$annotationsEnabled,
               monthToDateCost:$cost,currency:"SGD",aggregateOnly:true}' \
             > "${RUNNER_TEMP}/capacity-postflight.json"
-          test "$(jq -r .finalCapacity "${RUNNER_TEMP}/capacity-postflight.json")" = "${selected}"
-          if [[ "${selected}" == 300 ]]; then
-            test "$(jq -r .annotationsEnabled "${RUNNER_TEMP}/capacity-postflight.json")" = false
-          else
-            test "$(jq -r .annotationsEnabled "${RUNNER_TEMP}/capacity-postflight.json")" = true
-          fi
+          test "$(jq -r .finalCapacity "${RUNNER_TEMP}/capacity-postflight.json")" = 300
+          test "$(jq -r .annotationsEnabled "${RUNNER_TEMP}/capacity-postflight.json")" = false
           python tests/load/validate_postflight_evidence.py "${RUNNER_TEMP}/capacity-postflight.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -1009,3 +1054,70 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - run: cat "${RUNNER_TEMP}/capacity-certification.md" >> "${GITHUB_STEP_SUMMARY}"
+
+  terminal-summary:
+    if: always()
+    needs: [preflight, fixtures, arm, shard, sentinels, fault-recovery, decision, cleanup, postflight, aggregate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with: {pattern: "capacity-*", path: "${{ runner.temp }}/evidence", merge-multiple: true}
+      - name: Write compact terminal status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          started_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --jq .run_started_at 2>/dev/null || date --iso-8601=seconds)"
+          python - "${RUNNER_TEMP}/capacity-status.json" "${started_at}" <<'PY'
+          import json, os, pathlib, sys
+          output, started_at = pathlib.Path(sys.argv[1]), sys.argv[2]
+          needs = json.loads(os.environ["JOB_RESULTS"])
+          results = {name: value.get("result", "unknown") for name, value in needs.items()}
+          failed = next(
+              (name for name, result in results.items() if result in {"failure", "cancelled"}),
+              None,
+          )
+          manifests = list(pathlib.Path(os.environ["RUNNER_TEMP"]).glob("evidence/**/capacity-certification.json"))
+          cleanup_files = list(
+              pathlib.Path(os.environ["RUNNER_TEMP"]).glob("evidence/**/capacity-cleanup.json")
+          )
+          cleanup = {}
+          if cleanup_files:
+              try:
+                  cleanup = json.loads(cleanup_files[0].read_text())
+              except (OSError, json.JSONDecodeError):
+                  cleanup = {}
+          state = "SUCCEEDED" if results.get("aggregate") == "success" else "FAILED_TERMINAL"
+          value = {
+              "jobId": os.environ["GITHUB_RUN_ID"],
+              "kind": "capacity-certification",
+              "state": state,
+              "releaseSha": os.environ["GITHUB_SHA"],
+              "startedAt": started_at,
+              "finishedAt": __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
+              "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "progressCounters": results,
+              "resultManifest": str(manifests[0]) if manifests else None,
+              "failureCode": f"JOB_{failed.upper().replace('-', '_')}_FAILED" if failed else None,
+              "restorationState": (
+                  "RESTORED" if cleanup.get("configurationRestored") is True else "UNPROVED"
+              ),
+              "fixtureCount": 0 if cleanup.get("fixturesRemoved") is True else None,
+              "runOwnedBastionCount": cleanup.get("bastionSessionsRemaining"),
+              "logPath": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+          }
+          output.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
+          PY
+          jq '{state,releaseSha,failureCode,restorationState,fixtureCount,
+            runOwnedBastionCount,progressCounters}' "${RUNNER_TEMP}/capacity-status.json" \
+            >> "${GITHUB_STEP_SUMMARY}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capacity-terminal-status
+          path: ${{ runner.temp }}/capacity-status.json
+          if-no-files-found: error
+          retention-days: 14

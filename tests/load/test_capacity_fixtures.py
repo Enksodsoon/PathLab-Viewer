@@ -86,8 +86,8 @@ class FakeClient:
         expected: tuple[int, ...] = (200,),
     ) -> Any:
         self.calls.append((method, path, synthetic_run))
-        if path == "/api/v1/admin/classroom/sessions" and method == "GET":
-            return {"sessions": []}
+        if path == "/api/v1/admin/classroom/capacity-inventory" and method == "GET":
+            return {"sessions": [], "truncated": False}
         if path == "/api/v1/admin/classroom/sessions" and method == "POST":
             return {
                 "id": "11111111-1111-4111-8111-111111111111",
@@ -176,8 +176,8 @@ def test_fixture_create_refuses_an_active_classroom(
 ) -> None:
     class ActiveClassroom(FakeClient):
         def request(self, path: str, **kwargs: Any) -> Any:
-            if path == "/api/v1/admin/classroom/sessions":
-                return {"sessions": [{"id": "real-session"}]}
+            if path == "/api/v1/admin/classroom/capacity-inventory":
+                return {"sessions": [{"id": "real-session"}], "truncated": False}
             return super().request(path, **kwargs)
 
     monkeypatch.setattr(capacity_fixtures, "Client", ActiveClassroom)
@@ -229,3 +229,110 @@ def test_fixture_cleanup_is_idempotent_after_exact_session_is_gone(
         password="synthetic-password",
     ))
     assert all(call[0] != "DELETE" for call in MissingFixture.instances[0].calls)
+
+
+def test_expired_materialization_bundle_remains_available_for_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(capacity_fixtures, "Client", FakeClient)
+    args = create_args(tmp_path)
+    capacity_fixtures.create(args)
+    plaintext = capacity_fixtures.Fernet(capacity_fixtures._key(KEY)).decrypt(
+        args.output.read_bytes()
+    )
+    bundle = json.loads(plaintext)
+    bundle["materializeExpiresAtEpoch"] = int(time.time()) - 1
+    args.output.write_bytes(
+        capacity_fixtures.Fernet(capacity_fixtures._key(KEY)).encrypt(
+            json.dumps(bundle, sort_keys=True, separators=(",", ":")).encode()
+        )
+    )
+
+    with pytest.raises(capacity_fixtures.FixtureError, match="stale or cross-run"):
+        capacity_fixtures.materialize(
+            argparse.Namespace(
+                input=args.output,
+                evidence_key=KEY,
+                run_id=RUN,
+                workflow_sha=SHA,
+                output_dir=tmp_path / "expired",
+            )
+        )
+    capacity_fixtures.cleanup(
+        argparse.Namespace(
+            input=args.output,
+            evidence_key=KEY,
+            run_id=RUN,
+            workflow_sha=SHA,
+            base_url="https://viewer.example",
+            username="synthetic-admin",
+            password="synthetic-password",
+        )
+    )
+
+
+def test_server_inventory_reconciliation_deletes_only_exact_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = "11111111-1111-4111-8111-111111111111"
+
+    class InventoryClient(FakeClient):
+        remaining = True
+
+        def request(self, path: str, **kwargs: Any) -> Any:
+            self.calls.append((kwargs.get("method", "GET"), path, kwargs.get("synthetic_run")))
+            if path.startswith("/api/v1/admin/classroom/capacity-inventory"):
+                sessions = (
+                    [
+                        {
+                            "id": session_id,
+                            "status": "active",
+                            "phase": "live",
+                            "syntheticRunId": RUN,
+                        }
+                    ]
+                    if self.remaining
+                    else []
+                )
+                return {"sessions": sessions, "truncated": False}
+            if path.endswith(session_id) and kwargs.get("method") == "DELETE":
+                self.remaining = False
+                return None
+            return super().request(path, **kwargs)
+
+    InventoryClient.instances.clear()
+    monkeypatch.setattr(capacity_fixtures, "Client", InventoryClient)
+    capacity_fixtures.reconcile(
+        argparse.Namespace(
+            run_id=RUN,
+            base_url="https://viewer.example",
+            username="synthetic-admin",
+            password="synthetic-password",
+        )
+    )
+    assert ("DELETE", f"/api/v1/admin/classroom/sessions/{session_id}", RUN) in (
+        InventoryClient.instances[0].calls
+    )
+
+
+def test_assert_empty_rejects_a_real_live_classroom(monkeypatch: pytest.MonkeyPatch) -> None:
+    class LiveClient(FakeClient):
+        def request(self, path: str, **kwargs: Any) -> Any:
+            if path == "/api/v1/admin/classroom/capacity-inventory":
+                return {
+                    "sessions": [
+                        {"id": "real", "status": "active", "phase": "live", "syntheticRunId": None}
+                    ],
+                    "truncated": False,
+                }
+            return super().request(path, **kwargs)
+
+    monkeypatch.setattr(capacity_fixtures, "Client", LiveClient)
+    with pytest.raises(capacity_fixtures.FixtureError, match="Classroom is active"):
+        capacity_fixtures.assert_empty(
+            argparse.Namespace(
+                base_url="https://viewer.example",
+                username="synthetic-admin",
+                password="synthetic-password",
+            )
+        )

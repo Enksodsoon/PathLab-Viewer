@@ -17,35 +17,31 @@ cookie_jar="${work_dir}/cookies"
 run_id="$(jq -r .runId "${PLAN_PATH}")"
 sha="$(jq -r .workflowSha "${PLAN_PATH}")"
 digest="$(jq -r .planDigest "${PLAN_PATH}")"
-rollback_not_after="$(python deploy/scripts/capacity_window.py --plan "${PLAN_PATH}" describe | \
-  jq -er .restorationDeadlineEpoch)"
 configuration_restored=false
 fixtures_removed=false
 bastion_remaining=999
 cleanup_committed=false
-rollback_completed=false
 containment_complete=false
 nonce=""
 fail_safe_recovery() {
   local abort_request abort_status="" recovery_result=1
   set +e
   abort_request="capacity-abort run=${run_id} digest=${digest}"
-  if [[ -n "${CAPACITY_ROLLBACK_RESULT:-}" ]]; then
+    if [[ -n "${CAPACITY_RUNTIME_RESULT:-}" ]]; then
     abort_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
       "${abort_request}" 2>/dev/null)"
     recovery_result="$?"
     if [[ "${recovery_result}" -eq 0 ]]; then
-      printf '%s\n' "${abort_status}" > "${CAPACITY_ROLLBACK_RESULT}"
-      rollback_completed=true
+      printf '%s\n' "${abort_status}" > "${CAPACITY_RUNTIME_RESULT}"
     fi
   else
     abort_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
       "${abort_request}" 2>/dev/null)"
   fi
   if jq -e '((.phase == "aborted-restored" and .finalLimit == null) or
-      (.phase == "restored" and .finalLimit == 300)) and
+      (.phase == "restored" and (.finalLimit == 300 or .finalLimit == 1200 or .finalLimit == 1500))) and
       .releaseExact == true and .servicesExact == true and .ready == true and
-      .finalCapacity == 300 and .annotationsEnabled == false' \
+      .classroomEnabled == true and .finalCapacity == 300 and .annotationsEnabled == false' \
     <<< "${abort_status}" >/dev/null 2>&1; then
     configuration_restored=true
   fi
@@ -78,7 +74,6 @@ trap write_result EXIT
 : "${CAPACITY_BASE_URL:?CAPACITY_BASE_URL is required}"
 : "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
 : "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
-: "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON:?CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON is required}"
 : "${CAPACITY_PRIVATE_FIXTURE_BUNDLE:?CAPACITY_PRIVATE_FIXTURE_BUNDLE is required}"
 nonce="$(python -c 'import hashlib,hmac,os; print(hmac.new(os.environ["DEPLOY_EVIDENCE_KEY"].encode(), (os.environ["GITHUB_RUN_ID"]+":"+os.environ["GITHUB_RUN_ATTEMPT"]).encode(), hashlib.sha256).hexdigest())')"
 echo "::add-mask::${nonce}"
@@ -90,29 +85,6 @@ login="$(curl --fail --silent --show-error --max-time 10 \
     '{username:$username,password:$password}')" \
   "${CAPACITY_BASE_URL%/}/api/v1/auth/session")"
 csrf="$(jq -er .csrfToken <<< "${login}")"
-while IFS= read -r session_id; do
-  [[ "${session_id}" =~ ^[0-9a-f-]{36}$ ]] || {
-    echo "Synthetic Classroom session ID is invalid." >&2
-    exit 1
-  }
-  reset_body="${work_dir}/synthetic-reset.json"
-  reset_status="$(curl --silent --show-error --max-time 20 \
-    --cookie "${cookie_jar}" --request POST \
-    --header "X-CSRF-Token: ${csrf}" \
-    --header "X-PathLab-Synthetic-Run: ${run_id}" \
-    "${CAPACITY_BASE_URL%/}/api/v1/admin/classroom/sessions/${session_id}/synthetic-reset" \
-    --output "${reset_body}" --write-out '%{http_code}')"
-  if [[ "${reset_status}" == 409 ]]; then
-    jq -e '.detail.code == "CLASSROOM_TRANSITION_INVALID"' "${reset_body}" >/dev/null
-  else
-    [[ "${reset_status}" == 204 ]] || {
-      echo "Synthetic Classroom reset returned unexpected status ${reset_status}." >&2
-      exit 1
-    }
-  fi
-done < <(jq -er '[to_entries[].value.sessionId] | unique[]' \
-  <<< "${CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON}")
-
 # Reconcile deterministic run-marked fixtures even when the sentinel runner
 # was cancelled before its local finally block could retain an identifier.
 marker="capacity-${run_id}"
@@ -151,20 +123,21 @@ python deploy/scripts/capacity_fixtures.py cleanup \
 fixtures_removed=true
 
 # Reconciliation and the pre-finalize Bastion audit must pass while the host is
-# still armed. Any failure reaches the EXIT trap, which aborts to 300 and rolls
-# the candidate back before recording a failed cleanup result.
-remaining="$(oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
-  --query 'length(data[?"lifecycle-state"==`ACTIVE` || "lifecycle-state"==`CREATING`])' \
-  --raw-output)"
+# still armed. Any failure reaches the EXIT trap, which restores the same
+# release to the 300-seat safety floor before recording a failed cleanup result.
+sessions_json="${work_dir}/bastion-sessions.json"
+oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions_json}"
+remaining="$(jq --arg prefix "pathlab-capacity-${GITHUB_RUN_ID}-" \
+  '[.data[] | select((."display-name" // "") | startswith($prefix)) |
+    select(."lifecycle-state" == "ACTIVE" or ."lifecycle-state" == "CREATING" or
+      ."lifecycle-state" == "DELETING")] | length' "${sessions_json}")"
 [[ "${remaining}" == 0 ]] || { echo "Bastion sessions remain active." >&2; exit 1; }
 bastion_remaining=0
 
 decision_present=false
 decision_valid=false
-selected_capacity=300
 if [[ -f "${DECISION_PATH}" && -f "${SIGNATURE_PATH}" ]]; then
   decision_present=true
-  selected_capacity="$(jq -er '.certification.selectedCapacity' "${DECISION_PATH}")"
   evidence_b64="$(base64 -w 0 "${DECISION_PATH}" | tr '+/' '-_' | tr -d '=')"
   request="capacity-finalize ${sha} run=${run_id} digest=${digest} evidence=${evidence_b64} signature=$(cat "${SIGNATURE_PATH}") nonce=${nonce}"
   expected_phase='"phase": "restored"'
@@ -185,18 +158,16 @@ jq -e --arg run "${run_id}" --arg digest "${digest}" \
   '.runId == $run and .planDigest == $digest and .controllerAcknowledged == true and
    .cleanupScheduled == true' <<< "${ack_status}" >/dev/null
 
-# Candidate-only cleanup is complete before this authenticated rollback swaps
-# to the five-service release.
-if [[ "${selected_capacity}" == 300 ]]; then
-  : "${CAPACITY_ROLLBACK_RESULT:?CAPACITY_ROLLBACK_RESULT is required}"
-  jq -e '.releaseExact == true and .servicesExact == true and .serviceCount == 5 and
-    .ready == true and .finalCapacity == 300 and .annotationsEnabled == false' <<< "${status}" >/dev/null
-  printf '%s\n' "${status}" > "${CAPACITY_ROLLBACK_RESULT}"
-  rollback_completed=true
-  containment_complete=true
-fi
+: "${CAPACITY_RUNTIME_RESULT:?CAPACITY_RUNTIME_RESULT is required}"
+jq -e --arg sha "${sha}" \
+  '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
+   .ready == true and .watchdogExpected == true and .watchdogActive == true and
+   .classroomEnabled == true and .finalCapacity == 300 and .annotationsEnabled == false and
+   (.runtimeManifestDigest | test("^[0-9a-f]{64}$"))' <<< "${status}" >/dev/null
+printf '%s\n' "${status}" > "${CAPACITY_RUNTIME_RESULT}"
+containment_complete=true
 if [[ "${decision_valid}" != true ]]; then
-  echo "Capacity decision was unavailable; candidate rolled back at the 300-seat floor." >&2
+  echo "Capacity decision was unavailable; the same release was restored to the 300-seat floor." >&2
   exit 1
 fi
 cleanup_committed=true

@@ -1432,6 +1432,39 @@ def register_classroom_routes(
             ]
         }
 
+    @app.get("/api/v1/admin/classroom/capacity-inventory")
+    def capacity_classroom_inventory(
+        _: AdminSession,
+        db: Database,
+        synthetic_run: Annotated[
+            str | None,
+            Query(alias="syntheticRunId", pattern=r"^[a-z0-9-]{1,64}$"),
+        ] = None,
+    ) -> dict[str, Any]:
+        query = select(ClassroomSession)
+        if synthetic_run is None:
+            query = query.where(
+                or_(
+                    ClassroomSession.status == "active",
+                    ClassroomSession.synthetic_run_id.is_not(None),
+                )
+            )
+        else:
+            query = query.where(ClassroomSession.synthetic_run_id == synthetic_run)
+        sessions = list(db.scalars(query.order_by(ClassroomSession.created_at).limit(101)))
+        return {
+            "sessions": [
+                {
+                    "id": item.id,
+                    "status": item.status,
+                    "phase": item.phase,
+                    "syntheticRunId": item.synthetic_run_id,
+                }
+                for item in sessions[:100]
+            ],
+            "truncated": len(sessions) > 100,
+        }
+
     @app.get("/api/v1/classroom/sessions/{session_id}")
     def student_state(session_id: str, request: Request, db: Database) -> dict[str, Any]:
         participant, raw_token = live_participant_from_request(request, db, session_id)
@@ -2172,6 +2205,10 @@ def register_classroom_routes(
         classroom = db.get(ClassroomSession, session_id)
         if classroom is None or classroom.status != "active" or classroom.phase != "live":
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
+        if classroom.synthetic_run_id is None or not secrets.compare_digest(
+            classroom.synthetic_run_id, synthetic_run
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SYNTHETIC_RUN_MISMATCH"})
         hub.reset_session(session_id)
         presenter_runtime.forget(session_id)
         db.execute(

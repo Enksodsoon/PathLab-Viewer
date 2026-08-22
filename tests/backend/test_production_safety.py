@@ -1020,7 +1020,7 @@ def test_capacity_shell_contains_failed_restoration(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 1
-    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+    assert env_file.read_text(encoding="utf-8") == "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n"
     assert "compose stop api classroom" in (tmp_path / "docker.log").read_text(encoding="utf-8")
 
 
@@ -1085,7 +1085,10 @@ def test_capacity_shell_restores_on_signals(tmp_path: Path, signal: str, expecte
         check=False,
     )
     assert result.returncode == expected
-    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+    assert env_file.read_text(encoding="utf-8") == (
+        "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n"
+        "PATHLAB_ANNOTATIONS_ENABLED=false\n"
+    )
 
 
 @pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
@@ -1141,7 +1144,7 @@ def test_capacity_shell_refuses_0459_before_raising_limit(tmp_path: Path) -> Non
     )
     assert result.returncode == 2
     assert "two hours before the authorized hard stop" in result.stderr
-    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+    assert env_file.read_text(encoding="utf-8") == "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n"
     assert not marker.exists()
 
 
@@ -1224,4 +1227,7 @@ def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) ->
     assert elapsed < 6
     assert started.exists()
     assert terminated.exists()
-    assert env_file.read_text(encoding="utf-8") == ("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n")
+    assert env_file.read_text(encoding="utf-8") == (
+        "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n"
+        "PATHLAB_ANNOTATIONS_ENABLED=false\n"
+    )

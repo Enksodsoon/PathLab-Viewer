@@ -572,8 +572,9 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "type: boolean" in workflow
     assert "default: false" in workflow
     assert "PATHLAB_CLASSROOM_ENABLED: ${{ inputs.classroom_enabled }}" in workflow
+    assert "PATHLAB_ANNOTATIONS_ENABLED: ${{ inputs.annotations_enabled }}" in workflow
     assert (
-        'deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"'
+        '"${PATHLAB_CLASSROOM_ENABLED}" "${PATHLAB_ANNOTATIONS_ENABLED}"'
     ) in workflow
     assert "vars.PATHLAB_CLASSROOM_ENABLED" not in workflow
     assert "secrets.OCI_DEPLOY_KEY" not in workflow
@@ -599,6 +600,8 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "deploy ${TARGET_SHA}" in script
     assert '"${CLASSROOM_ENABLED}" =~ ^(true|false)$' in script
     assert "classroom=${CLASSROOM_ENABLED}" in script
+    assert '"${ANNOTATIONS_ENABLED}" =~ ^(true|false)$' in script
+    assert "annotations=${ANNOTATIONS_ENABLED}" in script
 
 
 def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> None:
@@ -689,7 +692,9 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
 
     assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
     assert "classroom=(true|false)" in script
+    assert "annotations=(true|false)" in script
     assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}" in script
+    assert "PATHLAB_ANNOTATIONS_ENABLED=${ANNOTATIONS_ENABLED}" in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
 
