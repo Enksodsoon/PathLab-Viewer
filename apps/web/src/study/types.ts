@@ -41,12 +41,23 @@ export type EvidenceBundle = {
   cellAggregates: Array<{
     regionId: string; algorithm: 'hovernet-fast' | 'od-watershed'; count: number
     densityPerMm2: number | null; meanNucleusAreaPx2: number | null
+    meanNucleusPerimeterPx?: number | null; meanNucleusEccentricity?: number | null
+    meanNucleusSolidity?: number | null; uncertainty?: number
   }>
   ihcDescriptors: Array<{
     regionId: string; marker: string; compartment: string
     dabAreaFraction: number; meanDabOd: number; researchEstimate: true
+    markerId?: string; analysisMode?: 'marker-aware' | 'generic-fallback'
+    cellMaskSource?: 'hovernet-fast' | 'od-watershed'
+    compartmentSource?: 'none' | 'faculty-authored' | 'faculty-approved' | 'model-suggested'
+    calibrationStatus?: 'calibrated' | 'relative_only' | 'not_evaluable'
+    uncertainty?: number; abstentionReason?: string | null
   }>
-  qc: { focus: number; tissueFraction: number; uncertainty: number; abstentionReasons: string[] }
+  qc: {
+    focus: number; tissueFraction: number; uncertainty: number; abstentionReasons: string[]
+    calibrationStatus?: 'calibrated' | 'relative_only' | 'not_evaluable'
+    backgroundFraction?: number; saturationFraction?: number; stainSeparation?: number; warnings?: string[]
+  }
 }
 
 export type StudySession = {

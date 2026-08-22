@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { retrieveGroundedClaimIds } from '../study/groundedTutor'
+import {
+  MAX_TUTOR_ASSET_BYTES, retrieveGroundedClaimIds, validateModelClaimOrder,
+  validateTutorModelManifest,
+} from '../study/groundedTutor'
 import type { KnowledgePack } from '../study/types'
 
 const pack: KnowledgePack = {
@@ -22,5 +25,21 @@ describe('grounded tutor', () => {
       .toEqual([])
     expect(retrieveGroundedClaimIds(pack, 'Ki-67 proliferation', ['different.claim']))
       .toEqual([])
+  })
+
+  it('hard-caps Qwen assets and accepts only grounded claim ordering', () => {
+    expect(validateTutorModelManifest({
+      schema: 'pathlab.tutor-model/1', modelId: 'qwen3-0.6b-int4', artifactSha256: 'a'.repeat(64),
+      artifactBytes: MAX_TUTOR_ASSET_BYTES, runtime: 'webgpu-worker', output: 'claim-ids-only',
+      status: 'not_evaluable',
+    }).status).toBe('not_evaluable')
+    expect(() => validateTutorModelManifest({
+      schema: 'pathlab.tutor-model/1', modelId: 'qwen3-0.6b-int4', artifactSha256: 'a'.repeat(64),
+      artifactBytes: MAX_TUTOR_ASSET_BYTES + 1, runtime: 'webgpu-worker', output: 'claim-ids-only',
+      status: 'experimental',
+    })).toThrow('LOCAL_TUTOR_MANIFEST_INVALID')
+    expect(validateModelClaimOrder(['claim.2', 'claim.1'], ['claim.1', 'claim.2'], ['claim.1', 'claim.2']))
+      .toEqual(['claim.2', 'claim.1'])
+    expect(validateModelClaimOrder(['invented'], ['claim.1'], ['claim.1'])).toEqual([])
   })
 })
