@@ -23,7 +23,17 @@ from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
 
-RUNTIME_GUARD_PREDECESSOR_REVISION = "20260821_0023"
+RUNTIME_GUARD_PREDECESSOR_REVISIONS = frozenset(
+    {
+        "20260813_0017",
+        "20260813_0018",
+        "20260813_0019",
+        "20260813_0020",
+        "20260821_0021",
+        "20260821_0022",
+        "20260821_0023",
+    }
+)
 
 
 def _read_password(password_stdin: bool) -> str:
@@ -170,7 +180,7 @@ def main() -> None:
                     )
             else:
                 revision = database.scalar(text("SELECT version_num FROM alembic_version"))
-                if revision != RUNTIME_GUARD_PREDECESSOR_REVISION:
+                if revision not in RUNTIME_GUARD_PREDECESSOR_REVISIONS:
                     raise SystemExit(
                         "Deployment blocked: Classroom protection schema is unavailable"
                     )

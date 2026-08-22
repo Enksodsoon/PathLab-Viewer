@@ -7,7 +7,12 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, select, text
-from wsi_viewer.cli import _build_parser, _read_password, main
+from wsi_viewer.cli import (
+    RUNTIME_GUARD_PREDECESSOR_REVISIONS,
+    _build_parser,
+    _read_password,
+    main,
+)
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
@@ -166,14 +171,18 @@ def test_deployment_check_allows_no_running_job(
     assert output.err == ""
 
 
-def test_deployment_check_accepts_immediate_pre_runtime_guard_schema(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("revision", sorted(RUNTIME_GUARD_PREDECESSOR_REVISIONS))
+def test_deployment_check_accepts_known_pre_runtime_guard_schemas(
+    revision: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    database_path = tmp_path / "deployment-check-pre-runtime-guard.sqlite3"
+    database_path = tmp_path / f"deployment-check-{revision}.sqlite3"
     monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
     monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
     settings = Settings()
-    command.upgrade(Config("alembic.ini"), "20260821_0023")
+    command.upgrade(Config("alembic.ini"), revision)
     assert not inspect(engine_for(settings)).has_table("runtime_guards")
     capsys.readouterr()
     monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
