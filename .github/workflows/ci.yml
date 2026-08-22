@@ -110,6 +110,68 @@ jobs:
           export PATHLAB_BACKUP_DIR="${DATA_DIR}/backups"
           BACKUP_PATH="$(bash deploy/scripts/backup-postgres.sh)"
           bash deploy/scripts/verify-postgres-restore-drill.sh "${BACKUP_PATH}"
+      - name: Verify staging PostgreSQL cutover evidence workflow
+        env:
+          PATHLAB_RELEASE_SHA: ${{ github.sha }}
+          PATHLAB_SECRET_KEY: synthetic-ci-migration-signing-key-32-bytes
+          PATHLAB_BACKUP_SIGNING_KEY: synthetic-ci-postgres-backup-key-32-bytes
+        run: |
+          set -euo pipefail
+          mapfile -t POSTGRES_CONTAINERS < <(docker ps --filter publish=5432 --format '{{.ID}}')
+          [[ "${#POSTGRES_CONTAINERS[@]}" -eq 1 ]]
+          POSTGRES_CONTAINER="${POSTGRES_CONTAINERS[0]}"
+          TARGET_DATABASE="pathlab_cutover_ci"
+          docker exec -i "${POSTGRES_CONTAINER}" \
+            dropdb --if-exists --force --username pathlab_test "${TARGET_DATABASE}"
+          docker exec -i "${POSTGRES_CONTAINER}" \
+            createdb --username pathlab_test "${TARGET_DATABASE}"
+          trap 'docker exec -i "${POSTGRES_CONTAINER}" dropdb --if-exists --force --username pathlab_test "${TARGET_DATABASE}" >/dev/null 2>&1 || true' EXIT
+
+          SOURCE_DATABASE="${RUNNER_TEMP}/cutover-source.sqlite3"
+          PATHLAB_DATABASE_URL="sqlite:///${SOURCE_DATABASE}" \
+            PATHLAB_DATABASE_PASSWORD_FILE= alembic upgrade head
+          python - "${SOURCE_DATABASE}" <<'PY'
+          import sqlite3
+          import sys
+          with sqlite3.connect(sys.argv[1]) as database:
+              database.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+              database.execute("PRAGMA journal_mode=DELETE")
+          PY
+
+          DATA_DIR="${RUNNER_TEMP}/pathlab-cutover-data"
+          EVIDENCE_DIR="${RUNNER_TEMP}/pathlab-cutover-evidence"
+          STATUS_FILE="${EVIDENCE_DIR}/status.json"
+          PASSWORD_FILE="${RUNNER_TEMP}/pathlab-cutover-password"
+          install -d -m 700 "${DATA_DIR}"/{originals,private,public,backups}
+          printf 'synthetic,non-PHI\n' > "${DATA_DIR}/private/restore-proof.txt"
+          printf 'pathlab_test\n' > "${PASSWORD_FILE}"
+          chmod 600 "${PASSWORD_FILE}"
+
+          export PATHLAB_CUTOVER_ENVIRONMENT=staging
+          export PATHLAB_CUTOVER_EVIDENCE_DIR="${EVIDENCE_DIR}"
+          export PATHLAB_POSTGRES_TARGET_URL="postgresql+psycopg://pathlab_test@127.0.0.1:5432/${TARGET_DATABASE}"
+          export PATHLAB_POSTGRES_PASSWORD_FILE="${PASSWORD_FILE}"
+          export PATHLAB_POSTGRES_CONTAINER="${POSTGRES_CONTAINER}"
+          export PATHLAB_DATA_DIR="${DATA_DIR}"
+          export PATHLAB_BACKUP_DIR="${DATA_DIR}/backups"
+          export POSTGRES_DB="${TARGET_DATABASE}"
+          export POSTGRES_USER=pathlab_test
+          bash deploy/scripts/verify-postgres-cutover.sh \
+            "${SOURCE_DATABASE}" "${STATUS_FILE}"
+          python - "${STATUS_FILE}" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as source:
+              status = json.load(source)
+          assert status["state"] == "SUCCEEDED"
+          assert status["failureCode"] is None
+          assert status["progressCounters"] == {
+              "sourceChecks": 1,
+              "migrations": 1,
+              "backups": 1,
+              "restoreDrills": 1,
+          }
+          PY
 
   web:
     runs-on: ubuntu-24.04

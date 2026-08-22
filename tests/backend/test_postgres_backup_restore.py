@@ -139,3 +139,23 @@ def test_postgres_scripts_are_fail_closed_and_disposable() -> None:
     assert "SELECT version_num FROM alembic_version" in drill
     assert 'server_version" == "180006"' in drill
     assert "PATHLAB_POSTGRES_CONTAINER" in drill
+
+
+def test_cutover_evidence_script_is_staging_only_and_composes_existing_proofs() -> None:
+    cutover = Path("deploy/scripts/verify-postgres-cutover.sh").read_text(
+        encoding="utf-8"
+    )
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert 'PATHLAB_CUTOVER_ENVIRONMENT:-}" != "staging"' in cutover
+    assert "postgres-cutover-source-check" in cutover
+    assert "migrate-sqlite-to-postgres" in cutover
+    assert "--target-password-file" in cutover
+    assert "PATHLAB_POSTGRES_TARGET_URL must contain a username and no password" in cutover
+    assert "deployment-check" in cutover
+    assert "backup-postgres.sh" in cutover
+    assert "verify-postgres-restore-drill.sh" in cutover
+    assert 'state="FAILED_TERMINAL"' in cutover
+    assert 'state="SUCCEEDED"' in cutover
+    assert "status.json" in workflow
+    assert 'status["state"] == "SUCCEEDED"' in workflow

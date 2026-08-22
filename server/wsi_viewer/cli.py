@@ -13,7 +13,11 @@ from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
 from .models import ClassroomSession, Job, RuntimeGuard, User
-from .postgres_migration import PostgresMigrationError, migrate_sqlite_to_postgres
+from .postgres_migration import (
+    PostgresMigrationError,
+    migrate_sqlite_to_postgres,
+    verify_cutover_source,
+)
 from .runtime_protection import CLASSROOM_GUARD_ID, IDLE
 from .security import hash_password
 from .storage import StorageLayout
@@ -45,6 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "deployment-check",
             "reconcile-storage",
             "migrate-sqlite-to-postgres",
+            "postgres-cutover-source-check",
             "install-study-model",
         ],
     )
@@ -74,6 +79,15 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _build_parser().parse_args()
     settings = Settings()
+    if args.command == "postgres-cutover-source-check":
+        if args.source is None:
+            raise SystemExit("--source is required")
+        try:
+            result = verify_cutover_source(args.source)
+        except PostgresMigrationError as error:
+            raise SystemExit(str(error)) from error
+        print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+        return
     if args.command == "migrate-sqlite-to-postgres":
         if args.source is None or args.target is None:
             raise SystemExit("--source and --target are required")
