@@ -192,7 +192,22 @@ def test_postgres_staging_overlay_is_pinned_bounded_and_fail_closed() -> None:
     assert "condition: service_healthy" in overlay
     assert overlay.count("postgresql+psycopg://") == 3
     assert "PATHLAB_POSTGRES_PASSWORD_FILE=/srv/pathlab/secrets/postgres-password" in example
+    assert "PATHLAB_DATABASE_ENGINE=sqlite" in example
+    assert "PATHLAB_POSTGRES_BACKUP_SIGNING_KEY_FILE=" in example
     assert "-f deploy/compose.postgres.yaml config" in workflow
+
+
+def test_database_compose_selector_defaults_to_sqlite_and_fails_closed() -> None:
+    selector = Path("deploy/scripts/compose-pathlab.sh").read_text(encoding="utf-8")
+    service = Path("deploy/pathlab-viewer.service").read_text(encoding="utf-8")
+
+    assert 'engine="${engine:-sqlite}"' in selector
+    assert "sqlite)" in selector
+    assert "postgres)" in selector
+    assert "compose.postgres.yaml" in selector
+    assert "PATHLAB_DATABASE_ENGINE must be sqlite or postgres" in selector
+    assert "exec docker compose" in selector
+    assert service.count("compose-pathlab.sh") == 3
 
 
 def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:
@@ -626,8 +641,8 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
 
     assert "git ls-remote" in script
     assert "refs/heads/main" in script
-    assert "docker compose config --quiet" in script
-    assert "docker compose build" in script
+    assert 'compose_release "${STAGE_DIR}" config --quiet' in script
+    assert 'compose_release "${STAGE_DIR}" build' in script
     assert "systemctl reload pathlab-viewer" in script
     assert 'mv "${LIVE_DIR}" "${ROLLBACK_DIR}"' in script
     assert 'mv "${STAGE_DIR}" "${LIVE_DIR}"' in script
@@ -637,6 +652,11 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert 'cat "${LIVE_DIR}/.pathlab-release"' in script
     assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
     assert "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\ntile-service\\ntusd\\nworker'" in script
+    assert (
+        "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\npostgres\\n"
+        "tile-service\\ntusd\\nworker'"
+    ) in script
+    assert "HEALTH_SERVICES+=(postgres)" in script
 
 
 def test_candidate_builds_are_release_tagged_and_backup_paths_share_one_data_root() -> None:
@@ -645,11 +665,14 @@ def test_candidate_builds_are_release_tagged_and_backup_paths_share_one_data_roo
 
     assert "PATHLAB_RELEASE_IMAGE_TAG=${TARGET_SHA}" in script
     assert script.index("PATHLAB_RELEASE_IMAGE_TAG=${TARGET_SHA}") < script.index(
-        "docker compose build"
+        'compose_release "${STAGE_DIR}" build'
     )
     assert 'PATHLAB_DATA_DIR="${DATA_DIR}"' in script
     assert 'PATHLAB_BACKUP_DIR="${BACKUP_DIR}"' in script
     assert 'PATHLAB_RESTORE_DRILL_DIR="${RESTORE_DRILL_DIR}"' in script
+    assert "backup-current-database.sh" in script
+    assert "verify-current-restore-drill.sh" in script
+    assert "database engine changes require the separate cutover workflow" in script
     for service in ("api", "caddy", "classroom", "tile-service", "worker"):
         assert f"image: pathlab-viewer-{service}:${{PATHLAB_RELEASE_IMAGE_TAG:-live}}" in compose
 
@@ -677,12 +700,12 @@ def test_release_script_interlocks_before_worker_disruption() -> None:
 
     helper_call = 'deployment_check "${STAGE_DIR}"'
     first_check = script.index(helper_call)
-    stop_worker = script.index("docker compose stop worker")
+    stop_worker = script.index('compose_release "${LIVE_DIR}" stop worker')
     second_check = script.index(helper_call, first_check + 1)
     swap = script.index('mv "${LIVE_DIR}" "${ROLLBACK_DIR}"')
 
     assert first_check < stop_worker < second_check < swap
-    assert "docker compose start worker" in script
+    assert 'compose_release "${LIVE_DIR}" start worker' in script
     assert "OLD_WORKER_STOPPED" in script
     assert "restart_old_worker" in script
     assert "/srv/pathlab/data" not in script

@@ -180,12 +180,15 @@ def test_deploy_rollback_restores_verified_database_and_preserves_failed_revisio
         encoding="utf-8",
     )
     docker.chmod(0o755)
+    compose_env = tmp_path / "deploy.env"
+    compose_env.write_text("PATHLAB_DATABASE_ENGINE=sqlite\n", encoding="utf-8")
     env = os.environ.copy()
     env.update(
         {
             "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
             "PATHLAB_DATA_DIR": _bash_path(data),
             "PATHLAB_BACKUP_DIR": _bash_path(data / "backups"),
+            "PATHLAB_COMPOSE_ENV_FILE": _bash_path(compose_env),
         }
     )
     result = subprocess.run(
@@ -210,9 +213,10 @@ def test_deploy_rollback_restores_verified_database_and_preserves_failed_revisio
         assert database.execute("SELECT version_num FROM alembic_version").fetchone() == (
             "20260822_0022",
         )
-    assert docker_log.read_text(encoding="utf-8").strip() == (
-        "compose stop caddy api classroom tile-service tusd worker"
-    )
+    docker_command = docker_log.read_text(encoding="utf-8").strip()
+    assert "compose --project-directory" in docker_command
+    assert "-f " in docker_command
+    assert docker_command.endswith("stop caddy api classroom tile-service tusd worker")
 
 
 def test_restore_drill_streams_backup_with_bounded_scratch(

@@ -22,6 +22,16 @@ TEMP_DISPATCHER=""
 BACKUP_PATH=""
 DATA_DIR=""
 BACKUP_DIR=""
+DATABASE_ENGINE=""
+
+compose_release() {
+  local release_dir="$1"
+  shift
+  (
+    cd "${release_dir}/deploy"
+    bash "${release_dir}/deploy/scripts/compose-pathlab.sh" "$@"
+  )
+}
 
 fail() {
   echo "Deployment failed: $*" >&2
@@ -43,19 +53,15 @@ interrupt_deployment() {
 
 restart_old_worker() {
   if [[ "${OLD_SERVICES_STOPPED}" -eq 1 && -d "${LIVE_DIR}/deploy" ]]; then
-    (
-      cd "${LIVE_DIR}/deploy"
-      docker compose up -d
-    ) || echo "Deployment failed: unable to restart existing services" >&2
+    compose_release "${LIVE_DIR}" up -d || \
+      echo "Deployment failed: unable to restart existing services" >&2
     OLD_SERVICES_STOPPED=0
     OLD_WORKER_STOPPED=0
     return
   fi
   if [[ "${OLD_WORKER_STOPPED}" -eq 1 && -d "${LIVE_DIR}/deploy" ]]; then
-    (
-      cd "${LIVE_DIR}/deploy"
-      docker compose start worker
-    ) || echo "Deployment failed: unable to restart the existing worker" >&2
+    compose_release "${LIVE_DIR}" start worker || \
+      echo "Deployment failed: unable to restart the existing worker" >&2
     OLD_WORKER_STOPPED=0
   fi
 }
@@ -215,10 +221,7 @@ install_stable_dispatcher() {
 
 deployment_check() {
   local release_dir="$1"
-  (
-    cd "${release_dir}/deploy"
-    docker compose run --rm --no-deps api pathlab-admin deployment-check
-  )
+  compose_release "${release_dir}" run --rm --no-deps api pathlab-admin deployment-check
 }
 
 provision_evidence_key() {
@@ -425,31 +428,30 @@ DATA_DIR="${DATA_DIR#\'}"
   fail "PATHLAB_DATA_DIR is missing or invalid"
 BACKUP_DIR="${DATA_DIR%/}/backups"
 RESTORE_DRILL_DIR="${DATA_DIR%/}/.restore-drill"
+DATABASE_ENGINE="$(bash "${STAGE_DIR}/deploy/scripts/compose-pathlab.sh" engine)"
+LIVE_DATABASE_ENGINE="$(bash "${LIVE_DIR}/deploy/scripts/compose-pathlab.sh" engine)"
+[[ "${DATABASE_ENGINE}" == "${LIVE_DATABASE_ENGINE}" ]] || \
+  fail "database engine changes require the separate cutover workflow"
 
-(
-  cd "${STAGE_DIR}/deploy"
-  docker compose config --quiet
-  docker compose build
-)
+compose_release "${STAGE_DIR}" config --quiet
+compose_release "${STAGE_DIR}" build
 
 deployment_check "${STAGE_DIR}" || fail "worker job is active"
 OLD_WORKER_STOPPED=1
 OLD_SERVICES_STOPPED=1
-(
-  cd "${LIVE_DIR}/deploy"
-  docker compose stop worker
-  docker compose stop caddy tusd
-)
+compose_release "${LIVE_DIR}" stop worker
+compose_release "${LIVE_DIR}" stop caddy tusd
 deployment_check "${STAGE_DIR}" || fail "worker job did not stop cleanly"
 
 BACKUP_PATH="$(
   cd "${STAGE_DIR}/deploy"
   PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
-    bash "${STAGE_DIR}/deploy/scripts/backup.sh"
+    PATHLAB_RELEASE_SHA="${TARGET_SHA}" \
+    bash "${STAGE_DIR}/deploy/scripts/backup-current-database.sh"
 )" || fail "production backup failed"
 PATHLAB_DATA_DIR="${DATA_DIR}" PATHLAB_BACKUP_DIR="${BACKUP_DIR}" \
   PATHLAB_RESTORE_DRILL_DIR="${RESTORE_DRILL_DIR}" \
-  python3 "${STAGE_DIR}/deploy/scripts/verify_restore_drill.py" "${BACKUP_PATH}" || \
+  bash "${STAGE_DIR}/deploy/scripts/verify-current-restore-drill.sh" "${BACKUP_PATH}" || \
   fail "production backup restore drill failed"
 
 mv "${LIVE_DIR}" "${ROLLBACK_DIR}"
@@ -477,14 +479,21 @@ curl --fail --silent --show-error --max-time 5 -X OPTIONS \
   -H 'Tus-Resumable: 1.0.0' "https://${DOMAIN}/api/v1/uploads/" >/dev/null
 
 RUNNING_SERVICES="$(
-  cd "${LIVE_DIR}/deploy"
-  docker compose ps --status running --services | sort
+  compose_release "${LIVE_DIR}" ps --status running --services | sort
 )"
-EXPECTED_SERVICES=$'api\ncaddy\nclassroom\ntile-service\ntusd\nworker'
+if [[ "${DATABASE_ENGINE}" == "postgres" ]]; then
+  EXPECTED_SERVICES=$'api\ncaddy\nclassroom\npostgres\ntile-service\ntusd\nworker'
+else
+  EXPECTED_SERVICES=$'api\ncaddy\nclassroom\ntile-service\ntusd\nworker'
+fi
 [[ "${RUNNING_SERVICES}" == "${EXPECTED_SERVICES}" ]] || \
   fail "not all production services are running"
-for service in api classroom tile-service worker; do
-  container_id="$(cd "${LIVE_DIR}/deploy" && docker compose ps -q "${service}")"
+HEALTH_SERVICES=(api classroom tile-service worker)
+if [[ "${DATABASE_ENGINE}" == "postgres" ]]; then
+  HEALTH_SERVICES+=(postgres)
+fi
+for service in "${HEALTH_SERVICES[@]}"; do
+  container_id="$(compose_release "${LIVE_DIR}" ps -q "${service}")"
   [[ -n "${container_id}" ]] || fail "${service} container identity is missing"
   [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' \
     "${container_id}")" == healthy ]] || fail "${service} is not healthy"

@@ -2,6 +2,11 @@
 set -Eeuo pipefail
 umask 077
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+if [[ "$(bash "${script_dir}/compose-pathlab.sh" engine)" == "postgres" ]]; then
+  exec bash "${script_dir}/restore-deploy-rollback-postgres.sh" "$@"
+fi
+
 if [[ $# -ne 1 ]]; then
   echo "Usage: restore-deploy-rollback-database.sh /absolute/path/to/pathlab-backup" >&2
   exit 2
@@ -77,7 +82,7 @@ chown --reference="${database_path}" "${staged_database}"
 chmod --reference="${database_path}" "${staged_database}"
 sync -f "${staged_database}"
 
-docker compose stop caddy api classroom tile-service tusd worker
+bash "${script_dir}/compose-pathlab.sh" stop caddy api classroom tile-service tusd worker
 
 mv "${database_path}" "${preserved_database}"
 if [[ -f "${database_path}-wal" && ! -L "${database_path}-wal" ]]; then

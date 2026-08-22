@@ -14,11 +14,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import QueuePool
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
+from wsi_viewer.classroom_routes import PARTICIPANT_COOKIE
 from wsi_viewer.config import Settings
 from wsi_viewer.database import engine_for, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
-from wsi_viewer.models import Folder, PublicationGrant, Slide, User
+from wsi_viewer.models import Folder, Job, PublicationGrant, RuntimeGuard, Slide, User
 from wsi_viewer.publication import delivery_version
 from wsi_viewer.security import hash_password
 
@@ -29,7 +30,7 @@ POSTGRES_TEST_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
     POSTGRES_TEST_URL is None,
     reason="PATHLAB_POSTGRES_TEST_URL is required for the isolated PostgreSQL test",
 )
-def test_postgres_classroom_sse_yield_holds_no_database_connection(
+def test_postgres_classroom_300_sse_streams_block_jobs_and_hold_no_connections(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assert POSTGRES_TEST_URL is not None
@@ -93,8 +94,19 @@ def test_postgres_classroom_sse_yield_holds_no_database_connection(
                 source_id=slide.id,
             )
         )
+        jobs = [
+            Job(
+                slide_id=slide.id,
+                kind=f"synthetic-{resource_class}",
+                status="queued",
+                resource_class=resource_class,
+            )
+            for resource_class in ("background", "isolated")
+        ]
+        database.add_all(jobs)
         database.commit()
         version = delivery_version(slide)
+        job_ids = [job.id for job in jobs]
 
     derivative = (
         classroom_settings.data_root
@@ -132,11 +144,29 @@ def test_postgres_classroom_sse_yield_holds_no_database_connection(
         )
         assert created_response.status_code == 201, created_response.text
         created = created_response.json()
-        joined_response = classroom.post(
-            "/api/v1/classroom/join",
-            json={"joinCode": created["joinCode"], "displayName": "Synthetic learner"},
-        )
-        assert joined_response.status_code == 201, joined_response.text
+        participant_cookies: list[str] = []
+        classroom.cookies.clear()
+        for index in range(300):
+            joined_response = classroom.post(
+                "/api/v1/classroom/join",
+                json={
+                    "joinCode": created["joinCode"],
+                    "displayName": f"Synthetic learner {index + 1}",
+                },
+            )
+            assert joined_response.status_code == 201, joined_response.text
+            signed_cookie = joined_response.cookies.get(PARTICIPANT_COOKIE)
+            assert signed_cookie is not None
+            participant_cookies.append(signed_cookie)
+            classroom.cookies.clear()
+
+        with session_factory(classroom_settings)() as database:
+            guard = database.get(RuntimeGuard, "classroom-protection")
+            assert guard is not None and guard.mode == "classroom_live"
+            assert [database.get(Job, job_id).status for job_id in job_ids] == [
+                "blocked_classroom",
+                "blocked_classroom",
+            ]
 
         app = cast(FastAPI, classroom.app)
         route = next(
@@ -146,35 +176,47 @@ def test_postgres_classroom_sse_yield_holds_no_database_connection(
             == "/api/v1/classroom/sessions/{session_id}/events"
         )
         path = f"/api/v1/classroom/sessions/{created['id']}/events"
-        cookie = "; ".join(f"{key}={value}" for key, value in classroom.cookies.items())
-        request = Request(
-            {
-                "type": "http",
-                "asgi": {"version": "3.0"},
-                "http_version": "1.1",
-                "method": "GET",
-                "scheme": "http",
-                "path": path,
-                "raw_path": path.encode(),
-                "query_string": b"",
-                "headers": [(b"cookie", cookie.encode())],
-                "client": ("testclient", 50000),
-                "server": ("testserver", 80),
-                "root_path": "",
-            }
-        )
-
-        async def inspect_open_stream() -> str:
-            response = cast(StreamingResponse, route.endpoint(created["id"], request))
-            body = cast(AsyncGenerator[str | bytes | memoryview, None], response.body_iterator)
-            first = cast(str, await anext(body))
+        async def inspect_open_streams() -> list[str]:
+            bodies: list[AsyncGenerator[str | bytes | memoryview, None]] = []
+            first_events: list[str] = []
             pool = engine_for(classroom_settings).pool
             assert isinstance(pool, QueuePool)
             assert pool.size() == 4
+            for index, signed_cookie in enumerate(participant_cookies):
+                request = Request(
+                    {
+                        "type": "http",
+                        "asgi": {"version": "3.0"},
+                        "http_version": "1.1",
+                        "method": "GET",
+                        "scheme": "http",
+                        "path": path,
+                        "raw_path": path.encode(),
+                        "query_string": b"",
+                        "headers": [
+                            (
+                                b"cookie",
+                                f"{PARTICIPANT_COOKIE}={signed_cookie}".encode(),
+                            )
+                        ],
+                        "client": ("testclient", 50000 + index),
+                        "server": ("testserver", 80),
+                        "root_path": "",
+                    }
+                )
+                response = cast(StreamingResponse, route.endpoint(created["id"], request))
+                body = cast(
+                    AsyncGenerator[str | bytes | memoryview, None], response.body_iterator
+                )
+                first_events.append(cast(str, await anext(body)))
+                bodies.append(body)
+                assert pool.checkedout() == 0
+            assert len(bodies) == 300
+            await asyncio.gather(*(body.aclose() for body in bodies))
             assert pool.checkedout() == 0
-            await body.aclose()
-            return first
+            return first_events
 
-        first_event = asyncio.run(inspect_open_stream())
+        first_events = asyncio.run(inspect_open_streams())
 
-    assert first_event.startswith("event: stream-ready")
+    assert len(first_events) == 300
+    assert all(event.startswith("event: stream-ready") for event in first_events)
