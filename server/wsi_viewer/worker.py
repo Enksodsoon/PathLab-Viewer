@@ -14,6 +14,7 @@ from typing import Protocol
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import Select
 
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
@@ -31,6 +32,19 @@ TUS_CLEANUP_INTERVAL_SECONDS = 30.0 * 60.0
 STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS = 60.0
 STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
+
+
+def _next_job_statement(*, now: datetime, postgres: bool) -> Select[tuple[Job]]:
+    statement = (
+        select(Job)
+        .where(
+            Job.status.in_({"queued", "retry_wait"}),
+            or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
+        )
+        .order_by(Job.created_at)
+        .limit(1)
+    )
+    return statement.with_for_update(skip_locked=True) if postgres else statement
 
 
 class DiskUsage(Protocol):
@@ -209,8 +223,12 @@ def expire_incomplete_uploads(
             expired += 1
             continue
         with factory() as database:
-            database.connection().exec_driver_sql("BEGIN IMMEDIATE")
-            slide = database.get(Slide, upload_id)
+            dialect = database.get_bind().dialect.name
+            if dialect == "sqlite":
+                database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+                slide = database.get(Slide, upload_id)
+            else:
+                slide = database.get(Slide, upload_id, with_for_update=True)
             if slide is None:
                 for artifact in artifacts:
                     _unlink_upload_artifact(artifact)
@@ -268,15 +286,11 @@ def process_next(
             if snapshot.blocks_background_work:
                 database.commit()
                 return False
-        job = database.scalar(
-            select(Job)
-            .where(
-                Job.status.in_({"queued", "retry_wait"}),
-                or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
-            )
-            .order_by(Job.created_at)
-            .limit(1)
+        statement = _next_job_statement(
+            now=now,
+            postgres=database.get_bind().dialect.name == "postgresql"
         )
+        job = database.scalar(statement)
         if job is None:
             return False
         job.status = "running"

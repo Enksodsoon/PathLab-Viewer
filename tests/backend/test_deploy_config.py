@@ -160,6 +160,19 @@ def test_classroom_uses_the_existing_backend_image_with_a_single_bounded_worker(
     assert "cpus: 0.50" in api_service
 
 
+def test_worker_and_tile_service_use_dedicated_database_pool_roles() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
+        "\n  tusd:\n", maxsplit=1
+    )[0]
+    worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(
+        "\nvolumes:\n", maxsplit=1
+    )[0]
+
+    assert "PATHLAB_SERVICE_ROLE: tile" in tile_service
+    assert "PATHLAB_SERVICE_ROLE: worker" in worker_service
+
+
 def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
 
     environment: Literal["development", "test", "production"] = "development"
-    service_role: Literal["general", "classroom", "all"] = "all"
+    service_role: Literal["general", "classroom", "worker", "tile", "all"] = "all"
     database_url: str = "sqlite:///./var/pathlab.sqlite3"
     data_root: Path = Path("./var/data")
     secret_key: str = "change-this-before-deployment"

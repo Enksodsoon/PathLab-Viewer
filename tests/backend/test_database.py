@@ -6,7 +6,12 @@ from alembic.config import Config
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from wsi_viewer.config import Settings
-from wsi_viewer.database import create_schema, pool_options_for, session_factory
+from wsi_viewer.database import (
+    create_schema,
+    pool_options_for,
+    postgres_timeouts_for,
+    session_factory,
+)
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AuditEvent,
@@ -40,7 +45,7 @@ def test_sqlite_schema_has_contract_tables_and_wal(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("role", "expected_size"),
-    (("general", 5), ("classroom", 4), ("all", 5)),
+    (("general", 5), ("classroom", 4), ("worker", 2), ("tile", 1), ("all", 5)),
 )
 def test_sqlite_pool_is_bounded_by_runtime_role(role: str, expected_size: int) -> None:
     settings = Settings(_env_file=None, service_role=role)
@@ -50,6 +55,21 @@ def test_sqlite_pool_is_bounded_by_runtime_role(role: str, expected_size: int) -
         "max_overflow": 0,
         "pool_timeout": 1.0,
     }
+
+
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    (
+        ("general", (5_000, 1_000)),
+        ("classroom", (2_000, 250)),
+        ("worker", (30_000, 1_000)),
+        ("tile", (5_000, 1_000)),
+    ),
+)
+def test_postgres_timeouts_are_bounded_by_runtime_role(
+    role: str, expected: tuple[int, int]
+) -> None:
+    assert postgres_timeouts_for(Settings(_env_file=None, service_role=role)) == expected
 
 
 def test_runtime_app_startup_does_not_create_or_stamp_schema(tmp_path: Path) -> None:
