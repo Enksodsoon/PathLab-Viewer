@@ -113,6 +113,32 @@
         "native libvips work already in progress is not forcibly preempted",
         "not production-certified"
       ]
+    },
+    {
+      "id": "postgres-runtime-cutover",
+      "displayName": "PostgreSQL staging runtime and cutover safety gate",
+      "domain": "Platform",
+      "evidenceState": "SYNTHETICALLY_VERIFIED",
+      "releaseSha": "6a97058cc8cbfe27bedb9ff039908199f4496aeb",
+      "featureFlag": "PATHLAB_DATABASE_ENGINE",
+      "supportingEvidence": [
+        "docs/architecture/POSTGRES_RUNTIME_CUTOVER.md",
+        "docs/evidence/postgres-runtime-cutover-6a97058.md"
+      ],
+      "requiredTests": [
+        "tests/backend/test_postgres_foundation.py",
+        "tests/backend/test_postgres_migration.py",
+        "tests/backend/test_postgres_classroom.py",
+        "tests/backend/test_postgres_backup_restore.py",
+        "tests/backend/test_deploy_config.py"
+      ],
+      "claimRestrictions": [
+        "staging and synthetic evidence only",
+        "production remains on its current database engine",
+        "not pilot-validated",
+        "not production-certified",
+        "not clinically qualified"
+      ]
     }
   ]
 }

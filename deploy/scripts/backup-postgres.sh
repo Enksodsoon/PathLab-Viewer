@@ -28,7 +28,7 @@ postgres_exec() {
   if [[ -n "$postgres_container" ]]; then
     docker exec -i "$postgres_container" "$@"
   else
-    docker compose exec -T "$postgres_service" "$@"
+    bash "$(dirname "$0")/compose-pathlab.sh" exec -T "$postgres_service" "$@"
   fi
 }
 

@@ -544,12 +544,14 @@ def test_release_flow_installs_watchdog_and_runs_guards() -> None:
     assert "restore_watchdog" in release
     assert "systemctl disable --now pathlab-viewer-watchdog.timer" in release
     assert '"${ROLLBACK_DIR}/deploy/scripts/install-watchdog.sh" uninstall' not in release
-    assert release.index("docker compose stop worker") < release.index(
-        'bash "${STAGE_DIR}/deploy/scripts/backup.sh"'
+    assert release.index('compose_release "${LIVE_DIR}" stop worker') < release.index(
+        'bash "${STAGE_DIR}/deploy/scripts/backup-current-database.sh"'
     )
-    assert release.index("OLD_SERVICES_STOPPED=1") < release.index("docker compose stop worker")
-    assert release.index("docker compose stop caddy tusd") < release.index(
-        'bash "${STAGE_DIR}/deploy/scripts/backup.sh"'
+    assert release.index("OLD_SERVICES_STOPPED=1") < release.index(
+        'compose_release "${LIVE_DIR}" stop worker'
+    )
+    assert release.index('compose_release "${LIVE_DIR}" stop caddy tusd') < release.index(
+        'bash "${STAGE_DIR}/deploy/scripts/backup-current-database.sh"'
     )
     old_topology_stop = release[
         release.index("OLD_WORKER_STOPPED=1") : release.index("BACKUP_PATH=")
@@ -571,7 +573,8 @@ def test_release_flow_uses_candidate_backup_format_against_candidate_compose() -
         backup_start : release.index('mv "${LIVE_DIR}"', backup_start)
     ]
     assert 'cd "${STAGE_DIR}/deploy"' in backup_block
-    assert 'bash "${STAGE_DIR}/deploy/scripts/backup.sh"' in backup_block
+    assert 'bash "${STAGE_DIR}/deploy/scripts/backup-current-database.sh"' in backup_block
+    assert 'bash "${STAGE_DIR}/deploy/scripts/verify-current-restore-drill.sh"' in backup_block
     assert "bash scripts/backup.sh" not in backup_block
     backup = (ROOT / "deploy" / "scripts" / "backup.sh").read_text(encoding="utf-8")
     assert "docker compose run --rm --no-deps --entrypoint python api" in backup

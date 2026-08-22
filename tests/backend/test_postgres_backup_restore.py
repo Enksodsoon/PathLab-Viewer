@@ -141,6 +141,34 @@ def test_postgres_scripts_are_fail_closed_and_disposable() -> None:
     assert "PATHLAB_POSTGRES_CONTAINER" in drill
 
 
+def test_database_aware_backup_and_postgres_rollback_preserve_failed_database() -> None:
+    backup = Path("deploy/scripts/backup-current-database.sh").read_text(encoding="utf-8")
+    verify = Path("deploy/scripts/verify-current-restore-drill.sh").read_text(
+        encoding="utf-8"
+    )
+    rollback = Path("deploy/scripts/restore-deploy-rollback-postgres.sh").read_text(
+        encoding="utf-8"
+    )
+    selector = Path("deploy/scripts/restore-deploy-rollback-database.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "backup.sh" in backup
+    assert "backup-postgres.sh" in backup
+    assert "PATHLAB_POSTGRES_BACKUP_SIGNING_KEY_FILE" in backup
+    assert "verify_restore_drill.py" in verify
+    assert "verify-postgres-restore-drill.sh" in verify
+    assert "postgres_backup_manifest.py" in rollback
+    assert "restored_revision" in rollback
+    assert "manifest_revision" in rollback
+    assert "pg_terminate_backend" in rollback
+    assert "RENAME TO" in rollback
+    assert "pg_restore --exit-on-error" in rollback
+    assert "restore_failed_database" in rollback
+    assert "failed database preserved" in rollback
+    assert "restore-deploy-rollback-postgres.sh" in selector
+
+
 def test_cutover_evidence_script_is_staging_only_and_composes_existing_proofs() -> None:
     cutover = Path("deploy/scripts/verify-postgres-cutover.sh").read_text(
         encoding="utf-8"

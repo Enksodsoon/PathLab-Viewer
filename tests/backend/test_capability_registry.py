@@ -16,7 +16,7 @@ def test_capability_registry_validator_accepts_the_repository_registry() -> None
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "Capability registry valid: 5 entries\n"
+    assert result.stdout == "Capability registry valid: 6 entries\n"
 
 
 def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
@@ -30,13 +30,17 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         "calibrated-measurements",
         "classroom",
         "classroom-background-protection",
+        "postgres-runtime-cutover",
         "qupath-geojson",
     }
-    assert {item["evidenceState"] for item in capabilities.values()} == {"BUILT"}
+    assert {item["evidenceState"] for item in capabilities.values()} == {
+        "BUILT",
+        "SYNTHETICALLY_VERIFIED",
+    }
     existing = {
         key: value
         for key, value in capabilities.items()
-        if key != "classroom-background-protection"
+        if key not in {"classroom-background-protection", "postgres-runtime-cutover"}
     }
     assert {item["releaseSha"] for item in existing.values()} == {
         registry["baselineReleaseSha"]
@@ -44,6 +48,13 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
     protection = capabilities["classroom-background-protection"]
     assert protection["releaseSha"] == "b331171fa15a8ad4d08c62fa8a5e9c0af94c0f79"
     assert "disabled by default and not production-activated" in protection[
+        "claimRestrictions"
+    ]
+    postgres = capabilities["postgres-runtime-cutover"]
+    assert postgres["evidenceState"] == "SYNTHETICALLY_VERIFIED"
+    assert postgres["releaseSha"] == "6a97058cc8cbfe27bedb9ff039908199f4496aeb"
+    assert "staging and synthetic evidence only" in postgres["claimRestrictions"]
+    assert "production remains on its current database engine" in postgres[
         "claimRestrictions"
     ]
     assert "not production-certified" in capabilities["classroom"]["claimRestrictions"]
