@@ -1098,7 +1098,13 @@ export function ClassroomTeacherPage() {
           setClassroom(next)
           sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
           setShowCode(true)
-        }).catch((caught: unknown) => handleAdminFailure(caught, 'The live class could not start.'))}>Start live class</button> : null}
+        }).catch((caught: unknown) => {
+          if (caught instanceof ApiError && caught.code === 'CLASSROOM_DRAINING') {
+            setError('Background preparation is stopping to protect the live class. Wait a moment, then start again.')
+            return
+          }
+          handleAdminFailure(caught, 'The live class could not start.')
+        })}>Start live class</button> : null}
         <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
           sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
           setClassroom(null)
