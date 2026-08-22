@@ -495,6 +495,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tile_routes=tile_routes,
             ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
             max_upload_bytes=current.max_upload_bytes,
+            evidence_trusted_signers_path=current.evidence_trusted_signers_path,
         )
         services["study_purger"] = register_study_routes(
             app,

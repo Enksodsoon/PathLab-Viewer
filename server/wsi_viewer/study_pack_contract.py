@@ -7,6 +7,7 @@ from typing import Any, NoReturn
 
 SCHEMA = "pathlab.study-pack/1"
 SCHEMA_V2 = "pathlab.study-pack/2"
+SCHEMA_V3 = "pathlab.study-pack/3"
 MAX_PACK_BYTES = 2 * 1024 * 1024
 MAX_SLIDES = 50
 MAX_TASKS = 500
@@ -92,7 +93,7 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
     if len(canonical_json(definition).encode("utf-8")) > MAX_PACK_BYTES:
         raise ValueError("STUDY_PACK_SIZE_INVALID")
     schema = definition.get("schema")
-    if schema not in {SCHEMA, SCHEMA_V2}:
+    if schema not in {SCHEMA, SCHEMA_V2, SCHEMA_V3}:
         raise ValueError("STUDY_PACK_SCHEMA_UNSUPPORTED")
     pack_key = _text(definition.get("packKey"), maximum=120)
     if not re.fullmatch(r"[A-Za-z0-9._-]+", pack_key):
@@ -115,7 +116,7 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
         or not all(language in {"en", "th"} for language in languages)
     ):
         raise ValueError("STUDY_PACK_LANGUAGES_INVALID")
-    if schema == SCHEMA_V2:
+    if schema in {SCHEMA_V2, SCHEMA_V3}:
         if languages != ["en"]:
             raise ValueError("STUDY_PACK_V2_ENGLISH_ONLY")
         knowledge_checksum = _text(definition.get("knowledgePackChecksum"), maximum=64)
@@ -135,8 +136,9 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
         if slide_id in slide_ids or not re.fullmatch(r"[a-f0-9]{64}", checksum):
             raise ValueError("STUDY_PACK_SLIDE_INVALID")
         slide_ids.add(slide_id)
-        if schema == SCHEMA_V2:
-            evidence_checksum = _text(slide.get("evidenceBundleSha256"), maximum=64)
+        if schema in {SCHEMA_V2, SCHEMA_V3}:
+            evidence_field = "evidenceBundleSha256" if schema == SCHEMA_V2 else "evidenceSetSha256"
+            evidence_checksum = _text(slide.get(evidence_field), maximum=64)
             if not re.fullmatch(r"[a-f0-9]{64}", evidence_checksum):
                 raise ValueError("STUDY_PACK_EVIDENCE_INVALID")
 
@@ -170,7 +172,7 @@ def validate_study_pack(definition: dict[str, Any]) -> str:
             url = _text(source.get("url"), maximum=1000)
             if not url.startswith("https://"):
                 raise ValueError("STUDY_PACK_SOURCE_INVALID")
-        if schema == SCHEMA_V2:
+        if schema in {SCHEMA_V2, SCHEMA_V3}:
             claim_ids = task.get("claimIds")
             if not isinstance(claim_ids, list) or not 1 <= len(claim_ids) <= 10:
                 raise ValueError("STUDY_PACK_CLAIMS_INVALID")
@@ -250,27 +252,15 @@ def learner_definition(definition: dict[str, Any]) -> dict[str, Any]:
                 "viewerSlideId": slide["viewerSlideId"],
                 "displayName": slide["displayName"],
                 "tileSource": f"/api/v1/study/slides/{slide['viewerSlideId']}/tiles/slide.dzi",
-                **(
-                    {
-                        "evidenceBundleSha256": slide["evidenceBundleSha256"],
-                        "evidenceUrl": (
-                            f"/api/v1/study/slides/{slide['viewerSlideId']}/evidence/"
-                            f"{slide['evidenceBundleSha256']}"
-                        ),
-                    }
-                    if definition["schema"] == SCHEMA_V2
-                    else {}
-                ),
             }
             for slide in definition["slides"]
         ],
         "tasks": tasks,
     }
-    if definition["schema"] == SCHEMA_V2:
-        result["knowledgePackChecksum"] = definition["knowledgePackChecksum"]
-        result["knowledgePackUrl"] = (
-            f"/api/v1/study/knowledge/{definition['knowledgePackChecksum']}"
-        )
+    # Evidence handles, knowledge checksums, claim IDs, citations, authored feedback,
+    # and answer keys are granted only by a successful task submission response.
+    for task in tasks:
+        task.pop("claimIds", None)
     return result
 
 

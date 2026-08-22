@@ -83,7 +83,9 @@ export function StudyPackAuthoringPage() {
       return {
         viewerSlideId: slideId, displayName: slide?.displayName ?? '', sha256: slide?.sha256 ?? '',
         ...(pack.schema === 'pathlab.study-pack/2'
-          ? { evidenceBundleSha256: imported?.evidenceBundleSha256 ?? '' } : {}),
+          ? { evidenceBundleSha256: imported?.evidenceBundleSha256 ?? '' }
+          : pack.schema === 'pathlab.study-pack/3'
+            ? { evidenceSetSha256: imported?.evidenceSetSha256 ?? '' } : {}),
       }
     }),
   }), [pack, slides])
@@ -143,7 +145,7 @@ export function StudyPackAuthoringPage() {
     if (!file || file.size > 2 * 1024 * 1024) return setError('JSON draft must be at most 2 MiB.')
     try {
       const value = JSON.parse(await file.text()) as StudyPackDefinition
-      if (!['pathlab.study-pack/1', 'pathlab.study-pack/2'].includes(value.schema)) {
+      if (!['pathlab.study-pack/1', 'pathlab.study-pack/2', 'pathlab.study-pack/3'].includes(value.schema)) {
         throw new Error('Unsupported Study Pack schema.')
       }
       setPack({ ...value, checksum: undefined, facultyPreview: undefined }); setPreview(undefined); setError('')

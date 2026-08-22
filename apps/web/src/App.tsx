@@ -13,6 +13,7 @@ const ClassroomInvitePage = lazy(() => import('./pages/ClassroomInvitePage').the
 const StudyPage = lazy(() => import('./pages/StudyPage').then((module) => ({ default: module.StudyPage })))
 const StudyAdminPage = lazy(() => import('./pages/StudyAdminPage').then((module) => ({ default: module.StudyAdminPage })))
 const StudyPackAuthoringPage = lazy(() => import('./pages/StudyPackAuthoringPage').then((module) => ({ default: module.StudyPackAuthoringPage })))
+const EvidenceReviewPage = lazy(() => import('./pages/EvidenceReviewPage').then((module) => ({ default: module.EvidenceReviewPage })))
 
 export function App() {
   return <Routes>
@@ -25,6 +26,7 @@ export function App() {
     <Route path="/classroom/:sessionId" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomStudentPage /></Suspense>} />
     <Route path="/admin/study" element={<Suspense fallback={<Loader label="Opening Study Coach…" size="large" fullscreen />}><StudyAdminPage /></Suspense>} />
     <Route path="/admin/study/packs/new" element={<Suspense fallback={<Loader label="Opening Study Pack authoring…" size="large" fullscreen />}><StudyPackAuthoringPage /></Suspense>} />
+    <Route path="/admin/study/evidence" element={<Suspense fallback={<Loader label="Opening evidence review…" size="large" fullscreen />}><EvidenceReviewPage /></Suspense>} />
     <Route path="/study" element={<Suspense fallback={<Loader label="Opening Study Mode…" size="large" fullscreen />}><StudyPage /></Suspense>} />
     <Route path="/s/:publicId" element={<Suspense fallback={<Loader label="Opening slide…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />

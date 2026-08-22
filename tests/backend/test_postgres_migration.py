@@ -182,7 +182,7 @@ def test_cutover_source_check_is_read_only_and_blocks_classroom_guard(
     result = verify_cutover_source(source)
 
     assert result == {
-        "schemaRevision": "20260822_0025",
+            "schemaRevision": "20260822_0027",
         "sourceSha256": before,
         "activeJobs": 0,
         "activeClassrooms": 0,

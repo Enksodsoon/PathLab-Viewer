@@ -508,9 +508,13 @@ def test_evidence_mentor_v2_is_review_bound_grounded_and_answer_hidden(tmp_path:
         learner = redeemed.json()
         assert "answerKey" not in str(learner["pack"])
         assert "explanation" not in learner["pack"]["tasks"][0]
-        assert learner["pack"]["tasks"][0]["claimIds"] == ["nci.ki67.1"]
-        assert client.get(learner["pack"]["knowledgePackUrl"]).status_code == 200
-        assert client.get(learner["pack"]["slides"][0]["evidenceUrl"]).status_code == 200
+        assert "claimIds" not in learner["pack"]["tasks"][0]
+        assert "knowledgePackUrl" not in learner["pack"]
+        assert "evidenceUrl" not in learner["pack"]["slides"][0]
+        knowledge_url = f"/api/v1/study/knowledge/{knowledge_sha}"
+        evidence_url = f"/api/v1/study/slides/{slide.id}/evidence/{manifest_sha}"
+        assert client.get(knowledge_url).status_code == 403
+        assert client.get(evidence_url).status_code == 403
 
         result = client.post(
             "/api/v1/study/tasks/task-v2/submit",
@@ -519,5 +523,8 @@ def test_evidence_mentor_v2_is_review_bound_grounded_and_answer_hidden(tmp_path:
         )
         assert result.status_code == 200, result.text
         assert result.json()["claimIds"] == ["nci.ki67.1"]
+        assert result.json()["claims"][0]["id"] == "nci.ki67.1"
         assert result.json()["evidence"]["manifestSha256"] == manifest_sha
+        assert client.get(knowledge_url).status_code == 200
+        assert client.get(evidence_url).status_code == 200
         assert "diagnosis" in result.json()["explanation"]

@@ -42,7 +42,8 @@ from .desktop_sync import (
     revision_for,
 )
 from .domain import SlideState
-from .evidence_contract import parse_evidence, validate_evidence
+from .evidence_contract import load_trusted_signers, parse_evidence, validate_evidence
+from .evidence_set_contract import validate_evidence_set
 from .models import (
     AnalysisRun,
     Annotation,
@@ -52,6 +53,7 @@ from .models import (
     DesktopPairing,
     DesktopSyncEvent,
     EvidenceBundle,
+    EvidenceSet,
     Folder,
     ManagedResultAttachment,
     PathObjectMeasurement,
@@ -181,8 +183,13 @@ def register_desktop_routes(
     tile_routes: Callable[[], TileRouteService],
     ome_dynamic_enabled: bool = True,
     max_upload_bytes: int = 5 * GIB,
+    evidence_trusted_signers_path: Path | None = None,
 ) -> PreparedIngestFinalizer:
     finalizer = PreparedIngestFinalizer(database_dependency, storage)
+    trusted_evidence_signers = load_trusted_signers(evidence_trusted_signers_path)
+    trusted_evidence_set_signers = load_trusted_signers(
+        evidence_trusted_signers_path, "evidence-set"
+    )
     app.state.desktop_ingest_finalizer = finalizer
 
     def credential(
@@ -297,6 +304,7 @@ def register_desktop_routes(
                     evidence,
                     slide_sha256=delivery.slide_sha256,
                     slide_revision=delivery.artifact_revision_id,
+                    trusted_signers=trusted_evidence_signers,
                 )
                 if (
                     database.scalar(
@@ -320,6 +328,36 @@ def register_desktop_routes(
                         manifest=evidence,
                     )
                 )
+                database.flush()
+            if "evidence-set.json" in names:
+                member = archive.getmember("evidence-set.json")
+                if not member.isfile() or member.size > 2 * 1024 * 1024:
+                    raise ValueError("AI_EVIDENCE_SET_SIZE_INVALID")
+                source = archive.extractfile(member)
+                if source is None:
+                    raise ValueError("AI_EVIDENCE_SET_SCHEMA_INVALID")
+                evidence_set = parse_evidence(source.read())
+                known_hashes = set(database.scalars(select(EvidenceBundle.manifest_sha256).where(
+                    EvidenceBundle.slide_id == delivery.slide_id
+                )))
+                set_sha = validate_evidence_set(
+                    evidence_set,
+                    slide_sha256=delivery.slide_sha256,
+                    slide_revision=delivery.artifact_revision_id,
+                    trusted_signers=trusted_evidence_set_signers,
+                    known_bundle_hashes=known_hashes,
+                )
+                if database.scalar(select(EvidenceSet.id).where(
+                    EvidenceSet.manifest_sha256 == set_sha
+                )) is not None:
+                    raise ValueError("AI_EVIDENCE_SET_DUPLICATED")
+                database.add(EvidenceSet(
+                    slide_id=delivery.slide_id,
+                    set_id=evidence_set["setId"],
+                    manifest_sha256=set_sha,
+                    status=evidence_set["status"],
+                    manifest=evidence_set,
+                ))
 
             def documents(name: str) -> Iterator[dict[str, Any]]:
                 source = archive.extractfile(name)

@@ -1,4 +1,4 @@
-import { ArrowLeft, DownloadSimple, Play, Plus, Stop, Trash } from '@phosphor-icons/react'
+import { ArrowLeft, DownloadSimple, Play, Plus, ShieldCheck, Stop, Trash } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -74,7 +74,7 @@ export function StudyAdminPage() {
 
   return <main className="study-admin">
     <header className="study-admin-topbar"><Brand product="Study" /><nav><Link to="/admin"><ArrowLeft aria-hidden="true" /> Slide library</Link><ThemeControl /></nav></header>
-    <section className="study-admin-heading"><div><span>Educational beta</span><h1>Study Coach</h1><p>Viewer now owns Study Pack authoring, faculty preview, courses, and browser-local TRACE-SIM pilots.</p></div><nav className="study-admin-heading-actions"><Link to="/admin/study/packs/new"><Plus /> Author Study Pack</Link><a href="/study" target="_blank" rel="noreferrer">Open learner entry</a></nav></section>
+    <section className="study-admin-heading"><div><span>Educational beta</span><h1>Study Coach</h1><p>Viewer now owns Study Pack authoring, faculty preview, courses, and browser-local TRACE-SIM pilots.</p></div><nav className="study-admin-heading-actions"><Link to="/admin/study/evidence"><ShieldCheck /> Review evidence</Link><Link to="/admin/study/packs/new"><Plus /> Author Study Pack</Link><a href="/study" target="_blank" rel="noreferrer">Open learner entry</a></nav></section>
     {error ? <p role="alert" className="study-admin-error">{error}</p> : null}
     {loading ? <Loader label="Loading Study Coach…" /> : <>
       <section className="study-admin-card" aria-labelledby="new-course-heading">
