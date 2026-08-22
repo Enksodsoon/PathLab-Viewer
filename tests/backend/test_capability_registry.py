@@ -42,7 +42,7 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         registry["baselineReleaseSha"]
     }
     protection = capabilities["classroom-background-protection"]
-    assert protection["releaseSha"] == "438bea06dd358638af1bbe5bfed32e770cc31cef"
+    assert protection["releaseSha"] == "b331171fa15a8ad4d08c62fa8a5e9c0af94c0f79"
     assert "disabled by default and not production-activated" in protection[
         "claimRestrictions"
     ]
