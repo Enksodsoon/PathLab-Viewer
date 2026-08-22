@@ -63,6 +63,18 @@ jobs:
           OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
           OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
         run: bash deploy/scripts/configure-capacity-oci.sh
+      - name: Mask production infrastructure identifiers
+        env:
+          CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+        run: |
+          for value in "${CAPACITY_BASE_URL}" "${OCI_BASTION_ID}" \
+            "${OCI_INSTANCE_ID}" "${OCI_TARGET_PRIVATE_IP}"; do
+            test -n "${value}"
+            echo "::add-mask::${value}"
+          done
       - name: Run one bounded exact-release verification
         env:
           GH_TOKEN: ${{ github.token }}

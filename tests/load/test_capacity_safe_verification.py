@@ -72,3 +72,17 @@ def test_terminal_artifact_is_compact_and_unconditional() -> None:
         "runOwnedBastionCount",
     ):
         assert field in runner
+
+
+def test_bastion_deletion_and_identifier_redaction_are_bounded() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    runner = RUNNER.read_text(encoding="utf-8")
+    bastion = BASTION.read_text(encoding="utf-8")
+    assert "Mask production infrastructure identifiers" in workflow
+    for name in ("CAPACITY_BASE_URL", "OCI_BASTION_ID", "OCI_INSTANCE_ID", "OCI_TARGET_PRIVATE_IP"):
+        assert f'echo "::add-mask::${{{name}}}"' not in workflow
+        assert name in workflow
+    assert "seq 1 60" in runner
+    assert "seq 1 60" in bastion
+    assert "sleep 5" in runner
+    assert "sleep 5" in bastion
