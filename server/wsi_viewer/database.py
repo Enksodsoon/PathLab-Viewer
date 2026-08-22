@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from typing import TypedDict
 
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
@@ -15,10 +16,27 @@ class PoolOptions(TypedDict):
     pool_timeout: float
 
 
-EngineKey = tuple[str, str, int, int, float]
+EngineKey = tuple[str, str | None, str, int, int, float]
 
 _engines: dict[EngineKey, Engine] = {}
 _factories: dict[EngineKey, sessionmaker[OrmSession]] = {}
+
+
+def _database_target(settings: Settings) -> str | URL:
+    password_file = settings.database_password_file
+    if password_file is None:
+        return settings.database_url
+    if not settings.database_url.startswith("postgresql"):
+        raise ValueError("Database password files require PostgreSQL")
+    if password_file.is_symlink() or not password_file.is_file():
+        raise ValueError("Database password file must be a regular non-symlink file")
+    if password_file.stat().st_size > 1_024:
+        raise ValueError("Database password file exceeds 1 KiB")
+    raw_password = password_file.read_text(encoding="utf-8")
+    password = raw_password.rstrip("\r\n")
+    if not password or "\n" in password or "\r" in password:
+        raise ValueError("Database password file must contain one non-empty line")
+    return make_url(settings.database_url).set(password=password)
 
 
 def pool_options_for(settings: Settings) -> PoolOptions:
@@ -52,6 +70,7 @@ def _engine_key(settings: Settings) -> EngineKey:
     options = pool_options_for(settings)
     return (
         settings.database_url,
+        str(settings.database_password_file) if settings.database_password_file else None,
         settings.service_role,
         options["pool_size"],
         options["max_overflow"],
@@ -72,7 +91,7 @@ def engine_for(settings: Settings) -> Engine:
                 f"-c lock_timeout={lock_timeout_ms}"
             )
         engine = create_engine(
-            settings.database_url,
+            _database_target(settings),
             connect_args=connect_args,
             **pool_options_for(settings),
         )

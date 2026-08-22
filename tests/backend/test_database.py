@@ -7,6 +7,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from wsi_viewer.config import Settings
 from wsi_viewer.database import (
+    _database_target,
     create_schema,
     pool_options_for,
     postgres_timeouts_for,
@@ -70,6 +71,44 @@ def test_postgres_timeouts_are_bounded_by_runtime_role(
     role: str, expected: tuple[int, int]
 ) -> None:
     assert postgres_timeouts_for(Settings(_env_file=None, service_role=role)) == expected
+
+
+def test_postgres_password_file_is_injected_without_mutating_settings(tmp_path: Path) -> None:
+    password_file = tmp_path / "postgres-password"
+    password_file.write_text("p@ss:/word\n", encoding="utf-8")
+    settings = Settings(
+        _env_file=None,
+        database_url="postgresql+psycopg://pathlab@postgres:5432/pathlab",
+        database_password_file=password_file,
+    )
+
+    target = _database_target(settings)
+
+    assert not isinstance(target, str)
+    assert target.password == "p@ss:/word"
+    assert settings.database_url == "postgresql+psycopg://pathlab@postgres:5432/pathlab"
+
+
+def test_database_password_file_rejects_non_postgres_and_multiline(tmp_path: Path) -> None:
+    password_file = tmp_path / "database-password"
+    password_file.write_text("one\ntwo", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="require PostgreSQL"):
+        _database_target(
+            Settings(
+                _env_file=None,
+                database_url="sqlite:///pathlab.sqlite3",
+                database_password_file=password_file,
+            )
+        )
+    with pytest.raises(ValueError, match="one non-empty line"):
+        _database_target(
+            Settings(
+                _env_file=None,
+                database_url="postgresql+psycopg://pathlab@postgres/pathlab",
+                database_password_file=password_file,
+            )
+        )
 
 
 def test_runtime_app_startup_does_not_create_or_stamp_schema(tmp_path: Path) -> None:

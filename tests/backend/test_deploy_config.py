@@ -173,6 +173,28 @@ def test_worker_and_tile_service_use_dedicated_database_pool_roles() -> None:
     assert "PATHLAB_SERVICE_ROLE: worker" in worker_service
 
 
+def test_postgres_staging_overlay_is_pinned_bounded_and_fail_closed() -> None:
+    overlay = Path("deploy/compose.postgres.yaml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    example = Path("deploy/.env.example").read_text(encoding="utf-8")
+
+    assert (
+        "postgres:18.6-alpine@sha256:"
+        "d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"
+    ) in overlay
+    assert "POSTGRES_PASSWORD_FILE: /run/secrets/pathlab-postgres-password" in overlay
+    assert overlay.count("PATHLAB_DATABASE_PASSWORD_FILE: /run/secrets/") == 3
+    assert "PATHLAB_POSTGRES_PASSWORD_FILE:?Set PATHLAB_POSTGRES_PASSWORD_FILE" in overlay
+    assert "max_connections=20" in overlay
+    assert "shared_buffers=128MB" in overlay
+    assert "mem_limit: 768m" in overlay
+    assert "cpus: 0.75" in overlay
+    assert "condition: service_healthy" in overlay
+    assert overlay.count("postgresql+psycopg://") == 3
+    assert "PATHLAB_POSTGRES_PASSWORD_FILE=/srv/pathlab/secrets/postgres-password" in example
+    assert "-f deploy/compose.postgres.yaml config" in workflow
+
+
 def test_worker_has_heartbeat_healthcheck_and_graceful_stop_period() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     worker_service = compose.split("\n  worker:\n", maxsplit=1)[1].split(

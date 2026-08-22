@@ -15,8 +15,8 @@ This phase prepares PathLab for PostgreSQL as the authoritative deployment datab
 
 ## Current slice
 
-This slice adds the process roles, bounded database settings, PostgreSQL job-claim isolation, and PostgreSQL upload-expiry compatibility. It does not add PostgreSQL to the deployment Compose file, migrate production data, change backup selection, deploy a release, or activate a feature.
+This slice adds the process roles, bounded database settings, PostgreSQL job-claim isolation, PostgreSQL upload-expiry compatibility, and an explicit PostgreSQL Compose overlay for isolated staging. The existing production Compose invocation is unchanged. This slice does not migrate production data, change backup selection, deploy a release, or activate a feature.
 
 ## Required next slice
 
-The next cutover slice must add a digest-pinned PostgreSQL 18.6 deployment topology, fail-closed credentials and readiness, PostgreSQL backup selection, a verified SQLite-to-PostgreSQL migration manifest, disposable restore evidence, and Classroom coexistence tests. It must remain staging-only until that evidence is green.
+The next cutover slice must add PostgreSQL backup selection, a verified SQLite-to-PostgreSQL migration manifest, disposable restore evidence, and Classroom coexistence tests. It must remain staging-only until that evidence is green.
