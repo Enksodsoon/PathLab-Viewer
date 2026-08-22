@@ -129,8 +129,9 @@ jobs:
           trap 'docker exec -i "${POSTGRES_CONTAINER}" dropdb --if-exists --force --username pathlab_test "${TARGET_DATABASE}" >/dev/null 2>&1 || true' EXIT
 
           SOURCE_DATABASE="${RUNNER_TEMP}/cutover-source.sqlite3"
-          PATHLAB_DATABASE_URL="sqlite:///${SOURCE_DATABASE}" \
-            PATHLAB_DATABASE_PASSWORD_FILE= alembic upgrade head
+          env -u PATHLAB_DATABASE_PASSWORD_FILE \
+            PATHLAB_DATABASE_URL="sqlite:///${SOURCE_DATABASE}" \
+            alembic upgrade head
           python - "${SOURCE_DATABASE}" <<'PY'
           import sqlite3
           import sys

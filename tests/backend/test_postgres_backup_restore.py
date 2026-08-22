@@ -159,3 +159,4 @@ def test_cutover_evidence_script_is_staging_only_and_composes_existing_proofs() 
     assert 'state="SUCCEEDED"' in cutover
     assert "status.json" in workflow
     assert 'status["state"] == "SUCCEEDED"' in workflow
+    assert "env -u PATHLAB_DATABASE_PASSWORD_FILE" in workflow
