@@ -234,8 +234,13 @@ if [[ -n "${CAPACITY_RECOVERY_RUN_ID:-}" ]]; then
   python deploy/scripts/capacity_fixtures.py reconcile \
     --run-id "${CAPACITY_RECOVERY_RUN_ID}" --base-url "${CAPACITY_BASE_URL}" \
     --username "${LOAD_TEST_ADMIN_USERNAME}" --password "${LOAD_TEST_ADMIN_PASSWORD}"
-  bash deploy/scripts/capacity-control-via-bastion.sh \
-    "capacity-recover run=${CAPACITY_RECOVERY_RUN_ID} sha=${prior_sha}" >/dev/null
+  prior_recovery="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+    "capacity-recover run=${CAPACITY_RECOVERY_RUN_ID} sha=${prior_sha}")"
+  jq -e --arg sha "${GITHUB_SHA}" \
+    '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
+     .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
+     .annotationsEnabled == false and .controllerReconciled == true' \
+    <<< "${prior_recovery}" >/dev/null
   delete_owned_bastion "${CAPACITY_RECOVERY_RUN_ID}"
 fi
 
