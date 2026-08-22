@@ -12,6 +12,7 @@ from sqlalchemy import inspect, select, text
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
+from .identity import ensure_default_owner_membership
 from .models import ClassroomSession, Job, RuntimeGuard, User
 from .postgres_migration import (
     PostgresMigrationError,
@@ -117,9 +118,7 @@ def main() -> None:
             )
         except PostgresMigrationError as error:
             raise SystemExit(str(error)) from error
-        print(
-            f"Migration verified: tables={len(result['tables'])} manifest={manifest}"
-        )
+        print(f"Migration verified: tables={len(result['tables'])} manifest={manifest}")
         return
     factory = session_factory(settings)
     if args.command == "install-study-model":
@@ -159,16 +158,12 @@ def main() -> None:
     with factory() as database:
         if args.command == "deployment-check":
             running_job = database.scalar(
-                select(Job.id)
-                .where(Job.status.in_({"running", "checkpointing"}))
-                .limit(1)
+                select(Job.id).where(Job.status.in_({"running", "checkpointing"})).limit(1)
             )
             if running_job is not None:
                 raise SystemExit("Deployment blocked: worker job is active")
             active_classroom = database.scalar(
-                select(ClassroomSession.id)
-                .where(ClassroomSession.status == "active")
-                .limit(1)
+                select(ClassroomSession.id).where(ClassroomSession.status == "active").limit(1)
             )
             if active_classroom is not None:
                 raise SystemExit("Deployment blocked: a Classroom session is active")
@@ -201,7 +196,10 @@ def main() -> None:
         if args.command == "create-admin":
             if user is not None:
                 raise SystemExit("Administrator already exists")
-            database.add(User(username=args.username, password_hash=hash_password(password)))
+            created = User(username=args.username, password_hash=hash_password(password))
+            database.add(created)
+            database.flush()
+            ensure_default_owner_membership(database, created)
             database.commit()
             return
         if user is None:

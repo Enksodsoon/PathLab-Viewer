@@ -39,6 +39,7 @@ from .database import session_factory
 from .delivery import deliver_file
 from .desktop_routes import register_desktop_routes
 from .domain import InvalidTransition, SlideState, transition
+from .identity_routes import register_identity_routes
 from .library_routes import register_library_routes
 from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
 from .ome_tiles import MemoryTileCache, OmeTileRenderer
@@ -464,6 +465,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     PasswordRecoveryPayload = Annotated[PasswordRecoveryRequest, Depends(password_recovery_payload)]
 
     if serves_general:
+        register_identity_routes(
+            app,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            enabled=current.identity_governance_enabled,
+        )
         register_library_routes(
             app,
             factory=factory,

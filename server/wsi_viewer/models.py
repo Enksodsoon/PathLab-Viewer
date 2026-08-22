@@ -63,6 +63,276 @@ class Session(Base):
     user: Mapped[User] = relationship()
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'disabled')", name="ck_organizations_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class OrganizationMembership(Base):
+    __tablename__ = "organization_memberships"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "user_id", name="uq_memberships_org_user"),
+        CheckConstraint(
+            "role IN ('owner', 'admin', 'instructor', 'teaching_assistant', "
+            "'researcher', 'auditor')",
+            name="ck_memberships_role",
+        ),
+        CheckConstraint("status IN ('active', 'disabled')", name="ck_memberships_status"),
+        Index("ix_memberships_user_status", "user_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class StaffInvitation(Base):
+    __tablename__ = "staff_invitations"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('owner', 'admin', 'instructor', 'teaching_assistant', "
+            "'researcher', 'auditor')",
+            name="ck_staff_invitations_role",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'expired', 'revoked')",
+            name="ck_staff_invitations_status",
+        ),
+        Index("ix_staff_invitations_org_status", "organization_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    invitee_identifier_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    role: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class LearnerProfile(Base):
+    __tablename__ = "learner_profiles"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "teaching_pseudonym", name="uq_learners_org_pseudonym"),
+        CheckConstraint("status IN ('active', 'disabled')", name="ck_learners_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    teaching_pseudonym: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class Cohort(Base):
+    __tablename__ = "cohorts"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uq_cohorts_org_name"),
+        CheckConstraint("status IN ('active', 'archived')", name="ck_cohorts_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class CohortEnrollment(Base):
+    __tablename__ = "cohort_enrollments"
+    __table_args__ = (
+        UniqueConstraint("cohort_id", "learner_id", name="uq_enrollments_cohort_learner"),
+        CheckConstraint("status IN ('active', 'withdrawn')", name="ck_enrollments_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    cohort_id: Mapped[str] = mapped_column(
+        ForeignKey("cohorts.id", ondelete="CASCADE"), nullable=False
+    )
+    learner_id: Mapped[str] = mapped_column(
+        ForeignKey("learner_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class LearnerCredential(Base):
+    __tablename__ = "learner_credentials"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'revoked')", name="ck_learner_credentials_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    learner_id: Mapped[str] = mapped_column(
+        ForeignKey("learner_profiles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    access_token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    recovery_credential_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class ResearchPseudonym(Base):
+    __tablename__ = "research_pseudonyms"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "scope_id", "pseudonym", name="uq_research_scope_pseudonym"
+        ),
+        UniqueConstraint("learner_id", "scope_id", name="uq_research_learner_scope"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    learner_id: Mapped[str] = mapped_column(
+        ForeignKey("learner_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    scope_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    pseudonym: Mapped[str] = mapped_column(String(100), nullable=False)
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class OidcIdentityLink(Base):
+    __tablename__ = "oidc_identity_links"
+    __table_args__ = (
+        UniqueConstraint("issuer", "subject_hash", name="uq_oidc_issuer_subject"),
+        CheckConstraint("status IN ('linked', 'revoked')", name="ck_oidc_links_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    issuer: Mapped[str] = mapped_column(String(500), nullable=False)
+    subject_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="linked")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    audit_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
 class DesktopPairing(Base):
     __tablename__ = "desktop_pairings"
 
@@ -728,8 +998,7 @@ class RuntimeGuard(Base):
     __tablename__ = "runtime_guards"
     __table_args__ = (
         CheckConstraint(
-            "mode IN ('idle', 'draining_for_classroom', 'classroom_live', "
-            "'classroom_cooldown')",
+            "mode IN ('idle', 'draining_for_classroom', 'classroom_live', 'classroom_cooldown')",
             name="ck_runtime_guards_mode",
         ),
     )
