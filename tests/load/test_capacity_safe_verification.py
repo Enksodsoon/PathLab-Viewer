@@ -86,8 +86,14 @@ def test_bastion_deletion_and_identifier_redaction_are_bounded() -> None:
         assert f'echo "::add-mask::${{{name}}}"' not in workflow
         assert name in workflow
     assert "seq 1 60" in runner
-    assert "seq 1 12" in bastion
-    assert '[[ "${state}" == DELETING ]]' in bastion
+    assert "SECONDS + 600" in bastion
+    assert '[[ "${state}" == DELETED ]]' in bastion
     assert 'delete_owned_bastion "${GITHUB_RUN_ID}"' in runner
     assert "sleep 5" in runner
     assert "sleep 5" in bastion
+    assert 'install -d -m 0700 "${RUNTIME_DIR}"' not in Path(
+        "deploy/scripts/with-capacity-override.sh"
+    ).read_text(encoding="utf-8")
+    assert "755:root:root" in Path(
+        "deploy/scripts/with-capacity-override.sh"
+    ).read_text(encoding="utf-8")
