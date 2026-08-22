@@ -1198,17 +1198,23 @@ def register_study_routes(
         )
         if not authorized:
             raise HTTPException(status_code=404, detail={"code": "AI_EVIDENCE_NOT_FOUND"})
-        model = (
-            EvidenceBundle if pack.definition["schema"] == "pathlab.study-pack/2"
-            else EvidenceSet
-        )
-        evidence = database.scalar(select(model).where(
-            model.slide_id == slide_id, model.manifest_sha256 == manifest_sha256,
-            model.reviewed_at.is_not(None),
+        if pack.definition["schema"] == "pathlab.study-pack/2":
+            bundle = database.scalar(select(EvidenceBundle).where(
+                EvidenceBundle.slide_id == slide_id,
+                EvidenceBundle.manifest_sha256 == manifest_sha256,
+                EvidenceBundle.reviewed_at.is_not(None),
+            ))
+            if bundle is None:
+                raise HTTPException(status_code=410, detail={"code": "AI_EVIDENCE_UNAVAILABLE"})
+            return dict(bundle.manifest)
+        evidence_set = database.scalar(select(EvidenceSet).where(
+            EvidenceSet.slide_id == slide_id,
+            EvidenceSet.manifest_sha256 == manifest_sha256,
+            EvidenceSet.reviewed_at.is_not(None),
         ))
-        if evidence is None:
+        if evidence_set is None:
             raise HTTPException(status_code=410, detail={"code": "AI_EVIDENCE_UNAVAILABLE"})
-        return evidence.manifest
+        return dict(evidence_set.manifest)
 
     @app.get("/api/v1/study/readiness")
     def readiness(stored: StudyLearnerSession = Depends(learner_session)) -> dict[str, Any]:
