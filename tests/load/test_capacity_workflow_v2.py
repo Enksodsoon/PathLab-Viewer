@@ -20,7 +20,11 @@ def test_capacity_workflow_is_manual_read_only_and_production_protected() -> Non
     loaded = workflow()
 
     assert set(loaded["on"]) == {"workflow_dispatch"}  # type: ignore[arg-type]
-    assert loaded["permissions"] == {"contents": "read", "checks": "read"}
+    assert loaded["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+        "checks": "read",
+    }
     assert loaded["concurrency"] == {
         "group": "production-control",
         "cancel-in-progress": "false",
@@ -30,6 +34,9 @@ def test_capacity_workflow_is_manual_read_only_and_production_protected() -> Non
     window = loaded["on"]["workflow_dispatch"]["inputs"]["window_start_ict"]  # type: ignore[index]
     assert window["required"] == "true"
     assert "YYYY-MM-DDTHH:MM:00+07:00" in window["description"]
+    recovery = loaded["on"]["workflow_dispatch"]["inputs"]["recovery_run_id"]  # type: ignore[index]
+    assert recovery["required"] == "false"
+    assert recovery["default"] == ""
 
 
 def test_capacity_workflow_uses_exactly_six_standard_linux_shards() -> None:
@@ -229,7 +236,7 @@ def test_capacity_workflow_bounds_each_final_phase_by_absolute_wall_clock() -> N
     assert "--kill-after=250s" in serialized
 
 
-def test_capacity_workflow_performs_no_bastion_or_host_action_before_arm_gate() -> None:
+def test_capacity_workflow_validates_only_rollback_before_fixture_mutation() -> None:
     jobs = workflow()["jobs"]  # type: ignore[index]
     preflight_runs = "\n".join(
         str(step.get("run", "")) for step in jobs["preflight"]["steps"]  # type: ignore[index]
@@ -238,11 +245,29 @@ def test_capacity_workflow_performs_no_bastion_or_host_action_before_arm_gate() 
         str(step.get("run", "")) for step in jobs["arm"]["steps"]  # type: ignore[index]
     )
 
-    assert "capacity-control-via-bastion.sh" not in preflight_runs
+    assert preflight_runs.count("capacity-control-via-bastion.sh") == 1
+    assert "capacity-rollback-preflight" in preflight_runs
     assert "capacity-arm" not in preflight_runs
     gate_index = arm_runs.index("remaining --phase arm")
     assert gate_index < arm_runs.index("capacity-rollback-preflight")
     assert arm_runs.count("capacity-control-via-bastion.sh") == 1
+
+
+def test_capacity_recovery_is_exact_terminal_run_bound_and_precedes_new_fixtures() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+    preflight = serialized[: serialized.index("  fixtures:")]
+
+    rollback = preflight.index("Validate retained rollback before fixture mutation")
+    recovery = preflight.index("Reconcile an exact terminal failed-run fixture")
+    fixtures = serialized.index("Create and encrypt exact run-owned fixtures")
+    assert rollback < recovery < fixtures
+    assert 'inputs.recovery_run_id != \'\'' in preflight
+    assert '.status == "completed" and .conclusion == "failure"' in preflight
+    assert '.workflowName == "Capacity certification"' in preflight
+    assert "capacity-fixtures-private" in preflight
+    assert "capacity_fixtures.py cleanup" in preflight
+    assert "trap 'rm -rf --" in preflight
+    assert "/api/v1/admin/classroom/sessions\")" not in preflight
 
 
 def test_legacy_rollback_waits_for_health_and_preserves_observed_result() -> None:
@@ -288,6 +313,18 @@ def test_cleanup_timeout_signals_the_entire_process_tree_before_recovery_reserve
 
     assert "timeout --signal=TERM --kill-after=250s" in cleanup_run
     assert "timeout --foreground --signal=TERM --kill-after=250s" not in cleanup_run
+
+
+def test_cleanup_accepts_only_transition_invalid_reset_conflict_before_exact_deletion() -> None:
+    cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "reset_status" in cleanup
+    assert '[[ "${reset_status}" == 409 ]]' in cleanup
+    assert '.detail.code == "CLASSROOM_TRANSITION_INVALID"' in cleanup
+    assert '[[ "${reset_status}" == 204 ]]' in cleanup
+    assert cleanup.index("reset_status") < cleanup.index("capacity_fixtures.py cleanup")
 
 
 def test_aborted_restored_state_can_only_rollback_to_bound_300_release() -> None:

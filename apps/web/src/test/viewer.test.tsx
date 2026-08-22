@@ -409,6 +409,22 @@ it('keeps the authenticated private-preview API branch intact', async () => {
   )
 })
 
+it('sends an expired private-preview session back to administrator sign in', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({ detail: { code: 'AUTH_REQUIRED' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    ),
+  )
+
+  renderViewerPage('/admin/preview/private-1')
+
+  expect(await screen.findByRole('heading', { name: 'Administrator session expired' })).toBeVisible()
+  expect(screen.getByText(/reopen this private slide and its annotation tools/i)).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Sign in again' })).toHaveAttribute('href', '/admin')
+  expect(screen.queryByText(/slide is unavailable/i)).not.toBeInTheDocument()
+})
+
 it('loads annotation code and APIs only for an enabled private admin slide', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const route = String(input)

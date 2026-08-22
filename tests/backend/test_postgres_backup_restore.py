@@ -139,3 +139,52 @@ def test_postgres_scripts_are_fail_closed_and_disposable() -> None:
     assert "SELECT version_num FROM alembic_version" in drill
     assert 'server_version" == "180006"' in drill
     assert "PATHLAB_POSTGRES_CONTAINER" in drill
+
+
+def test_database_aware_backup_and_postgres_rollback_preserve_failed_database() -> None:
+    backup = Path("deploy/scripts/backup-current-database.sh").read_text(encoding="utf-8")
+    verify = Path("deploy/scripts/verify-current-restore-drill.sh").read_text(
+        encoding="utf-8"
+    )
+    rollback = Path("deploy/scripts/restore-deploy-rollback-postgres.sh").read_text(
+        encoding="utf-8"
+    )
+    selector = Path("deploy/scripts/restore-deploy-rollback-database.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "backup.sh" in backup
+    assert "backup-postgres.sh" in backup
+    assert "PATHLAB_POSTGRES_BACKUP_SIGNING_KEY_FILE" in backup
+    assert "verify_restore_drill.py" in verify
+    assert "verify-postgres-restore-drill.sh" in verify
+    assert "postgres_backup_manifest.py" in rollback
+    assert "restored_revision" in rollback
+    assert "manifest_revision" in rollback
+    assert "pg_terminate_backend" in rollback
+    assert "RENAME TO" in rollback
+    assert "pg_restore --exit-on-error" in rollback
+    assert "restore_failed_database" in rollback
+    assert "failed database preserved" in rollback
+    assert "restore-deploy-rollback-postgres.sh" in selector
+
+
+def test_cutover_evidence_script_is_staging_only_and_composes_existing_proofs() -> None:
+    cutover = Path("deploy/scripts/verify-postgres-cutover.sh").read_text(
+        encoding="utf-8"
+    )
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert 'PATHLAB_CUTOVER_ENVIRONMENT:-}" != "staging"' in cutover
+    assert "postgres-cutover-source-check" in cutover
+    assert "migrate-sqlite-to-postgres" in cutover
+    assert "--target-password-file" in cutover
+    assert "PATHLAB_POSTGRES_TARGET_URL must contain a username and no password" in cutover
+    assert "deployment-check" in cutover
+    assert "backup-postgres.sh" in cutover
+    assert "verify-postgres-restore-drill.sh" in cutover
+    assert 'state="FAILED_TERMINAL"' in cutover
+    assert 'state="SUCCEEDED"' in cutover
+    assert "status.json" in workflow
+    assert 'status["state"] == "SUCCEEDED"' in workflow
+    assert "env -u PATHLAB_DATABASE_PASSWORD_FILE" in workflow

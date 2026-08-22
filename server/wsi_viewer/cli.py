@@ -7,17 +7,34 @@ import shutil
 import sys
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
 from .database import session_factory
+from .identity import ensure_default_owner_membership
 from .models import ClassroomSession, Job, RuntimeGuard, User
-from .postgres_migration import PostgresMigrationError, migrate_sqlite_to_postgres
+from .postgres_migration import (
+    PostgresMigrationError,
+    migrate_sqlite_to_postgres,
+    verify_cutover_source,
+)
 from .runtime_protection import CLASSROOM_GUARD_ID, IDLE
 from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
+
+RUNTIME_GUARD_PREDECESSOR_REVISIONS = frozenset(
+    {
+        "20260813_0017",
+        "20260813_0018",
+        "20260813_0019",
+        "20260813_0020",
+        "20260821_0021",
+        "20260821_0022",
+        "20260821_0023",
+    }
+)
 
 
 def _read_password(password_stdin: bool) -> str:
@@ -45,6 +62,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "deployment-check",
             "reconcile-storage",
             "migrate-sqlite-to-postgres",
+            "postgres-cutover-source-check",
             "install-study-model",
         ],
     )
@@ -74,6 +92,15 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _build_parser().parse_args()
     settings = Settings()
+    if args.command == "postgres-cutover-source-check":
+        if args.source is None:
+            raise SystemExit("--source is required")
+        try:
+            result = verify_cutover_source(args.source)
+        except PostgresMigrationError as error:
+            raise SystemExit(str(error)) from error
+        print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+        return
     if args.command == "migrate-sqlite-to-postgres":
         if args.source is None or args.target is None:
             raise SystemExit("--source and --target are required")
@@ -91,9 +118,7 @@ def main() -> None:
             )
         except PostgresMigrationError as error:
             raise SystemExit(str(error)) from error
-        print(
-            f"Migration verified: tables={len(result['tables'])} manifest={manifest}"
-        )
+        print(f"Migration verified: tables={len(result['tables'])} manifest={manifest}")
         return
     factory = session_factory(settings)
     if args.command == "install-study-model":
@@ -133,24 +158,27 @@ def main() -> None:
     with factory() as database:
         if args.command == "deployment-check":
             running_job = database.scalar(
-                select(Job.id)
-                .where(Job.status.in_({"running", "checkpointing"}))
-                .limit(1)
+                select(Job.id).where(Job.status.in_({"running", "checkpointing"})).limit(1)
             )
             if running_job is not None:
                 raise SystemExit("Deployment blocked: worker job is active")
             active_classroom = database.scalar(
-                select(ClassroomSession.id)
-                .where(ClassroomSession.status == "active")
-                .limit(1)
+                select(ClassroomSession.id).where(ClassroomSession.status == "active").limit(1)
             )
             if active_classroom is not None:
                 raise SystemExit("Deployment blocked: a Classroom session is active")
-            runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
-            if runtime_guard is not None and runtime_guard.mode != IDLE:
-                raise SystemExit(
-                    f"Deployment blocked: Classroom protection is {runtime_guard.mode}"
-                )
+            if inspect(database.get_bind()).has_table(RuntimeGuard.__tablename__):
+                runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
+                if runtime_guard is not None and runtime_guard.mode != IDLE:
+                    raise SystemExit(
+                        f"Deployment blocked: Classroom protection is {runtime_guard.mode}"
+                    )
+            else:
+                revision = database.scalar(text("SELECT version_num FROM alembic_version"))
+                if revision not in RUNTIME_GUARD_PREDECESSOR_REVISIONS:
+                    raise SystemExit(
+                        "Deployment blocked: Classroom protection schema is unavailable"
+                    )
             return
         user = database.scalar(select(User).where(User.username == args.username))
         if args.command == "issue-recovery-code":
@@ -168,7 +196,10 @@ def main() -> None:
         if args.command == "create-admin":
             if user is not None:
                 raise SystemExit("Administrator already exists")
-            database.add(User(username=args.username, password_hash=hash_password(password)))
+            created = User(username=args.username, password_hash=hash_password(password))
+            database.add(created)
+            database.flush()
+            ensure_default_owner_membership(database, created)
             database.commit()
             return
         if user is None:

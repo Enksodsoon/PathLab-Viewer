@@ -39,6 +39,7 @@ from .database import session_factory
 from .delivery import deliver_file
 from .desktop_routes import register_desktop_routes
 from .domain import InvalidTransition, SlideState, transition
+from .identity_routes import register_identity_routes
 from .library_routes import register_library_routes
 from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
 from .ome_tiles import MemoryTileCache, OmeTileRenderer
@@ -69,6 +70,7 @@ from .storage_accounting import reserve_new_slide, reserve_retry
 from .study_routes import register_study_routes
 from .tile_cache import TileCache
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
+from .time_support import as_utc, utc_now
 
 COOKIE_NAME = "pathlab_session"
 MAX_AUTH_BODY_BYTES = 4096
@@ -401,7 +403,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not pathlab_session:
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
         stored = db.get(Session, _token_hash(pathlab_session))
-        if stored is None or stored.expires_at < datetime.now(UTC).replace(tzinfo=None):
+        if stored is None or as_utc(stored.expires_at) < utc_now():
             raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
         user = db.get(User, stored.user_id)
         if user is None or stored.credential_generation != user.credential_generation:
@@ -463,6 +465,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     PasswordRecoveryPayload = Annotated[PasswordRecoveryRequest, Depends(password_recovery_payload)]
 
     if serves_general:
+        register_identity_routes(
+            app,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            enabled=current.identity_governance_enabled,
+        )
         register_library_routes(
             app,
             factory=factory,
@@ -904,7 +913,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         slide.privacy_status = "passed"
-        slide.privacy_scanned_at = datetime.now(UTC).replace(tzinfo=None)
+        slide.privacy_scanned_at = utc_now()
         try:
             ensure_grant(db, storage, slide, INDIVIDUAL, slide.id)
         except FileNotFoundError as error:

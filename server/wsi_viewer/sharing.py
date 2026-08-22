@@ -22,6 +22,7 @@ from .models import (
 )
 from .publication import SHARE, ensure_grant, remove_grant
 from .storage import StorageLayout
+from .time_support import as_utc, utc_now
 
 
 class ShareConflict(ValueError):
@@ -247,7 +248,7 @@ def share_json(
             database.scalars(select(ShareSlide.id).where(ShareSlide.share_id == share.id)).all()
         )
     state = "revoked" if not share.is_active else "active"
-    if share.expires_at is not None and share.expires_at <= utcnow():
+    if share.expires_at is not None and as_utc(share.expires_at) <= utc_now():
         state = "expired"
     return {
         "id": share.id,
@@ -371,7 +372,7 @@ def active_public_share(
     if (
         share is None
         or share.privacy_status != "passed"
-        or (share.expires_at is not None and share.expires_at <= utcnow())
+        or (share.expires_at is not None and as_utc(share.expires_at) <= utc_now())
     ):
         raise ShareConflict("SHARE_NOT_FOUND")
     return share

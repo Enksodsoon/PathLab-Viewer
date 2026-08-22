@@ -43,6 +43,12 @@ Do not apply a plan that introduces unexpected paid services, open management po
 
 Each service uses bounded Docker `json-file` log rotation. Review container health, disk usage, database readiness, backup age, and public tile delivery after every deployment.
 
+Database runtime selection is fail closed. `PATHLAB_DATABASE_ENGINE=sqlite` is
+the default. `postgres` adds the pinned PostgreSQL overlay through
+`deploy/scripts/compose-pathlab.sh`. Do not edit the engine during an ordinary
+release deployment: the release workflow rejects engine changes. A PostgreSQL
+production cutover requires its own reviewed migration and approval workflow.
+
 ## Production deployment workflow
 
 Use **Actions → Deploy production → Run workflow** from the current reviewed default branch. The protected `production` environment requires approval, deploys the selected reviewed commit, verifies readiness, and restores the prior release when verification fails.
@@ -92,6 +98,12 @@ Perform restore drills on a disposable host:
 ```bash
 deploy/scripts/restore.sh --confirm /absolute/path/to/backup
 ```
+
+Release deployments automatically choose the SQLite or PostgreSQL backup and
+restore drill for the already-active engine. PostgreSQL requires a root-owned
+signing key at `PATHLAB_POSTGRES_BACKUP_SIGNING_KEY_FILE`. Failed PostgreSQL
+candidate releases preserve the failed database under a timestamped name before
+restoring the signed pre-deployment dump.
 
 After restoration, compare slide records, SHA-256 values, manifests, representative DZI descriptors, representative JPEG tiles, authentication behavior, and readiness endpoints. Never test restoration directly over the only production data copy.
 

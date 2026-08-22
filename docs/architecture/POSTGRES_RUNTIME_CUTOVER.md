@@ -13,10 +13,40 @@ This phase prepares PathLab for PostgreSQL as the authoritative deployment datab
 - SQLite-only `BEGIN IMMEDIATE` is never issued on PostgreSQL.
 - Image processing and other external I/O remain outside job-claim transactions.
 
-## Current slice
+## Deployment selector
 
-This slice adds the process roles, bounded database settings, PostgreSQL job-claim isolation, PostgreSQL upload-expiry compatibility, and an explicit PostgreSQL Compose overlay for isolated staging. The existing production Compose invocation is unchanged. This slice does not migrate production data, change backup selection, deploy a release, or activate a feature.
+`PATHLAB_DATABASE_ENGINE` accepts only `sqlite` or `postgres` and defaults to
+`sqlite`. `deploy/scripts/compose-pathlab.sh` is the sole host-side Compose
+selector used by systemd and the release workflow. PostgreSQL adds the pinned
+overlay; an unknown value fails before Docker is called.
 
-## Required next slice
+Ordinary deployments preserve the current engine. They refuse to change from
+SQLite to PostgreSQL or back. Engine cutover remains a separate, explicit,
+staging-first operation.
 
-The next cutover slice must add PostgreSQL backup selection, a verified SQLite-to-PostgreSQL migration manifest, disposable restore evidence, and Classroom coexistence tests. It must remain staging-only until that evidence is green.
+The release workflow now selects the matching backup and disposable restore
+drill. PostgreSQL backups are signed, bind the release and schema revision, and
+use `pg_dump` custom format. If a candidate release fails, PostgreSQL rollback
+renames and preserves the failed database, restores the verified dump into the
+original database name, and returns to the previous release. A restore failure
+renames the preserved database back and fails closed.
+
+The protected PostgreSQL suite holds 300 synthetic Classroom SSE streams open
+simultaneously, verifies background and isolated jobs stay blocked, verifies the
+Classroom pool is bounded at four, and verifies no connection remains checked
+out after any stream yield. This is isolated synthetic evidence, not production
+capacity certification.
+
+## Staging cutover evidence workflow
+
+`deploy/scripts/verify-postgres-cutover.sh` composes the existing proofs into one fail-closed Linux staging workflow. It refuses non-staging execution and password-bearing target URLs, verifies that the immutable SQLite source has no running worker, active Classroom, or non-idle Classroom guard, performs the signed row/key/hash migration, checks the migrated target, creates a signed PostgreSQL/private-file backup, restores it into a disposable database, and writes a compact atomic `status.json`.
+
+Protected PostgreSQL CI runs this workflow with a synthetic SQLite source, a separate synthetic target database, file-mounted credentials, and non-PHI file fixtures. This evidence remains staging-only and does not select PostgreSQL for the existing production deployment.
+
+## Production boundary
+
+The merged selector does not change the production `.env`, migrate production
+data, enable Classroom, or activate Classroom protection. Production remains on
+its current engine until a separately reviewed cutover run supplies a verified
+source manifest, signed backup, restore drill, exact release SHA, and explicit
+production approval.
