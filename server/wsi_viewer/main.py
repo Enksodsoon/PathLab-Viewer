@@ -905,7 +905,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
         slide.privacy_status = "passed"
-        slide.privacy_scanned_at = datetime.now(UTC).replace(tzinfo=None)
+        slide.privacy_scanned_at = utc_now()
         try:
             ensure_grant(db, storage, slide, INDIVIDUAL, slide.id)
         except FileNotFoundError as error:

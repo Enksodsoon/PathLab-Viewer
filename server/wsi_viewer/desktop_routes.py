@@ -61,6 +61,7 @@ from .models import (
 from .ome_ingest import desktop_quarantine_path
 from .storage import GIB, StorageLayout, admission_required
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
+from .time_support import as_utc, utc_now
 
 PAIRING_MINUTES = 10
 CREDENTIAL_DAYS = 90
@@ -84,7 +85,7 @@ MAX_RESULT_MASK_BYTES = 1024 * 1024 * 1024
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now()
 
 
 def _hash(value: str) -> str:
@@ -191,9 +192,12 @@ def register_desktop_routes(
         token = authorization.removeprefix("Bearer ").strip()
         stored = database.get(DesktopCredential, _hash(token))
         now = _now()
-        if stored is None or stored.revoked_at is not None or stored.expires_at <= now:
+        if stored is None or stored.revoked_at is not None or as_utc(stored.expires_at) <= now:
             raise HTTPException(status_code=401, detail={"code": "DESKTOP_CREDENTIAL_INVALID"})
-        if stored.last_used_at is None or stored.last_used_at <= now - timedelta(minutes=15):
+        if (
+            stored.last_used_at is None
+            or as_utc(stored.last_used_at) <= now - timedelta(minutes=15)
+        ):
             stored.last_used_at = now
             database.commit()
         return stored
@@ -430,7 +434,11 @@ def register_desktop_routes(
         pairing = database.scalar(
             select(DesktopPairing).where(DesktopPairing.user_code == payload.user_code.upper())
         )
-        if pairing is None or pairing.expires_at <= _now() or pairing.status != "pending":
+        if (
+            pairing is None
+            or as_utc(pairing.expires_at) <= _now()
+            or pairing.status != "pending"
+        ):
             raise HTTPException(status_code=404, detail={"code": "PAIRING_NOT_FOUND"})
         pairing.user_id = authenticated.user_id
         pairing.status = "approved"
@@ -450,7 +458,7 @@ def register_desktop_routes(
         if (
             pairing is None
             or not hmac.compare_digest(pairing.device_secret_hash, _hash(payload.device_secret))
-            or pairing.expires_at <= _now()
+            or as_utc(pairing.expires_at) <= _now()
         ):
             raise HTTPException(status_code=401, detail={"code": "PAIRING_INVALID"})
         if pairing.status == "pending":

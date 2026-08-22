@@ -1,6 +1,6 @@
 import hashlib
 import hmac
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, cast
 
 from sqlalchemy import delete, func, select, text, update
@@ -16,6 +16,7 @@ from .security import (
     validate_password,
     verify_password,
 )
+from .time_support import as_utc, utc_now
 
 RECOVERY_TTL = timedelta(minutes=15)
 ATTEMPT_WINDOW = timedelta(minutes=5)
@@ -47,8 +48,7 @@ class CredentialConflict(ValueError):
 
 
 def _now(value: datetime | None) -> datetime:
-    current = value or datetime.now(UTC)
-    return current.replace(tzinfo=None)
+    return as_utc(value) if value is not None else utc_now()
 
 
 def _client_key(username: str, client_address: str) -> str:
@@ -94,7 +94,7 @@ def _recovery_is_throttled(
         or failure_count() >= MAX_GLOBAL_RECOVERY_FAILURES
     ):
         return True
-    recent = _recent_client_failures(database, key)
+    recent = [as_utc(item) for item in _recent_client_failures(database, key)]
     return (
         len(recent) == MAX_RECOVERY_FAILURES
         and recent[0] - recent[-1] <= ATTEMPT_WINDOW
@@ -284,7 +284,7 @@ def recover_password(
         database.rollback()
         raise RecoveryThrottled
 
-    recent = _recent_client_failures(database, key)
+    recent = [as_utc(item) for item in _recent_client_failures(database, key)]
     if (
         len(recent) == MAX_RECOVERY_FAILURES
         and recent[0] - recent[-1] <= ATTEMPT_WINDOW
@@ -332,7 +332,7 @@ def recover_password(
     )
     valid = (
         stored is not None
-        and stored.expires_at >= attempted_at
+        and as_utc(stored.expires_at) >= attempted_at
         and hmac.compare_digest(stored.code_hash, submitted_hash)
     )
     if not valid or user is None or stored is None:
@@ -368,6 +368,7 @@ def recover_password(
                 PasswordRecoveryCode.expires_at >= attempted_at,
             )
             .values(consumed_at=attempted_at)
+            .execution_options(synchronize_session=False)
         ),
     )
     if result.rowcount != 1:

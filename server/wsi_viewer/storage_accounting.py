@@ -31,6 +31,7 @@ from .storage import (
     publish_individual_derivative,
     unpublish_individual_derivative,
 )
+from .time_support import as_utc, utc_now
 
 ACTIVE_STATES = (
     SlideState.UPLOADING,
@@ -270,9 +271,9 @@ def reconcile_storage(
                 LibraryShare.privacy_status == "passed",
             )
         ).all()
-        now = utcnow()
+        now = utc_now()
         for share in active_shares:
-            if share.expires_at is not None and share.expires_at <= now:
+            if share.expires_at is not None and as_utc(share.expires_at) <= now:
                 continue
             share_slides = list(
                 database.scalars(
