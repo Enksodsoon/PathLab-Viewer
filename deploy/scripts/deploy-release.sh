@@ -316,6 +316,7 @@ if [[ "${REQUEST}" =~ ^observe-load[[:space:]]([0-9]{2,5})([[:space:]]start=([0-
 fi
 if [[ "${REQUEST}" == capacity-arm\ * || "${REQUEST}" == capacity-status\ * \
   || "${REQUEST}" == capacity-finalize\ * || "${REQUEST}" == capacity-fault\ * \
+  || "${REQUEST}" == capacity-terminate-controller\ * \
   || "${REQUEST}" == capacity-abort\ * || "${REQUEST}" == capacity-ack\ * \
   || "${REQUEST}" == capacity-postflight\ * || "${REQUEST}" == capacity-runtime-preflight\ * ]]; then
   if [[ -f /run/pathlab-capacity-controller ]]; then

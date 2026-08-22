@@ -1,0 +1,96 @@
+name: Capacity safe verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type VERIFY_EXACT_RELEASE_300
+        required: true
+        type: string
+      mode:
+        description: Bounded exact-release verification mode
+        required: true
+        type: choice
+        options:
+          - controlled-abort
+          - controller-termination
+          - delayed-cleanup
+          - full-300
+      window_start_ict:
+        description: Protected three-hour window start; dispatch 20-40 minutes beforehand
+        required: true
+        type: string
+      recovery_run_id:
+        description: Optional failed legacy capacity run to reconcile first
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+
+concurrency:
+  group: production-control
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: >-
+      github.ref == 'refs/heads/main'
+      && github.event.repository.visibility == 'public'
+      && inputs.confirmation == 'VERIFY_EXACT_RELEASE_300'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install locked verification dependencies
+        run: |
+          pip install --require-hashes -r deploy/backend-requirements.txt
+          pip install --require-hashes -r deploy/oci-cli-requirements.txt
+      - name: Configure pinned OCI access
+        env:
+          OCI_CONFIG: ${{ secrets.OCI_CONFIG }}
+          OCI_API_PRIVATE_KEY: ${{ secrets.OCI_API_PRIVATE_KEY }}
+          OCI_BASTION_KNOWN_HOSTS: ${{ secrets.OCI_BASTION_KNOWN_HOSTS }}
+        run: bash deploy/scripts/configure-capacity-oci.sh
+      - name: Run one bounded exact-release verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CAPACITY_MODE: ${{ inputs.mode }}
+          CAPACITY_WINDOW_START_ICT: ${{ inputs.window_start_ict }}
+          CAPACITY_RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+          CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
+          LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
+          LOAD_TEST_ADMIN_SLIDE_ID: ${{ secrets.LOAD_TEST_ADMIN_SLIDE_ID }}
+          LOAD_TEST_PUBLIC_ID: ${{ secrets.LOAD_TEST_PUBLIC_ID }}
+          DEPLOY_EVIDENCE_KEY: ${{ secrets.PATHLAB_DEPLOY_EVIDENCE_KEY }}
+          PROJECTED_EGRESS_BYTES: ${{ vars.OCI_PROJECTED_MONTHLY_EGRESS_BYTES }}
+          OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
+          OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
+          OCI_TARGET_PRIVATE_IP: ${{ vars.OCI_TARGET_PRIVATE_IP }}
+          OCI_KNOWN_HOSTS_FILE: /home/runner/.ssh/known_hosts
+        run: bash deploy/scripts/run-capacity-safe-verification.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: capacity-safe-${{ inputs.mode }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/capacity-safe/status.json
+            ${{ runner.temp }}/capacity-safe/load.json
+            ${{ runner.temp }}/capacity-safe/capacity-fixtures.fernet
+            ${{ runner.temp }}/capacity-safe/runtime.json
+          if-no-files-found: error
+          retention-days: 14
+      - if: always()
+        run: rm -rf -- ~/.oci ~/.ssh "${RUNNER_TEMP}/capacity-safe/fixture"

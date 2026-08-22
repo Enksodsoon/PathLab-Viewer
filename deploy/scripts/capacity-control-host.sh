@@ -276,6 +276,24 @@ if [[ "${REQUEST}" =~ ^capacity-fault[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]
   exit 0
 fi
 
+if [[ "${REQUEST}" =~ ^capacity-terminate-controller[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})$ ]]; then
+  RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
+  CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
+  jq -e --arg run "${RUN_ID}" --arg digest "${DIGEST}" \
+    '.runId == $run and .planDigest == $digest and .phase == "armed"' \
+    "${CONTROL_STATE}" >/dev/null || fail "controller termination binding is invalid"
+  systemctl is-active --quiet "pathlab-capacity-${RUN_ID}.service" || \
+    fail "capacity controller is not active"
+  # Kill only the controller shell. Its separately grouped child is then
+  # contained by the exact-run recovery command, which proves same-release
+  # restoration before admission can resume.
+  systemctl kill --kill-whom=main --signal=KILL \
+    "pathlab-capacity-${RUN_ID}.service" || fail "controller termination failed"
+  jq -n --arg runId "${RUN_ID}" --arg planDigest "${DIGEST}" \
+    '{runId:$runId,planDigest:$planDigest,controllerTerminated:true,recoveryRequired:true}'
+  exit 0
+fi
+
 if [[ "${REQUEST}" =~ ^capacity-ack[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})$ ]]; then
   RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
