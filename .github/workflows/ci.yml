@@ -87,6 +87,7 @@ jobs:
           pytest
           tests/backend/test_postgres_foundation.py
           tests/backend/test_postgres_migration.py
+          tests/backend/test_postgres_classroom.py
       - name: Verify PostgreSQL backup and disposable restore
         env:
           PATHLAB_DATABASE_URL: postgresql+psycopg://pathlab_test:pathlab_test@127.0.0.1:5432/pathlab_test
