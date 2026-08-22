@@ -287,8 +287,11 @@ python deploy/scripts/build_deploy_evidence.py --checks "${checks_path}" \
 now_epoch="$(date +%s)"
 deadline="$((now_epoch + 1200))"
 restore_not_after="$((deadline + 300))"
-fault_start="$((now_epoch + 30))"
-fault_end="$((now_epoch + 180))"
+# The Bastion session is intentionally short-lived but can take several
+# minutes to become ACTIVE. Bind the unused fault window to the controller
+# deadline, not the runner clock immediately before session creation.
+fault_start="$((deadline - 600))"
+fault_end="$((deadline - 300))"
 evidence_b64="$(base64 -w 0 "${evidence_file}" | tr '+/' '-_' | tr -d '=')"
 request="capacity-arm ${GITHUB_SHA} run=${GITHUB_RUN_ID} digest=${plan_digest} manifest=${manifest_digest} arm-not-after=$((now_epoch + 120)) window-start=${window_start_epoch} window-end=${window_end_epoch} deadline=${deadline} restore-not-after=${restore_not_after} fault-start=${fault_start} fault-end=${fault_end} evidence=${evidence_b64} signature=$(cat "${signature_file}") nonce=${nonce}"
 bash deploy/scripts/capacity-control-via-bastion.sh \

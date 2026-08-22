@@ -41,6 +41,9 @@ def test_runner_preserves_capacity_safety_and_exact_ownership_contracts() -> Non
     assert "PATHLAB_CLASSROOM_PARTICIPANTS=\"${participants}\"" in runner
     assert "participants=300" in runner
     assert "duration=600" in runner
+    assert 'fault_start="$((deadline - 600))"' in runner
+    assert 'fault_end="$((deadline - 300))"' in runner
+    assert 'fault_start="$((now_epoch + 30))"' not in runner
     assert "PATHLAB_ANNOTATIONS_ENABLED" not in runner
     assert "OCI_ROLLBACK_RELEASE_SHA" not in runner
 
