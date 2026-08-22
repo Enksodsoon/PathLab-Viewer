@@ -602,6 +602,7 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "classroom=${CLASSROOM_ENABLED}" in script
     assert '"${ANNOTATIONS_ENABLED}" =~ ^(true|false)$' in script
     assert "annotations=${ANNOTATIONS_ENABLED}" in script
+    assert '[[ "${ANNOTATIONS_ENABLED}" == true ]]' in script
 
 
 def test_load_observer_uses_ephemeral_bastion_and_an_exact_bounded_command() -> None:
@@ -695,6 +696,8 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
     assert "annotations=(true|false)" in script
     assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}" in script
     assert "PATHLAB_ANNOTATIONS_ENABLED=${ANNOTATIONS_ENABLED}" in script
+    assert '[[ -n "${CLASSROOM_ENABLED}" && -z "${ANNOTATIONS_ENABLED}" ]]' in script
+    assert "ANNOTATIONS_ENABLED=false" in script
     assert "/srv/pathlab/data" not in script
     assert "docker compose down" not in script
 

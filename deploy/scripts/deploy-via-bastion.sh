@@ -144,7 +144,9 @@ else
   if [[ -n "${CLASSROOM_ENABLED}" ]]; then
     REMOTE_REQUEST="${REMOTE_REQUEST} classroom=${CLASSROOM_ENABLED}"
   fi
-  if [[ -n "${ANNOTATIONS_ENABLED}" ]]; then
+  # Older stable dispatchers do not know the annotation token. False is the
+  # safe default whenever Classroom mode is explicit, so omit it for bootstrap.
+  if [[ "${ANNOTATIONS_ENABLED}" == true ]]; then
     REMOTE_REQUEST="${REMOTE_REQUEST} annotations=${ANNOTATIONS_ENABLED}"
   fi
   bash -c "${SSH_COMMAND} \"${REMOTE_REQUEST}\""
