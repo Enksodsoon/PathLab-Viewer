@@ -309,6 +309,9 @@ def test_bastion_client_fully_anchors_every_allowlisted_request() -> None:
     assert "HostKeyAlias=pathlab-target" in script
     assert "OCI_TARGET_KEY_FILE" in script
     assert "OCI_TARGET_KNOWN_HOSTS_FILE" in script
+    assert "HOST_KEY_REJECTED" in script
+    assert "ENDPOINT_NOT_READY" in script
+    assert "for attempt in 1 2 3" in script
 
 
 @pytest.mark.skipif(BASH is None, reason="bash is unavailable")
@@ -350,6 +353,9 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     fake_ssh.write_text(
         "#!/usr/bin/env bash\n"
         'if [[ " $* " == *" -N "* ]]; then '
+        'if [[ "${FAIL_FIRST_TUNNEL:-}" == true && '
+        '! -f "$TUNNEL_RETRY_MARKER" ]]; then '
+        'touch "$TUNNEL_RETRY_MARKER"; echo "Connection refused" >&2; exit 255; fi; '
         "trap 'exit 0' TERM INT; while true; do sleep 1; done; fi\n"
         'request="${!#}"\nprintf \'%s\\n\' "$request" >> "$SSH_LOG"\n'
         'if [[ "$request" == capacity-runtime-preflight* ]]; then '
@@ -410,6 +416,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
             "OCI_LOG": str(command_log),
             "OCI_DELETE_MARKER": str(tmp_path / "oci-delete-marker"),
             "SSH_LOG": str(ssh_log),
+            "TUNNEL_RETRY_MARKER": str(tmp_path / "tunnel-retry-marker"),
             "OCI_BASTION_ID": "ocid1.bastion.test",
             "OCI_INSTANCE_ID": "ocid1.instance.test",
             "OCI_TARGET_PRIVATE_IP": "10.0.0.1",
@@ -430,6 +437,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     assert rejected_override.returncode != 0
     assert not command_log.exists()
     env["PATHLAB_CAPACITY_TEST_MODE"] = "true"
+    env["FAIL_FIRST_TUNNEL"] = "true"
 
     completed = subprocess.run(
         [str(BASH), "deploy/scripts/capacity-control-via-bastion.sh", preflight, arm_request],
@@ -442,6 +450,7 @@ def test_bastion_client_reuses_one_session_for_preflight_then_arm(tmp_path: Path
     assert completed.returncode == 0, completed.stderr
     assert command_log.read_text(encoding="utf-8").count("create-port-forwarding") == 1
     assert ssh_log.read_text(encoding="utf-8").splitlines() == [preflight, arm_request]
+    assert (tmp_path / "tunnel-retry-marker").exists()
 
     command_log.unlink()
     ssh_log.unlink()

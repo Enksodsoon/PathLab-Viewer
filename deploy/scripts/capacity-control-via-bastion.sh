@@ -129,11 +129,16 @@ SSH_COMMAND="$("${OCI_COMMAND}" bastion session get --session-id "${SESSION_ID}"
   --query 'data."ssh-metadata".command' --raw-output)"
 [[ "${SSH_COMMAND}" == ssh\ * && "${SSH_COMMAND}" == *"<localPort>"* ]] || \
   fail "OCI did not return a port-forwarding SSH command"
-SSH_COMMAND="${SSH_COMMAND//<privateKey>/${KEY_FILE}}"
-if [[ "${PATHLAB_CAPACITY_TEST_MODE:-}" == true && \
-      -n "${PATHLAB_CAPACITY_SSH_COMMAND:-}" ]]; then
-  LOCAL_PORT=45678
-else
+SSH_COMMAND_TEMPLATE="${SSH_COMMAND//<privateKey>/${KEY_FILE}}"
+SSH_COMMAND_TEMPLATE="${SSH_COMMAND_TEMPLATE//exec ssh /ssh }"
+SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes"
+
+allocate_local_port() {
+  if [[ "${PATHLAB_CAPACITY_TEST_MODE:-}" == true && \
+        -n "${PATHLAB_CAPACITY_SSH_COMMAND:-}" ]]; then
+    LOCAL_PORT=45678
+    return
+  fi
   LOCAL_PORT="$(python3 - <<'PY'
 import socket
 
@@ -142,24 +147,46 @@ with socket.socket() as listener:
     print(listener.getsockname()[1])
 PY
 )"
-fi
-[[ "${LOCAL_PORT}" =~ ^[0-9]{4,5}$ ]] || fail "local tunnel port allocation failed"
-SSH_COMMAND="${SSH_COMMAND//<localPort>/${LOCAL_PORT}}"
-SSH_COMMAND="${SSH_COMMAND//exec ssh /ssh }"
-SSH_OPTIONS="-o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${OCI_KNOWN_HOSTS_FILE} -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -o TCPKeepAlive=yes"
-SSH_COMMAND="${SSH_COMMAND//ssh /${SSH_COMMAND_EXECUTABLE} ${SSH_OPTIONS} }"
-if [[ "${PATHLAB_CAPACITY_TEST_MODE:-}" == true && \
-      -n "${PATHLAB_CAPACITY_SSH_COMMAND:-}" ]]; then
-  bash -c "${SSH_COMMAND}" >"${WORK_DIR}/tunnel.out" 2>"${WORK_DIR}/tunnel.err" &
-  TUNNEL_PID=$!
-  sleep 1
-  kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 || fail "Bastion tunnel exited before readiness"
-else
-  bash -c "${SSH_COMMAND}" >"${WORK_DIR}/tunnel.out" 2>"${WORK_DIR}/tunnel.err" &
-  TUNNEL_PID=$!
-  for _ in $(seq 1 60); do
-    kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 || fail "Bastion tunnel exited before readiness"
-    if python3 - "${LOCAL_PORT}" <<'PY'
+  [[ "${LOCAL_PORT}" =~ ^[0-9]{4,5}$ ]] || fail "local tunnel port allocation failed"
+}
+
+classify_tunnel_error() {
+  if grep -Eqi 'Host key verification failed|REMOTE HOST IDENTIFICATION' \
+      "${WORK_DIR}/tunnel.err"; then
+    echo HOST_KEY_REJECTED
+  elif grep -Eqi 'Permission denied|Authentication failed' "${WORK_DIR}/tunnel.err"; then
+    echo AUTH_REJECTED
+  elif grep -Eqi 'Could not resolve|Name or service not known' "${WORK_DIR}/tunnel.err"; then
+    echo DNS_FAILED
+  elif grep -Eqi 'Address already in use' "${WORK_DIR}/tunnel.err"; then
+    echo LOCAL_PORT_COLLISION
+  elif grep -Eqi 'Connection (refused|timed out|reset|closed)|No route to host|Operation timed out|kex_exchange_identification' \
+      "${WORK_DIR}/tunnel.err"; then
+    echo ENDPOINT_NOT_READY
+  else
+    echo UNKNOWN_TUNNEL_FAILURE
+  fi
+}
+
+start_tunnel() {
+  local attempt error_class=UNKNOWN_TUNNEL_FAILURE ready tunnel_command
+  for attempt in 1 2 3; do
+    allocate_local_port
+    tunnel_command="${SSH_COMMAND_TEMPLATE//<localPort>/${LOCAL_PORT}}"
+    tunnel_command="${tunnel_command//ssh /${SSH_COMMAND_EXECUTABLE} ${SSH_OPTIONS} }"
+    : > "${WORK_DIR}/tunnel.out"
+    : > "${WORK_DIR}/tunnel.err"
+    bash -c "${tunnel_command}" >"${WORK_DIR}/tunnel.out" 2>"${WORK_DIR}/tunnel.err" &
+    TUNNEL_PID=$!
+    ready=false
+    if [[ "${PATHLAB_CAPACITY_TEST_MODE:-}" == true && \
+          -n "${PATHLAB_CAPACITY_SSH_COMMAND:-}" ]]; then
+      sleep 1
+      kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 && ready=true
+    else
+      for _ in $(seq 1 60); do
+        kill -0 "${TUNNEL_PID}" >/dev/null 2>&1 || break
+        if python3 - "${LOCAL_PORT}" <<'PY'
 import socket
 import sys
 
@@ -169,19 +196,34 @@ try:
 except OSError:
     raise SystemExit(1)
 PY
-    then
-      break
+        then
+          ready=true
+          break
+        fi
+        sleep 0.5
+      done
     fi
-    sleep 0.5
+    [[ "${ready}" == true ]] && return 0
+    kill "${TUNNEL_PID}" >/dev/null 2>&1 || true
+    wait "${TUNNEL_PID}" >/dev/null 2>&1 || true
+    TUNNEL_PID=""
+    error_class="$(classify_tunnel_error)"
+    case "${error_class}" in
+      HOST_KEY_REJECTED|AUTH_REJECTED|DNS_FAILED)
+        fail "Bastion tunnel failed closed (${error_class})"
+        ;;
+      ENDPOINT_NOT_READY|LOCAL_PORT_COLLISION)
+        sleep "$((attempt * 3))"
+        ;;
+      *)
+        fail "Bastion tunnel failed closed (${error_class})"
+        ;;
+    esac
   done
-  python3 - "${LOCAL_PORT}" <<'PY' || fail "Bastion tunnel did not become ready"
-import socket
-import sys
+  fail "Bastion tunnel did not become ready after three attempts (${error_class})"
+}
 
-with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.5):
-    pass
-PY
-fi
+start_tunnel
 TARGET_SSH=(
   "${SSH_COMMAND_EXECUTABLE}" -i "${TARGET_KEY_FILE}" -p "${LOCAL_PORT}"
   -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
