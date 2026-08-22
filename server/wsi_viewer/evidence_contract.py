@@ -187,7 +187,17 @@ def _cell_aggregates(value: Any, region_ids: set[str]) -> None:
         raise ValueError("AI_EVIDENCE_CELL_AGGREGATES_INVALID")
     for item in value:
         required = {"regionId", "algorithm", "count", "densityPerMm2", "meanNucleusAreaPx2"}
-        if not isinstance(item, dict) or set(item) != required:
+        optional = {
+            "meanNucleusPerimeterPx",
+            "meanNucleusEccentricity",
+            "meanNucleusSolidity",
+            "uncertainty",
+        }
+        if (
+            not isinstance(item, dict)
+            or not required <= set(item)
+            or not set(item) <= required | optional
+        ):
             raise ValueError("AI_EVIDENCE_CELL_AGGREGATE_INVALID")
         if _identifier(item.get("regionId"), maximum=120) not in region_ids:
             raise ValueError("AI_EVIDENCE_REGION_REFERENCE_INVALID")
@@ -202,6 +212,11 @@ def _cell_aggregates(value: Any, region_ids: set[str]) -> None:
         for key in ("densityPerMm2", "meanNucleusAreaPx2"):
             if item.get(key) is not None:
                 _number(item[key], minimum=0)
+        if item.get("meanNucleusPerimeterPx") is not None:
+            _number(item["meanNucleusPerimeterPx"], minimum=0)
+        for key in ("meanNucleusEccentricity", "meanNucleusSolidity", "uncertainty"):
+            if key in item:
+                _number(item[key], minimum=0, maximum=1)
 
 
 def _ihc_descriptors(value: Any, region_ids: set[str]) -> None:
@@ -217,7 +232,15 @@ def _ihc_descriptors(value: Any, region_ids: set[str]) -> None:
             "meanDabOd",
             "researchEstimate",
         }
-        if not isinstance(item, dict) or set(item) != required:
+        optional = {
+            "markerId", "analysisMode", "cellMaskSource", "compartmentSource",
+            "calibrationStatus", "uncertainty", "abstentionReason",
+        }
+        if (
+            not isinstance(item, dict)
+            or not required <= set(item)
+            or not set(item) <= required | optional
+        ):
             raise ValueError("AI_EVIDENCE_IHC_INVALID")
         if _identifier(item.get("regionId"), maximum=120) not in region_ids:
             raise ValueError("AI_EVIDENCE_REGION_REFERENCE_INVALID")
@@ -227,6 +250,40 @@ def _ihc_descriptors(value: Any, region_ids: set[str]) -> None:
         _number(item.get("meanDabOd"), minimum=0)
         if item.get("researchEstimate") is not True:
             raise ValueError("AI_EVIDENCE_IHC_RESEARCH_BOUNDARY_REQUIRED")
+        if "markerId" in item and item.get("markerId") != item.get("marker"):
+            raise ValueError("AI_EVIDENCE_IHC_MARKER_IDENTITY_INVALID")
+        if "analysisMode" in item and item.get("analysisMode") not in {
+            "marker-aware",
+            "generic-fallback",
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "cellMaskSource" in item and item.get("cellMaskSource") not in {
+            "hovernet-fast",
+            "od-watershed",
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "compartmentSource" in item and item.get("compartmentSource") not in {
+            "none", "faculty-authored", "faculty-approved", "model-suggested"
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "calibrationStatus" in item and item.get("calibrationStatus") not in {
+            "calibrated", "relative_only", "not_evaluable"
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "uncertainty" in item:
+            _number(item.get("uncertainty"), minimum=0, maximum=1)
+        if item.get("abstentionReason") is not None:
+            _text(item.get("abstentionReason"), maximum=500)
+        if item.get("marker") == "pd-l1":
+            reviewed = item.get("compartmentSource") in {"faculty-authored", "faculty-approved"}
+            if item.get("compartment") == "tumor-immune-region" and not reviewed:
+                raise ValueError("AI_EVIDENCE_IHC_COMPARTMENT_REVIEW_REQUIRED")
+            if not reviewed and (
+                item.get("compartment") != "generic-region"
+                or item.get("analysisMode") != "generic-fallback"
+                or item.get("abstentionReason") != "COMPARTMENT_REVIEW_REQUIRED"
+            ):
+                raise ValueError("AI_EVIDENCE_IHC_COMPARTMENT_REVIEW_REQUIRED")
 
 
 def _citations(value: Any) -> None:
@@ -242,12 +299,24 @@ def _citations(value: Any) -> None:
 
 
 def _qc(value: Any) -> None:
-    if not isinstance(value, dict) or set(value) != {
+    required = {
         "focus",
         "tissueFraction",
         "uncertainty",
         "abstentionReasons",
-    }:
+    }
+    optional = {
+        "calibrationStatus",
+        "backgroundFraction",
+        "saturationFraction",
+        "stainSeparation",
+        "warnings",
+    }
+    if (
+        not isinstance(value, dict)
+        or not required <= set(value)
+        or not set(value) <= required | optional
+    ):
         raise ValueError("AI_EVIDENCE_QC_INVALID")
     for key in ("focus", "tissueFraction", "uncertainty"):
         _number(value.get(key), minimum=0, maximum=1)
@@ -256,6 +325,19 @@ def _qc(value: Any) -> None:
         raise ValueError("AI_EVIDENCE_QC_INVALID")
     for reason in reasons:
         _text(reason, maximum=500)
+    if "calibrationStatus" in value and value.get("calibrationStatus") not in {
+        "calibrated", "relative_only", "not_evaluable"
+    }:
+        raise ValueError("AI_EVIDENCE_QC_INVALID")
+    for key in ("backgroundFraction", "saturationFraction", "stainSeparation"):
+        if key in value:
+            _number(value.get(key), minimum=0, maximum=1)
+    if "warnings" in value:
+        warnings = value.get("warnings")
+        if not isinstance(warnings, list) or len(warnings) > 20:
+            raise ValueError("AI_EVIDENCE_QC_INVALID")
+        for warning in warnings:
+            _text(warning, maximum=500)
 
 
 def _verify_signature(value: Any, manifest_hash: str) -> None:

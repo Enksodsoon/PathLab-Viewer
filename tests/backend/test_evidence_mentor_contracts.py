@@ -12,7 +12,9 @@ from wsi_viewer.knowledge_pack_contract import retrieve_claims, validate_knowled
 from wsi_viewer.study_pack_contract import canonical_json
 
 
-def _signed_evidence(*, aggregate_region_id: str = "region-1") -> dict[str, object]:
+def _signed_evidence(
+    *, aggregate_region_id: str = "region-1", ihc_descriptor: dict[str, object] | None = None
+) -> dict[str, object]:
     private = Ed25519PrivateKey.generate()
     public_bytes = private.public_key().public_bytes(
         encoding=serialization.Encoding.DER,
@@ -64,7 +66,8 @@ def _signed_evidence(*, aggregate_region_id: str = "region-1") -> dict[str, obje
             }
         ],
         "ihcDescriptors": [
-            {
+            ihc_descriptor
+            or {
                 "regionId": aggregate_region_id,
                 "marker": "ki-67",
                 "compartment": "nuclear",
@@ -124,6 +127,38 @@ def test_evidence_rejects_aggregates_outside_signed_regions() -> None:
     value = _signed_evidence(aggregate_region_id="missing-region")
     with pytest.raises(ValueError, match="REGION_REFERENCE_INVALID"):
         validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+
+
+def test_pd_l1_compartment_requires_faculty_review_and_generic_fallback() -> None:
+    base = {
+        "regionId": "region-1",
+        "markerId": "pd-l1",
+        "marker": "pd-l1",
+        "analysisMode": "marker-aware",
+        "cellMaskSource": "od-watershed",
+        "compartmentSource": "model-suggested",
+        "calibrationStatus": "relative_only",
+        "compartment": "tumor-immune-region",
+        "dabAreaFraction": 0.21,
+        "meanDabOd": 0.34,
+        "uncertainty": 0.2,
+        "abstentionReason": None,
+        "researchEstimate": True,
+    }
+    with pytest.raises(ValueError, match="COMPARTMENT_REVIEW_REQUIRED"):
+        value = _signed_evidence(ihc_descriptor=base)
+        validate_evidence(value, slide_sha256="a" * 64, slide_revision="slide-revision-1")
+
+    fallback = {
+        **base,
+        "analysisMode": "generic-fallback",
+        "compartment": "generic-region",
+        "abstentionReason": "COMPARTMENT_REVIEW_REQUIRED",
+    }
+    value = _signed_evidence(ihc_descriptor=fallback)
+    assert validate_evidence(
+        value, slide_sha256="a" * 64, slide_revision="slide-revision-1"
+    ) == value["manifestSha256"]
 
 
 def test_knowledge_pack_retrieves_only_reviewed_atomic_claims() -> None:

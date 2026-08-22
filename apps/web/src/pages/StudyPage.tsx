@@ -318,7 +318,8 @@ export function StudyPage() {
           {evidence ? <section className="study-evidence" aria-labelledby="study-evidence-title">
             <h4 id="study-evidence-title">Reviewed research evidence</h4>
             <p><strong>{evidence.evidence.length}</strong> evidence regions · <strong>{evidence.cellAggregates.reduce((sum, item) => sum + item.count, 0)}</strong> described nuclei · uncertainty {Math.round(evidence.qc.uncertainty * 100)}%</p>
-            {evidence.ihcDescriptors.map((item) => <p key={`${item.regionId}-${item.marker}`}><strong>{item.marker.toUpperCase()}</strong> {item.compartment}: DAB area {Math.round(item.dabAreaFraction * 100)}%, mean OD {item.meanDabOd.toFixed(2)}. Research estimate only.</p>)}
+            {evidence.ihcDescriptors.map((item) => <p key={`${item.regionId}-${item.marker}`}><strong>{item.marker.toUpperCase()}</strong> {item.compartment}: DAB area {Math.round(item.dabAreaFraction * 100)}%, mean OD {item.meanDabOd.toFixed(2)}. {item.calibrationStatus === 'calibrated' ? 'Control-calibrated.' : 'Within-slide relative measurement.'} {item.abstentionReason ? `Limitation: ${item.abstentionReason}. ` : ''}Research estimate only.</p>)}
+            {evidence.qc.warnings?.map((warning) => <p key={warning} className="study-hint">QC warning: {warning}</p>)}
             {evidence.qc.abstentionReasons.map((reason) => <p key={reason} className="study-hint">Abstention: {reason}</p>)}
             <small>Signed bundle {evidence.manifestSha256.slice(0, 12)}… · non-diagnostic</small>
           </section> : null}
