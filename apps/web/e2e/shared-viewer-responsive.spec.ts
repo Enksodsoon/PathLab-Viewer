@@ -96,7 +96,6 @@ test('keeps the shared viewer usable across desktop and mobile breakpoints', asy
   test.setTimeout(120_000)
   for (const width of [320, 390, 600, 760, 761, 768, 901, 1024, 1251, 1440, 1584, 1920]) {
     await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 })
-    await page.goto('/f/share-public')
     await expect(page.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
     await expect.poll(() => page.evaluate(() => (
       document.documentElement.scrollWidth <= document.documentElement.clientWidth
