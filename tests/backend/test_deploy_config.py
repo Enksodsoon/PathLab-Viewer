@@ -55,16 +55,13 @@ def test_tusd_uses_pathlab_data_owner() -> None:
 
 def test_uploads_use_fail_closed_classroom_admission() -> None:
     caddy = Path("deploy/Caddyfile").read_text(encoding="utf-8")
-    uploads = caddy.split("@uploads path", maxsplit=1)[1].split(
-        "@classroom_events", maxsplit=1
-    )[0]
+    uploads = caddy.split("@uploads path", maxsplit=1)[1].split("@classroom_events", maxsplit=1)[0]
     assert "forward_auth api:8000" in uploads
     assert "uri /api/v1/internal/uploads/admission" in uploads
 
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     assert (
-        'PATHLAB_CLASSROOM_PROTECTION_ENABLED: '
-        '"${PATHLAB_CLASSROOM_PROTECTION_ENABLED:-false}"'
+        'PATHLAB_CLASSROOM_PROTECTION_ENABLED: "${PATHLAB_CLASSROOM_PROTECTION_ENABLED:-false}"'
     ) in compose
 
 
@@ -241,6 +238,18 @@ def test_annotation_feature_flag_is_explicitly_default_off_in_deployment_example
     assert "PATHLAB_ANNOTATIONS_ENABLED=false" in root_example
     assert "PATHLAB_ANNOTATIONS_ENABLED=false" in deploy_example
     assert 'PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"' in compose
+
+
+def test_identity_governance_is_explicitly_default_off_everywhere() -> None:
+    root_example = Path(".env.example").read_text(encoding="utf-8")
+    deploy_example = Path("deploy/.env.example").read_text(encoding="utf-8")
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+
+    assert "PATHLAB_IDENTITY_GOVERNANCE_ENABLED=false" in root_example
+    assert "PATHLAB_IDENTITY_GOVERNANCE_ENABLED=false" in deploy_example
+    assert (
+        'PATHLAB_IDENTITY_GOVERNANCE_ENABLED: "${PATHLAB_IDENTITY_GOVERNANCE_ENABLED:-false}"'
+    ) in compose
 
 
 def test_annotation_operations_runbook_and_bundle_budget_are_ci_contracts() -> None:
@@ -564,8 +573,7 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "default: false" in workflow
     assert "PATHLAB_CLASSROOM_ENABLED: ${{ inputs.classroom_enabled }}" in workflow
     assert (
-        'deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" '
-        '"${PATHLAB_CLASSROOM_ENABLED}"'
+        'deploy/scripts/deploy-via-bastion.sh "$GITHUB_SHA" "${PATHLAB_CLASSROOM_ENABLED}"'
     ) in workflow
     assert "vars.PATHLAB_CLASSROOM_ENABLED" not in workflow
     assert "secrets.OCI_DEPLOY_KEY" not in workflow
@@ -653,8 +661,7 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
     assert 'git -C "${LIVE_DIR}" rev-parse HEAD' not in script
     assert "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\ntile-service\\ntusd\\nworker'" in script
     assert (
-        "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\npostgres\\n"
-        "tile-service\\ntusd\\nworker'"
+        "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\npostgres\\ntile-service\\ntusd\\nworker'"
     ) in script
     assert "HEALTH_SERVICES+=(postgres)" in script
 

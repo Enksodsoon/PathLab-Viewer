@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False
     classroom_protection_enabled: bool = False
+    identity_governance_enabled: bool = False
     classroom_singleton: bool = False
     classroom_service_url: str = "http://classroom:8001"
     classroom_max_participants: int = Field(default=300, ge=1, le=2000)
