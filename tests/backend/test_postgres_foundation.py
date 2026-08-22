@@ -48,7 +48,7 @@ def test_postgres_migrations_constraints_and_round_trip(
 
     with engine.begin() as connection:
         assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
-            "20260822_0024"
+            "20260822_0025"
         )
         assert "slide_search" not in inspect(connection).get_table_names()
         assert connection.scalar(
