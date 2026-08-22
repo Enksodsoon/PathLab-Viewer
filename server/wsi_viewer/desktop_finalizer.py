@@ -3,7 +3,7 @@ import queue
 import shutil
 import threading
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from sqlalchemy import select, update
@@ -19,6 +19,7 @@ from .ome_ingest import (
 )
 from .prepared_ingest import PreparedIngestError, install_prepared_package
 from .storage import StorageLayout
+from .time_support import utc_now
 
 
 def desktop_package_path(storage: StorageLayout, ingest_id: str) -> Path:
@@ -80,8 +81,7 @@ class PreparedIngestFinalizer:
                 select(DesktopIngest).where(
                     DesktopIngest.status == "failed",
                     DesktopIngest.updated_at
-                    < datetime.now(UTC).replace(tzinfo=None)
-                    - timedelta(hours=_failed_package_ttl_hours()),
+                    < utc_now() - timedelta(hours=_failed_package_ttl_hours()),
                 )
             ):
                 desktop_upload_path(self.storage, ingest).unlink(missing_ok=True)

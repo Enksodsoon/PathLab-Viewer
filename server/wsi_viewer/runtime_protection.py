@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import Select, select, update
 from sqlalchemy.orm import Session as OrmSession
 
 from .models import ClassroomSession, Job, RuntimeGuard
+from .time_support import as_utc, utc_now
 
 CLASSROOM_GUARD_ID = "classroom-protection"
 CLASSROOM_COOLDOWN = timedelta(seconds=120)
@@ -18,10 +19,6 @@ PROTECTED_MODES = {DRAINING, LIVE, COOLDOWN}
 BLOCKABLE_JOB_STATES = {"queued", "retry_wait"}
 ACTIVE_JOB_STATES = {"running", "checkpointing"}
 BLOCKED_RESOURCE_CLASSES = {"background", "isolated"}
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
 
 
 @dataclass(frozen=True)
@@ -82,6 +79,7 @@ def _resume_waiting_jobs(database: OrmSession) -> None:
 
 
 def _reconcile(database: OrmSession, guard: RuntimeGuard, now: datetime) -> RuntimeGuard:
+    now = as_utc(now)
     active = database.scalar(_active_classroom_statement(now))
     if active is not None:
         guard.mode = LIVE
@@ -96,7 +94,7 @@ def _reconcile(database: OrmSession, guard: RuntimeGuard, now: datetime) -> Runt
     if (
         guard.mode == COOLDOWN
         and guard.cooldown_until is not None
-        and guard.cooldown_until <= now
+        and as_utc(guard.cooldown_until) <= now
     ):
         guard.mode = IDLE
         guard.cooldown_until = None
@@ -105,7 +103,7 @@ def _reconcile(database: OrmSession, guard: RuntimeGuard, now: datetime) -> Runt
 
 
 def protection_snapshot(database: OrmSession, *, now: datetime | None = None) -> ProtectionSnapshot:
-    current = now or utc_now()
+    current = as_utc(now) if now is not None else utc_now()
     guard = _reconcile(database, _guard(database), current)
     running = len(
         list(
@@ -131,7 +129,7 @@ def request_classroom_protection(
     classroom_session_id: str | None,
     now: datetime | None = None,
 ) -> ProtectionSnapshot:
-    current = now or utc_now()
+    current = as_utc(now) if now is not None else utc_now()
     guard = _reconcile(database, _guard(database), current)
     active_jobs = list(
         database.scalars(
@@ -168,7 +166,7 @@ def read_protection_snapshot(
     database: OrmSession, *, now: datetime | None = None
 ) -> ProtectionSnapshot:
     """Read admission state without creating write traffic for each upload chunk."""
-    current = now or utc_now()
+    current = as_utc(now) if now is not None else utc_now()
     active = database.scalar(_active_classroom_statement(current))
     if active is not None:
         return ProtectionSnapshot(
@@ -181,7 +179,11 @@ def read_protection_snapshot(
         return ProtectionSnapshot(mode=DRAINING, classroom_session_id=None, cooldown_until=None)
     mode = guard.mode
     cooldown_until = guard.cooldown_until
-    if mode == COOLDOWN and cooldown_until is not None and cooldown_until <= current:
+    if (
+        mode == COOLDOWN
+        and cooldown_until is not None
+        and as_utc(cooldown_until) <= current
+    ):
         mode = IDLE
         cooldown_until = None
     return ProtectionSnapshot(
@@ -202,7 +204,7 @@ def bind_classroom_session(database: OrmSession, session_id: str) -> None:
 def begin_classroom_cooldown(
     database: OrmSession, *, now: datetime | None = None
 ) -> ProtectionSnapshot:
-    current = now or utc_now()
+    current = as_utc(now) if now is not None else utc_now()
     guard = _guard(database)
     guard.mode = COOLDOWN
     guard.classroom_session_id = None

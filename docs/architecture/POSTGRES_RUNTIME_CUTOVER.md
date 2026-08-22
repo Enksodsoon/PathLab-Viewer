@@ -17,6 +17,12 @@ This phase prepares PathLab for PostgreSQL as the authoritative deployment datab
 
 This slice adds the process roles, bounded database settings, PostgreSQL job-claim isolation, PostgreSQL upload-expiry compatibility, and an explicit PostgreSQL Compose overlay for isolated staging. The existing production Compose invocation is unchanged. This slice does not migrate production data, change backup selection, deploy a release, or activate a feature.
 
-## Required next slice
+## Remaining cutover gate
 
-The next cutover slice must add PostgreSQL backup selection, a verified SQLite-to-PostgreSQL migration manifest, disposable restore evidence, and Classroom coexistence tests. It must remain staging-only until that evidence is green.
+After this evidence slice, the remaining gate is PostgreSQL backup selection in the deployment workflow plus isolated Classroom coexistence and connection-leak testing. It must remain staging-only until that evidence is green.
+
+## Staging cutover evidence workflow
+
+`deploy/scripts/verify-postgres-cutover.sh` composes the existing proofs into one fail-closed Linux staging workflow. It refuses non-staging execution and password-bearing target URLs, verifies that the immutable SQLite source has no running worker, active Classroom, or non-idle Classroom guard, performs the signed row/key/hash migration, checks the migrated target, creates a signed PostgreSQL/private-file backup, restores it into a disposable database, and writes a compact atomic `status.json`.
+
+Protected PostgreSQL CI runs this workflow with a synthetic SQLite source, a separate synthetic target database, file-mounted credentials, and non-PHI file fixtures. This evidence remains staging-only and does not select PostgreSQL for the existing production deployment.

@@ -14,6 +14,7 @@ from wsi_viewer.postgres_migration import (
     PostgresMigrationError,
     _canonical_json,
     migrate_sqlite_to_postgres,
+    verify_cutover_source,
 )
 
 POSTGRES_TEST_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
@@ -169,6 +170,40 @@ def test_verified_migration_is_signed_read_only_and_resumable(
             {"lock_id": MIGRATION_ADVISORY_LOCK},
         )
     lock_engine.dispose()
+
+
+def test_cutover_source_check_is_read_only_and_blocks_classroom_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "cutover-source.sqlite3"
+    _seed_source(source, monkeypatch)
+    before = hashlib.sha256(source.read_bytes()).hexdigest()
+
+    result = verify_cutover_source(source)
+
+    assert result == {
+        "schemaRevision": "20260822_0024",
+        "sourceSha256": before,
+        "activeJobs": 0,
+        "activeClassrooms": 0,
+        "classroomProtection": "idle",
+        "verified": True,
+    }
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == before
+
+    engine = create_engine(f"sqlite:///{source}")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO runtime_guards "
+                "(id, mode, version, updated_at) VALUES "
+                "('classroom-protection', 'draining_for_classroom', 1, CURRENT_TIMESTAMP)"
+            )
+        )
+    engine.dispose()
+
+    with pytest.raises(PostgresMigrationError, match="Classroom protection"):
+        verify_cutover_source(source)
 
 
 def test_migration_requires_verification_and_a_strong_key(tmp_path: Path) -> None:

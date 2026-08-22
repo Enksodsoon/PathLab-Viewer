@@ -45,6 +45,7 @@ from .study_pack_contract import (
 )
 from .study_pack_contract import parse_json as parse_study_pack_json
 from .tile_routes import private_static_target
+from .time_support import as_utc, utc_now
 
 STUDY_COOKIE = "pathlab_study"
 SUBMISSION_INTERVAL_SECONDS = 30
@@ -61,7 +62,7 @@ ALLOWED_AI_ACTIONS = {
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now()
 
 
 def _hash(value: str) -> str:
@@ -246,12 +247,12 @@ def register_study_routes(
             select(StudyLearnerSession).where(StudyLearnerSession.token_hash == _hash(token))
         )
         now = _now()
-        if stored is None or stored.status != "active" or stored.expires_at <= now:
+        if stored is None or stored.status != "active" or as_utc(stored.expires_at) <= now:
             raise HTTPException(status_code=401, detail={"code": "STUDY_SESSION_EXPIRED"})
         course = database.get(StudyCourse, stored.course_id)
         if course is None or course.status not in {"preparation", "active"}:
             raise HTTPException(status_code=410, detail={"code": "STUDY_COURSE_UNAVAILABLE"})
-        if course.ends_at is not None and course.ends_at <= now:
+        if course.ends_at is not None and as_utc(course.ends_at) <= now:
             course.status = "ended"
             course.ended_at = now
             course.purge_after = now + timedelta(days=course.retention_days)
@@ -522,7 +523,7 @@ def register_study_routes(
         require_enabled()
         if payload.learner_limit > max_learners or database.get(StudyPack, payload.pack_id) is None:
             raise HTTPException(status_code=422, detail={"code": "STUDY_COURSE_INVALID"})
-        ends_at = payload.ends_at.replace(tzinfo=None) if payload.ends_at else None
+        ends_at = as_utc(payload.ends_at) if payload.ends_at else None
         if ends_at is not None and ends_at <= _now():
             raise HTTPException(status_code=422, detail={"code": "STUDY_END_DATE_INVALID"})
         manifest = _release_manifest()
@@ -563,9 +564,9 @@ def register_study_routes(
                 )
             course.retention_days = payload.retention_days
         if payload.ends_at is not None:
-            next_end = payload.ends_at.replace(tzinfo=None)
+            next_end = as_utc(payload.ends_at)
             if next_end <= _now() or (
-                locked and course.ends_at is not None and next_end > course.ends_at
+                locked and course.ends_at is not None and next_end > as_utc(course.ends_at)
             ):
                 raise HTTPException(
                     status_code=409, detail={"code": "STUDY_END_EXTENSION_FORBIDDEN"}
@@ -788,7 +789,7 @@ def register_study_routes(
             secure=secure_cookies,
             samesite="lax",
             path="/api/v1/study",
-            max_age=max(1, int((expires_at - _now()).total_seconds())),
+            max_age=max(1, int((as_utc(expires_at) - _now()).total_seconds())),
         )
         return {"csrfToken": csrf_token, **session_json(stored, database)}
 

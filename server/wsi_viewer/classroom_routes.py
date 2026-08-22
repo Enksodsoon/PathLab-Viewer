@@ -9,7 +9,7 @@ import unicodedata
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager, suppress
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
@@ -44,6 +44,7 @@ from .runtime_protection import (
     request_classroom_protection,
 )
 from .storage import StorageLayout
+from .time_support import as_utc, utc_now
 
 PARTICIPANT_COOKIE = "pathlab_classroom_participant"
 JOIN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -235,7 +236,7 @@ def _alias_candidate(secret_key: str, token: str, attempt: int) -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now()
 
 
 def _display_name(value: str | None) -> str | None:
@@ -535,7 +536,7 @@ def register_classroom_routes(
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
         with factory() as db:
             stored = db.get(Session, _hash(token))
-            if stored is None or stored.expires_at < _now():
+            if stored is None or as_utc(stored.expires_at) < _now():
                 raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
             user = db.get(User, stored.user_id)
             if user is None or stored.credential_generation != user.credential_generation:
@@ -584,7 +585,7 @@ def register_classroom_routes(
             or classroom.status != "active"
             or classroom.phase != "live"
             or deadline is None
-            or deadline <= _now()
+            or as_utc(deadline) <= _now()
         ):
             raise HTTPException(status_code=status_code, detail={"code": code})
         return classroom
@@ -593,7 +594,7 @@ def register_classroom_routes(
         if (
             classroom.controller_participant_id is None
             or classroom.controller_expires_at is None
-            or classroom.controller_expires_at > _now()
+            or as_utc(classroom.controller_expires_at) > _now()
         ):
             return
         classroom.control_epoch += 1
@@ -661,7 +662,7 @@ def register_classroom_routes(
             if (
                 stale.public_id is not None
                 and stale.review_expires_at is not None
-                and stale.review_expires_at > now
+                and as_utc(stale.review_expires_at) > now
             ):
                 stale.phase = "review"
                 stale.status = "ended"
@@ -679,7 +680,7 @@ def register_classroom_routes(
         if is_smart_invite:
             if payload.slide_ids is not None or payload.review_expires_at is None:
                 raise HTTPException(status_code=422, detail={"code": "CLASSROOM_REQUEST_INVALID"})
-            review_expires_at = payload.review_expires_at.replace(tzinfo=None)
+            review_expires_at = as_utc(payload.review_expires_at)
             if review_expires_at < now + timedelta(hours=1) or review_expires_at > now + timedelta(
                 days=30
             ):
@@ -786,7 +787,7 @@ def register_classroom_routes(
             classroom is None
             or classroom.phase != "preview"
             or classroom.review_expires_at is None
-            or classroom.review_expires_at <= _now()
+            or as_utc(classroom.review_expires_at) <= _now()
         ):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         if settings.classroom_protection_enabled:
@@ -807,7 +808,9 @@ def register_classroom_routes(
         classroom.phase = "live"
         classroom.started_at = _now()
         classroom.live_expires_at = _now() + timedelta(hours=8)
-        classroom.expires_at = min(classroom.review_expires_at, classroom.live_expires_at)
+        classroom.expires_at = min(
+            as_utc(classroom.review_expires_at), as_utc(classroom.live_expires_at)
+        )
         classroom.state_version += 1
         db.commit()
         if classroom.current_slide_id is not None:
@@ -874,7 +877,7 @@ def register_classroom_routes(
         participants_by_id = {item.id: item for item in participants}
         stale_participant_ids, active_count = hub.reserve_stale_participants(
             session_id,
-            {item.id: item.last_seen_at >= cutoff for item in participants},
+            {item.id: as_utc(item.last_seen_at) >= cutoff for item in participants},
         )
         return participants_by_id, stale_participant_ids, active_count
 
@@ -999,9 +1002,9 @@ def register_classroom_routes(
             classroom is not None
             and classroom.phase == "live"
             and classroom.live_expires_at is not None
-            and classroom.live_expires_at <= _now()
+            and as_utc(classroom.live_expires_at) <= _now()
             and classroom.review_expires_at is not None
-            and classroom.review_expires_at > _now()
+            and as_utc(classroom.review_expires_at) > _now()
         ):
             classroom.phase = "review"
             classroom.status = "ended"
@@ -1016,7 +1019,7 @@ def register_classroom_routes(
             classroom is None
             or classroom.phase == "revoked"
             or classroom.review_expires_at is None
-            or classroom.review_expires_at <= _now()
+            or as_utc(classroom.review_expires_at) <= _now()
         ):
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
         return classroom
@@ -1066,7 +1069,9 @@ def register_classroom_routes(
                         serializer,
                         settings.secure_cookies,
                         200,
-                        max_age_seconds=max(1, int((review_expires_at - _now()).total_seconds())),
+                        max_age_seconds=max(
+                            1, int((as_utc(review_expires_at) - _now()).total_seconds())
+                        ),
                     )
         token = secrets.token_urlsafe(32)
         alias = allocate_alias(classroom.id, token, db)
@@ -1087,7 +1092,9 @@ def register_classroom_routes(
             serializer,
             settings.secure_cookies,
             201,
-            max_age_seconds=max(1, int((review_expires_at - _now()).total_seconds())),
+            max_age_seconds=max(
+                1, int((as_utc(review_expires_at) - _now()).total_seconds())
+            ),
         )
         return {**result, "publicId": public_id, "phase": classroom.phase}
 
@@ -1840,7 +1847,7 @@ def register_classroom_routes(
             or classroom.controller_lease_id is None
             or not secrets.compare_digest(classroom.controller_lease_id, payload.lease_id)
             or classroom.controller_expires_at is None
-            or classroom.controller_expires_at <= _now()
+            or as_utc(classroom.controller_expires_at) <= _now()
             or slide_exists is None
         ):
             raise HTTPException(status_code=409, detail={"code": "CONTROL_LEASE_STALE"})
@@ -2202,7 +2209,7 @@ def register_classroom_routes(
                 or classroom.status != "active"
                 or classroom.phase != "live"
                 or deadline is None
-                or deadline <= _now()
+                or as_utc(deadline) <= _now()
             ):
                 return None
             return int(classroom.state_version)

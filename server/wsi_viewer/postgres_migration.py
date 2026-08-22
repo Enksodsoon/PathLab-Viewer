@@ -21,6 +21,7 @@ from sqlalchemy.engine import URL, Connection, Engine, make_url
 
 from .config import Settings
 from .database import database_target_for
+from .readiness import ALEMBIC_HEAD
 
 MIGRATION_SCHEMA_VERSION = 1
 EXCLUDED_SQLITE_TABLE_PREFIXES = ("sqlite_", "slide_search")
@@ -115,6 +116,52 @@ def _validate_target(target_url: str) -> URL:
     if not target.drivername.startswith("postgresql+psycopg"):
         raise PostgresMigrationError("Migration target must use the Psycopg 3 SQLAlchemy driver")
     return target
+
+
+def verify_cutover_source(source_path: Path) -> dict[str, Any]:
+    source_path = source_path.resolve(strict=True)
+    source_hash = _validate_source(source_path)
+    source_engine = _source_engine(source_path)
+    try:
+        with source_engine.connect() as source:
+            revision = source.scalar(text("SELECT version_num FROM alembic_version"))
+            if revision != ALEMBIC_HEAD:
+                raise PostgresMigrationError(
+                    f"SQLite cutover source is not at the required schema: {revision}"
+                )
+            active_jobs = source.scalar(
+                text(
+                    "SELECT count(*) FROM jobs "
+                    "WHERE status IN ('running', 'checkpointing')"
+                )
+            )
+            active_classrooms = source.scalar(
+                text("SELECT count(*) FROM classroom_sessions WHERE status = 'active'")
+            )
+            guard_mode = source.scalar(
+                text(
+                    "SELECT mode FROM runtime_guards "
+                    "WHERE id = 'classroom-protection'"
+                )
+            )
+    finally:
+        source_engine.dispose()
+    if active_jobs:
+        raise PostgresMigrationError("SQLite cutover blocked: worker job is active")
+    if active_classrooms:
+        raise PostgresMigrationError("SQLite cutover blocked: Classroom session is active")
+    if guard_mode not in {None, "idle"}:
+        raise PostgresMigrationError(
+            f"SQLite cutover blocked: Classroom protection is {guard_mode}"
+        )
+    return {
+        "schemaRevision": revision,
+        "sourceSha256": source_hash,
+        "activeJobs": 0,
+        "activeClassrooms": 0,
+        "classroomProtection": guard_mode or "idle",
+        "verified": True,
+    }
 
 
 def _upgrade_target(target_engine: Engine) -> None:
