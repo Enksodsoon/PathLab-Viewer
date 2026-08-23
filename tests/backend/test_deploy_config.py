@@ -602,6 +602,10 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert "oci bastion session delete" in script
     assert 'SESSION_NAME="pathlab-deploy-${GITHUB_RUN_ID:-manual}-' in script
     assert "activation_deadline=$((SECONDS + 300))" in script
+    assert "for attempt in 1 2 3" in script
+    assert "AUTH_REJECTED|ENDPOINT_NOT_READY|LOCAL_PORT_COLLISION" in script
+    assert "HOST_KEY_REJECTED|DNS_FAILED" in script
+    assert "Retry only this session and key" in script
     assert "cleanup_deadline=$((SECONDS + 600))" in script
     assert "SESSION_SEEN" in script
     assert "zero active sessions" not in script
