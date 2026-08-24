@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status", "releaseSha", "database", "services", "latency", "host", "cleanup"],
+  "properties": {
+    "status": {"enum": ["SUCCESS", "PARTIAL", "NEGATIVE", "NOT_EVALUABLE"]},
+    "releaseSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "database": {"type": "object", "required": ["engine", "maxConnections", "peakConnections", "poolTimeouts", "lockTimeouts"]},
+    "services": {"type": "object", "required": ["assessmentWorkers", "restarts", "oomKills"]},
+    "latency": {"type": "object", "required": ["autosaveP95Ms", "submitP95Ms", "tileP95Ms"]},
+    "host": {"type": "object", "required": ["sustainedCpuPercent", "peakMemoryPercent", "swapBytes"]},
+    "cleanup": {"type": "object", "required": ["fixturesRemoved", "grantsRemoved", "sessionsRemoved"]}
+  },
+  "additionalProperties": true
+}

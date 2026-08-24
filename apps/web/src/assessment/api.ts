@@ -82,3 +82,23 @@ export async function getPracticeBundle(publicId: string) {
     cache: 'no-store',
   }))
 }
+
+export async function listAssessmentClasses() {
+  return body<{
+    items: Array<{ id: string; name: string; status: string; studentCount: number }>
+    total: number
+  }>(await fetch('/api/v2/admin/assessment/classes', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  }))
+}
+
+export async function createAssessmentClass(name: string) {
+  return body<{ id: string; name: string; status: string }>(
+    await csrfFetch('/api/v2/admin/assessment/classes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
+  )
+}

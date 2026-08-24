@@ -114,6 +114,9 @@ def test_class_import_is_preview_then_explicit_bounded_commit(tmp_path: Path) ->
     created = client.post("/api/v2/admin/assessment/classes", json={"name": "Year 3"})
     assert created.status_code == 201
     cohort_id = created.json()["id"]
+    classes = client.get("/api/v2/admin/assessment/classes")
+    assert classes.status_code == 200
+    assert classes.json()["items"][0]["name"] == "Year 3"
     preview = client.post(
         f"/api/v2/admin/assessment/classes/{cohort_id}/import/preview",
         json={"rows": "s001,Somchai P.\ns002,Malee T."},
