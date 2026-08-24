@@ -111,6 +111,7 @@ def test_backup_archive_and_restore_preserve_public_private_hardlinks(
 
 def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None:
     backup = Path("deploy/scripts/backup.sh").read_text(encoding="utf-8")
+    retention = Path("deploy/scripts/prune-backups.sh").read_text(encoding="utf-8")
     restore = Path("deploy/scripts/restore.sh").read_text(encoding="utf-8")
 
     assert '--directory "$data_dir" originals private public' in backup
@@ -129,6 +130,46 @@ def test_backup_and_restore_scripts_keep_integrity_and_recovery_guards() -> None
     assert 'mv "${recovery}/backups" "${data_dir}/backups"' in restore
     assert "docker compose exec -T api" not in backup
     assert "docker compose run --rm --no-deps --entrypoint python api" in backup
+    assert 'PATHLAB_BACKUP_RETENTION_COUNT:-5' in backup
+    assert 'flock -n 9' in backup
+    assert 'trap cleanup_incomplete_backup EXIT' in backup
+    assert 'sha256sum --check --status SHA256SUMS' in backup
+    assert 'prune-backups.sh' in backup
+    assert 'readlink -f' in retention
+    assert 'sha256sum --check --status SHA256SUMS' in retention
+
+
+@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+def test_backup_retention_keeps_newest_verified_backups_only(tmp_path: Path) -> None:
+    backup_root = tmp_path / "backups"
+    backup_root.mkdir()
+    names = [f"pathlab-202608{day:02d}T010203Z" for day in range(1, 8)]
+    for name in names:
+        backup = backup_root / name
+        (backup / "database").mkdir(parents=True)
+        (backup / "database" / "pathlab.sqlite3").write_bytes(name.encode())
+        (backup / "files.tar.gz").write_bytes(b"archive")
+        _write_backup_checksums(backup)
+    invalid = backup_root / "pathlab-20260808T010203Z"
+    invalid.mkdir()
+    (backup_root / "pathlab-not-a-timestamp").mkdir()
+
+    result = subprocess.run(
+        [
+            str(BASH),
+            _bash_path(Path("deploy/scripts/prune-backups.sh")),
+            _bash_path(backup_root),
+            "5",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert sorted(path.name for path in backup_root.iterdir() if path.name in names) == names[-5:]
+    assert invalid.exists()
+    assert (backup_root / "pathlab-not-a-timestamp").exists()
 
 
 @pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
