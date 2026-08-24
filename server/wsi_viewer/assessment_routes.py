@@ -1000,7 +1000,7 @@ def register_assessment_routes(
         return _draft_json(draft)
 
     def fresh_item(source: dict[str, Any]) -> dict[str, Any]:
-        item = json.loads(json.dumps(source))
+        item: dict[str, Any] = json.loads(json.dumps(source))
         item["id"] = secrets.token_hex(16)
         option_ids: dict[str, str] = {}
         for option in item.get("options", []):
