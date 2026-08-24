@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from test_assessment_admin import _client, _document
 from wsi_viewer.database import session_factory
-from wsi_viewer.models import AssessmentAttempt, AssessmentParticipant
+from wsi_viewer.models import AssessmentAdministration, AssessmentAttempt, AssessmentParticipant
 from wsi_viewer.time_support import utc_now
 
 
@@ -96,6 +96,12 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
         json={"kind": "anonymous", "publicId": published["publicId"]},
     )
     assert access.status_code == 201
+    replayed_access = client.post(
+        "/api/v2/assessment/access",
+        json={"kind": "anonymous", "publicId": published["publicId"]},
+    )
+    assert replayed_access.status_code == 201
+    assert replayed_access.json() == access.json()
     csrf = access.json()["csrfToken"]
     attempt = client.post(
         "/api/v2/assessment/attempts",
@@ -171,7 +177,15 @@ def test_retention_hold_blocks_purge_until_explicitly_released(tmp_path: Path) -
         f"/api/v2/admin/assessment/administrations/{administration_id}/retention",
         json={"retentionDays": 30, "hold": False},
     )
+    retained = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/purge"
+    )
+    assert retained.status_code == 409
+    assert retained.json()["detail"]["code"] == "ASSESSMENT_RETENTION_ACTIVE"
     with session_factory(client.app.state.settings)() as database:
+        administration = database.get(AssessmentAdministration, administration_id)
+        assert administration is not None
+        administration.closes_at = utc_now() - timedelta(days=31)
         database.add_all(
             [
                 AssessmentParticipant(
@@ -204,6 +218,35 @@ def test_retention_hold_blocks_purge_until_explicitly_released(tmp_path: Path) -
     assert preserved.status_code == 200
     assert preserved.json()["source"] == "preserved"
     assert preserved.json()["aggregate"]["responses"] == 0
+
+
+def test_synthetic_fixture_can_be_purged_and_removed_immediately(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    draft = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Synthetic fixture", "document": _document()},
+    ).json()
+    published = client.post(
+        f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
+        json={
+            "mode": "practice",
+            "durationSeconds": 3600,
+            "maxAttempts": 1,
+            "syntheticFixture": True,
+        },
+    ).json()
+    administration_id = published["administrationId"]
+    client.post(f"/api/v2/admin/assessment/administrations/{administration_id}/close")
+    purged = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/purge"
+    )
+    assert purged.json()["status"] == "purged"
+    cleaned = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/synthetic-fixture/cleanup"
+    )
+    assert cleaned.status_code == 200
+    assert all(cleaned.json().values())
+    assert client.get(f"/api/v2/admin/assessment/drafts/{draft['id']}").status_code == 404
 
 
 def test_student_session_restore_logout_and_stale_save_reconciliation(tmp_path: Path) -> None:
@@ -294,11 +337,13 @@ def test_rostered_access_requires_explicit_device_takeover(tmp_path: Path) -> No
     first_csrf = first.json()["csrfToken"]
 
     second = TestClient(client.app)
+    second.headers.update({"Idempotency-Key": "second-device"})
     conflict = second.post("/api/v2/assessment/access", json=credentials)
     assert conflict.status_code == 409
     assert conflict.json()["detail"]["code"] == "ASSESSMENT_DEVICE_ACTIVE"
     takeover = second.post(
         "/api/v2/assessment/access",
+        headers={"Idempotency-Key": "takeover-device"},
         json={**credentials, "takeover": True},
     )
     assert takeover.status_code == 201

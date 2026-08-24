@@ -36,7 +36,6 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         "qupath-geojson",
     }
     assert {item["evidenceState"] for item in capabilities.values()} == {
-        "NOT_IMPLEMENTED",
         "BUILT",
         "SYNTHETICALLY_VERIFIED",
     }
@@ -66,7 +65,7 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
     assert "disabled by default and not production-activated" in identity["claimRestrictions"]
     assert "temporary Classroom participants remain separate" in identity["claimRestrictions"]
     assessment = capabilities["assessment"]
-    assert assessment["evidenceState"] == "NOT_IMPLEMENTED"
+    assert assessment["evidenceState"] == "BUILT"
     assert assessment["featureFlag"] == "PATHLAB_ASSESSMENT_ENABLED"
     assert "production remains disabled" in assessment["claimRestrictions"]
     assert "not production-certified" in capabilities["classroom"]["claimRestrictions"]

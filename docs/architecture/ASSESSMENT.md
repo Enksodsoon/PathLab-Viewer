@@ -7,3 +7,5 @@ The feature and its dedicated service role are disabled by default. Production a
 Practice is browser-local and anonymous. Formative supports anonymous aggregate-only or rostered participation. Quiz/Test is roster-only. Static DZI/JPEG delivery is administration-scoped and served directly by Caddy; ordinary tiles never query FastAPI or PostgreSQL.
 
 Capability progress is recorded independently as `NOT_IMPLEMENTED`, `BUILT`, `SYNTHETICALLY_VERIFIED`, `PILOT_VALIDATED`, and `PRODUCTION_CERTIFIED`. Local tests do not establish capacity or production certification.
+
+Current state is `BUILT`: local implementation and regression checks are complete. Protected 500-seat execution, pilots, deployment, and activation remain unperformed, so capacity evidence remains `NOT_EVALUABLE` and the production flag remains false.

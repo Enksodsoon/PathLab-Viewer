@@ -50,7 +50,11 @@ def _client(tmp_path: Path) -> tuple[TestClient, str]:
     client = TestClient(create_app(settings))
     client.cookies.set("pathlab_session", token)
     client.headers.update(
-        {"X-CSRF-Token": "csrf-assessment", "X-PathLab-Organization": organization_id}
+        {
+            "X-CSRF-Token": "csrf-assessment",
+            "X-PathLab-Organization": organization_id,
+            "Idempotency-Key": "assessment-test-default",
+        }
     )
     return client, organization_id
 

@@ -1,10 +1,22 @@
-import { csrfFetch } from '../api'
+import { csrfFetch as baseCsrfFetch } from '../api'
 import type {
   AssessmentDocument,
   AssessmentDraft,
   AssessmentDraftList,
   EligibleAssessmentSlide,
 } from './types'
+
+function csrfFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const idempotencyKey = globalThis.crypto?.randomUUID?.()
+    ?? `assessment-${Date.now()}-${Math.random()}`
+  return baseCsrfFetch(input, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      'Idempotency-Key': idempotencyKey,
+    },
+  })
+}
 
 export class AssessmentHttpError extends Error {
   constructor(public status: number, public detail: Record<string, unknown>) {
@@ -309,7 +321,10 @@ export async function accessAssessment(payload: {
   return body<AssessmentAccessResult>(await fetch('/api/v2/assessment/access', {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': globalThis.crypto?.randomUUID?.() ?? `access-${Date.now()}`,
+    },
     body: JSON.stringify(payload),
   }))
 }

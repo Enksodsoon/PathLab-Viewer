@@ -110,6 +110,15 @@ export function AssessmentStudentPage() {
   const syncOutbox = useCallback(async () => {
     if (!attemptId || !csrf || !navigator.onLine) return
     const pending = await listAssessmentOutbox(attemptId)
+    const latestPending = new Map<string, typeof pending[number]>()
+    pending.forEach((entry) => {
+      const current = latestPending.get(entry.itemId)
+      if (!current || entry.revision > current.revision) latestPending.set(entry.itemId, entry)
+    })
+    if (latestPending.size) {
+      setResponses((currentResponses) => ({ ...currentResponses, ...Object.fromEntries([...latestPending].map(([itemId, entry]) => [itemId, entry.response])) }))
+      setRevisions((currentRevisions) => ({ ...currentRevisions, ...Object.fromEntries([...latestPending].map(([itemId, entry]) => [itemId, entry.revision])) }))
+    }
     for (let index = 0; index < pending.length; index += 10) {
       const batch = pending.slice(index, index + 10)
       try {
@@ -134,6 +143,10 @@ export function AssessmentStudentPage() {
     window.addEventListener('online', connected)
     window.addEventListener('offline', disconnected)
     return () => { window.removeEventListener('online', connected); window.removeEventListener('offline', disconnected) }
+  }, [syncOutbox])
+
+  useEffect(() => {
+    void syncOutbox().catch(() => setStatus('Saved locally — retrying'))
   }, [syncOutbox])
 
   useEffect(() => () => {
@@ -217,7 +230,7 @@ export function AssessmentStudentPage() {
         {item.type === 'diagnostic-field' && tileSource ? <div className="assessment-slide-panel" data-active={mobilePanel === 'slide'}><AssessmentDiagnosticField label="Diagnostic slide" tileSource={tileSource} selections={diagnosticSelections} onCommit={(selection) => update(item, { ...value, selection })} onClear={() => update(item, { ...value, selection: undefined })} /></div> : null}
         {item.type === 'diagnostic-field' ? <div className="assessment-answer-panel" data-active={mobilePanel === 'answer'}><label>Diagnosis<input value={String(value.diagnosis ?? '')} onChange={(event) => update(item, { ...value, diagnosis: event.target.value })} /></label></div> : null}
       </section>
-      <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < document.items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={!answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
+      <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < document.items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
     </main>
   </div>
 }

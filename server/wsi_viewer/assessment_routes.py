@@ -119,6 +119,7 @@ class PublishSettings(BaseModel):
     duration_seconds: int = Field(default=3600, alias="durationSeconds", ge=1, le=14_400)
     max_attempts: int = Field(default=1, alias="maxAttempts", ge=1, le=3)
     access_code: str | None = Field(default=None, alias="accessCode", min_length=4, max_length=64)
+    synthetic_fixture: bool = Field(default=False, alias="syntheticFixture")
 
 
 class AccessRequest(BaseModel):
@@ -392,7 +393,12 @@ def register_assessment_routes(
         request: Request,
         response: Response,
         database: Database,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
     ) -> dict[str, Any]:
+        if not 1 <= len(idempotency_key) <= 200:
+            raise HTTPException(
+                status_code=400, detail={"code": "ASSESSMENT_IDEMPOTENCY_KEY_INVALID"}
+            )
         consume_access_throttle(database, request, payload)
         administration = database.scalar(
             select(AssessmentAdministration).where(
@@ -402,17 +408,45 @@ def register_assessment_routes(
         )
         if administration is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        session_material = f"access-session\0{payload.public_id}\0{idempotency_key}"
+        raw_token = hmac.new(
+            identifier_secret.encode(), session_material.encode(), hashlib.sha256
+        ).hexdigest()
+        csrf_token = hmac.new(
+            identifier_secret.encode(), f"csrf\0{session_material}".encode(), hashlib.sha256
+        ).hexdigest()
+        session_id = hashlib.sha256(raw_token.encode()).hexdigest()
+        existing_session = database.get(AssessmentSession, session_id)
         receipt: str | None = None
         participant: AssessmentParticipant | None = None
         if payload.kind == "anonymous" and administration.mode == "formative":
-            receipt = secrets.token_urlsafe(32)
-            participant = AssessmentParticipant(
-                administration_id=administration.id,
-                kind="anonymous",
-                receipt_hash=hashlib.sha256(receipt.encode()).hexdigest(),
-            )
-            database.add(participant)
-            database.flush()
+            receipt = hmac.new(
+                identifier_secret.encode(),
+                f"anonymous-receipt\0{payload.public_id}\0{idempotency_key}".encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            if existing_session is not None:
+                existing_participant = database.get(
+                    AssessmentParticipant, existing_session.participant_id
+                )
+                if (
+                    existing_participant is None
+                    or existing_participant.administration_id != administration.id
+                    or existing_participant.kind != "anonymous"
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"code": "ASSESSMENT_IDEMPOTENCY_CONFLICT"},
+                    )
+                participant = existing_participant
+            else:
+                participant = AssessmentParticipant(
+                    administration_id=administration.id,
+                    kind="anonymous",
+                    receipt_hash=hashlib.sha256(receipt.encode()).hexdigest(),
+                )
+                database.add(participant)
+                database.flush()
         elif (
             payload.kind == "roster"
             and administration.mode in {"formative", "quiz"}
@@ -458,6 +492,27 @@ def register_assessment_routes(
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
         if participant is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        if existing_session is not None:
+            if existing_session.participant_id != participant.id:
+                raise HTTPException(
+                    status_code=409, detail={"code": "ASSESSMENT_IDEMPOTENCY_CONFLICT"}
+                )
+            existing_session.expires_at = utc_now() + timedelta(hours=5)
+            database.commit()
+            response.set_cookie(
+                "pathlab_assessment_session",
+                raw_token,
+                httponly=True,
+                secure=secure_cookies,
+                samesite="lax",
+                max_age=5 * 3600,
+            )
+            return {
+                "kind": participant.kind,
+                "publicId": administration.public_id,
+                "csrfToken": csrf_token,
+                **({"receipt": receipt} if receipt is not None else {}),
+            }
         active_sessions = database.scalars(
             select(AssessmentSession).where(
                 AssessmentSession.participant_id == participant.id,
@@ -471,11 +526,9 @@ def register_assessment_routes(
         if payload.takeover:
             for active_session in active_sessions:
                 active_session.revoked_at = utc_now()
-        raw_token = secrets.token_urlsafe(32)
-        csrf_token = secrets.token_urlsafe(32)
         database.add(
             AssessmentSession(
-                id=hashlib.sha256(raw_token.encode()).hexdigest(),
+                id=session_id,
                 participant_id=participant.id,
                 csrf_token=csrf_token,
                 device_generation=generation,
@@ -1214,7 +1267,7 @@ def register_assessment_routes(
                     if payload.access_code is not None
                     else None
                 ),
-                settings={},
+                settings={"syntheticFixture": payload.synthetic_fixture},
             )
             database.add(administration)
             database.flush()
@@ -1962,6 +2015,23 @@ def register_assessment_routes(
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_HOLD_ACTIVE"})
         if administration.status != "closed":
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        retention_days = int(administration.settings.get("retentionDays", 365))
+        eligible_at = (
+            as_utc(administration.closes_at) + timedelta(days=retention_days)
+            if administration.closes_at is not None
+            else None
+        )
+        if (
+            not administration.settings.get("syntheticFixture", False)
+            and (eligible_at is None or eligible_at > utc_now())
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ASSESSMENT_RETENTION_ACTIVE",
+                    "eligibleAt": eligible_at.isoformat() if eligible_at is not None else None,
+                },
+            )
         participant_ids = list(
             database.scalars(
                 select(AssessmentParticipant.id)
@@ -1992,6 +2062,94 @@ def register_assessment_routes(
             "status": administration.status,
             "deleted": len(participant_ids),
             "remaining": remaining,
+        }
+
+    @app.post(
+        "/api/v2/admin/assessment/administrations/{administration_id}/synthetic-fixture/cleanup"
+    )
+    def cleanup_synthetic_fixture(
+        administration_id: str,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, bool]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        if not administration.settings.get("syntheticFixture", False):
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_NOT_SYNTHETIC_FIXTURE"}
+            )
+        if administration.status != "purged":
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        version = database.get(AssessmentVersion, administration.version_id)
+        if version is None:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_VERSION_MISSING"})
+        version_count = int(
+            database.scalar(
+                select(func.count(AssessmentVersion.id)).where(
+                    AssessmentVersion.draft_id == version.draft_id
+                )
+            )
+            or 0
+        )
+        administration_count = int(
+            database.scalar(
+                select(func.count(AssessmentAdministration.id)).where(
+                    AssessmentAdministration.version_id == version.id
+                )
+            )
+            or 0
+        )
+        if version_count != 1 or administration_count != 1:
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_SYNTHETIC_FIXTURE_REUSED"}
+            )
+        cohort_id = administration.cohort_id
+        learner_ids = (
+            list(
+                database.scalars(
+                    select(CohortEnrollment.learner_id).where(
+                        CohortEnrollment.cohort_id == cohort_id
+                    )
+                )
+            )
+            if cohort_id is not None
+            else []
+        )
+        public_id = administration.public_id
+        draft_id = version.draft_id
+        database.delete(administration)
+        database.flush()
+        database.delete(version)
+        database.flush()
+        draft = database.get(AssessmentDraft, draft_id)
+        if draft is not None:
+            database.delete(draft)
+        if cohort_id is not None:
+            cohort = database.get(Cohort, cohort_id)
+            if cohort is not None:
+                database.delete(cohort)
+        database.flush()
+        for learner_id in learner_ids:
+            remaining_enrollments = int(
+                database.scalar(
+                    select(func.count(CohortEnrollment.id)).where(
+                        CohortEnrollment.learner_id == learner_id
+                    )
+                )
+                or 0
+            )
+            if remaining_enrollments == 0:
+                learner = database.get(LearnerProfile, learner_id)
+                if learner is not None:
+                    database.delete(learner)
+        database.commit()
+        return {
+            "fixturesRemoved": True,
+            "grantsRemoved": not storage.assessment_delivery_for(public_id).exists(),
+            "sessionsRemoved": True,
+            "administrationPurged": True,
         }
 
     def owned_class(database: OrmSession, cohort_id: str, org_id: str) -> Cohort:
