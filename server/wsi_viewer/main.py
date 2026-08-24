@@ -543,7 +543,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             pressure_metrics=classroom_pressure,
         )
     if serves_assessment and current.assessment_enabled:
-        register_assessment_routes(app, database_dependency=database)
+        register_assessment_routes(
+            app,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            identifier_secret=current.secret_key,
+        )
 
     @app.get("/livez")
     def livez() -> dict[str, str]:

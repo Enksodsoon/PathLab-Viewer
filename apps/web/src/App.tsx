@@ -13,6 +13,9 @@ const ClassroomInvitePage = lazy(() => import('./pages/ClassroomInvitePage').the
 const StudyPage = lazy(() => import('./pages/StudyPage').then((module) => ({ default: module.StudyPage })))
 const StudyAdminPage = lazy(() => import('./pages/StudyAdminPage').then((module) => ({ default: module.StudyAdminPage })))
 const StudyPackAuthoringPage = lazy(() => import('./pages/StudyPackAuthoringPage').then((module) => ({ default: module.StudyPackAuthoringPage })))
+const AssessmentAdminPage = lazy(() => import('./pages/AssessmentAdminPage').then((module) => ({ default: module.AssessmentAdminPage })))
+const AssessmentBuilderPage = lazy(() => import('./pages/AssessmentBuilderPage').then((module) => ({ default: module.AssessmentBuilderPage })))
+const AssessmentStudentPage = lazy(() => import('./pages/AssessmentStudentPage').then((module) => ({ default: module.AssessmentStudentPage })))
 
 export function App() {
   return <Routes>
@@ -25,6 +28,9 @@ export function App() {
     <Route path="/classroom/:sessionId" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomStudentPage /></Suspense>} />
     <Route path="/admin/study" element={<Suspense fallback={<Loader label="Opening Study Coach…" size="large" fullscreen />}><StudyAdminPage /></Suspense>} />
     <Route path="/admin/study/packs/new" element={<Suspense fallback={<Loader label="Opening Study Pack authoring…" size="large" fullscreen />}><StudyPackAuthoringPage /></Suspense>} />
+    <Route path="/admin/assessments" element={<Suspense fallback={<Loader label="Opening Assessment…" size="large" fullscreen />}><AssessmentAdminPage /></Suspense>} />
+    <Route path="/admin/assessments/:draftId" element={<Suspense fallback={<Loader label="Opening assessment builder…" size="large" fullscreen />}><AssessmentBuilderPage /></Suspense>} />
+    <Route path="/assessment/:publicId" element={<Suspense fallback={<Loader label="Opening assessment…" size="large" fullscreen />}><AssessmentStudentPage /></Suspense>} />
     <Route path="/study" element={<Suspense fallback={<Loader label="Opening Study Mode…" size="large" fullscreen />}><StudyPage /></Suspense>} />
     <Route path="/s/:publicId" element={<Suspense fallback={<Loader label="Opening slide…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />
