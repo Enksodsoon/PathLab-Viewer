@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import stat
@@ -97,8 +98,19 @@ def validate(evidence: dict[str, Any], candidate_sha: str) -> None:
     _require(cost.get("currency") == "SGD", "cost currency must be SGD")
     amount = cost.get("monthToDate")
     _require(
-        isinstance(amount, (int, float)) and not isinstance(amount, bool) and amount == 0,
-        "OCI month-to-date cost must be SGD 0",
+        isinstance(amount, (int, float))
+        and not isinstance(amount, bool)
+        and math.isfinite(amount)
+        and amount >= 0,
+        "OCI month-to-date cost observation is invalid",
+    )
+    projected_incremental = cost.get("projectedIncremental")
+    _require(
+        isinstance(projected_incremental, (int, float))
+        and not isinstance(projected_incremental, bool)
+        and math.isfinite(projected_incremental)
+        and projected_incremental == 0,
+        "deployment projected incremental cost must be SGD 0",
     )
 
 
