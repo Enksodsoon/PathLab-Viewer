@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -28,6 +29,7 @@ from classroom_sse import (
     recovery_local_state_convergence,
     remote_target_allowed,
     stage_credentials,
+    wait_for_global_sse_target,
 )
 from distributed_certification import (
     ADMISSION_SECONDS,
@@ -598,6 +600,34 @@ def test_maximum_shard_has_bounded_join_and_sse_runway_before_hold() -> None:
 
     with pytest.raises(ValueError, match="participants must be 1..334"):
         classroom_sse.admission_budget_required_seconds(335)
+
+
+def test_global_sse_barrier_tolerates_cross_shard_visibility_race() -> None:
+    observed = iter((1, 1, 2))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        active = next(observed)
+        return httpx.Response(
+            200,
+            json={"currentSseConnections": active, "peakSseConnections": active},
+        )
+
+    async def exercise() -> dict[str, object]:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="https://viewer.example.test",
+        ) as admin:
+            return await wait_for_global_sse_target(
+                admin,
+                2,
+                deadline_epoch_ms=int(datetime.now(UTC).timestamp() * 1_000) + 1_000,
+                poll_seconds=0,
+            )
+
+    metrics = asyncio.run(exercise())
+
+    assert metrics["currentSseConnections"] == 2
+    assert metrics["peakSseConnections"] == 2
 
 
 def test_remote_stage_credentials_require_one_resettable_synthetic_classroom() -> None:
