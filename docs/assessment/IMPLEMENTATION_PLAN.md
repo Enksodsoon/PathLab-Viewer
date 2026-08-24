@@ -1,6 +1,6 @@
 # Manual-First PathLab Assessment implementation campaign
 
-Rebased baseline: `origin/main` at `603f40c6b0c92b0971e0cafa6ce9879eca9adb14`. The implementation uses one additive Alembic head, `20260824_0028`, and remains disabled by default.
+Rebased baseline: `origin/main` at `3301c5ee8e5a14deb23175486d151a691686782c`. The implementation uses one additive Alembic head, `20260824_0028`, and remains disabled by default.
 
 The campaign is staged through service isolation, additive schema, strict compilation/scoring, classes, drafts, visual authoring, immutable publication, runtime protection, access, attempts, student delivery, results/grading, retention, capacity evidence, and runbooks. Every production flag remains false until a separate activation approval.
 

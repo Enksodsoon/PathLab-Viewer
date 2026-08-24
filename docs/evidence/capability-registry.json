@@ -17,7 +17,7 @@
       "displayName": "Manual-First PathLab Assessment",
       "domain": "Assessment",
       "evidenceState": "BUILT",
-      "releaseSha": "828006d59ae673f841397d533087a8ecebb1c3ff",
+      "releaseSha": "d33aedd448c05be96fd8af4c4083dd6b1baffec8",
       "featureFlag": "PATHLAB_ASSESSMENT_ENABLED",
       "supportingEvidence": [
         "docs/architecture/ASSESSMENT.md",
