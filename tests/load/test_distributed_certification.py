@@ -1026,6 +1026,14 @@ def test_only_shard_zero_publishes_teacher_mutations() -> None:
     assert not publisher_enabled("")
 
 
+def test_presenter_quiesce_reserves_fanout_drain_without_shortening_most_of_stage() -> None:
+    assert classroom_sse.presenter_quiesce_seconds(30) == 5
+    assert classroom_sse.presenter_quiesce_seconds(3_600) == 5
+    assert classroom_sse.presenter_quiesce_seconds(1) == pytest.approx(0.2)
+    with pytest.raises(ValueError, match="duration must be positive"):
+        classroom_sse.presenter_quiesce_seconds(0)
+
+
 def test_journey_measurements_keep_each_slo_path_separate() -> None:
     recorder = Recorder(
         presenter_latencies_ms=[100.0, 200.0],
