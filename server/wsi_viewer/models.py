@@ -14,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -170,6 +171,8 @@ class LearnerProfile(Base):
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
     teaching_pseudonym: Mapped[str] = mapped_column(String(100), nullable=False)
+    login_identifier_hash: Mapped[str | None] = mapped_column(String(64))
+    display_name: Mapped[str | None] = mapped_column(String(160))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_by_user_id: Mapped[str | None] = mapped_column(
@@ -240,6 +243,277 @@ class CohortEnrollment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
+
+
+class AssessmentDraft(Base):
+    __tablename__ = "assessment_drafts"
+    __table_args__ = (
+        CheckConstraint("revision >= 1", name="ck_assessment_drafts_revision"),
+        CheckConstraint("status IN ('draft', 'archived')", name="ck_assessment_drafts_status"),
+        Index("ix_assessment_drafts_org_updated", "organization_id", "updated_at", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_by_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class AssessmentVersion(Base):
+    __tablename__ = "assessment_versions"
+    __table_args__ = (UniqueConstraint("draft_id", "version", name="uq_assessment_version"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    draft_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_drafts.id", ondelete="RESTRICT"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    schema: Mapped[str] = mapped_column(String(80), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    definition: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    learner_manifest: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AssessmentAdministration(Base):
+    __tablename__ = "assessment_administrations"
+    __table_args__ = (
+        CheckConstraint("mode IN ('practice', 'formative', 'quiz')", name="ck_assessment_mode"),
+        CheckConstraint(
+            "status IN ('preparing', 'open', 'closed', 'purged')",
+            name="ck_assessment_administration_status",
+        ),
+        CheckConstraint("max_attempts BETWEEN 1 AND 3", name="ck_assessment_attempt_limit"),
+        CheckConstraint("duration_seconds BETWEEN 1 AND 14400", name="ck_assessment_duration"),
+        Index("ix_assessment_administration_org_status", "organization_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    public_id: Mapped[str] = mapped_column(String(64), unique=True, default=_public_id)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    version_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    cohort_id: Mapped[str | None] = mapped_column(ForeignKey("cohorts.id", ondelete="RESTRICT"))
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="preparing")
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=3600)
+    access_code_hash: Mapped[str | None] = mapped_column(String(64))
+    settings: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AssessmentRosterSnapshot(Base):
+    __tablename__ = "assessment_roster_snapshots"
+    __table_args__ = (
+        UniqueConstraint("administration_id", "learner_id", name="uq_assessment_roster_learner"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False
+    )
+    learner_id: Mapped[str] = mapped_column(
+        ForeignKey("learner_profiles.id", ondelete="RESTRICT"), nullable=False
+    )
+    login_identifier_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+
+
+class AssessmentParticipant(Base):
+    __tablename__ = "assessment_participants"
+    __table_args__ = (
+        CheckConstraint("kind IN ('roster', 'anonymous')", name="ck_assessment_participant_kind"),
+        UniqueConstraint(
+            "administration_id", "learner_id", name="uq_assessment_participant_learner"
+        ),
+        UniqueConstraint(
+            "administration_id", "receipt_hash", name="uq_assessment_participant_receipt"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False
+    )
+    learner_id: Mapped[str | None] = mapped_column(
+        ForeignKey("learner_profiles.id", ondelete="RESTRICT")
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    receipt_hash: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AssessmentSession(Base):
+    __tablename__ = "assessment_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    participant_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_participants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssessmentAssetGrant(Base):
+    __tablename__ = "assessment_asset_grants"
+    __table_args__ = (
+        UniqueConstraint("administration_id", "slide_id", name="uq_assessment_asset_slide"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="RESTRICT"), nullable=False
+    )
+    grant_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssessmentAttempt(Base):
+    __tablename__ = "assessment_attempts"
+    __table_args__ = (
+        UniqueConstraint("participant_id", "ordinal", name="uq_assessment_attempt_ordinal"),
+        CheckConstraint("ordinal BETWEEN 1 AND 3", name="ck_assessment_attempt_ordinal"),
+        CheckConstraint(
+            "status IN ('active', 'submitted', 'auto_submitted')",
+            name="ck_assessment_attempt_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    participant_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_participants.id", ondelete="CASCADE"), nullable=False
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    order_seed: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssessmentResponse(Base):
+    __tablename__ = "assessment_responses"
+    __table_args__ = (
+        UniqueConstraint("attempt_id", "item_id", name="uq_assessment_response_item"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False
+    )
+    item_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    response: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class AssessmentScoreVersion(Base):
+    __tablename__ = "assessment_score_versions"
+    __table_args__ = (
+        UniqueConstraint("attempt_id", "version", name="uq_assessment_score_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    attempt_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_attempts.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    points: Mapped[Any] = mapped_column(Numeric(12, 3), nullable=False)
+    maximum_points: Mapped[Any] = mapped_column(Numeric(12, 3), nullable=False)
+    breakdown: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AssessmentGradebookRow(Base):
+    __tablename__ = "assessment_gradebook_rows"
+    __table_args__ = (
+        UniqueConstraint("administration_id", "participant_id", name="uq_assessment_gradebook_row"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False
+    )
+    participant_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_participants.id", ondelete="CASCADE"), nullable=False
+    )
+    score_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("assessment_score_versions.id", ondelete="SET NULL")
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="in_progress")
+
+
+class AssessmentRelease(Base):
+    __tablename__ = "assessment_releases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False
+    )
+    policy: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    released_by_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    released_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AssessmentAggregateSnapshot(Base):
+    __tablename__ = "assessment_aggregate_snapshots"
+    __table_args__ = (
+        UniqueConstraint("administration_id", "version", name="uq_assessment_aggregate_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    administration_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_administrations.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    aggregate: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AssessmentAccessThrottle(Base):
+    __tablename__ = "assessment_access_throttles"
+    __table_args__ = (
+        UniqueConstraint("scope", "key_hash", "window_started_at", name="uq_assessment_throttle"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    scope: Mapped[str] = mapped_column(String(30), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
 class LearnerCredential(Base):
