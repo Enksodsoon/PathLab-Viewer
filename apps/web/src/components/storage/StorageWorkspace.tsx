@@ -153,10 +153,12 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
         <button
           type="button"
           className="storage-refresh-button"
+          aria-label="Refresh storage"
+          title="Refresh storage"
           disabled={loading}
           onClick={() => void load()}
         >
-          <ArrowClockwise /> Refresh
+          <ArrowClockwise /> <span>Refresh</span>
         </button>
       </header>
 

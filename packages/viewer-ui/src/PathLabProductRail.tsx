@@ -3,6 +3,7 @@ import {
   CaretDoubleRight,
   ChalkboardTeacher,
   Brain,
+  HardDrives,
   Key,
   List as Menu,
   SignOut,
@@ -162,6 +163,7 @@ function StorageMeter({
 }) {
   return (
     <>
+      <HardDrives className="library-storage-icon" aria-hidden="true" />
       <div className="library-storage-copy">
         <span>Storage</span>
         <strong>{storageLabel}</strong>

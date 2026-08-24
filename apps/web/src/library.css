@@ -263,6 +263,13 @@ button.library-storage-meter:focus-visible {
   min-width: 0;
 }
 
+.library-storage-icon {
+  display: none;
+  width: 20px;
+  height: 20px;
+  color: var(--primary);
+}
+
 .library-storage-copy span,
 .library-storage-copy strong,
 .library-storage-copy small {
@@ -305,11 +312,21 @@ button.library-storage-meter:focus-visible {
 }
 
 .library-shell:not(.rail-expanded) .library-storage-meter {
+  min-height: 42px;
   gap: 0;
   padding: 8px 5px 10px;
+  place-items: center;
 }
 
 .library-shell:not(.rail-expanded) .library-storage-copy {
+  display: none;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-icon {
+  display: block;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-track {
   display: none;
 }
 
@@ -2910,13 +2927,20 @@ button.library-storage-meter:focus-visible {
   .library-rail-utilities {
     width: auto;
     display: flex;
-    flex: 0 0 96px;
+    flex: 0 0 144px;
     gap: 2px;
     margin: 0;
   }
 
-  .library-storage-meter {
-    display: none;
+  button.library-storage-meter,
+  .library-shell:not(.rail-expanded) button.library-storage-meter {
+    width: 46px;
+    min-width: 46px;
+    min-height: 58px;
+    display: grid;
+    padding: 4px;
+    border-bottom: 0;
+    place-items: center;
   }
 
   .library-rail-primary > button,

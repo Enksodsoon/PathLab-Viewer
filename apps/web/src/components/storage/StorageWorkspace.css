@@ -22,11 +22,23 @@
 .storage-workspace-header {
   justify-content: space-between;
   gap: 18px;
+  min-width: 0;
 }
 
 .storage-workspace-title-row {
   align-items: flex-start;
   gap: 12px;
+  min-width: 0;
+}
+
+.storage-workspace .sr-only {
+  width: 1px;
+  height: 1px;
+  position: absolute;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .storage-workspace h1,
@@ -485,7 +497,8 @@
 @media (max-width: 620px) {
   .storage-workspace { padding: 14px 12px 24px; }
   .storage-workspace-header { align-items: flex-start; }
-  .storage-refresh-button { width: 38px; padding: 0; font-size: 0; }
+  .storage-refresh-button { width: 38px; flex: 0 0 38px; padding: 0; }
+  .storage-refresh-button span { display: none; }
   .storage-refresh-button svg { width: 17px; height: 17px; }
   .storage-breakdown-row { grid-template-columns: 8px minmax(64px, 1fr) auto; }
   .storage-breakdown-row small { display: none; }
