@@ -707,6 +707,13 @@ def register_classroom_routes(
             protection = request_classroom_protection(
                 db, classroom_session_id=None, now=now
             )
+            if protection.conflicting_runtime:
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "CLASSROOM_RUNTIME_BUSY"},
+                    headers={"Retry-After": "120"},
+                )
             if protection.running_jobs:
                 db.commit()
                 raise HTTPException(
@@ -794,6 +801,13 @@ def register_classroom_routes(
             protection = request_classroom_protection(
                 db, classroom_session_id=classroom.id
             )
+            if protection.conflicting_runtime:
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "CLASSROOM_RUNTIME_BUSY"},
+                    headers={"Retry-After": "120"},
+                )
             if protection.running_jobs:
                 db.commit()
                 raise HTTPException(

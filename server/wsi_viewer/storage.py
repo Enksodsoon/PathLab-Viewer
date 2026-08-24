@@ -97,6 +97,29 @@ class StorageLayout:
             raise ValueError("Invalid delivery version")
         return root / version
 
+    def assessment_delivery_for(
+        self,
+        administration_public_id: str,
+        slide_public_id: str | None = None,
+        version: str | None = None,
+    ) -> Path:
+        allowed = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+        values = [administration_public_id]
+        if slide_public_id is not None:
+            values.append(slide_public_id)
+        if any(
+            not value or any(character not in allowed for character in value) for value in values
+        ):
+            raise ValueError("Invalid generated assessment asset id")
+        target = self.root / "delivery" / "assessment" / administration_public_id
+        if slide_public_id is not None:
+            target /= slide_public_id
+        if version is not None:
+            if not version.isdigit():
+                raise ValueError("Invalid delivery version")
+            target /= version
+        return target
+
     def public_tile(self, public_id: str, tile_path: str) -> Path:
         root = self.public_for(public_id).resolve()
         target = (root / tile_path).resolve()
@@ -161,6 +184,32 @@ def publish_individual_derivative(
         slide_id,
         layout.individual_delivery_for(public_id, version),
     )
+
+
+def publish_assessment_derivative(
+    layout: StorageLayout,
+    slide_id: str,
+    administration_public_id: str,
+    slide_public_id: str,
+    version: str,
+) -> Path:
+    return _publish_derivative_to(
+        layout,
+        slide_id,
+        layout.assessment_delivery_for(administration_public_id, slide_public_id, version),
+    )
+
+
+def unpublish_assessment_derivative(layout: StorageLayout, administration_public_id: str) -> None:
+    target = layout.assessment_delivery_for(administration_public_id)
+    if not os.path.lexists(target):
+        return
+    tombstone = target.with_name(f".{target.name}.unpublish-{uuid.uuid4().hex}")
+    try:
+        target.replace(tombstone)
+    except OSError as error:
+        raise PublicationError("ASSESSMENT_UNPUBLISH_FAILED") from error
+    _remove_entry(tombstone)
 
 
 def unpublish_derivative(layout: StorageLayout, public_id: str) -> None:
