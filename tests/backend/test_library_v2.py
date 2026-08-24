@@ -404,6 +404,93 @@ def test_slide_trash_restore_and_targeted_status(tmp_path: Path) -> None:
         assert too_many.status_code == 422
 
 
+def test_storage_inventory_is_database_bounded_and_reports_safe_actions(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        settings = client.app.state.settings
+        now = datetime.now(UTC).replace(tzinfo=None)
+        with session_factory(settings)() as database:
+            database.add_all(
+                [
+                    Slide(
+                        id="storage-library",
+                        display_name="Library slide",
+                        original_filename="library.ome.tiff",
+                        source_bytes=100,
+                        derivative_bytes=20,
+                        state=SlideState.READY_PRIVATE,
+                    ),
+                    Slide(
+                        id="storage-processing",
+                        display_name="Processing slide",
+                        original_filename="processing.ome.tiff",
+                        source_bytes=100,
+                        derivative_bytes=0,
+                        reserved_bytes=1_000,
+                        state=SlideState.QUEUED,
+                    ),
+                    Slide(
+                        id="storage-trash",
+                        display_name="Recoverable slide",
+                        original_filename="recoverable.ome.tiff",
+                        source_bytes=200,
+                        derivative_bytes=50,
+                        state=SlideState.READY_PRIVATE,
+                        trashed_at=now,
+                    ),
+                    Slide(
+                        id="storage-deleting",
+                        display_name="Deleting slide",
+                        original_filename="deleting.ome.tiff",
+                        source_bytes=300,
+                        derivative_bytes=70,
+                        state=SlideState.DELETING,
+                        trashed_at=now,
+                    ),
+                ]
+            )
+            database.commit()
+
+        assert client.get("/api/v2/admin/storage").status_code == 401
+        _login(client)
+        response = client.get("/api/v2/admin/storage", params={"sort": "size_desc"})
+
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "private, no-store"
+        payload = response.json()
+        expected_summary = {
+            "libraryBytes": 120,
+            "processingBytes": 1_000,
+            "trashBytes": 250,
+            "deletingBytes": 370,
+            "libraryCount": 1,
+            "processingCount": 1,
+            "trashCount": 1,
+            "deletingCount": 1,
+            "managedBytes": 1_740,
+        }
+        assert {
+            key: payload["summary"][key] for key in expected_summary
+        } == expected_summary
+        assert [item["id"] for item in payload["items"]] == [
+            "storage-processing",
+            "storage-deleting",
+            "storage-trash",
+            "storage-library",
+        ]
+        by_id = {item["id"]: item for item in payload["items"]}
+        assert by_id["storage-library"]["canTrash"] is True
+        assert by_id["storage-trash"]["canRestore"] is True
+        assert by_id["storage-trash"]["canDelete"] is True
+        assert by_id["storage-deleting"]["canDelete"] is False
+        assert all("path" not in key.lower() for item in payload["items"] for key in item)
+
+        searched = client.get(
+            "/api/v2/admin/storage",
+            params={"q": "recoverable.ome", "scope": "trash"},
+        )
+        assert searched.status_code == 200
+        assert [item["id"] for item in searched.json()["items"]] == ["storage-trash"]
+
 def test_permanent_delete_is_explicit_and_uses_existing_worker(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         headers = _headers(client)

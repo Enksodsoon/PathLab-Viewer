@@ -14,6 +14,8 @@ interface AppRailProps {
   onUpload: () => void
   onClassroom?: () => void
   onStudy?: () => void
+  onStorage: () => void
+  storageActive: boolean
   onSecurity: () => void
   onSignOut: () => void
 }
@@ -29,6 +31,8 @@ export function AppRail({
   onUpload,
   onClassroom,
   onStudy,
+  onStorage,
+  storageActive,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
@@ -45,6 +49,8 @@ export function AppRail({
       onUpload={onUpload}
       onClassroom={onClassroom}
       onStudy={onStudy}
+      onStorage={onStorage}
+      storageActive={storageActive}
       onSecurity={onSecurity}
       onSignOut={onSignOut}
     />

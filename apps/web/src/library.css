@@ -213,7 +213,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-shell:not(.rail-expanded) .library-rail-primary > button span,
-.library-shell:not(.rail-expanded) .library-rail-utilities > button span,
+.library-shell:not(.rail-expanded) .library-rail-utilities > button:not(.library-storage-meter) span,
 .library-shell:not(.rail-expanded) .library-rail-toggle span {
   display: none;
 }
@@ -230,13 +230,53 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   display: grid;
   gap: 5px;
   padding: 8px 7px 9px;
+  border: 0;
   border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.library-storage-meter {
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.library-rail-utilities > button.library-storage-meter {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: stretch;
+  gap: 5px;
+  padding: 8px 7px 9px;
+}
+
+button.library-storage-meter:hover,
+button.library-storage-meter.active {
+  background: var(--surface-card);
+}
+
+button.library-storage-meter.active {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+button.library-storage-meter:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .library-storage-copy {
   display: grid;
   gap: 2px;
   min-width: 0;
+  width: 100%;
+}
+
+.library-storage-icon {
+  display: none;
+  width: 20px;
+  height: 20px;
+  color: var(--primary);
 }
 
 .library-storage-copy span,
@@ -257,6 +297,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 .library-storage-copy strong {
   color: var(--ink);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .library-storage-copy small {
@@ -281,11 +322,22 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-shell:not(.rail-expanded) .library-storage-meter {
+  grid-template-rows: 1fr;
+  min-height: 42px;
   gap: 0;
   padding: 8px 5px 10px;
+  place-items: center;
 }
 
 .library-shell:not(.rail-expanded) .library-storage-copy {
+  display: none;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-icon {
+  display: block;
+}
+
+.library-shell:not(.rail-expanded) .library-storage-track {
   display: none;
 }
 
@@ -2886,12 +2938,28 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   .library-rail-utilities {
     width: auto;
     display: flex;
-    flex: 0 0 96px;
+    flex: 0 0 144px;
     gap: 2px;
     margin: 0;
   }
 
-  .library-storage-meter {
+  button.library-storage-meter,
+  .library-shell:not(.rail-expanded) button.library-storage-meter {
+    width: 46px;
+    min-width: 46px;
+    min-height: 58px;
+    display: grid;
+    padding: 4px;
+    border-bottom: 0;
+    place-items: center;
+  }
+
+  button.library-storage-meter .library-storage-icon {
+    display: block;
+  }
+
+  button.library-storage-meter .library-storage-copy,
+  button.library-storage-meter .library-storage-track {
     display: none;
   }
 
