@@ -137,6 +137,48 @@ export interface LibraryItemsPage {
   total: number
 }
 
+export interface StorageSummary {
+  managedBytes: number
+  usableBytes: number
+  effectiveCapacityBytes: number
+  applicationCapBytes: number
+  physicalTotalBytes: number
+  physicalUsedBytes: number
+  physicalFreeBytes: number
+  libraryBytes: number
+  processingBytes: number
+  trashBytes: number
+  deletingBytes: number
+  libraryCount: number
+  processingCount: number
+  trashCount: number
+  deletingCount: number
+}
+
+export interface StorageItem {
+  id: string
+  displayName: string
+  originalFilename: string
+  state: SlideState
+  sourceBytes: number
+  derivativeBytes: number
+  reservedBytes: number
+  accountedBytes: number
+  updatedAt: string
+  trashedAt: string | null
+  canTrash: boolean
+  canRestore: boolean
+  canDelete: boolean
+}
+
+export interface StorageInventory {
+  summary: StorageSummary
+  items: StorageItem[]
+  offset: number
+  limit: number
+  total: number
+}
+
 export interface LibraryFacetValue {
   value: string
   count: number

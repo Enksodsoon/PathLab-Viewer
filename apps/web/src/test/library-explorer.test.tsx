@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminPage as CanvasFocusAdminPage } from '../pages/AdminPage'
 import { ThemeProvider } from '../theme/ThemeProvider'
-import type { LibraryItemsPage, LibraryNavigation } from '../types'
+import type { LibraryItemsPage, LibraryNavigation, StorageInventory } from '../types'
 
 const api = vi.hoisted(() => ({
   getLibraryNavigation: vi.fn(),
@@ -24,6 +24,7 @@ const api = vi.hoisted(() => ({
   mutateFolder: vi.fn(),
   listSlides: vi.fn(),
   reserveUpload: vi.fn(),
+  getStorageInventory: vi.fn(),
 }))
 
 vi.mock('../api', async (importOriginal) => ({
@@ -118,6 +119,44 @@ const items: LibraryItemsPage = {
   total: 2,
 }
 
+const storageInventory: StorageInventory = {
+  summary: {
+    managedBytes: 5_160_000_200,
+    usableBytes: 118 * 1024 ** 3,
+    effectiveCapacityBytes: 120 * 1024 ** 3,
+    applicationCapBytes: 120 * 1024 ** 3,
+    physicalTotalBytes: 150 * 1024 ** 3,
+    physicalUsedBytes: 25 * 1024 ** 3,
+    physicalFreeBytes: 125 * 1024 ** 3,
+    libraryBytes: 3_420_000_100,
+    processingBytes: 1_740_000_100,
+    trashBytes: 0,
+    deletingBytes: 0,
+    libraryCount: 1,
+    processingCount: 1,
+    trashCount: 0,
+    deletingCount: 0,
+  },
+  items: [{
+    id: 'slide-1',
+    displayName: 'Colon adenocarcinoma',
+    originalFilename: 'colon.ome.tiff',
+    state: 'ready_private',
+    sourceBytes: 3_420_000_000,
+    derivativeBytes: 100,
+    reservedBytes: 0,
+    accountedBytes: 3_420_000_100,
+    updatedAt: '2026-07-23T00:00:00Z',
+    trashedAt: null,
+    canTrash: true,
+    canRestore: false,
+    canDelete: false,
+  }],
+  offset: 0,
+  limit: 50,
+  total: 1,
+}
+
 beforeEach(() => {
   localStorage.clear()
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
@@ -182,6 +221,7 @@ beforeEach(() => {
     uploadToken: `token-${file.name}`,
     expiresIn: 3600,
   }))
+  api.getStorageInventory.mockResolvedValue(storageInventory)
   tusUpload.startTusUpload.mockImplementation(async (
     _file: File,
     _endpoint: string,
@@ -245,7 +285,7 @@ describe('Canvas Focus library explorer', () => {
     )
     expect(storage.closest('.library-storage-meter')).toHaveAttribute(
       'aria-label',
-      'Storage, 90.00 GB available',
+      'Open storage, 90.00 GB available',
     )
     const thumbnailCard = screen.getByRole('button', {
       name: 'Open details for Colon adenocarcinoma',
@@ -265,6 +305,48 @@ describe('Canvas Focus library explorer', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     expect(document.querySelector('.library-shell')).toHaveClass('rail-expanded')
     expect(localStorage.getItem('pathlab-library-rail:v1')).toBe('expanded')
+  })
+
+  it('opens managed storage from the rail and moves a file to recoverable Trash', async () => {
+    const user = userEvent.setup()
+    renderCanvasFocusAdmin()
+    await screen.findAllByText('Colon adenocarcinoma')
+
+    await user.click(screen.getByRole('button', { name: /open storage/i }))
+
+    expect(await screen.findByRole('heading', { name: /^storage$/i })).toBeVisible()
+    expect(screen.getByText('Files and derivatives')).toBeVisible()
+    expect(await screen.findByText('colon.ome.tiff')).toBeVisible()
+    expect(api.getStorageInventory).toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /move to trash/i }))
+    await waitFor(() => expect(api.mutateLibrarySlide).toHaveBeenCalledWith('slide-1', 'trash'))
+    expect(await screen.findByText(/moved to Trash/i)).toBeVisible()
+  })
+
+  it('restores or permanently deletes only items already in Trash', async () => {
+    const user = userEvent.setup()
+    api.getStorageInventory.mockResolvedValue({
+      ...storageInventory,
+      summary: { ...storageInventory.summary, libraryBytes: 0, libraryCount: 0, trashBytes: 3_420_000_100, trashCount: 1 },
+      items: [{
+        ...storageInventory.items[0],
+        trashedAt: '2026-07-23T00:00:00Z',
+        canTrash: false,
+        canRestore: true,
+        canDelete: true,
+      }],
+    })
+    renderCanvasFocusAdmin('/admin?location=storage')
+
+    await screen.findByRole('heading', { name: /^storage$/i })
+    await screen.findByText('colon.ome.tiff')
+    await user.click(screen.getByRole('button', { name: /^restore$/i }))
+    await waitFor(() => expect(api.mutateLibrarySlide).toHaveBeenCalledWith('slide-1', 'restore'))
+
+    await user.click(screen.getByRole('button', { name: /delete permanently/i }))
+    const dialog = screen.getByRole('dialog', { name: /delete permanently/i })
+    await user.click(within(dialog).getByRole('button', { name: /^delete permanently$/i }))
+    await waitFor(() => expect(api.deleteLibrarySlide).toHaveBeenCalledWith('slide-1'))
   })
 
   it('opens the Classroom workspace from the product rail when enabled', async () => {

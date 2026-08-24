@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+import shutil
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +11,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import case, func, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
@@ -60,7 +61,11 @@ from .sharing import (
     write_share_delivery_manifest,
 )
 from .storage import StorageLayout
-from .storage_accounting import storage_capacity_snapshot
+from .storage_accounting import (
+    ACTIVE_STATES,
+    storage_capacity_snapshot,
+    storage_contribution_expression,
+)
 from .tile_routes import TileRouteService, authorize_tile
 
 
@@ -345,6 +350,118 @@ def register_library_routes(
     app.add_api_route(
         "/api/v2/admin/library/navigation",
         navigation,
+        methods=["GET"],
+    )
+
+    def storage_inventory(
+        response: Response,
+        scope: str = Query(default="all", pattern="^(all|active|trash)$"),
+        q: str | None = Query(default=None, max_length=300),
+        sort: str = Query(default="size_desc", pattern="^(size_desc|name_asc|updated_desc)$"),
+        offset: int = Query(default=0, ge=0, le=1_000_000),
+        limit: int = Query(default=50, ge=1, le=100),
+        _: Any = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        contribution = storage_contribution_expression()
+        deleting = Slide.state == SlideState.DELETING
+        trashed = Slide.trashed_at.is_not(None)
+        processing = and_(Slide.trashed_at.is_(None), Slide.state.in_(ACTIVE_STATES))
+        library = and_(
+            Slide.trashed_at.is_(None),
+            Slide.state.not_in(ACTIVE_STATES),
+            Slide.state != SlideState.DELETING,
+        )
+        summary = database.execute(
+            select(
+                func.coalesce(func.sum(case((library, contribution), else_=0)), 0),
+                func.coalesce(func.sum(case((processing, contribution), else_=0)), 0),
+                func.coalesce(
+                    func.sum(case((and_(trashed, ~deleting), contribution), else_=0)),
+                    0,
+                ),
+                func.coalesce(func.sum(case((deleting, contribution), else_=0)), 0),
+                func.count(Slide.id).filter(library),
+                func.count(Slide.id).filter(processing),
+                func.count(Slide.id).filter(and_(trashed, ~deleting)),
+                func.count(Slide.id).filter(deleting),
+            )
+        ).one()
+        capacity = storage_capacity_snapshot(database, storage)
+        disk = shutil.disk_usage(storage.root)
+
+        base = select(Slide, contribution.label("accounted_bytes"))
+        if scope == "active":
+            base = base.where(Slide.trashed_at.is_(None))
+        elif scope == "trash":
+            base = base.where(Slide.trashed_at.is_not(None))
+        if q:
+            term = f"%{q.casefold()}%"
+            base = base.where(
+                or_(
+                    func.lower(Slide.display_name).like(term),
+                    func.lower(Slide.original_filename).like(term),
+                    func.lower(Slide.case_id).like(term),
+                )
+            )
+        total = int(
+            database.scalar(select(func.count()).select_from(base.order_by(None).subquery())) or 0
+        )
+        if sort == "name_asc":
+            base = base.order_by(Slide.display_name.asc(), Slide.id.asc())
+        elif sort == "updated_desc":
+            base = base.order_by(Slide.updated_at.desc(), Slide.id.desc())
+        else:
+            base = base.order_by(contribution.desc(), Slide.id.asc())
+        rows = database.execute(base.offset(offset).limit(limit)).all()
+        response.headers["Cache-Control"] = "private, no-store"
+        return {
+            "summary": {
+                "managedBytes": capacity.used_bytes,
+                "usableBytes": capacity.usable_bytes,
+                "effectiveCapacityBytes": capacity.effective_capacity_bytes,
+                "applicationCapBytes": storage.cap_bytes,
+                "physicalTotalBytes": int(disk.total),
+                "physicalUsedBytes": int(disk.used),
+                "physicalFreeBytes": int(disk.free),
+                "libraryBytes": int(summary[0]),
+                "processingBytes": int(summary[1]),
+                "trashBytes": int(summary[2]),
+                "deletingBytes": int(summary[3]),
+                "libraryCount": int(summary[4]),
+                "processingCount": int(summary[5]),
+                "trashCount": int(summary[6]),
+                "deletingCount": int(summary[7]),
+            },
+            "items": [
+                {
+                    "id": slide.id,
+                    "displayName": slide.display_name,
+                    "originalFilename": slide.original_filename,
+                    "state": slide.state.value,
+                    "sourceBytes": slide.source_bytes,
+                    "derivativeBytes": slide.derivative_bytes,
+                    "reservedBytes": slide.reserved_bytes,
+                    "accountedBytes": int(accounted_bytes),
+                    "updatedAt": slide.updated_at.isoformat(),
+                    "trashedAt": slide.trashed_at.isoformat() if slide.trashed_at else None,
+                    "canTrash": slide.trashed_at is None and slide.state != SlideState.DELETING,
+                    "canRestore": slide.trashed_at is not None
+                    and slide.state != SlideState.DELETING,
+                    "canDelete": slide.trashed_at is not None
+                    and slide.state
+                    not in {SlideState.VALIDATING, SlideState.CONVERTING, SlideState.DELETING},
+                }
+                for slide, accounted_bytes in rows
+            ],
+            "offset": offset,
+            "limit": limit,
+            "total": total,
+        }
+
+    app.add_api_route(
+        "/api/v2/admin/storage",
+        storage_inventory,
         methods=["GET"],
     )
 

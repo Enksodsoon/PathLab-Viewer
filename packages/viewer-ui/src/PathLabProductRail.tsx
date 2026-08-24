@@ -27,6 +27,8 @@ export interface PathLabProductRailProps {
   onUpload: () => void
   onClassroom?: () => void
   onStudy?: () => void
+  onStorage?: () => void
+  storageActive?: boolean
   onSecurity: () => void
   onSignOut: () => void
   uploadLabel?: string
@@ -48,6 +50,8 @@ export function PathLabProductRail({
   onUpload,
   onClassroom,
   onStudy,
+  onStorage,
+  storageActive = false,
   onSecurity,
   onSignOut,
   uploadLabel = 'Upload',
@@ -116,27 +120,26 @@ export function PathLabProductRail({
         ) : null}
       </nav>
       <div className="library-rail-utilities" aria-label="Account actions">
-        <section
-          className="library-storage-meter"
-          aria-label={`Storage, ${storageLabel}`}
-          title={`${storageLabel}. Safe capacity after active conversion reservations.`}
-        >
-          <div className="library-storage-copy">
-            <span>Storage</span>
-            <strong>{storageLabel}</strong>
-          </div>
-          <div
-            className="library-storage-track"
-            role="meter"
-            aria-label="Usable storage remaining"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={remainingPercent}
-            aria-valuetext={storageLabel}
+        {onStorage ? (
+          <button
+            type="button"
+            className={`library-storage-meter ${storageActive ? 'active' : ''}`}
+            aria-label={`Open storage, ${storageLabel}`}
+            aria-current={storageActive ? 'page' : undefined}
+            title={`${storageLabel}. Open managed storage.`}
+            onClick={onStorage}
           >
-            <span style={{ width: `${remainingPercent}%` }} />
-          </div>
-        </section>
+            <StorageMeter storageLabel={storageLabel} remainingPercent={remainingPercent} />
+          </button>
+        ) : (
+          <section
+            className="library-storage-meter"
+            aria-label={`Storage, ${storageLabel}`}
+            title={`${storageLabel}. Safe capacity after active conversion reservations.`}
+          >
+            <StorageMeter storageLabel={storageLabel} remainingPercent={remainingPercent} />
+          </section>
+        )}
         <button type="button" aria-label={accountLabel} onClick={onSecurity}>
           <Key aria-hidden="true" />
           <span>{accountLabel}</span>
@@ -147,6 +150,34 @@ export function PathLabProductRail({
         </button>
       </div>
     </aside>
+  )
+}
+
+function StorageMeter({
+  storageLabel,
+  remainingPercent,
+}: {
+  storageLabel: string
+  remainingPercent: number
+}) {
+  return (
+    <>
+      <div className="library-storage-copy">
+        <span>Storage</span>
+        <strong>{storageLabel}</strong>
+      </div>
+      <div
+        className="library-storage-track"
+        role="meter"
+        aria-label="Usable storage remaining"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={remainingPercent}
+        aria-valuetext={storageLabel}
+      >
+        <span style={{ width: `${remainingPercent}%` }} />
+      </div>
+    </>
   )
 }
 

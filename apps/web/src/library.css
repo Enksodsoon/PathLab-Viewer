@@ -213,7 +213,7 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
 }
 
 .library-shell:not(.rail-expanded) .library-rail-primary > button span,
-.library-shell:not(.rail-expanded) .library-rail-utilities > button span,
+.library-shell:not(.rail-expanded) .library-rail-utilities > button:not(.library-storage-meter) span,
 .library-shell:not(.rail-expanded) .library-rail-toggle span {
   display: none;
 }
@@ -230,7 +230,31 @@ FORM: Brief-pinned operating workspace, ranked first for task clarity; concept r
   display: grid;
   gap: 5px;
   padding: 8px 7px 9px;
+  border: 0;
   border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.library-storage-meter {
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+button.library-storage-meter:hover,
+button.library-storage-meter.active {
+  background: var(--surface-card);
+}
+
+button.library-storage-meter.active {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+button.library-storage-meter:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .library-storage-copy {
