@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tests.backend.test_assessment_admin import _client, _document
+from test_assessment_admin import _client, _document
 
 
 def test_practice_public_bundle_is_explicitly_answer_bearing_while_metadata_is_not(
