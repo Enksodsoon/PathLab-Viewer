@@ -38,7 +38,14 @@ FIELDS = {
 def validate(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or set(value) != FIELDS:
         raise ValueError("postflight evidence fields are invalid")
-    if value["schemaVersion"] != 1 or value["currency"] != "SGD" or value["monthToDateCost"] != 0:
+    month_to_date_cost = value["monthToDateCost"]
+    if (
+        value["schemaVersion"] != 1
+        or value["currency"] != "SGD"
+        or isinstance(month_to_date_cost, bool)
+        or not isinstance(month_to_date_cost, (int, float))
+        or month_to_date_cost < 0
+    ):
         raise ValueError("postflight cost evidence failed")
     if value["finalCapacity"] != 300 or value["annotationsEnabled"] is not False:
         raise ValueError("postflight safety floor is invalid")

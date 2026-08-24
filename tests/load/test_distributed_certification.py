@@ -225,6 +225,12 @@ def healthy_accounting() -> dict[str, object]:
     }
 
 
+def paid_existing_accounting() -> dict[str, object]:
+    accounting = healthy_accounting()
+    accounting["monthToDateCost"] = 0.162128807907
+    return accounting
+
+
 def healthy_fixture_preparation(schedule: dict[str, object]) -> dict[str, object]:
     return {
         "schemaVersion": 1,
@@ -1210,6 +1216,40 @@ def test_final_builder_reports_1200_tier_when_headroom_strict_slo_fails() -> Non
 
     assert report["certified"] is True
     assert report["certifiedTier"] == 1200
+
+
+def test_final_builder_preserves_sunk_cost_and_requires_zero_incremental_cost() -> None:
+    schedule = plan()
+    merged = merge_shards(schedule, [healthy_shard(index) for index in range(6)])
+    sentinels, fault, cleanup = bound_run_evidence(schedule)
+    accounting = paid_existing_accounting()
+    postflight = healthy_postflight(schedule)
+    postflight["monthToDateCost"] = accounting["monthToDateCost"]
+
+    report = build_distributed_evidence(
+        schedule,
+        merged,
+        sentinels,
+        fault,
+        healthy_fixture_preparation(schedule),
+        cleanup,
+        healthy_host_samples(schedule),
+        accounting,
+        postflight,
+    )
+
+    assert report["certified"] is True
+    assert report["cost"] == {
+        "currency": "SGD",
+        "existingMonthlyAmount": 0.162128807907,
+        "projectedMonthlyAmount": 0.162128807907,
+        "amount": 0,
+        "permanentResourcesAdded": False,
+        "computeOcpus": 2,
+        "memoryGb": 12,
+        "storageGb": 200,
+        "shapeCompliant": True,
+    }
 
 
 def test_final_builder_does_not_count_the_intentional_classroom_fault_as_unexpected_restart() -> (
