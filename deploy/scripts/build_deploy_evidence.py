@@ -91,7 +91,11 @@ def build_evidence(
         "fixtures": {"syntheticOnly": True},
         "annotations": {"enabled": False},
         "egress": {"projectedMonthlyBytes": projected_monthly_egress_bytes},
-        "cost": {"currency": "SGD", "monthToDate": month_to_date_cost_sgd},
+        "cost": {
+            "currency": "SGD",
+            "monthToDate": month_to_date_cost_sgd,
+            "projectedIncremental": 0,
+        },
     }
     _load_safety().validate(evidence, sha)
     return evidence
