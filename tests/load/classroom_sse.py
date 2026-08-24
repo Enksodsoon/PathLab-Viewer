@@ -1048,6 +1048,16 @@ async def run() -> int:
     )
     successful_reconnects = sum(item.connects >= 2 for item in reconnect_expected)
     reconnect_times = [item.connected_at[1] for item in participants if len(item.connected_at) >= 2]
+    # The producer intentionally permits only one HTTP mutation in flight and
+    # keeps one latest pending viewport. Under a 300-stream fanout the response
+    # latency, not the cadence ceiling, limits the achieved rate. Require a
+    # useful 5 Hz freshness floor while separately reporting end-to-end p95/p99.
+    minimum_achieved_rate = min(rate, 5)
+    expected_updates = (
+        math.floor(duration * minimum_achieved_rate * (0.3 if expect_restart else 0.8))
+        if publishes_teacher_events
+        else 0
+    )
     report: dict[str, Any] = {
         "participants": count,
         "durationSeconds": round((hold_ended_epoch_ms - hold_started_epoch_ms) / 1_000, 3),
@@ -1060,6 +1070,8 @@ async def run() -> int:
         "serverPeakSseAtHoldStart": server_peak_at_hold,
         "globalTargetUsers": global_target,
         "reconnects": sum(max(0, item.connects - 1) for item in participants),
+        "expectedReconnects": len(reconnect_expected),
+        "successfulReconnects": successful_reconnects,
         "reconnectSuccessRate": round(successful_reconnects / len(reconnect_expected), 4),
         "reconnectSpreadMs": round((max(reconnect_times) - min(reconnect_times)) * 1000, 3)
         if len(reconnect_times) > 1
@@ -1068,6 +1080,8 @@ async def run() -> int:
         "taskErrors": task_errors,
         "presenterLatencyMs": summary(recorder.presenter_latencies_ms),
         "presenterSendSuccesses": len(recorder.presenter_sent),
+        "expectedPresenterUpdates": expected_updates,
+        "presenterHttpErrors": recorder.presenter_http_errors,
         "questionLatencyMs": summary(recorder.question_latencies_ms),
         "controlLatencyMs": summary(recorder.control_latencies_ms),
         "tileLatencyMs": summary(recorder.tile_latencies_ms),
@@ -1100,16 +1114,6 @@ async def run() -> int:
         "earlyStopCauses": sorted(set(early_causes)),
     }
     print(json.dumps(report, indent=2))
-    # The producer intentionally permits only one HTTP mutation in flight and
-    # keeps one latest pending viewport. Under a 300-stream fanout the response
-    # latency, not the cadence ceiling, limits the achieved rate. Require a
-    # useful 5 Hz freshness floor while separately reporting end-to-end p95/p99.
-    minimum_achieved_rate = min(rate, 5)
-    expected_updates = (
-        math.floor(duration * minimum_achieved_rate * (0.3 if expect_restart else 0.8))
-        if publishes_teacher_events
-        else 0
-    )
     failed = bool(task_errors) or converged != count or recorder.tile_errors > 0
     failed = failed or recorder.presenter_http_errors > 0
     failed = failed or recorder.unexpected_sse_disconnects > 0

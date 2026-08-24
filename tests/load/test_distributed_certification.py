@@ -47,6 +47,7 @@ from distributed_shard import (
     cancellation_handler,
     completed_stage_marker,
     partial_shard_result,
+    safe_harness_failure_summary,
     shard_result_from_reports,
 )
 from monitor_distributed_observer import timeline_causes
@@ -745,6 +746,49 @@ def test_partial_shard_result_is_run_bound_and_records_completed_prefix() -> Non
     assert result["runId"] == "123456"
     assert result["shardIndex"] == 2
     assert result["completedStages"] == [{"name": "smoke-2", "outcome": "passed"}]
+
+
+def test_failed_harness_summary_is_aggregate_and_allowlisted() -> None:
+    schedule = plan()
+    stage = schedule["stages"][1]
+    execution = {
+        "exitCode": 1,
+        "stalled": False,
+        "privateErrorPresent": False,
+        "cleanupSucceeded": True,
+        "report": {
+            "participants": stage["shardTargets"][0],
+            "participantErrors": ["redacted"],
+            "taskErrors": [],
+            "finalConvergence": {"converged": 16, "expected": 17},
+            "tileErrors": 2,
+            "presenterHttpErrors": 1,
+            "unexpectedSseDisconnects": 1,
+            "queueOverflows": 1,
+            "stalePresenterIncidents": 1,
+            "expectedReconnects": 2,
+            "successfulReconnects": 1,
+            "expectedPresenterUpdates": 20,
+            "presenterSendSuccesses": 19,
+            "serverActiveSseAtHoldStart": 100,
+            "serverPeakSseAtHoldStart": 100,
+        },
+    }
+
+    summary = safe_harness_failure_summary(stage, execution, 0)
+
+    assert summary["failureCodes"] == [
+        "participant-errors",
+        "final-convergence",
+        "tile-errors",
+        "presenter-http-errors",
+        "unexpected-sse-disconnects",
+        "queue-overflows",
+        "presenter-regression",
+        "reconnect-shortfall",
+        "presenter-rate-shortfall",
+    ]
+    assert "redacted" not in str(summary)
 
 
 def test_process_signal_becomes_a_caught_cancellation_abort() -> None:
