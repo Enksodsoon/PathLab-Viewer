@@ -516,6 +516,26 @@ class AssessmentAccessThrottle(Base):
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class AssessmentMutationReceipt(Base):
+    __tablename__ = "assessment_mutation_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "operation", "key_hash", name="uq_assessment_mutation_receipt"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    operation: Mapped[str] = mapped_column(String(100), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    response: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class LearnerCredential(Base):
     __tablename__ = "learner_credentials"
     __table_args__ = (

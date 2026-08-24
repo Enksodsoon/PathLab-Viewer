@@ -15,6 +15,7 @@ ASSESSMENT_TABLES = {
     "assessment_attempts",
     "assessment_drafts",
     "assessment_gradebook_rows",
+    "assessment_mutation_receipts",
     "assessment_participants",
     "assessment_releases",
     "assessment_responses",
