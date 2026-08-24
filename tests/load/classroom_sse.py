@@ -13,12 +13,17 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from distributed_certification import ADMISSION_SECONDS, early_stop_causes
+from distributed_certification import (
+    ADMISSION_SECONDS,
+    SHARD_START_TOLERANCE_MS,
+    early_stop_causes,
+)
 
 ADMISSION_REQUEST_TIMEOUT_SECONDS = 8
 JOIN_STAGGER_SECONDS = 0.01
 SSE_READY_RESERVE_SECONDS = 20
 ADMISSION_PROCESS_RESERVE_SECONDS = 5
+GLOBAL_SSE_POLL_SECONDS = 0.05
 
 
 def admission_budget_required_seconds(participants: int) -> float:
@@ -34,6 +39,28 @@ def admission_budget_required_seconds(participants: int) -> float:
         + SSE_READY_RESERVE_SECONDS
         + ADMISSION_PROCESS_RESERVE_SECONDS
     )
+
+
+async def wait_for_global_sse_target(
+    admin: httpx.AsyncClient,
+    global_target: int,
+    *,
+    deadline_epoch_ms: int,
+    poll_seconds: float = GLOBAL_SSE_POLL_SECONDS,
+) -> dict[str, Any]:
+    """Observe the cross-shard SSE barrier within the strict start tolerance."""
+    while True:
+        response = await admin.get("/api/v1/admin/classroom/metrics")
+        response.raise_for_status()
+        metrics = response.json()
+        active = int(metrics.get("currentSseConnections", 0))
+        peak = int(metrics.get("peakSseConnections", 0))
+        if active >= global_target and peak >= global_target:
+            return metrics
+        remaining = (deadline_epoch_ms - int(time.time() * 1_000)) / 1_000
+        if remaining <= 0:
+            return metrics
+        await asyncio.sleep(min(poll_seconds, remaining))
 
 
 class HeavyEarlyStop(RuntimeError):
@@ -877,9 +904,15 @@ async def run() -> int:
             stream.cancel()
         await asyncio.gather(*streams, return_exceptions=True)
         raise RuntimeError("not every admitted participant had active SSE at hold start")
-    hold_metrics_response = await admin.get("/api/v1/admin/classroom/metrics")
-    hold_metrics_response.raise_for_status()
-    hold_metrics = hold_metrics_response.json()
+    hold_metrics = await wait_for_global_sse_target(
+        admin,
+        global_target,
+        deadline_epoch_ms=(
+            hold_start_epoch_ms + SHARD_START_TOLERANCE_MS
+            if hold_start_epoch_ms
+            else int(time.time() * 1_000) + SHARD_START_TOLERANCE_MS
+        ),
+    )
     server_active_at_hold = int(hold_metrics.get("currentSseConnections", 0))
     server_peak_at_hold = int(hold_metrics.get("peakSseConnections", 0))
     if server_active_at_hold < global_target or server_peak_at_hold < global_target:
