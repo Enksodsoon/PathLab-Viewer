@@ -243,6 +243,14 @@ button.library-storage-meter {
   transition: background 160ms ease, box-shadow 160ms ease;
 }
 
+.library-rail-utilities > button.library-storage-meter {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: stretch;
+  gap: 5px;
+  padding: 8px 7px 9px;
+}
+
 button.library-storage-meter:hover,
 button.library-storage-meter.active {
   background: var(--surface-card);
@@ -261,6 +269,7 @@ button.library-storage-meter:focus-visible {
   display: grid;
   gap: 2px;
   min-width: 0;
+  width: 100%;
 }
 
 .library-storage-icon {
@@ -288,6 +297,7 @@ button.library-storage-meter:focus-visible {
 .library-storage-copy strong {
   color: var(--ink);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .library-storage-copy small {
@@ -312,6 +322,7 @@ button.library-storage-meter:focus-visible {
 }
 
 .library-shell:not(.rail-expanded) .library-storage-meter {
+  grid-template-rows: 1fr;
   min-height: 42px;
   gap: 0;
   padding: 8px 5px 10px;
@@ -2941,6 +2952,15 @@ button.library-storage-meter:focus-visible {
     padding: 4px;
     border-bottom: 0;
     place-items: center;
+  }
+
+  button.library-storage-meter .library-storage-icon {
+    display: block;
+  }
+
+  button.library-storage-meter .library-storage-copy,
+  button.library-storage-meter .library-storage-track {
+    display: none;
   }
 
   .library-rail-primary > button,
