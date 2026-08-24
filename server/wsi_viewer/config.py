@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
 
     environment: Literal["development", "test", "production"] = "development"
-    service_role: Literal["general", "classroom", "worker", "tile", "all"] = "all"
+    service_role: Literal["general", "classroom", "assessment", "worker", "tile", "all"] = "all"
     database_url: str = "sqlite:///./var/pathlab.sqlite3"
     database_password_file: Path | None = None
     data_root: Path = Path("./var/data")
@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     annotations_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False
+    assessment_enabled: bool = False
     classroom_protection_enabled: bool = False
     identity_governance_enabled: bool = False
     classroom_singleton: bool = False
@@ -79,6 +80,11 @@ class Settings(BaseSettings):
             and not self.classroom_singleton
         ):
             raise ValueError("Production classroom requires the declared singleton topology")
+        if self.service_role == "assessment" and self.assessment_enabled:
+            if not self.database_url.startswith("postgresql"):
+                raise ValueError("Production Assessment requires PostgreSQL")
+            if not self.identity_governance_enabled:
+                raise ValueError("Production Assessment requires identity governance")
         secret = self.secret_key.strip()
         if len(secret.encode("utf-8")) < 32 or secret.casefold() in PRODUCTION_SECRET_PLACEHOLDERS:
             raise ValueError("Production requires a unique secret key of at least 32 bytes")

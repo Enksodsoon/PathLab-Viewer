@@ -48,6 +48,13 @@
 		reverse_proxy {$PATHLAB_CLASSROOM_SERVICE_URL}
 	}
 
+	@assessment_api path /api/v2/assessment/* /api/v2/admin/assessment/*
+	handle @assessment_api {
+		header ?Cache-Control "no-store"
+		header Referrer-Policy "no-referrer"
+		reverse_proxy {$PATHLAB_ASSESSMENT_SERVICE_URL}
+	}
+
 	@backend path /api/* /livez /readyz
 	handle @backend {
 		header ?Cache-Control "no-store"
@@ -70,6 +77,12 @@
 
 	handle_path /tiles/* {
 		root * /pathlab-individual
+		header Cache-Control "private, max-age=86400, immutable"
+		file_server
+	}
+
+	handle_path /assessment-assets/* {
+		root * /pathlab-assessment
 		header Cache-Control "private, max-age=86400, immutable"
 		file_server
 	}

@@ -42,6 +42,7 @@ def database_target_for(settings: Settings) -> str | URL:
 def pool_options_for(settings: Settings) -> PoolOptions:
     pool_sizes = {
         "classroom": 4,
+        "assessment": 4,
         "general": 5,
         "worker": 2,
         "tile": 1,
@@ -50,19 +51,20 @@ def pool_options_for(settings: Settings) -> PoolOptions:
     return {
         "pool_size": pool_sizes[settings.service_role],
         "max_overflow": 0,
-        "pool_timeout": 1.0,
+        "pool_timeout": 0.5 if settings.service_role == "assessment" else 1.0,
     }
 
 
 def postgres_timeouts_for(settings: Settings) -> tuple[int, int]:
     statement_timeout_ms = {
         "classroom": 2_000,
+        "assessment": 2_000,
         "general": 5_000,
         "worker": 30_000,
         "tile": 5_000,
         "all": 5_000,
     }[settings.service_role]
-    lock_timeout_ms = 250 if settings.service_role == "classroom" else 1_000
+    lock_timeout_ms = 250 if settings.service_role in {"classroom", "assessment"} else 1_000
     return statement_timeout_ms, lock_timeout_ms
 
 
