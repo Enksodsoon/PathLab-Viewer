@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   createAssessmentDraft: vi.fn(),
   getAssessmentDraft: vi.fn(),
   listAssessmentDrafts: vi.fn(),
+  listAssessmentAdministrations: vi.fn(),
   previewAssessmentDraft: vi.fn(),
   publishAssessmentDraft: vi.fn(),
   saveAssessmentDraft: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('../assessment/draftCache', () => ({
 }))
 
 beforeEach(() => {
+  api.listAssessmentAdministrations.mockResolvedValue({ items: [], total: 0 })
   api.listAssessmentDrafts.mockResolvedValue({
     total: 1,
     items: [{

@@ -250,6 +250,7 @@ def register_assessment_routes(
             "mode": administration.mode,
             "status": administration.status,
             "durationSeconds": administration.duration_seconds,
+            "closesAt": administration.closes_at,
             "manifest": version.learner_manifest,
             "assets": grant_manifest(_, administration.id),
         }
@@ -539,11 +540,22 @@ def register_assessment_routes(
                     .order_by(AssessmentResponse.item_id)
                 )
             ]
+        manifest = json.loads(json.dumps(version.learner_manifest))
+        if (
+            attempt is not None
+            and manifest.get("settings", {}).get("shuffleQuestions") is True
+        ):
+            manifest["items"] = sorted(
+                manifest.get("items", []),
+                key=lambda item: hashlib.sha256(
+                    f"{attempt.order_seed}:{item.get('id', '')}".encode()
+                ).digest(),
+            )
         return {
             "kind": participant.kind,
             "publicId": administration.public_id,
             "status": administration.status,
-            "manifest": version.learner_manifest,
+            "manifest": manifest,
             "deviceGeneration": stored_session.device_generation,
             "attempt": (
                 {
@@ -612,7 +624,12 @@ def register_assessment_routes(
         )
         database.add(attempt)
         database.flush()
-        result = {"id": attempt.id, "ordinal": attempt.ordinal, "status": attempt.status}
+        result = {
+            "id": attempt.id,
+            "ordinal": attempt.ordinal,
+            "status": attempt.status,
+            "startedAt": attempt.started_at.isoformat(),
+        }
         persist_receipt(
             database,
             stored_session,
@@ -648,6 +665,10 @@ def register_assessment_routes(
         csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> dict[str, Any]:
         stored_session = student_session(database, raw_token, csrf_token)
+        if len(payload.model_dump_json(by_alias=True).encode()) > 64 * 1024:
+            raise HTTPException(
+                status_code=413, detail={"code": "ASSESSMENT_RESPONSE_BATCH_LIMIT"}
+            )
         receipt, key_hash, request_hash = mutation_receipt(
             database,
             stored_session,
@@ -1831,6 +1852,17 @@ def register_assessment_routes(
             if administration.status != "purged"
             else []
         )
+
+        def response_map(attempt_id: str) -> dict[str, dict[str, Any]]:
+            return {
+                response.item_id: response.response
+                for response in database.scalars(
+                    select(AssessmentResponse).where(
+                        AssessmentResponse.attempt_id == attempt_id
+                    )
+                )
+            }
+
         return {
             "summary": aggregate,
             "administration": {
@@ -1855,6 +1887,7 @@ def register_assessment_routes(
                             else None
                         ),
                         "breakdown": score.breakdown if score is not None else {},
+                        "responses": response_map(attempt.id),
                     }
                     for attempt, display_name, grade_status, score in individual_rows
                 ],

@@ -16,6 +16,24 @@ export interface AssessmentItem {
   answerKey?: Record<string, unknown>
   slideId?: string
   feedback?: { correct?: string; incorrect?: string }
+  manual?: boolean
+  scoring?: {
+    partialCredit?: boolean
+    pointTolerance?: number
+    rectangleIou?: number
+  }
+}
+
+export type DiagnosticSelection =
+  | { kind: 'point'; x: number; y: number }
+  | { kind: 'rectangle'; x: number; y: number; width: number; height: number }
+
+export interface EligibleAssessmentSlide {
+  id: string
+  publicId: string
+  displayName: string
+  tileSource: string
+  thumbnail: string | null
 }
 
 export interface AssessmentDocument {
