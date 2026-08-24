@@ -2,9 +2,7 @@ import {
   ArrowClockwise,
   ArrowLeft,
   Archive,
-  Database,
   File,
-  HardDrives,
   MagnifyingGlass,
   Trash,
 } from '@phosphor-icons/react'
@@ -122,9 +120,6 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
   }
 
   const summary = inventory?.summary
-  const physicalOtherBytes = summary
-    ? Math.max(0, summary.physicalUsedBytes - summary.managedBytes)
-    : 0
   const applicationPercent = summary && summary.effectiveCapacityBytes > 0
     ? Math.min(100, (summary.managedBytes / summary.effectiveCapacityBytes) * 100)
     : 0
@@ -145,9 +140,7 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
             <ArrowLeft />
           </button>
           <div>
-            <span className="storage-eyebrow">Managed storage</span>
             <h1>Storage</h1>
-            <p>Review slide data, recover items from Trash, and remove files safely.</p>
           </div>
         </div>
         <button
@@ -158,7 +151,7 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
           disabled={loading}
           onClick={() => void load()}
         >
-          <ArrowClockwise /> <span>Refresh</span>
+          <ArrowClockwise />
         </button>
       </header>
 
@@ -177,7 +170,6 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
                 <span id="storage-overview-title">Application capacity</span>
                 <strong>{formatBytes(summary.usableBytes)} available</strong>
               </div>
-              <HardDrives aria-hidden="true" />
             </div>
             <div
               className="storage-capacity-track"
@@ -187,35 +179,31 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
               aria-valuemax={100}
               aria-valuenow={Math.round(applicationPercent)}
             >
-              <span style={{ width: `${applicationPercent}%` }} />
+              {categories.filter((category) => category.bytes > 0).map((category) => (
+                <span
+                  className={`storage-capacity-segment ${category.tone}`}
+                  key={category.label}
+                  style={{
+                    width: `${summary.effectiveCapacityBytes > 0
+                      ? Math.min(100, (category.bytes / summary.effectiveCapacityBytes) * 100)
+                      : 0}%`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="storage-capacity-legend" aria-label="Storage types">
+              {categories.map((category) => (
+                <div className="storage-legend-item" key={category.label} title={`${category.count} ${category.count === 1 ? 'file' : 'files'}`}>
+                  <span className={`storage-breakdown-dot ${category.tone}`} aria-hidden="true" />
+                  <span>{category.label}</span>
+                  <strong>{formatBytes(category.bytes)}</strong>
+                </div>
+              ))}
             </div>
             <div className="storage-capacity-meta">
               <span><b>{formatBytes(summary.managedBytes)}</b> managed</span>
               <span>{formatBytes(summary.effectiveCapacityBytes)} usable capacity</span>
             </div>
-          </article>
-
-          <div className="storage-breakdown" aria-label="Managed storage breakdown">
-            {categories.map((category) => (
-              <div className="storage-breakdown-row" key={category.label}>
-                <span className={`storage-breakdown-dot ${category.tone}`} aria-hidden="true" />
-                <span>{category.label}</span>
-                <small>{category.count} {category.count === 1 ? 'file' : 'files'}</small>
-                <strong>{formatBytes(category.bytes)}</strong>
-              </div>
-            ))}
-          </div>
-
-          <article className="storage-volume-card">
-            <div>
-              <Database aria-hidden="true" />
-              <span>OCI data volume</span>
-            </div>
-            <strong>{formatBytes(summary.physicalFreeBytes)} physically free</strong>
-            <p>
-              {formatBytes(physicalOtherBytes)} is used by backups, database files,
-              delivery manifests, and filesystem overhead outside managed slide accounting.
-            </p>
           </article>
         </section>
       ) : null}
@@ -223,8 +211,7 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
       <section className="storage-files" aria-labelledby="storage-files-title">
         <div className="storage-files-heading">
           <div>
-            <span className="storage-eyebrow">Content inventory</span>
-            <h2 id="storage-files-title">Files and derivatives</h2>
+            <h2 id="storage-files-title">Files</h2>
           </div>
           <span>{inventory?.total ?? 0} {(inventory?.total ?? 0) === 1 ? 'item' : 'items'}</span>
         </div>
@@ -259,7 +246,7 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
             />
           </label>
           <label className="storage-sort">
-            <span>Sort</span>
+            <span className="sr-only">Sort files</span>
             <select value={sort} onChange={(event) => {
               setSort(event.target.value as StorageSort)
               setOffset(0)
@@ -311,18 +298,18 @@ export function StorageWorkspace({ onBack, onStorageChanged }: StorageWorkspaceP
                     <td>
                       <div className="storage-row-actions">
                         {item.canTrash ? (
-                          <button type="button" disabled={busyId === item.id} onClick={() => void moveToTrash(item)}>
-                            <Trash /> Move to Trash
+                          <button type="button" aria-label={`Move to Trash: ${item.displayName}`} title="Move to Trash" disabled={busyId === item.id} onClick={() => void moveToTrash(item)}>
+                            <Trash aria-hidden="true" />
                           </button>
                         ) : null}
                         {item.canRestore ? (
-                          <button type="button" disabled={busyId === item.id} onClick={() => void restore(item)}>
-                            <ArrowClockwise /> Restore
+                          <button type="button" aria-label={`Restore: ${item.displayName}`} title="Restore" disabled={busyId === item.id} onClick={() => void restore(item)}>
+                            <ArrowClockwise aria-hidden="true" />
                           </button>
                         ) : null}
                         {item.canDelete ? (
-                          <button type="button" className="danger" disabled={busyId === item.id} onClick={() => setDeleteTarget(item)}>
-                            Delete permanently
+                          <button type="button" className="danger" aria-label={`Delete permanently: ${item.displayName}`} title="Delete permanently" disabled={busyId === item.id} onClick={() => setDeleteTarget(item)}>
+                            <Trash aria-hidden="true" />
                           </button>
                         ) : null}
                         {!item.canTrash && !item.canRestore && !item.canDelete ? <small>Action pending</small> : null}

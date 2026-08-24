@@ -315,7 +315,7 @@ describe('Canvas Focus library explorer', () => {
     await user.click(screen.getByRole('button', { name: /open storage/i }))
 
     expect(await screen.findByRole('heading', { name: /^storage$/i })).toBeVisible()
-    expect(screen.getByText('Files and derivatives')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Files' })).toBeVisible()
     expect(await screen.findByText('colon.ome.tiff')).toBeVisible()
     expect(api.getStorageInventory).toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: /move to trash/i }))
@@ -340,7 +340,7 @@ describe('Canvas Focus library explorer', () => {
 
     await screen.findByRole('heading', { name: /^storage$/i })
     await screen.findByText('colon.ome.tiff')
-    await user.click(screen.getByRole('button', { name: /^restore$/i }))
+    await user.click(screen.getByRole('button', { name: /^restore:/i }))
     await waitFor(() => expect(api.mutateLibrarySlide).toHaveBeenCalledWith('slide-1', 'restore'))
 
     await user.click(screen.getByRole('button', { name: /delete permanently/i }))
