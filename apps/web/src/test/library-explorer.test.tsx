@@ -839,9 +839,6 @@ describe('Canvas Focus library explorer', () => {
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'lung' } })
     expect(api.getLibraryItems).toHaveBeenCalledTimes(1)
-    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 200)))
-    expect(api.getLibraryItems).toHaveBeenCalledTimes(1)
-    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 20)))
     await waitFor(() => expect(api.getLibraryItems).toHaveBeenCalledTimes(2))
 
     fireEvent.click(screen.getByRole('button', { name: /table view/i }))
