@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     internal_file_redirects: bool = False
     multi_share_enabled: bool = True
     annotations_enabled: bool = False
+    admin_annotation_canary_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False
     classroom_protection_enabled: bool = False
@@ -60,6 +61,11 @@ class Settings(BaseSettings):
     tile_cache_memory_bytes: PositiveInt = 256 * 1024**2
     tile_render_concurrency: PositiveInt = 2
     tile_service_url: str = "http://tile-service:8090"
+
+    @property
+    def admin_annotations_enabled(self) -> bool:
+        """Allow the private admin workspace without activating global annotations."""
+        return self.annotations_enabled or self.admin_annotation_canary_enabled
 
     @model_validator(mode="after")
     def validate_production_security(self) -> Self:
