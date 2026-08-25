@@ -16,6 +16,13 @@ Rendering, editing, draft-storage, and save failures detach annotation handlers,
 restore pan/zoom, and preserve recoverable local work. No annotation path starts
 a service, conversion job, storage scan, derivative file, or public artifact.
 
+`PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=true` is a narrower, default-off
+production canary. It enables the same workspace and mutation APIs only for
+authenticated administrator slide previews while
+`PATHLAB_ANNOTATIONS_ENABLED=false` remains unchanged. It does not add fields
+or API access to public or Classroom routes. Set the canary back to `false` and
+redeploy to remove the workspace without deleting saved annotation data.
+
 ## Architecture
 
 - React loads `AnnotationWorkspace` as a private-only dynamic import.
@@ -71,15 +78,18 @@ test restore over the only production data copy.
 
 ## Rollout and rollback
 
-Enabling the flag is a separate production decision. After approval, enable one
-administrator session, then verify create, save, reload, revision restore, and
-public-route isolation. Watch API latency, SQLite lock errors, database growth,
-browser memory, and unsaved-draft warnings.
+Enabling either flag is a separate production decision. The admin canary may be
+used for one administrator session before the globally certified flag is
+available. Verify create, save, reload, revision restore, and public-route
+isolation. Watch API latency, SQLite lock errors, database growth, browser
+memory, and unsaved-draft warnings.
 
-For an annotation incident, first set `PATHLAB_ANNOTATIONS_ENABLED=false` and
-restart the API. This preserves all annotation tables and data while restoring
-the standard viewer path. Application rollback should retain the additive
-schema. Schema downgrade is destructive: migration `20260726_0009` drops
+For an admin-canary incident, first set
+`PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=false` and redeploy. For a global
+annotation incident, set `PATHLAB_ANNOTATIONS_ENABLED=false`. Both preserve all
+annotation tables and data while restoring the standard viewer path.
+Application rollback should retain the additive schema. Schema downgrade is
+destructive: migration `20260726_0009` drops
 annotation layers, annotations, revisions, and the slide version column. Use it
 only with explicit data-loss acceptance and a verified backup; never make it an
 automatic rollback step.
