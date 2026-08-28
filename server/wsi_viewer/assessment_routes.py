@@ -41,6 +41,9 @@ from .assessment_contract import (
     compile_assessment,
     score_item,
 )
+from .assessment_contract_v2 import V2_SCHEMA, compile_assessment_v2, document_schema
+from .assessment_v2_migration import migrate_v1_document
+from .assessment_validation import preflight_v2
 from .domain import SlideState
 from .identity import staff_organization_context
 from .models import (
@@ -92,6 +95,11 @@ class DraftPatch(BaseModel):
 
 class DraftDuplicate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class DraftMigration(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    expected_revision: int = Field(alias="expectedRevision", ge=1)
 
 
 class QuestionImport(BaseModel):
@@ -1552,6 +1560,39 @@ def register_assessment_routes(
         database.commit()
         return _draft_json(destination, database)
 
+    @app.post(
+        "/api/v2/admin/assessment/drafts/{draft_id}/migrate-v2",
+        status_code=status.HTTP_201_CREATED,
+    )
+    def migrate_draft_v2(
+        draft_id: str,
+        payload: DraftMigration,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        source = editable_draft(database, draft_id, org_id)
+        if source.revision != payload.expected_revision:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": source.revision},
+            )
+        if document_schema(source.document) == V2_SCHEMA:
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_ALREADY_V2"})
+        document = migrate_v1_document(source.document, source.id)
+        migrated = AssessmentDraft(
+            organization_id=source.organization_id,
+            course_id=source.course_id,
+            cohort_id=source.cohort_id,
+            title=f"{source.title} — v2",
+            document=document,
+            created_by_user_id=authenticated.user_id,
+        )
+        database.add(migrated)
+        database.commit()
+        return _draft_json(migrated, database)
+
     @app.post("/api/v2/admin/assessment/drafts/{draft_id}/archive")
     def archive_draft(
         draft_id: str,
@@ -1588,9 +1629,51 @@ def register_assessment_routes(
             database, draft_id, organization_id(authenticated, database, requested_org)
         )
         try:
-            return draft, compile_assessment(draft.document)
+            compiled = (
+                compile_assessment_v2(draft.document)
+                if document_schema(draft.document) == V2_SCHEMA
+                else compile_assessment(draft.document)
+            )
+            return draft, compiled
         except AssessmentContractError as error:
             raise HTTPException(status_code=422, detail={"code": str(error)}) from error
+
+    @app.post("/api/v2/admin/assessment/drafts/{draft_id}/preflight")
+    def preflight_draft(
+        draft_id: str,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        draft = editable_draft(
+            database,
+            draft_id,
+            organization_id(authenticated, database, requested_org),
+        )
+        if document_schema(draft.document) == V2_SCHEMA:
+            return preflight_v2(draft.document)
+        try:
+            compiled = compile_assessment(draft.document)
+        except AssessmentContractError as error:
+            return {
+                "valid": False,
+                "errors": [
+                    {
+                        "code": str(error),
+                        "path": "/",
+                        "message": "The assessment contract is not publishable.",
+                        "level": "error",
+                    }
+                ],
+                "warnings": [],
+                "metrics": {},
+            }
+        return {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "metrics": {"items": len(compiled.definition.get("items", []))},
+        }
 
     @app.post("/api/v2/admin/assessment/drafts/{draft_id}/preview")
     def preview_draft(
@@ -1629,7 +1712,7 @@ def register_assessment_routes(
             organization_id=draft.organization_id,
             draft_id=draft.id,
             version=version_number,
-            schema="pathlab.assessment/1",
+            schema=str(compiled.definition["schema"]),
             checksum=compiled.checksum,
             definition=compiled.definition,
             learner_manifest=compiled.learner_manifest,

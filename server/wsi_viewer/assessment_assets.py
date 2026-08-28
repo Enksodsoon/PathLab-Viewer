@@ -36,7 +36,17 @@ class AssessmentAssetError(RuntimeError):
 def definition_slide_ids(definition: dict[str, object]) -> list[str]:
     items = definition.get("items")
     if not isinstance(items, list):
-        return []
+        sections = definition.get("sections")
+        items = (
+            [
+                item
+                for section in sections
+                if isinstance(section, dict)
+                for item in section.get("items", [])
+            ]
+            if isinstance(sections, list)
+            else []
+        )
     ordered: list[str] = []
     for item in items:
         if not isinstance(item, dict):
