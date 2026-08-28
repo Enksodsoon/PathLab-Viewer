@@ -83,3 +83,32 @@ def test_preflight_returns_focusable_issues_without_publishing(tmp_path: Path) -
     published = client.post(f"/api/v2/admin/assessment/drafts/{draft['id']}/publish")
     assert published.status_code == 422
     assert published.json()["detail"]["code"] == "ASSESSMENT_OPTIONS_REQUIRED"
+
+
+def test_v2_question_library_imports_into_first_section_without_routes(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    source = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Source", "document": v2_document()},
+    ).json()
+    destination_document = v2_document()
+    destination_document["title"] = "Destination"
+    destination_document["sections"][0]["items"] = []  # type: ignore[index]
+    destination = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Destination", "document": destination_document},
+    ).json()
+
+    imported = client.post(
+        f"/api/v2/admin/assessment/drafts/{destination['id']}/import-questions",
+        json={
+            "sourceDraftId": source["id"],
+            "itemIds": ["item-pattern"],
+            "expectedRevision": destination["revision"],
+        },
+    )
+
+    assert imported.status_code == 200, imported.text
+    item = imported.json()["document"]["sections"][0]["items"][0]
+    assert item["id"] != "item-pattern"
+    assert "routing" not in item

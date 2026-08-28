@@ -43,6 +43,13 @@ from .assessment_contract import (
     score_item,
 )
 from .assessment_contract_v2 import V2_SCHEMA, compile_assessment_v2, document_schema
+from .assessment_import_v2 import (
+    clone_complete_sections,
+    import_individual_items,
+)
+from .assessment_import_v2 import (
+    document_items as import_document_items,
+)
 from .assessment_review import build_learner_review
 from .assessment_v2_migration import migrate_v1_document
 from .assessment_validation import preflight_v2
@@ -1612,7 +1619,10 @@ def register_assessment_routes(
         org_id = organization_id(authenticated, database, requested_org)
         source = editable_draft(database, draft_id, org_id)
         document = json.loads(json.dumps(source.document))
-        document["items"] = [fresh_item(item) for item in document.get("items", [])]
+        if document_schema(document) == V2_SCHEMA:
+            document["sections"] = clone_complete_sections(document.get("sections", []))
+        else:
+            document["items"] = [fresh_item(item) for item in document.get("items", [])]
         document["title"] = payload.title or f"{source.title} copy"
         duplicate = AssessmentDraft(
             organization_id=org_id,
@@ -1643,17 +1653,16 @@ def register_assessment_routes(
                 detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": destination.revision},
             )
         requested = set(payload.item_ids)
-        selected = [
-            fresh_item(item)
-            for item in source.document.get("items", [])
-            if item.get("id") in requested
-        ]
-        if len(selected) != len(requested):
-            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ITEM_NOT_FOUND"})
-        if len(destination.document.get("items", [])) + len(selected) > 100:
+        try:
+            document, selected = import_individual_items(
+                destination.document, source.document, requested
+            )
+        except KeyError as error:
+            raise HTTPException(
+                status_code=404, detail={"code": "ASSESSMENT_ITEM_NOT_FOUND"}
+            ) from error
+        if len(import_document_items(destination.document)) + len(selected) > 100:
             raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ITEM_LIMIT"})
-        document = json.loads(json.dumps(destination.document))
-        document["items"] = [*document.get("items", []), *selected]
         destination.document = document
         destination.revision += 1
         destination.updated_at = utc_now()
