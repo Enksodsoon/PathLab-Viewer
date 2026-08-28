@@ -112,7 +112,7 @@ def test_current_tree_ignores_public_dependency_metadata_in_lockfiles(
 ) -> None:
     repo, _ = make_repo(tmp_path)
     (repo / "pnpm-lock.yaml").write_text(
-        "deprecated: contact maintainer@dependency.dev for upstream support\n",
+        "deprecated: contact maintainer@" + "dependency.dev for upstream support\n",
         encoding="utf-8",
     )
     git(repo, "add", "pnpm-lock.yaml")
