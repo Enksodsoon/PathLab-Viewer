@@ -262,7 +262,7 @@ export interface AssessmentCourse {
   courseCode: string
   semester: string
   academicYear: string | null
-  iconKey: import('../components/assessment/CourseIcon').CourseIconKey
+  iconKey: import('./courseIcons').CourseIconKey
   scoringMethod: 'points' | 'percentage' | 'weighted' | 'pass_fail'
   description: string | null
   opensAt: string | null

@@ -5,7 +5,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { createAssessmentCourse, getAssessmentCourse, type AssessmentCourseInput, updateAssessmentCourse } from '../assessment/api'
 import { toApiDateTime, toLocalDateTimeInput } from '../assessment/dateTime'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
-import { COURSE_ICON_OPTIONS, CourseIcon, getCourseIconOption } from '../components/assessment/CourseIcon'
+import { COURSE_ICON_OPTIONS, getCourseIconOption } from '../assessment/courseIcons'
+import { CourseIcon } from '../components/assessment/CourseIcon'
 import './assessment.css'
 
 const empty: AssessmentCourseInput = { name: '', courseCode: '', semester: '', academicYear: '', iconKey: 'general', scoringMethod: 'percentage', description: '', opensAt: null, closesAt: null, status: 'draft' }

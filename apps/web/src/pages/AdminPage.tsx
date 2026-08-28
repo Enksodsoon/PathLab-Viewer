@@ -1360,6 +1360,9 @@ export function AdminPage() {
         })}
         onNavigator={() => setNavigatorOpen((current) => !current)}
         onUpload={() => openNamedDialog('upload')}
+        onClassroom={navigation.capabilities?.classroom
+          ? () => navigate('/admin/classroom')
+          : undefined}
         onStudy={navigation.capabilities?.study
           ? () => navigate('/admin/study')
           : undefined}

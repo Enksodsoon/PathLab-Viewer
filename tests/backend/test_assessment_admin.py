@@ -257,8 +257,8 @@ def test_course_roster_is_shared_and_classes_select_a_subset(tmp_path: Path) -> 
     assert updated_icon.json()["iconKey"] == "respiratory"
     roster_rows = (
         "student_id,first_name,last_name,group,subgroup,email,advisor,national_id\n"
-        "s001,Somchai,Prasert,Year 3,A,s001@example.edu,Dr Arun,N001\n"
-        "s002,มาลี,ทองชัย,Year 3,B,s002@example.edu,Dr Mali,N002"
+        "s001,Somchai,Prasert,Year 3,A,s001@example.test,Dr Arun,N001\n"
+        "s002,มาลี,ทองชัย,Year 3,B,s002@example.test,Dr Mali,N002"
     )
     preview_response = client.post(
         f"/api/v2/admin/assessment/courses/{course_id}/roster/import/preview",
@@ -274,10 +274,20 @@ def test_course_roster_is_shared_and_classes_select_a_subset(tmp_path: Path) -> 
     roster = client.get(f"/api/v2/admin/assessment/courses/{course_id}/roster").json()
     assert roster["total"] == 2
     assert [column["key"] for column in roster["columns"]] == [
-        "student_id", "name", "group", "subgroup", "email", "metadata:advisor", "metadata:national_id", "status",
+        "student_id",
+        "name",
+        "group",
+        "subgroup",
+        "email",
+        "metadata:advisor",
+        "metadata:national_id",
+        "status",
     ]
     assert {item["studentId"] for item in roster["items"]} == {"s001", "s002"}
-    assert any(item["firstName"] == "มาลี" and item["lastName"] == "ทองชัย" for item in roster["items"])
+    assert any(
+        item["firstName"] == "มาลี" and item["lastName"] == "ทองชัย"
+        for item in roster["items"]
+    )
     sorted_roster = client.get(
         f"/api/v2/admin/assessment/courses/{course_id}/roster",
         params={"sort_by": "student_id", "sort_direction": "desc"},
@@ -329,7 +339,11 @@ def test_course_roster_is_shared_and_classes_select_a_subset(tmp_path: Path) -> 
     assert blocked.status_code == 409
     confirmed = client.post(
         f"/api/v2/admin/assessment/courses/{course_id}/roster/import/commit",
-        json={"rows": possible_duplicates, "checksum": duplicate_preview["checksum"], "confirmWarnings": True},
+        json={
+            "rows": possible_duplicates,
+            "checksum": duplicate_preview["checksum"],
+            "confirmWarnings": True,
+        },
     )
     assert confirmed.status_code == 201
     assert confirmed.json() == {"created": 2, "skipped": 1}
@@ -344,7 +358,7 @@ def test_course_roster_is_shared_and_classes_select_a_subset(tmp_path: Path) -> 
             "lastName": "",
             "group": "Year 4",
             "subgroup": "C",
-            "email": "malee.updated@example.edu",
+            "email": "malee.updated@example.test",
             "metadata": {"advisor": "Dr New", "campus": "North"},
         },
     )
@@ -382,7 +396,11 @@ def test_course_roster_is_shared_and_classes_select_a_subset(tmp_path: Path) -> 
     ).json()
     restored = client.post(
         f"/api/v2/admin/assessment/courses/{course_id}/roster/import/commit",
-        json={"rows": restored_rows, "checksum": restored_preview["checksum"], "confirmWarnings": True},
+        json={
+            "rows": restored_rows,
+            "checksum": restored_preview["checksum"],
+            "confirmWarnings": True,
+        },
     )
     assert restored.status_code == 201
     assert restored.json()["created"] == 1
@@ -390,7 +408,11 @@ def test_course_roster_is_shared_and_classes_select_a_subset(tmp_path: Path) -> 
 
 def test_structured_roster_accepts_more_than_two_thousand_unicode_learners() -> None:
     rows = ["student_id,first_name,last_name,group,subgroup,email"]
-    rows.extend(f"TH-{index:04d},นักศึกษา{index},ทดสอบ,Year 3,Lab {index % 8},student{index}@example.edu" for index in range(2001))
+    rows.extend(
+        f"TH-{index:04d},นักศึกษา{index},ทดสอบ,Year 3,Lab {index % 8},"
+        f"student{index}@example.test"
+        for index in range(2001)
+    )
     parsed = _parse_rows("\n".join(rows), require_structured=True)
     assert len(parsed) == 2001
     assert parsed[-1].first_name == "นักศึกษา2000"
