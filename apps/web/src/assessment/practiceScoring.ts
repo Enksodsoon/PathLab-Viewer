@@ -1,4 +1,5 @@
-import { assessmentItems, type AssessmentDocument, type AssessmentItem, type DiagnosticSelection } from './types'
+import { reachableItems } from './learnerRuntime'
+import { type AssessmentDocument, type AssessmentItem, type DiagnosticSelection } from './types'
 
 function normalized(value: unknown) {
   return String(value ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
@@ -34,14 +35,14 @@ export function scorePractice(
   let points = 0
   let maximumPoints = 0
   const breakdown: Record<string, number | null> = {}
-  for (const item of assessmentItems(document)) {
-    if (item.type === 'information') continue
+  for (const item of reachableItems(document, responses)) {
+    if (item.type === 'information' || item.type === 'section-information') continue
     const maximum = Number(item.points ?? 0)
     maximumPoints += maximum
     const response = responses[item.id] ?? {}
     const key = item.answerKey ?? {}
     let fraction: number | null = 0
-    if (item.type === 'multiple-choice') {
+    if (item.type === 'multiple-choice' || item.type === 'dropdown') {
       fraction = (key.optionIds as string[] | undefined)?.includes(String(response.optionId)) ? 1 : 0
     } else if (item.type === 'checkboxes') {
       const selected = new Set((response.optionIds as string[] | undefined) ?? [])
@@ -57,6 +58,12 @@ export function scorePractice(
     } else if (item.type === 'short-answer' && !item.manual) {
       fraction = ((key.variants as string[] | undefined) ?? []).map(normalized)
         .includes(normalized(response.text)) ? 1 : 0
+    } else if (item.type === 'rating') {
+      const rating = Number(response.value)
+      const expected = key.value
+      fraction = expected === undefined
+        ? Number(Number.isInteger(rating) && rating >= 1 && rating <= (item.rating?.max ?? 0))
+        : Number(rating === Number(expected))
     } else if (item.type === 'paragraph' || item.manual) {
       fraction = null
     } else if (item.type === 'diagnostic-field') {

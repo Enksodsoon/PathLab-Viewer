@@ -4,9 +4,10 @@ import { useParams } from 'react-router-dom'
 
 import { accessAssessment, AssessmentHttpError, getAssessmentMetadata, getAssessmentResult, getPracticeBundle, restoreAssessmentSession, saveAssessmentResponses, startAssessmentAttempt, submitAssessmentAttempt } from '../assessment/api'
 import { enqueueAssessmentResponse, listAssessmentOutbox, removeAssessmentOutbox } from '../assessment/outbox'
+import { pruneUnreachableResponses, reachableItems } from '../assessment/learnerRuntime'
 import { scorePractice } from '../assessment/practiceScoring'
-import { assessmentItems, type AssessmentDocument, type AssessmentItem, type DiagnosticSelection } from '../assessment/types'
-import { AssessmentDiagnosticField } from '../components/AssessmentDiagnosticField'
+import { type AssessmentDocument, type AssessmentItem } from '../assessment/types'
+import { AssessmentLearnerQuestion } from '../components/assessment/AssessmentLearnerQuestion'
 import './assessment.css'
 
 type ResponseMap = Record<string, Record<string, unknown>>
@@ -18,9 +19,10 @@ const responseFor = (item: AssessmentItem, responses: ResponseMap) => responses[
 
 function answered(item: AssessmentItem, responses: ResponseMap) {
   const value = responseFor(item, responses)
-  if (item.type === 'information') return true
-  if (item.type === 'multiple-choice') return Boolean(value.optionId)
+  if (item.type === 'information' || item.type === 'section-information') return true
+  if (item.type === 'multiple-choice' || item.type === 'dropdown') return Boolean(value.optionId || value.other)
   if (item.type === 'checkboxes') return Array.isArray(value.optionIds) && value.optionIds.length > 0
+  if (item.type === 'rating') return Number(value.value) >= 1
   if (item.type === 'diagnostic-field') return Boolean(value.selection || value.diagnosis)
   return Boolean(String(value.text ?? '').trim())
 }
@@ -169,7 +171,8 @@ export function AssessmentStudentPage() {
 
   function update(item: AssessmentItem, response: Record<string, unknown>) {
     setResponses((currentResponses) => {
-      const next = { ...currentResponses, [item.id]: response }
+      const unpruned = { ...currentResponses, [item.id]: response }
+      const next = document ? pruneUnreachableResponses(document, unpruned) : unpruned
       if (mode === 'practice') localStorage.setItem(practiceKey(publicId), JSON.stringify({ responses: next, expiresAt: practiceExpiry }))
       return next
     })
@@ -186,7 +189,7 @@ export function AssessmentStudentPage() {
 
   async function submit() {
     if (!document) return
-    const items = assessmentItems(document)
+    const items = reachableItems(document, responses)
     const missing = items.find((item) => item.required && !answered(item, responses))
     if (missing) { setCurrent(items.indexOf(missing)); setReviewing(false); return }
     if (mode === 'practice') {
@@ -200,8 +203,14 @@ export function AssessmentStudentPage() {
     setResult({ ...released, needsGrading: submitted.needsGrading })
   }
 
-  const items = useMemo(() => document ? assessmentItems(document) : [], [document])
+  const items = useMemo(() => document ? reachableItems(document, responses) : [], [document, responses])
   const allAnswered = useMemo(() => items.every((item) => !item.required || answered(item, responses)), [items, responses])
+  useEffect(() => {
+    if (!attemptId) return
+    const reachable = new Set(items.map((item) => item.id))
+    void listAssessmentOutbox(attemptId).then((entries) => removeAssessmentOutbox(entries.filter((entry) => !reachable.has(entry.itemId)).map((entry) => entry.id)))
+  }, [attemptId, items])
+  useEffect(() => setCurrent((index) => Math.min(index, Math.max(items.length - 1, 0))), [items.length])
   if (!document) return <main className="assessment-loading"><p role="status">{status}</p></main>
   if (mode !== 'practice' && !csrf) return <main className="assessment-entry">
     <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1>
@@ -216,22 +225,12 @@ export function AssessmentStudentPage() {
 
   const item = items[current]
   const value = responseFor(item, responses)
-  const diagnosticSelections = value.selection ? [value.selection as DiagnosticSelection] : []
-  const tileSource = item.slideId ? assets[item.slideId] : undefined
   return <div className="assessment-student">
     <header className="assessment-student-header"><div className="assessment-brand"><span aria-hidden="true">▦</span><strong>PathLab</strong><small>Assessment</small></div><div aria-live="polite">{online ? <Clock aria-hidden="true" /> : <WifiSlash aria-hidden="true" />} <span>{mode === 'practice' ? status : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} · ${status}`}</span></div></header>
     <aside className="assessment-student-nav" aria-label="Question navigator"><p>Questions</p>{items.map((question, index) => <button key={question.id} type="button" aria-current={index === current ? 'step' : undefined} onClick={() => setCurrent(index)}>{index + 1}</button>)}</aside>
     <main className="assessment-student-main"><p className="assessment-kicker">Question {current + 1} of {items.length}</p><h1>{document.title}</h1>
       {item.type === 'diagnostic-field' ? <div className="assessment-mobile-tabs"><button type="button" aria-pressed={mobilePanel === 'slide'} onClick={() => setMobilePanel('slide')}>Slide</button><button type="button" aria-pressed={mobilePanel === 'answer'} onClick={() => setMobilePanel('answer')}>Answer</button></div> : null}
-      <section className="assessment-student-question"><h2>{item.prompt}</h2>
-        {item.options?.map((option) => {
-          const selected = (value.optionIds as string[] | undefined) ?? []
-          return <label key={option.id}><input type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} name={item.id} aria-label={option.label} checked={item.type === 'checkboxes' ? selected.includes(option.id) : value.optionId === option.id} onChange={() => item.type === 'checkboxes' ? update(item, { optionIds: selected.includes(option.id) ? selected.filter((id) => id !== option.id) : [...selected, option.id] }) : update(item, { optionId: option.id })} /><span>{option.label}</span></label>
-        })}
-        {['short-answer', 'paragraph'].includes(item.type) ? <textarea aria-label="Answer" value={String(value.text ?? '')} onChange={(event) => update(item, { text: event.target.value })} /> : null}
-        {item.type === 'diagnostic-field' && tileSource ? <div className="assessment-slide-panel" data-active={mobilePanel === 'slide'}><AssessmentDiagnosticField label="Diagnostic slide" tileSource={tileSource} selections={diagnosticSelections} onCommit={(selection) => update(item, { ...value, selection })} onClear={() => update(item, { ...value, selection: undefined })} /></div> : null}
-        {item.type === 'diagnostic-field' ? <div className="assessment-answer-panel" data-active={mobilePanel === 'answer'}><label>Diagnosis<input value={String(value.diagnosis ?? '')} onChange={(event) => update(item, { ...value, diagnosis: event.target.value })} /></label></div> : null}
-      </section>
+      <AssessmentLearnerQuestion item={item} value={value} assets={assets} mobilePanel={mobilePanel} onChange={(response) => update(item, response)} />
       <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
     </main>
   </div>

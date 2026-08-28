@@ -2930,6 +2930,20 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .assessment-starter-panel textarea { width: 100%; min-height: 94px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-control); color: var(--ink); background: var(--surface-elevated); }
 .assessment-paste-preview { min-height: 22px; }
 .assessment-paste-preview p { color: var(--danger); }
+.assessment-preview-device-controls { display: flex; justify-content: center; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--border-soft); background: var(--surface-elevated); }
+.assessment-preview-device-controls button { min-height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-control); color: var(--body); background: var(--surface); }
+.assessment-preview-device-controls button[aria-pressed='true'] { border-color: var(--primary); color: var(--primary); }
+.assessment-preview-stage { overflow: auto; padding: 18px; background: var(--canvas); }
+.assessment-preview-stage > .assessment-preview-body { width: 100%; margin-inline: auto; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); transition: max-width .2s ease; }
+.assessment-learner-preview-renderer { display: grid; gap: 12px; }
+.assessment-learner-options { display: grid; gap: 8px; }
+.assessment-learner-rating { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
+.assessment-learner-rating legend { width: 100%; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+.assessment-learner-rating label { position: relative; }
+.assessment-learner-rating input { position: absolute; opacity: 0; }
+.assessment-learner-rating span { min-width: 42px; min-height: 42px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-control); color: var(--primary); background: var(--surface-elevated); }
+.assessment-learner-rating input:checked + span { border-color: var(--primary); color: var(--on-primary); background: var(--primary); }
+.assessment-learner-rating input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
 .assessment-section-navigator { position: sticky; top: 132px; max-height: calc(100dvh - 146px); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); }
 .assessment-section-navigator > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px; border-bottom: 1px solid var(--border-soft); }
 .assessment-section-navigator > header h3 { margin: 0; color: var(--ink); font-size: 13px; }

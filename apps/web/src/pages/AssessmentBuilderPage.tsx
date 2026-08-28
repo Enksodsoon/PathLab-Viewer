@@ -15,6 +15,7 @@ import {
 import { cacheAssessmentDraft, readCachedAssessmentDraft } from '../assessment/draftCache'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import { AssessmentQuestionCanvas } from '../components/assessment/AssessmentQuestionCanvas'
+import { AssessmentLearnerPreview } from '../components/assessment/AssessmentLearnerPreview'
 import { AssessmentSectionCanvas } from '../components/assessment/AssessmentSectionCanvas'
 import { assessmentItems, isAssessmentV2, type AssessmentDocument, type AssessmentDraft } from '../assessment/types'
 import { questionTypesByType } from '../assessment/questionTypes'
@@ -38,6 +39,8 @@ export function AssessmentBuilderPage() {
   const [accessCode, setAccessCode] = useState('')
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([])
   const [preview, setPreview] = useState<AssessmentDocument | null>(null)
+  const [previewWidth, setPreviewWidth] = useState<1200 | 768 | 390>(1200)
+  const [previewSeed, setPreviewSeed] = useState(0)
   const [publishedLink, setPublishedLink] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [sources, setSources] = useState<AssessmentDraft[]>([])
@@ -239,7 +242,8 @@ export function AssessmentBuilderPage() {
     {preview ? <div className="assessment-preview-backdrop" onMouseDown={() => setPreview(null)}>
       <div className="assessment-drawer" role="dialog" aria-modal="true" aria-label="Learner preview" onMouseDown={(event) => event.stopPropagation()}>
         <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Assignment preview</span><h2>{preview.title}</h2><p>Review the learner-facing sequence before publishing.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close preview" onClick={() => setPreview(null)}><X aria-hidden="true" /></button></div></header>
-        <div className="assessment-preview-body" aria-label="Assignment preview questions">{assessmentItems(preview).length ? assessmentItems(preview).map((item, index) => <section className="assessment-preview-question" key={item.id}><div className="assessment-preview-meta"><span>Question {index + 1}</span><span>{questionTypesByType[item.type].label}</span></div><h3>{item.prompt}</h3>{item.options?.length ? <div className="assessment-preview-options">{item.options.map((option) => <label key={option.id}><input disabled type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} /><span>{option.label}</span></label>)}</div> : <p className="assessment-preview-information">Learner response field</p>}</section>) : <div className="assessment-preview-empty"><Eye aria-hidden="true" /><h3>No questions to preview</h3><p>Add a question to see the assignment preview.</p></div>}</div>
+        <div className="assessment-preview-device-controls" aria-label="Preview size"><button type="button" aria-pressed={previewWidth === 1200} onClick={() => setPreviewWidth(1200)}>Desktop</button><button type="button" aria-pressed={previewWidth === 768} onClick={() => setPreviewWidth(768)}>Tablet</button><button type="button" aria-pressed={previewWidth === 390} onClick={() => setPreviewWidth(390)}>Mobile</button><button type="button" onClick={() => setPreviewSeed((seed) => seed + 1)}>Reset preview</button></div>
+        <div className="assessment-preview-stage"><div className="assessment-preview-body" style={{ maxWidth: previewWidth }} aria-label="Assignment preview questions">{assessmentItems(preview).length ? <AssessmentLearnerPreview document={preview} seed={`preview-${previewSeed}`} /> : <div className="assessment-preview-empty"><Eye aria-hidden="true" /><h3>No questions to preview</h3><p>Add a question to see the assignment preview.</p></div>}</div></div>
       </div>
     </div> : null}
     {publishOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setPublishOpen(false)}>

@@ -42,7 +42,6 @@ PRIVATE_KEYS = {
     "scoring",
     "feedback",
     "teacherNotes",
-    "routing",
     "annotations",
     "annotationGeometry",
     "adminUrl",

@@ -103,8 +103,9 @@ def test_v2_compile_is_deterministic_bounded_and_privacy_stripped() -> None:
     assert first.checksum == second.checksum
     assert [item["position"] for item in flatten_v2_items(first.definition)] == [0, 1, 2]
     learner = repr(first.learner_manifest)
-    for forbidden in ("answerKey", "feedback", "routing", "teacherNotes"):
+    for forbidden in ("answerKey", "feedback", "teacherNotes"):
         assert forbidden not in learner
+    assert first.learner_manifest["sections"][0]["items"][0]["routing"]
 
 
 @pytest.mark.parametrize("style", ["numbers", "stars", "hearts", "thumbs-up"])
