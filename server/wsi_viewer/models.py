@@ -243,7 +243,9 @@ class AssessmentCourse(Base):
     __tablename__ = "assessment_courses"
     __table_args__ = (
         UniqueConstraint("organization_id", "course_code", name="uq_assessment_courses_org_code"),
-        CheckConstraint("status IN ('draft', 'active', 'archived')", name="ck_assessment_courses_status"),
+        CheckConstraint(
+            "status IN ('draft', 'active', 'archived')", name="ck_assessment_courses_status"
+        ),
         CheckConstraint(
             "scoring_method IN ('points', 'percentage', 'weighted', 'pass_fail')",
             name="ck_assessment_courses_scoring_method",
@@ -258,7 +260,9 @@ class AssessmentCourse(Base):
     course_code: Mapped[str] = mapped_column(String(60), nullable=False)
     semester: Mapped[str] = mapped_column(String(80), nullable=False)
     academic_year: Mapped[str | None] = mapped_column(String(20))
-    icon_key: Mapped[str] = mapped_column(String(24), nullable=False, default="general", server_default="general")
+    icon_key: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="general", server_default="general"
+    )
     scoring_method: Mapped[str] = mapped_column(String(20), nullable=False, default="percentage")
     description: Mapped[str | None] = mapped_column(Text)
     opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

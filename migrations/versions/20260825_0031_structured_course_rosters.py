@@ -30,7 +30,15 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("uq_learners_org_student_id", table_name="learner_profiles")
-    columns = ("roster_metadata", "email", "subgroup_name", "group_name", "last_name", "first_name", "student_id")
+    columns = (
+        "roster_metadata",
+        "email",
+        "subgroup_name",
+        "group_name",
+        "last_name",
+        "first_name",
+        "student_id",
+    )
     if op.get_bind().dialect.name == "sqlite":
         for column in columns:
             op.drop_column("learner_profiles", column)

@@ -31,7 +31,8 @@ def upgrade() -> None:
             ["id"],
             ondelete="SET NULL",
         )
-    op.execute(sa.text("""
+    op.execute(
+        sa.text("""
         UPDATE assessment_drafts
         SET cohort_id = (
             SELECT assessment_administrations.cohort_id
@@ -52,8 +53,10 @@ def upgrade() -> None:
             WHERE assessment_versions.draft_id = assessment_drafts.id
               AND assessment_administrations.cohort_id IS NOT NULL
           )
-    """))
-    op.execute(sa.text("""
+    """)
+    )
+    op.execute(
+        sa.text("""
         UPDATE assessment_drafts
         SET course_id = (
             SELECT cohorts.assessment_course_id
@@ -61,13 +64,18 @@ def upgrade() -> None:
             WHERE cohorts.id = assessment_drafts.cohort_id
         )
         WHERE course_id IS NULL AND cohort_id IS NOT NULL
-    """))
+    """)
+    )
 
 
 def downgrade() -> None:
     if op.get_bind().dialect.name != "sqlite":
-        op.drop_constraint("fk_assessment_drafts_cohort_id_cohorts", "assessment_drafts", type_="foreignkey")
-        op.drop_constraint("fk_assessment_drafts_course_id_courses", "assessment_drafts", type_="foreignkey")
+        op.drop_constraint(
+            "fk_assessment_drafts_cohort_id_cohorts", "assessment_drafts", type_="foreignkey"
+        )
+        op.drop_constraint(
+            "fk_assessment_drafts_course_id_courses", "assessment_drafts", type_="foreignkey"
+        )
     op.drop_index("ix_assessment_drafts_cohort_id", table_name="assessment_drafts")
     op.drop_index("ix_assessment_drafts_course_id", table_name="assessment_drafts")
     op.drop_column("assessment_drafts", "cohort_id")
