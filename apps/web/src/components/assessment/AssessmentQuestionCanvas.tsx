@@ -1,5 +1,6 @@
-import { ArrowDown, ArrowUp, CaretDown, Copy, DotsSixVertical, ListMagnifyingGlass, MagnifyingGlass, Plus, Trash, X } from '@phosphor-icons/react'
+import { ArrowDown, ArrowUp, ArrowsInLineVertical, ArrowsOutLineVertical, CaretDown, Copy, DotsSixVertical, Eye, MagnifyingGlass, Plus, Trash, X } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { listEligibleAssessmentSlides } from '../../assessment/api'
 import { questionTypeGroups, questionTypeRegistry, questionTypesByType } from '../../assessment/questionTypes'
@@ -10,10 +11,12 @@ interface CanvasProps {
   document: AssessmentDocument
   onDocumentChange: (update: (document: AssessmentDocument) => AssessmentDocument) => void
   onImport: () => void
+  onPreview: () => void
 }
 
-type OutlineRequiredFilter = 'all' | 'required' | 'optional'
+type NavigatorRequiredFilter = 'all' | 'required' | 'optional'
 type AssessmentOption = NonNullable<AssessmentItem['options']>[number] | string
+type DragVisual = { itemId: string; x: number; y: number; width: number }
 
 function newId() {
   return globalThis.crypto?.randomUUID?.() ?? `assessment-${Date.now()}-${Math.random()}`
@@ -27,24 +30,28 @@ function optionLabel(option: AssessmentOption) {
   return typeof option === 'string' ? option : option.label
 }
 
-export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport }: CanvasProps) {
+export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport, onPreview }: CanvasProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(document.items[0] ? [document.items[0].id] : []))
   const [activeId, setActiveId] = useState(() => document.items[0]?.id ?? '')
-  const [outlineOpen, setOutlineOpen] = useState(false)
-  const [outlineSearch, setOutlineSearch] = useState('')
-  const [outlineType, setOutlineType] = useState<'all' | AssessmentItemType>('all')
-  const [outlineRequired, setOutlineRequired] = useState<OutlineRequiredFilter>('all')
-  const [issuesOnly, setIssuesOnly] = useState(false)
   const [navigatorSearch, setNavigatorSearch] = useState('')
+  const [navigatorType, setNavigatorType] = useState<'all' | AssessmentItemType>('all')
+  const [navigatorRequired, setNavigatorRequired] = useState<NavigatorRequiredFilter>('all')
+  const [navigatorIssuesOnly, setNavigatorIssuesOnly] = useState(false)
   const [insertAt, setInsertAt] = useState<number | null>(null)
   const [deleted, setDeleted] = useState<{ item: AssessmentItem; index: number } | null>(null)
   const [slides, setSlides] = useState<EligibleAssessmentSlide[]>([])
   const [draggedId, setDraggedId] = useState('')
+  const [dropTargetId, setDropTargetId] = useState('')
+  const [reorderMessage, setReorderMessage] = useState('')
+  const [dragVisual, setDragVisual] = useState<DragVisual | null>(null)
   const initializedRef = useRef(document.items.length > 0)
-  const outlineTriggerRef = useRef<HTMLButtonElement>(null)
-  const outlineRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef(new Map<string, HTMLElement>())
   const promptRefs = useRef(new Map<string, HTMLTextAreaElement>())
+  const navigatorListRef = useRef<HTMLOListElement>(null)
+  const dragPreviewRef = useRef<HTMLDivElement>(null)
+  const pointerDragRef = useRef<{ itemId: string; pointerId: number } | null>(null)
+  const dropTargetIdRef = useRef('')
+  const pointerCleanupRef = useRef<() => void>(() => undefined)
 
   useEffect(() => {
     if (initializedRef.current || !document.items.length) return
@@ -53,40 +60,20 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
     setActiveId(document.items[0].id)
   }, [document.items])
 
-  useEffect(() => {
-    if (!outlineOpen) return
-    const dialog = outlineRef.current
-    const focusable = dialog?.querySelectorAll<HTMLElement>('button:not([disabled]), input, select') ?? []
-    focusable[0]?.focus()
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOutlineOpen(false)
-        window.setTimeout(() => outlineTriggerRef.current?.focus())
-      }
-      if (event.key !== 'Tab' || focusable.length === 0) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (event.shiftKey && globalThis.document.activeElement === first) { event.preventDefault(); last.focus() }
-      else if (!event.shiftKey && globalThis.document.activeElement === last) { event.preventDefault(); first.focus() }
-    }
-    globalThis.document.addEventListener('keydown', onKeyDown)
-    return () => globalThis.document.removeEventListener('keydown', onKeyDown)
-  }, [outlineOpen])
+  useEffect(() => () => pointerCleanupRef.current(), [])
 
-  const totalPoints = useMemo(() => document.items.reduce((total, item) => total + (questionTypesByType[item.type].supportsScoring ? Number(item.points || 0) || 0 : 0), 0), [document.items])
   const itemIndexById = useMemo(() => new Map(document.items.map((item, index) => [item.id, index])), [document.items])
   const navigatorItems = useMemo(() => {
     const query = navigatorSearch.trim().toLocaleLowerCase()
-    if (!query) return document.items
-    return document.items.filter((item) => item.prompt.toLocaleLowerCase().includes(query) || questionTypesByType[item.type].label.toLocaleLowerCase().includes(query))
-  }, [document.items, navigatorSearch])
-  const filteredOutline = useMemo(() => document.items.filter((item) => {
-    const query = outlineSearch.trim().toLocaleLowerCase()
-    const matchesSearch = !query || item.prompt.toLocaleLowerCase().includes(query) || questionTypesByType[item.type].label.toLocaleLowerCase().includes(query)
-    const matchesType = outlineType === 'all' || item.type === outlineType
-    const matchesRequired = outlineRequired === 'all' || (outlineRequired === 'required' ? item.required : !item.required)
-    return matchesSearch && matchesType && matchesRequired && (!issuesOnly || questionTypesByType[item.type].validate(item).length > 0)
-  }), [document.items, issuesOnly, outlineRequired, outlineSearch, outlineType])
+    return document.items.filter((item) => {
+      const matchesSearch = !query || item.prompt.toLocaleLowerCase().includes(query) || questionTypesByType[item.type].label.toLocaleLowerCase().includes(query)
+      const matchesType = navigatorType === 'all' || item.type === navigatorType
+      const matchesRequired = navigatorRequired === 'all' || (navigatorRequired === 'required' ? item.required : !item.required)
+      const matchesIssues = !navigatorIssuesOnly || questionTypesByType[item.type].validate(item).length > 0
+      return matchesSearch && matchesType && matchesRequired && matchesIssues
+    })
+  }, [document.items, navigatorIssuesOnly, navigatorRequired, navigatorSearch, navigatorType])
+  const readyCount = useMemo(() => document.items.filter((item) => questionTypesByType[item.type].validate(item).length === 0).length, [document.items])
 
   function updateItem(itemId: string, update: (item: AssessmentItem) => AssessmentItem) {
     onDocumentChange((current) => ({ ...current, items: current.items.map((item) => item.id === itemId ? update(item) : item) }))
@@ -115,12 +102,18 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
 
   function moveItem(sourceIndex: number, destinationIndex: number) {
     if (destinationIndex < 0 || destinationIndex >= document.items.length || sourceIndex === destinationIndex) return
+    const movingItem = document.items[sourceIndex]
+    if (!movingItem) return
     onDocumentChange((current) => {
+      const currentSourceIndex = current.items.findIndex((item) => item.id === movingItem.id)
+      if (currentSourceIndex < 0) return current
       const items = [...current.items]
-      const [item] = items.splice(sourceIndex, 1)
+      const [item] = items.splice(currentSourceIndex, 1)
       items.splice(destinationIndex, 0, item)
       return { ...current, items }
     })
+    setActiveId(movingItem.id)
+    setReorderMessage(`Moved question ${sourceIndex + 1} to position ${destinationIndex + 1}.`)
   }
 
   function duplicateItem(item: AssessmentItem, index: number) {
@@ -159,36 +152,150 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
     setDeleted(null)
   }
 
-  function dropAt(targetIndex: number) {
-    const sourceIndex = document.items.findIndex((item) => item.id === draggedId)
-    if (sourceIndex >= 0) moveItem(sourceIndex, targetIndex)
+  function startDragging(itemId: string, dataTransfer: DataTransfer) {
+    setDraggedId(itemId)
+    dataTransfer.effectAllowed = 'move'
+    dataTransfer.setData('text/plain', itemId)
+  }
+
+  function stopDragging() {
+    pointerCleanupRef.current()
     setDraggedId('')
+    setDropTargetId('')
+    dropTargetIdRef.current = ''
+    pointerDragRef.current = null
+    setDragVisual(null)
+  }
+
+  function targetDragItem(itemId: string) {
+    if (dropTargetIdRef.current === itemId) return
+    dropTargetIdRef.current = itemId
+    setDropTargetId(itemId)
+  }
+
+  function startPointerDragging(itemId: string, pointerId: number, clientX: number, clientY: number, width: number) {
+    if (pointerDragRef.current) return
+    pointerDragRef.current = { itemId, pointerId }
+    setDraggedId(itemId)
+    setDragVisual({ itemId, x: clientX, y: clientY, width })
+    window.requestAnimationFrame(() => positionDragPreview(clientX, clientY))
+    const onPointerMove = (event: PointerEvent) => updatePointerTarget(event.clientX, event.clientY)
+    const onMouseMove = (event: MouseEvent) => updatePointerTarget(event.clientX, event.clientY)
+    const onEnd = () => {
+      pointerCleanupRef.current()
+      finishPointerDragging()
+    }
+    const cleanup = () => {
+      globalThis.removeEventListener('pointermove', onPointerMove)
+      globalThis.removeEventListener('pointerup', onEnd)
+      globalThis.removeEventListener('pointercancel', onEnd)
+      globalThis.removeEventListener('mousemove', onMouseMove)
+      globalThis.removeEventListener('mouseup', onEnd)
+      pointerCleanupRef.current = () => undefined
+    }
+    pointerCleanupRef.current = cleanup
+    globalThis.addEventListener('pointermove', onPointerMove)
+    globalThis.addEventListener('pointerup', onEnd)
+    globalThis.addEventListener('pointercancel', onEnd)
+    globalThis.addEventListener('mousemove', onMouseMove)
+    globalThis.addEventListener('mouseup', onEnd)
+  }
+
+  function updatePointerTarget(clientX: number, clientY: number) {
+    if (!pointerDragRef.current) return
+    positionDragPreview(clientX, clientY)
+    const list = navigatorListRef.current
+    if (list) {
+      const bounds = list.getBoundingClientRect()
+      const delta = clientY < bounds.top + 44 ? -14 : clientY > bounds.bottom - 44 ? 14 : 0
+      if (delta && typeof list.scrollBy === 'function') list.scrollBy({ top: delta })
+      else if (delta) list.scrollTop += delta
+    }
+    const target = globalThis.document.elementFromPoint(clientX, clientY)?.closest('[data-navigator-question-id]') as HTMLElement | null | undefined
+    const targetId = target?.dataset.navigatorQuestionId ?? ''
+    if (targetId && targetId !== pointerDragRef.current.itemId) targetDragItem(targetId)
+    else if (!targetId) targetDragItem('')
+  }
+
+  function positionDragPreview(clientX: number, clientY: number) {
+    if (!dragPreviewRef.current) return
+    dragPreviewRef.current.style.transform = `translate3d(${clientX + 14}px, ${clientY - 28}px, 0) rotate(.35deg) scale(1.015)`
+  }
+
+  function finishPointerDragging() {
+    const pointerDrag = pointerDragRef.current
+    const targetIndex = document.items.findIndex((item) => item.id === dropTargetIdRef.current)
+    if (pointerDrag && targetIndex >= 0) dropAt(targetIndex, pointerDrag.itemId)
+    else stopDragging()
+  }
+
+  function dropAt(targetIndex: number, transferredId = draggedId) {
+    const sourceIndex = document.items.findIndex((item) => item.id === transferredId)
+    if (sourceIndex >= 0) moveItem(sourceIndex, targetIndex)
+    stopDragging()
   }
 
   return <main className="assessment-question-workspace">
     <header className="assessment-authoring-toolbar">
-      <div className="assessment-authoring-totals"><strong>{document.items.length}</strong> {document.items.length === 1 ? 'question' : 'questions'}<span aria-hidden="true">·</span><strong>{totalPoints}</strong> {totalPoints === 1 ? 'point' : 'points'}</div>
+      <div className="assessment-authoring-heading"><h2>Questions</h2><p>Build the learner sequence and reorder it at any time.</p></div>
       <div className="assessment-authoring-actions">
-        <button ref={outlineTriggerRef} type="button" onClick={() => setOutlineOpen(true)}><ListMagnifyingGlass aria-hidden="true" /> Outline</button>
-        <button type="button" onClick={() => setExpandedIds(new Set(document.items.map((item) => item.id)))}>Expand all</button>
-        <button type="button" onClick={() => setExpandedIds(new Set())}>Collapse all</button>
-        <button type="button" onClick={onImport}><Copy aria-hidden="true" /> Import</button>
-        <button className="assessment-primary" type="button" onClick={() => setInsertAt(document.items.length)}><Plus aria-hidden="true" /> Add question</button>
+        <button type="button" onClick={onPreview}><Eye aria-hidden="true" /> Assignment preview</button>
+        <button className="assessment-icon-action" type="button" aria-label="Expand all questions" title="Expand all questions" onClick={() => setExpandedIds(new Set(document.items.map((item) => item.id)))}><ArrowsOutLineVertical aria-hidden="true" /></button>
+        <button className="assessment-icon-action" type="button" aria-label="Collapse all questions" title="Collapse all questions" onClick={() => setExpandedIds(new Set())}><ArrowsInLineVertical aria-hidden="true" /></button>
+        <span className="assessment-authoring-divider" aria-hidden="true" />
+        <button type="button" onClick={onImport}><Copy aria-hidden="true" /> Import questions</button>
+        <button className="assessment-primary assessment-toolbar-add" type="button" onClick={() => setInsertAt(document.items.length)}><Plus aria-hidden="true" /> Add question</button>
       </div>
     </header>
 
     <div className="assessment-question-layout">
       <aside className="assessment-question-navigator" aria-label="Question navigator">
-        <header><strong>Questions</strong><span>{document.items.length}</span></header>
-        <label><MagnifyingGlass aria-hidden="true" /><input value={navigatorSearch} onChange={(event) => setNavigatorSearch(event.target.value)} placeholder="Find a question" /></label>
-        <ol>
+        <header><div><strong>Question navigator</strong><small>{document.items.length} total</small></div><span>{document.items.length}</span></header>
+        <div className="assessment-navigator-tools">
+          <label className="assessment-navigator-search"><MagnifyingGlass aria-hidden="true" /><input value={navigatorSearch} onChange={(event) => setNavigatorSearch(event.target.value)} placeholder="Search questions" /></label>
+          <select aria-label="Filter by question type" value={navigatorType} onChange={(event) => setNavigatorType(event.target.value as 'all' | AssessmentItemType)}><option value="all">All types</option>{questionTypeRegistry.map((definition) => <option key={definition.type} value={definition.type}>{definition.label}</option>)}</select>
+          <select aria-label="Filter by required state" value={navigatorRequired} onChange={(event) => setNavigatorRequired(event.target.value as NavigatorRequiredFilter)}><option value="all">Any requirement</option><option value="required">Required</option><option value="optional">Optional</option></select>
+          <label className="assessment-navigator-issues"><input type="checkbox" checked={navigatorIssuesOnly} onChange={(event) => setNavigatorIssuesOnly(event.target.checked)} /> Needs attention</label>
+        </div>
+        <div className="assessment-navigator-guide"><span><DotsSixVertical aria-hidden="true" />Drag to reorder</span><span>{readyCount} of {document.items.length} ready</span><progress aria-label={`${readyCount} of ${document.items.length} questions ready`} max={Math.max(1, document.items.length)} value={readyCount} /></div>
+        <ol ref={navigatorListRef}>
           {navigatorItems.map((item) => {
             const index = itemIndexById.get(item.id) ?? 0
             const issues = questionTypesByType[item.type].validate(item)
-            return <li key={item.id}>
-              <button type="button" className={activeId === item.id ? 'active' : ''} aria-current={activeId === item.id ? 'true' : undefined} aria-label={`Go to question ${index + 1}: ${item.prompt || 'Untitled question'}`} onClick={() => focusItem(item.id)}>
+            return <li
+              key={item.id}
+              data-navigator-question-id={item.id}
+              className={`${draggedId === item.id ? 'is-dragging' : ''}${dropTargetId === item.id ? ' is-drop-target' : ''}`}
+              onDragEnter={() => { if (draggedId && draggedId !== item.id) targetDragItem(item.id) }}
+              onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }}
+              onDrop={(event) => { event.preventDefault(); dropAt(index, event.dataTransfer.getData('text/plain') || draggedId) }}
+            >
+              <button
+                className="assessment-navigator-drag-handle"
+                type="button"
+                aria-label={`Drag question ${index + 1} to reorder`}
+                title="Drag to reorder. Use arrow keys for keyboard reordering."
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return
+                  event.preventDefault()
+                  const row = event.currentTarget.closest('li')
+                  startPointerDragging(item.id, event.pointerId, event.clientX, event.clientY, row?.getBoundingClientRect().width ?? 260)
+                }}
+                onMouseDown={(event) => {
+                  if (event.button !== 0 || pointerDragRef.current) return
+                  event.preventDefault()
+                  const row = event.currentTarget.closest('li')
+                  startPointerDragging(item.id, -1, event.clientX, event.clientY, row?.getBoundingClientRect().width ?? 260)
+                }}
+                onPointerCancel={stopDragging}
+                onKeyDown={(event) => {
+                if (event.key === 'ArrowUp') { event.preventDefault(); moveItem(index, index - 1) }
+                if (event.key === 'ArrowDown') { event.preventDefault(); moveItem(index, index + 1) }
+                }}
+              ><DotsSixVertical aria-hidden="true" /></button>
+              <button type="button" className={`assessment-navigator-link${activeId === item.id ? ' active' : ''}`} aria-current={activeId === item.id ? 'true' : undefined} aria-label={`Go to question ${index + 1}: ${item.prompt || 'Untitled question'}`} onClick={() => focusItem(item.id)}>
                 <span>{index + 1}</span>
-                <span><strong>{item.prompt || 'Untitled question'}</strong><small>{questionTypesByType[item.type].label}{item.required ? ' · Required' : ''}</small></span>
+                <span><strong>{item.prompt || 'Untitled question'}</strong><small><span>{questionTypesByType[item.type].label}</span>{item.required ? <span className="assessment-required-badge">Required</span> : null}{questionTypesByType[item.type].supportsScoring ? <span>{item.points || 0} pt</span> : null}</small></span>
                 {issues.length ? <i aria-label={`${issues.length} validation ${issues.length === 1 ? 'issue' : 'issues'}`}>{issues.length}</i> : null}
               </button>
             </li>
@@ -202,7 +309,13 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
       {document.items.map((item, index) => {
         const expanded = expandedIds.has(item.id)
         const issues = questionTypesByType[item.type].validate(item)
-        return <div className="assessment-canvas-item" key={item.id} onDragOver={(event) => event.preventDefault()} onDrop={() => dropAt(index)}>
+        return <div
+          className={`assessment-canvas-item${draggedId === item.id ? ' is-dragging' : ''}${dropTargetId === item.id ? ' is-drop-target' : ''}`}
+          key={item.id}
+          onDragEnter={() => { if (draggedId && draggedId !== item.id) targetDragItem(item.id) }}
+          onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }}
+          onDrop={(event) => { event.preventDefault(); dropAt(index, event.dataTransfer.getData('text/plain') || draggedId) }}
+        >
           <article
             ref={(node) => { if (node) cardRefs.current.set(item.id, node); else cardRefs.current.delete(item.id) }}
             role="group"
@@ -219,8 +332,9 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
                 type="button"
                 draggable
                 aria-label={`Reorder question ${index + 1}`}
-                onDragStart={() => setDraggedId(item.id)}
-                onDragEnd={() => setDraggedId('')}
+                title="Drag to reorder. Keyboard: Alt + arrow keys."
+                onDragStart={(event) => startDragging(item.id, event.dataTransfer)}
+                onDragEnd={stopDragging}
                 onKeyDown={(event) => {
                   if (!event.altKey) return
                   if (event.key === 'ArrowUp') { event.preventDefault(); moveItem(index, index - 1) }
@@ -236,7 +350,7 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
                 <CaretDown aria-hidden="true" />
               </button>
               <span className="assessment-question-badges">
-                {item.required ? <span>Required</span> : null}
+                {item.required ? <span className="assessment-required-badge">Required</span> : null}
                 {questionTypesByType[item.type].supportsScoring ? <span>{item.points || 0} pt</span> : null}
                 {issues.length ? <span className="assessment-validation-badge">{issues.length} issue{issues.length === 1 ? '' : 's'}</span> : null}
               </span>
@@ -260,28 +374,17 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport 
     </div>
 
     <button className="assessment-mobile-add" type="button" aria-label="Add question" onClick={() => setInsertAt(document.items.length)}><Plus aria-hidden="true" /></button>
+    <p className="visually-hidden" aria-live="polite">{reorderMessage}</p>
+    {dragVisual ? (() => { const item = document.items.find((candidate) => candidate.id === dragVisual.itemId); const index = item ? (itemIndexById.get(item.id) ?? 0) : 0; return item ? createPortal(<div ref={dragPreviewRef} className="assessment-drag-preview" aria-hidden="true" style={{ width: dragVisual.width, transform: `translate3d(${dragVisual.x + 14}px, ${dragVisual.y - 28}px, 0) rotate(.35deg) scale(1.015)` }}><DotsSixVertical /><span>{index + 1}</span><strong>{item.prompt || 'Untitled question'}</strong></div>, globalThis.document.body) : null })() : null}
 
     {deleted ? <div className="assessment-undo-toast" role="status"><span>Question deleted</span><button type="button" onClick={undoDelete}>Undo</button><button type="button" aria-label="Dismiss" onClick={() => setDeleted(null)}><X /></button></div> : null}
 
-    {outlineOpen ? <div className="assessment-outline-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOutlineOpen(false) }}>
-      <div ref={outlineRef} className="assessment-outline-drawer" role="dialog" aria-modal="true" aria-labelledby="assessment-outline-title">
-        <header><div><span className="assessment-kicker">Form outline</span><h2 id="assessment-outline-title">Find a question</h2></div><button type="button" aria-label="Close outline" onClick={() => { setOutlineOpen(false); window.setTimeout(() => outlineTriggerRef.current?.focus()) }}><X /></button></header>
-        <label className="assessment-outline-search"><MagnifyingGlass /><input autoFocus value={outlineSearch} onChange={(event) => setOutlineSearch(event.target.value)} placeholder="Search prompts or types" /></label>
-        <div className="assessment-outline-filters">
-          <select aria-label="Filter by question type" value={outlineType} onChange={(event) => setOutlineType(event.target.value as 'all' | AssessmentItemType)}><option value="all">All types</option>{questionTypeRegistry.map((definition) => <option key={definition.type} value={definition.type}>{definition.label}</option>)}</select>
-          <select aria-label="Filter by required state" value={outlineRequired} onChange={(event) => setOutlineRequired(event.target.value as OutlineRequiredFilter)}><option value="all">Any requirement</option><option value="required">Required</option><option value="optional">Optional</option></select>
-          <label><input type="checkbox" checked={issuesOnly} onChange={(event) => setIssuesOnly(event.target.checked)} /> Issues only</label>
-        </div>
-        <ol>{filteredOutline.map((item) => { const index = itemIndexById.get(item.id) ?? 0; return <li key={item.id}><button type="button" onClick={() => { setOutlineOpen(false); focusItem(item.id, true) }}><span>{index + 1}</span><span><strong>{item.prompt || 'Untitled question'}</strong><small>{questionTypesByType[item.type].label}</small></span></button></li> })}</ol>
-        {filteredOutline.length === 0 ? <p className="assessment-outline-no-results">No matching questions.</p> : null}
-      </div>
-    </div> : null}
   </main>
 }
 
 function InsertControl({ open, onOpen, onClose, onSelect }: { open: boolean; onOpen: () => void; onClose: () => void; onSelect: (type: AssessmentItemType) => void }) {
   return <div className={`assessment-insert-control${open ? ' assessment-insert-control--open' : ''}`}>
-    {!open ? <button type="button" aria-label="Insert question here" onClick={onOpen}><Plus aria-hidden="true" /><span>Insert</span></button> : <TypePicker onClose={onClose} onSelect={onSelect} />}
+    {!open ? <button type="button" aria-label="Insert question here" onClick={onOpen}><Plus aria-hidden="true" /><span>Add question here</span></button> : <TypePicker onClose={onClose} onSelect={onSelect} />}
   </div>
 }
 
@@ -295,12 +398,11 @@ function TypePicker({ onClose, onSelect }: { onClose: () => void; onSelect: (typ
 function QuestionEditor({ item, slides, setSlides, updateItem, promptRef }: { item: AssessmentItem; slides: EligibleAssessmentSlide[]; setSlides: (slides: EligibleAssessmentSlide[]) => void; updateItem: (itemId: string, update: (item: AssessmentItem) => AssessmentItem) => void; promptRef: (node: HTMLTextAreaElement | null) => void }) {
   const supportsScoring = questionTypesByType[item.type].supportsScoring
   return <div className="assessment-question-editor" data-testid="question-editor">
-    <label className="assessment-question-prompt">Prompt<textarea ref={promptRef} value={item.prompt} onChange={(event) => updateItem(item.id, (current) => ({ ...current, prompt: event.target.value }))} /></label>
-    {item.options?.map((option, optionIndex) => {
+    <section className="assessment-editor-section assessment-editor-section--prompt"><label className="assessment-question-prompt">Prompt<textarea ref={promptRef} value={item.prompt} onChange={(event) => updateItem(item.id, (current) => ({ ...current, prompt: event.target.value }))} /></label></section>
+    {item.options ? <section className="assessment-editor-section assessment-editor-section--answers" aria-label="Answer options"><header className="assessment-editor-section-heading"><h3>Answer choices</h3><p>Select the correct answer, then edit the learner-facing copy.</p></header><div className="assessment-option-list">{item.options.map((option, optionIndex) => {
       const id = optionId(option, optionIndex)
       return <label key={id} className="assessment-option"><input type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} name={`key-${item.id}`} checked={((item.answerKey?.optionIds as string[] | undefined) ?? []).includes(id)} onChange={() => updateItem(item.id, (current) => { const selected = (current.answerKey?.optionIds as string[] | undefined) ?? []; const optionIds = current.type === 'checkboxes' ? (selected.includes(id) ? selected.filter((selectedId) => selectedId !== id) : [...selected, id]) : [id]; return { ...current, answerKey: { ...current.answerKey, optionIds } } })} /><input aria-label={`Option ${optionIndex + 1}`} value={optionLabel(option)} onChange={(event) => updateItem(item.id, (current) => ({ ...current, options: current.options?.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { id, label: event.target.value } : typeof candidate === 'string' ? { id: optionId(candidate, candidateIndex), label: candidate } : candidate) }))} /></label>
-    })}
-    {item.options ? <div className="assessment-option-tools"><button type="button" onClick={() => updateItem(item.id, (current) => ({ ...current, options: [...(current.options ?? []), { id: newId(), label: `Option ${(current.options?.length ?? 0) + 1}` }] }))}>Add option</button><details><summary>Paste options</summary><label>One option per line<textarea onPaste={(event) => { event.preventDefault(); const optionLabels = event.clipboardData.getData('text').split(/\r?\n/).map((value) => value.trim()).filter(Boolean).slice(0, 10); updateItem(item.id, (current) => ({ ...current, options: optionLabels.map((label) => ({ id: newId(), label })), answerKey: { ...current.answerKey, optionIds: [] } })) }} /></label></details></div> : null}
+    })}</div><div className="assessment-option-tools"><button className="assessment-secondary-action" type="button" onClick={() => updateItem(item.id, (current) => ({ ...current, options: [...(current.options ?? []), { id: newId(), label: `Option ${(current.options?.length ?? 0) + 1}` }] }))}><Plus aria-hidden="true" /> Add option</button><details><summary>Paste options</summary><label>One option per line<textarea onPaste={(event) => { event.preventDefault(); const optionLabels = event.clipboardData.getData('text').split(/\r?\n/).map((value) => value.trim()).filter(Boolean).slice(0, 10); updateItem(item.id, (current) => ({ ...current, options: optionLabels.map((label) => ({ id: newId(), label })), answerKey: { ...current.answerKey, optionIds: [] } })) }} /></label></details></div></section> : null}
     {item.type === 'diagnostic-field' ? <details className="assessment-progressive-section"><summary>Answer key & diagnostic regions</summary><div className="assessment-diagnostic"><p>Choose a privacy-passed static-DZI slide, then mark accepted points or rectangles.</p><button type="button" onClick={() => void listEligibleAssessmentSlides().then((result) => setSlides(result.items))}>Choose slide</button>{slides.length ? <select aria-label="Eligible slide" value={item.slideId ?? ''} onChange={(event) => updateItem(item.id, (current) => ({ ...current, slideId: event.target.value, answerKey: { ...current.answerKey, regions: [] } }))}><option value="">Select a slide</option>{slides.map((slide) => <option key={slide.id} value={slide.id}>{slide.displayName}</option>)}</select> : null}{item.slideId && slides.find((slide) => slide.id === item.slideId) ? <AssessmentDiagnosticField label="Accepted diagnostic regions" tileSource={slides.find((slide) => slide.id === item.slideId)!.tileSource} selections={(item.answerKey?.regions as DiagnosticSelection[] | undefined) ?? []} multiple onCommit={(selection) => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, regions: [...((current.answerKey?.regions as DiagnosticSelection[] | undefined) ?? []), selection] } }))} onClear={() => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, regions: [] } }))} /> : null}<label>Accepted diagnoses<input value={((item.answerKey?.diagnoses as string[] | undefined) ?? []).join(', ')} onChange={(event) => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, diagnoses: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } }))} /></label></div></details> : null}
     {item.type === 'short-answer' ? <details className="assessment-progressive-section"><summary>Answer key</summary><label>Accepted answers<input value={((item.answerKey?.variants as string[] | undefined) ?? []).join(', ')} onChange={(event) => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, variants: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } }))} /></label></details> : null}
     {supportsScoring ? <details className="assessment-progressive-section"><summary>Feedback, validation & scoring</summary><label>Feedback<textarea value={item.feedback?.correct ?? ''} onChange={(event) => updateItem(item.id, (current) => ({ ...current, feedback: { ...current.feedback, correct: event.target.value } }))} /></label>{item.type === 'checkboxes' ? <label><input type="checkbox" checked={item.scoring?.partialCredit ?? false} onChange={(event) => updateItem(item.id, (current) => ({ ...current, scoring: { ...current.scoring, partialCredit: event.target.checked } }))} /> Bounded partial credit</label> : null}{item.type === 'diagnostic-field' ? <div className="assessment-advanced-scoring"><label>Point tolerance<input type="number" min="0" max="1" step="0.01" value={item.scoring?.pointTolerance ?? 0.03} onChange={(event) => updateItem(item.id, (current) => ({ ...current, scoring: { ...current.scoring, pointTolerance: Number(event.target.value), rectangleIou: current.scoring?.rectangleIou ?? 0.25 } }))} /></label><label>Rectangle IoU<input type="number" min="0" max="1" step="0.05" value={item.scoring?.rectangleIou ?? 0.25} onChange={(event) => updateItem(item.id, (current) => ({ ...current, scoring: { ...current.scoring, pointTolerance: current.scoring?.pointTolerance ?? 0.03, rectangleIou: Number(event.target.value) } }))} /></label></div> : null}</details> : null}

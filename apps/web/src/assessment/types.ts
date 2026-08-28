@@ -38,6 +38,7 @@ export interface EligibleAssessmentSlide {
 
 export interface AssessmentDocument {
   title: string
+  description?: string
   items: AssessmentItem[]
   settings: {
     mode?: 'practice' | 'formative' | 'quiz'

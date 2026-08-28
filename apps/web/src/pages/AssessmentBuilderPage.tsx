@@ -1,5 +1,5 @@
-import { Check } from '@phosphor-icons/react'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Check, Eye, PaperPlaneTilt, X } from '@phosphor-icons/react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import {
@@ -15,6 +15,7 @@ import { cacheAssessmentDraft, readCachedAssessmentDraft } from '../assessment/d
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import { AssessmentQuestionCanvas } from '../components/assessment/AssessmentQuestionCanvas'
 import type { AssessmentDocument, AssessmentDraft } from '../assessment/types'
+import { questionTypesByType } from '../assessment/questionTypes'
 import './assessment.css'
 
 const AssessmentReportPage = lazy(() => import('./AssessmentReportPage').then((module) => ({ default: module.AssessmentReportPage })))
@@ -24,7 +25,7 @@ export function AssessmentBuilderPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [draft, setDraft] = useState<AssessmentDraft | null>(null)
   const requestedTab = searchParams.get('tab')
-  const tab: 'questions' | 'settings' | 'responses' = requestedTab === 'responses' || requestedTab === 'settings' ? requestedTab : 'questions'
+  const tab: 'description' | 'questions' | 'settings' | 'responses' = requestedTab === 'description' || requestedTab === 'responses' || requestedTab === 'settings' ? requestedTab : 'questions'
   const [saveState, setSaveState] = useState('Loading…')
   const [publishOpen, setPublishOpen] = useState(false)
   const [mode, setMode] = useState<'practice' | 'formative' | 'quiz'>('formative')
@@ -39,8 +40,12 @@ export function AssessmentBuilderPage() {
   const [sources, setSources] = useState<AssessmentDraft[]>([])
   const [sourceId, setSourceId] = useState('')
   const [importIds, setImportIds] = useState<Set<string>>(new Set())
+  const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [importSubmitting, setImportSubmitting] = useState(false)
+  const [importMessage, setImportMessage] = useState('')
   const revisionRef = useRef(0)
   const acknowledgedDocumentRef = useRef<AssessmentDocument | null>(null)
+  const totalPoints = useMemo(() => draft?.document.items.reduce((total, item) => total + (questionTypesByType[item.type].supportsScoring ? Number(item.points || 0) || 0 : 0), 0) ?? 0, [draft])
 
   useEffect(() => {
     let cancelled = false
@@ -83,7 +88,7 @@ export function AssessmentBuilderPage() {
           void cacheAssessmentDraft(saved)
           setSaveState('All changes saved')
         })
-        .catch(() => setSaveState('Conflict — reload or duplicate'))
+        .catch(() => setSaveState('Conflict: reload or duplicate'))
     }, 750)
     return () => window.clearTimeout(timer)
   }, [draft])
@@ -122,37 +127,79 @@ export function AssessmentBuilderPage() {
   }
 
   async function openImport() {
-    const result = await listAssessmentDrafts()
-    setSources(result.items.filter((item) => item.id !== draft?.id))
     setImportOpen(true)
+    setImportStatus('loading')
+    setImportMessage('')
+    setSourceId('')
+    setImportIds(new Set())
+    try {
+      const result = await listAssessmentDrafts()
+      setSources(result.items.filter((item) => item.id !== draft?.id))
+      setImportStatus('ready')
+    } catch {
+      setSources([])
+      setImportStatus('error')
+      setImportMessage('Could not load assessment drafts. Try again.')
+    }
   }
 
   async function importQuestions() {
     if (!draft || !sourceId || importIds.size === 0) return
-    const saved = await importAssessmentQuestions(draft.id, sourceId, [...importIds], revisionRef.current)
-    revisionRef.current = saved.revision
-    setDraft(saved); setImportOpen(false); setImportIds(new Set())
+    setImportSubmitting(true)
+    setImportMessage('')
+    try {
+      const saved = await importAssessmentQuestions(draft.id, sourceId, [...importIds], revisionRef.current)
+      revisionRef.current = saved.revision
+      acknowledgedDocumentRef.current = saved.document
+      setDraft(saved)
+      setImportOpen(false)
+      setImportIds(new Set())
+      setSaveState('All changes saved')
+    } catch {
+      setImportMessage('Questions could not be imported. Refresh the source and try again.')
+    } finally {
+      setImportSubmitting(false)
+    }
   }
 
   if (!draft) return <main className="assessment-loading"><p role="status">{saveState}</p></main>
 
   return <div className="assessment-builder">
-    <AssessmentToolbar title={draft.document.title} actions={<>
-      <span className="assessment-save-state" aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
-      <button type="button" onClick={() => void showPreview()}>Preview</button>
-      <button className="assessment-primary" type="button" onClick={openPublish}>Publish</button>
-    </>} />
+    <AssessmentToolbar title={draft.document.title} />
     <h1 className="visually-hidden">{draft.document.title}</h1>
-    <div className="assessment-tabs" role="tablist" aria-label="Assessment builder">
-      {(['questions', 'responses', 'settings'] as const).map((value) =>
-        <button key={value} role="tab" aria-selected={tab === value} onClick={() => selectTab(value)}>
-          {value[0].toUpperCase() + value.slice(1)}
-        </button>)}
-    </div>
+    <section className="assessment-studio-header" aria-label="Assessment authoring commands">
+      <div className="assessment-studio-identity">
+        <label>
+          <span className="visually-hidden">Assessment name</span>
+          <input aria-label="Assessment name" value={draft.document.title} onChange={(event) => updateDocument((document) => ({ ...document, title: event.target.value }))} />
+        </label>
+      </div>
+      <div className="assessment-studio-meta">
+        <span><strong>{draft.document.items.length}</strong> {draft.document.items.length === 1 ? 'question' : 'questions'}</span>
+        <span><strong>{totalPoints}</strong> {totalPoints === 1 ? 'point' : 'points'}</span>
+        <span className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
+      </div>
+      <div className="assessment-studio-actions">
+        <button type="button" onClick={() => void showPreview()}><Eye aria-hidden="true" />Preview</button>
+        <button className="assessment-primary" type="button" onClick={openPublish}><PaperPlaneTilt aria-hidden="true" />Publish</button>
+      </div>
+      <div className="assessment-tabs" role="tablist" aria-label="Assessment builder">
+        {(['description', 'questions', 'responses', 'settings'] as const).map((value) =>
+          <button key={value} role="tab" aria-selected={tab === value} onClick={() => selectTab(value)}>
+            {value[0].toUpperCase() + value.slice(1)}
+          </button>)}
+      </div>
+    </section>
+    {tab === 'description' ? <main className="assessment-description-panel">
+      <header><h2>Assessment description</h2><p>Give learners a clear name and short context before they begin.</p></header>
+      <label><span>Name</span><input value={draft.document.title} onChange={(event) => updateDocument((document) => ({ ...document, title: event.target.value }))} /></label>
+      <label><span>Description</span><textarea aria-label="Description" rows={6} maxLength={2000} placeholder="Describe the scope, learning objectives, or instructions for this assessment." value={draft.document.description ?? ''} onChange={(event) => updateDocument((document) => ({ ...document, description: event.target.value }))} /><small>{(draft.document.description ?? '').length} / 2000 characters</small></label>
+    </main> : null}
     {tab === 'questions' ? <AssessmentQuestionCanvas
       document={draft.document}
       onDocumentChange={updateDocument}
       onImport={() => void openImport()}
+      onPreview={() => void showPreview()}
     /> : null}
     {/* Retained temporarily as reference while the canvas rollout settles.
     {tab === 'questions' ? <main className="assessment-builder-grid">
@@ -291,8 +338,23 @@ export function AssessmentBuilderPage() {
       </div>
     </main> : null}
     {tab === 'responses' ? <Suspense fallback={<main className="assessment-main"><p role="status">Loading responses…</p></main>}><AssessmentReportPage embedded /></Suspense> : null}
-    {preview ? <div className="assessment-drawer" role="dialog" aria-modal="true" aria-label="Learner preview"><button type="button" onClick={() => setPreview(null)}>Close preview</button><h2>{preview.title}</h2>{preview.items.map((item) => <section key={item.id}><h3>{item.prompt}</h3>{item.options?.map((option) => <label key={option.id}><input disabled type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} /> {option.label}</label>)}</section>)}</div> : null}
-    {publishOpen ? <div className="assessment-drawer" role="dialog" aria-modal="true" aria-label="Publish assessment"><button type="button" onClick={() => setPublishOpen(false)}>Close</button><h2>Publish {draft.document.title}</h2><label>Mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="practice">Practice</option><option value="formative">Formative</option><option value="quiz">Quiz / Test</option></select></label>{mode !== 'practice' ? <label>Class<select value={cohortId} onChange={(event) => setCohortId(event.target.value)}><option value="">Anonymous formative only</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label> : null}<label>Duration (minutes)<input type="number" min="1" max="240" value={duration / 60} onChange={(event) => setDuration(Number(event.target.value) * 60)} /></label><label>Attempts<input type="number" min="1" max="3" value={attempts} onChange={(event) => setAttempts(Number(event.target.value))} /></label>{mode === 'quiz' ? <label>Access code<input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} /></label> : null}<button className="assessment-primary" type="button" onClick={() => void publish()}>Publish</button>{publishedLink ? <p role="status">Published: <a href={publishedLink}>{publishedLink}</a></p> : null}</div> : null}
-    {importOpen ? <div className="assessment-drawer" role="dialog" aria-modal="true" aria-label="Import questions"><button type="button" onClick={() => setImportOpen(false)}>Close</button><h2>Import questions</h2><label>Source assessment<select value={sourceId} onChange={(event) => { setSourceId(event.target.value); setImportIds(new Set()) }}><option value="">Choose a draft</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.title}</option>)}</select></label>{sources.find((source) => source.id === sourceId)?.document.items.map((item) => <label key={item.id}><input type="checkbox" checked={importIds.has(item.id)} onChange={() => setImportIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} /> {item.prompt}</label>)}<button className="assessment-primary" type="button" disabled={importIds.size === 0} onClick={() => void importQuestions()}>Import selected</button></div> : null}
+    {preview ? <div className="assessment-preview-backdrop" onMouseDown={() => setPreview(null)}>
+      <div className="assessment-drawer" role="dialog" aria-modal="true" aria-label="Learner preview" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Assignment preview</span><h2>{preview.title}</h2><p>Review the learner-facing sequence before publishing.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close preview" onClick={() => setPreview(null)}><X aria-hidden="true" /></button></div></header>
+        <div className="assessment-preview-body" aria-label="Assignment preview questions">{preview.items.length ? preview.items.map((item, index) => <section className="assessment-preview-question" key={item.id}><div className="assessment-preview-meta"><span>Question {index + 1}</span><span>{questionTypesByType[item.type].label}</span></div><h3>{item.prompt}</h3>{item.options?.length ? <div className="assessment-preview-options">{item.options.map((option) => <label key={option.id}><input disabled type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} /><span>{option.label}</span></label>)}</div> : <p className="assessment-preview-information">Learner response field</p>}</section>) : <div className="assessment-preview-empty"><Eye aria-hidden="true" /><h3>No questions to preview</h3><p>Add a question to see the assignment preview.</p></div>}</div>
+      </div>
+    </div> : null}
+    {publishOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setPublishOpen(false)}>
+      <div className="assessment-drawer assessment-builder-drawer" role="dialog" aria-modal="true" aria-label="Publish assessment" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Publish settings</span><h2>{draft.document.title}</h2><p>Choose the learner mode, timing, and access controls.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close publish settings" onClick={() => setPublishOpen(false)}><X aria-hidden="true" /></button></div></header>
+        <div className="assessment-builder-drawer-body"><label>Mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="practice">Practice</option><option value="formative">Formative</option><option value="quiz">Quiz / Test</option></select></label>{mode !== 'practice' ? <label>Class<select value={cohortId} onChange={(event) => setCohortId(event.target.value)}><option value="">Anonymous formative only</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label> : null}<label>Duration (minutes)<input type="number" min="1" max="240" value={duration / 60} onChange={(event) => setDuration(Number(event.target.value) * 60)} /></label><label>Attempts<input type="number" min="1" max="3" value={attempts} onChange={(event) => setAttempts(Number(event.target.value))} /></label>{mode === 'quiz' ? <label>Access code<input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} /></label> : null}<button className="assessment-primary" type="button" onClick={() => void publish()}>Publish assignment</button>{publishedLink ? <p role="status">Published: <a href={publishedLink}>{publishedLink}</a></p> : null}</div>
+      </div>
+    </div> : null}
+    {importOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setImportOpen(false)}>
+      <div className="assessment-drawer assessment-builder-drawer assessment-import-drawer" role="dialog" aria-modal="true" aria-label="Import questions" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Question library</span><h2>Import questions</h2><p>Copy questions from another assessment draft into this assignment.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close import" onClick={() => setImportOpen(false)}><X aria-hidden="true" /></button></div></header>
+        <div className="assessment-builder-drawer-body">{importStatus === 'loading' ? <p role="status">Loading assessment drafts…</p> : null}{importStatus === 'error' ? <div className="assessment-import-state" role="alert"><p>{importMessage}</p><button type="button" onClick={() => void openImport()}>Try again</button></div> : null}{importStatus === 'ready' && sources.length === 0 ? <div className="assessment-import-state"><strong>No source drafts available</strong><p>Create or duplicate another assessment before importing questions.</p></div> : null}{importStatus === 'ready' && sources.length > 0 ? <><label>Source assessment<select value={sourceId} onChange={(event) => { setSourceId(event.target.value); setImportIds(new Set()) }}><option value="">Choose a draft</option>{sources.map((source) => <option key={source.id} value={source.id}>{source.title}</option>)}</select></label>{sourceId ? <div className="assessment-import-question-list" aria-label="Questions available to import">{sources.find((source) => source.id === sourceId)?.document.items.map((item) => <label key={item.id}><input type="checkbox" checked={importIds.has(item.id)} onChange={() => setImportIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} /> <span>{item.prompt || 'Untitled question'}</span></label>)}</div> : <p className="assessment-import-hint">Choose a source to review its questions.</p>}{importMessage ? <p role="alert">{importMessage}</p> : null}<button className="assessment-primary" type="button" disabled={importIds.size === 0 || importSubmitting} onClick={() => void importQuestions()}>{importSubmitting ? 'Importing…' : `Import selected${importIds.size ? ` (${importIds.size})` : ''}`}</button></> : null}</div>
+      </div>
+    </div> : null}
   </div>
 }

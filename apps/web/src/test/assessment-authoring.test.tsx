@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   getAssessmentCourse: vi.fn(),
   getAssessmentDraft: vi.fn(),
   getAssessmentResults: vi.fn(),
+  importAssessmentQuestions: vi.fn(),
   listAssessmentDrafts: vi.fn(),
   listAssessmentAdministrations: vi.fn(),
   listAssessmentCourses: vi.fn(),
@@ -52,6 +53,10 @@ beforeEach(() => {
   })
   api.saveAssessmentDraft.mockImplementation(async (_id, revision, document) => ({
     id: 'draft-1', title: document.title, status: 'draft', revision: revision + 1, document,
+  }))
+  api.importAssessmentQuestions.mockImplementation(async (_id, _sourceId, _itemIds, revision) => ({
+    id: 'draft-1', title: 'Lung pathology', status: 'draft', revision: revision + 1,
+    document: { title: 'Lung pathology', items: [], settings: {} },
   }))
   api.restoreAssessmentDraft.mockImplementation(async (id) => ({
     id, title: 'Archived assessment', status: 'draft', revision: 1,
@@ -305,6 +310,11 @@ it('adds accessible question cards and exposes publish presets', async () => {
     </MemoryRouter>,
   )
   expect(await screen.findByRole('heading', { name: 'Lung pathology' })).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Assessment name' })).toHaveValue('Lung pathology')
+  await userEvent.click(screen.getByRole('tab', { name: 'Description' }))
+  expect(screen.getByRole('heading', { name: 'Assessment description' })).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Description' })).toBeVisible()
+  await userEvent.click(screen.getByRole('tab', { name: 'Questions' }))
   await userEvent.click(screen.getAllByRole('button', { name: 'Add question' })[0])
   await userEvent.click(screen.getByRole('button', { name: 'Add multiple choice' }))
   expect(screen.getByRole('group', { name: 'Question 1' })).toBeVisible()
@@ -339,24 +349,106 @@ it('keeps a 100-question assessment focused on one editable card at a time', asy
   )
 
   expect(await screen.findByRole('heading', { name: 'Large assessment' })).toBeVisible()
-  expect(container.querySelector('.assessment-authoring-totals')).toHaveTextContent('100 questions')
+  expect(container.querySelector('.assessment-studio-meta')).toHaveTextContent('100 questions')
   expect(container.querySelectorAll('.assessment-question-card')).toHaveLength(100)
   expect(screen.getByRole('group', { name: 'Question 1' })).toHaveAttribute('data-expanded', 'true')
   expect(container.querySelectorAll('.assessment-question-editor')).toHaveLength(1)
 
   const navigator = screen.getByRole('complementary', { name: 'Question navigator' })
-  expect(within(navigator).getAllByRole('button')).toHaveLength(100)
-  await userEvent.type(within(navigator).getByPlaceholderText('Find a question'), 'Question 100')
-  expect(within(navigator).getAllByRole('button')).toHaveLength(1)
+  expect(within(navigator).getAllByRole('button', { name: /Go to question/ })).toHaveLength(100)
+  await userEvent.type(within(navigator).getByPlaceholderText('Search questions'), 'Question 100')
+  expect(within(navigator).getAllByRole('button', { name: /Go to question/ })).toHaveLength(1)
   await userEvent.click(within(navigator).getByRole('button', { name: /Question 100/ }))
 
   expect(screen.getByRole('group', { name: 'Question 100' })).toHaveAttribute('data-expanded', 'true')
   expect(screen.getByRole('group', { name: 'Question 1' })).toHaveAttribute('data-expanded', 'true')
   expect(container.querySelectorAll('.assessment-question-editor')).toHaveLength(2)
 
-  await userEvent.click(screen.getByRole('button', { name: /Outline/ }))
-  const outline = screen.getByRole('dialog', { name: 'Find a question' })
-  expect(within(outline).getByRole('button', { name: /Question 100/ })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Outline' })).not.toBeInTheDocument()
+  expect(within(navigator).getByRole('combobox', { name: 'Filter by question type' })).toBeVisible()
+  expect(within(navigator).getByRole('combobox', { name: 'Filter by required state' })).toBeVisible()
+  expect(within(navigator).getByRole('checkbox', { name: 'Needs attention' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Collapse all questions' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Expand all questions' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Assignment preview' }))
+  expect(await screen.findByRole('dialog', { name: 'Learner preview' })).toBeVisible()
+}, 15_000)
+
+it('opens the import drawer and copies selected questions from another draft', async () => {
+  const sourceQuestion = { id: 'source-question', type: 'multiple-choice' as const, prompt: 'Imported morphology question', points: '1', required: true, options: ['A', 'B'], answerKey: ['A'], feedback: '' }
+  api.listAssessmentDrafts.mockResolvedValue({
+    total: 2,
+    items: [
+      { id: 'draft-1', title: 'Lung pathology', status: 'draft', revision: 1, document: { title: 'Lung pathology', items: [], settings: {} } },
+      { id: 'source-draft', title: 'Source assessment', status: 'draft', revision: 3, document: { title: 'Source assessment', items: [sourceQuestion], settings: {} } },
+    ],
+  })
+  api.importAssessmentQuestions.mockResolvedValue({
+    id: 'draft-1', title: 'Lung pathology', status: 'draft', revision: 2,
+    document: { title: 'Lung pathology', items: [{ ...sourceQuestion, id: 'imported-question' }], settings: {} },
+  })
+
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes>
+    <Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} />
+  </Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('heading', { name: 'Lung pathology' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Import questions' }))
+  const importDialog = screen.getByRole('dialog', { name: 'Import questions' })
+  expect(importDialog).toBeVisible()
+  await userEvent.selectOptions(within(importDialog).getByRole('combobox', { name: 'Source assessment' }), 'source-draft')
+  await userEvent.click(within(importDialog).getByRole('checkbox', { name: 'Imported morphology question' }))
+  await userEvent.click(within(importDialog).getByRole('button', { name: 'Import selected (1)' }))
+
+  expect(api.importAssessmentQuestions).toHaveBeenCalledWith('draft-1', 'source-draft', ['source-question'], 1)
+  expect(await screen.findByRole('group', { name: 'Question 1' })).toBeVisible()
+  expect(screen.queryByRole('dialog', { name: 'Import questions' })).not.toBeInTheDocument()
+})
+
+it('reorders questions by dragging the navigator and persists the new order', async () => {
+  vi.useFakeTimers()
+  const items = [
+    { id: 'question-1', type: 'multiple-choice' as const, prompt: 'First question', points: '1', required: true, options: ['A', 'B'], answerKey: ['A'], feedback: '' },
+    { id: 'question-2', type: 'multiple-choice' as const, prompt: 'Second question', points: '1', required: true, options: ['A', 'B'], answerKey: ['A'], feedback: '' },
+  ]
+  api.getAssessmentDraft.mockResolvedValue({
+    id: 'draft-1', title: 'Reorder assessment', status: 'draft', revision: 1,
+    document: { title: 'Reorder assessment', items, settings: {} },
+  })
+
+  const { container } = render(
+    <MemoryRouter initialEntries={['/admin/assessments/draft-1']}>
+      <Routes><Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} /></Routes>
+    </MemoryRouter>,
+  )
+  await act(async () => { await Promise.resolve() })
+
+  const navigator = screen.getByRole('complementary', { name: 'Question navigator' })
+  expect(container.querySelector('.assessment-question-badges .assessment-required-badge')).toHaveTextContent('Required')
+  fireEvent.click(screen.getByRole('button', { name: 'Collapse all questions' }))
+  expect(container.querySelectorAll('[data-expanded="true"]')).toHaveLength(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Expand all questions' }))
+  expect(container.querySelectorAll('[data-expanded="true"]')).toHaveLength(2)
+  const second = within(navigator).getByRole('button', { name: /Go to question 2: Second question/ })
+  const firstDragHandle = within(navigator).getByRole('button', { name: 'Drag question 1 to reorder' })
+  const originalElementFromPoint = document.elementFromPoint
+  Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: vi.fn(() => second.closest('li')) })
+  fireEvent.pointerDown(firstDragHandle, { pointerId: 1, button: 0, clientX: 10, clientY: 10 })
+  expect(document.body.querySelector('.assessment-drag-preview')).toHaveTextContent('First question')
+  expect(firstDragHandle.closest('li')).toHaveClass('is-dragging')
+  fireEvent.pointerMove(firstDragHandle, { pointerId: 1, clientX: 10, clientY: 60 })
+  expect(second.closest('li')).toHaveClass('is-drop-target')
+  fireEvent.pointerUp(firstDragHandle, { pointerId: 1, button: 0, clientX: 10, clientY: 60 })
+  Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: originalElementFromPoint })
+
+  expect(within(navigator).getAllByRole('button', { name: /Go to question/ }).map((button) => button.getAttribute('aria-label'))).toEqual([
+    expect.stringContaining('Go to question 1: Second question'),
+    expect.stringContaining('Go to question 2: First question'),
+  ])
+  await act(async () => { await vi.advanceTimersByTimeAsync(750) })
+  expect(api.saveAssessmentDraft).toHaveBeenCalledWith('draft-1', 1, expect.objectContaining({
+    items: [expect.objectContaining({ id: 'question-2' }), expect.objectContaining({ id: 'question-1' })],
+  }))
 })
 
 it('autosaves a local edit once without treating the server acknowledgement as another edit', async () => {
