@@ -10,7 +10,7 @@ import {
   type AssessmentAdministrationSummary,
   type AssessmentResults,
 } from '../assessment/api'
-import type { AssessmentDraft, AssessmentItem } from '../assessment/types'
+import { assessmentItems, type AssessmentDraft, type AssessmentItem } from '../assessment/types'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import './assessment.css'
 
@@ -146,22 +146,23 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
     return () => { active = false }
   }, [draftId])
 
-  const itemsById = useMemo(() => new Map(draft?.document.items.map((item) => [item.id, item]) ?? []), [draft])
+  const draftItems = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
+  const itemsById = useMemo(() => new Map(draftItems.map((item) => [item.id, item])), [draftItems])
   const questions = useMemo(() => {
     const summaries = results?.summary.questions ?? {}
-    const ids = new Set([...draft?.document.items.map((item) => item.id) ?? [], ...Object.keys(summaries)])
+    const ids = new Set([...draftItems.map((item) => item.id), ...Object.keys(summaries)])
     return [...ids].map((itemId, index) => ({
       itemId,
       index,
       item: itemsById.get(itemId),
       summary: summaries[itemId] ?? { responseCount: 0, scoredCount: 0, averagePoints: '0' },
     }))
-  }, [draft, itemsById, results])
+  }, [draftItems, itemsById, results])
 
   const individuals = useMemo(() => results?.individuals.items ?? [], [results])
-  const manualPoints = useMemo(() => new Map(
-    draft?.document.items.filter((item) => needsManualReview(item)).map((item) => [item.id, number(item.points)]) ?? [],
-  ), [draft])
+  const manualPoints = useMemo(() => new Map<string, number>(
+    draftItems.filter((item) => needsManualReview(item)).map((item) => [item.id, number(item.points)]),
+  ), [draftItems])
   const completion = percent(results?.summary.completionRate)
   const averagePossible = individuals.length
     ? individuals.reduce((sum, item) => sum + scoredMaximum(item, manualPoints), 0) / individuals.length

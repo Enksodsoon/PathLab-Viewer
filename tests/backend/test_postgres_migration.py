@@ -100,7 +100,7 @@ def test_verified_migration_is_signed_read_only_and_resumable(
 
     assert hashlib.sha256(source.read_bytes()).hexdigest() == source_hash
     assert manifest["verified"] is True
-    assert manifest["schemaRevision"] == "20260826_0034"
+    assert manifest["schemaRevision"] == "20260828_0035"
     assert all(table["passed"] for table in manifest["tables"])
     assert all(item["passed"] for item in manifest["foreignKeys"])
     evidence = {item["table"]: item for item in manifest["tables"]}

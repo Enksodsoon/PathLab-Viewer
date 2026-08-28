@@ -549,6 +549,10 @@ class AssessmentScoreVersion(Base):
     points: Mapped[Any] = mapped_column(Numeric(12, 3), nullable=False)
     maximum_points: Mapped[Any] = mapped_column(Numeric(12, 3), nullable=False)
     breakdown: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    manual_feedback: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    graded_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

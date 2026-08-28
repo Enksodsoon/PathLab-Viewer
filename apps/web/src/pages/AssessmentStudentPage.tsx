@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom'
 import { accessAssessment, AssessmentHttpError, getAssessmentMetadata, getAssessmentResult, getPracticeBundle, restoreAssessmentSession, saveAssessmentResponses, startAssessmentAttempt, submitAssessmentAttempt } from '../assessment/api'
 import { enqueueAssessmentResponse, listAssessmentOutbox, removeAssessmentOutbox } from '../assessment/outbox'
 import { scorePractice } from '../assessment/practiceScoring'
-import type { AssessmentDocument, AssessmentItem, DiagnosticSelection } from '../assessment/types'
+import { assessmentItems, type AssessmentDocument, type AssessmentItem, type DiagnosticSelection } from '../assessment/types'
 import { AssessmentDiagnosticField } from '../components/AssessmentDiagnosticField'
 import './assessment.css'
 
@@ -186,8 +186,9 @@ export function AssessmentStudentPage() {
 
   async function submit() {
     if (!document) return
-    const missing = document.items.find((item) => item.required && !answered(item, responses))
-    if (missing) { setCurrent(document.items.indexOf(missing)); setReviewing(false); return }
+    const items = assessmentItems(document)
+    const missing = items.find((item) => item.required && !answered(item, responses))
+    if (missing) { setCurrent(items.indexOf(missing)); setReviewing(false); return }
     if (mode === 'practice') {
       const score = scorePractice(document, responses)
       setResult({ status: 'submitted', released: true, score: { points: String(score.points), maximumPoints: String(score.maximumPoints) }, needsGrading: Object.values(score.breakdown).some((value) => value === null) })
@@ -199,7 +200,8 @@ export function AssessmentStudentPage() {
     setResult({ ...released, needsGrading: submitted.needsGrading })
   }
 
-  const allAnswered = useMemo(() => document?.items.every((item) => !item.required || answered(item, responses)) ?? false, [document, responses])
+  const items = useMemo(() => document ? assessmentItems(document) : [], [document])
+  const allAnswered = useMemo(() => items.every((item) => !item.required || answered(item, responses)), [items, responses])
   if (!document) return <main className="assessment-loading"><p role="status">{status}</p></main>
   if (mode !== 'practice' && !csrf) return <main className="assessment-entry">
     <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1>
@@ -210,16 +212,16 @@ export function AssessmentStudentPage() {
     <button className="assessment-primary" type="button" onClick={() => void enter('roster')}>Begin assessment</button>
   </main>
   if (result) return <main className="assessment-result"><CheckCircle aria-hidden="true" /><h1>Assessment submitted</h1>{result.score ? <p className="assessment-result-score">{result.score.points} / {result.score.maximumPoints}</p> : <p>Results will appear after your teacher releases them.</p>}{result.needsGrading ? <p>Some answers are awaiting manual grading.</p> : null}</main>
-  if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{document.items.filter((item) => item.type !== 'information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(document.items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>
+  if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{items.filter((item) => item.type !== 'information' && item.type !== 'section-information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>
 
-  const item = document.items[current]
+  const item = items[current]
   const value = responseFor(item, responses)
   const diagnosticSelections = value.selection ? [value.selection as DiagnosticSelection] : []
   const tileSource = item.slideId ? assets[item.slideId] : undefined
   return <div className="assessment-student">
     <header className="assessment-student-header"><div className="assessment-brand"><span aria-hidden="true">▦</span><strong>PathLab</strong><small>Assessment</small></div><div aria-live="polite">{online ? <Clock aria-hidden="true" /> : <WifiSlash aria-hidden="true" />} <span>{mode === 'practice' ? status : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} · ${status}`}</span></div></header>
-    <aside className="assessment-student-nav" aria-label="Question navigator"><p>Questions</p>{document.items.map((question, index) => <button key={question.id} type="button" aria-current={index === current ? 'step' : undefined} onClick={() => setCurrent(index)}>{index + 1}</button>)}</aside>
-    <main className="assessment-student-main"><p className="assessment-kicker">Question {current + 1} of {document.items.length}</p><h1>{document.title}</h1>
+    <aside className="assessment-student-nav" aria-label="Question navigator"><p>Questions</p>{items.map((question, index) => <button key={question.id} type="button" aria-current={index === current ? 'step' : undefined} onClick={() => setCurrent(index)}>{index + 1}</button>)}</aside>
+    <main className="assessment-student-main"><p className="assessment-kicker">Question {current + 1} of {items.length}</p><h1>{document.title}</h1>
       {item.type === 'diagnostic-field' ? <div className="assessment-mobile-tabs"><button type="button" aria-pressed={mobilePanel === 'slide'} onClick={() => setMobilePanel('slide')}>Slide</button><button type="button" aria-pressed={mobilePanel === 'answer'} onClick={() => setMobilePanel('answer')}>Answer</button></div> : null}
       <section className="assessment-student-question"><h2>{item.prompt}</h2>
         {item.options?.map((option) => {
@@ -230,7 +232,7 @@ export function AssessmentStudentPage() {
         {item.type === 'diagnostic-field' && tileSource ? <div className="assessment-slide-panel" data-active={mobilePanel === 'slide'}><AssessmentDiagnosticField label="Diagnostic slide" tileSource={tileSource} selections={diagnosticSelections} onCommit={(selection) => update(item, { ...value, selection })} onClear={() => update(item, { ...value, selection: undefined })} /></div> : null}
         {item.type === 'diagnostic-field' ? <div className="assessment-answer-panel" data-active={mobilePanel === 'answer'}><label>Diagnosis<input value={String(value.diagnosis ?? '')} onChange={(event) => update(item, { ...value, diagnosis: event.target.value })} /></label></div> : null}
       </section>
-      <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < document.items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
+      <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
     </main>
   </div>
 }

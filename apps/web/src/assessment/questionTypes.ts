@@ -20,11 +20,12 @@ const choiceIssues = (item: AssessmentItem) => [
 ]
 
 function baseItem(type: AssessmentItemType, newId: () => string): AssessmentItem {
+  const informational = type === 'information' || type === 'section-information'
   return {
     id: newId(),
     type,
-    prompt: type === 'information' ? 'Section title' : 'Untitled question',
-    ...(type === 'information' ? {} : { points: '1', required: false, answerKey: {} }),
+    prompt: informational ? 'Information' : 'Untitled question',
+    ...(informational ? {} : { points: '1', required: false, answerKey: {} }),
   }
 }
 
@@ -39,10 +40,21 @@ export const questionTypeRegistry: QuestionTypeDefinition[] = [
     create: (newId) => ({ ...baseItem('checkboxes', newId), options: [{ id: newId(), label: 'Option 1' }, { id: newId(), label: 'Option 2' }] }),
     validate: choiceIssues,
   },
+  {
+    type: 'dropdown', label: 'Dropdown', group: 'Choice', supportsScoring: true,
+    create: (newId) => ({ ...baseItem('dropdown', newId), options: [{ id: newId(), label: 'Option 1' }, { id: newId(), label: 'Option 2' }] }),
+    validate: choiceIssues,
+  },
+  {
+    type: 'rating', label: 'Rating', group: 'Choice', supportsScoring: true,
+    create: (newId) => ({ ...baseItem('rating', newId), rating: { min: 1, max: 5, style: 'stars' } }),
+    validate: promptIssue,
+  },
   { type: 'short-answer', label: 'Short answer', group: 'Text', supportsScoring: true, create: (newId) => baseItem('short-answer', newId), validate: promptIssue },
   { type: 'paragraph', label: 'Paragraph', group: 'Text', supportsScoring: true, create: (newId) => ({ ...baseItem('paragraph', newId), manual: true }), validate: promptIssue },
   { type: 'diagnostic-field', label: 'Diagnostic field', group: 'Pathology', supportsScoring: true, create: (newId) => baseItem('diagnostic-field', newId), validate: promptIssue },
   { type: 'information', label: 'Section / information', group: 'Structure', supportsScoring: false, create: (newId) => baseItem('information', newId), validate: promptIssue },
+  { type: 'section-information', label: 'Information', group: 'Structure', supportsScoring: false, create: (newId) => baseItem('section-information', newId), validate: promptIssue },
 ]
 
 export const questionTypesByType = Object.fromEntries(questionTypeRegistry.map((definition) => [definition.type, definition])) as Record<AssessmentItemType, QuestionTypeDefinition>

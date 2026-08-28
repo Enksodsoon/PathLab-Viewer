@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 
 import { listEligibleAssessmentSlides } from '../../assessment/api'
 import { questionTypeGroups, questionTypeRegistry, questionTypesByType } from '../../assessment/questionTypes'
-import type { AssessmentDocument, AssessmentItem, AssessmentItemType, DiagnosticSelection, EligibleAssessmentSlide } from '../../assessment/types'
+import { assessmentItems, replaceAssessmentItems, type AssessmentDocument, type AssessmentItem, type AssessmentItemType, type DiagnosticSelection, type EligibleAssessmentSlide } from '../../assessment/types'
 import { AssessmentDiagnosticField } from '../AssessmentDiagnosticField'
 
 interface CanvasProps {
@@ -31,8 +31,9 @@ function optionLabel(option: AssessmentOption) {
 }
 
 export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport, onPreview }: CanvasProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(document.items[0] ? [document.items[0].id] : []))
-  const [activeId, setActiveId] = useState(() => document.items[0]?.id ?? '')
+  const items = useMemo(() => assessmentItems(document), [document])
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(items[0] ? [items[0].id] : []))
+  const [activeId, setActiveId] = useState(() => items[0]?.id ?? '')
   const [navigatorSearch, setNavigatorSearch] = useState('')
   const [navigatorType, setNavigatorType] = useState<'all' | AssessmentItemType>('all')
   const [navigatorRequired, setNavigatorRequired] = useState<NavigatorRequiredFilter>('all')
@@ -44,7 +45,7 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
   const [dropTargetId, setDropTargetId] = useState('')
   const [reorderMessage, setReorderMessage] = useState('')
   const [dragVisual, setDragVisual] = useState<DragVisual | null>(null)
-  const initializedRef = useRef(document.items.length > 0)
+  const initializedRef = useRef(items.length > 0)
   const cardRefs = useRef(new Map<string, HTMLElement>())
   const promptRefs = useRef(new Map<string, HTMLTextAreaElement>())
   const navigatorListRef = useRef<HTMLOListElement>(null)
@@ -54,29 +55,32 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
   const pointerCleanupRef = useRef<() => void>(() => undefined)
 
   useEffect(() => {
-    if (initializedRef.current || !document.items.length) return
+    if (initializedRef.current || !items.length) return
     initializedRef.current = true
-    setExpandedIds(new Set([document.items[0].id]))
-    setActiveId(document.items[0].id)
-  }, [document.items])
+    setExpandedIds(new Set([items[0].id]))
+    setActiveId(items[0].id)
+  }, [items])
 
   useEffect(() => () => pointerCleanupRef.current(), [])
 
-  const itemIndexById = useMemo(() => new Map(document.items.map((item, index) => [item.id, index])), [document.items])
+  const itemIndexById = useMemo(() => new Map(items.map((item, index) => [item.id, index])), [items])
   const navigatorItems = useMemo(() => {
     const query = navigatorSearch.trim().toLocaleLowerCase()
-    return document.items.filter((item) => {
+    return items.filter((item) => {
       const matchesSearch = !query || item.prompt.toLocaleLowerCase().includes(query) || questionTypesByType[item.type].label.toLocaleLowerCase().includes(query)
       const matchesType = navigatorType === 'all' || item.type === navigatorType
       const matchesRequired = navigatorRequired === 'all' || (navigatorRequired === 'required' ? item.required : !item.required)
       const matchesIssues = !navigatorIssuesOnly || questionTypesByType[item.type].validate(item).length > 0
       return matchesSearch && matchesType && matchesRequired && matchesIssues
     })
-  }, [document.items, navigatorIssuesOnly, navigatorRequired, navigatorSearch, navigatorType])
-  const readyCount = useMemo(() => document.items.filter((item) => questionTypesByType[item.type].validate(item).length === 0).length, [document.items])
+  }, [items, navigatorIssuesOnly, navigatorRequired, navigatorSearch, navigatorType])
+  const readyCount = useMemo(() => items.filter((item) => questionTypesByType[item.type].validate(item).length === 0).length, [items])
 
   function updateItem(itemId: string, update: (item: AssessmentItem) => AssessmentItem) {
-    onDocumentChange((current) => ({ ...current, items: current.items.map((item) => item.id === itemId ? update(item) : item) }))
+    onDocumentChange((current) => replaceAssessmentItems(
+      current,
+      assessmentItems(current).map((item) => item.id === itemId ? update(item) : item),
+    ))
   }
 
   function focusItem(itemId: string, focusPrompt = false) {
@@ -92,25 +96,26 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
   function insertItem(type: AssessmentItemType, index: number) {
     const item = questionTypesByType[type].create(newId)
     onDocumentChange((current) => {
-      const items = [...current.items]
-      items.splice(index, 0, item)
-      return { ...current, items }
+      const nextItems = [...assessmentItems(current)]
+      nextItems.splice(index, 0, item)
+      return replaceAssessmentItems(current, nextItems)
     })
     setInsertAt(null)
     focusItem(item.id, true)
   }
 
   function moveItem(sourceIndex: number, destinationIndex: number) {
-    if (destinationIndex < 0 || destinationIndex >= document.items.length || sourceIndex === destinationIndex) return
-    const movingItem = document.items[sourceIndex]
+    if (destinationIndex < 0 || destinationIndex >= items.length || sourceIndex === destinationIndex) return
+    const movingItem = items[sourceIndex]
     if (!movingItem) return
     onDocumentChange((current) => {
-      const currentSourceIndex = current.items.findIndex((item) => item.id === movingItem.id)
+      const currentItems = assessmentItems(current)
+      const currentSourceIndex = currentItems.findIndex((item) => item.id === movingItem.id)
       if (currentSourceIndex < 0) return current
-      const items = [...current.items]
-      const [item] = items.splice(currentSourceIndex, 1)
-      items.splice(destinationIndex, 0, item)
-      return { ...current, items }
+      const nextItems = [...currentItems]
+      const [item] = nextItems.splice(currentSourceIndex, 1)
+      nextItems.splice(destinationIndex, 0, item)
+      return replaceAssessmentItems(current, nextItems)
     })
     setActiveId(movingItem.id)
     setReorderMessage(`Moved question ${sourceIndex + 1} to position ${destinationIndex + 1}.`)
@@ -126,27 +131,30 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
       answerKey: { ...item.answerKey, ...(answerIds ? { optionIds: answerIds } : {}) },
     }
     onDocumentChange((current) => {
-      const items = [...current.items]
-      items.splice(index + 1, 0, copy)
-      return { ...current, items }
+      const nextItems = [...assessmentItems(current)]
+      nextItems.splice(index + 1, 0, copy)
+      return replaceAssessmentItems(current, nextItems)
     })
     focusItem(id, true)
   }
 
   function deleteItem(item: AssessmentItem, index: number) {
     setDeleted({ item: structuredClone(item), index })
-    onDocumentChange((current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }))
+    onDocumentChange((current) => replaceAssessmentItems(
+      current,
+      assessmentItems(current).filter((candidate) => candidate.id !== item.id),
+    ))
     setExpandedIds((current) => { const next = new Set(current); next.delete(item.id); return next })
-    const nearest = document.items[index + 1] ?? document.items[index - 1]
+    const nearest = items[index + 1] ?? items[index - 1]
     if (nearest) focusItem(nearest.id)
   }
 
   function undoDelete() {
     if (!deleted) return
     onDocumentChange((current) => {
-      const items = [...current.items]
-      items.splice(Math.min(deleted.index, items.length), 0, deleted.item)
-      return { ...current, items }
+      const nextItems = [...assessmentItems(current)]
+      nextItems.splice(Math.min(deleted.index, nextItems.length), 0, deleted.item)
+      return replaceAssessmentItems(current, nextItems)
     })
     focusItem(deleted.item.id)
     setDeleted(null)
@@ -224,13 +232,13 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
 
   function finishPointerDragging() {
     const pointerDrag = pointerDragRef.current
-    const targetIndex = document.items.findIndex((item) => item.id === dropTargetIdRef.current)
+    const targetIndex = items.findIndex((item) => item.id === dropTargetIdRef.current)
     if (pointerDrag && targetIndex >= 0) dropAt(targetIndex, pointerDrag.itemId)
     else stopDragging()
   }
 
   function dropAt(targetIndex: number, transferredId = draggedId) {
-    const sourceIndex = document.items.findIndex((item) => item.id === transferredId)
+    const sourceIndex = items.findIndex((item) => item.id === transferredId)
     if (sourceIndex >= 0) moveItem(sourceIndex, targetIndex)
     stopDragging()
   }
@@ -240,24 +248,24 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
       <div className="assessment-authoring-heading"><h2>Questions</h2><p>Build the learner sequence and reorder it at any time.</p></div>
       <div className="assessment-authoring-actions">
         <button type="button" onClick={onPreview}><Eye aria-hidden="true" /> Assignment preview</button>
-        <button className="assessment-icon-action" type="button" aria-label="Expand all questions" title="Expand all questions" onClick={() => setExpandedIds(new Set(document.items.map((item) => item.id)))}><ArrowsOutLineVertical aria-hidden="true" /></button>
+        <button className="assessment-icon-action" type="button" aria-label="Expand all questions" title="Expand all questions" onClick={() => setExpandedIds(new Set(items.map((item) => item.id)))}><ArrowsOutLineVertical aria-hidden="true" /></button>
         <button className="assessment-icon-action" type="button" aria-label="Collapse all questions" title="Collapse all questions" onClick={() => setExpandedIds(new Set())}><ArrowsInLineVertical aria-hidden="true" /></button>
         <span className="assessment-authoring-divider" aria-hidden="true" />
         <button type="button" onClick={onImport}><Copy aria-hidden="true" /> Import questions</button>
-        <button className="assessment-primary assessment-toolbar-add" type="button" onClick={() => setInsertAt(document.items.length)}><Plus aria-hidden="true" /> Add question</button>
+        <button className="assessment-primary assessment-toolbar-add" type="button" onClick={() => setInsertAt(items.length)}><Plus aria-hidden="true" /> Add question</button>
       </div>
     </header>
 
     <div className="assessment-question-layout">
       <aside className="assessment-question-navigator" aria-label="Question navigator">
-        <header><div><strong>Question navigator</strong><small>{document.items.length} total</small></div><span>{document.items.length}</span></header>
+        <header><div><strong>Question navigator</strong><small>{items.length} total</small></div><span>{items.length}</span></header>
         <div className="assessment-navigator-tools">
           <label className="assessment-navigator-search"><MagnifyingGlass aria-hidden="true" /><input value={navigatorSearch} onChange={(event) => setNavigatorSearch(event.target.value)} placeholder="Search questions" /></label>
           <select aria-label="Filter by question type" value={navigatorType} onChange={(event) => setNavigatorType(event.target.value as 'all' | AssessmentItemType)}><option value="all">All types</option>{questionTypeRegistry.map((definition) => <option key={definition.type} value={definition.type}>{definition.label}</option>)}</select>
           <select aria-label="Filter by required state" value={navigatorRequired} onChange={(event) => setNavigatorRequired(event.target.value as NavigatorRequiredFilter)}><option value="all">Any requirement</option><option value="required">Required</option><option value="optional">Optional</option></select>
           <label className="assessment-navigator-issues"><input type="checkbox" checked={navigatorIssuesOnly} onChange={(event) => setNavigatorIssuesOnly(event.target.checked)} /> Needs attention</label>
         </div>
-        <div className="assessment-navigator-guide"><span><DotsSixVertical aria-hidden="true" />Drag to reorder</span><span>{readyCount} of {document.items.length} ready</span><progress aria-label={`${readyCount} of ${document.items.length} questions ready`} max={Math.max(1, document.items.length)} value={readyCount} /></div>
+        <div className="assessment-navigator-guide"><span><DotsSixVertical aria-hidden="true" />Drag to reorder</span><span>{readyCount} of {items.length} ready</span><progress aria-label={`${readyCount} of ${items.length} questions ready`} max={Math.max(1, items.length)} value={readyCount} /></div>
         <ol ref={navigatorListRef}>
           {navigatorItems.map((item) => {
             const index = itemIndexById.get(item.id) ?? 0
@@ -305,8 +313,8 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
       </aside>
 
       <section className="assessment-question-canvas" aria-label="Questions">
-      {document.items.length === 0 ? <div className="assessment-empty assessment-empty--canvas"><h2>Start with a question</h2><p>Choose a type and build the form in one continuous canvas.</p><button className="assessment-primary" type="button" onClick={() => setInsertAt(0)}><Plus /> Add question</button></div> : null}
-      {document.items.map((item, index) => {
+      {items.length === 0 ? <div className="assessment-empty assessment-empty--canvas"><h2>Start with a question</h2><p>Choose a type and build the form in one continuous canvas.</p><button className="assessment-primary" type="button" onClick={() => setInsertAt(0)}><Plus /> Add question</button></div> : null}
+      {items.map((item, index) => {
         const expanded = expandedIds.has(item.id)
         const issues = questionTypesByType[item.type].validate(item)
         return <div
@@ -358,7 +366,7 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
                 <summary aria-label={`Question ${index + 1} actions`}>•••</summary>
                 <div>
                   <button type="button" disabled={index === 0} onClick={() => moveItem(index, index - 1)}><ArrowUp /> Move up</button>
-                  <button type="button" disabled={index === document.items.length - 1} onClick={() => moveItem(index, index + 1)}><ArrowDown /> Move down</button>
+                  <button type="button" disabled={index === items.length - 1} onClick={() => moveItem(index, index + 1)}><ArrowDown /> Move down</button>
                   <button type="button" onClick={() => duplicateItem(item, index)}><Copy /> Duplicate</button>
                   <button type="button" className="assessment-danger-action" onClick={() => deleteItem(item, index)}><Trash /> Delete</button>
                 </div>
@@ -369,13 +377,13 @@ export function AssessmentQuestionCanvas({ document, onDocumentChange, onImport,
           <InsertControl open={insertAt === index + 1} onOpen={() => setInsertAt(index + 1)} onClose={() => setInsertAt(null)} onSelect={(type) => insertItem(type, index + 1)} />
         </div>
       })}
-      {document.items.length === 0 && insertAt === 0 ? <TypePicker onClose={() => setInsertAt(null)} onSelect={(type) => insertItem(type, 0)} /> : null}
+      {items.length === 0 && insertAt === 0 ? <TypePicker onClose={() => setInsertAt(null)} onSelect={(type) => insertItem(type, 0)} /> : null}
       </section>
     </div>
 
-    <button className="assessment-mobile-add" type="button" aria-label="Add question" onClick={() => setInsertAt(document.items.length)}><Plus aria-hidden="true" /></button>
+    <button className="assessment-mobile-add" type="button" aria-label="Add question" onClick={() => setInsertAt(items.length)}><Plus aria-hidden="true" /></button>
     <p className="visually-hidden" aria-live="polite">{reorderMessage}</p>
-    {dragVisual ? (() => { const item = document.items.find((candidate) => candidate.id === dragVisual.itemId); const index = item ? (itemIndexById.get(item.id) ?? 0) : 0; return item ? createPortal(<div ref={dragPreviewRef} className="assessment-drag-preview" aria-hidden="true" style={{ width: dragVisual.width, transform: `translate3d(${dragVisual.x + 14}px, ${dragVisual.y - 28}px, 0) rotate(.35deg) scale(1.015)` }}><DotsSixVertical /><span>{index + 1}</span><strong>{item.prompt || 'Untitled question'}</strong></div>, globalThis.document.body) : null })() : null}
+    {dragVisual ? (() => { const item = items.find((candidate) => candidate.id === dragVisual.itemId); const index = item ? (itemIndexById.get(item.id) ?? 0) : 0; return item ? createPortal(<div ref={dragPreviewRef} className="assessment-drag-preview" aria-hidden="true" style={{ width: dragVisual.width, transform: `translate3d(${dragVisual.x + 14}px, ${dragVisual.y - 28}px, 0) rotate(.35deg) scale(1.015)` }}><DotsSixVertical /><span>{index + 1}</span><strong>{item.prompt || 'Untitled question'}</strong></div>, globalThis.document.body) : null })() : null}
 
     {deleted ? <div className="assessment-undo-toast" role="status"><span>Question deleted</span><button type="button" onClick={undoDelete}>Undo</button><button type="button" aria-label="Dismiss" onClick={() => setDeleted(null)}><X /></button></div> : null}
 

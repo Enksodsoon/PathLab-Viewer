@@ -18,7 +18,7 @@ import {
   type AssessmentCourse,
 } from '../assessment/api'
 import { AssessmentToolbar, AssessmentWorkspaceNav } from '../components/assessment/AssessmentChrome'
-import type { AssessmentDraft, AssessmentItem } from '../assessment/types'
+import { assessmentItems, type AssessmentDraft, type AssessmentItem } from '../assessment/types'
 import './assessment.css'
 
 const emptyDocument = {
@@ -89,7 +89,7 @@ export function InlineAssessmentTitle({ draft, version, showDirectory = true, di
     <button className="assessment-title-button" type="button" onClick={onOpen} disabled={disabled}>
       <strong>{draft.title}</strong>
       {showDirectory && (draft.courseName || draft.className) ? <span className="assessment-draft-directory">{draft.courseName ?? 'Course'}{draft.className ? <> <span aria-hidden="true">›</span> {draft.className}</> : null}</span> : null}
-      <small>{draft.document.items.length} questions · version {version}</small>
+      <small>{assessmentItems(draft.document).length} questions · version {version}</small>
     </button>
     <button className="assessment-rename-button" type="button" aria-label={`Rename ${draft.title}`} title={disabled ? 'Restore this assessment before renaming it' : 'Rename assessment'} disabled={disabled} onClick={() => setEditing(true)}><PencilSimple aria-hidden="true" /></button>
   </div>
@@ -446,7 +446,7 @@ export function AssessmentAdminPage() {
           </div>
         </header>
         <div className="assessment-preview-body" key={previewResetKey} aria-label="Interactive learner preview">
-          {preview.items.length ? preview.items.map((item, index) => <LearnerPreviewItem key={item.id} item={item} index={index} />) : <div className="assessment-preview-empty"><Eye aria-hidden="true" /><h3>No questions to preview</h3><p>Add a question to see the learner experience.</p></div>}
+          {assessmentItems(preview).length ? assessmentItems(preview).map((item, index) => <LearnerPreviewItem key={item.id} item={item} index={index} />) : <div className="assessment-preview-empty"><Eye aria-hidden="true" /><h3>No questions to preview</h3><p>Add a question to see the learner experience.</p></div>}
         </div>
       </div>
     </div> : null}

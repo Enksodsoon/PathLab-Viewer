@@ -1,4 +1,4 @@
-import type { AssessmentDocument, AssessmentItem, DiagnosticSelection } from './types'
+import { assessmentItems, type AssessmentDocument, type AssessmentItem, type DiagnosticSelection } from './types'
 
 function normalized(value: unknown) {
   return String(value ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
@@ -34,7 +34,7 @@ export function scorePractice(
   let points = 0
   let maximumPoints = 0
   const breakdown: Record<string, number | null> = {}
-  for (const item of document.items) {
+  for (const item of assessmentItems(document)) {
     if (item.type === 'information') continue
     const maximum = Number(item.points ?? 0)
     maximumPoints += maximum
