@@ -474,19 +474,34 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
 
     monitor = client.get(f"/api/v2/admin/assessment/administrations/{administration_id}/monitor")
     assert monitor.status_code == 200
-    assert set(monitor.json()) == {"activeSessions", "activeAttempts", "submitted", "needsGrading"}
+    assert set(monitor.json()) == {
+        "expected",
+        "entered",
+        "active",
+        "submitted",
+        "autoSubmitted",
+        "stale",
+        "needsGrading",
+        "activeSessions",
+        "activeAttempts",
+    }
     graded = client.post(
-        f"/api/v2/admin/assessment/administrations/{administration_id}/manual-grade",
+        f"/api/v2/admin/assessment/administrations/{administration_id}/manual-grades",
         json={
-            "attemptId": attempt_id,
-            "itemId": "item-manual",
-            "points": "2",
-            "expectedScoreVersion": 1,
+            "grades": [
+                {
+                    "attemptId": attempt_id,
+                    "itemId": "item-manual",
+                    "points": "2",
+                    "feedback": "Clear and appropriately concise.",
+                    "expectedScoreVersion": 1,
+                }
+            ]
         },
     )
     assert graded.status_code == 200
-    assert graded.json()["scoreVersion"] == 2
-    assert graded.json()["points"] == "3.000"
+    assert graded.json()["items"][0]["scoreVersion"] == 2
+    assert graded.json()["items"][0]["points"] == "3.000"
     conflict = client.post(
         f"/api/v2/admin/assessment/administrations/{administration_id}/manual-grade",
         json={
@@ -500,13 +515,22 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     client.post(f"/api/v2/admin/assessment/administrations/{administration_id}/close")
     released = client.post(
         f"/api/v2/admin/assessment/administrations/{administration_id}/release",
-        json={"showScore": True, "showAnswers": False, "showFeedback": False},
+        json={
+            "showScore": True,
+            "showAnswers": False,
+            "showFeedback": False,
+            "showManualFeedback": True,
+        },
     )
     assert released.status_code == 201
     result = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
     assert result.status_code == 200
     assert result.json()["score"]["points"] == "3.000"
     assert "breakdown" not in result.json()
+    manual_item = next(
+        item for item in result.json()["review"]["items"] if item["itemId"] == "item-manual"
+    )
+    assert manual_item["manualFeedback"] == "Clear and appropriately concise."
 
     exported = client.get(
         f"/api/v2/admin/assessment/administrations/{administration_id}/export.csv"

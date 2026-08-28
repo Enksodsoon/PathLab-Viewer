@@ -176,7 +176,7 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
     points = _decimal(item.get("points", 0))
     answer = item.get("answerKey", {})
     fraction = Decimal("0")
-    if item_type == "multiple-choice":
+    if item_type in {"multiple-choice", "dropdown"}:
         fraction = Decimal(response.get("optionId") in set(answer.get("optionIds", [])))
     elif item_type == "checkboxes":
         selected = set(response.get("optionIds", []))
@@ -211,6 +211,16 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
             fraction = Decimal(region_correct)
         elif diagnosis_present:
             fraction = Decimal(diagnosis_correct)
-    elif item_type == "information":
+    elif item_type == "rating":
+        value = response.get("value")
+        rating = item.get("rating", {})
+        try:
+            valid = int(value) == float(value) and 1 <= int(value) <= int(rating.get("max", 0))
+        except (TypeError, ValueError, OverflowError):
+            valid = False
+        fraction = Decimal(valid) if item.get("answerKey", {}).get("value") is None else Decimal(
+            value == item["answerKey"]["value"]
+        )
+    elif item_type in {"information", "section-information"}:
         return Decimal("0.000")
     return _quantize(points * fraction)
