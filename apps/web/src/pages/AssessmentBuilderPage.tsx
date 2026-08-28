@@ -1,12 +1,13 @@
 import { Check, Eye, PaperPlaneTilt, X } from '@phosphor-icons/react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   getAssessmentDraft,
   importAssessmentQuestions,
   listAssessmentClasses,
   listAssessmentDrafts,
+  migrateAssessmentDraftV2,
   previewAssessmentDraft,
   publishAssessmentDraft,
   saveAssessmentDraft,
@@ -14,7 +15,8 @@ import {
 import { cacheAssessmentDraft, readCachedAssessmentDraft } from '../assessment/draftCache'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import { AssessmentQuestionCanvas } from '../components/assessment/AssessmentQuestionCanvas'
-import { assessmentItems, type AssessmentDocument, type AssessmentDraft } from '../assessment/types'
+import { AssessmentSectionCanvas } from '../components/assessment/AssessmentSectionCanvas'
+import { assessmentItems, isAssessmentV2, type AssessmentDocument, type AssessmentDraft } from '../assessment/types'
 import { questionTypesByType } from '../assessment/questionTypes'
 import './assessment.css'
 
@@ -22,6 +24,7 @@ const AssessmentReportPage = lazy(() => import('./AssessmentReportPage').then((m
 
 export function AssessmentBuilderPage() {
   const { draftId = '' } = useParams()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [draft, setDraft] = useState<AssessmentDraft | null>(null)
   const requestedTab = searchParams.get('tab')
@@ -43,6 +46,7 @@ export function AssessmentBuilderPage() {
   const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [importSubmitting, setImportSubmitting] = useState(false)
   const [importMessage, setImportMessage] = useState('')
+  const [migrationBusy, setMigrationBusy] = useState(false)
   const revisionRef = useRef(0)
   const acknowledgedDocumentRef = useRef<AssessmentDocument | null>(null)
   const items = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
@@ -163,6 +167,17 @@ export function AssessmentBuilderPage() {
     }
   }
 
+  async function migrateToV2() {
+    if (!draft || isAssessmentV2(draft.document)) return
+    setMigrationBusy(true)
+    try {
+      const migrated = await migrateAssessmentDraftV2(draft.id, draft.revision)
+      navigate(`/admin/assessments/${migrated.id}`, { replace: true })
+    } finally {
+      setMigrationBusy(false)
+    }
+  }
+
   if (!draft) return <main className="assessment-loading"><p role="status">{saveState}</p></main>
 
   return <div className="assessment-builder">
@@ -181,6 +196,7 @@ export function AssessmentBuilderPage() {
         <span className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
       </div>
       <div className="assessment-studio-actions">
+        {!isAssessmentV2(draft.document) ? <button type="button" disabled={migrationBusy} onClick={() => void migrateToV2()}>{migrationBusy ? 'Upgrading…' : 'Upgrade to sections'}</button> : null}
         <button type="button" onClick={() => void showPreview()}><Eye aria-hidden="true" />Preview</button>
         <button className="assessment-primary" type="button" onClick={openPublish}><PaperPlaneTilt aria-hidden="true" />Publish</button>
       </div>
@@ -196,7 +212,12 @@ export function AssessmentBuilderPage() {
       <label><span>Name</span><input value={draft.document.title} onChange={(event) => updateDocument((document) => ({ ...document, title: event.target.value }))} /></label>
       <label><span>Description</span><textarea aria-label="Description" rows={6} maxLength={2000} placeholder="Describe the scope, learning objectives, or instructions for this assessment." value={draft.document.description ?? ''} onChange={(event) => updateDocument((document) => ({ ...document, description: event.target.value }))} /><small>{(draft.document.description ?? '').length} / 2000 characters</small></label>
     </main> : null}
-    {tab === 'questions' ? <AssessmentQuestionCanvas
+    {tab === 'questions' ? isAssessmentV2(draft.document) ? <AssessmentSectionCanvas
+      document={draft.document}
+      onDocumentChange={(update) => updateDocument((document) => isAssessmentV2(document) ? update(document) : document)}
+      onImport={() => void openImport()}
+      onPreview={() => void showPreview()}
+    /> : <AssessmentQuestionCanvas
       document={draft.document}
       onDocumentChange={updateDocument}
       onImport={() => void openImport()}

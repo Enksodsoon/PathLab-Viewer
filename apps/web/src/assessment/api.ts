@@ -71,6 +71,37 @@ export async function saveAssessmentDraft(
   }))
 }
 
+export async function migrateAssessmentDraftV2(id: string, expectedRevision: number) {
+  return body<AssessmentDraft>(await csrfFetch(
+    `/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/migrate-v2`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedRevision }),
+    },
+  ))
+}
+
+export interface AssessmentPreflightIssue {
+  code: string
+  path: string
+  message: string
+  level: 'error' | 'warning'
+}
+
+export async function preflightAssessmentDraft(id: string) {
+  return body<{
+    valid: boolean
+    errors: AssessmentPreflightIssue[]
+    warnings: AssessmentPreflightIssue[]
+    metrics: Record<string, number | string | null>
+    effectiveRelease?: 'immediate' | 'manual'
+  }>(await csrfFetch(
+    `/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/preflight`,
+    { method: 'POST' },
+  ))
+}
+
 export async function previewAssessmentDraft(id: string) {
   return body<{ learnerManifest: AssessmentDocument; checksum: string }>(
     await csrfFetch(`/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/preview`, {

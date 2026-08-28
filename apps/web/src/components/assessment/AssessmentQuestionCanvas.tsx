@@ -396,24 +396,109 @@ function InsertControl({ open, onOpen, onClose, onSelect }: { open: boolean; onO
   </div>
 }
 
+// Question editor intentionally remains exported for the v2 section canvas.
 function TypePicker({ onClose, onSelect }: { onClose: () => void; onSelect: (type: AssessmentItemType) => void }) {
   return <div className="assessment-type-picker" role="dialog" aria-label="Choose question type">
     <header><strong>Add item</strong><button type="button" aria-label="Close type picker" onClick={onClose}><X /></button></header>
     <div>{questionTypeGroups.map((group) => <section key={group}><h3>{group}</h3>{questionTypeRegistry.filter((definition) => definition.group === group).map((definition) => <button key={definition.type} type="button" aria-label={`Add ${definition.label.toLowerCase()}`} onClick={() => onSelect(definition.type)}><Plus aria-hidden="true" />{definition.label}</button>)}</section>)}</div>
   </div>
 }
-
-function QuestionEditor({ item, slides, setSlides, updateItem, promptRef }: { item: AssessmentItem; slides: EligibleAssessmentSlide[]; setSlides: (slides: EligibleAssessmentSlide[]) => void; updateItem: (itemId: string, update: (item: AssessmentItem) => AssessmentItem) => void; promptRef: (node: HTMLTextAreaElement | null) => void }) {
+export function QuestionEditor({ item, slides, setSlides, updateItem, promptRef }: { item: AssessmentItem; slides: EligibleAssessmentSlide[]; setSlides: (slides: EligibleAssessmentSlide[]) => void; updateItem: (itemId: string, update: (item: AssessmentItem) => AssessmentItem) => void; promptRef: (node: HTMLTextAreaElement | null) => void }) {
   const supportsScoring = questionTypesByType[item.type].supportsScoring
+  const selectedIds = (item.answerKey?.optionIds as string[] | undefined) ?? []
+
+  function change(update: (current: AssessmentItem) => AssessmentItem) {
+    updateItem(item.id, update)
+  }
+
+  function moveOption(index: number, direction: -1 | 1) {
+    change((current) => {
+      const options = [...(current.options ?? [])]
+      const destination = index + direction
+      if (destination < 0 || destination >= options.length) return current
+      const [moving] = options.splice(index, 1)
+      options.splice(destination, 0, moving)
+      return { ...current, options }
+    })
+  }
+
+  function deleteOption(index: number) {
+    change((current) => {
+      const options = [...(current.options ?? [])]
+      const [removed] = options.splice(index, 1)
+      const removedId = removed ? optionId(removed, index) : ''
+      const optionIds = ((current.answerKey?.optionIds as string[] | undefined) ?? [])
+        .filter((id) => id !== removedId)
+      const routing = current.routing ? {
+        ...current.routing,
+        rules: current.routing.rules?.filter((rule) => rule.when.optionId !== removedId),
+      } : undefined
+      return { ...current, options, routing, answerKey: { ...current.answerKey, optionIds } }
+    })
+  }
+
+  function duplicateOption(index: number) {
+    change((current) => {
+      const options = [...(current.options ?? [])]
+      const source = options[index]
+      if (!source) return current
+      options.splice(index + 1, 0, { id: newId(), label: `${optionLabel(source)} copy` })
+      return { ...current, options }
+    })
+  }
+
   return <div className="assessment-question-editor" data-testid="question-editor">
-    <section className="assessment-editor-section assessment-editor-section--prompt"><label className="assessment-question-prompt">Prompt<textarea ref={promptRef} value={item.prompt} onChange={(event) => updateItem(item.id, (current) => ({ ...current, prompt: event.target.value }))} /></label></section>
-    {item.options ? <section className="assessment-editor-section assessment-editor-section--answers" aria-label="Answer options"><header className="assessment-editor-section-heading"><h3>Answer choices</h3><p>Select the correct answer, then edit the learner-facing copy.</p></header><div className="assessment-option-list">{item.options.map((option, optionIndex) => {
-      const id = optionId(option, optionIndex)
-      return <label key={id} className="assessment-option"><input type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} name={`key-${item.id}`} checked={((item.answerKey?.optionIds as string[] | undefined) ?? []).includes(id)} onChange={() => updateItem(item.id, (current) => { const selected = (current.answerKey?.optionIds as string[] | undefined) ?? []; const optionIds = current.type === 'checkboxes' ? (selected.includes(id) ? selected.filter((selectedId) => selectedId !== id) : [...selected, id]) : [id]; return { ...current, answerKey: { ...current.answerKey, optionIds } } })} /><input aria-label={`Option ${optionIndex + 1}`} value={optionLabel(option)} onChange={(event) => updateItem(item.id, (current) => ({ ...current, options: current.options?.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { id, label: event.target.value } : typeof candidate === 'string' ? { id: optionId(candidate, candidateIndex), label: candidate } : candidate) }))} /></label>
-    })}</div><div className="assessment-option-tools"><button className="assessment-secondary-action" type="button" onClick={() => updateItem(item.id, (current) => ({ ...current, options: [...(current.options ?? []), { id: newId(), label: `Option ${(current.options?.length ?? 0) + 1}` }] }))}><Plus aria-hidden="true" /> Add option</button><details><summary>Paste options</summary><label>One option per line<textarea onPaste={(event) => { event.preventDefault(); const optionLabels = event.clipboardData.getData('text').split(/\r?\n/).map((value) => value.trim()).filter(Boolean).slice(0, 10); updateItem(item.id, (current) => ({ ...current, options: optionLabels.map((label) => ({ id: newId(), label })), answerKey: { ...current.answerKey, optionIds: [] } })) }} /></label></details></div></section> : null}
-    {item.type === 'diagnostic-field' ? <details className="assessment-progressive-section"><summary>Answer key & diagnostic regions</summary><div className="assessment-diagnostic"><p>Choose a privacy-passed static-DZI slide, then mark accepted points or rectangles.</p><button type="button" onClick={() => void listEligibleAssessmentSlides().then((result) => setSlides(result.items))}>Choose slide</button>{slides.length ? <select aria-label="Eligible slide" value={item.slideId ?? ''} onChange={(event) => updateItem(item.id, (current) => ({ ...current, slideId: event.target.value, answerKey: { ...current.answerKey, regions: [] } }))}><option value="">Select a slide</option>{slides.map((slide) => <option key={slide.id} value={slide.id}>{slide.displayName}</option>)}</select> : null}{item.slideId && slides.find((slide) => slide.id === item.slideId) ? <AssessmentDiagnosticField label="Accepted diagnostic regions" tileSource={slides.find((slide) => slide.id === item.slideId)!.tileSource} selections={(item.answerKey?.regions as DiagnosticSelection[] | undefined) ?? []} multiple onCommit={(selection) => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, regions: [...((current.answerKey?.regions as DiagnosticSelection[] | undefined) ?? []), selection] } }))} onClear={() => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, regions: [] } }))} /> : null}<label>Accepted diagnoses<input value={((item.answerKey?.diagnoses as string[] | undefined) ?? []).join(', ')} onChange={(event) => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, diagnoses: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } }))} /></label></div></details> : null}
-    {item.type === 'short-answer' ? <details className="assessment-progressive-section"><summary>Answer key</summary><label>Accepted answers<input value={((item.answerKey?.variants as string[] | undefined) ?? []).join(', ')} onChange={(event) => updateItem(item.id, (current) => ({ ...current, answerKey: { ...current.answerKey, variants: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } }))} /></label></details> : null}
-    {supportsScoring ? <details className="assessment-progressive-section"><summary>Feedback, validation & scoring</summary><label>Feedback<textarea value={item.feedback?.correct ?? ''} onChange={(event) => updateItem(item.id, (current) => ({ ...current, feedback: { ...current.feedback, correct: event.target.value } }))} /></label>{item.type === 'checkboxes' ? <label><input type="checkbox" checked={item.scoring?.partialCredit ?? false} onChange={(event) => updateItem(item.id, (current) => ({ ...current, scoring: { ...current.scoring, partialCredit: event.target.checked } }))} /> Bounded partial credit</label> : null}{item.type === 'diagnostic-field' ? <div className="assessment-advanced-scoring"><label>Point tolerance<input type="number" min="0" max="1" step="0.01" value={item.scoring?.pointTolerance ?? 0.03} onChange={(event) => updateItem(item.id, (current) => ({ ...current, scoring: { ...current.scoring, pointTolerance: Number(event.target.value), rectangleIou: current.scoring?.rectangleIou ?? 0.25 } }))} /></label><label>Rectangle IoU<input type="number" min="0" max="1" step="0.05" value={item.scoring?.rectangleIou ?? 0.25} onChange={(event) => updateItem(item.id, (current) => ({ ...current, scoring: { ...current.scoring, pointTolerance: current.scoring?.pointTolerance ?? 0.03, rectangleIou: Number(event.target.value) } }))} /></label></div> : null}</details> : null}
-    {supportsScoring ? <footer className="assessment-question-footer"><label>Required <input type="checkbox" checked={item.required ?? false} onChange={(event) => updateItem(item.id, (current) => ({ ...current, required: event.target.checked }))} /></label><label>Points <input value={item.points ?? '0'} onChange={(event) => updateItem(item.id, (current) => ({ ...current, points: event.target.value }))} inputMode="decimal" /></label></footer> : null}
+    <section className="assessment-editor-section assessment-editor-section--prompt">
+      <label className="assessment-question-prompt">Prompt<textarea ref={promptRef} maxLength={2000} value={item.prompt} onChange={(event) => change((current) => ({ ...current, prompt: event.target.value }))} /></label>
+      <label>Help text<input maxLength={1000} value={item.helpText ?? ''} placeholder="Optional learner guidance" onChange={(event) => change((current) => ({ ...current, helpText: event.target.value }))} /></label>
+    </section>
+
+    {item.options ? <section className="assessment-editor-section assessment-editor-section--answers" aria-label="Answer options">
+      <header className="assessment-editor-section-heading"><h3>Answer choices</h3><p>Stable option IDs preserve keys, routing, and deterministic shuffle.</p></header>
+      <div className="assessment-option-list">{item.options.map((option, optionIndex) => {
+        const id = optionId(option, optionIndex)
+        return <div key={id} className="assessment-option assessment-option--editable">
+          <button type="button" className="assessment-option-drag" aria-label={`Reorder option ${optionIndex + 1}`} onKeyDown={(event) => { if (!event.altKey) return; if (event.key === 'ArrowUp') moveOption(optionIndex, -1); if (event.key === 'ArrowDown') moveOption(optionIndex, 1) }}><DotsSixVertical /></button>
+          <input aria-label={`Correct option ${optionIndex + 1}`} type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} name={`key-${item.id}`} checked={selectedIds.includes(id)} onChange={() => change((current) => { const selected = (current.answerKey?.optionIds as string[] | undefined) ?? []; const optionIds = current.type === 'checkboxes' ? (selected.includes(id) ? selected.filter((selectedId) => selectedId !== id) : [...selected, id]) : [id]; return { ...current, answerKey: { ...current.answerKey, optionIds } } })} />
+          <input aria-label={`Option ${optionIndex + 1}`} value={optionLabel(option)} maxLength={1000} onChange={(event) => change((current) => ({ ...current, options: current.options?.map((candidate, candidateIndex) => candidateIndex === optionIndex ? { id, label: event.target.value } : candidate) }))} />
+          <button type="button" aria-label={`Move option ${optionIndex + 1} up`} disabled={optionIndex === 0} onClick={() => moveOption(optionIndex, -1)}><ArrowUp /></button>
+          <button type="button" aria-label={`Move option ${optionIndex + 1} down`} disabled={optionIndex === item.options!.length - 1} onClick={() => moveOption(optionIndex, 1)}><ArrowDown /></button>
+          <button type="button" aria-label={`Duplicate option ${optionIndex + 1}`} onClick={() => duplicateOption(optionIndex)}><Copy /></button>
+          <button type="button" aria-label={`Delete option ${optionIndex + 1}`} disabled={item.options!.length <= 2} onClick={() => deleteOption(optionIndex)}><Trash /></button>
+        </div>
+      })}</div>
+      <div className="assessment-option-tools">
+        <button className="assessment-secondary-action" type="button" disabled={item.options.length >= 10} onClick={() => change((current) => ({ ...current, options: [...(current.options ?? []), { id: newId(), label: `Option ${(current.options?.length ?? 0) + 1}` }] }))}><Plus /> Add option</button>
+        <details><summary>Paste options</summary><label>One option per line<textarea onPaste={(event) => { event.preventDefault(); const labels = event.clipboardData.getData('text').split(/\r?\n/).map((value) => value.trim()).filter(Boolean).slice(0, 10); change((current) => ({ ...current, options: labels.map((label) => ({ id: newId(), label })), routing: undefined, answerKey: { ...current.answerKey, optionIds: [] } })) }} /></label></details>
+        <label><input type="checkbox" checked={item.allowOther ?? false} onChange={(event) => change((current) => ({ ...current, allowOther: event.target.checked }))} /> Allow Other</label>
+        <label><input type="checkbox" checked={item.shuffleOptions ?? false} onChange={(event) => change((current) => ({ ...current, shuffleOptions: event.target.checked }))} /> Shuffle choices</label>
+      </div>
+    </section> : null}
+
+    {item.type === 'rating' ? <section className="assessment-editor-section" aria-label="Rating settings">
+      <header className="assessment-editor-section-heading"><h3>Rating scale</h3><p>Ratings always begin at 1 and end from 3 through 10.</p></header>
+      <label>Maximum<select value={item.rating?.max ?? 5} onChange={(event) => change((current) => ({ ...current, rating: { min: 1, max: Number(event.target.value) as NonNullable<AssessmentItem['rating']>['max'], style: current.rating?.style ?? 'numbers' } }))}>{[3, 4, 5, 6, 7, 8, 9, 10].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+      <label>Style<select value={item.rating?.style ?? 'numbers'} onChange={(event) => change((current) => ({ ...current, rating: { min: 1, max: current.rating?.max ?? 5, style: event.target.value as NonNullable<AssessmentItem['rating']>['style'] } }))}><option value="numbers">Numbers</option><option value="stars">Stars</option><option value="hearts">Hearts</option><option value="thumbs-up">Thumbs up</option></select></label>
+      <div className="assessment-rating-preview" aria-label="Rating preview">{Array.from({ length: item.rating?.max ?? 5 }, (_, index) => <span key={index}>{item.rating?.style === 'stars' ? '★' : item.rating?.style === 'hearts' ? '♥' : item.rating?.style === 'thumbs-up' ? '👍' : index + 1}</span>)}</div>
+    </section> : null}
+
+    {item.type === 'diagnostic-field' ? <details className="assessment-progressive-section"><summary>Answer key & diagnostic regions</summary><div className="assessment-diagnostic"><p>Choose a privacy-passed static-DZI slide, then mark accepted points or rectangles.</p><button type="button" onClick={() => void listEligibleAssessmentSlides().then((result) => setSlides(result.items))}>Choose slide</button>{slides.length ? <select aria-label="Eligible slide" value={item.slideId ?? ''} onChange={(event) => change((current) => ({ ...current, slideId: event.target.value, answerKey: { ...current.answerKey, regions: [] } }))}><option value="">Select a slide</option>{slides.map((slide) => <option key={slide.id} value={slide.id}>{slide.displayName}</option>)}</select> : null}{item.slideId && slides.find((slide) => slide.id === item.slideId) ? <AssessmentDiagnosticField label="Accepted diagnostic regions" tileSource={slides.find((slide) => slide.id === item.slideId)!.tileSource} selections={(item.answerKey?.regions as DiagnosticSelection[] | undefined) ?? []} multiple onCommit={(selection) => change((current) => ({ ...current, answerKey: { ...current.answerKey, regions: [...((current.answerKey?.regions as DiagnosticSelection[] | undefined) ?? []), selection] } }))} onClear={() => change((current) => ({ ...current, answerKey: { ...current.answerKey, regions: [] } }))} /> : null}<label>Accepted diagnoses<input value={((item.answerKey?.diagnoses as string[] | undefined) ?? []).join(', ')} onChange={(event) => change((current) => ({ ...current, answerKey: { ...current.answerKey, diagnoses: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } }))} /></label></div></details> : null}
+    {item.type === 'short-answer' ? <details className="assessment-progressive-section"><summary>Answer key</summary><label>Accepted answers<input value={((item.answerKey?.variants as string[] | undefined) ?? []).join(', ')} onChange={(event) => change((current) => ({ ...current, answerKey: { ...current.answerKey, variants: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } }))} /></label></details> : null}
+
+    <details className="assessment-progressive-section"><summary>Media & education metadata</summary>
+      <button type="button" onClick={() => void listEligibleAssessmentSlides().then((result) => setSlides(result.items))}>Load slide thumbnails</button>
+      {slides.length ? <label>Question thumbnail<select value={item.media?.slideId ?? ''} onChange={(event) => change((current) => ({ ...current, media: event.target.value ? { kind: 'slide-thumbnail', slideId: event.target.value } : undefined }))}><option value="">No media</option>{slides.map((slide) => <option key={slide.id} value={slide.id}>{slide.displayName}</option>)}</select></label> : null}
+      <label>Learning objective<input value={item.education?.objective ?? ''} onChange={(event) => change((current) => ({ ...current, education: { ...current.education, objective: event.target.value } }))} /></label>
+      <label>Competency<input value={item.education?.competency ?? ''} onChange={(event) => change((current) => ({ ...current, education: { ...current.education, competency: event.target.value } }))} /></label>
+      <label>Teacher notes<textarea maxLength={2000} value={item.teacherNotes ?? ''} onChange={(event) => change((current) => ({ ...current, teacherNotes: event.target.value }))} /></label>
+    </details>
+
+    {supportsScoring ? <details className="assessment-progressive-section"><summary>Feedback, validation & scoring</summary>
+      <label>Correct feedback<textarea maxLength={4000} value={item.feedback?.correct ?? ''} onChange={(event) => change((current) => ({ ...current, feedback: { ...current.feedback, correct: event.target.value } }))} /></label>
+      <label>Incorrect feedback<textarea maxLength={4000} value={item.feedback?.incorrect ?? ''} onChange={(event) => change((current) => ({ ...current, feedback: { ...current.feedback, incorrect: event.target.value } }))} /></label>
+      <label>Validation message<input maxLength={500} value={item.validation?.message ?? ''} onChange={(event) => change((current) => ({ ...current, validation: { ...current.validation, message: event.target.value } }))} /></label>
+      {item.type === 'checkboxes' ? <label><input type="checkbox" checked={item.scoring?.partialCredit ?? false} onChange={(event) => change((current) => ({ ...current, scoring: { ...current.scoring, partialCredit: event.target.checked } }))} /> Bounded partial credit</label> : null}
+    </details> : null}
+    {supportsScoring ? <footer className="assessment-question-footer"><label>Required <input type="checkbox" checked={item.required ?? false} onChange={(event) => change((current) => ({ ...current, required: event.target.checked }))} /></label><label>Points <input value={item.points ?? '0'} onChange={(event) => change((current) => ({ ...current, points: event.target.value }))} inputMode="decimal" /></label></footer> : null}
   </div>
 }
