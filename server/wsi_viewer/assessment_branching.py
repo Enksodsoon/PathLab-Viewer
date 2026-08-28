@@ -31,7 +31,11 @@ def _condition_matches(condition: dict[str, Any], response: dict[str, Any] | Non
         return expected in selected_many
     if operator == "greater-or-equal":
         try:
-            return float(response.get("value")) >= float(condition.get("value"))
+            actual = response.get("value")
+            expected_value = condition.get("value")
+            if actual is None or expected_value is None:
+                return False
+            return float(actual) >= float(expected_value)
         except (TypeError, ValueError):
             return False
     return False

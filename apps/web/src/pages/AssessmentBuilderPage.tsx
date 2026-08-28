@@ -1,6 +1,7 @@
 import { Check, Eye, PaperPlaneTilt, X } from '@phosphor-icons/react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
 
 import {
   getAssessmentDraft,
@@ -34,6 +35,7 @@ export function AssessmentBuilderPage() {
   const [publishOpen, setPublishOpen] = useState(false)
   const [mode, setMode] = useState<'practice' | 'formative' | 'quiz'>('formative')
   const [cohortId, setCohortId] = useState(() => searchParams.get('classId') ?? '')
+  const [classIds, setClassIds] = useState<Set<string>>(() => new Set(searchParams.get('classId') ? [searchParams.get('classId')!] : []))
   const [duration, setDuration] = useState(3600)
   const [attempts, setAttempts] = useState(2)
   const [accessCode, setAccessCode] = useState('')
@@ -42,6 +44,13 @@ export function AssessmentBuilderPage() {
   const [previewWidth, setPreviewWidth] = useState<1200 | 768 | 390>(1200)
   const [previewSeed, setPreviewSeed] = useState(0)
   const [publishedLink, setPublishedLink] = useState('')
+  const [publishedAdministrations, setPublishedAdministrations] = useState<Array<{ id: string; publicId: string; classId: string | null; accessCode: string | null }>>([])
+  const [manualAcceptance, setManualAcceptance] = useState(true)
+  const [closesAt, setClosesAt] = useState('')
+  const [responseLimit, setResponseLimit] = useState('')
+  const [closedMessage, setClosedMessage] = useState('This assignment is no longer accepting responses.')
+  const [releaseTiming, setReleaseTiming] = useState<'immediate' | 'manual'>('manual')
+  const [releaseFields, setReleaseFields] = useState({ score: true, answers: false, authored: false, manual: false, annotations: false })
   const [importOpen, setImportOpen] = useState(false)
   const [sources, setSources] = useState<AssessmentDraft[]>([])
   const [sourceId, setSourceId] = useState('')
@@ -130,9 +139,12 @@ export function AssessmentBuilderPage() {
     if (!draft) return
     const result = await publishAssessmentDraft(draft.id, {
       mode, durationSeconds: duration, maxAttempts: attempts,
-      ...(cohortId ? { cohortId } : {}), ...(accessCode ? { accessCode } : {}),
+      ...(isAssessmentV2(draft.document) ? { classIds: [...classIds] } : cohortId ? { cohortId } : {}), ...(accessCode ? { accessCode } : {}),
+      collection: { manualAcceptance, ...(closesAt ? { closesAt: new Date(closesAt).toISOString() } : {}), ...(responseLimit ? { responseLimit: Number(responseLimit) } : {}), closedMessage },
+      releasePolicy: { timing: releaseTiming, showScore: releaseFields.score, showAnswers: releaseFields.answers, showAuthoredFeedback: releaseFields.authored, showManualFeedback: releaseFields.manual, showAnnotations: releaseFields.annotations },
     })
     setPublishedLink(result.publicId ? `${location.origin}/assessment/${result.publicId}` : '')
+    setPublishedAdministrations(result.administrations ?? [])
   }
 
   async function openImport() {
@@ -238,6 +250,10 @@ export function AssessmentBuilderPage() {
         <label><input type="radio" name="mode" value="quiz" checked={mode === 'quiz'} onChange={() => { setMode('quiz'); setAttempts(1) }} />
           <strong>Quiz / Test</strong><span>Roster, ID plus code, deliberate release.</span></label>
       </div>
+      {isAssessmentV2(draft.document) ? <>
+        <section><h2>Presentation</h2><div className="assessment-settings-grid"><label>Layout preset<select value={draft.document.presentation.preset ?? 'standard'} onChange={(event) => updateDocument((document) => isAssessmentV2(document) ? { ...document, presentation: { ...document.presentation, preset: event.target.value as 'compact' | 'standard' | 'focus' } } : document)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="focus">Focus</option></select></label><label><input type="checkbox" checked={draft.document.presentation.showProgress ?? true} onChange={(event) => updateDocument((document) => isAssessmentV2(document) ? { ...document, presentation: { ...document.presentation, showProgress: event.target.checked } } : document)} /> Show learner progress</label><label><input type="checkbox" checked={draft.document.presentation.showSectionTitles ?? true} onChange={(event) => updateDocument((document) => isAssessmentV2(document) ? { ...document, presentation: { ...document.presentation, showSectionTitles: event.target.checked } } : document)} /> Show section titles</label></div></section>
+        <section><h2>Blueprint health</h2><ul>{draft.document.sections.flatMap((section) => [section.items.length > 25 ? `${section.title}: more than 25 questions` : '', ...section.items.map((item) => item.type === 'diagnostic-field' && item.prompt.length > 200 && !item.helpText ? `${item.prompt.slice(0, 48)}: add learner help` : '')]).filter(Boolean).map((warning) => <li key={warning}>{warning}</li>)}</ul>{!draft.document.sections.some((section) => section.items.length > 25 || section.items.some((item) => item.type === 'diagnostic-field' && item.prompt.length > 200 && !item.helpText)) ? <p>Blueprint thresholds are healthy.</p> : null}</section>
+      </> : null}
     </main> : null}
     {tab === 'responses' ? <Suspense fallback={<main className="assessment-main"><p role="status">Loading responses…</p></main>}><AssessmentReportPage embedded /></Suspense> : null}
     {preview ? <div className="assessment-preview-backdrop" onMouseDown={() => setPreview(null)}>
@@ -250,7 +266,7 @@ export function AssessmentBuilderPage() {
     {publishOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setPublishOpen(false)}>
       <div className="assessment-drawer assessment-builder-drawer" role="dialog" aria-modal="true" aria-label="Publish assessment" onMouseDown={(event) => event.stopPropagation()}>
         <header className="assessment-preview-header"><div className="assessment-preview-header-copy"><span>Publish settings</span><h2>{draft.document.title}</h2><p>Choose the learner mode, timing, and access controls.</p></div><div className="assessment-preview-header-actions"><button className="assessment-preview-close" type="button" autoFocus aria-label="Close publish settings" onClick={() => setPublishOpen(false)}><X aria-hidden="true" /></button></div></header>
-        <div className="assessment-builder-drawer-body"><label>Mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="practice">Practice</option><option value="formative">Formative</option><option value="quiz">Quiz / Test</option></select></label>{mode !== 'practice' ? <label>Class<select value={cohortId} onChange={(event) => setCohortId(event.target.value)}><option value="">Anonymous formative only</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label> : null}<label>Duration (minutes)<input type="number" min="1" max="240" value={duration / 60} onChange={(event) => setDuration(Number(event.target.value) * 60)} /></label><label>Attempts<input type="number" min="1" max="3" value={attempts} onChange={(event) => setAttempts(Number(event.target.value))} /></label>{mode === 'quiz' ? <label>Access code<input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} /></label> : null}<button className="assessment-primary" type="button" onClick={() => void publish()}>Publish assignment</button>{publishedLink ? <p role="status">Published: <a href={publishedLink}>{publishedLink}</a></p> : null}</div>
+        <div className="assessment-builder-drawer-body"><label>Mode<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="practice">Practice</option><option value="formative">Formative</option><option value="quiz">Quiz / Test</option></select></label>{mode !== 'practice' ? isAssessmentV2(draft.document) ? <fieldset><legend>Classes</legend>{classes.map((item) => <label key={item.id}><input type="checkbox" checked={classIds.has(item.id)} onChange={() => setClassIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} /> {item.name}</label>)}</fieldset> : <label>Class<select value={cohortId} onChange={(event) => setCohortId(event.target.value)}><option value="">Anonymous formative only</option>{classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label> : null}<label>Duration (minutes)<input type="number" min="1" max="240" value={duration / 60} onChange={(event) => setDuration(Number(event.target.value) * 60)} /></label><label>Attempts<input type="number" min="1" max="3" value={attempts} onChange={(event) => setAttempts(Number(event.target.value))} /></label>{mode === 'quiz' ? <label>Access code<input value={accessCode} placeholder="Leave blank to generate one-time codes" onChange={(event) => setAccessCode(event.target.value)} /></label> : null}<details><summary>Collection settings</summary><label><input type="checkbox" checked={manualAcceptance} onChange={(event) => setManualAcceptance(event.target.checked)} /> Accept new attempts</label><label>Scheduled close<input type="datetime-local" value={closesAt} onChange={(event) => setClosesAt(event.target.value)} /></label><label>Response limit<input type="number" min="1" max="500" value={responseLimit} onChange={(event) => setResponseLimit(event.target.value)} /></label><label>Closed message<textarea maxLength={1000} value={closedMessage} onChange={(event) => setClosedMessage(event.target.value)} /></label></details><details><summary>Learner release</summary><label>Timing<select value={releaseTiming} onChange={(event) => setReleaseTiming(event.target.value as 'immediate' | 'manual')}><option value="manual">Manual release</option><option value="immediate">Immediate when fully auto-graded</option></select></label>{Object.entries({ score: 'Score', answers: 'Correct answers', authored: 'Authored feedback', manual: 'Manual feedback', annotations: 'Released annotations' }).map(([key, label]) => <label key={key}><input type="checkbox" checked={releaseFields[key as keyof typeof releaseFields]} onChange={(event) => setReleaseFields((current) => ({ ...current, [key]: event.target.checked }))} /> {label}</label>)}</details><button className="assessment-primary" type="button" onClick={() => void publish()}>Publish assignment</button>{publishedLink ? <p role="status">Published: <a href={publishedLink}>{publishedLink}</a></p> : null}{publishedAdministrations.map((administration) => { const link = `${location.origin}/assessment/${administration.publicId}`; return <article className="assessment-published-link" key={administration.id}><QRCodeSVG value={link} size={112} level="M" aria-label="Assignment access QR code" /><div><a href={link}>{link}</a>{administration.accessCode ? <strong>One-time access code: {administration.accessCode}</strong> : null}</div></article> })}</div>
       </div>
     </div> : null}
     {importOpen ? <div className="assessment-preview-backdrop" onMouseDown={() => setImportOpen(false)}>

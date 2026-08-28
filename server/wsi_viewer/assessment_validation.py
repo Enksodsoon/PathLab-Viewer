@@ -13,7 +13,8 @@ def _issue(code: str, path: str, message: str, *, level: str = "error") -> dict[
 def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
-    sections = document.get("sections") if isinstance(document.get("sections"), list) else []
+    raw_sections = document.get("sections")
+    sections: list[Any] = raw_sections if isinstance(raw_sections, list) else []
     items = flatten_v2_items(document)
     for section_index, section in enumerate(sections):
         section_items = section.get("items", []) if isinstance(section, dict) else []

@@ -93,9 +93,7 @@ from .time_support import as_utc, utc_now
 def assessment_definition_items(definition: dict[str, Any]) -> list[dict[str, Any]]:
     if definition.get("schema") == V2_SCHEMA:
         return [
-            item
-            for section in definition.get("sections", [])
-            for item in section.get("items", [])
+            item for section in definition.get("sections", []) for item in section.get("items", [])
         ]
     return list(definition.get("items", []))
 
@@ -1865,7 +1863,7 @@ def register_assessment_routes(
                 )
                 if busy is not None:
                     raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_RUNTIME_BUSY"})
-            targets: list[str | None] = cohort_ids or [None]
+            targets: list[str | None] = list(cohort_ids) if cohort_ids else [None]
             release_policy = payload.release_policy.model_dump(mode="json", by_alias=True)
             manual_items = any(
                 item.get("type") == "paragraph"
@@ -1876,14 +1874,14 @@ def register_assessment_routes(
                 release_policy["timing"] = "manual"
                 release_policy["convertedFromImmediate"] = True
             collection = payload.collection.model_dump(mode="json", by_alias=True)
-            for cohort_id in targets:
+            for target_cohort_id in targets:
                 raw_code = payload.access_code
                 if payload.mode == "quiz" and raw_code is None:
                     raw_code = secrets.token_urlsafe(6)
                 administration = AssessmentAdministration(
                     organization_id=draft.organization_id,
                     version_id=version.id,
-                    cohort_id=cohort_id,
+                    cohort_id=target_cohort_id,
                     mode=payload.mode,
                     status="open" if payload.mode == "practice" else "preparing",
                     duration_seconds=payload.duration_seconds,
@@ -1906,7 +1904,7 @@ def register_assessment_routes(
                 )
                 database.add(administration)
                 database.flush()
-                if cohort_id is not None:
+                if target_cohort_id is not None:
                     learners = database.scalars(
                         select(LearnerProfile)
                         .join(
@@ -1914,7 +1912,7 @@ def register_assessment_routes(
                             CohortEnrollment.learner_id == LearnerProfile.id,
                         )
                         .where(
-                            CohortEnrollment.cohort_id == cohort_id,
+                            CohortEnrollment.cohort_id == target_cohort_id,
                             CohortEnrollment.status == "active",
                         )
                         .limit(501)
@@ -1947,9 +1945,7 @@ def register_assessment_routes(
                         )
                     except AssessmentAssetError as error:
                         database.rollback()
-                        raise HTTPException(
-                            status_code=409, detail={"code": error.code}
-                        ) from error
+                        raise HTTPException(status_code=409, detail={"code": error.code}) from error
                 administrations.append((administration, raw_code))
         database.commit()
         response = {
@@ -2352,33 +2348,33 @@ def register_assessment_routes(
             AssessmentParticipant.administration_id == administration.id
         )
         active_sessions = int(
-                database.scalar(
-                    select(func.count(AssessmentSession.id)).where(
-                        AssessmentSession.participant_id.in_(participant_ids),
-                        AssessmentSession.revoked_at.is_(None),
-                        AssessmentSession.expires_at > utc_now(),
-                    )
+            database.scalar(
+                select(func.count(AssessmentSession.id)).where(
+                    AssessmentSession.participant_id.in_(participant_ids),
+                    AssessmentSession.revoked_at.is_(None),
+                    AssessmentSession.expires_at > utc_now(),
                 )
-                or 0
             )
+            or 0
+        )
         active_attempts = int(
-                database.scalar(
-                    select(func.count(AssessmentAttempt.id)).where(
-                        AssessmentAttempt.administration_id == administration.id,
-                        AssessmentAttempt.status == "active",
-                    )
+            database.scalar(
+                select(func.count(AssessmentAttempt.id)).where(
+                    AssessmentAttempt.administration_id == administration.id,
+                    AssessmentAttempt.status == "active",
                 )
-                or 0
             )
+            or 0
+        )
         submitted = int(
-                database.scalar(
-                    select(func.count(AssessmentAttempt.id)).where(
-                        AssessmentAttempt.administration_id == administration.id,
-                        AssessmentAttempt.status == "submitted",
-                    )
+            database.scalar(
+                select(func.count(AssessmentAttempt.id)).where(
+                    AssessmentAttempt.administration_id == administration.id,
+                    AssessmentAttempt.status == "submitted",
                 )
-                or 0
             )
+            or 0
+        )
         auto_submitted = int(
             database.scalar(
                 select(func.count(AssessmentAttempt.id)).where(
@@ -2389,14 +2385,14 @@ def register_assessment_routes(
             or 0
         )
         needs_grading = int(
-                database.scalar(
-                    select(func.count(AssessmentGradebookRow.id)).where(
-                        AssessmentGradebookRow.administration_id == administration.id,
-                        AssessmentGradebookRow.status == "needs_grading",
-                    )
+            database.scalar(
+                select(func.count(AssessmentGradebookRow.id)).where(
+                    AssessmentGradebookRow.administration_id == administration.id,
+                    AssessmentGradebookRow.status == "needs_grading",
                 )
-                or 0
             )
+            or 0
+        )
         expected = int(
             database.scalar(
                 select(func.count(AssessmentRosterSnapshot.id)).where(
@@ -2485,8 +2481,7 @@ def register_assessment_routes(
         if definition_version is None:
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_SCORE_MISSING"})
         items = {
-            item["id"]: item
-            for item in assessment_definition_items(definition_version.definition)
+            item["id"]: item for item in assessment_definition_items(definition_version.definition)
         }
         grouped: dict[str, list[ManualGradeRequest]] = {}
         for grade in grades:
@@ -2668,6 +2663,19 @@ def register_assessment_routes(
         administration = owned_administration(
             administration_id, authenticated, database, requested_org
         )
+        export_version = database.get(AssessmentVersion, administration.version_id)
+        export_definition = export_version.definition if export_version is not None else {}
+        export_sections = export_definition.get("sections", [])
+        export_items = [
+            (section.get("title", ""), item)
+            for section in export_sections
+            for item in section.get("items", [])
+            if item.get("type") != "section-information"
+        ] or [
+            ("", item)
+            for item in export_definition.get("items", [])
+            if item.get("type") != "information"
+        ]
 
         def safe_cell(value: object) -> str:
             rendered = "" if value is None else str(value)
@@ -2710,6 +2718,15 @@ def register_assessment_routes(
                     "points",
                     "maximum_points",
                     "score_version",
+                    "learner_number",
+                    "section",
+                    "item_id",
+                    "item_type",
+                    "response",
+                    "branch_reachable",
+                    "education_metadata",
+                    "item_points",
+                    "manual_feedback",
                 )
             )
             yield buffer.getvalue()
@@ -2727,10 +2744,16 @@ def register_assessment_routes(
                     AssessmentScoreVersion.points,
                     AssessmentScoreVersion.maximum_points,
                     AssessmentScoreVersion.version,
+                    AssessmentAttempt.id,
+                    AssessmentScoreVersion.breakdown,
+                    AssessmentScoreVersion.manual_feedback,
                 )
                 .join(
                     AssessmentParticipant,
                     AssessmentParticipant.id == AssessmentGradebookRow.participant_id,
+                )
+                .join(
+                    AssessmentAttempt, AssessmentAttempt.participant_id == AssessmentParticipant.id
                 )
                 .join(
                     AssessmentRosterSnapshot,
@@ -2746,23 +2769,66 @@ def register_assessment_routes(
                 .order_by(AssessmentRosterSnapshot.display_name, AssessmentGradebookRow.id)
                 .execution_options(yield_per=100)
             )
-            for row in database.execute(query):
-                buffer.seek(0)
-                buffer.truncate(0)
+            for learner_number, row in enumerate(database.execute(query), 1):
                 profile_values = row[:7]
                 metadata = row[7] or {}
-                result_values = row[8:]
-                writer.writerow(
-                    tuple(
-                        safe_cell(value)
-                        for value in (
-                            *profile_values,
-                            *(metadata.get(key, "") for key in metadata_keys),
-                            *result_values,
+                result_values = row[8:12]
+                attempt_id, breakdown, manual_feedback = row[12], row[13] or {}, row[14] or {}
+                responses = response_map = {
+                    response.item_id: response.response
+                    for response in database.scalars(
+                        select(AssessmentResponse).where(
+                            AssessmentResponse.attempt_id == attempt_id
                         )
                     )
+                }
+                reachable_sections = (
+                    set(reachable_section_ids(export_definition, responses))
+                    if export_sections
+                    else set()
                 )
-                yield buffer.getvalue()
+                for section_title, item in export_items:
+                    section_id = next(
+                        (
+                            section.get("id")
+                            for section in export_sections
+                            if item in section.get("items", [])
+                        ),
+                        None,
+                    )
+                    rendered_response = json.dumps(
+                        response_map.get(item.get("id"), {}),
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    )
+                    buffer.seek(0)
+                    buffer.truncate(0)
+                    writer.writerow(
+                        tuple(
+                            safe_cell(value)
+                            for value in (
+                                *profile_values,
+                                *(metadata.get(key, "") for key in metadata_keys),
+                                *result_values,
+                                learner_number,
+                                section_title,
+                                item.get("id", ""),
+                                item.get("type", ""),
+                                rendered_response,
+                                section_id in reachable_sections if export_sections else True,
+                                json.dumps(
+                                    item.get("education", {}),
+                                    ensure_ascii=False,
+                                    separators=(",", ":"),
+                                ),
+                                breakdown.get(item.get("id"), ""),
+                                manual_feedback.get(item.get("id"), "")
+                                if isinstance(manual_feedback, dict)
+                                else "",
+                            )
+                        )
+                    )
+                    yield buffer.getvalue()
 
         filename = f"assessment-{administration.public_id}.csv"
         return StreamingResponse(

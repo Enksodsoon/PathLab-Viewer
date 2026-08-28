@@ -248,7 +248,7 @@ export function AssessmentSectionCanvas({ document, onDocumentChange, onImport, 
                     <button type="button" aria-label={`Move question ${numbering.get(item.id)} down`} disabled={itemIndex === section.items.length - 1} onClick={() => moveItem(section.id, itemIndex, 1)}><ArrowDown /></button>
                     <button type="button" aria-label={`Delete question ${numbering.get(item.id)}`} onClick={() => updateSection(section.id, (current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }))}><Trash /></button>
                   </header>
-                  <QuestionEditor item={item} slides={slides} setSlides={setSlides} updateItem={updateItem} promptRef={() => undefined} />
+                  <QuestionEditor item={item} slides={slides} setSlides={setSlides} updateItem={updateItem} promptRef={() => undefined} routingTargets={document.sections.filter((candidate) => candidate.id !== section.id)} />
                 </article>)}
               </div>
               <div className="assessment-section-add-question"><label><span>Add question</span><select aria-label={`Question type for section ${sectionIndex + 1}`} defaultValue="multiple-choice">{questionTypeRegistry.filter((type) => type.type !== 'information').map((type) => <option key={type.type} value={type.type}>{type.label}</option>)}</select></label><button type="button" onClick={(event) => { const select = event.currentTarget.previousElementSibling?.querySelector('select') as HTMLSelectElement | null; addItem(section.id, (select?.value ?? 'multiple-choice') as AssessmentItemType) }}><Plus /> Add</button></div>

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 
 import { listEligibleAssessmentSlides } from '../../assessment/api'
 import { questionTypeGroups, questionTypeRegistry, questionTypesByType } from '../../assessment/questionTypes'
-import { assessmentItems, replaceAssessmentItems, type AssessmentDocument, type AssessmentItem, type AssessmentItemType, type DiagnosticSelection, type EligibleAssessmentSlide } from '../../assessment/types'
+import { assessmentItems, replaceAssessmentItems, type AssessmentDocument, type AssessmentItem, type AssessmentItemType, type AssessmentSection, type DiagnosticSelection, type EligibleAssessmentSlide } from '../../assessment/types'
 import { AssessmentDiagnosticField } from '../AssessmentDiagnosticField'
 
 interface CanvasProps {
@@ -403,7 +403,7 @@ function TypePicker({ onClose, onSelect }: { onClose: () => void; onSelect: (typ
     <div>{questionTypeGroups.map((group) => <section key={group}><h3>{group}</h3>{questionTypeRegistry.filter((definition) => definition.group === group).map((definition) => <button key={definition.type} type="button" aria-label={`Add ${definition.label.toLowerCase()}`} onClick={() => onSelect(definition.type)}><Plus aria-hidden="true" />{definition.label}</button>)}</section>)}</div>
   </div>
 }
-export function QuestionEditor({ item, slides, setSlides, updateItem, promptRef }: { item: AssessmentItem; slides: EligibleAssessmentSlide[]; setSlides: (slides: EligibleAssessmentSlide[]) => void; updateItem: (itemId: string, update: (item: AssessmentItem) => AssessmentItem) => void; promptRef: (node: HTMLTextAreaElement | null) => void }) {
+export function QuestionEditor({ item, slides, setSlides, updateItem, promptRef, routingTargets = [] }: { item: AssessmentItem; slides: EligibleAssessmentSlide[]; setSlides: (slides: EligibleAssessmentSlide[]) => void; updateItem: (itemId: string, update: (item: AssessmentItem) => AssessmentItem) => void; promptRef: (node: HTMLTextAreaElement | null) => void; routingTargets?: AssessmentSection[] }) {
   const supportsScoring = questionTypesByType[item.type].supportsScoring
   const selectedIds = (item.answerKey?.optionIds as string[] | undefined) ?? []
 
@@ -493,10 +493,17 @@ export function QuestionEditor({ item, slides, setSlides, updateItem, promptRef 
       <label>Teacher notes<textarea maxLength={2000} value={item.teacherNotes ?? ''} onChange={(event) => change((current) => ({ ...current, teacherNotes: event.target.value }))} /></label>
     </details>
 
+    {routingTargets.length ? <details className="assessment-progressive-section"><summary>Section routing</summary>
+      <p>Routing is evaluated when the learner exits this section. Leave a destination blank to continue normally.</p>
+      {item.options?.map((option, index) => { const id = optionId(option, index); const rule = item.routing?.rules?.find((candidate) => candidate.when.optionId === id); return <label key={id}>If “{optionLabel(option)}” is selected<select value={rule?.goToSectionId ?? ''} onChange={(event) => change((current) => { const rules = (current.routing?.rules ?? []).filter((candidate) => candidate.when.optionId !== id); if (event.target.value) rules.push({ when: { operator: 'equals', optionId: id }, goToSectionId: event.target.value }); return { ...current, routing: rules.length || current.routing?.defaultSectionId ? { ...current.routing, rules } : undefined } })}><option value="">Continue normally</option>{routingTargets.map((section) => <option key={section.id} value={section.id}>{section.title || 'Untitled section'}</option>)}</select></label> })}
+      <label>Default destination<select value={item.routing?.defaultSectionId ?? ''} onChange={(event) => change((current) => { const defaultSectionId = event.target.value || undefined; const rules = current.routing?.rules ?? []; return { ...current, routing: defaultSectionId || rules.length ? { ...current.routing, rules, defaultSectionId } : undefined } })}><option value="">Next section</option>{routingTargets.map((section) => <option key={section.id} value={section.id}>{section.title || 'Untitled section'}</option>)}</select></label>
+    </details> : null}
+
     {supportsScoring ? <details className="assessment-progressive-section"><summary>Feedback, validation & scoring</summary>
       <label>Correct feedback<textarea maxLength={4000} value={item.feedback?.correct ?? ''} onChange={(event) => change((current) => ({ ...current, feedback: { ...current.feedback, correct: event.target.value } }))} /></label>
       <label>Incorrect feedback<textarea maxLength={4000} value={item.feedback?.incorrect ?? ''} onChange={(event) => change((current) => ({ ...current, feedback: { ...current.feedback, incorrect: event.target.value } }))} /></label>
       <label>Validation message<input maxLength={500} value={item.validation?.message ?? ''} onChange={(event) => change((current) => ({ ...current, validation: { ...current.validation, message: event.target.value } }))} /></label>
+      {item.type === 'short-answer' || item.type === 'paragraph' ? <><label>Minimum characters<input type="number" min="0" max="4000" value={item.validation?.minimumLength ?? ''} onChange={(event) => change((current) => ({ ...current, validation: { ...current.validation, minimumLength: event.target.value ? Number(event.target.value) : undefined } }))} /></label><label>Maximum characters<input type="number" min="1" max="4000" value={item.validation?.maximumLength ?? ''} onChange={(event) => change((current) => ({ ...current, validation: { ...current.validation, maximumLength: event.target.value ? Number(event.target.value) : undefined } }))} /></label></> : null}
       {item.type === 'checkboxes' ? <label><input type="checkbox" checked={item.scoring?.partialCredit ?? false} onChange={(event) => change((current) => ({ ...current, scoring: { ...current.scoring, partialCredit: event.target.checked } }))} /> Bounded partial credit</label> : null}
     </details> : null}
     {supportsScoring ? <footer className="assessment-question-footer"><label>Required <input type="checkbox" checked={item.required ?? false} onChange={(event) => change((current) => ({ ...current, required: event.target.checked }))} /></label><label>Points <input value={item.points ?? '0'} onChange={(event) => change((current) => ({ ...current, points: event.target.value }))} inputMode="decimal" /></label></footer> : null}

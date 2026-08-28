@@ -215,6 +215,8 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
         value = response.get("value")
         rating = item.get("rating", {})
         try:
+            if value is None:
+                raise ValueError
             valid = int(value) == float(value) and 1 <= int(value) <= int(rating.get("max", 0))
         except (TypeError, ValueError, OverflowError):
             valid = False

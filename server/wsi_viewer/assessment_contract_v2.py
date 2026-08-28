@@ -4,7 +4,7 @@ import hashlib
 import json
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, cast
 
 from .assessment_contract import AssessmentContractError, CompiledAssessment
 
@@ -94,15 +94,17 @@ def _strip_private(value: Any) -> Any:
 
 def _validate_route(route: object, section_ids: set[str], option_ids: set[str]) -> None:
     _require(isinstance(route, dict), "ASSESSMENT_ROUTE_INVALID")
-    targets = [route.get("defaultSectionId")]
-    rules = route.get("rules", [])
+    route_data = cast(dict[str, Any], route)
+    targets = [route_data.get("defaultSectionId")]
+    rules = route_data.get("rules", [])
     _require(isinstance(rules, list), "ASSESSMENT_ROUTE_INVALID")
     for rule in rules:
         _require(isinstance(rule, dict), "ASSESSMENT_ROUTE_INVALID")
-        targets.append(rule.get("goToSectionId"))
-        condition = rule.get("when")
+        rule_data = cast(dict[str, Any], rule)
+        targets.append(rule_data.get("goToSectionId"))
+        condition = rule_data.get("when")
         _require(isinstance(condition, dict), "ASSESSMENT_ROUTE_INVALID")
-        option_id = condition.get("optionId")
+        option_id = cast(dict[str, Any], condition).get("optionId")
         if option_id is not None:
             _require(option_id in option_ids, "ASSESSMENT_ROUTE_INVALID")
     for target in targets:
@@ -119,9 +121,10 @@ def _validate_item(
     position: int,
 ) -> dict[str, Any]:
     _require(isinstance(raw, dict), "ASSESSMENT_INVALID_ITEM")
-    item = deepcopy(raw)
+    item = deepcopy(cast(dict[str, Any], raw))
     item_id = item.get("id")
     _require(isinstance(item_id, str) and bool(item_id), "ASSESSMENT_ITEM_ID_REQUIRED")
+    item_id = cast(str, item_id)
     _require(item_id not in all_ids, "ASSESSMENT_DUPLICATE_ID")
     all_ids.add(item_id)
     item_type = item.get("type")
@@ -178,17 +181,18 @@ def _validate_item(
     answer_key = item.get("answerKey")
     if item_type in CHOICE_TYPES:
         _require(isinstance(answer_key, dict), "ASSESSMENT_ANSWER_KEY_REQUIRED")
-        keys = answer_key.get("optionIds", [])
+        keys = cast(dict[str, Any], answer_key).get("optionIds", [])
         _require(isinstance(keys, list) and bool(keys), "ASSESSMENT_ANSWER_KEY_REQUIRED")
         _require(set(keys) <= option_ids, "ASSESSMENT_ANSWER_KEY_INVALID")
 
     if item_type == "rating":
         rating = item.get("rating")
         _require(isinstance(rating, dict), "ASSESSMENT_RATING_INVALID")
-        _require(rating.get("min") == 1, "ASSESSMENT_RATING_INVALID")
-        maximum = rating.get("max")
+        rating_data = cast(dict[str, Any], rating)
+        _require(rating_data.get("min") == 1, "ASSESSMENT_RATING_INVALID")
+        maximum = rating_data.get("max")
         _require(isinstance(maximum, int) and 3 <= maximum <= 10, "ASSESSMENT_RATING_INVALID")
-        _require(rating.get("style") in RATING_STYLES, "ASSESSMENT_RATING_INVALID")
+        _require(rating_data.get("style") in RATING_STYLES, "ASSESSMENT_RATING_INVALID")
 
     slide_id = item.get("slideId")
     if slide_id is not None:
@@ -222,6 +226,7 @@ def compile_assessment_v2(draft: dict[str, Any]) -> CompiledAssessment:
         _bounded_text(draft["description"], MAX_DESCRIPTION, "ASSESSMENT_DESCRIPTION_LIMIT")
     sections = draft.get("sections")
     _require(isinstance(sections, list) and bool(sections), "ASSESSMENT_SECTIONS_REQUIRED")
+    sections = cast(list[Any], sections)
     _require(len(sections) <= MAX_SECTIONS, "ASSESSMENT_SECTION_LIMIT")
 
     section_ids: set[str] = set()
@@ -237,7 +242,8 @@ def compile_assessment_v2(draft: dict[str, Any]) -> CompiledAssessment:
     normalized_sections: list[dict[str, Any]] = []
     position = 0
     for section_position, raw in enumerate(sections):
-        section = deepcopy(raw)
+        _require(isinstance(raw, dict), "ASSESSMENT_INVALID_SECTION")
+        section = deepcopy(cast(dict[str, Any], raw))
         _bounded_text(
             section.get("title"), MAX_TITLE, "ASSESSMENT_SECTION_TITLE_REQUIRED", required=True
         )
@@ -254,6 +260,7 @@ def compile_assessment_v2(draft: dict[str, Any]) -> CompiledAssessment:
             slide_ids.add(section_slide)
         items = section.get("items")
         _require(isinstance(items, list), "ASSESSMENT_ITEMS_REQUIRED")
+        items = cast(list[Any], items)
         normalized_items: list[dict[str, Any]] = []
         for raw_item in items:
             normalized_items.append(

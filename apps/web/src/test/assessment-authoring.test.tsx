@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   getAssessmentCourse: vi.fn(),
   getAssessmentDraft: vi.fn(),
   getAssessmentResults: vi.fn(),
+  gradeAssessmentResponse: vi.fn(),
   importAssessmentQuestions: vi.fn(),
   listAssessmentDrafts: vi.fn(),
   listAssessmentAdministrations: vi.fn(),
@@ -128,6 +129,7 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.getByText('8.17 / 11.67')).toBeVisible()
   expect(screen.queryByRole('complementary', { name: 'Learners needing support' })).not.toBeInTheDocument()
   expect(screen.getByText('Closed')).toBeVisible()
+  await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
   expect(screen.getByRole('heading', { name: 'Which diagnosis is most likely?' })).toBeVisible()
   expect(screen.getByText('7 points')).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Question' })).not.toBeInTheDocument()
@@ -135,10 +137,9 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.getByText('Excel').closest('a, button')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Visual' })).toHaveAttribute('download', 'lung-pathology-visual-report.svg')
 
-  await userEvent.click(screen.getByRole('button', { name: 'Questions' }))
-  expect(screen.getByRole('button', { name: 'Question 1: 1 answered, 0 correct' })).toBeVisible()
-
-  await userEvent.click(screen.getByRole('button', { name: 'Individual' }))
+  expect(screen.getByRole('button', { name: 'Questions' })).toBeVisible()
+  expect(screen.getByRole('button', { name: /Needs grading/ })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Individuals' }))
   expect(screen.getByRole('heading', { name: 'Individual response' })).toBeVisible()
   expect(screen.getAllByText('Anan Charoen')).toHaveLength(2)
   expect(screen.getByText('70% score')).toBeVisible()
@@ -191,15 +192,13 @@ it('renders a visual summary for every supported assessment item type', async ()
   render(<MemoryRouter initialEntries={['/admin/assessments/draft-1/report']}><Routes><Route path="/admin/assessments/:draftId/report" element={<AssessmentReportPage />} /></Routes></MemoryRouter>)
 
   expect(await screen.findByRole('heading', { name: 'Mixed format report' })).toBeVisible()
+  await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
   expect(screen.getByRole('list', { name: 'Answer distribution for question 1' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Answer distribution for question 2' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Text responses for question 3' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Text responses for question 4' })).toBeVisible()
   expect(screen.getAllByText('Manual review').length).toBeGreaterThanOrEqual(2)
   expect(document.querySelector('.assessment-response-text-chart')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Questions' }))
-  expect(screen.getByRole('button', { name: 'Question 3: 2 answered, manual review' })).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Question 4: 2 answered, manual review' })).toBeVisible()
   expect(screen.getByRole('img', { name: 'Spatial response heatmap for question 5' })).toBeVisible()
   expect(screen.getByText('Reference content shown to learners. It has no score or response chart.')).toBeVisible()
 })

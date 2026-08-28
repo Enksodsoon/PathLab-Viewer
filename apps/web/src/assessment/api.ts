@@ -113,9 +113,12 @@ export async function previewAssessmentDraft(id: string) {
 export interface PublishAssessmentSettings {
   mode: 'practice' | 'formative' | 'quiz'
   cohortId?: string
+  classIds?: string[]
   durationSeconds: number
   maxAttempts: number
   accessCode?: string
+  collection?: { manualAcceptance: boolean; closesAt?: string; responseLimit?: number; closedMessage?: string }
+  releasePolicy?: { timing: 'immediate' | 'manual'; showScore: boolean; showAnswers: boolean; showAuthoredFeedback: boolean; showManualFeedback: boolean; showAnnotations: boolean }
 }
 
 export async function duplicateAssessmentDraft(id: string, title?: string) {
@@ -146,6 +149,8 @@ export async function publishAssessmentDraft(id: string, settings?: PublishAsses
     schema: string
     publicId: string | null
     administrationId: string | null
+    accessCode?: string | null
+    administrations: Array<{ id: string; publicId: string; classId: string | null; accessCode: string | null }>
   }>(
     await csrfFetch(`/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/publish`, {
       method: 'POST',
@@ -524,8 +529,16 @@ export interface AssessmentResults {
       responseCount: number
       scoredCount: number
       averagePoints: string
+      reachableCount?: number
+      optionDistribution?: Record<string, number>
+      otherDistribution?: Record<string, number>
+      ratingDistribution?: Record<string, number>
+      ratingMean?: number | null
+      ratingMedian?: number | null
+      diagnosticLabels?: Record<string, number>
       spatialHeatmap?: { width: number; height: number; counts: number[][] }
     }>
+    sections?: Array<{ sectionId: string; title: string; reachable: number; completed: number; dropOff: number }>
   }
   individuals: {
     total: number
@@ -561,6 +574,7 @@ export async function gradeAssessmentResponse(administrationId: string, payload:
   itemId: string
   points: string
   expectedScoreVersion: number
+  feedback?: string
 }) {
   return body<{ scoreVersion: number; points: string; maximumPoints: string }>(await csrfFetch(
     `/api/v2/admin/assessment/administrations/${encodeURIComponent(administrationId)}/manual-grade`,
