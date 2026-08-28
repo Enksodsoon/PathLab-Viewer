@@ -24,7 +24,13 @@ export default defineConfig({
       '/api': apiTarget,
       '/livez': apiTarget,
       '/readyz': apiTarget,
-      '/tiles': apiTarget,
+      '/tiles': {
+        target: apiTarget,
+        rewrite: (path) => path.replace(
+          /^\/tiles\/([^/]+)\/[^/]+\/(.*)$/,
+          '/api/v1/public/slides/$1/tiles/$2',
+        ),
+      },
     },
   },
 })

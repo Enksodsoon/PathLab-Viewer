@@ -100,7 +100,7 @@ def test_verified_migration_is_signed_read_only_and_resumable(
 
     assert hashlib.sha256(source.read_bytes()).hexdigest() == source_hash
     assert manifest["verified"] is True
-    assert manifest["schemaRevision"] == "20260824_0028"
+    assert manifest["schemaRevision"] == "20260825_0032"
     assert all(table["passed"] for table in manifest["tables"])
     assert all(item["passed"] for item in manifest["foreignKeys"])
     evidence = {item["table"]: item for item in manifest["tables"]}
@@ -182,7 +182,7 @@ def test_cutover_source_check_is_read_only_and_blocks_classroom_guard(
     result = verify_cutover_source(source)
 
     assert result == {
-        "schemaRevision": "20260824_0028",
+        "schemaRevision": "20260826_0034",
         "sourceSha256": before,
         "activeJobs": 0,
         "activeClassrooms": 0,

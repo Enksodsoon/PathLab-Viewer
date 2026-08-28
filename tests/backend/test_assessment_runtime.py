@@ -64,6 +64,10 @@ def test_recorded_administrations_are_singleton_and_close_with_cooldown(
         json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2},
     )
     assert first.status_code == 201
+    listed = client.get("/api/v2/admin/assessment/administrations")
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["draftId"] == draft["id"]
+    assert listed.json()["items"][0]["version"] == 1
     second = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
         json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2},
@@ -76,6 +80,31 @@ def test_recorded_administrations_are_singleton_and_close_with_cooldown(
     assert closed.status_code == 200
     assert closed.json()["status"] == "closed"
     assert closed.json()["cooldownSeconds"] == 120
+
+
+def test_practice_administration_can_toggle_draft_open_and_closed(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    draft = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Practice lifecycle", "document": _document()},
+    ).json()
+    published = client.post(
+        f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
+        json={"mode": "practice", "durationSeconds": 3600, "maxAttempts": 1},
+    )
+    assert published.status_code == 201
+    administration_id = published.json()["administrationId"]
+    path = f"/api/v2/admin/assessment/administrations/{administration_id}/status"
+
+    returned_to_draft = client.patch(path, json={"status": "draft"})
+    assert returned_to_draft.status_code == 200
+    assert returned_to_draft.json()["status"] == "draft"
+    reopened = client.patch(path, json={"status": "open"})
+    assert reopened.status_code == 200
+    assert reopened.json()["status"] == "open"
+    closed = client.patch(path, json={"status": "closed"})
+    assert closed.status_code == 200
+    assert closed.json()["status"] == "closed"
 
 
 def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
@@ -358,13 +387,14 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     cohort_id = client.post("/api/v2/admin/assessment/classes", json={"name": "Year 3"}).json()[
         "id"
     ]
+    roster_rows = "student_id,first_name\ns001,=Somchai"
     preview = client.post(
         f"/api/v2/admin/assessment/classes/{cohort_id}/import/preview",
-        json={"rows": "s001,=Somchai"},
+        json={"rows": roster_rows},
     ).json()
     client.post(
         f"/api/v2/admin/assessment/classes/{cohort_id}/import/commit",
-        json={"rows": "s001,=Somchai", "checksum": preview["checksum"]},
+        json={"rows": roster_rows, "checksum": preview["checksum"]},
     )
     document = _document()
     document["items"].append(
@@ -429,6 +459,16 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     assert submitted.status_code == 200
     assert submitted.json()["needsGrading"] is True
     assert "score" not in submitted.json()
+    listed = client.get("/api/v2/admin/assessment/administrations").json()["items"][0]
+    assert listed["cohortId"] == cohort_id
+    assert listed["expectedParticipants"] == 1
+    assert listed["completedParticipants"] == 1
+    filtered = client.get(
+        "/api/v2/admin/assessment/administrations",
+        params={"cohort_id": cohort_id},
+    )
+    assert filtered.status_code == 200
+    assert [item["id"] for item in filtered.json()["items"]] == [administration_id]
     unreleased = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
     assert unreleased.status_code == 404
 
@@ -473,7 +513,17 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     )
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
+    assert exported.text.splitlines()[0].startswith(
+        "student_id,first_name,last_name,display_name,group,subgroup,email"
+    )
+    assert "s001" in exported.text
     assert "'=Somchai" in exported.text
+    admin_results = client.get(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/results"
+    ).json()
+    learner = admin_results["individuals"]["items"][0]
+    assert learner["studentId"] == "s001"
+    assert set(("firstName", "lastName", "group", "subgroup", "email", "metadata")) <= set(learner)
 
 
 def test_deadline_sweeper_auto_submits_incomplete_attempts(tmp_path: Path) -> None:

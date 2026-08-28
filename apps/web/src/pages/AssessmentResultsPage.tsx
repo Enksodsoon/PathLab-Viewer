@@ -2,6 +2,7 @@ import { DownloadSimple } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 
 import { getAssessmentResults, gradeAssessmentResponse, listAssessmentAdministrations, purgeAssessmentRecords, releaseAssessmentResults, updateAssessmentRetention, type AssessmentAdministrationSummary, type AssessmentResults } from '../assessment/api'
+import { AssessmentToolbar, AssessmentWorkspaceNav } from '../components/assessment/AssessmentChrome'
 import './assessment.css'
 
 type Tab = 'summary' | 'question' | 'individual' | 'grading'
@@ -36,8 +37,9 @@ export function AssessmentResultsPage() {
     setMessage(hold ? 'Academic/legal hold enabled.' : 'Retention policy saved.')
   }
 
-  return <main className="assessment-main">
-    <p className="assessment-kicker">Gradebook</p><h1>Results</h1>
+  return <><AssessmentToolbar title="Results" /><div className="assessment-main">
+    <header className="assessment-page-header"><div><h1>Results</h1><p>Review responses, grade written work, and deliberately release scores.</p></div></header>
+    <AssessmentWorkspaceNav />
     {administrations.length === 0 ? <section className="assessment-settings"><h2>No recorded administrations yet</h2><p>Published Formative and Quiz/Test results appear here.</p></section> : <>
       <label>Administration<select value={selected} onChange={(event) => setSelected(event.target.value)}>{administrations.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.mode} · {item.status}</option>)}</select></label>
       <div className="assessment-tabs" role="tablist" aria-label="Result views">{(['summary', 'question', 'individual', 'grading'] as const).map((value) => <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)}>{value === 'grading' ? `Needs grading (${results?.summary.needsGrading ?? 0})` : value[0].toUpperCase() + value.slice(1)}</button>)}</div>
@@ -47,5 +49,5 @@ export function AssessmentResultsPage() {
       {results && tab === 'individual' ? <section><a className="assessment-primary" href={`/api/v2/admin/assessment/administrations/${encodeURIComponent(selected)}/export.csv`}><DownloadSimple /> Export CSV</a><table><caption>Individual gradebook</caption><thead><tr><th>Student</th><th>Status</th><th>Score</th></tr></thead><tbody>{results.individuals.items.map((item) => <tr key={item.attemptId}><td>{item.displayName ?? 'Private learner'}</td><td>{item.status}</td><td>{item.points ?? '—'} / {item.maximumPoints ?? '—'}</td></tr>)}</tbody></table></section> : null}
       {results && tab === 'grading' ? <section className="assessment-settings"><h2>Sequential manual grading</h2>{results.individuals.items.filter((item) => item.status === 'needs_grading').map((item) => <button key={item.attemptId} type="button" onClick={() => { setGrading((current) => ({ ...current, attemptId: item.attemptId, itemId: Object.entries(item.breakdown).find(([, points]) => points === null)?.[0] ?? '' })) }}>{item.displayName ?? 'Private learner'} · score version {item.scoreVersion}</button>)}{grading.attemptId ? <pre aria-label="Student answer">{JSON.stringify(results.individuals.items.find((item) => item.attemptId === grading.attemptId)?.responses[grading.itemId] ?? {}, null, 2)}</pre> : null}<label>Question ID<input value={grading.itemId} onChange={(event) => setGrading((current) => ({ ...current, itemId: event.target.value }))} /></label><label>Points<input inputMode="decimal" value={grading.points} onChange={(event) => setGrading((current) => ({ ...current, points: event.target.value }))} /></label><button className="assessment-primary" type="button" onClick={() => void grade()}>Save grade & next</button><button type="button" disabled={results.summary.needsGrading > 0 || results.administration.status !== 'closed'} onClick={() => void release()}>Release scores</button></section> : null}
     </>}
-  </main>
+  </div></>
 }

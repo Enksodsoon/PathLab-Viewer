@@ -117,6 +117,29 @@
   border-block: 1px solid var(--border-soft);
 }
 
+.classroom-locked-folder {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 26px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.classroom-locked-folder > svg {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  color: var(--primary);
+}
+
+.classroom-locked-folder span,
+.classroom-locked-folder strong,
+.classroom-locked-folder small { display: block; }
+.classroom-locked-folder small { margin-top: 4px; color: var(--muted); font-size: 12px; }
+
 .classroom-folder-picker label {
   display: grid;
   grid-template-columns: 20px 28px minmax(0, 1fr);

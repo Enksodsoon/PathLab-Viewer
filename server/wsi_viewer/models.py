@@ -163,6 +163,7 @@ class LearnerProfile(Base):
     __tablename__ = "learner_profiles"
     __table_args__ = (
         UniqueConstraint("organization_id", "teaching_pseudonym", name="uq_learners_org_pseudonym"),
+        UniqueConstraint("organization_id", "student_id", name="uq_learners_org_student_id"),
         CheckConstraint("status IN ('active', 'disabled')", name="ck_learners_status"),
     )
 
@@ -172,7 +173,14 @@ class LearnerProfile(Base):
     )
     teaching_pseudonym: Mapped[str] = mapped_column(String(100), nullable=False)
     login_identifier_hash: Mapped[str | None] = mapped_column(String(64))
+    student_id: Mapped[str | None] = mapped_column(String(100))
+    first_name: Mapped[str | None] = mapped_column(String(160))
+    last_name: Mapped[str | None] = mapped_column(String(160))
     display_name: Mapped[str | None] = mapped_column(String(160))
+    group_name: Mapped[str | None] = mapped_column(String(100))
+    subgroup_name: Mapped[str | None] = mapped_column(String(100))
+    email: Mapped[str | None] = mapped_column(String(254))
+    roster_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_by_user_id: Mapped[str | None] = mapped_column(
@@ -199,7 +207,24 @@ class Cohort(Base):
     organization_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    assessment_course_id: Mapped[str | None] = mapped_column(
+        ForeignKey("assessment_courses.id", ondelete="SET NULL"), index=True
+    )
     name: Mapped[str] = mapped_column(String(160), nullable=False)
+    section_code: Mapped[str | None] = mapped_column(String(60))
+    description: Mapped[str | None] = mapped_column(Text)
+    meeting_schedule: Mapped[str | None] = mapped_column(String(160))
+    location: Mapped[str | None] = mapped_column(String(160))
+    folder_id: Mapped[str | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"), index=True
+    )
+    roster_rule: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=lambda: {"mode": "existing", "filters": []},
+    )
+    opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_by_user_id: Mapped[str | None] = mapped_column(
@@ -207,6 +232,68 @@ class Cohort(Base):
     )
     audit_event_id: Mapped[str | None] = mapped_column(
         ForeignKey("audit_events.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class AssessmentCourse(Base):
+    __tablename__ = "assessment_courses"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "course_code", name="uq_assessment_courses_org_code"),
+        CheckConstraint("status IN ('draft', 'active', 'archived')", name="ck_assessment_courses_status"),
+        CheckConstraint(
+            "scoring_method IN ('points', 'percentage', 'weighted', 'pass_fail')",
+            name="ck_assessment_courses_scoring_method",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    course_code: Mapped[str] = mapped_column(String(60), nullable=False)
+    semester: Mapped[str] = mapped_column(String(80), nullable=False)
+    academic_year: Mapped[str | None] = mapped_column(String(20))
+    icon_key: Mapped[str] = mapped_column(String(24), nullable=False, default="general", server_default="general")
+    scoring_method: Mapped[str] = mapped_column(String(20), nullable=False, default="percentage")
+    description: Mapped[str | None] = mapped_column(Text)
+    opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class AssessmentCourseEnrollment(Base):
+    __tablename__ = "assessment_course_enrollments"
+    __table_args__ = (
+        UniqueConstraint("course_id", "learner_id", name="uq_course_enrollments_course_learner"),
+        CheckConstraint("status IN ('active', 'withdrawn')", name="ck_course_enrollments_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    course_id: Mapped[str] = mapped_column(
+        ForeignKey("assessment_courses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    learner_id: Mapped[str] = mapped_column(
+        ForeignKey("learner_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -257,6 +344,12 @@ class AssessmentDraft(Base):
     organization_id: Mapped[str] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
+    course_id: Mapped[str | None] = mapped_column(
+        ForeignKey("assessment_courses.id", ondelete="SET NULL"), index=True
+    )
+    cohort_id: Mapped[str | None] = mapped_column(
+        ForeignKey("cohorts.id", ondelete="SET NULL"), index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -295,7 +388,7 @@ class AssessmentAdministration(Base):
     __table_args__ = (
         CheckConstraint("mode IN ('practice', 'formative', 'quiz')", name="ck_assessment_mode"),
         CheckConstraint(
-            "status IN ('preparing', 'open', 'closed', 'purged')",
+            "status IN ('draft', 'preparing', 'open', 'closed', 'purged')",
             name="ck_assessment_administration_status",
         ),
         CheckConstraint("max_attempts BETWEEN 1 AND 3", name="ck_assessment_attempt_limit"),
