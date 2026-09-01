@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -20,6 +21,37 @@ from distributed_certification import CertificationError, validate_plan
 
 class ShardCancelled(RuntimeError):
     """Raised inside the main thread so signal cancellation can be persisted."""
+
+
+PRIVATE_FAILURE_PATTERNS = (
+    ("participant admission missed the synchronized hold start", "admission-missed-hold"),
+    ("not every admitted participant opened SSE before hold", "sse-readiness-timeout"),
+    ("not every admitted participant had active SSE at hold start", "sse-inactive-at-hold"),
+    ("global active SSE target was not reached at hold start", "global-sse-target-shortfall"),
+    ("httpx.ConnectTimeout", "http-connect-timeout"),
+    ("httpx.ReadTimeout", "http-read-timeout"),
+    ("httpx.WriteTimeout", "http-write-timeout"),
+    ("httpx.PoolTimeout", "http-pool-timeout"),
+    ("httpx.ConnectError", "http-connect-error"),
+    ("httpx.RemoteProtocolError", "http-remote-protocol-error"),
+)
+
+
+def safe_private_failure_code(stderr: str) -> str | None:
+    """Classify private stderr without retaining or returning any original text."""
+    if not stderr.strip():
+        return None
+    for marker, code in PRIVATE_FAILURE_PATTERNS:
+        if marker in stderr:
+            return code
+    status = re.search(r"httpx\.HTTPStatusError: (?:Client|Server) error '[45][0-9]{2}", stderr)
+    if status:
+        return "http-status-error"
+    if "json.decoder.JSONDecodeError" in stderr:
+        return "response-json-invalid"
+    if "RuntimeError:" in stderr:
+        return "runtime-error-unclassified"
+    return "private-error-unclassified"
 
 
 def cancellation_handler(signum: int, _frame: object) -> None:
@@ -91,6 +123,9 @@ def safe_harness_failure_summary(
     codes: list[str] = []
     if not report:
         codes.append("report-missing")
+        private_failure_code = execution.get("privateFailureCode")
+        if isinstance(private_failure_code, str):
+            codes.append(private_failure_code)
     if execution.get("stalled") is True:
         codes.append("harness-stalled")
     if participant_error_count:
@@ -240,6 +275,7 @@ def _run_harness(environment: dict[str, str], timeout_seconds: int) -> dict[str,
         },
         # stderr is intentionally not returned or retained because it may contain URLs.
         "privateErrorPresent": bool(stderr.strip()),
+        "privateFailureCode": safe_private_failure_code(stderr),
     }
 
 
