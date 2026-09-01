@@ -1,20 +1,22 @@
-import { ArrowLeft, CaretLeft, CaretRight, ChartBar, DownloadSimple, FileXls, ImageSquare, UsersThree } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, CaretLeft, CaretRight, ChartBar, CheckCircle, DownloadSimple, FileXls, ImageSquare, UsersThree } from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   getAssessmentDraft,
+  getAssessmentMetadata,
   getAssessmentResults,
+  gradeAssessmentResponse,
   listAssessmentAdministrations,
   setAssessmentAdministrationStatus,
   type AssessmentAdministrationSummary,
   type AssessmentResults,
 } from '../assessment/api'
-import type { AssessmentDraft, AssessmentItem } from '../assessment/types'
+import { assessmentItems, type AssessmentDocument, type AssessmentDraft, type AssessmentItem } from '../assessment/types'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import './assessment.css'
 
-type ReportView = 'overall' | 'students'
+type ReportView = 'overall' | 'questions' | 'students' | 'grading'
 type OverviewChart = 'scores' | 'questions'
 
 function scoreBinsFor(cohortSize: number) {
@@ -111,8 +113,9 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
   const { draftId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
-  const view: ReportView = requestedView === 'students' ? requestedView : 'overall'
+  const view: ReportView = requestedView === 'students' || requestedView === 'questions' || requestedView === 'grading' ? requestedView : 'overall'
   const [draft, setDraft] = useState<AssessmentDraft | null>(null)
+  const [reportDocument, setReportDocument] = useState<AssessmentDocument | null>(null)
   const [administration, setAdministration] = useState<AssessmentAdministrationSummary | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -121,6 +124,10 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
   const [overviewChart, setOverviewChart] = useState<OverviewChart>('scores')
   const [selectedLearnerIndex, setSelectedLearnerIndex] = useState(0)
   const [statusBusy, setStatusBusy] = useState(false)
+  const [learnerSearch, setLearnerSearch] = useState('')
+  const [gradePoints, setGradePoints] = useState<Record<string, string>>({})
+  const [gradeFeedback, setGradeFeedback] = useState<Record<string, string>>({})
+  const [gradingBusy, setGradingBusy] = useState(false)
 
   const selectView = (nextView: ReportView) => {
     setSearchParams((current) => {
@@ -136,32 +143,61 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
     void Promise.all([getAssessmentDraft(draftId), listAssessmentAdministrations()])
       .then(async ([draftResult, administrationResult]) => {
         if (!active) return
-        setDraft(draftResult)
         const latest = administrationResult.items.find((item) => item.draftId === draftId) ?? null
+        setDraft(draftResult)
         setAdministration(latest)
-        if (latest) setResults(await loadAllResults(latest.id))
+        if (latest) {
+          const [loadedResults, metadata] = await Promise.all([
+            loadAllResults(latest.id),
+            Promise.resolve(getAssessmentMetadata(latest.publicId)).catch(() => null),
+          ])
+          if (!active) return
+          setResults(loadedResults)
+          setReportDocument(metadata?.manifest ?? draftResult.document)
+        } else {
+          setReportDocument(draftResult.document)
+        }
         if (active) setState('ready')
       })
       .catch(() => { if (active) setState('error') })
     return () => { active = false }
   }, [draftId])
 
-  const itemsById = useMemo(() => new Map(draft?.document.items.map((item) => [item.id, item]) ?? []), [draft])
+  const refreshResults = useCallback(async () => {
+    if (!administration || document.visibilityState === 'hidden') return
+    setResults(await loadAllResults(administration.id))
+  }, [administration])
+
+  useEffect(() => {
+    if (!administration) return
+    const timer = window.setInterval(() => { void refreshResults() }, 15_000)
+    const visible = () => { if (document.visibilityState === 'visible') void refreshResults() }
+    document.addEventListener('visibilitychange', visible)
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', visible) }
+  }, [administration, refreshResults])
+
+  const draftItems = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
+  const editableQuestions = useMemo(() => draftItems.filter((item) => item.type !== 'information' && item.type !== 'section-information'), [draftItems])
+  const reportItems = useMemo(() => (reportDocument ? assessmentItems(reportDocument) : draftItems).filter((item) => item.type !== 'information' && item.type !== 'section-information'), [draftItems, reportDocument])
+  const reportQuestions = reportItems
+  const publishedVersionDiffers = Boolean(administration && reportDocument && (
+    editableQuestions.length !== reportQuestions.length
+    || editableQuestions.some((item, index) => item.id !== reportQuestions[index]?.id)
+  ))
   const questions = useMemo(() => {
     const summaries = results?.summary.questions ?? {}
-    const ids = new Set([...draft?.document.items.map((item) => item.id) ?? [], ...Object.keys(summaries)])
-    return [...ids].map((itemId, index) => ({
-      itemId,
+    return reportItems.map((item, index) => ({
+      itemId: item.id,
       index,
-      item: itemsById.get(itemId),
-      summary: summaries[itemId] ?? { responseCount: 0, scoredCount: 0, averagePoints: '0' },
+      item,
+      summary: summaries[item.id] ?? { responseCount: 0, scoredCount: 0, averagePoints: '0' },
     }))
-  }, [draft, itemsById, results])
+  }, [reportItems, results])
 
   const individuals = useMemo(() => results?.individuals.items ?? [], [results])
-  const manualPoints = useMemo(() => new Map(
-    draft?.document.items.filter((item) => needsManualReview(item)).map((item) => [item.id, number(item.points)]) ?? [],
-  ), [draft])
+  const manualPoints = useMemo(() => new Map<string, number>(
+    reportItems.filter((item) => needsManualReview(item)).map((item) => [item.id, number(item.points)]),
+  ), [reportItems])
   const completion = percent(results?.summary.completionRate)
   const averagePossible = individuals.length
     ? individuals.reduce((sum, item) => sum + scoredMaximum(item, manualPoints), 0) / individuals.length
@@ -237,7 +273,18 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
         }).length,
     }
   }), [individuals, questions])
-  const selectedLearner = individuals[Math.min(selectedLearnerIndex, Math.max(0, individuals.length - 1))]
+  const filteredIndividuals = individuals.filter((learner) => (learner.displayName ?? learner.studentId ?? '').toLocaleLowerCase().includes(learnerSearch.trim().toLocaleLowerCase()))
+  const selectedLearner = filteredIndividuals[Math.min(selectedLearnerIndex, Math.max(0, filteredIndividuals.length - 1))]
+  const gradingQueue = filteredIndividuals.flatMap((learner) => reportItems.filter((item) => needsManualReview(item) && learner.breakdown[item.id] === null).map((item) => ({ learner, item })))
+  const saveGrade = async (attemptId: string, item: AssessmentItem, expectedScoreVersion: number | null) => {
+    if (!administration || expectedScoreVersion === null) return
+    const key = `${attemptId}:${item.id}`
+    setGradingBusy(true)
+    try {
+      await gradeAssessmentResponse(administration.id, { attemptId, itemId: item.id, points: gradePoints[key] ?? '0', feedback: gradeFeedback[key], expectedScoreVersion })
+      await refreshResults()
+    } finally { setGradingBusy(false) }
+  }
   const toggleResponses = async () => {
     if (!administration || statusBusy) return
     const target = administration.status === 'open' ? 'closed' : 'open'
@@ -340,7 +387,7 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
             <strong>{option.count} <small>({share}%)</small></strong>
           </div>
         })}
-      </div> : question.item?.type === 'diagnostic-field' && heatmap ? <div className="assessment-response-spatial-chart" role="img" aria-label={`Spatial response heatmap for question ${question.index + 1}`}><div className="assessment-response-wsi-field" style={{ gridTemplateColumns: `repeat(${heatmap.width}, 1fr)` }}>{slidePreview ? <img src={slidePreview} alt="Synthetic H&E whole-slide teaching field showing invasive gland-forming tumor" /> : null}{heatmap.counts.flat().map((count, index) => <i key={index} style={{ opacity: count ? .18 + count / heatmapMaximum * .72 : 0 }} />)}{keyedRegion ? <b className="assessment-response-answer-region" style={{ left: `${keyedRegion.x * 100}%`, top: `${keyedRegion.y * 100}%`, width: `${(keyedRegion.width ?? .08) * 100}%`, height: `${(keyedRegion.height ?? .08) * 100}%` }}><span>Keyed invasive focus</span></b> : null}</div><div className="assessment-response-spatial-key"><strong>{question.summary.responseCount} marked regions</strong><span>Expected answer: pulmonary adenocarcinoma</span><small>Teaching fixture · synthetic H&amp;E field</small></div></div>
+      </div> : question.item?.type === 'diagnostic-field' && heatmap ? <div className="assessment-response-spatial-chart" role="img" aria-label={`Spatial response heatmap for question ${question.index + 1}`}><div className="assessment-response-wsi-field" style={{ gridTemplateColumns: `repeat(${heatmap.width}, 1fr)` }}>{slidePreview ? <img src={slidePreview} alt="Assessment slide thumbnail" /> : null}{heatmap.counts.flat().map((count, index) => <i key={index} style={{ opacity: count ? .18 + count / heatmapMaximum * .72 : 0 }} />)}{keyedRegion ? <b className="assessment-response-answer-region" style={{ left: `${keyedRegion.x * 100}%`, top: `${keyedRegion.y * 100}%`, width: `${(keyedRegion.width ?? .08) * 100}%`, height: `${(keyedRegion.height ?? .08) * 100}%` }}><span>Authored answer region</span></b> : null}</div><div className="assessment-response-spatial-key"><strong>{question.summary.responseCount} marked regions</strong><span>{Object.keys(question.summary.diagnosticLabels ?? {}).length ? `Learner labels: ${Object.keys(question.summary.diagnosticLabels ?? {}).join(', ')}` : 'No diagnostic labels submitted'}</span><small>Protected teacher analytics</small></div></div>
         : question.texts.length ? <div className="assessment-response-text-list" role="list" aria-label={`Text responses for question ${question.index + 1}`}>
           {question.texts.slice(0, 6).map(([answer, count]) => <div key={answer} role="listitem"><q>{answer}</q>{count > 1 ? <span>{count}</span> : null}</div>)}
           {question.texts.length > 6 ? <p>+{question.texts.length - 6} unique answers</p> : null}
@@ -358,14 +405,17 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
     <main className={`assessment-main assessment-report-page assessment-responses-page${embedded ? ' assessment-report-page--embedded' : ''}`}>
       {embedded ? null : <Link className="assessment-report-back" to="/admin/assessments"><ArrowLeft aria-hidden="true" /> Assessments</Link>}
       <header className="assessment-responses-header">
-        <div><h1>{draft.title.replace(/[—–]/g, '-')}</h1><p>{administration ? `${administration.mode.replaceAll('_', ' ')} / ${questions.length} questions / version ${administration.version}` : `${questions.length} questions / unpublished`}</p></div>
+        <div><h1>{draft.title.replace(/[—–]/g, '-')}</h1><p>{administration ? `${administration.mode.replaceAll('_', ' ')} / ${reportQuestions.length} questions / version ${administration.version}` : `${reportQuestions.length} questions / unpublished`}</p></div>
         <div className="assessment-responses-header-actions">{learnersNeedingSupport.length ? <aside className="assessment-response-support" aria-label="Learners needing support"><UsersThree aria-hidden="true" /><strong>{learnersNeedingSupport.length}</strong><span>below 50%</span><button type="button" onClick={() => selectView('students')}>Review</button></aside> : null}<aside className={`assessment-response-status is-${administration?.status ?? 'draft'}`}><span aria-hidden="true" /><div><strong>{administration?.status === 'open' ? 'Active' : administration?.status === 'closed' ? 'Closed' : 'Draft'}</strong><small>{administration ? `${administration.completedParticipants} of ${administration.expectedParticipants ?? administration.completedParticipants} learners completed` : 'Not accepting responses'}</small></div>{administration && administration.status !== 'draft' ? <button type="button" role="switch" aria-checked={administration.status === 'open'} aria-label="Accepting responses" disabled={statusBusy} onClick={() => void toggleResponses()}><i /></button> : null}</aside></div>
       </header>
+      {publishedVersionDiffers ? <p className="assessment-report-version-note">Showing published version {administration?.version} with {reportQuestions.length} questions. The editable draft currently has {editableQuestions.length} questions.</p> : null}
 
       <div className="assessment-responses-navigation">
         <nav className="assessment-responses-tabs" aria-label="Response views">
           <button type="button" aria-current={view === 'overall' ? 'page' : undefined} onClick={() => selectView('overall')}>Summary</button>
-          <button type="button" aria-current={view === 'students' ? 'page' : undefined} onClick={() => selectView('students')}>Individual</button>
+          <button type="button" aria-current={view === 'questions' ? 'page' : undefined} onClick={() => selectView('questions')}>Questions</button>
+          <button type="button" aria-current={view === 'students' ? 'page' : undefined} onClick={() => selectView('students')}>Individuals</button>
+          <button type="button" aria-current={view === 'grading' ? 'page' : undefined} onClick={() => selectView('grading')}>Needs grading {results?.summary.needsGrading ? `(${results.summary.needsGrading})` : ''}</button>
         </nav>
         <div className="assessment-report-export-actions" aria-label="Export report">
           {administration ? <a href={`/api/v2/admin/assessment/administrations/${encodeURIComponent(administration.id)}/export.csv`} download><DownloadSimple aria-hidden="true" /> CSV</a> : null}
@@ -381,11 +431,12 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
           <div className="assessment-response-average"><div className="assessment-response-score-ring" role="img" aria-label={`${Math.round(averageEarned / Math.max(1, averagePossible) * 100)}% average score`}><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" /><circle cx="60" cy="60" r="50" pathLength="100" style={{ strokeDasharray: `${Math.round(averageEarned / Math.max(1, averagePossible) * 100)} 100` }} /></svg><strong>{Math.round(averageEarned / Math.max(1, averagePossible) * 100)}%</strong></div><dl><div><dt>Points</dt><dd>{formatPoints(averageEarned)} / {averagePossible ? formatPoints(averagePossible) : '—'}</dd></div><div><dt>Median</dt><dd>{Math.round(medianScore)}%</dd></div><div><dt>Responses</dt><dd>{results.summary.responses}</dd></div></dl></div>
           <div className="assessment-response-distribution"><header><h2>{overviewChart === 'scores' ? 'Score distribution' : 'Question performance'}</h2><div className="assessment-response-chart-toggle" aria-label="Overview chart"><button type="button" aria-pressed={overviewChart === 'scores'} onClick={() => setOverviewChart('scores')}>Scores</button><button type="button" aria-pressed={overviewChart === 'questions'} onClick={() => setOverviewChart('questions')}>Questions</button></div></header>{overviewChart === 'scores' ? <div className="assessment-response-score-bars">{distribution.map((bin) => <button key={bin.label} type="button" className={bin.value === distributionMax ? 'is-peak' : ''} aria-label={`${bin.label}: ${bin.value} learners`} aria-pressed={activeScoreBin.label === bin.label} onClick={() => setSelectedScoreRange(bin.label)}><strong>{bin.value}</strong><i style={{ height: `${Math.max(4, bin.value / distributionMax * 100)}%` }} /><span>{bin.label}</span></button>)}</div> : <><div className="assessment-response-question-bars">{questionResponses.filter((question) => question.item?.type !== 'information').map((question) => <button key={question.itemId} type="button" aria-label={`Question ${question.index + 1}: ${question.summary.responseCount} answered${question.correctCount === null ? ', manual review' : `, ${question.correctCount} correct`}`} onClick={() => document.getElementById(`assessment-question-${question.itemId}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })}><span className="assessment-question-bar-values"><i className="is-answered" style={{ height: `${Math.max(4, question.summary.responseCount / Math.max(1, individuals.length) * 100)}%` }} />{question.correctCount === null ? <i className="is-review" /> : <i className="is-correct" style={{ height: `${Math.max(4, question.correctCount / Math.max(1, individuals.length) * 100)}%` }} />}</span><strong>Q{question.index + 1}</strong><small>{question.correctCount === null ? 'Review' : `${question.correctCount}/${question.summary.responseCount}`}</small></button>)}</div><footer className="assessment-response-chart-legend"><span><i className="is-answered" />Answered</span><span><i className="is-correct" />Correct</span><span><i className="is-review" />Manual review</span></footer></>}</div>
         </section>
-        <section className="assessment-response-question-stack" aria-label="Question response summaries">{questionResponses.map((question) => renderQuestionResponse(question))}</section>
       </div> : null}
 
+      {results && view === 'questions' ? <section className="assessment-response-question-stack" aria-label="Question response summaries">{questionResponses.map((question) => renderQuestionResponse(question))}</section> : null}
+
       {results && view === 'students' ? <section className="assessment-response-individual" aria-labelledby="individual-response-title">
-        <header><div><h2 id="individual-response-title">Individual response</h2><p>Review every answer from one learner without losing the assessment context.</p></div><div className="assessment-response-learner-picker"><button type="button" aria-label="Previous learner" disabled={selectedLearnerIndex <= 0} onClick={() => setSelectedLearnerIndex((value) => Math.max(0, value - 1))}><CaretLeft aria-hidden="true" /></button><select aria-label="Select learner" value={selectedLearnerIndex} onChange={(event) => setSelectedLearnerIndex(Number(event.target.value))}>{individuals.map((learner, index) => <option key={learner.attemptId} value={index}>{learner.displayName ?? `Learner ${index + 1}`}</option>)}</select><button type="button" aria-label="Next learner" disabled={selectedLearnerIndex >= individuals.length - 1} onClick={() => setSelectedLearnerIndex((value) => Math.min(individuals.length - 1, value + 1))}><CaretRight aria-hidden="true" /></button></div></header>
+        <header><div><h2 id="individual-response-title">Individual response</h2><p>Review every answer from one learner without losing the assessment context.</p></div><div className="assessment-response-learner-picker"><label className="assessment-response-learner-search"><span className="visually-hidden">Search learners</span><input type="search" aria-label="Search learners" placeholder="Search learners" value={learnerSearch} onChange={(event) => { setLearnerSearch(event.target.value); setSelectedLearnerIndex(0) }} /></label><button type="button" aria-label="Previous learner" disabled={selectedLearnerIndex <= 0 || !filteredIndividuals.length} onClick={() => setSelectedLearnerIndex((value) => Math.max(0, value - 1))}><CaretLeft aria-hidden="true" /></button><select aria-label="Select learner" value={filteredIndividuals.length ? Math.min(selectedLearnerIndex, filteredIndividuals.length - 1) : ''} disabled={!filteredIndividuals.length} onChange={(event) => setSelectedLearnerIndex(Number(event.target.value))}>{filteredIndividuals.map((learner, index) => <option key={learner.attemptId} value={index}>{learner.displayName ?? `Learner ${index + 1}`}</option>)}</select><button type="button" aria-label="Next learner" disabled={!filteredIndividuals.length || selectedLearnerIndex >= filteredIndividuals.length - 1} onClick={() => setSelectedLearnerIndex((value) => Math.min(filteredIndividuals.length - 1, value + 1))}><CaretRight aria-hidden="true" /></button></div></header>
         {selectedLearner ? <><article className="assessment-response-learner-summary"><div><span>{selectedLearner.displayName?.slice(0, 1) ?? 'L'}</span><div><strong>{selectedLearner.displayName ?? 'Private learner'}</strong><small>{selectedLearner.status.replaceAll('_', ' ')}</small></div></div><p><strong>{formatPoints(scoredPoints(selectedLearner, manualPoints))} / {formatPoints(scoredMaximum(selectedLearner, manualPoints))}</strong><span>{Math.round(scorePercent(selectedLearner, manualPoints))}% score</span></p></article><div className="assessment-response-answer-stack">{questionResponses.map((question) => {
           const response = selectedLearner.responses[question.itemId] ?? {}
           const selectedIds = response.optionId ? [String(response.optionId)] : Array.isArray(response.optionIds) ? response.optionIds.map(String) : []
@@ -397,6 +448,8 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
           return <article key={question.itemId}><header><span>Question {question.index + 1}</span><strong>{points ?? '—'} / {question.item?.points ?? '—'} pts</strong></header><h3>{question.item?.prompt || `Question ${question.index + 1}`}</h3><p className={answerText === 'No answer' ? 'is-empty' : ''}>{answerText}</p></article>
         })}</div></> : <p>No learner responses are available.</p>}
       </section> : null}
+
+      {results && view === 'grading' ? <section className="assessment-grading-workspace" aria-labelledby="grading-title"><header><div><h2 id="grading-title">Needs grading</h2><p>{gradingQueue.length} responses require a teacher decision.</p></div><label>Search learners<input type="search" value={learnerSearch} onChange={(event) => setLearnerSearch(event.target.value)} /></label><button type="button" onClick={() => void refreshResults()}>Refresh</button></header>{gradingQueue.length ? <ol>{gradingQueue.map(({ learner, item }, index) => { const key = `${learner.attemptId}:${item.id}`; const response = learner.responses[item.id] ?? {}; return <li key={key}><header><span>{index + 1} of {gradingQueue.length}</span><strong>{learner.displayName ?? learner.studentId ?? 'Private learner'}</strong></header><h3>{item.prompt}</h3><blockquote>{String(response.text ?? response.diagnosis ?? 'No answer')}</blockquote><div><label>Points<input type="number" min="0" max={item.points ?? '0'} step="0.001" value={gradePoints[key] ?? ''} onChange={(event) => setGradePoints((current) => ({ ...current, [key]: event.target.value }))} /></label><label>Feedback<textarea maxLength={4000} value={gradeFeedback[key] ?? ''} onChange={(event) => setGradeFeedback((current) => ({ ...current, [key]: event.target.value }))} /></label><button className="assessment-primary" type="button" disabled={gradingBusy || !gradePoints[key]} onClick={() => void saveGrade(learner.attemptId, item, learner.scoreVersion)}>Save & next</button></div></li>})}</ol> : <div className="assessment-report-zero"><CheckCircle aria-hidden="true" /><div><h3>Grading complete</h3><p>No responses match the current queue.</p></div></div>}</section> : null}
     </main>
   </>
 }

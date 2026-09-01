@@ -1,12 +1,13 @@
-import { BookmarkSimple, CheckCircle, Clock, WifiSlash } from '@phosphor-icons/react'
+import { BookmarkSimple, Check, CheckCircle, Clock, MagnifyingGlass, UserCircle, WifiSlash } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-import { accessAssessment, AssessmentHttpError, getAssessmentMetadata, getAssessmentResult, getPracticeBundle, restoreAssessmentSession, saveAssessmentResponses, startAssessmentAttempt, submitAssessmentAttempt } from '../assessment/api'
+import { accessAssessment, AssessmentHttpError, getAssessmentMetadata, getAssessmentResult, getPracticeBundle, restoreAssessmentSession, saveAssessmentResponses, searchAssessmentRoster, startAssessmentAttempt, submitAssessmentAttempt, type AssessmentRosterMatch } from '../assessment/api'
 import { enqueueAssessmentResponse, listAssessmentOutbox, removeAssessmentOutbox } from '../assessment/outbox'
+import { pruneUnreachableResponses, reachableItems } from '../assessment/learnerRuntime'
 import { scorePractice } from '../assessment/practiceScoring'
-import type { AssessmentDocument, AssessmentItem, DiagnosticSelection } from '../assessment/types'
-import { AssessmentDiagnosticField } from '../components/AssessmentDiagnosticField'
+import { type AssessmentDocument, type AssessmentItem } from '../assessment/types'
+import { AssessmentLearnerQuestion } from '../components/assessment/AssessmentLearnerQuestion'
 import './assessment.css'
 
 type ResponseMap = Record<string, Record<string, unknown>>
@@ -18,9 +19,10 @@ const responseFor = (item: AssessmentItem, responses: ResponseMap) => responses[
 
 function answered(item: AssessmentItem, responses: ResponseMap) {
   const value = responseFor(item, responses)
-  if (item.type === 'information') return true
-  if (item.type === 'multiple-choice') return Boolean(value.optionId)
+  if (item.type === 'information' || item.type === 'section-information') return true
+  if (item.type === 'multiple-choice' || item.type === 'dropdown') return Boolean(value.optionId || value.other)
   if (item.type === 'checkboxes') return Array.isArray(value.optionIds) && value.optionIds.length > 0
+  if (item.type === 'rating') return Number(value.value) >= 1
   if (item.type === 'diagnostic-field') return Boolean(value.selection || value.diagnosis)
   return Boolean(String(value.text ?? '').trim())
 }
@@ -40,6 +42,11 @@ export function AssessmentStudentPage() {
   const [reviewing, setReviewing] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [identifier, setIdentifier] = useState('')
+  const [selectedLearner, setSelectedLearner] = useState<AssessmentRosterMatch | null>(null)
+  const [rosterMatches, setRosterMatches] = useState<AssessmentRosterMatch[]>([])
+  const [rosterSearching, setRosterSearching] = useState(false)
+  const [rosterSearchError, setRosterSearchError] = useState('')
+  const [rosterSearchCompleted, setRosterSearchCompleted] = useState('')
   const [accessCode, setAccessCode] = useState('')
   const [accessError, setAccessError] = useState(false)
   const [takeover, setTakeover] = useState(false)
@@ -153,9 +160,38 @@ export function AssessmentStudentPage() {
     if (syncTimer.current !== null) window.clearTimeout(syncTimer.current)
   }, [])
 
+  useEffect(() => {
+    if (selectedLearner || identifier.trim().length < 2 || !accessCode.trim() || mode === 'practice') {
+      setRosterMatches([])
+      setRosterSearching(false)
+      setRosterSearchCompleted('')
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setRosterSearching(true)
+      setRosterSearchError('')
+      void searchAssessmentRoster(publicId, identifier.trim(), accessCode.trim()).then((result) => {
+        if (!cancelled) setRosterMatches(result.items)
+      }).catch(() => {
+        if (!cancelled) {
+          setRosterMatches([])
+          setRosterSearchError('Check the access code, then search again.')
+        }
+      }).finally(() => {
+        if (!cancelled) {
+          setRosterSearching(false)
+          setRosterSearchCompleted(identifier.trim())
+        }
+      })
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [accessCode, identifier, mode, publicId, selectedLearner])
+
   async function enter(kind: 'anonymous' | 'roster') {
     try {
-      const access = await accessAssessment({ kind, publicId, studentIdentifier: identifier, accessCode, takeover })
+      if (kind === 'roster' && !selectedLearner) return
+      const access = await accessAssessment({ kind, publicId, studentIdentifier: selectedLearner?.identifier, accessCode, takeover })
       sessionStorage.setItem(sessionKey(publicId), access.csrfToken)
       setCsrf(access.csrfToken)
       setAccessError(false)
@@ -169,7 +205,8 @@ export function AssessmentStudentPage() {
 
   function update(item: AssessmentItem, response: Record<string, unknown>) {
     setResponses((currentResponses) => {
-      const next = { ...currentResponses, [item.id]: response }
+      const unpruned = { ...currentResponses, [item.id]: response }
+      const next = document ? pruneUnreachableResponses(document, unpruned) : unpruned
       if (mode === 'practice') localStorage.setItem(practiceKey(publicId), JSON.stringify({ responses: next, expiresAt: practiceExpiry }))
       return next
     })
@@ -186,8 +223,9 @@ export function AssessmentStudentPage() {
 
   async function submit() {
     if (!document) return
-    const missing = document.items.find((item) => item.required && !answered(item, responses))
-    if (missing) { setCurrent(document.items.indexOf(missing)); setReviewing(false); return }
+    const items = reachableItems(document, responses)
+    const missing = items.find((item) => item.required && !answered(item, responses))
+    if (missing) { setCurrent(items.indexOf(missing)); setReviewing(false); return }
     if (mode === 'practice') {
       const score = scorePractice(document, responses)
       setResult({ status: 'submitted', released: true, score: { points: String(score.points), maximumPoints: String(score.maximumPoints) }, needsGrading: Object.values(score.breakdown).some((value) => value === null) })
@@ -199,38 +237,35 @@ export function AssessmentStudentPage() {
     setResult({ ...released, needsGrading: submitted.needsGrading })
   }
 
-  const allAnswered = useMemo(() => document?.items.every((item) => !item.required || answered(item, responses)) ?? false, [document, responses])
+  const items = useMemo(() => document ? reachableItems(document, responses) : [], [document, responses])
+  const allAnswered = useMemo(() => items.every((item) => !item.required || answered(item, responses)), [items, responses])
+  useEffect(() => {
+    if (!attemptId) return
+    const reachable = new Set(items.map((item) => item.id))
+    void listAssessmentOutbox(attemptId).then((entries) => removeAssessmentOutbox(entries.filter((entry) => !reachable.has(entry.itemId)).map((entry) => entry.id)))
+  }, [attemptId, items])
+  useEffect(() => setCurrent((index) => Math.min(index, Math.max(items.length - 1, 0))), [items.length])
   if (!document) return <main className="assessment-loading"><p role="status">{status}</p></main>
   if (mode !== 'practice' && !csrf) return <main className="assessment-entry">
-    <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1>
+    <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1><p className="assessment-entry-intro">Choose your roster record before beginning. Typed text is never accepted as an identity.</p>
     {mode === 'formative' ? <button type="button" onClick={() => void enter('anonymous')}>Continue anonymously</button> : null}
-    <label>Student identifier<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
-    <label>Access code<input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} /></label>
+    <label>Access code<input autoComplete="one-time-code" value={accessCode} onChange={(event) => { setAccessCode(event.target.value); setSelectedLearner(null); setRosterSearchCompleted('') }} /></label>
+    <div className="assessment-roster-identity"><label htmlFor="assessment-roster-search">Find your roster record</label><div className="assessment-roster-search"><MagnifyingGlass aria-hidden="true" /><input id="assessment-roster-search" role="combobox" aria-autocomplete="list" aria-expanded={rosterMatches.length > 0} aria-controls="assessment-roster-matches" autoComplete="off" placeholder="Search name, student ID, group, or subgroup" value={identifier} onChange={(event) => { setIdentifier(event.target.value); setSelectedLearner(null); setAccessError(false); setRosterSearchCompleted('') }} />{rosterSearching ? <span>Searching…</span> : null}</div>{rosterMatches.length ? <ul id="assessment-roster-matches" role="listbox" aria-label="Matching roster records">{rosterMatches.map((learner) => <li role="option" aria-selected={selectedLearner?.identifier === learner.identifier} key={learner.identifier}><button type="button" onClick={() => { setSelectedLearner(learner); setIdentifier(learner.displayName ?? learner.studentId); setRosterMatches([]); setRosterSearchError(''); setRosterSearchCompleted('') }}><UserCircle aria-hidden="true" /><span><strong>{learner.displayName ?? 'Unnamed learner'}</strong><small>{[learner.studentId, learner.group, learner.subgroup].filter(Boolean).join(' · ')}</small></span></button></li>)}</ul> : null}{selectedLearner ? <div className="assessment-roster-selected"><Check aria-hidden="true" /><span><strong>{selectedLearner.displayName}</strong><small>{[selectedLearner.studentId, selectedLearner.group, selectedLearner.subgroup].filter(Boolean).join(' · ')}</small></span><button type="button" onClick={() => { setSelectedLearner(null); setIdentifier(''); setRosterSearchCompleted('') }}>Change</button></div> : null}{rosterSearchError ? <p role="alert">{rosterSearchError}</p> : rosterSearchCompleted === identifier.trim() && !rosterMatches.length && !selectedLearner ? <p>No roster record matches that search.</p> : null}</div>
     {accessError ? <div role="alert"><p>Unable to access this assessment.</p><label><input type="checkbox" checked={takeover} onChange={(event) => setTakeover(event.target.checked)} /> Take over my active session on this device</label></div> : null}
-    <button className="assessment-primary" type="button" onClick={() => void enter('roster')}>Begin assessment</button>
+    <button className="assessment-primary" type="button" disabled={!selectedLearner} onClick={() => void enter('roster')}>Begin assessment</button>
   </main>
   if (result) return <main className="assessment-result"><CheckCircle aria-hidden="true" /><h1>Assessment submitted</h1>{result.score ? <p className="assessment-result-score">{result.score.points} / {result.score.maximumPoints}</p> : <p>Results will appear after your teacher releases them.</p>}{result.needsGrading ? <p>Some answers are awaiting manual grading.</p> : null}</main>
-  if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{document.items.filter((item) => item.type !== 'information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(document.items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>
+  if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{items.filter((item) => item.type !== 'information' && item.type !== 'section-information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>
 
-  const item = document.items[current]
+  const item = items[current]
   const value = responseFor(item, responses)
-  const diagnosticSelections = value.selection ? [value.selection as DiagnosticSelection] : []
-  const tileSource = item.slideId ? assets[item.slideId] : undefined
   return <div className="assessment-student">
     <header className="assessment-student-header"><div className="assessment-brand"><span aria-hidden="true">▦</span><strong>PathLab</strong><small>Assessment</small></div><div aria-live="polite">{online ? <Clock aria-hidden="true" /> : <WifiSlash aria-hidden="true" />} <span>{mode === 'practice' ? status : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} · ${status}`}</span></div></header>
-    <aside className="assessment-student-nav" aria-label="Question navigator"><p>Questions</p>{document.items.map((question, index) => <button key={question.id} type="button" aria-current={index === current ? 'step' : undefined} onClick={() => setCurrent(index)}>{index + 1}</button>)}</aside>
-    <main className="assessment-student-main"><p className="assessment-kicker">Question {current + 1} of {document.items.length}</p><h1>{document.title}</h1>
+    <aside className="assessment-student-nav" aria-label="Question navigator"><p>Questions</p>{items.map((question, index) => <button key={question.id} type="button" aria-current={index === current ? 'step' : undefined} onClick={() => setCurrent(index)}>{index + 1}</button>)}</aside>
+    <main className="assessment-student-main"><p className="assessment-kicker">Question {current + 1} of {items.length}</p><h1>{document.title}</h1>
       {item.type === 'diagnostic-field' ? <div className="assessment-mobile-tabs"><button type="button" aria-pressed={mobilePanel === 'slide'} onClick={() => setMobilePanel('slide')}>Slide</button><button type="button" aria-pressed={mobilePanel === 'answer'} onClick={() => setMobilePanel('answer')}>Answer</button></div> : null}
-      <section className="assessment-student-question"><h2>{item.prompt}</h2>
-        {item.options?.map((option) => {
-          const selected = (value.optionIds as string[] | undefined) ?? []
-          return <label key={option.id}><input type={item.type === 'checkboxes' ? 'checkbox' : 'radio'} name={item.id} aria-label={option.label} checked={item.type === 'checkboxes' ? selected.includes(option.id) : value.optionId === option.id} onChange={() => item.type === 'checkboxes' ? update(item, { optionIds: selected.includes(option.id) ? selected.filter((id) => id !== option.id) : [...selected, option.id] }) : update(item, { optionId: option.id })} /><span>{option.label}</span></label>
-        })}
-        {['short-answer', 'paragraph'].includes(item.type) ? <textarea aria-label="Answer" value={String(value.text ?? '')} onChange={(event) => update(item, { text: event.target.value })} /> : null}
-        {item.type === 'diagnostic-field' && tileSource ? <div className="assessment-slide-panel" data-active={mobilePanel === 'slide'}><AssessmentDiagnosticField label="Diagnostic slide" tileSource={tileSource} selections={diagnosticSelections} onCommit={(selection) => update(item, { ...value, selection })} onClear={() => update(item, { ...value, selection: undefined })} /></div> : null}
-        {item.type === 'diagnostic-field' ? <div className="assessment-answer-panel" data-active={mobilePanel === 'answer'}><label>Diagnosis<input value={String(value.diagnosis ?? '')} onChange={(event) => update(item, { ...value, diagnosis: event.target.value })} /></label></div> : null}
-      </section>
-      <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < document.items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
+      <AssessmentLearnerQuestion item={item} value={value} assets={assets} mobilePanel={mobilePanel} onChange={(response) => update(item, response)} />
+      <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>
     </main>
   </div>
 }

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import (
@@ -23,7 +24,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy import delete, false, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 
@@ -35,12 +36,24 @@ from .assessment_assets import (
     prepare_asset_grants,
     remove_asset_grants,
 )
+from .assessment_branching import active_responses, reachable_section_ids
 from .assessment_contract import (
     AssessmentContractError,
     CompiledAssessment,
     compile_assessment,
     score_item,
 )
+from .assessment_contract_v2 import V2_SCHEMA, compile_assessment_v2, document_schema
+from .assessment_import_v2 import (
+    clone_complete_sections,
+    import_individual_items,
+)
+from .assessment_import_v2 import (
+    document_items as import_document_items,
+)
+from .assessment_review import build_learner_review
+from .assessment_v2_migration import migrate_v1_document
+from .assessment_validation import preflight_v2
 from .domain import SlideState
 from .identity import staff_organization_context
 from .models import (
@@ -78,6 +91,14 @@ from .storage import StorageLayout
 from .time_support import as_utc, utc_now
 
 
+def assessment_definition_items(definition: dict[str, Any]) -> list[dict[str, Any]]:
+    if definition.get("schema") == V2_SCHEMA:
+        return [
+            item for section in definition.get("sections", []) for item in section.get("items", [])
+        ]
+    return list(definition.get("items", []))
+
+
 class DraftCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     title: str = Field(min_length=1, max_length=200)
@@ -92,6 +113,11 @@ class DraftPatch(BaseModel):
 
 class DraftDuplicate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class DraftMigration(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    expected_revision: int = Field(alias="expectedRevision", ge=1)
 
 
 class QuestionImport(BaseModel):
@@ -266,13 +292,36 @@ class ImportRows(BaseModel):
     confirm_warnings: bool = Field(default=False, alias="confirmWarnings")
 
 
+class CollectionSettings(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    manual_acceptance: bool = Field(default=True, alias="manualAcceptance")
+    closes_at: datetime | None = Field(default=None, alias="closesAt")
+    response_limit: int | None = Field(default=None, alias="responseLimit", ge=1, le=500)
+    closed_message: str | None = Field(default=None, alias="closedMessage", max_length=1_000)
+
+
+class PublishReleasePolicy(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    timing: str = "manual"
+    show_score: bool = Field(default=True, alias="showScore")
+    show_answers: bool = Field(default=False, alias="showAnswers")
+    show_authored_feedback: bool = Field(default=False, alias="showAuthoredFeedback")
+    show_manual_feedback: bool = Field(default=False, alias="showManualFeedback")
+    show_annotations: bool = Field(default=False, alias="showAnnotations")
+
+
 class PublishSettings(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     mode: str
     cohort_id: str | None = Field(default=None, alias="cohortId")
+    cohort_ids: list[str] = Field(default_factory=list, alias="classIds", max_length=100)
     duration_seconds: int = Field(default=3600, alias="durationSeconds", ge=1, le=14_400)
     max_attempts: int = Field(default=1, alias="maxAttempts", ge=1, le=3)
     access_code: str | None = Field(default=None, alias="accessCode", min_length=4, max_length=64)
+    collection: CollectionSettings = Field(default_factory=CollectionSettings)
+    release_policy: PublishReleasePolicy = Field(
+        default_factory=PublishReleasePolicy, alias="releasePolicy"
+    )
     synthetic_fixture: bool = Field(default=False, alias="syntheticFixture")
 
 
@@ -287,6 +336,12 @@ class AccessRequest(BaseModel):
     student_identifier: str | None = Field(default=None, alias="studentIdentifier")
     access_code: str | None = Field(default=None, alias="accessCode")
     takeover: bool = False
+
+
+class RosterSearchRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    query: str = Field(min_length=2, max_length=100)
+    access_code: str = Field(alias="accessCode", min_length=1, max_length=100)
 
 
 class ResponseSave(BaseModel):
@@ -312,6 +367,11 @@ class ManualGradeRequest(BaseModel):
     item_id: str = Field(alias="itemId")
     points: Decimal
     expected_score_version: int = Field(alias="expectedScoreVersion", ge=1)
+    feedback: str | None = Field(default=None, max_length=4_000)
+
+
+class ManualGradeBatchRequest(BaseModel):
+    grades: list[ManualGradeRequest] = Field(min_length=1, max_length=100)
 
 
 class ReleaseRequest(BaseModel):
@@ -319,6 +379,9 @@ class ReleaseRequest(BaseModel):
     show_score: bool = Field(default=True, alias="showScore")
     show_answers: bool = Field(default=False, alias="showAnswers")
     show_feedback: bool = Field(default=False, alias="showFeedback")
+    show_authored_feedback: bool | None = Field(default=None, alias="showAuthoredFeedback")
+    show_manual_feedback: bool = Field(default=False, alias="showManualFeedback")
+    show_annotations: bool = Field(default=False, alias="showAnnotations")
 
 
 class DraftJson(BaseModel):
@@ -633,6 +696,64 @@ def register_assessment_routes(
             "closesAt": administration.closes_at,
             "manifest": version.learner_manifest,
             "assets": grant_manifest(_, administration.id),
+        }
+
+    @app.post("/api/v2/assessment/administrations/{public_id}/roster-search")
+    def search_assessment_roster(
+        public_id: str,
+        response: Response,
+        database: Database,
+        payload: RosterSearchRequest,
+    ) -> dict[str, object]:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        administration = database.scalar(
+            select(AssessmentAdministration).where(
+                AssessmentAdministration.public_id == public_id,
+                AssessmentAdministration.status == "open",
+                AssessmentAdministration.mode.in_({"formative", "quiz"}),
+            )
+        )
+        if administration is None or administration.access_code_hash is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        code_hash = hmac.new(
+            identifier_secret.encode(), payload.access_code.encode(), hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(administration.access_code_hash, code_hash):
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        escaped_query = (
+            payload.query.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        search = f"%{escaped_query}%"
+        matches = database.execute(
+            select(AssessmentRosterSnapshot, LearnerProfile)
+            .join(LearnerProfile, LearnerProfile.id == AssessmentRosterSnapshot.learner_id)
+            .where(
+                AssessmentRosterSnapshot.administration_id == administration.id,
+                AssessmentRosterSnapshot.status == "active",
+                LearnerProfile.status == "active",
+                LearnerProfile.student_id.is_not(None),
+                or_(
+                    LearnerProfile.display_name.ilike(search, escape="\\"),
+                    LearnerProfile.student_id.ilike(search, escape="\\"),
+                    LearnerProfile.group_name.ilike(search, escape="\\"),
+                    LearnerProfile.subgroup_name.ilike(search, escape="\\"),
+                ),
+            )
+            .order_by(LearnerProfile.display_name, LearnerProfile.student_id)
+            .limit(8)
+        ).all()
+        return {
+            "items": [
+                {
+                    "identifier": learner.student_id,
+                    "displayName": snapshot.display_name or learner.display_name,
+                    "studentId": learner.student_id,
+                    "group": learner.group_name,
+                    "subgroup": learner.subgroup_name,
+                }
+                for snapshot, learner in matches
+            ]
         }
 
     @app.get("/api/v2/assessment/practice/{public_id}")
@@ -1035,6 +1156,26 @@ def register_assessment_routes(
         administration = database.get(AssessmentAdministration, participant.administration_id)
         if administration is None or administration.status != "open":
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_NOT_OPEN"})
+        collection = administration.settings.get("collection", {})
+        if collection.get("manualAcceptance", True) is False:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_NOT_ACCEPTING"})
+        if administration.closes_at is not None and as_utc(administration.closes_at) <= utc_now():
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_COLLECTION_CLOSED"})
+        response_limit = collection.get("responseLimit")
+        if isinstance(response_limit, int):
+            submitted_count = int(
+                database.scalar(
+                    select(func.count(AssessmentAttempt.id)).where(
+                        AssessmentAttempt.administration_id == administration.id,
+                        AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
+                    )
+                )
+                or 0
+            )
+            if submitted_count >= response_limit:
+                raise HTTPException(
+                    status_code=409, detail={"code": "ASSESSMENT_RESPONSE_LIMIT_REACHED"}
+                )
         count = int(
             database.scalar(
                 select(func.count(AssessmentAttempt.id)).where(
@@ -1111,6 +1252,19 @@ def register_assessment_routes(
         administration = database.get(AssessmentAdministration, attempt.administration_id)
         if administration is None:
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_NOT_FOUND"})
+        if administration.closes_at is not None and as_utc(administration.closes_at) <= utc_now():
+            result = finalize_attempt(
+                database,
+                attempt,
+                administration,
+                enforce_required=False,
+                final_status="auto_submitted",
+            )
+            database.commit()
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_COLLECTION_EXPIRED", "result": result},
+            )
         if (
             as_utc(attempt.started_at) + timedelta(seconds=administration.duration_seconds)
             <= utc_now()
@@ -1205,9 +1359,19 @@ def register_assessment_routes(
                 select(AssessmentResponse).where(AssessmentResponse.attempt_id == attempt.id)
             )
         }
+        definition_items = assessment_definition_items(version.definition)
+        if version.definition.get("schema") == V2_SCHEMA:
+            latest = active_responses(version.definition, latest)
+            reachable_sections = set(reachable_section_ids(version.definition, latest))
+            definition_items = [
+                item
+                for section in version.definition.get("sections", [])
+                if section["id"] in reachable_sections
+                for item in section.get("items", [])
+            ]
         required_missing = [
             item["id"]
-            for item in version.definition["items"]
+            for item in definition_items
             if item.get("required") and item["id"] not in latest
         ]
         if enforce_required and required_missing:
@@ -1215,21 +1379,19 @@ def register_assessment_routes(
                 status_code=422,
                 detail={"code": "ASSESSMENT_REQUIRED_MISSING", "itemIds": required_missing},
             )
-        scored = [
-            score_item(item, latest.get(item["id"], {})) for item in version.definition["items"]
-        ]
+        scored = [score_item(item, latest.get(item["id"], {})) for item in definition_items]
         points = sum((value for value in scored if value is not None), start=Decimal("0"))
         maximum = sum(
             (
                 Decimal(str(item.get("points", "0")))
-                for item in version.definition["items"]
-                if item.get("type") != "information"
+                for item in definition_items
+                if item.get("type") not in {"information", "section-information"}
             ),
             start=Decimal("0"),
         )
         needs_grading = any(
             value is None and item.get("type") != "information" and item["id"] in latest
-            for item, value in zip(version.definition["items"], scored, strict=True)
+            for item, value in zip(definition_items, scored, strict=True)
         )
         score_version = (
             int(
@@ -1249,7 +1411,7 @@ def register_assessment_routes(
             maximum_points=maximum,
             breakdown={
                 item["id"]: str(value) if value is not None else None
-                for item, value in zip(version.definition["items"], scored, strict=True)
+                for item, value in zip(definition_items, scored, strict=True)
             },
         )
         attempt.status = final_status
@@ -1367,6 +1529,9 @@ def register_assessment_routes(
         )
         if score is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_FOUND"})
+        version = database.get(AssessmentVersion, administration.version_id)
+        if version is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_FOUND"})
         result: dict[str, Any] = {
             "status": attempt.status,
             "released": release is not None,
@@ -1380,6 +1545,19 @@ def register_assessment_routes(
             }
         if policy.get("showAnswers", False):
             result["breakdown"] = score.breakdown
+        responses = {
+            response.item_id: response.response
+            for response in database.scalars(
+                select(AssessmentResponse).where(AssessmentResponse.attempt_id == attempt.id)
+            )
+        }
+        result["review"] = build_learner_review(
+            definition=version.definition,
+            responses=responses,
+            breakdown=score.breakdown,
+            manual_feedback=score.manual_feedback or {},
+            policy=policy,
+        )
         return result
 
     @app.get("/api/v2/admin/assessment/drafts")
@@ -1504,7 +1682,10 @@ def register_assessment_routes(
         org_id = organization_id(authenticated, database, requested_org)
         source = editable_draft(database, draft_id, org_id)
         document = json.loads(json.dumps(source.document))
-        document["items"] = [fresh_item(item) for item in document.get("items", [])]
+        if document_schema(document) == V2_SCHEMA:
+            document["sections"] = clone_complete_sections(document.get("sections", []))
+        else:
+            document["items"] = [fresh_item(item) for item in document.get("items", [])]
         document["title"] = payload.title or f"{source.title} copy"
         duplicate = AssessmentDraft(
             organization_id=org_id,
@@ -1535,22 +1716,54 @@ def register_assessment_routes(
                 detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": destination.revision},
             )
         requested = set(payload.item_ids)
-        selected = [
-            fresh_item(item)
-            for item in source.document.get("items", [])
-            if item.get("id") in requested
-        ]
-        if len(selected) != len(requested):
-            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ITEM_NOT_FOUND"})
-        if len(destination.document.get("items", [])) + len(selected) > 100:
+        try:
+            document, selected = import_individual_items(
+                destination.document, source.document, requested
+            )
+        except KeyError as error:
+            raise HTTPException(
+                status_code=404, detail={"code": "ASSESSMENT_ITEM_NOT_FOUND"}
+            ) from error
+        if len(import_document_items(destination.document)) + len(selected) > 100:
             raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ITEM_LIMIT"})
-        document = json.loads(json.dumps(destination.document))
-        document["items"] = [*document.get("items", []), *selected]
         destination.document = document
         destination.revision += 1
         destination.updated_at = utc_now()
         database.commit()
         return _draft_json(destination, database)
+
+    @app.post(
+        "/api/v2/admin/assessment/drafts/{draft_id}/migrate-v2",
+        status_code=status.HTTP_201_CREATED,
+    )
+    def migrate_draft_v2(
+        draft_id: str,
+        payload: DraftMigration,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        source = editable_draft(database, draft_id, org_id)
+        if source.revision != payload.expected_revision:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_DRAFT_CONFLICT", "revision": source.revision},
+            )
+        if document_schema(source.document) == V2_SCHEMA:
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_ALREADY_V2"})
+        document = migrate_v1_document(source.document, source.id)
+        migrated = AssessmentDraft(
+            organization_id=source.organization_id,
+            course_id=source.course_id,
+            cohort_id=source.cohort_id,
+            title=f"{source.title} — v2",
+            document=document,
+            created_by_user_id=authenticated.user_id,
+        )
+        database.add(migrated)
+        database.commit()
+        return _draft_json(migrated, database)
 
     @app.post("/api/v2/admin/assessment/drafts/{draft_id}/archive")
     def archive_draft(
@@ -1588,9 +1801,51 @@ def register_assessment_routes(
             database, draft_id, organization_id(authenticated, database, requested_org)
         )
         try:
-            return draft, compile_assessment(draft.document)
+            compiled = (
+                compile_assessment_v2(draft.document)
+                if document_schema(draft.document) == V2_SCHEMA
+                else compile_assessment(draft.document)
+            )
+            return draft, compiled
         except AssessmentContractError as error:
             raise HTTPException(status_code=422, detail={"code": str(error)}) from error
+
+    @app.post("/api/v2/admin/assessment/drafts/{draft_id}/preflight")
+    def preflight_draft(
+        draft_id: str,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        draft = editable_draft(
+            database,
+            draft_id,
+            organization_id(authenticated, database, requested_org),
+        )
+        if document_schema(draft.document) == V2_SCHEMA:
+            return preflight_v2(draft.document)
+        try:
+            compiled = compile_assessment(draft.document)
+        except AssessmentContractError as error:
+            return {
+                "valid": False,
+                "errors": [
+                    {
+                        "code": str(error),
+                        "path": "/",
+                        "message": "The assessment contract is not publishable.",
+                        "level": "error",
+                    }
+                ],
+                "warnings": [],
+                "metrics": {},
+            }
+        return {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "metrics": {"items": len(assessment_definition_items(compiled.definition))},
+        }
 
     @app.post("/api/v2/admin/assessment/drafts/{draft_id}/preview")
     def preview_draft(
@@ -1614,47 +1869,51 @@ def register_assessment_routes(
         requested_org: ActiveOrganization = None,
     ) -> dict[str, Any]:
         draft, compiled = compile_owned(draft_id, authenticated, database, requested_org)
-        version_number = (
-            int(
-                database.scalar(
-                    select(func.coalesce(func.max(AssessmentVersion.version), 0)).where(
-                        AssessmentVersion.draft_id == draft.id
+        version = database.scalar(
+            select(AssessmentVersion).where(AssessmentVersion.checksum == compiled.checksum)
+        )
+        if version is None:
+            version_number = (
+                int(
+                    database.scalar(
+                        select(func.coalesce(func.max(AssessmentVersion.version), 0)).where(
+                            AssessmentVersion.draft_id == draft.id
+                        )
                     )
+                    or 0
                 )
-                or 0
+                + 1
             )
-            + 1
-        )
-        version = AssessmentVersion(
-            organization_id=draft.organization_id,
-            draft_id=draft.id,
-            version=version_number,
-            schema="pathlab.assessment/1",
-            checksum=compiled.checksum,
-            definition=compiled.definition,
-            learner_manifest=compiled.learner_manifest,
-        )
-        database.add(version)
-        try:
-            database.commit()
-        except IntegrityError:
-            database.rollback()
-            existing = database.scalar(
-                select(AssessmentVersion).where(AssessmentVersion.checksum == compiled.checksum)
+            version = AssessmentVersion(
+                organization_id=draft.organization_id,
+                draft_id=draft.id,
+                version=version_number,
+                schema=str(compiled.definition["schema"]),
+                checksum=compiled.checksum,
+                definition=compiled.definition,
+                learner_manifest=compiled.learner_manifest,
             )
-            if existing is None:
-                raise
-            version = existing
-        administration = None
+            database.add(version)
+            database.flush()
+
+        administrations: list[tuple[AssessmentAdministration, str | None]] = []
         if payload is not None:
             if payload.mode not in {"practice", "formative", "quiz"}:
                 raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_MODE_INVALID"})
-            if payload.mode == "quiz" and payload.cohort_id is None:
+            legacy_cohort_ids = [payload.cohort_id] if payload.cohort_id else []
+            cohort_ids = list(dict.fromkeys([*payload.cohort_ids, *legacy_cohort_ids]))
+            if payload.mode == "quiz" and not cohort_ids:
                 raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_ROSTER_REQUIRED"})
-            if payload.mode == "quiz" and payload.access_code is None:
+            if (
+                payload.mode == "quiz"
+                and payload.access_code is None
+                and document_schema(draft.document) != V2_SCHEMA
+            ):
                 raise HTTPException(
                     status_code=422, detail={"code": "ASSESSMENT_ACCESS_CODE_REQUIRED"}
                 )
+            for cohort_id in cohort_ids:
+                owned_class(database, cohort_id, draft.organization_id)
             if payload.mode != "practice":
                 cooldown_cutoff = utc_now() - timedelta(seconds=120)
                 busy = database.scalar(
@@ -1669,77 +1928,119 @@ def register_assessment_routes(
                 )
                 if busy is not None:
                     raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_RUNTIME_BUSY"})
-            administration = AssessmentAdministration(
-                organization_id=draft.organization_id,
-                version_id=version.id,
-                cohort_id=payload.cohort_id,
-                mode=payload.mode,
-                status="open" if payload.mode == "practice" else "preparing",
-                duration_seconds=payload.duration_seconds,
-                max_attempts=payload.max_attempts,
-                access_code_hash=(
-                    hmac.new(
-                        identifier_secret.encode(),
-                        payload.access_code.encode(),
-                        hashlib.sha256,
-                    ).hexdigest()
-                    if payload.access_code is not None
-                    else None
-                ),
-                settings={"syntheticFixture": payload.synthetic_fixture},
+            targets: list[str | None] = list(cohort_ids) if cohort_ids else [None]
+            release_policy = payload.release_policy.model_dump(mode="json", by_alias=True)
+            manual_items = any(
+                item.get("type") == "paragraph"
+                or (item.get("type") == "short-answer" and item.get("manual", False))
+                for item in assessment_definition_items(compiled.definition)
             )
-            database.add(administration)
-            database.flush()
-            if payload.cohort_id is not None:
-                learners = database.scalars(
-                    select(LearnerProfile)
-                    .join(
-                        CohortEnrollment,
-                        CohortEnrollment.learner_id == LearnerProfile.id,
-                    )
-                    .where(
-                        CohortEnrollment.cohort_id == payload.cohort_id,
-                        CohortEnrollment.status == "active",
-                    )
-                    .limit(501)
-                ).all()
-                if len(learners) > MAX_ASSESSMENT_ROSTER:
-                    raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_LIMIT"})
-                for learner in learners:
-                    if learner.login_identifier_hash is None:
+            if release_policy.get("timing") == "immediate" and manual_items:
+                release_policy["timing"] = "manual"
+                release_policy["convertedFromImmediate"] = True
+            collection = payload.collection.model_dump(mode="json", by_alias=True)
+            for target_cohort_id in targets:
+                raw_code = payload.access_code
+                if payload.mode == "quiz" and raw_code is None:
+                    raw_code = secrets.token_urlsafe(6)
+                administration = AssessmentAdministration(
+                    organization_id=draft.organization_id,
+                    version_id=version.id,
+                    cohort_id=target_cohort_id,
+                    mode=payload.mode,
+                    status="open" if payload.mode == "practice" else "preparing",
+                    duration_seconds=payload.duration_seconds,
+                    max_attempts=payload.max_attempts,
+                    access_code_hash=(
+                        hmac.new(
+                            identifier_secret.encode(),
+                            raw_code.encode(),
+                            hashlib.sha256,
+                        ).hexdigest()
+                        if raw_code is not None
+                        else None
+                    ),
+                    settings={
+                        "syntheticFixture": payload.synthetic_fixture,
+                        "collection": collection,
+                        "releasePolicy": release_policy,
+                    },
+                    closes_at=payload.collection.closes_at,
+                )
+                database.add(administration)
+                database.flush()
+                if target_cohort_id is not None:
+                    learners = database.scalars(
+                        select(LearnerProfile)
+                        .join(
+                            CohortEnrollment,
+                            CohortEnrollment.learner_id == LearnerProfile.id,
+                        )
+                        .where(
+                            CohortEnrollment.cohort_id == target_cohort_id,
+                            CohortEnrollment.status == "active",
+                        )
+                        .limit(501)
+                    ).all()
+                    if len(learners) > MAX_ASSESSMENT_ROSTER:
                         raise HTTPException(
-                            status_code=422,
-                            detail={"code": "ASSESSMENT_LEARNER_IDENTIFIER_MISSING"},
+                            status_code=400, detail={"code": "ASSESSMENT_ROSTER_LIMIT"}
                         )
-                    database.add(
-                        AssessmentRosterSnapshot(
-                            administration_id=administration.id,
-                            learner_id=learner.id,
-                            login_identifier_hash=learner.login_identifier_hash,
-                            display_name=learner.display_name,
+                    for learner in learners:
+                        if learner.login_identifier_hash is None:
+                            raise HTTPException(
+                                status_code=422,
+                                detail={"code": "ASSESSMENT_LEARNER_IDENTIFIER_MISSING"},
+                            )
+                        database.add(
+                            AssessmentRosterSnapshot(
+                                administration_id=administration.id,
+                                learner_id=learner.id,
+                                login_identifier_hash=learner.login_identifier_hash,
+                                display_name=learner.display_name,
+                            )
                         )
-                    )
-            if payload.mode == "practice":
-                try:
-                    prepare_asset_grants(
-                        database,
-                        storage,
-                        administration,
-                        definition_slide_ids(version.definition),
-                    )
-                except AssessmentAssetError as error:
-                    database.rollback()
-                    raise HTTPException(status_code=409, detail={"code": error.code}) from error
-            database.commit()
-        return {
+                if payload.mode == "practice":
+                    try:
+                        prepare_asset_grants(
+                            database,
+                            storage,
+                            administration,
+                            definition_slide_ids(version.definition),
+                        )
+                    except AssessmentAssetError as error:
+                        database.rollback()
+                        raise HTTPException(status_code=409, detail={"code": error.code}) from error
+                administrations.append((administration, raw_code))
+        database.commit()
+        response = {
             "id": version.id,
             "version": version.version,
             "schema": version.schema,
             "checksum": version.checksum,
             "learnerManifest": version.learner_manifest,
-            "publicId": administration.public_id if administration is not None else None,
-            "administrationId": administration.id if administration is not None else None,
+            "administrations": [
+                {
+                    "id": administration.id,
+                    "publicId": administration.public_id,
+                    "classId": administration.cohort_id,
+                    "accessCode": raw_code,
+                }
+                for administration, raw_code in administrations
+            ],
         }
+        if len(administrations) == 1:
+            administration, raw_code = administrations[0]
+            response.update(
+                {
+                    "publicId": administration.public_id,
+                    "administrationId": administration.id,
+                    "accessCode": raw_code,
+                }
+            )
+        else:
+            response.update({"publicId": None, "administrationId": None})
+        return response
 
     @app.get("/api/v2/admin/assessment/slides")
     def eligible_slides(
@@ -1747,9 +2048,56 @@ def register_assessment_routes(
         database: Database,
         requested_org: ActiveOrganization = None,
         query: str = "",
+        draft_id: str | None = None,
         limit: int = 20,
     ) -> dict[str, Any]:
-        organization_id(authenticated, database, requested_org)
+        org_id = organization_id(authenticated, database, requested_org)
+        folder_ids: set[str] = set()
+        scope_label = "this lesson"
+        if draft_id:
+            draft = database.scalar(
+                select(AssessmentDraft).where(
+                    AssessmentDraft.id == draft_id,
+                    AssessmentDraft.organization_id == org_id,
+                )
+            )
+            if draft is None:
+                raise HTTPException(status_code=404, detail="ASSESSMENT_DRAFT_NOT_FOUND")
+            cohorts: list[Cohort] = []
+            if draft.cohort_id:
+                cohort = database.scalar(
+                    select(Cohort).where(
+                        Cohort.id == draft.cohort_id,
+                        Cohort.organization_id == org_id,
+                    )
+                )
+                if cohort is not None:
+                    cohorts = [cohort]
+                    scope_label = cohort.name
+            elif draft.course_id:
+                cohorts = list(
+                    database.scalars(
+                        select(Cohort).where(
+                            Cohort.assessment_course_id == draft.course_id,
+                            Cohort.organization_id == org_id,
+                            Cohort.status == "active",
+                        )
+                    ).all()
+                )
+                course = database.get(AssessmentCourse, draft.course_id)
+                scope_label = course.name if course is not None else "this course"
+            roots = {cohort.folder_id for cohort in cohorts if cohort.folder_id}
+            folder_ids.update(roots)
+            pending = set(roots)
+            while pending:
+                children = set(database.scalars(
+                    select(Folder.id).where(
+                        Folder.parent_id.in_(pending),
+                        Folder.trashed_at.is_(None),
+                    )
+                ).all())
+                pending = children - folder_ids
+                folder_ids.update(pending)
         statement = (
             select(Slide)
             .join(
@@ -1769,21 +2117,36 @@ def register_assessment_routes(
             .order_by(Slide.updated_at.desc(), Slide.id)
             .limit(max(1, min(limit, 50)))
         )
+        if draft_id:
+            if folder_ids:
+                statement = statement.where(Slide.folder_id.in_(folder_ids))
+            else:
+                statement = statement.where(false())
         if query.strip():
             statement = statement.where(Slide.display_name.ilike(f"%{query.strip()}%"))
         slides = database.scalars(statement).all()
+
+        def thumbnail_url(slide: Slide) -> str | None:
+            if not slide.thumbnail_filename:
+                return None
+            root = storage.for_slide(slide.id).private_derivative.resolve()
+            target = (root / Path(slide.thumbnail_filename).name).resolve()
+            if not target.is_relative_to(root) or not target.is_file():
+                return None
+            return (
+                f"/tiles/{slide.public_id}/{delivery_version(slide)}/"
+                f"{Path(slide.thumbnail_filename).name}"
+            )
+
         return {
+            "scopeLabel": scope_label,
             "items": [
                 {
                     "id": slide.id,
                     "publicId": slide.public_id,
                     "displayName": slide.display_name,
                     "tileSource": (f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"),
-                    "thumbnail": (
-                        f"/tiles/{slide.public_id}/thumbnail.jpg"
-                        if slide.thumbnail_filename is not None
-                        else None
-                    ),
+                    "thumbnail": thumbnail_url(slide),
                 }
                 for slide in slides
             ]
@@ -2079,6 +2442,25 @@ def register_assessment_routes(
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_NOT_FOUND"})
         return administration
 
+    @app.patch("/api/v2/admin/assessment/administrations/{administration_id}/collection")
+    def update_collection(
+        administration_id: str,
+        payload: CollectionSettings,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        settings = dict(administration.settings)
+        collection = payload.model_dump(mode="json", by_alias=True)
+        settings["collection"] = collection
+        administration.settings = settings
+        administration.closes_at = payload.closes_at
+        database.commit()
+        return {"id": administration.id, "collection": collection}
+
     @app.get("/api/v2/admin/assessment/administrations/{administration_id}/monitor")
     def monitor_administration(
         administration_id: str,
@@ -2092,44 +2474,78 @@ def register_assessment_routes(
         participant_ids = select(AssessmentParticipant.id).where(
             AssessmentParticipant.administration_id == administration.id
         )
+        active_sessions = int(
+            database.scalar(
+                select(func.count(AssessmentSession.id)).where(
+                    AssessmentSession.participant_id.in_(participant_ids),
+                    AssessmentSession.revoked_at.is_(None),
+                    AssessmentSession.expires_at > utc_now(),
+                )
+            )
+            or 0
+        )
+        active_attempts = int(
+            database.scalar(
+                select(func.count(AssessmentAttempt.id)).where(
+                    AssessmentAttempt.administration_id == administration.id,
+                    AssessmentAttempt.status == "active",
+                )
+            )
+            or 0
+        )
+        submitted = int(
+            database.scalar(
+                select(func.count(AssessmentAttempt.id)).where(
+                    AssessmentAttempt.administration_id == administration.id,
+                    AssessmentAttempt.status == "submitted",
+                )
+            )
+            or 0
+        )
+        auto_submitted = int(
+            database.scalar(
+                select(func.count(AssessmentAttempt.id)).where(
+                    AssessmentAttempt.administration_id == administration.id,
+                    AssessmentAttempt.status == "auto_submitted",
+                )
+            )
+            or 0
+        )
+        needs_grading = int(
+            database.scalar(
+                select(func.count(AssessmentGradebookRow.id)).where(
+                    AssessmentGradebookRow.administration_id == administration.id,
+                    AssessmentGradebookRow.status == "needs_grading",
+                )
+            )
+            or 0
+        )
+        expected = int(
+            database.scalar(
+                select(func.count(AssessmentRosterSnapshot.id)).where(
+                    AssessmentRosterSnapshot.administration_id == administration.id
+                )
+            )
+            or 0
+        )
+        entered = int(
+            database.scalar(
+                select(func.count(AssessmentParticipant.id)).where(
+                    AssessmentParticipant.administration_id == administration.id
+                )
+            )
+            or 0
+        )
         return {
-            "activeSessions": int(
-                database.scalar(
-                    select(func.count(AssessmentSession.id)).where(
-                        AssessmentSession.participant_id.in_(participant_ids),
-                        AssessmentSession.revoked_at.is_(None),
-                        AssessmentSession.expires_at > utc_now(),
-                    )
-                )
-                or 0
-            ),
-            "activeAttempts": int(
-                database.scalar(
-                    select(func.count(AssessmentAttempt.id)).where(
-                        AssessmentAttempt.administration_id == administration.id,
-                        AssessmentAttempt.status == "active",
-                    )
-                )
-                or 0
-            ),
-            "submitted": int(
-                database.scalar(
-                    select(func.count(AssessmentAttempt.id)).where(
-                        AssessmentAttempt.administration_id == administration.id,
-                        AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
-                    )
-                )
-                or 0
-            ),
-            "needsGrading": int(
-                database.scalar(
-                    select(func.count(AssessmentGradebookRow.id)).where(
-                        AssessmentGradebookRow.administration_id == administration.id,
-                        AssessmentGradebookRow.status == "needs_grading",
-                    )
-                )
-                or 0
-            ),
+            "expected": expected,
+            "entered": entered,
+            "active": active_attempts,
+            "submitted": submitted,
+            "autoSubmitted": auto_submitted,
+            "stale": max(active_attempts - active_sessions, 0),
+            "needsGrading": needs_grading,
+            "activeSessions": active_sessions,
+            "activeAttempts": active_attempts,
         }
 
     @app.post("/api/v2/admin/assessment/administrations/{administration_id}/deadlines/sweep")
@@ -2182,6 +2598,111 @@ def register_assessment_routes(
         database.commit()
         return {"scanned": len(attempts), "autoSubmitted": len(expired)}
 
+    def apply_manual_grades(
+        administration: AssessmentAdministration,
+        grades: list[ManualGradeRequest],
+        grader_id: str,
+        database: OrmSession,
+    ) -> list[dict[str, Any]]:
+        definition_version = database.get(AssessmentVersion, administration.version_id)
+        if definition_version is None:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_SCORE_MISSING"})
+        items = {
+            item["id"]: item for item in assessment_definition_items(definition_version.definition)
+        }
+        grouped: dict[str, list[ManualGradeRequest]] = {}
+        for grade in grades:
+            grouped.setdefault(grade.attempt_id, []).append(grade)
+        results: list[dict[str, Any]] = []
+        for attempt_id, attempt_grades in grouped.items():
+            attempt = database.scalar(
+                select(AssessmentAttempt).where(
+                    AssessmentAttempt.id == attempt_id,
+                    AssessmentAttempt.administration_id == administration.id,
+                    AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
+                )
+            )
+            if attempt is None:
+                raise HTTPException(
+                    status_code=404, detail={"code": "ASSESSMENT_ATTEMPT_NOT_FOUND"}
+                )
+            latest = database.scalar(
+                select(AssessmentScoreVersion)
+                .where(AssessmentScoreVersion.attempt_id == attempt.id)
+                .order_by(AssessmentScoreVersion.version.desc())
+            )
+            if latest is None:
+                raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_SCORE_MISSING"})
+            if any(grade.expected_score_version != latest.version for grade in attempt_grades):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "ASSESSMENT_GRADING_CONFLICT",
+                        "attemptId": attempt.id,
+                        "currentScoreVersion": latest.version,
+                    },
+                )
+            breakdown = dict(latest.breakdown)
+            feedback = dict(latest.manual_feedback or {})
+            for grade in attempt_grades:
+                item = items.get(grade.item_id)
+                if item is None or not (
+                    item.get("type") == "paragraph"
+                    or (item.get("type") == "short-answer" and item.get("manual", False))
+                ):
+                    raise HTTPException(
+                        status_code=422, detail={"code": "ASSESSMENT_ITEM_NOT_MANUAL"}
+                    )
+                maximum = Decimal(str(item.get("points", "0")))
+                points = grade.points.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+                if points < 0 or points > maximum:
+                    raise HTTPException(
+                        status_code=422, detail={"code": "ASSESSMENT_POINTS_INVALID"}
+                    )
+                breakdown[grade.item_id] = f"{points:.3f}"
+                if grade.feedback is not None:
+                    feedback[grade.item_id] = grade.feedback
+            total = sum(
+                (Decimal(str(value)) for value in breakdown.values() if value is not None),
+                start=Decimal("0"),
+            ).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+            score = AssessmentScoreVersion(
+                attempt_id=attempt.id,
+                version=latest.version + 1,
+                points=total,
+                maximum_points=latest.maximum_points,
+                breakdown=breakdown,
+                manual_feedback=feedback,
+                graded_by_user_id=grader_id,
+            )
+            database.add(score)
+            database.flush()
+            row = database.scalar(
+                select(AssessmentGradebookRow).where(
+                    AssessmentGradebookRow.administration_id == administration.id,
+                    AssessmentGradebookRow.participant_id == attempt.participant_id,
+                )
+            )
+            if row is not None:
+                row.score_version_id = score.id
+                row.status = (
+                    "needs_grading"
+                    if any(value is None for value in breakdown.values())
+                    else "graded"
+                )
+            results.append(
+                {
+                    "attemptId": attempt.id,
+                    "scoreVersion": score.version,
+                    "points": f"{total:.3f}",
+                    "maximumPoints": f"{Decimal(str(score.maximum_points)):.3f}",
+                    "status": row.status if row is not None else "aggregate_only",
+                }
+            )
+        if administration.status == "closed":
+            snapshot_aggregate(database, administration)
+        return results
+
     @app.post("/api/v2/admin/assessment/administrations/{administration_id}/manual-grade")
     def manual_grade(
         administration_id: str,
@@ -2193,84 +2714,26 @@ def register_assessment_routes(
         administration = owned_administration(
             administration_id, authenticated, database, requested_org
         )
-        attempt = database.scalar(
-            select(AssessmentAttempt).where(
-                AssessmentAttempt.id == payload.attempt_id,
-                AssessmentAttempt.administration_id == administration.id,
-                AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
-            )
-        )
-        if attempt is None:
-            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ATTEMPT_NOT_FOUND"})
-        version = database.get(AssessmentVersion, administration.version_id)
-        latest = database.scalar(
-            select(AssessmentScoreVersion)
-            .where(AssessmentScoreVersion.attempt_id == attempt.id)
-            .order_by(AssessmentScoreVersion.version.desc())
-        )
-        if version is None or latest is None:
-            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_SCORE_MISSING"})
-        if latest.version != payload.expected_score_version:
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "code": "ASSESSMENT_GRADING_CONFLICT",
-                    "currentScoreVersion": latest.version,
-                },
-            )
-        item = next(
-            (
-                candidate
-                for candidate in version.definition["items"]
-                if candidate["id"] == payload.item_id
-            ),
-            None,
-        )
-        if item is None or not (
-            item.get("type") == "paragraph"
-            or (item.get("type") == "short-answer" and item.get("manual", False))
-        ):
-            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_ITEM_NOT_MANUAL"})
-        maximum = Decimal(str(item.get("points", "0")))
-        points = payload.points.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
-        if points < 0 or points > maximum:
-            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_POINTS_INVALID"})
-        breakdown = dict(latest.breakdown)
-        breakdown[payload.item_id] = f"{points:.3f}"
-        total = sum(
-            (Decimal(str(value)) for value in breakdown.values() if value is not None),
-            start=Decimal("0"),
-        ).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
-        score = AssessmentScoreVersion(
-            attempt_id=attempt.id,
-            version=latest.version + 1,
-            points=total,
-            maximum_points=latest.maximum_points,
-            breakdown=breakdown,
-        )
-        database.add(score)
-        database.flush()
-        row = database.scalar(
-            select(AssessmentGradebookRow).where(
-                AssessmentGradebookRow.administration_id == administration.id,
-                AssessmentGradebookRow.participant_id == attempt.participant_id,
-            )
-        )
-        if row is not None:
-            row.score_version_id = score.id
-            row.status = (
-                "needs_grading" if any(value is None for value in breakdown.values()) else "graded"
-            )
-        if administration.status == "closed":
-            snapshot_aggregate(database, administration)
+        result = apply_manual_grades(administration, [payload], authenticated.user_id, database)[0]
         database.commit()
-        return {
-            "attemptId": attempt.id,
-            "scoreVersion": score.version,
-            "points": f"{total:.3f}",
-            "maximumPoints": f"{Decimal(str(score.maximum_points)):.3f}",
-            "status": row.status if row is not None else "aggregate_only",
-        }
+        return result
+
+    @app.post("/api/v2/admin/assessment/administrations/{administration_id}/manual-grades")
+    def manual_grade_batch(
+        administration_id: str,
+        payload: ManualGradeBatchRequest,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        results = apply_manual_grades(
+            administration, payload.grades, authenticated.user_id, database
+        )
+        database.commit()
+        return {"items": results}
 
     @app.post(
         "/api/v2/admin/assessment/administrations/{administration_id}/release",
@@ -2306,6 +2769,8 @@ def register_assessment_routes(
                 },
             )
         policy = payload.model_dump(mode="json", by_alias=True)
+        if policy["showAuthoredFeedback"] is None:
+            policy["showAuthoredFeedback"] = policy["showFeedback"]
         release = AssessmentRelease(
             administration_id=administration.id,
             policy=policy,
@@ -2325,6 +2790,19 @@ def register_assessment_routes(
         administration = owned_administration(
             administration_id, authenticated, database, requested_org
         )
+        export_version = database.get(AssessmentVersion, administration.version_id)
+        export_definition = export_version.definition if export_version is not None else {}
+        export_sections = export_definition.get("sections", [])
+        export_items = [
+            (section.get("title", ""), item)
+            for section in export_sections
+            for item in section.get("items", [])
+            if item.get("type") != "section-information"
+        ] or [
+            ("", item)
+            for item in export_definition.get("items", [])
+            if item.get("type") != "information"
+        ]
 
         def safe_cell(value: object) -> str:
             rendered = "" if value is None else str(value)
@@ -2367,6 +2845,15 @@ def register_assessment_routes(
                     "points",
                     "maximum_points",
                     "score_version",
+                    "learner_number",
+                    "section",
+                    "item_id",
+                    "item_type",
+                    "response",
+                    "branch_reachable",
+                    "education_metadata",
+                    "item_points",
+                    "manual_feedback",
                 )
             )
             yield buffer.getvalue()
@@ -2384,10 +2871,16 @@ def register_assessment_routes(
                     AssessmentScoreVersion.points,
                     AssessmentScoreVersion.maximum_points,
                     AssessmentScoreVersion.version,
+                    AssessmentAttempt.id,
+                    AssessmentScoreVersion.breakdown,
+                    AssessmentScoreVersion.manual_feedback,
                 )
                 .join(
                     AssessmentParticipant,
                     AssessmentParticipant.id == AssessmentGradebookRow.participant_id,
+                )
+                .join(
+                    AssessmentAttempt, AssessmentAttempt.participant_id == AssessmentParticipant.id
                 )
                 .join(
                     AssessmentRosterSnapshot,
@@ -2403,23 +2896,66 @@ def register_assessment_routes(
                 .order_by(AssessmentRosterSnapshot.display_name, AssessmentGradebookRow.id)
                 .execution_options(yield_per=100)
             )
-            for row in database.execute(query):
-                buffer.seek(0)
-                buffer.truncate(0)
+            for learner_number, row in enumerate(database.execute(query), 1):
                 profile_values = row[:7]
                 metadata = row[7] or {}
-                result_values = row[8:]
-                writer.writerow(
-                    tuple(
-                        safe_cell(value)
-                        for value in (
-                            *profile_values,
-                            *(metadata.get(key, "") for key in metadata_keys),
-                            *result_values,
+                result_values = row[8:12]
+                attempt_id, breakdown, manual_feedback = row[12], row[13] or {}, row[14] or {}
+                responses = response_map = {
+                    response.item_id: response.response
+                    for response in database.scalars(
+                        select(AssessmentResponse).where(
+                            AssessmentResponse.attempt_id == attempt_id
                         )
                     )
+                }
+                reachable_sections = (
+                    set(reachable_section_ids(export_definition, responses))
+                    if export_sections
+                    else set()
                 )
-                yield buffer.getvalue()
+                for section_title, item in export_items:
+                    section_id = next(
+                        (
+                            section.get("id")
+                            for section in export_sections
+                            if item in section.get("items", [])
+                        ),
+                        None,
+                    )
+                    rendered_response = json.dumps(
+                        response_map.get(item.get("id"), {}),
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    )
+                    buffer.seek(0)
+                    buffer.truncate(0)
+                    writer.writerow(
+                        tuple(
+                            safe_cell(value)
+                            for value in (
+                                *profile_values,
+                                *(metadata.get(key, "") for key in metadata_keys),
+                                *result_values,
+                                learner_number,
+                                section_title,
+                                item.get("id", ""),
+                                item.get("type", ""),
+                                rendered_response,
+                                section_id in reachable_sections if export_sections else True,
+                                json.dumps(
+                                    item.get("education", {}),
+                                    ensure_ascii=False,
+                                    separators=(",", ":"),
+                                ),
+                                breakdown.get(item.get("id"), ""),
+                                manual_feedback.get(item.get("id"), "")
+                                if isinstance(manual_feedback, dict)
+                                else "",
+                            )
+                        )
+                    )
+                    yield buffer.getvalue()
 
         filename = f"assessment-{administration.public_id}.csv"
         return StreamingResponse(

@@ -34,6 +34,7 @@ export function AssessmentShell() {
 
   useEffect(() => {
     let cancelled = false
+    setError('')
     void getLibraryNavigation().then((value) => {
       if (cancelled) return
       setNavigation(value)
@@ -48,6 +49,11 @@ export function AssessmentShell() {
     })
     return () => { cancelled = true }
   }, [authRevision])
+
+  function retryNavigation() {
+    setAuthorized(null)
+    setAuthRevision((current) => current + 1)
+  }
 
   async function signOut() {
     if (signingOut) return
@@ -86,7 +92,10 @@ export function AssessmentShell() {
       onSignOut={() => void signOut()}
     />
     <main className="library-main assessment-workspace" data-canvas-region="content">
-      {error ? <p className="assessment-shell-error" role="alert">{error}</p> : null}
+      {error ? <div className="assessment-shell-error" role="alert">
+        <span>PathLab navigation could not load. Teacher Studio remains available with limited navigation.</span>
+        <button type="button" onClick={retryNavigation}>Retry</button>
+      </div> : null}
       <Outlet />
     </main>
     <AccountSecurityDialog

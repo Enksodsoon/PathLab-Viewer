@@ -71,6 +71,37 @@ export async function saveAssessmentDraft(
   }))
 }
 
+export async function migrateAssessmentDraftV2(id: string, expectedRevision: number) {
+  return body<AssessmentDraft>(await csrfFetch(
+    `/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/migrate-v2`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedRevision }),
+    },
+  ))
+}
+
+export interface AssessmentPreflightIssue {
+  code: string
+  path: string
+  message: string
+  level: 'error' | 'warning'
+}
+
+export async function preflightAssessmentDraft(id: string) {
+  return body<{
+    valid: boolean
+    errors: AssessmentPreflightIssue[]
+    warnings: AssessmentPreflightIssue[]
+    metrics: Record<string, number | string | null>
+    effectiveRelease?: 'immediate' | 'manual'
+  }>(await csrfFetch(
+    `/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/preflight`,
+    { method: 'POST' },
+  ))
+}
+
 export async function previewAssessmentDraft(id: string) {
   return body<{ learnerManifest: AssessmentDocument; checksum: string }>(
     await csrfFetch(`/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/preview`, {
@@ -82,9 +113,12 @@ export async function previewAssessmentDraft(id: string) {
 export interface PublishAssessmentSettings {
   mode: 'practice' | 'formative' | 'quiz'
   cohortId?: string
+  classIds?: string[]
   durationSeconds: number
   maxAttempts: number
   accessCode?: string
+  collection?: { manualAcceptance: boolean; closesAt?: string; responseLimit?: number; closedMessage?: string }
+  releasePolicy?: { timing: 'immediate' | 'manual'; showScore: boolean; showAnswers: boolean; showAuthoredFeedback: boolean; showManualFeedback: boolean; showAnnotations: boolean }
 }
 
 export async function duplicateAssessmentDraft(id: string, title?: string) {
@@ -115,6 +149,8 @@ export async function publishAssessmentDraft(id: string, settings?: PublishAsses
     schema: string
     publicId: string | null
     administrationId: string | null
+    accessCode?: string | null
+    administrations: Array<{ id: string; publicId: string; classId: string | null; accessCode: string | null }>
   }>(
     await csrfFetch(`/api/v2/admin/assessment/drafts/${encodeURIComponent(id)}/publish`, {
       method: 'POST',
@@ -173,14 +209,26 @@ export async function createAssessmentClass(name: string) {
   )
 }
 
-export async function listEligibleAssessmentSlides(query = '') {
+export async function listEligibleAssessmentSlides(query = '', draftId = '') {
   const search = new URLSearchParams({ query })
-  return body<{ items: EligibleAssessmentSlide[] }>(
+  if (draftId) search.set('draft_id', draftId)
+  const result = await body<{ items: EligibleAssessmentSlide[]; scopeLabel?: string }>(
     await fetch(`/api/v2/admin/assessment/slides?${search}`, {
       credentials: 'same-origin',
       cache: 'no-store',
     }),
   )
+  return {
+    scopeLabel: result.scopeLabel,
+    items: result.items.map((slide) => ({
+      ...slide,
+      // Older local APIs returned an unversioned thumbnail route even though
+      // static-DZI assets are served from the versioned tile directory.
+      thumbnail: slide.thumbnail && slide.tileSource.endsWith('/slide.dzi')
+        ? `${slide.tileSource.slice(0, -'slide.dzi'.length)}thumbnail.jpg?assessment-preview=1`
+        : slide.thumbnail,
+    })),
+  }
 }
 
 export async function previewAssessmentRoster(cohortId: string, rows: string) {
@@ -493,8 +541,16 @@ export interface AssessmentResults {
       responseCount: number
       scoredCount: number
       averagePoints: string
+      reachableCount?: number
+      optionDistribution?: Record<string, number>
+      otherDistribution?: Record<string, number>
+      ratingDistribution?: Record<string, number>
+      ratingMean?: number | null
+      ratingMedian?: number | null
+      diagnosticLabels?: Record<string, number>
       spatialHeatmap?: { width: number; height: number; counts: number[][] }
     }>
+    sections?: Array<{ sectionId: string; title: string; reachable: number; completed: number; dropOff: number }>
   }
   individuals: {
     total: number
@@ -530,6 +586,7 @@ export async function gradeAssessmentResponse(administrationId: string, payload:
   itemId: string
   points: string
   expectedScoreVersion: number
+  feedback?: string
 }) {
   return body<{ scoreVersion: number; points: string; maximumPoints: string }>(await csrfFetch(
     `/api/v2/admin/assessment/administrations/${encodeURIComponent(administrationId)}/manual-grade`,
@@ -563,6 +620,27 @@ export interface AssessmentAccessResult {
   publicId: string
   csrfToken: string
   receipt?: string
+}
+
+export interface AssessmentRosterMatch {
+  identifier: string
+  displayName: string | null
+  studentId: string
+  group: string | null
+  subgroup: string | null
+}
+
+export async function searchAssessmentRoster(publicId: string, query: string, accessCode: string) {
+  return body<{ items: AssessmentRosterMatch[] }>(await fetch(
+    `/api/v2/assessment/administrations/${encodeURIComponent(publicId)}/roster-search`,
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, accessCode }),
+    },
+  ))
 }
 
 export async function accessAssessment(payload: {

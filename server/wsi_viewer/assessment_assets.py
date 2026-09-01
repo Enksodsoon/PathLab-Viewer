@@ -36,7 +36,17 @@ class AssessmentAssetError(RuntimeError):
 def definition_slide_ids(definition: dict[str, object]) -> list[str]:
     items = definition.get("items")
     if not isinstance(items, list):
-        return []
+        sections = definition.get("sections")
+        items = (
+            [
+                item
+                for section in sections
+                if isinstance(section, dict)
+                for item in section.get("items", [])
+            ]
+            if isinstance(sections, list)
+            else []
+        )
     ordered: list[str] = []
     for item in items:
         if not isinstance(item, dict):
@@ -44,6 +54,14 @@ def definition_slide_ids(definition: dict[str, object]) -> list[str]:
         slide_id = item.get("slideId")
         if isinstance(slide_id, str) and slide_id and slide_id not in ordered:
             ordered.append(slide_id)
+        media_items = [item.get("media")]
+        additional_media = item.get("mediaItems", [])
+        if isinstance(additional_media, list):
+            media_items.extend(additional_media)
+        for media in media_items:
+            media_slide_id = media.get("slideId") if isinstance(media, dict) else None
+            if isinstance(media_slide_id, str) and media_slide_id and media_slide_id not in ordered:
+                ordered.append(media_slide_id)
     return ordered
 
 

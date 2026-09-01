@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from statistics import median
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as OrmSession
 
+from .assessment_branching import reachable_section_ids
 from .models import (
     AssessmentAdministration,
     AssessmentAggregateSnapshot,
@@ -83,7 +85,33 @@ def build_aggregate(
     )
     denominator = roster_size or participant_size
     version = database.get(AssessmentVersion, administration.version_id)
-    items = version.definition.get("items", []) if version is not None else []
+    definition = version.definition if version is not None else {}
+    sections = definition.get("sections", []) if isinstance(definition, dict) else []
+    items = (
+        [
+            item
+            for section in sections
+            if isinstance(section, dict)
+            for item in section.get("items", [])
+        ]
+        if sections
+        else definition.get("items", [])
+    )
+    attempt_responses: dict[str, dict[str, dict[str, Any]]] = {
+        attempt.id: {} for attempt in attempts
+    }
+    if attempts:
+        for response in database.scalars(
+            select(AssessmentResponse).where(AssessmentResponse.attempt_id.in_(attempt_responses))
+        ):
+            attempt_responses[response.attempt_id][response.item_id] = response.response
+    item_sections = {
+        item.get("id"): section.get("id")
+        for section in sections
+        if isinstance(section, dict)
+        for item in section.get("items", [])
+        if isinstance(item, dict)
+    }
     questions: dict[str, dict[str, Any]] = {}
     for item in items:
         if not isinstance(item, dict) or not isinstance(item.get("id"), str):
@@ -94,26 +122,63 @@ def build_aggregate(
             for score in scores.values()
             if score.breakdown.get(item_id) is not None
         ]
+        item_responses = [
+            responses[item_id] for responses in attempt_responses.values() if item_id in responses
+        ]
+        reachable_count = sum(
+            1
+            for responses in attempt_responses.values()
+            if not sections
+            or item_sections.get(item_id) in reachable_section_ids(definition, responses)
+        )
         question: dict[str, Any] = {
-            "responseCount": int(
-                database.scalar(
-                    select(func.count(AssessmentResponse.id))
-                    .join(AssessmentAttempt, AssessmentAttempt.id == AssessmentResponse.attempt_id)
-                    .where(
-                        AssessmentAttempt.administration_id == administration.id,
-                        AssessmentResponse.item_id == item_id,
-                    )
-                )
-                or 0
-            ),
+            "responseCount": len(item_responses),
+            "reachableCount": reachable_count,
             "scoredCount": len(values),
             "averagePoints": (
                 f"{sum(values, start=Decimal('0')) / len(values):.3f}" if values else "0.000"
             ),
         }
+        if item.get("type") in {"multiple-choice", "checkboxes", "dropdown"}:
+            option_labels = {
+                option.get("id"): option.get("label", "")
+                for option in item.get("options", [])
+                if isinstance(option, dict)
+            }
+            distribution = {label: 0 for label in option_labels.values()}
+            other: dict[str, int] = {}
+            for response_data in item_responses:
+                option_ids = response_data.get("optionIds", [response_data.get("optionId")])
+                for option_id in option_ids:
+                    if option_id in option_labels:
+                        distribution[option_labels[option_id]] += 1
+                if response_data.get("other"):
+                    rendered = str(response_data["other"])
+                    other[rendered] = other.get(rendered, 0) + 1
+            question["optionDistribution"] = distribution
+            question["otherDistribution"] = other
+        if item.get("type") == "rating":
+            ratings = [
+                float(response["value"])
+                for response in item_responses
+                if isinstance(response.get("value"), (int, float))
+            ]
+            question["ratingDistribution"] = {
+                str(value): ratings.count(float(value))
+                for value in range(1, int(item.get("rating", {}).get("max", 5)) + 1)
+            }
+            question["ratingMean"] = round(sum(ratings) / len(ratings), 3) if ratings else None
+            question["ratingMedian"] = median(ratings) if ratings else None
+        if item.get("type") == "diagnostic-field":
+            diagnostic_labels: dict[str, int] = {}
+            for response_data in item_responses:
+                if response_data.get("diagnosis"):
+                    label = str(response_data["diagnosis"])
+                    diagnostic_labels[label] = diagnostic_labels.get(label, 0) + 1
+            question["diagnosticLabels"] = diagnostic_labels
         if item.get("type") == "diagnostic-field":
             grid = [[0 for _ in range(HEATMAP_SIZE)] for _ in range(HEATMAP_SIZE)]
-            responses = database.scalars(
+            response_rows = database.scalars(
                 select(AssessmentResponse)
                 .join(AssessmentAttempt, AssessmentAttempt.id == AssessmentResponse.attempt_id)
                 .where(
@@ -121,8 +186,8 @@ def build_aggregate(
                     AssessmentResponse.item_id == item_id,
                 )
             )
-            for response in responses:
-                center = _selection_center(response.response)
+            for response_row in response_rows:
+                center = _selection_center(response_row.response)
                 if center is None:
                     continue
                 x, y = center
@@ -135,6 +200,30 @@ def build_aggregate(
                 "counts": grid,
             }
         questions[item_id] = question
+    section_metrics = []
+    for section in sections:
+        section_items = [
+            item for item in section.get("items", []) if item.get("type") != "section-information"
+        ]
+        reachable = 0
+        completed = 0
+        for response_map in attempt_responses.values():
+            if section.get("id") not in reachable_section_ids(definition, response_map):
+                continue
+            reachable += 1
+            if all(
+                not item.get("required") or item.get("id") in response_map for item in section_items
+            ):
+                completed += 1
+        section_metrics.append(
+            {
+                "sectionId": section.get("id"),
+                "title": section.get("title", ""),
+                "reachable": reachable,
+                "completed": completed,
+                "dropOff": max(0, reachable - completed),
+            }
+        )
     return {
         "responses": len(attempts),
         "averagePoints": (
@@ -157,6 +246,7 @@ def build_aggregate(
             or 0
         ),
         "questions": questions,
+        "sections": section_metrics,
     }
 
 

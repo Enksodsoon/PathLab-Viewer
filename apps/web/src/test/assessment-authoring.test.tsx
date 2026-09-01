@@ -14,7 +14,9 @@ const api = vi.hoisted(() => ({
   duplicateAssessmentDraft: vi.fn(),
   getAssessmentCourse: vi.fn(),
   getAssessmentDraft: vi.fn(),
+  getAssessmentMetadata: vi.fn(),
   getAssessmentResults: vi.fn(),
+  gradeAssessmentResponse: vi.fn(),
   importAssessmentQuestions: vi.fn(),
   listAssessmentDrafts: vi.fn(),
   listAssessmentAdministrations: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock('../assessment/draftCache', () => ({
   readCachedAssessmentDraft: vi.fn().mockResolvedValue(null),
 }))
 beforeEach(() => {
+  api.getAssessmentMetadata.mockResolvedValue(undefined)
   api.listAssessmentCourses.mockResolvedValue({ items: [{ id: 'course-1', name: 'Thoracic Pathology', courseCode: 'PATH 301', semester: '1', academicYear: '2027', iconKey: 'general', scoringMethod: 'percentage', description: null, opensAt: null, closesAt: null, status: 'active', rosterCount: 10, classCount: 1 }], total: 1 })
   api.getAssessmentCourse.mockResolvedValue({ id: 'course-1', name: 'Thoracic Pathology', courseCode: 'PATH 301', semester: '1', academicYear: '2027', iconKey: 'general', scoringMethod: 'percentage', description: null, opensAt: null, closesAt: null, status: 'active', rosterCount: 10, classCount: 1, classes: [{ id: 'class-1', name: 'Demo cohort', sectionCode: 'DEMO-A' }] })
   api.listAssessmentAdministrations.mockResolvedValue({ items: [], total: 0 })
@@ -128,6 +131,7 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.getByText('8.17 / 11.67')).toBeVisible()
   expect(screen.queryByRole('complementary', { name: 'Learners needing support' })).not.toBeInTheDocument()
   expect(screen.getByText('Closed')).toBeVisible()
+  await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
   expect(screen.getByRole('heading', { name: 'Which diagnosis is most likely?' })).toBeVisible()
   expect(screen.getByText('7 points')).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Question' })).not.toBeInTheDocument()
@@ -135,10 +139,9 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.getByText('Excel').closest('a, button')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Visual' })).toHaveAttribute('download', 'lung-pathology-visual-report.svg')
 
-  await userEvent.click(screen.getByRole('button', { name: 'Questions' }))
-  expect(screen.getByRole('button', { name: 'Question 1: 1 answered, 0 correct' })).toBeVisible()
-
-  await userEvent.click(screen.getByRole('button', { name: 'Individual' }))
+  expect(screen.getByRole('button', { name: 'Questions' })).toBeVisible()
+  expect(screen.getByRole('button', { name: /Needs grading/ })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Individuals' }))
   expect(screen.getByRole('heading', { name: 'Individual response' })).toBeVisible()
   expect(screen.getAllByText('Anan Charoen')).toHaveLength(2)
   expect(screen.getByText('70% score')).toBeVisible()
@@ -166,6 +169,39 @@ it('renders the shared report inside the builder Responses tab', async () => {
   expect(screen.queryByText('Assessment report')).not.toBeInTheDocument()
 })
 
+it('keeps published report questions separate from newer draft edits and filters learners', async () => {
+  api.getAssessmentDraft.mockResolvedValue({
+    id: 'draft-1', title: 'Versioned assessment', status: 'draft', revision: 3,
+    document: { title: 'Versioned assessment', items: [{ id: 'draft-question', type: 'short-answer', prompt: 'New draft-only question', points: '1' }], settings: {} },
+  })
+  api.listAssessmentAdministrations.mockResolvedValue({ items: [{
+    id: 'administration-1', draftId: 'draft-1', publicId: 'public-1', title: 'Versioned assessment',
+    version: 1, mode: 'quiz', status: 'closed', responses: 2, expectedParticipants: 2, completedParticipants: 2, createdAt: '2026-08-24T00:00:00Z',
+  }], total: 1 })
+  api.getAssessmentMetadata.mockResolvedValue({
+    manifest: { title: 'Versioned assessment', items: [{ id: 'published-question', type: 'multiple-choice', prompt: 'Published question', points: '2', options: [{ id: 'a', label: 'A' }] }], settings: {} },
+  })
+  api.getAssessmentResults.mockResolvedValue({
+    administration: { id: 'administration-1', mode: 'quiz', status: 'closed' },
+    summary: { responses: 2, averagePoints: '1', completionRate: '1', needsGrading: 0, questions: { 'published-question': { responseCount: 2, scoredCount: 2, averagePoints: '1' } } },
+    individuals: { total: 2, items: [
+      { attemptId: 'attempt-1', displayName: 'Anan Charoen', status: 'graded', scoreVersion: 1, points: '1', maximumPoints: '2', breakdown: { 'published-question': '1' }, responses: {} },
+      { attemptId: 'attempt-2', displayName: 'Zain Osman', status: 'graded', scoreVersion: 1, points: '2', maximumPoints: '2', breakdown: { 'published-question': '2' }, responses: {} },
+    ] },
+  })
+
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1/report']}><Routes><Route path="/admin/assessments/:draftId/report" element={<AssessmentReportPage />} /></Routes></MemoryRouter>)
+
+  expect(await screen.findByText('Showing published version 1 with 1 questions. The editable draft currently has 1 questions.')).toBeVisible()
+  await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
+  expect(screen.getByRole('heading', { name: 'Published question' })).toBeVisible()
+  expect(screen.queryByText('New draft-only question')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Individuals' }))
+  await userEvent.type(screen.getByRole('searchbox', { name: 'Search learners' }), 'Zain')
+  expect(screen.getByRole('combobox', { name: 'Select learner' })).toHaveTextContent('Zain Osman')
+  expect(screen.getByRole('combobox', { name: 'Select learner' })).not.toHaveTextContent('Anan Charoen')
+})
+
 it('renders a visual summary for every supported assessment item type', async () => {
   const items = [
     { id: 'mc', type: 'multiple-choice' as const, prompt: 'Choose one diagnosis', points: '1', options: [{ id: 'a', label: 'Adenocarcinoma' }], answerKey: { optionIds: ['a'] } },
@@ -191,17 +227,15 @@ it('renders a visual summary for every supported assessment item type', async ()
   render(<MemoryRouter initialEntries={['/admin/assessments/draft-1/report']}><Routes><Route path="/admin/assessments/:draftId/report" element={<AssessmentReportPage />} /></Routes></MemoryRouter>)
 
   expect(await screen.findByRole('heading', { name: 'Mixed format report' })).toBeVisible()
+  await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
   expect(screen.getByRole('list', { name: 'Answer distribution for question 1' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Answer distribution for question 2' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Text responses for question 3' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Text responses for question 4' })).toBeVisible()
   expect(screen.getAllByText('Manual review').length).toBeGreaterThanOrEqual(2)
   expect(document.querySelector('.assessment-response-text-chart')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Questions' }))
-  expect(screen.getByRole('button', { name: 'Question 3: 2 answered, manual review' })).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Question 4: 2 answered, manual review' })).toBeVisible()
   expect(screen.getByRole('img', { name: 'Spatial response heatmap for question 5' })).toBeVisible()
-  expect(screen.getByText('Reference content shown to learners. It has no score or response chart.')).toBeVisible()
+  expect(screen.queryByText('Reference content shown to learners. It has no score or response chart.')).not.toBeInTheDocument()
 })
 
 it('renames, previews, and changes an assessment status from the dashboard', async () => {
@@ -311,17 +345,60 @@ it('adds accessible question cards and exposes publish presets', async () => {
   )
   expect(await screen.findByRole('heading', { name: 'Lung pathology' })).toBeVisible()
   expect(screen.getByRole('textbox', { name: 'Assessment name' })).toHaveValue('Lung pathology')
-  await userEvent.click(screen.getByRole('tab', { name: 'Description' }))
-  expect(screen.getByRole('heading', { name: 'Assessment description' })).toBeVisible()
-  expect(screen.getByRole('textbox', { name: 'Description' })).toBeVisible()
-  await userEvent.click(screen.getByRole('tab', { name: 'Questions' }))
+  expect(screen.getByRole('textbox', { name: 'Assessment description' })).toBeVisible()
+  expect(screen.queryByRole('tab', { name: 'Description' })).not.toBeInTheDocument()
   await userEvent.click(screen.getAllByRole('button', { name: 'Add question' })[0])
   await userEvent.click(screen.getByRole('button', { name: 'Add multiple choice' }))
   expect(screen.getByRole('group', { name: 'Question 1' })).toBeVisible()
+  api.previewAssessmentDraft.mockRejectedValueOnce(new Error('Draft validation failed'))
+  await userEvent.click(screen.getByRole('button', { name: 'Assignment preview' }))
+  expect(await screen.findByRole('dialog', { name: 'Learner preview' })).toBeVisible()
+  expect(screen.getByRole('status')).toHaveTextContent('Previewing the current draft')
+  await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
   await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
   expect(screen.getByRole('radio', { name: /Practice/i })).toBeVisible()
   expect(screen.getByRole('radio', { name: /Formative/i })).toBeVisible()
   expect(screen.getByRole('radio', { name: /Quiz \/ Test/i })).toBeVisible()
+})
+
+it('previews the current authored sequence instead of a stale server manifest', async () => {
+  const currentDocument = {
+    schema: 'pathlab.assessment/2' as const,
+    title: 'Current authoring draft',
+    description: 'Current description',
+    presentation: { preset: 'standard' as const, showProgress: true, showSectionTitles: true },
+    settings: { mode: 'formative' as const, shuffleQuestions: true },
+    sections: [{
+      id: 'section-current',
+      title: 'Current section',
+      description: 'Current section description',
+      items: [{
+        id: 'current-first', type: 'dropdown' as const, prompt: 'Current first question', required: true, points: '1',
+        options: [{ id: 'current-a', label: 'Current answer A' }, { id: 'current-b', label: 'Current answer B' }],
+        answerKey: { optionIds: ['current-a'] },
+      }, {
+        id: 'current-second', type: 'multiple-choice' as const, prompt: 'Current second question', required: false, points: '1',
+        options: [{ id: 'second-a', label: 'Second answer A' }, { id: 'second-b', label: 'Second answer B' }],
+        answerKey: { optionIds: ['second-a'] },
+      }],
+    }],
+  }
+  api.getAssessmentDraft.mockResolvedValue({ id: 'draft-1', title: currentDocument.title, status: 'draft', revision: 3, document: currentDocument })
+  api.previewAssessmentDraft.mockResolvedValue({
+    learnerManifest: { ...currentDocument, sections: [{ ...currentDocument.sections[0], items: [{ ...currentDocument.sections[0].items[0], id: 'stale-question', prompt: 'Stale server question' }] }] },
+    checksum: 'stale-preview',
+  })
+
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes>
+    <Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} />
+  </Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('heading', { name: 'Current authoring draft' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Assignment preview' }))
+  expect(await screen.findByRole('heading', { name: 'Current first question' })).toBeVisible()
+  expect(screen.queryByRole('heading', { name: 'Stale server question' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(screen.getByRole('heading', { name: 'Current second question' })).toBeVisible()
 })
 
 it('keeps a 100-question assessment focused on one editable card at a time', async () => {
@@ -394,15 +471,43 @@ it('opens the import drawer and copies selected questions from another draft', a
 
   expect(await screen.findByRole('heading', { name: 'Lung pathology' })).toBeVisible()
   await userEvent.click(screen.getByRole('button', { name: 'Import questions' }))
-  const importDialog = screen.getByRole('dialog', { name: 'Import questions' })
+  const importDialog = screen.getByRole('dialog', { name: 'Import assessment' })
   expect(importDialog).toBeVisible()
   await userEvent.selectOptions(within(importDialog).getByRole('combobox', { name: 'Source assessment' }), 'source-draft')
-  await userEvent.click(within(importDialog).getByRole('checkbox', { name: 'Imported morphology question' }))
+  await userEvent.click(within(importDialog).getByRole('button', { name: 'Select all shown' }))
   await userEvent.click(within(importDialog).getByRole('button', { name: 'Import selected (1)' }))
 
   expect(api.importAssessmentQuestions).toHaveBeenCalledWith('draft-1', 'source-draft', ['source-question'], 1)
   expect(await screen.findByRole('group', { name: 'Question 1' })).toBeVisible()
-  expect(screen.queryByRole('dialog', { name: 'Import questions' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('dialog', { name: 'Import assessment' })).not.toBeInTheDocument()
+})
+
+it('saves the current sectioned assessment as a server-backed template', async () => {
+  const document = {
+    schema: 'pathlab.assessment/2' as const,
+    title: 'Current assessment',
+    presentation: {}, settings: {},
+    sections: [{ id: 'section-1', title: 'Review', items: [{ id: 'question-1', type: 'short-answer' as const, prompt: 'Diagnosis?' }] }],
+  }
+  api.getAssessmentDraft.mockResolvedValue({ id: 'draft-1', title: document.title, status: 'draft', revision: 1, document })
+  api.createAssessmentDraft.mockResolvedValue({ id: 'template-1', title: 'Template — Lung review', status: 'draft', revision: 1, document: { ...document, title: 'Template — Lung review' } })
+
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes>
+    <Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} />
+  </Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('heading', { name: 'Questions' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Templates & import' }))
+  await userEvent.type(screen.getByRole('textbox', { name: 'Template name' }), 'Lung review')
+  await userEvent.click(screen.getByRole('button', { name: 'Save template' }))
+
+  expect(api.createAssessmentDraft).toHaveBeenCalledWith(
+    'Template — Lung review',
+    expect.objectContaining({ title: 'Template — Lung review', sections: document.sections }),
+    undefined,
+  )
+  expect(await screen.findByText('Lung review is ready to use.')).toBeVisible()
+  expect(screen.getByRole('button', { name: /Lung review/ })).toBeVisible()
 })
 
 it('reorders questions by dragging the navigator and persists the new order', async () => {

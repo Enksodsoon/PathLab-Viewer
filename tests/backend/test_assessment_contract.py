@@ -73,6 +73,26 @@ def test_short_answer_normalization_is_unicode_and_whitespace_stable() -> None:
     assert normalize_short_answer("  ADENO\u212aARCINOMA\n  NOS ") == "adenokarcinoma nos"
 
 
+def test_text_response_keywords_and_manual_review_are_supported() -> None:
+    assert score_item(
+        {
+            "type": "short-answer",
+            "points": "2",
+            "answerKey": {"keywords": ["atypia", "invasion"]},
+        },
+        {"text": "Marked atypia supports stromal invasion."},
+    ) == Decimal("2.000")
+    assert score_item(
+        {
+            "type": "short-answer",
+            "points": "2",
+            "manual": True,
+            "answerKey": {"keywords": ["atypia"]},
+        },
+        {"text": "Marked atypia."},
+    ) is None
+
+
 def test_known_scoring_vectors_are_decimal_half_up_and_bounded() -> None:
     assert score_item(
         {

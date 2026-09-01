@@ -10,13 +10,17 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from sqlalchemy import select
-
 from wsi_viewer.config import Settings
 from wsi_viewer.database import session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Cohort, Folder, Slide
-from wsi_viewer.publication import INDIVIDUAL, ensure_grant
-from wsi_viewer.storage import StorageLayout, measure_derivative
+from wsi_viewer.publication import INDIVIDUAL, delivery_version, ensure_grant
+from wsi_viewer.storage import (
+    StorageLayout,
+    measure_derivative,
+    publish_derivative,
+    publish_individual_derivative,
+)
 
 DEMO_FOLDER_NAME = "Thoracic Pathology — Classroom Demo"
 DEMO_SUBFOLDER_NAME = "Core teaching set"
@@ -260,6 +264,45 @@ def main() -> int:
                 raise SystemExit(f"Demo case {spec['case_id']} already exists outside the demo folder")
             else:
                 slide.folder_id = slide_folder.id
+
+            # Demo databases are frequently copied between local worktrees without
+            # their generated var/private assets. Rebuild the deterministic source,
+            # DZI pyramid, and thumbnail whenever the database row outlives its files.
+            paths = storage.for_slide(slide.id)
+            descriptor = paths.private_derivative / "slide.dzi"
+            thumbnail = paths.private_derivative / "thumbnail.jpg"
+            published_thumbnail = storage.public_for(slide.public_id) / "thumbnail.jpg"
+            individual_thumbnail = (
+                storage.individual_delivery_for(slide.public_id, delivery_version(slide))
+                / "thumbnail.jpg"
+                if slide.published_at is not None
+                else None
+            )
+            publication_missing = slide.published_at is not None and (
+                not published_thumbnail.is_file()
+                or individual_thumbnail is None
+                or not individual_thumbnail.is_file()
+            )
+            if not descriptor.is_file() or not thumbnail.is_file() or publication_missing:
+                image = synthetic_histology(spec)
+                encoded = image.tobytes()
+                paths.original.parent.mkdir(parents=True, exist_ok=True)
+                image.save(paths.original, "TIFF", compression="tiff_lzw")
+                write_deep_zoom(image, paths.private_derivative)
+                measurement = measure_derivative(paths.private_derivative)
+                slide.source_bytes = len(encoded)
+                slide.sha256 = hashlib.sha256(encoded).hexdigest()
+                slide.derivative_bytes = measurement.derivative_bytes
+                slide.derivative_file_count = measurement.file_count
+                slide.thumbnail_filename = "thumbnail.jpg"
+                publish_derivative(storage, slide.id, slide.public_id)
+                publish_individual_derivative(
+                    storage,
+                    slide.id,
+                    slide.public_id,
+                    delivery_version(slide),
+                )
+                ensure_grant(database, storage, slide, INDIVIDUAL, slide.id)
             seeded.append(slide)
 
         classroom.folder_id = folder.id

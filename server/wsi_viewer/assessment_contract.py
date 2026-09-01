@@ -176,7 +176,7 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
     points = _decimal(item.get("points", 0))
     answer = item.get("answerKey", {})
     fraction = Decimal("0")
-    if item_type == "multiple-choice":
+    if item_type in {"multiple-choice", "dropdown"}:
         fraction = Decimal(response.get("optionId") in set(answer.get("optionIds", [])))
     elif item_type == "checkboxes":
         selected = set(response.get("optionIds", []))
@@ -189,11 +189,28 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
             positive = Decimal(len(selected & correct)) / Decimal(max(1, len(correct)))
             penalty = Decimal(len(selected & incorrect)) / Decimal(max(1, len(incorrect)))
             fraction = max(Decimal("0"), min(Decimal("1"), positive - penalty))
-    elif item_type == "short-answer":
+    elif item_type in {"short-answer", "paragraph"} and item.get("manual", False):
+        return None
+    elif item_type in {"short-answer", "paragraph"}:
         submitted = normalize_short_answer(str(response.get("text", "")))
         variants = {normalize_short_answer(str(value)) for value in answer.get("variants", [])}
-        fraction = Decimal(submitted in variants)
-    elif item_type == "paragraph" or item.get("manual", False):
+        keywords = {
+            normalize_short_answer(str(value))
+            for value in answer.get("keywords", [])
+            if normalize_short_answer(str(value))
+        }
+        if submitted in variants:
+            fraction = Decimal("1")
+        elif keywords:
+            matches = sum(keyword in submitted for keyword in keywords)
+            fraction = (
+                Decimal(matches) / Decimal(len(keywords))
+                if item.get("scoring", {}).get("partialCredit", False)
+                else Decimal(matches == len(keywords))
+            )
+        else:
+            return None
+    elif item.get("manual", False):
         return None
     elif item_type == "diagnostic-field":
         selection = response.get("selection")
@@ -211,6 +228,18 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
             fraction = Decimal(region_correct)
         elif diagnosis_present:
             fraction = Decimal(diagnosis_correct)
-    elif item_type == "information":
+    elif item_type == "rating":
+        value = response.get("value")
+        rating = item.get("rating", {})
+        try:
+            if value is None:
+                raise ValueError
+            valid = int(value) == float(value) and 1 <= int(value) <= int(rating.get("max", 0))
+        except (TypeError, ValueError, OverflowError):
+            valid = False
+        fraction = Decimal(valid) if item.get("answerKey", {}).get("value") is None else Decimal(
+            value == item["answerKey"]["value"]
+        )
+    elif item_type in {"information", "section-information"}:
         return Decimal("0.000")
     return _quantize(points * fraction)

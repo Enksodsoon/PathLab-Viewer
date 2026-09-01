@@ -382,6 +382,64 @@ def test_rostered_access_requires_explicit_device_takeover(tmp_path: Path) -> No
     )
 
 
+def test_roster_search_requires_the_access_code_and_returns_canonical_records(
+    tmp_path: Path,
+) -> None:
+    client, _ = _client(tmp_path)
+    cohort_id = client.post(
+        "/api/v2/admin/assessment/classes", json={"name": "Year 3"}
+    ).json()["id"]
+    rows = (
+        "student_id,first_name,last_name,group,subgroup\n"
+        "s001,Somchai,Prasert,Year 3,Blue\n"
+        "s002,Mali,Sukjai,Year 3,Gold"
+    )
+    preview = client.post(
+        f"/api/v2/admin/assessment/classes/{cohort_id}/import/preview",
+        json={"rows": rows},
+    ).json()
+    committed = client.post(
+        f"/api/v2/admin/assessment/classes/{cohort_id}/import/commit",
+        json={"rows": rows, "checksum": preview["checksum"]},
+    )
+    assert committed.status_code == 201, committed.text
+    draft = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Roster lookup", "document": _document()},
+    ).json()
+    published = client.post(
+        f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
+        json={
+            "mode": "quiz",
+            "cohortId": cohort_id,
+            "accessCode": "quiz-code",
+            "durationSeconds": 3600,
+            "maxAttempts": 1,
+        },
+    ).json()
+    client.post(
+        f"/api/v2/admin/assessment/administrations/{published['administrationId']}/open"
+    )
+    path = f"/api/v2/assessment/administrations/{published['publicId']}/roster-search"
+
+    rejected = client.post(path, json={"query": "Som", "accessCode": "wrong"})
+    assert rejected.status_code == 404
+    matched = client.post(path, json={"query": "Blue", "accessCode": "quiz-code"})
+    assert matched.status_code == 200, matched.text
+    assert matched.headers["cache-control"] == "no-store"
+    assert matched.json() == {
+        "items": [
+            {
+                "identifier": "s001",
+                "displayName": "Somchai Prasert",
+                "studentId": "s001",
+                "group": "Year 3",
+                "subgroup": "Blue",
+            }
+        ]
+    }
+
+
 def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) -> None:
     client, _ = _client(tmp_path)
     cohort_id = client.post("/api/v2/admin/assessment/classes", json={"name": "Year 3"}).json()[
@@ -474,19 +532,34 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
 
     monitor = client.get(f"/api/v2/admin/assessment/administrations/{administration_id}/monitor")
     assert monitor.status_code == 200
-    assert set(monitor.json()) == {"activeSessions", "activeAttempts", "submitted", "needsGrading"}
+    assert set(monitor.json()) == {
+        "expected",
+        "entered",
+        "active",
+        "submitted",
+        "autoSubmitted",
+        "stale",
+        "needsGrading",
+        "activeSessions",
+        "activeAttempts",
+    }
     graded = client.post(
-        f"/api/v2/admin/assessment/administrations/{administration_id}/manual-grade",
+        f"/api/v2/admin/assessment/administrations/{administration_id}/manual-grades",
         json={
-            "attemptId": attempt_id,
-            "itemId": "item-manual",
-            "points": "2",
-            "expectedScoreVersion": 1,
+            "grades": [
+                {
+                    "attemptId": attempt_id,
+                    "itemId": "item-manual",
+                    "points": "2",
+                    "feedback": "Clear and appropriately concise.",
+                    "expectedScoreVersion": 1,
+                }
+            ]
         },
     )
     assert graded.status_code == 200
-    assert graded.json()["scoreVersion"] == 2
-    assert graded.json()["points"] == "3.000"
+    assert graded.json()["items"][0]["scoreVersion"] == 2
+    assert graded.json()["items"][0]["points"] == "3.000"
     conflict = client.post(
         f"/api/v2/admin/assessment/administrations/{administration_id}/manual-grade",
         json={
@@ -500,13 +573,22 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     client.post(f"/api/v2/admin/assessment/administrations/{administration_id}/close")
     released = client.post(
         f"/api/v2/admin/assessment/administrations/{administration_id}/release",
-        json={"showScore": True, "showAnswers": False, "showFeedback": False},
+        json={
+            "showScore": True,
+            "showAnswers": False,
+            "showFeedback": False,
+            "showManualFeedback": True,
+        },
     )
     assert released.status_code == 201
     result = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
     assert result.status_code == 200
     assert result.json()["score"]["points"] == "3.000"
     assert "breakdown" not in result.json()
+    manual_item = next(
+        item for item in result.json()["review"]["items"] if item["itemId"] == "item-manual"
+    )
+    assert manual_item["manualFeedback"] == "Clear and appropriately concise."
 
     exported = client.get(
         f"/api/v2/admin/assessment/administrations/{administration_id}/export.csv"
