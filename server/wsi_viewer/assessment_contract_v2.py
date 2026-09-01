@@ -129,7 +129,7 @@ def _validate_question_media(media: object, slide_ids: set[str]) -> None:
                 isinstance(asset_path, str) and asset_path.startswith("/assessment-assets/"),
                 "ASSESSMENT_MEDIA_INVALID",
             )
-        slide_ids.add(media_slide)
+        slide_ids.add(cast(str, media_slide))
     else:
         _require(
             isinstance(asset_path, str)
@@ -190,7 +190,10 @@ def _validate_question_media(media: object, slide_ids: set[str]) -> None:
         _require(region_kind in {"point", "rectangle", "freehand"}, "ASSESSMENT_MEDIA_INVALID")
         if region_kind == "freehand":
             points = region.get("points")
-            _require(isinstance(points, list) and 2 <= len(points) <= 2048, "ASSESSMENT_MEDIA_INVALID")
+            _require(
+                isinstance(points, list) and 2 <= len(points) <= 2048,
+                "ASSESSMENT_MEDIA_INVALID",
+            )
             for point in points:
                 _require(
                     isinstance(point, dict)
@@ -290,16 +293,24 @@ def _validate_item(
         labels.add(normalized_label)
         option_media_items = option.get("mediaItems", [])
         _require(isinstance(option_media_items, list), "ASSESSMENT_MEDIA_INVALID")
-        option_media_collection = ([option["media"]] if option.get("media") is not None else []) + option_media_items
+        option_media_collection = (
+            [option["media"]] if option.get("media") is not None else []
+        ) + option_media_items
         _require(len(option_media_collection) <= 3, "ASSESSMENT_MEDIA_LIMIT")
         for option_media in option_media_collection:
             _require(isinstance(option_media, dict), "ASSESSMENT_MEDIA_INVALID")
             media_kind = option_media.get("kind")
-            _require(media_kind in {"slide-thumbnail", "uploaded-image"}, "ASSESSMENT_MEDIA_INVALID")
+            _require(
+                media_kind in {"slide-thumbnail", "uploaded-image"},
+                "ASSESSMENT_MEDIA_INVALID",
+            )
             asset_path = option_media.get("assetPath")
             if media_kind == "slide-thumbnail":
                 media_slide = option_media.get("slideId")
-                _require(isinstance(media_slide, str) and bool(media_slide), "ASSESSMENT_MEDIA_INVALID")
+                _require(
+                    isinstance(media_slide, str) and bool(media_slide),
+                    "ASSESSMENT_MEDIA_INVALID",
+                )
                 if asset_path is not None:
                     _require(
                         isinstance(asset_path, str)
@@ -424,7 +435,10 @@ def _validate_item(
             _require(region_kind in {"point", "rectangle", "freehand"}, "ASSESSMENT_MEDIA_INVALID")
             if region_kind == "freehand":
                 points = region.get("points")
-                _require(isinstance(points, list) and 2 <= len(points) <= 2048, "ASSESSMENT_MEDIA_INVALID")
+                _require(
+                    isinstance(points, list) and 2 <= len(points) <= 2048,
+                    "ASSESSMENT_MEDIA_INVALID",
+                )
                 for point in points:
                     _require(
                         isinstance(point, dict)
@@ -464,7 +478,10 @@ def _validate_item(
 
     media_items = item.get("mediaItems", [])
     _require(isinstance(media_items, list), "ASSESSMENT_MEDIA_INVALID")
-    _require(len(media_items) <= MAX_MEDIA_ITEMS - (1 if media is not None else 0), "ASSESSMENT_MEDIA_LIMIT")
+    _require(
+        len(media_items) <= MAX_MEDIA_ITEMS - (1 if media is not None else 0),
+        "ASSESSMENT_MEDIA_LIMIT",
+    )
     _require(not media_items or media is not None, "ASSESSMENT_MEDIA_INVALID")
     for additional_media in media_items:
         _validate_question_media(additional_media, slide_ids)

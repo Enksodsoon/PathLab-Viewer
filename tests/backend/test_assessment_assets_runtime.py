@@ -22,7 +22,10 @@ def test_definition_slide_ids_includes_all_question_media() -> None:
                             "media": {"kind": "slide-thumbnail", "slideId": "media-one"},
                             "mediaItems": [
                                 {"kind": "slide-thumbnail", "slideId": "media-two"},
-                                {"kind": "uploaded-image", "assetPath": "data:image/png;base64,aA=="},
+                                {
+                                    "kind": "uploaded-image",
+                                    "assetPath": "data:image/png;base64,aA==",
+                                },
                             ],
                         }
                     ]
@@ -119,7 +122,12 @@ def test_eligible_slides_are_scoped_to_the_draft_class_folder(tmp_path: Path) ->
 
     draft = client.post(
         "/api/v2/admin/assessment/drafts",
-        json={"title": "Class assessment", "document": _document(), "courseId": course_id, "classId": cohort_id},
+        json={
+            "title": "Class assessment",
+            "document": _document(),
+            "courseId": course_id,
+            "classId": cohort_id,
+        },
     )
     assert draft.status_code == 201, draft.text
     draft = draft.json()

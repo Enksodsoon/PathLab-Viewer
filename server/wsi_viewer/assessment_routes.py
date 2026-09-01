@@ -24,7 +24,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, or_, select, text, update
+from sqlalchemy import delete, false, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 
@@ -2075,13 +2075,15 @@ def register_assessment_routes(
                     cohorts = [cohort]
                     scope_label = cohort.name
             elif draft.course_id:
-                cohorts = database.scalars(
-                    select(Cohort).where(
-                        Cohort.assessment_course_id == draft.course_id,
-                        Cohort.organization_id == org_id,
-                        Cohort.status == "active",
-                    )
-                ).all()
+                cohorts = list(
+                    database.scalars(
+                        select(Cohort).where(
+                            Cohort.assessment_course_id == draft.course_id,
+                            Cohort.organization_id == org_id,
+                            Cohort.status == "active",
+                        )
+                    ).all()
+                )
                 course = database.get(AssessmentCourse, draft.course_id)
                 scope_label = course.name if course is not None else "this course"
             roots = {cohort.folder_id for cohort in cohorts if cohort.folder_id}
@@ -2119,7 +2121,7 @@ def register_assessment_routes(
             if folder_ids:
                 statement = statement.where(Slide.folder_id.in_(folder_ids))
             else:
-                statement = statement.where(False)
+                statement = statement.where(false())
         if query.strip():
             statement = statement.where(Slide.display_name.ilike(f"%{query.strip()}%"))
         slides = database.scalars(statement).all()
