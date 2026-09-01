@@ -48,6 +48,7 @@ from distributed_shard import (
     completed_stage_marker,
     partial_shard_result,
     safe_harness_failure_summary,
+    safe_private_failure_code,
     shard_result_from_reports,
 )
 from monitor_distributed_observer import timeline_causes
@@ -791,6 +792,46 @@ def test_failed_harness_summary_is_aggregate_and_allowlisted() -> None:
     assert "redacted" not in str(summary)
 
 
+@pytest.mark.parametrize(
+    ("private_error", "expected"),
+    [
+        (
+            "RuntimeError: not every admitted participant opened SSE before hold",
+            "sse-readiness-timeout",
+        ),
+        ("httpx.ConnectTimeout: https://private.example/secret", "http-connect-timeout"),
+        (
+            "httpx.HTTPStatusError: Server error '503 Service Unavailable' for url "
+            "'https://private.example/secret'",
+            "http-status-error",
+        ),
+        ("RuntimeError: private details", "runtime-error-unclassified"),
+    ],
+)
+def test_private_harness_failure_classifier_returns_only_allowlisted_codes(
+    private_error: str, expected: str
+) -> None:
+    code = safe_private_failure_code(private_error)
+    assert code == expected
+    assert "private.example" not in str(code)
+
+
+def test_missing_report_emits_safe_private_failure_code() -> None:
+    schedule = plan()
+    summary = safe_harness_failure_summary(
+        schedule["stages"][2],
+        {
+            "exitCode": 1,
+            "report": {},
+            "privateErrorPresent": True,
+            "privateFailureCode": "sse-readiness-timeout",
+        },
+        0,
+    )
+
+    assert summary["failureCodes"] == ["report-missing", "sse-readiness-timeout"]
+
+
 def test_process_signal_becomes_a_caught_cancellation_abort() -> None:
     with pytest.raises(ShardCancelled, match="signal 15"):
         cancellation_handler(15, None)
@@ -1024,6 +1065,14 @@ def test_only_shard_zero_publishes_teacher_mutations() -> None:
     assert publisher_enabled("true")
     assert not publisher_enabled("false")
     assert not publisher_enabled("")
+
+
+def test_presenter_quiesce_reserves_fanout_drain_without_shortening_most_of_stage() -> None:
+    assert classroom_sse.presenter_quiesce_seconds(30) == 5
+    assert classroom_sse.presenter_quiesce_seconds(3_600) == 5
+    assert classroom_sse.presenter_quiesce_seconds(1) == pytest.approx(0.2)
+    with pytest.raises(ValueError, match="duration must be positive"):
+        classroom_sse.presenter_quiesce_seconds(0)
 
 
 def test_journey_measurements_keep_each_slo_path_separate() -> None:
