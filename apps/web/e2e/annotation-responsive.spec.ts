@@ -677,8 +677,14 @@ test('edits a polygon vertex through a 44px touch handle on mobile', async ({ pa
   })
 
   await page.getByRole('button', { name: 'Open annotations' }).click()
-  await page.getByRole('button', { name: 'Select', exact: true }).click()
-  await page.getByRole('button', { name: /Touch polygon/ }).click()
+  const selectTool = page.getByRole('button', { name: 'Select', exact: true })
+  await selectTool.click()
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
+  const annotationRow = page.locator('[data-annotation-row]').filter({
+    hasText: 'Touch polygon',
+  })
+  await annotationRow.click()
+  await expect(annotationRow).toHaveClass(/is-selected/)
   await page.getByRole('dialog', { name: 'Annotation inspector' })
     .getByRole('button', { name: 'Close annotation inspector' })
     .click()
