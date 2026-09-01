@@ -29,14 +29,16 @@ PASSWORD = "correct horse battery"
 SECRET = "annotation-tests-use-a-long-random-secret"
 
 
-def _client(tmp_path: Path, *, enabled: bool) -> TestClient:
+def _client(tmp_path: Path, *, enabled: bool, admin_canary: bool = False) -> TestClient:
+    variant = f"{enabled}-{admin_canary}"
     settings = Settings(
-        database_url=f"sqlite:///{tmp_path / f'annotations-{enabled}.sqlite3'}",
-        data_root=tmp_path / f"data-{enabled}",
+        database_url=f"sqlite:///{tmp_path / f'annotations-{variant}.sqlite3'}",
+        data_root=tmp_path / f"data-{variant}",
         secret_key=SECRET,
         secure_cookies=False,
-        tus_internal_upload_dir=tmp_path / f"tus-{enabled}",
+        tus_internal_upload_dir=tmp_path / f"tus-{variant}",
         annotations_enabled=enabled,
+        admin_annotation_canary_enabled=admin_canary,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -517,6 +519,24 @@ def test_feature_flag_session_csrf_and_admin_public_serialization(tmp_path: Path
         admin = enabled.get(f"/api/v1/admin/slides/{slide.id}").json()
         assert admin["annotationsEnabled"] is True
         assert admin["annotationVersion"] == 1
+
+    with _client(tmp_path, enabled=False, admin_canary=True) as canary:
+        slide = _slide(canary, slide_id="canary-slide", state=SlideState.PUBLISHED)
+        headers = _login(canary)
+        assert canary.get(f"/api/v1/admin/slides/{slide.id}").json()[
+            "annotationsEnabled"
+        ] is True
+        assert (
+            canary.post(
+                f"/api/v2/admin/annotations/slides/{slide.id}/layers",
+                headers=headers,
+                json=_layer_payload(),
+            ).status_code
+            == 201
+        )
+        public = canary.get(f"/api/v1/public/slides/{slide.public_id}").json()
+        assert "annotationsEnabled" not in public
+        assert "annotationVersion" not in public
 
 
 def test_annotation_openapi_exposes_strict_manifest_and_result_contracts(
