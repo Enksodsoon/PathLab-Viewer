@@ -14,6 +14,22 @@ export type AssessmentSchema = 'pathlab.assessment/1' | 'pathlab.assessment/2'
 export interface AssessmentOption {
   id: string
   label: string
+  /** First compact visual, retained for compatibility. */
+  media?: AssessmentQuestionMedia
+  /** Additional ordered visuals; an answer choice may contain up to three total. */
+  mediaItems?: AssessmentQuestionMedia[]
+}
+
+export interface AssessmentQuestionMedia {
+  kind: 'slide-thumbnail' | 'uploaded-image'
+  slideId?: string
+  assetPath?: string
+  alt?: string
+  fileName?: string
+  viewport?: { x: number; y: number; scale: number }
+  capture?: { kind: 'rectangle'; x: number; y: number; width: number; height: number }
+  capturedImage?: { assetPath: string; width: number; height: number; bytes: number }
+  marks?: DiagnosticSelection[]
 }
 
 export interface AssessmentItem {
@@ -45,12 +61,9 @@ export interface AssessmentItem {
     pattern?: string
     message?: string
   }
-  media?: {
-    kind: 'slide-thumbnail'
-    slideId: string
-    assetPath?: string
-    alt?: string
-  }
+  media?: AssessmentQuestionMedia
+  /** Additional ordered media. `media` remains the first item for v1/v2 compatibility. */
+  mediaItems?: AssessmentQuestionMedia[]
   education?: {
     objective?: string
     competency?: string
@@ -76,8 +89,9 @@ export interface AssessmentItem {
 }
 
 export type DiagnosticSelection =
-  | { kind: 'point'; x: number; y: number }
-  | { kind: 'rectangle'; x: number; y: number; width: number; height: number }
+  | { kind: 'point'; x: number; y: number; label?: string }
+  | { kind: 'rectangle'; x: number; y: number; width: number; height: number; label?: string }
+  | { kind: 'freehand'; points: Array<{ x: number; y: number }>; label?: string }
 
 export interface EligibleAssessmentSlide {
   id: string
@@ -141,6 +155,22 @@ export function assessmentItems(document: AssessmentDocument): AssessmentItem[] 
   return isAssessmentV2(document)
     ? document.sections.flatMap((section) => section.items)
     : document.items
+}
+
+export function assessmentQuestionMedia(item: AssessmentItem): AssessmentQuestionMedia[] {
+  return [...(item.media ? [item.media] : []), ...(item.mediaItems ?? [])]
+}
+
+export function withAssessmentQuestionMedia(
+  item: AssessmentItem,
+  media: AssessmentQuestionMedia[],
+): AssessmentItem {
+  const [first, ...additional] = media
+  return {
+    ...item,
+    media: first,
+    mediaItems: additional.length ? additional : undefined,
+  }
 }
 
 export function replaceAssessmentItems(

@@ -23,7 +23,7 @@ it('parses local paste input with line-level errors and bounded options', () => 
   expect(result.items.map((item) => item.type)).toEqual(['multiple-choice', 'rating'])
   expect(result.items[0].options?.map((option) => option.label)).toEqual(['Adenocarcinoma', 'Reactive atypia'])
   expect(result.errors).toEqual([
-    { line: 3, message: 'Use mc, dropdown, rating, short, or paragraph.' },
+    { line: 3, message: 'Use mc, rating, or text.' },
     { line: 4, message: 'Choice questions require at least two options.' },
   ])
 })

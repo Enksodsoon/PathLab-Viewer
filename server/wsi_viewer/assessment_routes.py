@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import (
@@ -335,6 +336,12 @@ class AccessRequest(BaseModel):
     student_identifier: str | None = Field(default=None, alias="studentIdentifier")
     access_code: str | None = Field(default=None, alias="accessCode")
     takeover: bool = False
+
+
+class RosterSearchRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    query: str = Field(min_length=2, max_length=100)
+    access_code: str = Field(alias="accessCode", min_length=1, max_length=100)
 
 
 class ResponseSave(BaseModel):
@@ -689,6 +696,64 @@ def register_assessment_routes(
             "closesAt": administration.closes_at,
             "manifest": version.learner_manifest,
             "assets": grant_manifest(_, administration.id),
+        }
+
+    @app.post("/api/v2/assessment/administrations/{public_id}/roster-search")
+    def search_assessment_roster(
+        public_id: str,
+        response: Response,
+        database: Database,
+        payload: RosterSearchRequest,
+    ) -> dict[str, object]:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        administration = database.scalar(
+            select(AssessmentAdministration).where(
+                AssessmentAdministration.public_id == public_id,
+                AssessmentAdministration.status == "open",
+                AssessmentAdministration.mode.in_({"formative", "quiz"}),
+            )
+        )
+        if administration is None or administration.access_code_hash is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        code_hash = hmac.new(
+            identifier_secret.encode(), payload.access_code.encode(), hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(administration.access_code_hash, code_hash):
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        escaped_query = (
+            payload.query.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        search = f"%{escaped_query}%"
+        matches = database.execute(
+            select(AssessmentRosterSnapshot, LearnerProfile)
+            .join(LearnerProfile, LearnerProfile.id == AssessmentRosterSnapshot.learner_id)
+            .where(
+                AssessmentRosterSnapshot.administration_id == administration.id,
+                AssessmentRosterSnapshot.status == "active",
+                LearnerProfile.status == "active",
+                LearnerProfile.student_id.is_not(None),
+                or_(
+                    LearnerProfile.display_name.ilike(search, escape="\\"),
+                    LearnerProfile.student_id.ilike(search, escape="\\"),
+                    LearnerProfile.group_name.ilike(search, escape="\\"),
+                    LearnerProfile.subgroup_name.ilike(search, escape="\\"),
+                ),
+            )
+            .order_by(LearnerProfile.display_name, LearnerProfile.student_id)
+            .limit(8)
+        ).all()
+        return {
+            "items": [
+                {
+                    "identifier": learner.student_id,
+                    "displayName": snapshot.display_name or learner.display_name,
+                    "studentId": learner.student_id,
+                    "group": learner.group_name,
+                    "subgroup": learner.subgroup_name,
+                }
+                for snapshot, learner in matches
+            ]
         }
 
     @app.get("/api/v2/assessment/practice/{public_id}")
@@ -1983,9 +2048,54 @@ def register_assessment_routes(
         database: Database,
         requested_org: ActiveOrganization = None,
         query: str = "",
+        draft_id: str | None = None,
         limit: int = 20,
     ) -> dict[str, Any]:
-        organization_id(authenticated, database, requested_org)
+        org_id = organization_id(authenticated, database, requested_org)
+        folder_ids: set[str] = set()
+        scope_label = "this lesson"
+        if draft_id:
+            draft = database.scalar(
+                select(AssessmentDraft).where(
+                    AssessmentDraft.id == draft_id,
+                    AssessmentDraft.organization_id == org_id,
+                )
+            )
+            if draft is None:
+                raise HTTPException(status_code=404, detail="ASSESSMENT_DRAFT_NOT_FOUND")
+            cohorts: list[Cohort] = []
+            if draft.cohort_id:
+                cohort = database.scalar(
+                    select(Cohort).where(
+                        Cohort.id == draft.cohort_id,
+                        Cohort.organization_id == org_id,
+                    )
+                )
+                if cohort is not None:
+                    cohorts = [cohort]
+                    scope_label = cohort.name
+            elif draft.course_id:
+                cohorts = database.scalars(
+                    select(Cohort).where(
+                        Cohort.assessment_course_id == draft.course_id,
+                        Cohort.organization_id == org_id,
+                        Cohort.status == "active",
+                    )
+                ).all()
+                course = database.get(AssessmentCourse, draft.course_id)
+                scope_label = course.name if course is not None else "this course"
+            roots = {cohort.folder_id for cohort in cohorts if cohort.folder_id}
+            folder_ids.update(roots)
+            pending = set(roots)
+            while pending:
+                children = set(database.scalars(
+                    select(Folder.id).where(
+                        Folder.parent_id.in_(pending),
+                        Folder.trashed_at.is_(None),
+                    )
+                ).all())
+                pending = children - folder_ids
+                folder_ids.update(pending)
         statement = (
             select(Slide)
             .join(
@@ -2005,21 +2115,36 @@ def register_assessment_routes(
             .order_by(Slide.updated_at.desc(), Slide.id)
             .limit(max(1, min(limit, 50)))
         )
+        if draft_id:
+            if folder_ids:
+                statement = statement.where(Slide.folder_id.in_(folder_ids))
+            else:
+                statement = statement.where(False)
         if query.strip():
             statement = statement.where(Slide.display_name.ilike(f"%{query.strip()}%"))
         slides = database.scalars(statement).all()
+
+        def thumbnail_url(slide: Slide) -> str | None:
+            if not slide.thumbnail_filename:
+                return None
+            root = storage.for_slide(slide.id).private_derivative.resolve()
+            target = (root / Path(slide.thumbnail_filename).name).resolve()
+            if not target.is_relative_to(root) or not target.is_file():
+                return None
+            return (
+                f"/tiles/{slide.public_id}/{delivery_version(slide)}/"
+                f"{Path(slide.thumbnail_filename).name}"
+            )
+
         return {
+            "scopeLabel": scope_label,
             "items": [
                 {
                     "id": slide.id,
                     "publicId": slide.public_id,
                     "displayName": slide.display_name,
                     "tileSource": (f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"),
-                    "thumbnail": (
-                        f"/tiles/{slide.public_id}/thumbnail.jpg"
-                        if slide.thumbnail_filename is not None
-                        else None
-                    ),
+                    "thumbnail": thumbnail_url(slide),
                 }
                 for slide in slides
             ]

@@ -209,14 +209,26 @@ export async function createAssessmentClass(name: string) {
   )
 }
 
-export async function listEligibleAssessmentSlides(query = '') {
+export async function listEligibleAssessmentSlides(query = '', draftId = '') {
   const search = new URLSearchParams({ query })
-  return body<{ items: EligibleAssessmentSlide[] }>(
+  if (draftId) search.set('draft_id', draftId)
+  const result = await body<{ items: EligibleAssessmentSlide[]; scopeLabel?: string }>(
     await fetch(`/api/v2/admin/assessment/slides?${search}`, {
       credentials: 'same-origin',
       cache: 'no-store',
     }),
   )
+  return {
+    scopeLabel: result.scopeLabel,
+    items: result.items.map((slide) => ({
+      ...slide,
+      // Older local APIs returned an unversioned thumbnail route even though
+      // static-DZI assets are served from the versioned tile directory.
+      thumbnail: slide.thumbnail && slide.tileSource.endsWith('/slide.dzi')
+        ? `${slide.tileSource.slice(0, -'slide.dzi'.length)}thumbnail.jpg?assessment-preview=1`
+        : slide.thumbnail,
+    })),
+  }
 }
 
 export async function previewAssessmentRoster(cohortId: string, rows: string) {
@@ -608,6 +620,27 @@ export interface AssessmentAccessResult {
   publicId: string
   csrfToken: string
   receipt?: string
+}
+
+export interface AssessmentRosterMatch {
+  identifier: string
+  displayName: string | null
+  studentId: string
+  group: string | null
+  subgroup: string | null
+}
+
+export async function searchAssessmentRoster(publicId: string, query: string, accessCode: string) {
+  return body<{ items: AssessmentRosterMatch[] }>(await fetch(
+    `/api/v2/assessment/administrations/${encodeURIComponent(publicId)}/roster-search`,
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, accessCode }),
+    },
+  ))
 }
 
 export async function accessAssessment(payload: {

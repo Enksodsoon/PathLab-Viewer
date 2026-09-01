@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   getAssessmentDraft,
+  getAssessmentMetadata,
   getAssessmentResults,
   gradeAssessmentResponse,
   listAssessmentAdministrations,
@@ -11,7 +12,7 @@ import {
   type AssessmentAdministrationSummary,
   type AssessmentResults,
 } from '../assessment/api'
-import { assessmentItems, type AssessmentDraft, type AssessmentItem } from '../assessment/types'
+import { assessmentItems, type AssessmentDocument, type AssessmentDraft, type AssessmentItem } from '../assessment/types'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import './assessment.css'
 
@@ -114,6 +115,7 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
   const requestedView = searchParams.get('view')
   const view: ReportView = requestedView === 'students' || requestedView === 'questions' || requestedView === 'grading' ? requestedView : 'overall'
   const [draft, setDraft] = useState<AssessmentDraft | null>(null)
+  const [reportDocument, setReportDocument] = useState<AssessmentDocument | null>(null)
   const [administration, setAdministration] = useState<AssessmentAdministrationSummary | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -141,10 +143,20 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
     void Promise.all([getAssessmentDraft(draftId), listAssessmentAdministrations()])
       .then(async ([draftResult, administrationResult]) => {
         if (!active) return
-        setDraft(draftResult)
         const latest = administrationResult.items.find((item) => item.draftId === draftId) ?? null
+        setDraft(draftResult)
         setAdministration(latest)
-        if (latest) setResults(await loadAllResults(latest.id))
+        if (latest) {
+          const [loadedResults, metadata] = await Promise.all([
+            loadAllResults(latest.id),
+            Promise.resolve(getAssessmentMetadata(latest.publicId)).catch(() => null),
+          ])
+          if (!active) return
+          setResults(loadedResults)
+          setReportDocument(metadata?.manifest ?? draftResult.document)
+        } else {
+          setReportDocument(draftResult.document)
+        }
         if (active) setState('ready')
       })
       .catch(() => { if (active) setState('error') })
@@ -165,22 +177,27 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
   }, [administration, refreshResults])
 
   const draftItems = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
-  const itemsById = useMemo(() => new Map(draftItems.map((item) => [item.id, item])), [draftItems])
+  const editableQuestions = useMemo(() => draftItems.filter((item) => item.type !== 'information' && item.type !== 'section-information'), [draftItems])
+  const reportItems = useMemo(() => (reportDocument ? assessmentItems(reportDocument) : draftItems).filter((item) => item.type !== 'information' && item.type !== 'section-information'), [draftItems, reportDocument])
+  const reportQuestions = reportItems
+  const publishedVersionDiffers = Boolean(administration && reportDocument && (
+    editableQuestions.length !== reportQuestions.length
+    || editableQuestions.some((item, index) => item.id !== reportQuestions[index]?.id)
+  ))
   const questions = useMemo(() => {
     const summaries = results?.summary.questions ?? {}
-    const ids = new Set([...draftItems.map((item) => item.id), ...Object.keys(summaries)])
-    return [...ids].map((itemId, index) => ({
-      itemId,
+    return reportItems.map((item, index) => ({
+      itemId: item.id,
       index,
-      item: itemsById.get(itemId),
-      summary: summaries[itemId] ?? { responseCount: 0, scoredCount: 0, averagePoints: '0' },
+      item,
+      summary: summaries[item.id] ?? { responseCount: 0, scoredCount: 0, averagePoints: '0' },
     }))
-  }, [draftItems, itemsById, results])
+  }, [reportItems, results])
 
   const individuals = useMemo(() => results?.individuals.items ?? [], [results])
   const manualPoints = useMemo(() => new Map<string, number>(
-    draftItems.filter((item) => needsManualReview(item)).map((item) => [item.id, number(item.points)]),
-  ), [draftItems])
+    reportItems.filter((item) => needsManualReview(item)).map((item) => [item.id, number(item.points)]),
+  ), [reportItems])
   const completion = percent(results?.summary.completionRate)
   const averagePossible = individuals.length
     ? individuals.reduce((sum, item) => sum + scoredMaximum(item, manualPoints), 0) / individuals.length
@@ -256,9 +273,9 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
         }).length,
     }
   }), [individuals, questions])
-  const selectedLearner = individuals[Math.min(selectedLearnerIndex, Math.max(0, individuals.length - 1))]
   const filteredIndividuals = individuals.filter((learner) => (learner.displayName ?? learner.studentId ?? '').toLocaleLowerCase().includes(learnerSearch.trim().toLocaleLowerCase()))
-  const gradingQueue = filteredIndividuals.flatMap((learner) => draftItems.filter((item) => needsManualReview(item) && learner.breakdown[item.id] === null).map((item) => ({ learner, item })))
+  const selectedLearner = filteredIndividuals[Math.min(selectedLearnerIndex, Math.max(0, filteredIndividuals.length - 1))]
+  const gradingQueue = filteredIndividuals.flatMap((learner) => reportItems.filter((item) => needsManualReview(item) && learner.breakdown[item.id] === null).map((item) => ({ learner, item })))
   const saveGrade = async (attemptId: string, item: AssessmentItem, expectedScoreVersion: number | null) => {
     if (!administration || expectedScoreVersion === null) return
     const key = `${attemptId}:${item.id}`
@@ -388,9 +405,10 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
     <main className={`assessment-main assessment-report-page assessment-responses-page${embedded ? ' assessment-report-page--embedded' : ''}`}>
       {embedded ? null : <Link className="assessment-report-back" to="/admin/assessments"><ArrowLeft aria-hidden="true" /> Assessments</Link>}
       <header className="assessment-responses-header">
-        <div><h1>{draft.title.replace(/[—–]/g, '-')}</h1><p>{administration ? `${administration.mode.replaceAll('_', ' ')} / ${questions.length} questions / version ${administration.version}` : `${questions.length} questions / unpublished`}</p></div>
+        <div><h1>{draft.title.replace(/[—–]/g, '-')}</h1><p>{administration ? `${administration.mode.replaceAll('_', ' ')} / ${reportQuestions.length} questions / version ${administration.version}` : `${reportQuestions.length} questions / unpublished`}</p></div>
         <div className="assessment-responses-header-actions">{learnersNeedingSupport.length ? <aside className="assessment-response-support" aria-label="Learners needing support"><UsersThree aria-hidden="true" /><strong>{learnersNeedingSupport.length}</strong><span>below 50%</span><button type="button" onClick={() => selectView('students')}>Review</button></aside> : null}<aside className={`assessment-response-status is-${administration?.status ?? 'draft'}`}><span aria-hidden="true" /><div><strong>{administration?.status === 'open' ? 'Active' : administration?.status === 'closed' ? 'Closed' : 'Draft'}</strong><small>{administration ? `${administration.completedParticipants} of ${administration.expectedParticipants ?? administration.completedParticipants} learners completed` : 'Not accepting responses'}</small></div>{administration && administration.status !== 'draft' ? <button type="button" role="switch" aria-checked={administration.status === 'open'} aria-label="Accepting responses" disabled={statusBusy} onClick={() => void toggleResponses()}><i /></button> : null}</aside></div>
       </header>
+      {publishedVersionDiffers ? <p className="assessment-report-version-note">Showing published version {administration?.version} with {reportQuestions.length} questions. The editable draft currently has {editableQuestions.length} questions.</p> : null}
 
       <div className="assessment-responses-navigation">
         <nav className="assessment-responses-tabs" aria-label="Response views">
@@ -418,7 +436,7 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
       {results && view === 'questions' ? <section className="assessment-response-question-stack" aria-label="Question response summaries">{questionResponses.map((question) => renderQuestionResponse(question))}</section> : null}
 
       {results && view === 'students' ? <section className="assessment-response-individual" aria-labelledby="individual-response-title">
-        <header><div><h2 id="individual-response-title">Individual response</h2><p>Review every answer from one learner without losing the assessment context.</p></div><div className="assessment-response-learner-picker"><label className="visually-hidden">Search learners<input value={learnerSearch} onChange={(event) => setLearnerSearch(event.target.value)} /></label><button type="button" aria-label="Previous learner" disabled={selectedLearnerIndex <= 0} onClick={() => setSelectedLearnerIndex((value) => Math.max(0, value - 1))}><CaretLeft aria-hidden="true" /></button><select aria-label="Select learner" value={selectedLearnerIndex} onChange={(event) => setSelectedLearnerIndex(Number(event.target.value))}>{individuals.map((learner, index) => <option key={learner.attemptId} value={index}>{learner.displayName ?? `Learner ${index + 1}`}</option>)}</select><button type="button" aria-label="Next learner" disabled={selectedLearnerIndex >= individuals.length - 1} onClick={() => setSelectedLearnerIndex((value) => Math.min(individuals.length - 1, value + 1))}><CaretRight aria-hidden="true" /></button></div></header>
+        <header><div><h2 id="individual-response-title">Individual response</h2><p>Review every answer from one learner without losing the assessment context.</p></div><div className="assessment-response-learner-picker"><label className="assessment-response-learner-search"><span className="visually-hidden">Search learners</span><input type="search" aria-label="Search learners" placeholder="Search learners" value={learnerSearch} onChange={(event) => { setLearnerSearch(event.target.value); setSelectedLearnerIndex(0) }} /></label><button type="button" aria-label="Previous learner" disabled={selectedLearnerIndex <= 0 || !filteredIndividuals.length} onClick={() => setSelectedLearnerIndex((value) => Math.max(0, value - 1))}><CaretLeft aria-hidden="true" /></button><select aria-label="Select learner" value={filteredIndividuals.length ? Math.min(selectedLearnerIndex, filteredIndividuals.length - 1) : ''} disabled={!filteredIndividuals.length} onChange={(event) => setSelectedLearnerIndex(Number(event.target.value))}>{filteredIndividuals.map((learner, index) => <option key={learner.attemptId} value={index}>{learner.displayName ?? `Learner ${index + 1}`}</option>)}</select><button type="button" aria-label="Next learner" disabled={!filteredIndividuals.length || selectedLearnerIndex >= filteredIndividuals.length - 1} onClick={() => setSelectedLearnerIndex((value) => Math.min(filteredIndividuals.length - 1, value + 1))}><CaretRight aria-hidden="true" /></button></div></header>
         {selectedLearner ? <><article className="assessment-response-learner-summary"><div><span>{selectedLearner.displayName?.slice(0, 1) ?? 'L'}</span><div><strong>{selectedLearner.displayName ?? 'Private learner'}</strong><small>{selectedLearner.status.replaceAll('_', ' ')}</small></div></div><p><strong>{formatPoints(scoredPoints(selectedLearner, manualPoints))} / {formatPoints(scoredMaximum(selectedLearner, manualPoints))}</strong><span>{Math.round(scorePercent(selectedLearner, manualPoints))}% score</span></p></article><div className="assessment-response-answer-stack">{questionResponses.map((question) => {
           const response = selectedLearner.responses[question.itemId] ?? {}
           const selectedIds = response.optionId ? [String(response.optionId)] : Array.isArray(response.optionIds) ? response.optionIds.map(String) : []

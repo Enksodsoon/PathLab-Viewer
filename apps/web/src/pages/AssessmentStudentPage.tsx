@@ -1,8 +1,8 @@
-import { BookmarkSimple, CheckCircle, Clock, WifiSlash } from '@phosphor-icons/react'
+import { BookmarkSimple, Check, CheckCircle, Clock, MagnifyingGlass, UserCircle, WifiSlash } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-import { accessAssessment, AssessmentHttpError, getAssessmentMetadata, getAssessmentResult, getPracticeBundle, restoreAssessmentSession, saveAssessmentResponses, startAssessmentAttempt, submitAssessmentAttempt } from '../assessment/api'
+import { accessAssessment, AssessmentHttpError, getAssessmentMetadata, getAssessmentResult, getPracticeBundle, restoreAssessmentSession, saveAssessmentResponses, searchAssessmentRoster, startAssessmentAttempt, submitAssessmentAttempt, type AssessmentRosterMatch } from '../assessment/api'
 import { enqueueAssessmentResponse, listAssessmentOutbox, removeAssessmentOutbox } from '../assessment/outbox'
 import { pruneUnreachableResponses, reachableItems } from '../assessment/learnerRuntime'
 import { scorePractice } from '../assessment/practiceScoring'
@@ -42,6 +42,11 @@ export function AssessmentStudentPage() {
   const [reviewing, setReviewing] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [identifier, setIdentifier] = useState('')
+  const [selectedLearner, setSelectedLearner] = useState<AssessmentRosterMatch | null>(null)
+  const [rosterMatches, setRosterMatches] = useState<AssessmentRosterMatch[]>([])
+  const [rosterSearching, setRosterSearching] = useState(false)
+  const [rosterSearchError, setRosterSearchError] = useState('')
+  const [rosterSearchCompleted, setRosterSearchCompleted] = useState('')
   const [accessCode, setAccessCode] = useState('')
   const [accessError, setAccessError] = useState(false)
   const [takeover, setTakeover] = useState(false)
@@ -155,9 +160,38 @@ export function AssessmentStudentPage() {
     if (syncTimer.current !== null) window.clearTimeout(syncTimer.current)
   }, [])
 
+  useEffect(() => {
+    if (selectedLearner || identifier.trim().length < 2 || !accessCode.trim() || mode === 'practice') {
+      setRosterMatches([])
+      setRosterSearching(false)
+      setRosterSearchCompleted('')
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setRosterSearching(true)
+      setRosterSearchError('')
+      void searchAssessmentRoster(publicId, identifier.trim(), accessCode.trim()).then((result) => {
+        if (!cancelled) setRosterMatches(result.items)
+      }).catch(() => {
+        if (!cancelled) {
+          setRosterMatches([])
+          setRosterSearchError('Check the access code, then search again.')
+        }
+      }).finally(() => {
+        if (!cancelled) {
+          setRosterSearching(false)
+          setRosterSearchCompleted(identifier.trim())
+        }
+      })
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [accessCode, identifier, mode, publicId, selectedLearner])
+
   async function enter(kind: 'anonymous' | 'roster') {
     try {
-      const access = await accessAssessment({ kind, publicId, studentIdentifier: identifier, accessCode, takeover })
+      if (kind === 'roster' && !selectedLearner) return
+      const access = await accessAssessment({ kind, publicId, studentIdentifier: selectedLearner?.identifier, accessCode, takeover })
       sessionStorage.setItem(sessionKey(publicId), access.csrfToken)
       setCsrf(access.csrfToken)
       setAccessError(false)
@@ -213,12 +247,12 @@ export function AssessmentStudentPage() {
   useEffect(() => setCurrent((index) => Math.min(index, Math.max(items.length - 1, 0))), [items.length])
   if (!document) return <main className="assessment-loading"><p role="status">{status}</p></main>
   if (mode !== 'practice' && !csrf) return <main className="assessment-entry">
-    <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1>
+    <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1><p className="assessment-entry-intro">Choose your roster record before beginning. Typed text is never accepted as an identity.</p>
     {mode === 'formative' ? <button type="button" onClick={() => void enter('anonymous')}>Continue anonymously</button> : null}
-    <label>Student identifier<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
-    <label>Access code<input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} /></label>
+    <label>Access code<input autoComplete="one-time-code" value={accessCode} onChange={(event) => { setAccessCode(event.target.value); setSelectedLearner(null); setRosterSearchCompleted('') }} /></label>
+    <div className="assessment-roster-identity"><label htmlFor="assessment-roster-search">Find your roster record</label><div className="assessment-roster-search"><MagnifyingGlass aria-hidden="true" /><input id="assessment-roster-search" role="combobox" aria-autocomplete="list" aria-expanded={rosterMatches.length > 0} aria-controls="assessment-roster-matches" autoComplete="off" placeholder="Search name, student ID, group, or subgroup" value={identifier} onChange={(event) => { setIdentifier(event.target.value); setSelectedLearner(null); setAccessError(false); setRosterSearchCompleted('') }} />{rosterSearching ? <span>Searching…</span> : null}</div>{rosterMatches.length ? <ul id="assessment-roster-matches" role="listbox" aria-label="Matching roster records">{rosterMatches.map((learner) => <li role="option" aria-selected={selectedLearner?.identifier === learner.identifier} key={learner.identifier}><button type="button" onClick={() => { setSelectedLearner(learner); setIdentifier(learner.displayName ?? learner.studentId); setRosterMatches([]); setRosterSearchError(''); setRosterSearchCompleted('') }}><UserCircle aria-hidden="true" /><span><strong>{learner.displayName ?? 'Unnamed learner'}</strong><small>{[learner.studentId, learner.group, learner.subgroup].filter(Boolean).join(' · ')}</small></span></button></li>)}</ul> : null}{selectedLearner ? <div className="assessment-roster-selected"><Check aria-hidden="true" /><span><strong>{selectedLearner.displayName}</strong><small>{[selectedLearner.studentId, selectedLearner.group, selectedLearner.subgroup].filter(Boolean).join(' · ')}</small></span><button type="button" onClick={() => { setSelectedLearner(null); setIdentifier(''); setRosterSearchCompleted('') }}>Change</button></div> : null}{rosterSearchError ? <p role="alert">{rosterSearchError}</p> : rosterSearchCompleted === identifier.trim() && !rosterMatches.length && !selectedLearner ? <p>No roster record matches that search.</p> : null}</div>
     {accessError ? <div role="alert"><p>Unable to access this assessment.</p><label><input type="checkbox" checked={takeover} onChange={(event) => setTakeover(event.target.checked)} /> Take over my active session on this device</label></div> : null}
-    <button className="assessment-primary" type="button" onClick={() => void enter('roster')}>Begin assessment</button>
+    <button className="assessment-primary" type="button" disabled={!selectedLearner} onClick={() => void enter('roster')}>Begin assessment</button>
   </main>
   if (result) return <main className="assessment-result"><CheckCircle aria-hidden="true" /><h1>Assessment submitted</h1>{result.score ? <p className="assessment-result-score">{result.score.points} / {result.score.maximumPoints}</p> : <p>Results will appear after your teacher releases them.</p>}{result.needsGrading ? <p>Some answers are awaiting manual grading.</p> : null}</main>
   if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{items.filter((item) => item.type !== 'information' && item.type !== 'section-information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>

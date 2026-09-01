@@ -10,11 +10,14 @@ from .assessment_contract import AssessmentContractError, CompiledAssessment
 
 V1_SCHEMA = "pathlab.assessment/1"
 V2_SCHEMA = "pathlab.assessment/2"
-MAX_DEFINITION_BYTES = 4 * 1024 * 1024
+# Ten 475 KB captured images expand to less than 7 MB as data URLs. Keep a
+# bounded 8 MB envelope with room for the rest of the assessment definition.
+MAX_DEFINITION_BYTES = 8 * 1024 * 1024
 MAX_SECTIONS = 75
 MAX_ITEMS = 100
 MAX_OPTIONS = 10
 MAX_SLIDES = 50
+MAX_MEDIA_ITEMS = 10
 MAX_TITLE = 200
 MAX_DESCRIPTION = 2_000
 MAX_HELP_TEXT = 1_000
@@ -112,6 +115,114 @@ def _validate_route(route: object, section_ids: set[str], option_ids: set[str]) 
             _require(target in section_ids, "ASSESSMENT_ROUTE_INVALID")
 
 
+def _validate_question_media(media: object, slide_ids: set[str]) -> None:
+    _require(isinstance(media, dict), "ASSESSMENT_MEDIA_INVALID")
+    media_data = cast(dict[str, Any], media)
+    media_kind = media_data.get("kind")
+    _require(media_kind in {"slide-thumbnail", "uploaded-image"}, "ASSESSMENT_MEDIA_INVALID")
+    asset_path = media_data.get("assetPath")
+    if media_kind == "slide-thumbnail":
+        media_slide = media_data.get("slideId")
+        _require(isinstance(media_slide, str) and bool(media_slide), "ASSESSMENT_MEDIA_INVALID")
+        if asset_path is not None:
+            _require(
+                isinstance(asset_path, str) and asset_path.startswith("/assessment-assets/"),
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+        slide_ids.add(media_slide)
+    else:
+        _require(
+            isinstance(asset_path, str)
+            and len(asset_path) <= 700_000
+            and asset_path.startswith(
+                (
+                    "data:image/jpeg;base64,",
+                    "data:image/png;base64,",
+                    "data:image/webp;base64,",
+                )
+            ),
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+    viewport = media_data.get("viewport")
+    if viewport is not None:
+        _require(isinstance(viewport, dict), "ASSESSMENT_MEDIA_INVALID")
+        _require(
+            all(isinstance(viewport.get(key), (int, float)) for key in ("x", "y", "scale")),
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+        _require(
+            0 <= viewport["x"] <= 100
+            and 0 <= viewport["y"] <= 100
+            and 1 <= viewport["scale"] <= 3,
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+    capture = media_data.get("capture")
+    captured_image = media_data.get("capturedImage")
+    if captured_image is not None:
+        _require(isinstance(captured_image, dict), "ASSESSMENT_MEDIA_INVALID")
+        captured_path = captured_image.get("assetPath")
+        _require(
+            isinstance(captured_path, str)
+            and len(captured_path) <= 700_000
+            and captured_path.startswith("data:image/webp;base64,"),
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+        _require(
+            isinstance(captured_image.get("width"), int)
+            and isinstance(captured_image.get("height"), int)
+            and isinstance(captured_image.get("bytes"), int)
+            and 1 <= captured_image["width"] <= 1600
+            and 1 <= captured_image["height"] <= 1600
+            and 1 <= captured_image["bytes"] <= 475 * 1024,
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+    marks = media_data.get("marks", [])
+    if capture is not None:
+        _require(
+            isinstance(capture, dict) and capture.get("kind") == "rectangle",
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+    for region in ([capture] if capture is not None else []) + (
+        marks if isinstance(marks, list) else [None]
+    ):
+        _require(isinstance(region, dict), "ASSESSMENT_MEDIA_INVALID")
+        region_kind = region.get("kind")
+        _require(region_kind in {"point", "rectangle", "freehand"}, "ASSESSMENT_MEDIA_INVALID")
+        if region_kind == "freehand":
+            points = region.get("points")
+            _require(isinstance(points, list) and 2 <= len(points) <= 2048, "ASSESSMENT_MEDIA_INVALID")
+            for point in points:
+                _require(
+                    isinstance(point, dict)
+                    and all(isinstance(point.get(key), (int, float)) for key in ("x", "y"))
+                    and 0 <= point["x"] <= 1
+                    and 0 <= point["y"] <= 1,
+                    "ASSESSMENT_MEDIA_INVALID",
+                )
+            if "label" in region:
+                _bounded_text(region.get("label"), 120, "ASSESSMENT_MEDIA_INVALID")
+            continue
+        keys = ("x", "y") if region_kind == "point" else ("x", "y", "width", "height")
+        _require(
+            all(isinstance(region.get(key), (int, float)) for key in keys),
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+        _require(0 <= region["x"] <= 1 and 0 <= region["y"] <= 1, "ASSESSMENT_MEDIA_INVALID")
+        if region_kind == "rectangle":
+            _require(
+                0 < region["width"] <= 1
+                and 0 < region["height"] <= 1
+                and region["x"] + region["width"] <= 1.000001
+                and region["y"] + region["height"] <= 1.000001,
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+        if "label" in region:
+            _bounded_text(region.get("label"), 120, "ASSESSMENT_MEDIA_INVALID")
+    _require(isinstance(marks, list) and len(marks) <= 20, "ASSESSMENT_MEDIA_INVALID")
+    if "alt" in media_data:
+        _bounded_text(media_data.get("alt"), 500, "ASSESSMENT_MEDIA_INVALID")
+
+
 def _validate_item(
     raw: object,
     *,
@@ -177,6 +288,41 @@ def _validate_item(
         normalized_label = " ".join(label.split()).casefold()
         _require(normalized_label not in labels, "ASSESSMENT_DUPLICATE_OPTION_LABEL")
         labels.add(normalized_label)
+        option_media_items = option.get("mediaItems", [])
+        _require(isinstance(option_media_items, list), "ASSESSMENT_MEDIA_INVALID")
+        option_media_collection = ([option["media"]] if option.get("media") is not None else []) + option_media_items
+        _require(len(option_media_collection) <= 3, "ASSESSMENT_MEDIA_LIMIT")
+        for option_media in option_media_collection:
+            _require(isinstance(option_media, dict), "ASSESSMENT_MEDIA_INVALID")
+            media_kind = option_media.get("kind")
+            _require(media_kind in {"slide-thumbnail", "uploaded-image"}, "ASSESSMENT_MEDIA_INVALID")
+            asset_path = option_media.get("assetPath")
+            if media_kind == "slide-thumbnail":
+                media_slide = option_media.get("slideId")
+                _require(isinstance(media_slide, str) and bool(media_slide), "ASSESSMENT_MEDIA_INVALID")
+                if asset_path is not None:
+                    _require(
+                        isinstance(asset_path, str)
+                        and asset_path.startswith(("/assessment-assets/", "/tiles/"))
+                        and ".." not in asset_path,
+                        "ASSESSMENT_MEDIA_INVALID",
+                    )
+                slide_ids.add(media_slide)
+            else:
+                _require(
+                    isinstance(asset_path, str)
+                    and len(asset_path) <= 700_000
+                    and asset_path.startswith(
+                        (
+                            "data:image/jpeg;base64,",
+                            "data:image/png;base64,",
+                            "data:image/webp;base64,",
+                        )
+                    ),
+                    "ASSESSMENT_MEDIA_INVALID",
+                )
+            if "alt" in option_media:
+                _bounded_text(option_media.get("alt"), 500, "ASSESSMENT_MEDIA_INVALID")
 
     answer_key = item.get("answerKey")
     if item_type in CHOICE_TYPES:
@@ -201,16 +347,127 @@ def _validate_item(
     media = item.get("media")
     if media is not None:
         _require(isinstance(media, dict), "ASSESSMENT_MEDIA_INVALID")
-        _require(media.get("kind") == "slide-thumbnail", "ASSESSMENT_MEDIA_INVALID")
-        media_slide = media.get("slideId")
-        _require(isinstance(media_slide, str) and bool(media_slide), "ASSESSMENT_MEDIA_INVALID")
+        media_kind = media.get("kind")
+        _require(media_kind in {"slide-thumbnail", "uploaded-image"}, "ASSESSMENT_MEDIA_INVALID")
         asset_path = media.get("assetPath")
-        if asset_path is not None:
+        if media_kind == "slide-thumbnail":
+            media_slide = media.get("slideId")
+            _require(isinstance(media_slide, str) and bool(media_slide), "ASSESSMENT_MEDIA_INVALID")
+            if asset_path is not None:
+                _require(
+                    isinstance(asset_path, str)
+                    and asset_path.startswith(("/assessment-assets/", "/tiles/"))
+                    and ".." not in asset_path,
+                    "ASSESSMENT_MEDIA_INVALID",
+                )
+            slide_ids.add(media_slide)
+        else:
             _require(
-                isinstance(asset_path, str) and asset_path.startswith("/assessment-assets/"),
+                isinstance(asset_path, str)
+                and len(asset_path) <= 700_000
+                and asset_path.startswith(
+                    (
+                        "data:image/jpeg;base64,",
+                        "data:image/png;base64,",
+                        "data:image/webp;base64,",
+                    )
+                ),
                 "ASSESSMENT_MEDIA_INVALID",
             )
-        slide_ids.add(media_slide)
+        viewport = media.get("viewport")
+        if viewport is not None:
+            _require(isinstance(viewport, dict), "ASSESSMENT_MEDIA_INVALID")
+            _require(
+                all(
+                    isinstance(viewport.get(key), (int, float))
+                    for key in ("x", "y", "scale")
+                ),
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+            _require(
+                0 <= viewport["x"] <= 100
+                and 0 <= viewport["y"] <= 100
+                and 1 <= viewport["scale"] <= 3,
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+        capture = media.get("capture")
+        captured_image = media.get("capturedImage")
+        if captured_image is not None:
+            _require(isinstance(captured_image, dict), "ASSESSMENT_MEDIA_INVALID")
+            captured_path = captured_image.get("assetPath")
+            _require(
+                isinstance(captured_path, str)
+                and len(captured_path) <= 700_000
+                and captured_path.startswith("data:image/webp;base64,"),
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+            _require(
+                isinstance(captured_image.get("width"), int)
+                and isinstance(captured_image.get("height"), int)
+                and isinstance(captured_image.get("bytes"), int)
+                and 1 <= captured_image["width"] <= 1600
+                and 1 <= captured_image["height"] <= 1600
+                and 1 <= captured_image["bytes"] <= 475 * 1024,
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+        marks = media.get("marks", [])
+        if capture is not None:
+            _require(
+                isinstance(capture, dict) and capture.get("kind") == "rectangle",
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+        for region in ([capture] if capture is not None else []) + (
+            marks if isinstance(marks, list) else [None]
+        ):
+            _require(isinstance(region, dict), "ASSESSMENT_MEDIA_INVALID")
+            region_kind = region.get("kind")
+            _require(region_kind in {"point", "rectangle", "freehand"}, "ASSESSMENT_MEDIA_INVALID")
+            if region_kind == "freehand":
+                points = region.get("points")
+                _require(isinstance(points, list) and 2 <= len(points) <= 2048, "ASSESSMENT_MEDIA_INVALID")
+                for point in points:
+                    _require(
+                        isinstance(point, dict)
+                        and all(isinstance(point.get(key), (int, float)) for key in ("x", "y"))
+                        and 0 <= point["x"] <= 1
+                        and 0 <= point["y"] <= 1,
+                        "ASSESSMENT_MEDIA_INVALID",
+                    )
+                if "label" in region:
+                    _bounded_text(region.get("label"), 120, "ASSESSMENT_MEDIA_INVALID")
+                continue
+            keys = ("x", "y") if region_kind == "point" else ("x", "y", "width", "height")
+            _require(
+                all(isinstance(region.get(key), (int, float)) for key in keys),
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+            _require(
+                0 <= region["x"] <= 1 and 0 <= region["y"] <= 1,
+                "ASSESSMENT_MEDIA_INVALID",
+            )
+            if region_kind == "rectangle":
+                _require(
+                    0 < region["width"] <= 1
+                    and 0 < region["height"] <= 1
+                    and region["x"] + region["width"] <= 1.000001
+                    and region["y"] + region["height"] <= 1.000001,
+                    "ASSESSMENT_MEDIA_INVALID",
+                )
+            if "label" in region:
+                _bounded_text(region.get("label"), 120, "ASSESSMENT_MEDIA_INVALID")
+        _require(
+            isinstance(marks, list) and len(marks) <= 20,
+            "ASSESSMENT_MEDIA_INVALID",
+        )
+        if "alt" in media:
+            _bounded_text(media.get("alt"), 500, "ASSESSMENT_MEDIA_INVALID")
+
+    media_items = item.get("mediaItems", [])
+    _require(isinstance(media_items, list), "ASSESSMENT_MEDIA_INVALID")
+    _require(len(media_items) <= MAX_MEDIA_ITEMS - (1 if media is not None else 0), "ASSESSMENT_MEDIA_LIMIT")
+    _require(not media_items or media is not None, "ASSESSMENT_MEDIA_INVALID")
+    for additional_media in media_items:
+        _validate_question_media(additional_media, slide_ids)
 
     if "routing" in item:
         _validate_route(item["routing"], section_ids, option_ids)

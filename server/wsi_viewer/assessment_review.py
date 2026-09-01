@@ -96,14 +96,23 @@ def build_learner_review(
                 for annotation in item["annotations"]
                 if isinstance(annotation, dict)
             ]
-        media = item.get("media")
-        if isinstance(media, dict) and str(media.get("assetPath", "")).startswith(
-            "/assessment-assets/"
-        ):
-            review["media"] = {
+        media_values = [item.get("media")]
+        additional_media = item.get("mediaItems", [])
+        if isinstance(additional_media, list):
+            media_values.extend(additional_media)
+        review_media = [
+            {
                 "kind": "slide-thumbnail",
                 "assetPath": media["assetPath"],
                 "alt": str(media.get("alt", "")),
             }
+            for media in media_values
+            if isinstance(media, dict)
+            and str(media.get("assetPath", "")).startswith("/assessment-assets/")
+        ]
+        if review_media:
+            review["media"] = review_media[0]
+            if len(review_media) > 1:
+                review["mediaItems"] = review_media[1:]
         review_items.append(review)
     return {"items": review_items}

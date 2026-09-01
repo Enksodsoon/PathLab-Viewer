@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { deterministicOrder, orderSectionRuns, pruneUnreachableResponses, reachableSectionIds } from '../assessment/learnerRuntime'
 import type { AssessmentDocumentV2, AssessmentItem } from '../assessment/types'
 import { AssessmentLearnerQuestion } from '../components/assessment/AssessmentLearnerQuestion'
+import { AssessmentLearnerPreview } from '../components/assessment/AssessmentLearnerPreview'
 
 afterEach(cleanup)
 
@@ -44,4 +45,18 @@ it('renders dropdown, Other, and every approved rating style accessibly', async 
     await user.click(screen.getByRole('radio', { name: 'Rating 3' }))
     expect(changed).toHaveBeenLastCalledWith({ value: 3 })
   }
+})
+
+it('renders dropdown answers as visible selectable choices in learner preview', async () => {
+  const user = userEvent.setup()
+  const document: AssessmentDocumentV2 = {
+    schema: 'pathlab.assessment/2', title: 'Preview', presentation: {}, settings: {},
+    sections: [{ id: 'section', title: 'Section', items: [{ id: 'drop', type: 'dropdown', prompt: 'Diagnosis', options: [{ id: 'a', label: 'Lepidic growth' }, { id: 'b', label: 'Solid growth' }] }] }],
+  }
+  render(<AssessmentLearnerPreview document={document} seed="preview" />)
+  expect(screen.queryByRole('combobox', { name: 'Answer' })).not.toBeInTheDocument()
+  expect(screen.getByRole('radiogroup', { name: 'Answer' })).toBeInTheDocument()
+  await user.click(screen.getByRole('radio', { name: 'Solid growth' }))
+  expect(screen.getByRole('radio', { name: 'Solid growth' })).toBeChecked()
+  expect(screen.getByLabelText('Answered')).toBeInTheDocument()
 })

@@ -19,3 +19,17 @@ it('scores Practice locally with exact answers, geometry, and manual nulls', () 
   })
   expect(score).toEqual({ points: 4, maximumPoints: 7, breakdown: { mcq: 1, text: 1, field: 2, manual: null } })
 })
+
+it('scores a unified text response from keywords and supports partial credit', () => {
+  const document: AssessmentDocument = {
+    title: 'Keyword practice', settings: {}, items: [
+      { id: 'all', type: 'short-answer', prompt: 'Explain', points: '2', answerKey: { keywords: ['atypia', 'invasion'] } },
+      { id: 'partial', type: 'short-answer', prompt: 'Explain more', points: '2', scoring: { partialCredit: true }, answerKey: { keywords: ['atypia', 'invasion'] } },
+    ],
+  }
+
+  expect(scorePractice(document, {
+    all: { text: 'Atypia with stromal invasion' },
+    partial: { text: 'Only atypia is present' },
+  })).toEqual({ points: 3, maximumPoints: 4, breakdown: { all: 2, partial: 1 } })
+})
