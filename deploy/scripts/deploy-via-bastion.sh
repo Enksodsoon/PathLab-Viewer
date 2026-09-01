@@ -4,6 +4,7 @@ set -Eeuo pipefail
 TARGET_SHA="${1:-}"
 CLASSROOM_ENABLED="${2:-}"
 ANNOTATIONS_ENABLED="${3:-}"
+ADMIN_ANNOTATION_CANARY_ENABLED="${4:-}"
 PROVISION_EVIDENCE_KEY="${PATHLAB_PROVISION_DEPLOY_EVIDENCE_KEY:-0}"
 TARGET_USER="${OCI_TARGET_USER:-pathlab-deploy}"
 SESSION_ID=""
@@ -97,12 +98,14 @@ fi
 if [[ "${PROVISION_EVIDENCE_KEY}" == 1 ]]; then
   [[ "${PATHLAB_DEPLOY_EVIDENCE_KEY}" =~ ^[0-9a-f]{64}$ ]] || \
     fail "deployment evidence key must be 64 lowercase hex characters"
-  [[ -z "${CLASSROOM_ENABLED}${ANNOTATIONS_ENABLED}" ]] || \
+  [[ -z "${CLASSROOM_ENABLED}${ANNOTATIONS_ENABLED}${ADMIN_ANNOTATION_CANARY_ENABLED}" ]] || \
     fail "feature modes are invalid during key provisioning"
 elif [[ -n "${CLASSROOM_ENABLED}" && ! "${CLASSROOM_ENABLED}" =~ ^(true|false)$ ]]; then
   fail "classroom enabled must be true, false, or empty"
 elif [[ -n "${ANNOTATIONS_ENABLED}" && ! "${ANNOTATIONS_ENABLED}" =~ ^(true|false)$ ]]; then
   fail "annotations enabled must be true, false, or empty"
+elif [[ -n "${ADMIN_ANNOTATION_CANARY_ENABLED}" && ! "${ADMIN_ANNOTATION_CANARY_ENABLED}" =~ ^(true|false)$ ]]; then
+  fail "admin annotation canary enabled must be true, false, or empty"
 fi
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
 : "${OCI_INSTANCE_ID:?OCI_INSTANCE_ID is required}"
@@ -291,6 +294,11 @@ else
   # safe default whenever Classroom mode is explicit, so omit it for bootstrap.
   if [[ "${ANNOTATIONS_ENABLED}" == true ]]; then
     REMOTE_REQUEST="${REMOTE_REQUEST} annotations=${ANNOTATIONS_ENABLED}"
+  fi
+  # Omit false while bootstrapping the dispatcher that first learns this token.
+  # Once installed, an explicit Classroom deploy defaults an omitted canary off.
+  if [[ "${ADMIN_ANNOTATION_CANARY_ENABLED}" == true ]]; then
+    REMOTE_REQUEST="${REMOTE_REQUEST} admin-annotation-canary=${ADMIN_ANNOTATION_CANARY_ENABLED}"
   fi
   "${TARGET_SSH[@]}" "${REMOTE_REQUEST}"
 fi

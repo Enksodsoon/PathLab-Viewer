@@ -24,6 +24,14 @@ JOIN_STAGGER_SECONDS = 0.01
 SSE_READY_RESERVE_SECONDS = 20
 ADMISSION_PROCESS_RESERVE_SECONDS = 5
 GLOBAL_SSE_POLL_SECONDS = 0.05
+PRESENTER_QUIESCE_SECONDS = 5.0
+
+
+def presenter_quiesce_seconds(duration: float) -> float:
+    """Reserve a bounded fanout drain while keeping at least 80% of short stages active."""
+    if duration <= 0:
+        raise ValueError("duration must be positive")
+    return min(PRESENTER_QUIESCE_SECONDS, duration * 0.2)
 
 
 def admission_budget_required_seconds(participants: int) -> float:
@@ -923,6 +931,11 @@ async def run() -> int:
     hold_started_epoch_ms = int(time.time() * 1_000)
     started = time.monotonic()
     deadline = started + duration
+    # Shard zero is the only publisher. Stop it before the shared stream
+    # deadline so every other process can receive the final canonical sequence
+    # before independently evaluating convergence.
+    presenter_quiesce = presenter_quiesce_seconds(duration)
+    presenter_deadline = deadline - presenter_quiesce
     stream_deadline[0] = deadline
     churn_at[0] = started + duration / 2
     tasks = [*streams]
@@ -941,7 +954,13 @@ async def run() -> int:
                 asyncio.create_task(
                     delayed(
                         publish_presenter(
-                            admin, session_id, slide_id, admin_csrf, deadline, rate, recorder
+                            admin,
+                            session_id,
+                            slide_id,
+                            admin_csrf,
+                            presenter_deadline,
+                            rate,
+                            recorder,
                         )
                     )
                 ),
@@ -1053,8 +1072,13 @@ async def run() -> int:
     # latency, not the cadence ceiling, limits the achieved rate. Require a
     # useful 5 Hz freshness floor while separately reporting end-to-end p95/p99.
     minimum_achieved_rate = min(rate, 5)
+    presenter_active_seconds = max(0, duration - publisher_offset - presenter_quiesce)
     expected_updates = (
-        math.floor(duration * minimum_achieved_rate * (0.3 if expect_restart else 0.8))
+        math.floor(
+            presenter_active_seconds
+            * minimum_achieved_rate
+            * (0.3 if expect_restart else 0.8)
+        )
         if publishes_teacher_events
         else 0
     )
@@ -1080,6 +1104,8 @@ async def run() -> int:
         "taskErrors": task_errors,
         "presenterLatencyMs": summary(recorder.presenter_latencies_ms),
         "presenterSendSuccesses": len(recorder.presenter_sent),
+        "presenterActiveSeconds": presenter_active_seconds,
+        "presenterQuiesceSeconds": presenter_quiesce,
         "expectedPresenterUpdates": expected_updates,
         "presenterHttpErrors": recorder.presenter_http_errors,
         "questionLatencyMs": summary(recorder.question_latencies_ms),
