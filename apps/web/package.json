@@ -12,6 +12,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource-variable/cormorant-garamond": "5.3.0",
     "@fontsource-variable/sofia-sans": "5.3.0",
     "@fontsource-variable/source-sans-3": "^5.3.0",
     "@pathlab/viewer-ui": "workspace:*",
