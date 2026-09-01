@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -20,6 +21,37 @@ from distributed_certification import CertificationError, validate_plan
 
 class ShardCancelled(RuntimeError):
     """Raised inside the main thread so signal cancellation can be persisted."""
+
+
+PRIVATE_FAILURE_PATTERNS = (
+    ("participant admission missed the synchronized hold start", "admission-missed-hold"),
+    ("not every admitted participant opened SSE before hold", "sse-readiness-timeout"),
+    ("not every admitted participant had active SSE at hold start", "sse-inactive-at-hold"),
+    ("global active SSE target was not reached at hold start", "global-sse-target-shortfall"),
+    ("httpx.ConnectTimeout", "http-connect-timeout"),
+    ("httpx.ReadTimeout", "http-read-timeout"),
+    ("httpx.WriteTimeout", "http-write-timeout"),
+    ("httpx.PoolTimeout", "http-pool-timeout"),
+    ("httpx.ConnectError", "http-connect-error"),
+    ("httpx.RemoteProtocolError", "http-remote-protocol-error"),
+)
+
+
+def safe_private_failure_code(stderr: str) -> str | None:
+    """Classify private stderr without retaining or returning any original text."""
+    if not stderr.strip():
+        return None
+    for marker, code in PRIVATE_FAILURE_PATTERNS:
+        if marker in stderr:
+            return code
+    status = re.search(r"httpx\.HTTPStatusError: (?:Client|Server) error '[45][0-9]{2}", stderr)
+    if status:
+        return "http-status-error"
+    if "json.decoder.JSONDecodeError" in stderr:
+        return "response-json-invalid"
+    if "RuntimeError:" in stderr:
+        return "runtime-error-unclassified"
+    return "private-error-unclassified"
 
 
 def cancellation_handler(signum: int, _frame: object) -> None:
@@ -50,11 +82,12 @@ def partial_shard_result(
     completed_stages: list[dict[str, Any]],
     *,
     abort_cause: str,
+    failure_summary: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Build a sanitized, run-bound progress artifact after an interrupted shard."""
     if not abort_cause or len(abort_cause) > 128:
         raise CertificationError("a bounded abort cause is required")
-    return {
+    result: dict[str, object] = {
         "schemaVersion": 1,
         "status": "aborted",
         "abortCause": abort_cause,
@@ -69,6 +102,70 @@ def partial_shard_result(
             "credentialsMasked": True,
             "syntheticFixturesOnly": True,
         },
+    }
+    if failure_summary is not None:
+        result["failureSummary"] = failure_summary
+    return result
+
+
+def safe_harness_failure_summary(
+    stage: dict[str, Any], execution: dict[str, Any], shard_index: int
+) -> dict[str, object]:
+    """Classify a failed harness using aggregate, non-identifying fields only."""
+    report = execution.get("report")
+    report = report if isinstance(report, dict) else {}
+    convergence = report.get("finalConvergence")
+    convergence = convergence if isinstance(convergence, dict) else {}
+    participant_errors = report.get("participantErrors")
+    task_errors = report.get("taskErrors")
+    participant_error_count = len(participant_errors) if isinstance(participant_errors, list) else 0
+    task_error_count = len(task_errors) if isinstance(task_errors, list) else 0
+    codes: list[str] = []
+    if not report:
+        codes.append("report-missing")
+        private_failure_code = execution.get("privateFailureCode")
+        if isinstance(private_failure_code, str):
+            codes.append(private_failure_code)
+    if execution.get("stalled") is True:
+        codes.append("harness-stalled")
+    if participant_error_count:
+        codes.append("participant-errors")
+    if task_error_count:
+        codes.append("task-errors")
+    if convergence.get("converged") != convergence.get("expected"):
+        codes.append("final-convergence")
+    if int(report.get("tileErrors", 0)) > 0:
+        codes.append("tile-errors")
+    if int(report.get("presenterHttpErrors", 0)) > 0:
+        codes.append("presenter-http-errors")
+    if int(report.get("unexpectedSseDisconnects", 0)) > 0:
+        codes.append("unexpected-sse-disconnects")
+    if int(report.get("queueOverflows", 0)) > 0:
+        codes.append("queue-overflows")
+    if int(report.get("stalePresenterIncidents", 0)) > 0:
+        codes.append("presenter-regression")
+    if int(report.get("successfulReconnects", 0)) != int(report.get("expectedReconnects", 0)):
+        codes.append("reconnect-shortfall")
+    if int(report.get("presenterSendSuccesses", 0)) < int(
+        report.get("expectedPresenterUpdates", 0)
+    ):
+        codes.append("presenter-rate-shortfall")
+    if execution.get("exitCode") != 0 and not codes:
+        codes.append("unclassified-nonzero-exit")
+    return {
+        "stage": str(stage["name"]),
+        "targetUsers": int(stage["shardTargets"][shard_index]),
+        "exitCode": int(execution.get("exitCode", 1)),
+        "privateErrorPresent": execution.get("privateErrorPresent") is True,
+        "cleanupSucceeded": execution.get("cleanupSucceeded") is True,
+        "participantErrorCount": participant_error_count,
+        "taskErrorCount": task_error_count,
+        "participants": int(report.get("participants", 0)),
+        "finalConverged": int(convergence.get("converged", 0)),
+        "finalExpected": int(convergence.get("expected", 0)),
+        "serverActiveSseAtHoldStart": int(report.get("serverActiveSseAtHoldStart", 0)),
+        "serverPeakSseAtHoldStart": int(report.get("serverPeakSseAtHoldStart", 0)),
+        "failureCodes": codes,
     }
 
 
@@ -178,6 +275,7 @@ def _run_harness(environment: dict[str, str], timeout_seconds: int) -> dict[str,
         },
         # stderr is intentionally not returned or retained because it may contain URLs.
         "privateErrorPresent": bool(stderr.strip()),
+        "privateFailureCode": safe_private_failure_code(stderr),
     }
 
 
@@ -391,6 +489,7 @@ def run(
     reports: list[dict[str, Any]] = []
     environment = os.environ.copy()
     completed_prefix: list[dict[str, Any]] = []
+    failure_summary: dict[str, object] | None = None
     if output_path is not None:
         atomic_write_json(
             output_path,
@@ -522,16 +621,23 @@ def run(
                 and not execution.get("skipped")
             )
             if ordinary_failure:
+                failure_summary = safe_harness_failure_summary(stage, execution, shard_index)
                 raise CertificationError(f"stage {stage['name']} harness failed")
         return shard_result_from_reports(plan, shard_index, reports)
     except (KeyboardInterrupt, SystemExit, ShardCancelled):
         result = partial_shard_result(plan, shard_index, completed_prefix, abort_cause="cancelled")
     except Exception as error:
+        abort_cause = (
+            f"{failure_summary['stage']}-harness-failed"
+            if failure_summary is not None
+            else type(error).__name__
+        )
         result = partial_shard_result(
             plan,
             shard_index,
             completed_prefix,
-            abort_cause=type(error).__name__,
+            abort_cause=abort_cause,
+            failure_summary=failure_summary,
         )
     if output_path is not None:
         atomic_write_json(output_path, result)

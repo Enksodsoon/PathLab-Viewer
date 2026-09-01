@@ -676,7 +676,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def list_slides(_: AdminSession, db: Database) -> list[dict[str, Any]]:
         slides = db.scalars(select(Slide).order_by(Slide.created_at.desc())).all()
         return [
-            _slide_json(slide, annotations_enabled=current.annotations_enabled) for slide in slides
+            _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
+            for slide in slides
         ]
 
     @app.get("/api/v1/admin/slides/{slide_id}")
@@ -684,7 +685,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        result = _slide_json(slide, annotations_enabled=current.annotations_enabled)
+        result = _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
         if slide.state in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}:
             result["tileSource"] = f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
             if slide.thumbnail_filename or slide.render_mode == "ome_dynamic":
@@ -744,7 +745,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             UploadGrant(slide.id, payload.length), current.secret_key, ttl=timedelta(hours=1)
         )
         return {
-            "slide": _slide_json(slide, annotations_enabled=current.annotations_enabled),
+            "slide": _slide_json(
+                slide, annotations_enabled=current.admin_annotations_enabled
+            ),
             "uploadUrl": current.tus_public_url,
             "uploadToken": token,
             "expiresIn": 3600,
@@ -896,7 +899,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
         except InsufficientStorage as error:
             raise HTTPException(status_code=507, detail={"code": "INSUFFICIENT_STORAGE"}) from error
-        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
+        return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
 
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
     def publish(
@@ -929,7 +932,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         )
         db.commit()
-        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
+        return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
 
     @app.post("/api/v1/admin/slides/{slide_id}/unpublish")
     def unpublish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
@@ -950,7 +953,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db.commit()
         for share, slides in share_updates:
             write_share_delivery_manifest(storage, share, slides)
-        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
+        return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)
     def delete(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
@@ -963,7 +966,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         slide = mutate(slide_id, SlideState.DELETING, authenticated, db)
         db.add(Job(slide_id=slide.id, kind="delete"))
         db.commit()
-        return _slide_json(slide, annotations_enabled=current.annotations_enabled)
+        return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
 
     @app.get("/api/v1/public/slides/{public_id}")
     def public_slide(public_id: str, db: Database) -> dict[str, Any]:

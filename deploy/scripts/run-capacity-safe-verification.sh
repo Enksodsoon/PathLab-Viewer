@@ -121,32 +121,50 @@ reconcile_fixture() {
 }
 
 recover_runtime() {
+  local original_failure="${primary_failure}"
   if [[ "${armed}" == true && -n "${plan_digest}" ]]; then
-    if status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
-        "capacity-abort run=${GITHUB_RUN_ID} digest=${plan_digest}" 2>/dev/null)"; then
-      jq -e --arg sha "${GITHUB_SHA}" \
-        '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
-         .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
-         .annotationsEnabled == false' <<< "${status}" >/dev/null
-      recovered="$(bash deploy/scripts/capacity-control-via-bastion.sh \
-        "capacity-recover run=${GITHUB_RUN_ID} sha=${GITHUB_SHA}")"
-      jq -e --arg sha "${GITHUB_SHA}" \
-        '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
-         .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
-         .annotationsEnabled == false and .controllerReconciled == true' \
-        <<< "${recovered}" >/dev/null
-      restored=true
-    else
-      status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
-        "capacity-recover run=${GITHUB_RUN_ID} sha=${GITHUB_SHA}")"
-      jq -e --arg sha "${GITHUB_SHA}" \
-        '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
-         .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
-         .annotationsEnabled == false and .controllerReconciled == true' <<< "${status}" >/dev/null
-      restored=true
+    if abort_runtime; then
+      return 0
     fi
+    primary_failure="CAPACITY_ABORT_FAILED"
+    if ! status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+        "capacity-recover run=${GITHUB_RUN_ID} sha=${GITHUB_SHA}")"; then
+      primary_failure="CAPACITY_RECOVERY_FAILED"
+      return 1
+    fi
+    if ! jq -e --arg sha "${GITHUB_SHA}" \
+      '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
+       .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
+       .annotationsEnabled == false and .controllerReconciled == true' \
+      <<< "${status}" >/dev/null; then
+      primary_failure="CAPACITY_RECOVERY_INVALID"
+      return 1
+    fi
+    restored=true
     armed=false
+    primary_failure="${original_failure}"
   fi
+}
+
+abort_runtime() {
+  local status
+  if ! status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+      "capacity-abort run=${GITHUB_RUN_ID} digest=${plan_digest}")"; then
+    primary_failure="CAPACITY_ABORT_FAILED"
+    return 1
+  fi
+  if ! jq -e --arg sha "${GITHUB_SHA}" \
+    '.releaseSha == $sha and .releaseExact == true and .servicesExact == true and
+     .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
+     .annotationsEnabled == false' <<< "${status}" >/dev/null; then
+    primary_failure="CAPACITY_ABORT_INVALID"
+    return 1
+  fi
+  # A verified abort is itself the same-release restoration result. Do not
+  # issue a second capacity-recover request: it adds no safety evidence and a
+  # transient second tunnel must not turn a proved restoration into failure.
+  restored=true
+  armed=false
 }
 
 finish() {
@@ -331,7 +349,9 @@ python tests/load/classroom_sse.py > "${load_path}"
 jq -e '.participants == '"${participants}"' and .participantErrors == [] and
   .taskErrors == [] and .unexpectedSseDisconnects == 0' "${load_path}" >/dev/null
 
-if [[ "${CAPACITY_MODE}" == controller-termination ]]; then
+if [[ "${CAPACITY_MODE}" == controlled-abort ]]; then
+  abort_runtime
+elif [[ "${CAPACITY_MODE}" == controller-termination ]]; then
   terminated="$(bash deploy/scripts/capacity-control-via-bastion.sh \
     "capacity-terminate-controller run=${GITHUB_RUN_ID} digest=${plan_digest}")"
   jq -e '.controllerTerminated == true and .recoveryRequired == true' <<< "${terminated}" >/dev/null

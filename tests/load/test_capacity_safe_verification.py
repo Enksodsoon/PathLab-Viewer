@@ -48,6 +48,18 @@ def test_runner_preserves_capacity_safety_and_exact_ownership_contracts() -> Non
     assert "OCI_ROLLBACK_RELEASE_SHA" not in runner
 
 
+def test_controlled_abort_does_not_repeat_recovery_after_proved_restoration() -> None:
+    runner = RUNNER.read_text(encoding="utf-8")
+    abort_function = runner.split("abort_runtime() {", 1)[1].split("\n}", 1)[0]
+    assert "capacity-abort run=${GITHUB_RUN_ID}" in abort_function
+    assert "capacity-recover run=" not in abort_function
+    assert "restored=true" in abort_function
+    assert "armed=false" in abort_function
+    assert 'if [[ "${CAPACITY_MODE}" == controlled-abort ]]; then' in runner
+    assert "CAPACITY_ABORT_FAILED" in runner
+    assert "CAPACITY_ABORT_INVALID" in runner
+
+
 def test_controller_termination_is_exact_run_bound_and_allowlisted() -> None:
     host = HOST.read_text(encoding="utf-8")
     bastion = BASTION.read_text(encoding="utf-8")

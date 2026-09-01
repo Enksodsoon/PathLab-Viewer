@@ -374,7 +374,9 @@ def build_decision(
             "approvedInventoryDigest",
         }
         and accounting.get("currency") == "SGD"
-        and accounting.get("monthToDateCost") == 0
+        and not isinstance(accounting.get("monthToDateCost"), bool)
+        and isinstance(accounting.get("monthToDateCost"), (int, float))
+        and accounting["monthToDateCost"] >= 0
         and accounting.get("projectedMonthlyEgressBytes", 9_000_000_000_000) < 9_000_000_000_000
         and accounting.get("permanentResourcesAdded") is False
         and accounting.get("observedResourceCount") == accounting.get("approvedResourceCount")

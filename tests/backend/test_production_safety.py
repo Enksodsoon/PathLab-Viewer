@@ -73,9 +73,14 @@ def test_evidence_builder_uses_current_authoritative_check_runs() -> None:
         workflow_run_id="456",
         nonce="run-456-attempt-1",
         projected_monthly_egress_bytes=1_000,
-        month_to_date_cost_sgd=0,
+        month_to_date_cost_sgd=12.34,
         now=1_700_000_000,
     )
+    assert evidence["cost"] == {
+        "currency": "SGD",
+        "monthToDate": 12.34,
+        "projectedIncremental": 0,
+    }
     key = b"test-only-deployment-evidence-key-32-bytes"
     safety.validate_signed(
         evidence,
@@ -162,7 +167,7 @@ def _valid_evidence(sha: str) -> dict[str, Any]:
         "rollback": {"releaseAvailable": True},
         "annotations": {"enabled": False},
         "egress": {"projectedMonthlyBytes": 8_999_999_999_999},
-        "cost": {"currency": "SGD", "monthToDate": 0},
+        "cost": {"currency": "SGD", "monthToDate": 0, "projectedIncremental": 0},
     }
 
 
@@ -393,7 +398,7 @@ def test_signed_evidence_rejects_tampering_staleness_and_nonce_replay() -> None:
     evidence = _valid_evidence(sha)
     signature = safety.sign_evidence(evidence, key)
 
-    evidence["cost"]["monthToDate"] = 0.01
+    evidence["cost"]["projectedIncremental"] = 0.01
     with pytest.raises(safety.GuardFailure):
         safety.validate_signed(
             evidence, sha, signature, key, now=1_700_000_100, expected_nonce="run-123-attempt-1"
@@ -418,7 +423,8 @@ def test_signed_evidence_rejects_tampering_staleness_and_nonce_replay() -> None:
         (("fixtures", "syntheticOnly"), False),
         (("annotations", "enabled"), True),
         (("egress", "projectedMonthlyBytes"), 9_000_000_000_000),
-        (("cost", "monthToDate"), 0.01),
+        (("cost", "monthToDate"), -0.01),
+        (("cost", "projectedIncremental"), 0.01),
     ],
 )
 def test_deployment_guards_fail_closed(path: tuple[str, ...], value: object) -> None:

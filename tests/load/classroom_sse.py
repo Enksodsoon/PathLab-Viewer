@@ -13,12 +13,25 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from distributed_certification import ADMISSION_SECONDS, early_stop_causes
+from distributed_certification import (
+    ADMISSION_SECONDS,
+    SHARD_START_TOLERANCE_MS,
+    early_stop_causes,
+)
 
 ADMISSION_REQUEST_TIMEOUT_SECONDS = 8
 JOIN_STAGGER_SECONDS = 0.01
 SSE_READY_RESERVE_SECONDS = 20
 ADMISSION_PROCESS_RESERVE_SECONDS = 5
+GLOBAL_SSE_POLL_SECONDS = 0.05
+PRESENTER_QUIESCE_SECONDS = 5.0
+
+
+def presenter_quiesce_seconds(duration: float) -> float:
+    """Reserve a bounded fanout drain while keeping at least 80% of short stages active."""
+    if duration <= 0:
+        raise ValueError("duration must be positive")
+    return min(PRESENTER_QUIESCE_SECONDS, duration * 0.2)
 
 
 def admission_budget_required_seconds(participants: int) -> float:
@@ -34,6 +47,28 @@ def admission_budget_required_seconds(participants: int) -> float:
         + SSE_READY_RESERVE_SECONDS
         + ADMISSION_PROCESS_RESERVE_SECONDS
     )
+
+
+async def wait_for_global_sse_target(
+    admin: httpx.AsyncClient,
+    global_target: int,
+    *,
+    deadline_epoch_ms: int,
+    poll_seconds: float = GLOBAL_SSE_POLL_SECONDS,
+) -> dict[str, Any]:
+    """Observe the cross-shard SSE barrier within the strict start tolerance."""
+    while True:
+        response = await admin.get("/api/v1/admin/classroom/metrics")
+        response.raise_for_status()
+        metrics = response.json()
+        active = int(metrics.get("currentSseConnections", 0))
+        peak = int(metrics.get("peakSseConnections", 0))
+        if active >= global_target and peak >= global_target:
+            return metrics
+        remaining = (deadline_epoch_ms - int(time.time() * 1_000)) / 1_000
+        if remaining <= 0:
+            return metrics
+        await asyncio.sleep(min(poll_seconds, remaining))
 
 
 class HeavyEarlyStop(RuntimeError):
@@ -877,9 +912,15 @@ async def run() -> int:
             stream.cancel()
         await asyncio.gather(*streams, return_exceptions=True)
         raise RuntimeError("not every admitted participant had active SSE at hold start")
-    hold_metrics_response = await admin.get("/api/v1/admin/classroom/metrics")
-    hold_metrics_response.raise_for_status()
-    hold_metrics = hold_metrics_response.json()
+    hold_metrics = await wait_for_global_sse_target(
+        admin,
+        global_target,
+        deadline_epoch_ms=(
+            hold_start_epoch_ms + SHARD_START_TOLERANCE_MS
+            if hold_start_epoch_ms
+            else int(time.time() * 1_000) + SHARD_START_TOLERANCE_MS
+        ),
+    )
     server_active_at_hold = int(hold_metrics.get("currentSseConnections", 0))
     server_peak_at_hold = int(hold_metrics.get("peakSseConnections", 0))
     if server_active_at_hold < global_target or server_peak_at_hold < global_target:
@@ -890,6 +931,11 @@ async def run() -> int:
     hold_started_epoch_ms = int(time.time() * 1_000)
     started = time.monotonic()
     deadline = started + duration
+    # Shard zero is the only publisher. Stop it before the shared stream
+    # deadline so every other process can receive the final canonical sequence
+    # before independently evaluating convergence.
+    presenter_quiesce = presenter_quiesce_seconds(duration)
+    presenter_deadline = deadline - presenter_quiesce
     stream_deadline[0] = deadline
     churn_at[0] = started + duration / 2
     tasks = [*streams]
@@ -908,7 +954,13 @@ async def run() -> int:
                 asyncio.create_task(
                     delayed(
                         publish_presenter(
-                            admin, session_id, slide_id, admin_csrf, deadline, rate, recorder
+                            admin,
+                            session_id,
+                            slide_id,
+                            admin_csrf,
+                            presenter_deadline,
+                            rate,
+                            recorder,
                         )
                     )
                 ),
@@ -1015,6 +1067,21 @@ async def run() -> int:
     )
     successful_reconnects = sum(item.connects >= 2 for item in reconnect_expected)
     reconnect_times = [item.connected_at[1] for item in participants if len(item.connected_at) >= 2]
+    # The producer intentionally permits only one HTTP mutation in flight and
+    # keeps one latest pending viewport. Under a 300-stream fanout the response
+    # latency, not the cadence ceiling, limits the achieved rate. Require a
+    # useful 5 Hz freshness floor while separately reporting end-to-end p95/p99.
+    minimum_achieved_rate = min(rate, 5)
+    presenter_active_seconds = max(0, duration - publisher_offset - presenter_quiesce)
+    expected_updates = (
+        math.floor(
+            presenter_active_seconds
+            * minimum_achieved_rate
+            * (0.3 if expect_restart else 0.8)
+        )
+        if publishes_teacher_events
+        else 0
+    )
     report: dict[str, Any] = {
         "participants": count,
         "durationSeconds": round((hold_ended_epoch_ms - hold_started_epoch_ms) / 1_000, 3),
@@ -1027,6 +1094,8 @@ async def run() -> int:
         "serverPeakSseAtHoldStart": server_peak_at_hold,
         "globalTargetUsers": global_target,
         "reconnects": sum(max(0, item.connects - 1) for item in participants),
+        "expectedReconnects": len(reconnect_expected),
+        "successfulReconnects": successful_reconnects,
         "reconnectSuccessRate": round(successful_reconnects / len(reconnect_expected), 4),
         "reconnectSpreadMs": round((max(reconnect_times) - min(reconnect_times)) * 1000, 3)
         if len(reconnect_times) > 1
@@ -1035,6 +1104,10 @@ async def run() -> int:
         "taskErrors": task_errors,
         "presenterLatencyMs": summary(recorder.presenter_latencies_ms),
         "presenterSendSuccesses": len(recorder.presenter_sent),
+        "presenterActiveSeconds": presenter_active_seconds,
+        "presenterQuiesceSeconds": presenter_quiesce,
+        "expectedPresenterUpdates": expected_updates,
+        "presenterHttpErrors": recorder.presenter_http_errors,
         "questionLatencyMs": summary(recorder.question_latencies_ms),
         "controlLatencyMs": summary(recorder.control_latencies_ms),
         "tileLatencyMs": summary(recorder.tile_latencies_ms),
@@ -1067,16 +1140,6 @@ async def run() -> int:
         "earlyStopCauses": sorted(set(early_causes)),
     }
     print(json.dumps(report, indent=2))
-    # The producer intentionally permits only one HTTP mutation in flight and
-    # keeps one latest pending viewport. Under a 300-stream fanout the response
-    # latency, not the cadence ceiling, limits the achieved rate. Require a
-    # useful 5 Hz freshness floor while separately reporting end-to-end p95/p99.
-    minimum_achieved_rate = min(rate, 5)
-    expected_updates = (
-        math.floor(duration * minimum_achieved_rate * (0.3 if expect_restart else 0.8))
-        if publishes_teacher_events
-        else 0
-    )
     failed = bool(task_errors) or converged != count or recorder.tile_errors > 0
     failed = failed or recorder.presenter_http_errors > 0
     failed = failed or recorder.unexpected_sse_disconnects > 0

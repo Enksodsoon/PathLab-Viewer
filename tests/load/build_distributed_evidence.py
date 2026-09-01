@@ -243,8 +243,11 @@ def build(
         "cost": {
             "currency": "SGD",
             "existingMonthlyAmount": accounting["monthToDateCost"],
-            "projectedMonthlyAmount": 0,
-            "amount": -accounting["monthToDateCost"],
+            # The guarded run reuses the exact existing host shape and may not add
+            # permanent resources.  Preserve sunk month-to-date charges while
+            # reporting the certification's incremental projected cost as zero.
+            "projectedMonthlyAmount": accounting["monthToDateCost"],
+            "amount": 0,
             "permanentResourcesAdded": accounting["permanentResourcesAdded"],
             "computeOcpus": accounting["computeOcpus"],
             "memoryGb": accounting["memoryGb"],

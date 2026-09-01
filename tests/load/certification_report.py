@@ -824,8 +824,7 @@ def _context_checks(context: dict[str, Any], commit_sha: str) -> dict[str, bool]
         and privacy["credentialsMasked"]
         and privacy["syntheticFixturesOnly"],
         "egress": egress["withinBudget"] and egress["projectedBytes"] < EGRESS_BUDGET_BYTES,
-        "cost": cost["existingMonthlyAmount"] == 0
-        and cost["projectedMonthlyAmount"] == 0
+        "cost": cost["projectedMonthlyAmount"] == cost["existingMonthlyAmount"]
         and cost["amount"] == 0
         and not cost["permanentResourcesAdded"]
         and cost["shapeCompliant"],

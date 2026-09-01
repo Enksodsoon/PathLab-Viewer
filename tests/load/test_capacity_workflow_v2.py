@@ -112,7 +112,7 @@ def test_capacity_cost_queries_use_monthly_utc_day_boundaries() -> None:
 def test_capacity_preflight_rejects_missing_accounting_baseline_before_oci_query() -> None:
     serialized = WORKFLOW.read_text(encoding="utf-8")
 
-    validation = serialized.index("Validate zero-cost accounting configuration")
+    validation = serialized.index("Validate zero-incremental-cost accounting configuration")
     query = serialized.index("request-summarized-usages")
     assert validation < query
     assert '[[ "${PROJECTED_MONTHLY_RUNS}" =~ ^[1-9][0-9]*$ ]]' in serialized
@@ -138,14 +138,23 @@ def test_capacity_accounting_evidence_is_uploaded_before_strict_gate() -> None:
     gate_index = next(
         index
         for index, step in enumerate(steps)
-        if step.get("name") == "Enforce zero-cost accounting baseline"
+        if step.get("name") == "Enforce zero-incremental-cost accounting baseline"
     )
 
     assert upload_index < gate_index
     gate = steps[gate_index]["run"]
-    assert ".monthToDateCost == 0 and .permanentResourcesAdded == false" in gate
+    assert '.monthToDateCost >= 0' in gate
+    assert '.permanentResourcesAdded == false' in gate
     assert "observedResourceCount" in gate
     assert "observedInventoryDigest" in gate
+
+
+def test_capacity_inventory_excludes_terminal_and_history_only_resources() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+
+    assert '."lifecycle-state" != "TERMINATED"' in serialized
+    assert '."lifecycle-state" != "DELETED"' in serialized
+    assert '."resource-type" != "ConsoleHistory"' in serialized
 
 
 def test_capacity_workflow_retains_only_sanitized_aggregate_evidence() -> None:

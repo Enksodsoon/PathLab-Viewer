@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql.elements import ColumnElement
 
 from .domain import InvalidTransition, SlideState, transition
 from .library import utcnow
@@ -59,12 +60,16 @@ def _begin_immediate(database: OrmSession) -> None:
     database.connection().exec_driver_sql("BEGIN IMMEDIATE")
 
 
-def _accounted_bytes(database: OrmSession, *, exclude_slide_id: str | None = None) -> int:
-    contribution = case(
+def storage_contribution_expression() -> ColumnElement[int]:
+    return case(
         (Slide.state.in_(ACTIVE_STATES), Slide.reserved_bytes),
         (Slide.render_mode == "ome_dynamic", Slide.source_bytes),
         else_=Slide.source_bytes + Slide.derivative_bytes,
     )
+
+
+def _accounted_bytes(database: OrmSession, *, exclude_slide_id: str | None = None) -> int:
+    contribution = storage_contribution_expression()
     statement = select(func.coalesce(func.sum(contribution), 0))
     if exclude_slide_id is not None:
         statement = statement.where(Slide.id != exclude_slide_id)

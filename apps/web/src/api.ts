@@ -13,6 +13,7 @@ import type {
   SharedManifest,
   SharePreview,
   LibraryShare,
+  StorageInventory,
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
@@ -512,6 +513,28 @@ export async function emptyLibraryTrash(): Promise<{ scheduled: number }> {
       headers: csrfHeaders(),
     }),
   )
+}
+
+export async function getStorageInventory(query: {
+  scope: 'all' | 'active' | 'trash'
+  q?: string
+  sort: 'size_desc' | 'name_asc' | 'updated_desc'
+  offset: number
+  limit?: number
+  signal?: AbortSignal
+}): Promise<StorageInventory> {
+  const parameters = new URLSearchParams({
+    scope: query.scope,
+    sort: query.sort,
+    offset: String(query.offset),
+    limit: String(query.limit ?? 50),
+  })
+  if (query.q) parameters.set('q', query.q)
+  return json<StorageInventory>(await fetch(`/api/v2/admin/storage?${parameters}`, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    signal: query.signal,
+  }))
 }
 
 export async function getSharedManifest(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -28,6 +29,7 @@ from classroom_sse import (
     recovery_local_state_convergence,
     remote_target_allowed,
     stage_credentials,
+    wait_for_global_sse_target,
 )
 from distributed_certification import (
     ADMISSION_SECONDS,
@@ -45,6 +47,8 @@ from distributed_shard import (
     cancellation_handler,
     completed_stage_marker,
     partial_shard_result,
+    safe_harness_failure_summary,
+    safe_private_failure_code,
     shard_result_from_reports,
 )
 from monitor_distributed_observer import timeline_causes
@@ -223,6 +227,12 @@ def healthy_accounting() -> dict[str, object]:
         "observedInventoryDigest": "c" * 64,
         "approvedInventoryDigest": "c" * 64,
     }
+
+
+def paid_existing_accounting() -> dict[str, object]:
+    accounting = healthy_accounting()
+    accounting["monthToDateCost"] = 0.162128807907
+    return accounting
 
 
 def healthy_fixture_preparation(schedule: dict[str, object]) -> dict[str, object]:
@@ -594,6 +604,34 @@ def test_maximum_shard_has_bounded_join_and_sse_runway_before_hold() -> None:
         classroom_sse.admission_budget_required_seconds(335)
 
 
+def test_global_sse_barrier_tolerates_cross_shard_visibility_race() -> None:
+    observed = iter((1, 1, 2))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        active = next(observed)
+        return httpx.Response(
+            200,
+            json={"currentSseConnections": active, "peakSseConnections": active},
+        )
+
+    async def exercise() -> dict[str, object]:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="https://viewer.example.test",
+        ) as admin:
+            return await wait_for_global_sse_target(
+                admin,
+                2,
+                deadline_epoch_ms=int(datetime.now(UTC).timestamp() * 1_000) + 1_000,
+                poll_seconds=0,
+            )
+
+    metrics = asyncio.run(exercise())
+
+    assert metrics["currentSseConnections"] == 2
+    assert metrics["peakSseConnections"] == 2
+
+
 def test_remote_stage_credentials_require_one_resettable_synthetic_classroom() -> None:
     schedule = plan()
     manifest = {
@@ -709,6 +747,89 @@ def test_partial_shard_result_is_run_bound_and_records_completed_prefix() -> Non
     assert result["runId"] == "123456"
     assert result["shardIndex"] == 2
     assert result["completedStages"] == [{"name": "smoke-2", "outcome": "passed"}]
+
+
+def test_failed_harness_summary_is_aggregate_and_allowlisted() -> None:
+    schedule = plan()
+    stage = schedule["stages"][1]
+    execution = {
+        "exitCode": 1,
+        "stalled": False,
+        "privateErrorPresent": False,
+        "cleanupSucceeded": True,
+        "report": {
+            "participants": stage["shardTargets"][0],
+            "participantErrors": ["redacted"],
+            "taskErrors": [],
+            "finalConvergence": {"converged": 16, "expected": 17},
+            "tileErrors": 2,
+            "presenterHttpErrors": 1,
+            "unexpectedSseDisconnects": 1,
+            "queueOverflows": 1,
+            "stalePresenterIncidents": 1,
+            "expectedReconnects": 2,
+            "successfulReconnects": 1,
+            "expectedPresenterUpdates": 20,
+            "presenterSendSuccesses": 19,
+            "serverActiveSseAtHoldStart": 100,
+            "serverPeakSseAtHoldStart": 100,
+        },
+    }
+
+    summary = safe_harness_failure_summary(stage, execution, 0)
+
+    assert summary["failureCodes"] == [
+        "participant-errors",
+        "final-convergence",
+        "tile-errors",
+        "presenter-http-errors",
+        "unexpected-sse-disconnects",
+        "queue-overflows",
+        "presenter-regression",
+        "reconnect-shortfall",
+        "presenter-rate-shortfall",
+    ]
+    assert "redacted" not in str(summary)
+
+
+@pytest.mark.parametrize(
+    ("private_error", "expected"),
+    [
+        (
+            "RuntimeError: not every admitted participant opened SSE before hold",
+            "sse-readiness-timeout",
+        ),
+        ("httpx.ConnectTimeout: https://private.example/secret", "http-connect-timeout"),
+        (
+            "httpx.HTTPStatusError: Server error '503 Service Unavailable' for url "
+            "'https://private.example/secret'",
+            "http-status-error",
+        ),
+        ("RuntimeError: private details", "runtime-error-unclassified"),
+    ],
+)
+def test_private_harness_failure_classifier_returns_only_allowlisted_codes(
+    private_error: str, expected: str
+) -> None:
+    code = safe_private_failure_code(private_error)
+    assert code == expected
+    assert "private.example" not in str(code)
+
+
+def test_missing_report_emits_safe_private_failure_code() -> None:
+    schedule = plan()
+    summary = safe_harness_failure_summary(
+        schedule["stages"][2],
+        {
+            "exitCode": 1,
+            "report": {},
+            "privateErrorPresent": True,
+            "privateFailureCode": "sse-readiness-timeout",
+        },
+        0,
+    )
+
+    assert summary["failureCodes"] == ["report-missing", "sse-readiness-timeout"]
 
 
 def test_process_signal_becomes_a_caught_cancellation_abort() -> None:
@@ -944,6 +1065,14 @@ def test_only_shard_zero_publishes_teacher_mutations() -> None:
     assert publisher_enabled("true")
     assert not publisher_enabled("false")
     assert not publisher_enabled("")
+
+
+def test_presenter_quiesce_reserves_fanout_drain_without_shortening_most_of_stage() -> None:
+    assert classroom_sse.presenter_quiesce_seconds(30) == 5
+    assert classroom_sse.presenter_quiesce_seconds(3_600) == 5
+    assert classroom_sse.presenter_quiesce_seconds(1) == pytest.approx(0.2)
+    with pytest.raises(ValueError, match="duration must be positive"):
+        classroom_sse.presenter_quiesce_seconds(0)
 
 
 def test_journey_measurements_keep_each_slo_path_separate() -> None:
@@ -1210,6 +1339,40 @@ def test_final_builder_reports_1200_tier_when_headroom_strict_slo_fails() -> Non
 
     assert report["certified"] is True
     assert report["certifiedTier"] == 1200
+
+
+def test_final_builder_preserves_sunk_cost_and_requires_zero_incremental_cost() -> None:
+    schedule = plan()
+    merged = merge_shards(schedule, [healthy_shard(index) for index in range(6)])
+    sentinels, fault, cleanup = bound_run_evidence(schedule)
+    accounting = paid_existing_accounting()
+    postflight = healthy_postflight(schedule)
+    postflight["monthToDateCost"] = accounting["monthToDateCost"]
+
+    report = build_distributed_evidence(
+        schedule,
+        merged,
+        sentinels,
+        fault,
+        healthy_fixture_preparation(schedule),
+        cleanup,
+        healthy_host_samples(schedule),
+        accounting,
+        postflight,
+    )
+
+    assert report["certified"] is True
+    assert report["cost"] == {
+        "currency": "SGD",
+        "existingMonthlyAmount": 0.162128807907,
+        "projectedMonthlyAmount": 0.162128807907,
+        "amount": 0,
+        "permanentResourcesAdded": False,
+        "computeOcpus": 2,
+        "memoryGb": 12,
+        "storageGb": 200,
+        "shapeCompliant": True,
+    }
 
 
 def test_final_builder_does_not_count_the_intentional_classroom_fault_as_unexpected_restart() -> (

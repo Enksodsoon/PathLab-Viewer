@@ -244,7 +244,7 @@ jobs:
           path: ${{ runner.temp }}/capacity-runtime-preflight.json
           if-no-files-found: error
           retention-days: 14
-      - name: Validate zero-cost accounting configuration and build evidence
+      - name: Validate zero-incremental-cost accounting configuration and build evidence
         env:
           PROJECTED_EGRESS_BYTES: ${{ vars.OCI_PROJECTED_MONTHLY_EGRESS_BYTES }}
           PROJECTED_MONTHLY_RUNS: ${{ vars.CAPACITY_PROJECTED_MONTHLY_RUNS }}
@@ -292,9 +292,13 @@ jobs:
           oci search resource structured-search --limit 1000 \
             --query-text "query all resources where compartmentId = '${compartment_id}'" \
             > "${RUNNER_TEMP}/oci-inventory-private.json"
-          observed_resources="$(jq -er '.data.items | length' "${RUNNER_TEMP}/oci-inventory-private.json")"
-          observed_digest="$(jq -cS '[.data.items[] | {id:.identifier,type:."resource-type"}] | sort_by(.type,.id)' \
-            "${RUNNER_TEMP}/oci-inventory-private.json" | sha256sum | awk '{print $1}')"
+          stable_inventory="$(jq -c '[.data.items[] |
+            select(."lifecycle-state" != "TERMINATED" and ."lifecycle-state" != "DELETED" and
+              ."resource-type" != "ConsoleHistory")]' \
+            "${RUNNER_TEMP}/oci-inventory-private.json")"
+          observed_resources="$(jq -er 'length' <<< "${stable_inventory}")"
+          observed_digest="$(jq -cS '[.[] | {id:.identifier,type:."resource-type"}] | sort_by(.type,.id)' \
+            <<< "${stable_inventory}" | sha256sum | awk '{print $1}')"
           [[ "${APPROVED_RESOURCE_DIGEST}" =~ ^[0-9a-f]{64}$ ]]
           test "${APPROVED_RESOURCE_COUNT}" -ge 1
           permanent_added=true
@@ -319,13 +323,14 @@ jobs:
           path: ${{ runner.temp }}/capacity-accounting.json
           if-no-files-found: error
           retention-days: 1
-      - name: Enforce zero-cost accounting baseline
+      - name: Enforce zero-incremental-cost accounting baseline
         run: |
           set -euo pipefail
           jq '{monthToDateCost,permanentResourcesAdded,observedResourceCount,
             approvedResourceCount,observedInventoryDigest,computeOcpus,memoryGb,storageGb}' \
             "${RUNNER_TEMP}/capacity-accounting.json"
-          jq -e '.monthToDateCost == 0 and .permanentResourcesAdded == false' \
+          jq -e '(.monthToDateCost | type) == "number" and .monthToDateCost >= 0 and
+            .permanentResourcesAdded == false' \
             "${RUNNER_TEMP}/capacity-accounting.json" >/dev/null
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh

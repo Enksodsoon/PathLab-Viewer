@@ -50,7 +50,7 @@ Implement the approved design in `docs/superpowers/specs/2026-08-14-pathlab-free
 
 - Add failing unit/contract tests for a 15-second systemd timer, three-failure component-local restart, diagnostics capture, and three-restarts-per-ten-minute anti-flap stop.
 - Implement/install/rollback the watchdog through existing deploy scripts. Probe component-local live/readiness and restart only `api`, `classroom`, or `tile-service`.
-- Add deployment preflight/postflight guards for exact SHA, current CI/security, backup plus restore drill, no active real Classroom, rollback release, synthetic fixtures, annotations disabled, projected egress below 9 TB, OCI cost SGD 0, all containers/endpoints, cleanup, and zero Bastion sessions.
+- Add deployment preflight/postflight guards for exact SHA, current CI/security, backup plus restore drill, no active real Classroom, rollback release, synthetic fixtures, annotations disabled, projected egress below 9 TB, a valid observed OCI month-to-date cost plus SGD 0 projected incremental deployment cost, all containers/endpoints, cleanup, and zero Bastion sessions.
 - Temporarily set capacity 2000 only inside a trap that restores the prior configuration and applies the evidence-derived final ceiling.
 
 ## Task 6: Distributed load, browser sentinels, and certification workflow

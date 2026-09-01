@@ -94,6 +94,9 @@ import type {
 const AuthPanel = lazy(() => import('../components/AuthPanel').then((module) => ({
   default: module.AuthPanel,
 })))
+const StorageWorkspace = lazy(() => import('../components/storage/StorageWorkspace').then(
+  (module) => ({ default: module.StorageWorkspace }),
+))
 import { startTusUpload } from '../upload'
 import '../library.css'
 
@@ -240,6 +243,7 @@ export function AdminPage() {
   const navigate = useNavigate()
   const [url, setUrl] = useSearchParams()
   const location = url.get('location') || 'all'
+  const storageOpen = location === 'storage'
   const sort = url.get('sort') || 'updated_desc'
   const view = (url.get('view') as LibraryViewMode | null) || 'grid'
   const navigationFolderId = location.startsWith('folder:')
@@ -409,7 +413,7 @@ export function AdminPage() {
   }, [searchDraft, setUrlValues])
 
   const query = useMemo(() => ({
-    location,
+    location: storageOpen ? 'all' : location,
     q: search,
     organ: filters.organ,
     stain: filters.stain,
@@ -423,10 +427,14 @@ export function AdminPage() {
     updatedTo: filters.updatedTo ? `${filters.updatedTo}T23:59:59Z` : undefined,
     sort,
     limit: 48,
-  }), [filters, location, search, sort])
+  }), [filters, location, search, sort, storageOpen])
 
   useEffect(() => {
     if (!authorized) return
+    if (storageOpen) {
+      setLoading(false)
+      return
+    }
     const controller = new AbortController()
     setLoading(true)
     setError('')
@@ -450,7 +458,7 @@ export function AdminPage() {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [authorized, query])
+  }, [authorized, query, storageOpen])
 
   useEffect(() => {
     const handler = () => setVisible(document.visibilityState !== 'hidden')
@@ -471,7 +479,7 @@ export function AdminPage() {
   )
 
   useEffect(() => {
-    if (!authorized || !visible || activeIds.length === 0) return
+    if (!authorized || storageOpen || !visible || activeIds.length === 0) return
     let cancelled = false
     let cycles = 0
     let timer = 0
@@ -526,7 +534,7 @@ export function AdminPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [activeIds, activeIdsKey, authorized, loadNavigation, location, visible])
+  }, [activeIds, activeIdsKey, authorized, loadNavigation, location, storageOpen, visible])
 
   useEffect(() => {
     if (!filtersOpen || !authorized) return
@@ -1341,6 +1349,8 @@ export function AdminPage() {
         onStudy={navigation.capabilities?.study
           ? () => navigate('/admin/study')
           : undefined}
+        onStorage={() => chooseLocation('storage')}
+        storageActive={storageOpen}
         onSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void signOut()}
       />
@@ -1399,6 +1409,15 @@ export function AdminPage() {
         data-canvas-region="content"
         inert={navigatorOpen || undefined}
       >
+        {storageOpen ? (
+          <Suspense fallback={<Loader label="Opening storage…" size="large" />}>
+            <StorageWorkspace
+              onBack={() => chooseLocation('all')}
+              onStorageChanged={() => void loadNavigation()}
+            />
+          </Suspense>
+        ) : (
+          <>
         <LibraryToolbar
           breadcrumbs={breadcrumbs}
           search={searchDraft}
@@ -1657,6 +1676,8 @@ export function AdminPage() {
             }}
           />
         ) : null}
+          </>
+        )}
       </main>
 
       <PublishConfirmationDialog
