@@ -1,5 +1,7 @@
 import csv
+import hashlib
 import io
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -9,6 +11,9 @@ from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
+    DesktopCredential,
+    EvidenceBundle,
+    ResultDelivery,
     Slide,
     StudyLearnerSession,
     StudyProgress,
@@ -17,7 +22,7 @@ from wsi_viewer.models import (
 )
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
-from wsi_viewer.study_pack_contract import content_checksum
+from wsi_viewer.study_pack_contract import canonical_json, content_checksum
 
 
 def _client(
@@ -322,3 +327,204 @@ def test_retention_can_only_shorten_after_invites_and_disabled_mode_is_hidden(
 
     with _client(tmp_path / "disabled", study_enabled=False) as disabled:
         assert disabled.get("/api/v1/study/session").status_code == 404
+
+
+def test_evidence_mentor_v2_is_review_bound_grounded_and_answer_hidden(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        admin = _admin(client)
+        slide = _slide(client)
+        with session_factory(client.app.state.settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            credential = DesktopCredential(
+                id="evidence-credential",
+                user_id=user.id,
+                device_name="Forge Evidence Mentor",
+                scopes=["results:sync"],
+                expires_at=datetime.now(UTC) + timedelta(days=1),
+            )
+            delivery = ResultDelivery(
+                id="delivery-v2",
+                credential_id=credential.id,
+                slide_id=slide.id,
+                artifact_revision_id="revision-1",
+                slide_sha256=slide.sha256,
+                payload_length=1,
+                received_bytes=1,
+                payload_sha256="b" * 64,
+                schema="pathlab-private-results/v1",
+                status="complete",
+            )
+            manifest_sha = "c" * 64
+            evidence = EvidenceBundle(
+                delivery_id=delivery.id,
+                slide_id=slide.id,
+                bundle_id="bundle-v2",
+                manifest_sha256=manifest_sha,
+                pack_id="ihc-descriptive-v1",
+                pack_version="1",
+                status="completed",
+                validation_status="experimental",
+                manifest={
+                    "schema": "pathlab.ai-evidence/1",
+                    "manifestSha256": manifest_sha,
+                    "status": "completed",
+                    "researchOnly": True,
+                    "notDiagnostic": True,
+                    "evidence": [],
+                    "cellAggregates": [],
+                    "ihcDescriptors": [],
+                    "qc": {
+                        "focus": 0.9,
+                        "tissueFraction": 0.8,
+                        "uncertainty": 0.2,
+                        "abstentionReasons": [],
+                    },
+                },
+            )
+            database.add(credential)
+            database.flush()
+            database.add(delivery)
+            database.flush()
+            database.add(evidence)
+            database.commit()
+            evidence_id = evidence.id
+
+        review = client.post(
+            f"/api/v1/admin/study/evidence/{evidence_id}/review",
+            headers=admin,
+            json={"previewChecksum": manifest_sha},
+        )
+        assert review.status_code == 200, review.text
+
+        knowledge_core: dict[str, object] = {
+            "schema": "pathlab.knowledge-pack/1",
+            "packId": "pathology-en",
+            "version": "1",
+            "language": "en",
+            "claims": [
+                {
+                    "id": "nci.ki67.1",
+                    "text": "Ki-67 is used as a marker of cell proliferation.",
+                    "retrievalText": "ki-67 nuclear proliferation dividing cells",
+                    "source": {
+                        "title": "NCI Dictionary",
+                        "url": "https://www.cancer.gov/example",
+                        "revision": "2026-08-22",
+                    },
+                    "license": "US Government public-domain text; reuse reviewed",
+                    "allowedUse": "private-research-education",
+                    "reviewedAt": "2026-08-22T00:00:00Z",
+                    "tags": ["ihc", "ki-67"],
+                }
+            ],
+        }
+        knowledge_core["checksum"] = hashlib.sha256(
+            canonical_json(knowledge_core).encode()
+        ).hexdigest()
+        knowledge = client.post(
+            "/api/v1/admin/study/knowledge-packs",
+            headers=admin,
+            json=knowledge_core,
+        )
+        assert knowledge.status_code == 201, knowledge.text
+        knowledge_sha = knowledge.json()["checksum"]
+
+        core: dict[str, object] = {
+            "schema": "pathlab.study-pack/2",
+            "packKey": "evidence-mentor",
+            "version": 1,
+            "title": "Evidence Mentor",
+            "author": "Faculty",
+            "license": "private education",
+            "provenance": "Reviewed signed evidence and allowlisted claims",
+            "revision": "2026-08-22",
+            "languages": ["en"],
+            "knowledgePackChecksum": knowledge_sha,
+            "slides": [
+                {
+                    "viewerSlideId": slide.id,
+                    "sha256": slide.sha256,
+                    "displayName": slide.display_name,
+                    "evidenceBundleSha256": manifest_sha,
+                }
+            ],
+            "tasks": [
+                {
+                    "id": "task-v2",
+                    "type": "multiple-choice",
+                    "slideId": slide.id,
+                    "prompt": "Which reviewed claim is supported?",
+                    "options": ["Proliferation", "Diagnosis"],
+                    "answerKey": "Proliferation",
+                    "hints": ["Use the reviewed NCI claim."],
+                    "explanation": "The reviewed claim describes proliferation, not diagnosis.",
+                    "sources": [
+                        {"title": "NCI Dictionary", "url": "https://www.cancer.gov/example"}
+                    ],
+                    "claimIds": ["nci.ki67.1"],
+                }
+            ],
+        }
+        preview = client.post("/api/v1/admin/study/packs/validate", headers=admin, json=core)
+        assert preview.status_code == 200, preview.text
+        checksum = preview.json()["checksum"]
+        published = client.post(
+            "/api/v1/admin/study/packs",
+            headers=admin,
+            json={
+                **core,
+                "checksum": checksum,
+                "facultyPreview": {
+                    "packChecksum": checksum,
+                    "previewVersion": "pathlab.study-preview/1",
+                    "reviewedAt": "2026-08-22T00:00:00Z",
+                },
+            },
+        )
+        assert published.status_code == 201, published.text
+        course = client.post(
+            "/api/v1/admin/study/courses",
+            headers=admin,
+            json={
+                "packId": published.json()["id"],
+                "title": "Evidence Mentor staff",
+                "learnerLimit": 1,
+            },
+        ).json()
+        client.post(f"/api/v1/admin/study/courses/{course['id']}/prepare", headers=admin)
+        invitation = client.post(
+            f"/api/v1/admin/study/courses/{course['id']}/invitations",
+            headers=admin,
+            json={"count": 1},
+        )
+        code = list(csv.DictReader(io.StringIO(invitation.text)))[0]["invitation_code"]
+        client.post(f"/api/v1/admin/study/courses/{course['id']}/activate", headers=admin)
+        redeemed = client.post(
+            "/api/v1/study/redeem",
+            json={"code": code, "noticeAccepted": True},
+        )
+        assert redeemed.status_code == 201, redeemed.text
+        learner = redeemed.json()
+        assert "answerKey" not in str(learner["pack"])
+        assert "explanation" not in learner["pack"]["tasks"][0]
+        assert "claimIds" not in learner["pack"]["tasks"][0]
+        assert "knowledgePackUrl" not in learner["pack"]
+        assert "evidenceUrl" not in learner["pack"]["slides"][0]
+        knowledge_url = f"/api/v1/study/knowledge/{knowledge_sha}"
+        evidence_url = f"/api/v1/study/slides/{slide.id}/evidence/{manifest_sha}"
+        assert client.get(knowledge_url).status_code == 403
+        assert client.get(evidence_url).status_code == 403
+
+        result = client.post(
+            "/api/v1/study/tasks/task-v2/submit",
+            headers={"X-Study-CSRF": learner["csrfToken"]},
+            json={"selectedOption": "Proliferation"},
+        )
+        assert result.status_code == 200, result.text
+        assert result.json()["claimIds"] == ["nci.ki67.1"]
+        assert result.json()["claims"][0]["id"] == "nci.ki67.1"
+        assert result.json()["evidence"]["manifestSha256"] == manifest_sha
+        assert client.get(knowledge_url).status_code == 200
+        assert client.get(evidence_url).status_code == 200
+        assert "diagnosis" in result.json()["explanation"]

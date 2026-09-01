@@ -5,6 +5,63 @@ export type StudyTask = {
   prompt: string
   options?: string[]
   hints: string[]
+  claimIds?: string[]
+}
+
+export type KnowledgeClaim = {
+  id: string
+  text: string
+  retrievalText: string
+  source: { title: string; url: string; revision: string }
+  license: string
+  allowedUse: 'private-research-education'
+  reviewedAt: string
+  tags: string[]
+}
+
+export type KnowledgePack = {
+  schema: 'pathlab.knowledge-pack/1'
+  packId: string
+  version: string
+  language: 'en'
+  claims: KnowledgeClaim[]
+  checksum: string
+}
+
+export type EvidenceBundle = {
+  schema: 'pathlab.ai-evidence/1' | 'pathlab.ai-evidence/2'
+  manifestSha256: string
+  status: 'completed' | 'partial' | 'abstained' | 'unsupported' | 'failed'
+  researchOnly: true
+  notDiagnostic: true
+  evidence?: Array<{
+    id: string; stage: 'coarse' | 'refined'; kind: string
+    x: number; y: number; width: number; height: number; score: number; thumbnail?: string
+  }>
+  regions?: Array<{
+    id: string; stage: 'coarse' | 'refined'; kind: string; reviewStatus: string
+    x: number; y: number; width: number; height: number; score: number; thumbnail?: string
+  }>
+  cellAggregates: Array<{
+    regionId: string; algorithm: 'hovernet-fast' | 'od-watershed'; count: number
+    densityPerMm2: number | null; meanNucleusAreaPx2: number | null
+    meanNucleusPerimeterPx?: number | null; meanNucleusEccentricity?: number | null
+    meanNucleusSolidity?: number | null; uncertainty?: number
+  }>
+  ihcDescriptors: Array<{
+    regionId: string; marker?: string; compartment?: string
+    dabAreaFraction?: number; meanDabOd?: number; measurements?: Record<string, unknown>; researchEstimate: true
+    markerId?: string; analysisMode?: 'marker-aware' | 'generic-fallback'
+    cellMaskSource?: 'hovernet-fast' | 'od-watershed'
+    compartmentSource?: 'none' | 'faculty-authored' | 'faculty-approved' | 'model-suggested'
+    calibrationStatus?: 'calibrated' | 'relative_only' | 'not_evaluable'
+    uncertainty?: number; abstentionReason?: string | null
+  }>
+  qc: {
+    focus: number; tissueFraction: number; uncertainty: number; abstentionReasons: string[]
+    calibrationStatus?: 'calibrated' | 'relative_only' | 'not_evaluable'
+    backgroundFraction?: number; saturationFraction?: number; stainSeparation?: number; warnings?: string[]
+  }
 }
 
 export type StudySession = {
@@ -17,7 +74,7 @@ export type StudySession = {
     endsAt: string | null
   }
   pack: {
-    schema: 'pathlab.study-pack/1'
+    schema: 'pathlab.study-pack/1' | 'pathlab.study-pack/2' | 'pathlab.study-pack/3'
     packKey: string
     version: number
     title: string
@@ -26,8 +83,13 @@ export type StudySession = {
       viewerSlideId: string
       displayName: string
       tileSource: string
+      evidenceBundleSha256?: string
+      evidenceSetSha256?: string
+      evidenceUrl?: string
     }>
     tasks: StudyTask[]
+    knowledgePackChecksum?: string
+    knowledgePackUrl?: string
   }
   progress: Array<{
     taskId: string
@@ -128,7 +190,7 @@ export type StudyPackTaskDefinition = StudyTask & {
 }
 
 export type StudyPackDefinition = {
-  schema: 'pathlab.study-pack/1'
+  schema: 'pathlab.study-pack/1' | 'pathlab.study-pack/2' | 'pathlab.study-pack/3'
   packKey: string
   version: number
   title: string
@@ -137,8 +199,12 @@ export type StudyPackDefinition = {
   provenance: string
   revision: string
   languages: Array<'en' | 'th'>
-  slides: Array<{ viewerSlideId: string; sha256: string; displayName: string }>
+  slides: Array<{
+    viewerSlideId: string; sha256: string; displayName: string
+    evidenceBundleSha256?: string; evidenceSetSha256?: string
+  }>
   tasks: StudyPackTaskDefinition[]
+  knowledgePackChecksum?: string
   checksum?: string
   facultyPreview?: { packChecksum: string; previewVersion: 'pathlab.study-preview/1'; reviewedAt: string }
 }

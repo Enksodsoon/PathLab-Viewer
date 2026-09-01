@@ -24,7 +24,15 @@ from sqlalchemy.orm import sessionmaker
 
 from .delivery import deliver_file
 from .domain import SlideState
+from .knowledge_pack_contract import (
+    MAX_KNOWLEDGE_BYTES,
+    parse_knowledge_pack,
+    validate_knowledge_pack,
+)
 from .models import (
+    EvidenceBundle,
+    EvidenceSet,
+    KnowledgePack,
     Session,
     Slide,
     StudyCourse,
@@ -37,6 +45,7 @@ from .models import (
 from .storage import StorageLayout
 from .study_pack_contract import (
     MAX_PACK_BYTES,
+    canonical_json,
     learner_definition,
     normalized_spatial_error,
     prepare_study_pack,
@@ -140,6 +149,10 @@ class AiEventReport(StudyModel):
     outcome: str = Field(
         pattern=r"^(continue|offer_hint|ask_confidence|ask_source_check|retrieve|pause|fallback)$"
     )
+
+
+class EvidenceReviewRequest(StudyModel):
+    preview_checksum: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 class StudyPurger:
@@ -411,6 +424,49 @@ def register_study_routes(
                     status_code=409, detail={"code": "STUDY_PACK_SLIDE_NOT_ACCEPTED"}
                 )
 
+    def verify_v2_references(definition: dict[str, Any], database: OrmSession) -> None:
+        if definition["schema"] not in {"pathlab.study-pack/2", "pathlab.study-pack/3"}:
+            return
+        knowledge = database.scalar(
+            select(KnowledgePack).where(
+                KnowledgePack.checksum == definition["knowledgePackChecksum"]
+            )
+        )
+        if knowledge is None:
+            raise HTTPException(status_code=409, detail={"code": "STUDY_PACK_KNOWLEDGE_NOT_FOUND"})
+        known_claims = {claim["id"] for claim in knowledge.definition["claims"]}
+        if any(not set(task["claimIds"]).issubset(known_claims) for task in definition["tasks"]):
+            raise HTTPException(status_code=409, detail={"code": "STUDY_PACK_CLAIM_NOT_FOUND"})
+        for reference in definition["slides"]:
+            if definition["schema"] == "pathlab.study-pack/3":
+                evidence_set = database.scalar(
+                    select(EvidenceSet).where(
+                        EvidenceSet.slide_id == reference["viewerSlideId"],
+                        EvidenceSet.manifest_sha256 == reference["evidenceSetSha256"],
+                    )
+                )
+                if evidence_set is None or evidence_set.reviewed_at is None \
+                        or evidence_set.status not in {"completed", "partial"}:
+                    raise HTTPException(status_code=409, detail={
+                        "code": "STUDY_PACK_EVIDENCE_SET_NOT_REVIEWED"
+                    })
+                continue
+            evidence = database.scalar(
+                select(EvidenceBundle).where(
+                    EvidenceBundle.slide_id == reference["viewerSlideId"],
+                    EvidenceBundle.manifest_sha256 == reference["evidenceBundleSha256"],
+                )
+            )
+            if (
+                evidence is None
+                or evidence.reviewed_at is None
+                or evidence.status not in {"completed", "partial"}
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "STUDY_PACK_EVIDENCE_NOT_REVIEWED"},
+                )
+
     async def study_pack_body(request: Request) -> dict[str, Any]:
         body = bytearray()
         async for chunk in request.stream():
@@ -422,6 +478,133 @@ def register_study_routes(
         except (ValueError, json.JSONDecodeError) as error:
             code = str(error) if str(error).startswith("STUDY_") else "STUDY_PACK_INVALID"
             raise HTTPException(status_code=422, detail={"code": code}) from error
+
+    async def knowledge_pack_body(request: Request) -> dict[str, Any]:
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_KNOWLEDGE_BYTES:
+                raise HTTPException(status_code=413, detail={"code": "KNOWLEDGE_PACK_SIZE_INVALID"})
+        try:
+            return parse_knowledge_pack(bytes(body))
+        except (ValueError, json.JSONDecodeError) as error:
+            code = str(error) if str(error).startswith("KNOWLEDGE_") else "KNOWLEDGE_PACK_INVALID"
+            raise HTTPException(status_code=422, detail={"code": code}) from error
+
+    @app.get("/api/v1/admin/study/evidence")
+    def list_evidence(
+        _: Session = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> list[dict[str, Any]]:
+        require_enabled()
+        return [
+            {
+                "id": item.id,
+                "slideId": item.slide_id,
+                "bundleId": item.bundle_id,
+                "manifestSha256": item.manifest_sha256,
+                "packId": item.pack_id,
+                "packVersion": item.pack_version,
+                "status": item.status,
+                "validationStatus": item.validation_status,
+                "reviewedAt": item.reviewed_at.replace(tzinfo=UTC).isoformat()
+                if item.reviewed_at
+                else None,
+                "createdAt": item.created_at.replace(tzinfo=UTC).isoformat(),
+            }
+            for item in database.scalars(
+                select(EvidenceBundle).order_by(EvidenceBundle.created_at.desc())
+            )
+        ]
+
+    @app.post("/api/v1/admin/study/evidence/{evidence_id}/review")
+    def review_evidence(
+        evidence_id: str,
+        payload: EvidenceReviewRequest,
+        authenticated: Session = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_enabled()
+        evidence = database.get(EvidenceBundle, evidence_id)
+        if evidence is None:
+            raise HTTPException(status_code=404, detail={"code": "AI_EVIDENCE_NOT_FOUND"})
+        if payload.preview_checksum != evidence.manifest_sha256:
+            raise HTTPException(status_code=409, detail={"code": "AI_EVIDENCE_PREVIEW_MISMATCH"})
+        evidence.reviewed_by_user_id = authenticated.user_id
+        evidence.reviewed_at = _now()
+        database.commit()
+        return {
+            "id": evidence.id,
+            "manifestSha256": evidence.manifest_sha256,
+            "reviewedAt": evidence.reviewed_at.replace(tzinfo=UTC).isoformat(),
+        }
+
+    @app.get("/api/v1/admin/study/knowledge-packs")
+    def list_knowledge_packs(
+        _: Session = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> list[dict[str, Any]]:
+        require_enabled()
+        return [
+            {
+                "id": item.id,
+                "packKey": item.pack_key,
+                "version": item.version,
+                "language": item.language,
+                "checksum": item.checksum,
+                "claimCount": len(item.definition["claims"]),
+                "createdAt": item.created_at.replace(tzinfo=UTC).isoformat(),
+            }
+            for item in database.scalars(
+                select(KnowledgePack).order_by(KnowledgePack.created_at.desc())
+            )
+        ]
+
+    @app.post("/api/v1/admin/study/knowledge-packs", status_code=status.HTTP_201_CREATED)
+    async def publish_knowledge_pack(
+        request: Request,
+        authenticated: Session = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_enabled()
+        definition = await knowledge_pack_body(request)
+        try:
+            checksum = validate_knowledge_pack(definition)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": str(error)}) from error
+        existing = database.scalar(
+            select(KnowledgePack).where(
+                KnowledgePack.pack_key == definition["packId"],
+                KnowledgePack.version == definition["version"],
+            )
+        )
+        if existing is not None:
+            if existing.checksum != checksum:
+                raise HTTPException(
+                    status_code=409, detail={"code": "KNOWLEDGE_PACK_VERSION_IMMUTABLE"}
+                )
+            stored = existing
+        else:
+            stored = KnowledgePack(
+                pack_key=definition["packId"],
+                version=definition["version"],
+                language=definition["language"],
+                checksum=checksum,
+                definition=definition,
+                created_by_user_id=authenticated.user_id,
+            )
+            database.add(stored)
+            database.commit()
+            database.refresh(stored)
+        return {
+            "id": stored.id,
+            "packKey": stored.pack_key,
+            "version": stored.version,
+            "language": stored.language,
+            "checksum": stored.checksum,
+            "claimCount": len(stored.definition["claims"]),
+            "createdAt": stored.created_at.replace(tzinfo=UTC).isoformat(),
+        }
 
     @app.get("/api/v1/admin/study/authoring/slides")
     def authoring_slides(
@@ -447,6 +630,7 @@ def register_study_routes(
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": str(error)}) from error
         verify_pack_slides(core, database)
+        verify_v2_references(core, database)
         return {"canonicalCore": core, "checksum": checksum}
 
     @app.post("/api/v1/admin/study/packs", status_code=status.HTTP_201_CREATED)
@@ -462,6 +646,7 @@ def register_study_routes(
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": str(error)}) from error
         verify_pack_slides(definition, database)
+        verify_v2_references(definition, database)
         existing = database.scalar(
             select(StudyPack).where(
                 StudyPack.pack_key == definition["packKey"],
@@ -862,10 +1047,174 @@ def register_study_routes(
             "explanation": task["explanation"],
             "sources": task["sources"],
         }
+        if pack.definition["schema"] in {"pathlab.study-pack/2", "pathlab.study-pack/3"}:
+            slide_reference = next(
+                item
+                for item in pack.definition["slides"]
+                if item["viewerSlideId"] == task["slideId"]
+            )
+            result["claimIds"] = task["claimIds"]
+            evidence_key = (
+                "evidenceBundleSha256" if pack.definition["schema"] == "pathlab.study-pack/2"
+                else "evidenceSetSha256"
+            )
+            result["evidence"] = {
+                "manifestSha256": slide_reference[evidence_key],
+                "url": (
+                    f"/api/v1/study/slides/{task['slideId']}/evidence/"
+                    f"{slide_reference[evidence_key]}"
+                ),
+            }
+            knowledge = database.scalar(
+                select(KnowledgePack).where(
+                    KnowledgePack.checksum == pack.definition["knowledgePackChecksum"]
+                )
+            )
+            if knowledge is not None:
+                claims = [
+                    claim for claim in knowledge.definition["claims"]
+                    if claim["id"] in task["claimIds"]
+                ]
+                result["claims"] = claims
         spatial_error = normalized_spatial_error(task, submission)
         if spatial_error is not None:
             result["spatialError"] = spatial_error
         return result
+
+    @app.get("/api/v1/study/knowledge/{checksum}")
+    def study_knowledge_pack(
+        checksum: str,
+        stored: StudyLearnerSession = Depends(learner_session),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        course = database.get(StudyCourse, stored.course_id)
+        pack = database.get(StudyPack, course.pack_id) if course else None
+        if (
+            pack is None
+            or pack.definition.get("schema") not in {"pathlab.study-pack/2", "pathlab.study-pack/3"}
+            or pack.definition.get("knowledgePackChecksum") != checksum
+        ):
+            raise HTTPException(status_code=404, detail={"code": "KNOWLEDGE_PACK_NOT_FOUND"})
+        submitted = set(database.scalars(select(StudyProgress.task_id).where(
+            StudyProgress.session_id == stored.id, StudyProgress.attempt_count > 0
+        )))
+        allowed_claim_ids = {
+            claim_id for task in pack.definition["tasks"] if task["id"] in submitted
+            for claim_id in task.get("claimIds", [])
+        }
+        if not allowed_claim_ids:
+            raise HTTPException(status_code=403, detail={"code": "STUDY_SUBMISSION_REQUIRED"})
+        knowledge = database.scalar(select(KnowledgePack).where(KnowledgePack.checksum == checksum))
+        if knowledge is None:
+            raise HTTPException(status_code=410, detail={"code": "KNOWLEDGE_PACK_UNAVAILABLE"})
+        granted = {
+            **knowledge.definition,
+            "claims": [claim for claim in knowledge.definition["claims"]
+                       if claim["id"] in allowed_claim_ids],
+        }
+        granted.pop("checksum", None)
+        granted["checksum"] = hashlib.sha256(canonical_json(granted).encode()).hexdigest()
+        return granted
+
+    @app.get("/api/v1/admin/study/evidence/{evidence_id}")
+    def evidence_detail(
+        evidence_id: str,
+        _: Session = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_enabled()
+        evidence = database.get(EvidenceBundle, evidence_id)
+        if evidence is None:
+            raise HTTPException(status_code=404, detail={"code": "AI_EVIDENCE_NOT_FOUND"})
+        return {
+            "id": evidence.id, "slideId": evidence.slide_id,
+            "manifestSha256": evidence.manifest_sha256, "manifest": evidence.manifest,
+            "reviewedAt": evidence.reviewed_at.replace(tzinfo=UTC).isoformat()
+            if evidence.reviewed_at else None,
+        }
+
+    @app.get("/api/v1/admin/study/evidence-sets")
+    def list_evidence_sets(
+        _: Session = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> list[dict[str, Any]]:
+        require_enabled()
+        return [{
+            "id": item.id, "slideId": item.slide_id, "setId": item.set_id,
+            "manifestSha256": item.manifest_sha256, "status": item.status,
+            "bundleCount": len(item.manifest["bundles"]),
+            "reviewedAt": item.reviewed_at.replace(tzinfo=UTC).isoformat()
+            if item.reviewed_at else None,
+        } for item in database.scalars(select(EvidenceSet).order_by(EvidenceSet.created_at.desc()))]
+
+    @app.post("/api/v1/admin/study/evidence-sets/{evidence_set_id}/review")
+    def review_evidence_set(
+        evidence_set_id: str,
+        payload: EvidenceReviewRequest,
+        authenticated: Session = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        require_enabled()
+        evidence_set = database.get(EvidenceSet, evidence_set_id)
+        if evidence_set is None:
+            raise HTTPException(status_code=404, detail={"code": "AI_EVIDENCE_SET_NOT_FOUND"})
+        if payload.preview_checksum != evidence_set.manifest_sha256:
+            raise HTTPException(status_code=409, detail={"code": "AI_EVIDENCE_PREVIEW_MISMATCH"})
+        evidence_set.reviewed_by_user_id = authenticated.user_id
+        evidence_set.reviewed_at = _now()
+        database.commit()
+        return {"id": evidence_set.id, "manifestSha256": evidence_set.manifest_sha256,
+                "reviewedAt": evidence_set.reviewed_at.replace(tzinfo=UTC).isoformat()}
+
+    @app.get("/api/v1/study/slides/{slide_id}/evidence/{manifest_sha256}")
+    def study_evidence(
+        slide_id: str,
+        manifest_sha256: str,
+        stored: StudyLearnerSession = Depends(learner_session),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        course = database.get(StudyCourse, stored.course_id)
+        pack = database.get(StudyPack, course.pack_id) if course else None
+        if pack is None or pack.definition.get("schema") not in {
+            "pathlab.study-pack/2", "pathlab.study-pack/3"
+        }:
+            raise HTTPException(status_code=404, detail={"code": "AI_EVIDENCE_NOT_FOUND"})
+        submitted = set(database.scalars(select(StudyProgress.task_id).where(
+            StudyProgress.session_id == stored.id, StudyProgress.attempt_count > 0
+        )))
+        permitted_slides = {
+            task["slideId"] for task in pack.definition["tasks"] if task["id"] in submitted
+        }
+        if slide_id not in permitted_slides:
+            raise HTTPException(status_code=403, detail={"code": "STUDY_SUBMISSION_REQUIRED"})
+        evidence_field = (
+            "evidenceBundleSha256" if pack.definition["schema"] == "pathlab.study-pack/2"
+            else "evidenceSetSha256"
+        )
+        authorized = any(
+            item["viewerSlideId"] == slide_id
+            and item.get(evidence_field) == manifest_sha256
+            for item in pack.definition["slides"]
+        )
+        if not authorized:
+            raise HTTPException(status_code=404, detail={"code": "AI_EVIDENCE_NOT_FOUND"})
+        if pack.definition["schema"] == "pathlab.study-pack/2":
+            bundle = database.scalar(select(EvidenceBundle).where(
+                EvidenceBundle.slide_id == slide_id,
+                EvidenceBundle.manifest_sha256 == manifest_sha256,
+                EvidenceBundle.reviewed_at.is_not(None),
+            ))
+            if bundle is None:
+                raise HTTPException(status_code=410, detail={"code": "AI_EVIDENCE_UNAVAILABLE"})
+            return dict(bundle.manifest)
+        evidence_set = database.scalar(select(EvidenceSet).where(
+            EvidenceSet.slide_id == slide_id,
+            EvidenceSet.manifest_sha256 == manifest_sha256,
+            EvidenceSet.reviewed_at.is_not(None),
+        ))
+        if evidence_set is None:
+            raise HTTPException(status_code=410, detail={"code": "AI_EVIDENCE_UNAVAILABLE"})
+        return dict(evidence_set.manifest)
 
     @app.get("/api/v1/study/readiness")
     def readiness(stored: StudyLearnerSession = Depends(learner_session)) -> dict[str, Any]:
@@ -965,11 +1314,7 @@ def register_study_routes(
             pilot_eligible(course, manifest)
             or (ai_enabled and manifest.get("approvalStatus") == MODEL_APPROVAL_STATUS)
         )
-        if (
-            not eligible
-            or not isinstance(expected_name, str)
-            or asset_name != expected_name
-        ):
+        if not eligible or not isinstance(expected_name, str) or asset_name != expected_name:
             raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"})
         target = storage.root / "private" / "study-models" / expected_name
         expected_bytes = manifest.get("artifactBytes")
