@@ -21,7 +21,7 @@ dependencies = [
   "pydantic-settings>=2.10,<3",
   "pyvips>=3.0,<4",
   "sqlalchemy>=2.0,<3",
-  "tifffile==2026.8.16",
+  "tifffile==2026.8.23",
   "uvicorn[standard]>=0.35,<1",
 ]
 
