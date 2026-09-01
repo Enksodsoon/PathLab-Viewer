@@ -82,9 +82,12 @@ def compile_assessment(draft: dict[str, Any]) -> CompiledAssessment:
         _require(item_type in ITEM_TYPES, "ASSESSMENT_ITEM_TYPE_INVALID")
         _require(isinstance(item.get("prompt"), str), "ASSESSMENT_PROMPT_REQUIRED")
         if item_type != "information":
-            _require("answerKey" in item, "ASSESSMENT_ANSWER_KEY_REQUIRED")
             points = Decimal(str(item.get("points", "0")))
             _require(points >= 0, "ASSESSMENT_POINTS_INVALID")
+        if item_type in {"multiple-choice", "checkboxes", "diagnostic-field"} or (
+            item_type == "short-answer" and not item.get("manual", False)
+        ):
+            _require("answerKey" in item, "ASSESSMENT_ANSWER_KEY_REQUIRED")
         options = item.get("options", [])
         _require(isinstance(options, list), "ASSESSMENT_OPTIONS_INVALID")
         _require(len(options) <= MAX_OPTIONS, "ASSESSMENT_OPTION_LIMIT")

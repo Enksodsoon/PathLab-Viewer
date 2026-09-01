@@ -1,14 +1,16 @@
 import csv
 import hashlib
 import hmac
+import json
 import secrets
 from collections.abc import Callable, Iterator
 from datetime import timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
 from typing import Annotated, Any
 
-from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Response, status
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -22,12 +24,15 @@ from .assessment_contract import (
 )
 from .identity import staff_organization_context
 from .models import (
+    AssessmentAccessThrottle,
     AssessmentAdministration,
     AssessmentAssetGrant,
     AssessmentAttempt,
     AssessmentDraft,
     AssessmentGradebookRow,
+    AssessmentMutationReceipt,
     AssessmentParticipant,
+    AssessmentRelease,
     AssessmentResponse,
     AssessmentRosterSnapshot,
     AssessmentScoreVersion,
@@ -74,6 +79,7 @@ class AccessRequest(BaseModel):
     public_id: str = Field(alias="publicId")
     student_identifier: str | None = Field(default=None, alias="studentIdentifier")
     access_code: str | None = Field(default=None, alias="accessCode")
+    takeover: bool = False
 
 
 class ResponseSave(BaseModel):
@@ -91,6 +97,21 @@ class RetentionPatch(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     retention_days: int = Field(alias="retentionDays", ge=1, le=3650)
     hold: bool
+
+
+class ManualGradeRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    attempt_id: str = Field(alias="attemptId")
+    item_id: str = Field(alias="itemId")
+    points: Decimal
+    expected_score_version: int = Field(alias="expectedScoreVersion", ge=1)
+
+
+class ReleaseRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    show_score: bool = Field(default=True, alias="showScore")
+    show_answers: bool = Field(default=False, alias="showAnswers")
+    show_feedback: bool = Field(default=False, alias="showFeedback")
 
 
 class DraftJson(BaseModel):
@@ -221,12 +242,106 @@ def register_assessment_routes(
             raise HTTPException(status_code=403, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
         return stored
 
+    def mutation_receipt(
+        database: OrmSession,
+        stored_session: AssessmentSession,
+        operation: str,
+        idempotency_key: str,
+        request_payload: object,
+    ) -> tuple[AssessmentMutationReceipt | None, str, str]:
+        if not 1 <= len(idempotency_key) <= 200:
+            raise HTTPException(
+                status_code=400, detail={"code": "ASSESSMENT_IDEMPOTENCY_KEY_INVALID"}
+            )
+        key_hash = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        request_hash = hashlib.sha256(
+            json.dumps(
+                request_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode()
+        ).hexdigest()
+        existing = database.scalar(
+            select(AssessmentMutationReceipt).where(
+                AssessmentMutationReceipt.session_id == stored_session.id,
+                AssessmentMutationReceipt.operation == operation,
+                AssessmentMutationReceipt.key_hash == key_hash,
+            )
+        )
+        if existing is not None and not hmac.compare_digest(existing.request_hash, request_hash):
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_IDEMPOTENCY_CONFLICT"})
+        return existing, key_hash, request_hash
+
+    def persist_receipt(
+        database: OrmSession,
+        stored_session: AssessmentSession,
+        operation: str,
+        key_hash: str,
+        request_hash: str,
+        response_payload: dict[str, Any],
+        status_code: int,
+    ) -> None:
+        database.add(
+            AssessmentMutationReceipt(
+                session_id=stored_session.id,
+                operation=operation,
+                key_hash=key_hash,
+                request_hash=request_hash,
+                response=response_payload,
+                status_code=status_code,
+            )
+        )
+
+    def consume_access_throttle(
+        database: OrmSession,
+        request: Request,
+        payload: AccessRequest,
+    ) -> None:
+        if payload.kind != "roster":
+            return
+        now = utc_now()
+        window = now.replace(minute=(now.minute // 5) * 5, second=0, microsecond=0)
+        network = request.client.host if request.client is not None else "unknown"
+        identifier = (payload.student_identifier or "missing").casefold()
+        key_hash = hmac.new(
+            identifier_secret.encode(),
+            f"{payload.public_id}\0{network}\0{identifier}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        throttle = database.scalar(
+            select(AssessmentAccessThrottle).where(
+                AssessmentAccessThrottle.scope == "roster-access",
+                AssessmentAccessThrottle.key_hash == key_hash,
+                AssessmentAccessThrottle.window_started_at == window,
+            )
+        )
+        if throttle is not None and throttle.attempts >= 10:
+            raise HTTPException(
+                status_code=429,
+                detail={"code": "ASSESSMENT_ACCESS_INVALID"},
+                headers={"Retry-After": "300"},
+            )
+        if throttle is None:
+            database.add(
+                AssessmentAccessThrottle(
+                    scope="roster-access",
+                    key_hash=key_hash,
+                    window_started_at=window,
+                )
+            )
+        else:
+            throttle.attempts += 1
+        database.commit()
+
     @app.post("/api/v2/assessment/access", status_code=status.HTTP_201_CREATED)
     def access_assessment(
         payload: AccessRequest,
+        request: Request,
         response: Response,
         database: Database,
     ) -> dict[str, Any]:
+        consume_access_throttle(database, request, payload)
         administration = database.scalar(
             select(AssessmentAdministration).where(
                 AssessmentAdministration.public_id == payload.public_id,
@@ -291,6 +406,19 @@ def register_assessment_routes(
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
         if participant is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        active_sessions = database.scalars(
+            select(AssessmentSession).where(
+                AssessmentSession.participant_id == participant.id,
+                AssessmentSession.revoked_at.is_(None),
+                AssessmentSession.expires_at > utc_now(),
+            )
+        ).all()
+        if participant.kind == "roster" and active_sessions and not payload.takeover:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_DEVICE_ACTIVE"})
+        generation = max((item.device_generation for item in active_sessions), default=0) + 1
+        if payload.takeover:
+            for active_session in active_sessions:
+                active_session.revoked_at = utc_now()
         raw_token = secrets.token_urlsafe(32)
         csrf_token = secrets.token_urlsafe(32)
         database.add(
@@ -298,6 +426,7 @@ def register_assessment_routes(
                 id=hashlib.sha256(raw_token.encode()).hexdigest(),
                 participant_id=participant.id,
                 csrf_token=csrf_token,
+                device_generation=generation,
                 expires_at=utc_now() + timedelta(hours=5),
             )
         )
@@ -317,13 +446,97 @@ def register_assessment_routes(
             **({"receipt": receipt} if receipt is not None else {}),
         }
 
-    @app.post("/api/v2/assessment/attempts", status_code=status.HTTP_201_CREATED)
-    def start_attempt(
+    @app.get("/api/v2/assessment/session")
+    def restore_session(
         database: Database,
         raw_token: Annotated[str | None, Cookie(alias="pathlab_assessment_session")] = None,
         csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> dict[str, Any]:
         stored_session = student_session(database, raw_token, csrf_token)
+        participant = database.get(AssessmentParticipant, stored_session.participant_id)
+        administration = (
+            database.get(AssessmentAdministration, participant.administration_id)
+            if participant is not None
+            else None
+        )
+        version = (
+            database.get(AssessmentVersion, administration.version_id)
+            if administration is not None
+            else None
+        )
+        if participant is None or administration is None or version is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        attempt = database.scalar(
+            select(AssessmentAttempt)
+            .where(
+                AssessmentAttempt.participant_id == participant.id,
+                AssessmentAttempt.status == "active",
+            )
+            .order_by(AssessmentAttempt.ordinal.desc())
+        )
+        responses: list[dict[str, Any]] = []
+        if attempt is not None:
+            responses = [
+                {
+                    "itemId": item.item_id,
+                    "revision": item.revision,
+                    "response": item.response,
+                }
+                for item in database.scalars(
+                    select(AssessmentResponse)
+                    .where(AssessmentResponse.attempt_id == attempt.id)
+                    .order_by(AssessmentResponse.item_id)
+                )
+            ]
+        return {
+            "kind": participant.kind,
+            "publicId": administration.public_id,
+            "status": administration.status,
+            "manifest": version.learner_manifest,
+            "deviceGeneration": stored_session.device_generation,
+            "attempt": (
+                {
+                    "id": attempt.id,
+                    "ordinal": attempt.ordinal,
+                    "status": attempt.status,
+                    "startedAt": attempt.started_at,
+                    "responses": responses,
+                }
+                if attempt is not None
+                else None
+            ),
+        }
+
+    @app.post("/api/v2/assessment/session/logout", status_code=status.HTTP_204_NO_CONTENT)
+    def logout_session(
+        response: Response,
+        database: Database,
+        raw_token: Annotated[str | None, Cookie(alias="pathlab_assessment_session")] = None,
+        csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    ) -> None:
+        stored_session = student_session(database, raw_token, csrf_token)
+        stored_session.revoked_at = utc_now()
+        database.commit()
+        response.delete_cookie(
+            "pathlab_assessment_session",
+            httponly=True,
+            secure=secure_cookies,
+            samesite="lax",
+        )
+
+    @app.post("/api/v2/assessment/attempts", status_code=status.HTTP_201_CREATED)
+    def start_attempt(
+        database: Database,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+        raw_token: Annotated[str | None, Cookie(alias="pathlab_assessment_session")] = None,
+        csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    ) -> dict[str, Any]:
+        stored_session = student_session(database, raw_token, csrf_token)
+        receipt, key_hash, request_hash = mutation_receipt(
+            database, stored_session, "attempt:start", idempotency_key, {}
+        )
+        if receipt is not None:
+            return receipt.response
         participant = database.get(AssessmentParticipant, stored_session.participant_id)
         if participant is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
@@ -347,8 +560,19 @@ def register_assessment_routes(
             order_seed=hashlib.sha256(f"{participant.id}:{count + 1}".encode()).hexdigest(),
         )
         database.add(attempt)
+        database.flush()
+        result = {"id": attempt.id, "ordinal": attempt.ordinal, "status": attempt.status}
+        persist_receipt(
+            database,
+            stored_session,
+            "attempt:start",
+            key_hash,
+            request_hash,
+            result,
+            status.HTTP_201_CREATED,
+        )
         database.commit()
-        return {"id": attempt.id, "ordinal": attempt.ordinal, "status": attempt.status}
+        return result
 
     def owned_attempt(
         database: OrmSession, attempt_id: str, stored_session: AssessmentSession
@@ -368,20 +592,58 @@ def register_assessment_routes(
         attempt_id: str,
         payload: ResponseBatch,
         database: Database,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
         raw_token: Annotated[str | None, Cookie(alias="pathlab_assessment_session")] = None,
         csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> dict[str, Any]:
         stored_session = student_session(database, raw_token, csrf_token)
+        receipt, key_hash, request_hash = mutation_receipt(
+            database,
+            stored_session,
+            f"attempt:{attempt_id}:responses",
+            idempotency_key,
+            payload.model_dump(mode="json", by_alias=True),
+        )
+        if receipt is not None:
+            return receipt.response
         attempt = owned_attempt(database, attempt_id, stored_session)
         if attempt.status != "active":
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_ATTEMPT_CLOSED"})
-        for incoming in payload.responses:
-            existing = database.scalar(
+        existing_by_item = {
+            item.item_id: item
+            for item in database.scalars(
                 select(AssessmentResponse).where(
                     AssessmentResponse.attempt_id == attempt.id,
-                    AssessmentResponse.item_id == incoming.item_id,
+                    AssessmentResponse.item_id.in_([item.item_id for item in payload.responses]),
                 )
             )
+        }
+        conflicts = [
+            {
+                "itemId": incoming.item_id,
+                "revision": existing.revision,
+                "response": existing.response,
+            }
+            for incoming in payload.responses
+            if (existing := existing_by_item.get(incoming.item_id)) is not None
+            and (
+                incoming.revision < existing.revision
+                or (
+                    incoming.revision == existing.revision
+                    and incoming.response != existing.response
+                )
+            )
+        ]
+        if conflicts:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ASSESSMENT_RESPONSE_CONFLICT",
+                    "authoritative": conflicts,
+                },
+            )
+        for incoming in payload.responses:
+            existing = existing_by_item.get(incoming.item_id)
             if existing is None:
                 database.add(
                     AssessmentResponse(
@@ -395,17 +657,37 @@ def register_assessment_routes(
                 existing.revision = incoming.revision
                 existing.response = incoming.response
                 existing.updated_at = utc_now()
+        result = {"saved": len(payload.responses)}
+        persist_receipt(
+            database,
+            stored_session,
+            f"attempt:{attempt_id}:responses",
+            key_hash,
+            request_hash,
+            result,
+            status.HTTP_200_OK,
+        )
         database.commit()
-        return {"saved": len(payload.responses)}
+        return result
 
     @app.post("/api/v2/assessment/attempts/{attempt_id}/submit")
     def submit_attempt(
         attempt_id: str,
         database: Database,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
         raw_token: Annotated[str | None, Cookie(alias="pathlab_assessment_session")] = None,
         csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> dict[str, Any]:
         stored_session = student_session(database, raw_token, csrf_token)
+        receipt, key_hash, request_hash = mutation_receipt(
+            database,
+            stored_session,
+            f"attempt:{attempt_id}:submit",
+            idempotency_key,
+            {},
+        )
+        if receipt is not None:
+            return receipt.response
         attempt = owned_attempt(database, attempt_id, stored_session)
         if attempt.status != "active":
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_ATTEMPT_CLOSED"})
@@ -441,9 +723,13 @@ def register_assessment_routes(
             (
                 Decimal(str(item.get("points", "0")))
                 for item in version.definition["items"]
-                if item.get("type") not in {"information", "paragraph"}
+                if item.get("type") != "information"
             ),
             start=Decimal("0"),
+        )
+        needs_grading = any(
+            value is None and item.get("type") != "information"
+            for item, value in zip(version.definition["items"], scored, strict=True)
         )
         score = AssessmentScoreVersion(
             attempt_id=attempt.id,
@@ -474,13 +760,72 @@ def register_assessment_routes(
                 )
                 database.add(gradebook)
             gradebook.score_version_id = score.id
-            gradebook.status = "graded"
-        database.commit()
-        return {
+            gradebook.status = "needs_grading" if needs_grading else "graded"
+        result = {
             "status": "submitted",
             "score": {"points": str(score.points), "maximumPoints": str(score.maximum_points)},
             "anonymousAggregateOnly": participant is None or participant.kind == "anonymous",
+            "needsGrading": needs_grading,
         }
+        persist_receipt(
+            database,
+            stored_session,
+            f"attempt:{attempt_id}:submit",
+            key_hash,
+            request_hash,
+            result,
+            status.HTTP_200_OK,
+        )
+        database.commit()
+        return result
+
+    @app.get("/api/v2/assessment/attempts/{attempt_id}/result")
+    def attempt_result(
+        attempt_id: str,
+        database: Database,
+        raw_token: Annotated[str | None, Cookie(alias="pathlab_assessment_session")] = None,
+        csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    ) -> dict[str, Any]:
+        stored_session = student_session(database, raw_token, csrf_token)
+        attempt = owned_attempt(database, attempt_id, stored_session)
+        if attempt.status == "active":
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_ATTEMPT_ACTIVE"})
+        administration = database.get(AssessmentAdministration, attempt.administration_id)
+        if administration is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_NOT_FOUND"})
+        release = database.scalar(
+            select(AssessmentRelease)
+            .where(AssessmentRelease.administration_id == administration.id)
+            .order_by(AssessmentRelease.released_at.desc(), AssessmentRelease.id.desc())
+        )
+        if administration.mode == "quiz" and release is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_RELEASED"})
+        policy = (
+            release.policy
+            if release is not None
+            else {"showScore": True, "showAnswers": False, "showFeedback": True}
+        )
+        score = database.scalar(
+            select(AssessmentScoreVersion)
+            .where(AssessmentScoreVersion.attempt_id == attempt.id)
+            .order_by(AssessmentScoreVersion.version.desc())
+        )
+        if score is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_FOUND"})
+        result: dict[str, Any] = {
+            "status": attempt.status,
+            "released": release is not None,
+            "policy": policy,
+            "scoreVersion": score.version,
+        }
+        if policy.get("showScore", False):
+            result["score"] = {
+                "points": f"{Decimal(str(score.points)):.3f}",
+                "maximumPoints": f"{Decimal(str(score.maximum_points)):.3f}",
+            }
+        if policy.get("showAnswers", False):
+            result["breakdown"] = score.breakdown
+        return result
 
     @app.get("/api/v2/admin/assessment/drafts")
     def list_drafts(
@@ -760,6 +1105,238 @@ def register_assessment_routes(
         if administration is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_NOT_FOUND"})
         return administration
+
+    @app.get("/api/v2/admin/assessment/administrations/{administration_id}/monitor")
+    def monitor_administration(
+        administration_id: str,
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, int]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        participant_ids = select(AssessmentParticipant.id).where(
+            AssessmentParticipant.administration_id == administration.id
+        )
+        return {
+            "activeSessions": int(
+                database.scalar(
+                    select(func.count(AssessmentSession.id)).where(
+                        AssessmentSession.participant_id.in_(participant_ids),
+                        AssessmentSession.revoked_at.is_(None),
+                        AssessmentSession.expires_at > utc_now(),
+                    )
+                )
+                or 0
+            ),
+            "activeAttempts": int(
+                database.scalar(
+                    select(func.count(AssessmentAttempt.id)).where(
+                        AssessmentAttempt.administration_id == administration.id,
+                        AssessmentAttempt.status == "active",
+                    )
+                )
+                or 0
+            ),
+            "submitted": int(
+                database.scalar(
+                    select(func.count(AssessmentAttempt.id)).where(
+                        AssessmentAttempt.administration_id == administration.id,
+                        AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
+                    )
+                )
+                or 0
+            ),
+            "needsGrading": int(
+                database.scalar(
+                    select(func.count(AssessmentGradebookRow.id)).where(
+                        AssessmentGradebookRow.administration_id == administration.id,
+                        AssessmentGradebookRow.status == "needs_grading",
+                    )
+                )
+                or 0
+            ),
+        }
+
+    @app.post("/api/v2/admin/assessment/administrations/{administration_id}/manual-grade")
+    def manual_grade(
+        administration_id: str,
+        payload: ManualGradeRequest,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        attempt = database.scalar(
+            select(AssessmentAttempt).where(
+                AssessmentAttempt.id == payload.attempt_id,
+                AssessmentAttempt.administration_id == administration.id,
+                AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
+            )
+        )
+        if attempt is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ATTEMPT_NOT_FOUND"})
+        version = database.get(AssessmentVersion, administration.version_id)
+        latest = database.scalar(
+            select(AssessmentScoreVersion)
+            .where(AssessmentScoreVersion.attempt_id == attempt.id)
+            .order_by(AssessmentScoreVersion.version.desc())
+        )
+        if version is None or latest is None:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_SCORE_MISSING"})
+        if latest.version != payload.expected_score_version:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ASSESSMENT_GRADING_CONFLICT",
+                    "currentScoreVersion": latest.version,
+                },
+            )
+        item = next(
+            (
+                candidate
+                for candidate in version.definition["items"]
+                if candidate["id"] == payload.item_id
+            ),
+            None,
+        )
+        if item is None or not (
+            item.get("type") == "paragraph"
+            or (item.get("type") == "short-answer" and item.get("manual", False))
+        ):
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_ITEM_NOT_MANUAL"})
+        maximum = Decimal(str(item.get("points", "0")))
+        points = payload.points.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        if points < 0 or points > maximum:
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_POINTS_INVALID"})
+        breakdown = dict(latest.breakdown)
+        breakdown[payload.item_id] = f"{points:.3f}"
+        total = sum(
+            (Decimal(str(value)) for value in breakdown.values() if value is not None),
+            start=Decimal("0"),
+        ).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        score = AssessmentScoreVersion(
+            attempt_id=attempt.id,
+            version=latest.version + 1,
+            points=total,
+            maximum_points=latest.maximum_points,
+            breakdown=breakdown,
+        )
+        database.add(score)
+        database.flush()
+        row = database.scalar(
+            select(AssessmentGradebookRow).where(
+                AssessmentGradebookRow.administration_id == administration.id,
+                AssessmentGradebookRow.participant_id == attempt.participant_id,
+            )
+        )
+        if row is not None:
+            row.score_version_id = score.id
+            row.status = (
+                "needs_grading" if any(value is None for value in breakdown.values()) else "graded"
+            )
+        database.commit()
+        return {
+            "attemptId": attempt.id,
+            "scoreVersion": score.version,
+            "points": f"{total:.3f}",
+            "maximumPoints": f"{Decimal(str(score.maximum_points)):.3f}",
+            "status": row.status if row is not None else "aggregate_only",
+        }
+
+    @app.post(
+        "/api/v2/admin/assessment/administrations/{administration_id}/release",
+        status_code=status.HTTP_201_CREATED,
+    )
+    def release_results(
+        administration_id: str,
+        payload: ReleaseRequest,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        if administration.status != "closed":
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        policy = payload.model_dump(mode="json", by_alias=True)
+        release = AssessmentRelease(
+            administration_id=administration.id,
+            policy=policy,
+            released_by_user_id=authenticated.user_id,
+        )
+        database.add(release)
+        database.commit()
+        return {"id": release.id, "releasedAt": release.released_at, "policy": policy}
+
+    @app.get("/api/v2/admin/assessment/administrations/{administration_id}/export.csv")
+    def export_results(
+        administration_id: str,
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> StreamingResponse:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+
+        def safe_cell(value: object) -> str:
+            rendered = "" if value is None else str(value)
+            return (
+                f"'{rendered}"
+                if rendered.startswith(("=", "+", "-", "@", "\t", "\r"))
+                else rendered
+            )
+
+        def stream_rows() -> Iterator[str]:
+            buffer = StringIO()
+            writer = csv.writer(buffer, lineterminator="\n")
+            writer.writerow(("student", "status", "points", "maximum_points", "score_version"))
+            yield buffer.getvalue()
+            query = (
+                select(
+                    AssessmentRosterSnapshot.display_name,
+                    AssessmentGradebookRow.status,
+                    AssessmentScoreVersion.points,
+                    AssessmentScoreVersion.maximum_points,
+                    AssessmentScoreVersion.version,
+                )
+                .join(
+                    AssessmentParticipant,
+                    AssessmentParticipant.id == AssessmentGradebookRow.participant_id,
+                )
+                .join(
+                    AssessmentRosterSnapshot,
+                    (AssessmentRosterSnapshot.administration_id == administration.id)
+                    & (AssessmentRosterSnapshot.learner_id == AssessmentParticipant.learner_id),
+                )
+                .outerjoin(
+                    AssessmentScoreVersion,
+                    AssessmentScoreVersion.id == AssessmentGradebookRow.score_version_id,
+                )
+                .where(AssessmentGradebookRow.administration_id == administration.id)
+                .order_by(AssessmentRosterSnapshot.display_name, AssessmentGradebookRow.id)
+                .execution_options(yield_per=100)
+            )
+            for row in database.execute(query):
+                buffer.seek(0)
+                buffer.truncate(0)
+                writer.writerow(tuple(safe_cell(value) for value in row))
+                yield buffer.getvalue()
+
+        filename = f'assessment-{administration.public_id}.csv'
+        return StreamingResponse(
+            stream_rows(),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store",
+            },
+        )
 
     @app.get("/api/v2/admin/assessment/administrations/{administration_id}/results")
     def administration_results(
