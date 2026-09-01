@@ -309,6 +309,9 @@ def register_library_routes(
         response.headers["X-PathLab-Study-Enabled"] = (
             "true" if app.state.settings.study_mode_enabled else "false"
         )
+        response.headers["X-PathLab-Assessment-Enabled"] = (
+            "true" if app.state.settings.assessment_enabled else "false"
+        )
         result = {
             "counts": {
                 "all": int(state_counts[0]),

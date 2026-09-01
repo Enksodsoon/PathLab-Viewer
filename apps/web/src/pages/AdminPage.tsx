@@ -1349,6 +1349,9 @@ export function AdminPage() {
         onStudy={navigation.capabilities?.study
           ? () => navigate('/admin/study')
           : undefined}
+        onAssessment={navigation.capabilities?.assessment
+          ? () => navigate('/admin/assessments')
+          : undefined}
         onStorage={() => chooseLocation('storage')}
         storageActive={storageOpen}
         onSecurity={() => setSecurityOpen(true)}

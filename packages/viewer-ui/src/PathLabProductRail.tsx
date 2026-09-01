@@ -3,6 +3,7 @@ import {
   CaretDoubleRight,
   ChalkboardTeacher,
   Brain,
+  ClipboardText,
   HardDrives,
   Key,
   List as Menu,
@@ -28,6 +29,7 @@ export interface PathLabProductRailProps {
   onUpload: () => void
   onClassroom?: () => void
   onStudy?: () => void
+  onAssessment?: () => void
   onStorage?: () => void
   storageActive?: boolean
   onSecurity: () => void
@@ -35,6 +37,7 @@ export interface PathLabProductRailProps {
   uploadLabel?: string
   classroomLabel?: string
   studyLabel?: string
+  assessmentLabel?: string
   accountLabel?: string
   signOutLabel?: string
 }
@@ -51,6 +54,7 @@ export function PathLabProductRail({
   onUpload,
   onClassroom,
   onStudy,
+  onAssessment,
   onStorage,
   storageActive = false,
   onSecurity,
@@ -58,6 +62,7 @@ export function PathLabProductRail({
   uploadLabel = 'Upload',
   classroomLabel = 'Classroom',
   studyLabel = 'Study Coach',
+  assessmentLabel = 'Assessment',
   accountLabel = 'Account',
   signOutLabel = 'Sign out',
 }: PathLabProductRailProps) {
@@ -117,6 +122,12 @@ export function PathLabProductRail({
           <button type="button" aria-label={studyLabel} onClick={onStudy}>
             <Brain aria-hidden="true" />
             <span>{studyLabel}</span>
+          </button>
+        ) : null}
+        {onAssessment ? (
+          <button type="button" aria-label={assessmentLabel} onClick={onAssessment}>
+            <ClipboardText aria-hidden="true" />
+            <span>{assessmentLabel}</span>
           </button>
         ) : null}
       </nav>

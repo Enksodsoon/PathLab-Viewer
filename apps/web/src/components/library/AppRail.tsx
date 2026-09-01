@@ -14,6 +14,7 @@ interface AppRailProps {
   onUpload: () => void
   onClassroom?: () => void
   onStudy?: () => void
+  onAssessment?: () => void
   onStorage: () => void
   storageActive: boolean
   onSecurity: () => void
@@ -31,6 +32,7 @@ export function AppRail({
   onUpload,
   onClassroom,
   onStudy,
+  onAssessment,
   onStorage,
   storageActive,
   onSecurity,
@@ -49,6 +51,7 @@ export function AppRail({
       onUpload={onUpload}
       onClassroom={onClassroom}
       onStudy={onStudy}
+      onAssessment={onAssessment}
       onStorage={onStorage}
       storageActive={storageActive}
       onSecurity={onSecurity}
