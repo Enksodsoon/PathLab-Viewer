@@ -21,6 +21,7 @@ from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
 from .annotation_routes import register_annotation_routes
+from .assessment_assets import assessment_assets_ready
 from .assessment_routes import register_assessment_routes
 from .auth import (
     CredentialConflict,
@@ -552,6 +553,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             csrf_dependency=csrf,
             identifier_secret=current.secret_key,
             secure_cookies=current.secure_cookies,
+            storage=storage,
         )
 
     @app.get("/livez")
@@ -576,6 +578,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=503,
                 detail={"code": "CLASSROOM_SINGLETON_NOT_READY"},
             )
+        if serves_assessment and current.assessment_enabled:
+            with factory() as database:
+                if not assessment_assets_ready(database, storage):
+                    raise HTTPException(
+                        status_code=503,
+                        detail={"code": "ASSESSMENT_ASSETS_NOT_READY"},
+                    )
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)

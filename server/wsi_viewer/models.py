@@ -1292,7 +1292,8 @@ class RuntimeGuard(Base):
     __tablename__ = "runtime_guards"
     __table_args__ = (
         CheckConstraint(
-            "mode IN ('idle', 'draining_for_classroom', 'classroom_live', 'classroom_cooldown')",
+            "mode IN ('idle', 'draining_for_classroom', 'classroom_live', 'classroom_cooldown', "
+            "'draining_for_assessment', 'assessment_live', 'assessment_cooldown')",
             name="ck_runtime_guards_mode",
         ),
     )
@@ -1302,6 +1303,7 @@ class RuntimeGuard(Base):
         String(30), nullable=False, default="idle", server_default="idle"
     )
     classroom_session_id: Mapped[str | None] = mapped_column(String(36))
+    assessment_administration_id: Mapped[str | None] = mapped_column(String(36))
     cooldown_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_at: Mapped[datetime] = mapped_column(

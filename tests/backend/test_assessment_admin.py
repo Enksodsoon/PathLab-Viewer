@@ -134,3 +134,53 @@ def test_class_import_is_preview_then_explicit_bounded_commit(tmp_path: Path) ->
     assert students.status_code == 200
     assert students.json()["total"] == 2
     assert "s001" not in students.text
+
+    learner_id = students.json()["items"][0]["id"]
+    withdrawn = client.patch(
+        f"/api/v2/admin/assessment/classes/{cohort_id}/students/{learner_id}",
+        json={"status": "withdrawn"},
+    )
+    assert withdrawn.status_code == 200
+    recommitted = client.post(
+        f"/api/v2/admin/assessment/classes/{cohort_id}/import/commit",
+        json={"rows": "s001,Somchai P.\ns002,Malee T.", "checksum": checksum},
+    )
+    assert recommitted.status_code == 201
+    assert recommitted.json()["created"] == 1
+    archived = client.patch(
+        f"/api/v2/admin/assessment/classes/{cohort_id}",
+        json={"status": "archived"},
+    )
+    assert archived.json()["status"] == "archived"
+
+
+def test_duplicate_import_and_archive_generate_fresh_ids(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    source = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Source", "document": _document()},
+    ).json()
+    duplicate = client.post(
+        f"/api/v2/admin/assessment/drafts/{source['id']}/duplicate",
+        json={"title": "Duplicate"},
+    )
+    assert duplicate.status_code == 201
+    assert duplicate.json()["document"]["items"][0]["id"] != "item-1"
+    assert duplicate.json()["document"]["items"][0]["options"][0]["id"] != "option-a"
+    destination = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={
+            "title": "Destination",
+            "document": {"title": "Destination", "items": [], "settings": {}},
+        },
+    ).json()
+    imported = client.post(
+        f"/api/v2/admin/assessment/drafts/{destination['id']}/import-questions",
+        json={"sourceDraftId": source["id"], "itemIds": ["item-1"], "expectedRevision": 1},
+    )
+    assert imported.status_code == 200
+    assert imported.json()["revision"] == 2
+    assert imported.json()["document"]["items"][0]["id"] != "item-1"
+    archived = client.post(f"/api/v2/admin/assessment/drafts/{source['id']}/archive")
+    assert archived.status_code == 200
+    assert archived.json()["status"] == "archived"

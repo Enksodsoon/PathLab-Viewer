@@ -1,7 +1,11 @@
+from datetime import timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 from test_assessment_admin import _client, _document
+from wsi_viewer.database import session_factory
+from wsi_viewer.models import AssessmentAttempt, AssessmentParticipant
+from wsi_viewer.time_support import utc_now
 
 
 def test_practice_public_bundle_is_explicitly_answer_bearing_while_metadata_is_not(
@@ -167,9 +171,39 @@ def test_retention_hold_blocks_purge_until_explicitly_released(tmp_path: Path) -
         f"/api/v2/admin/assessment/administrations/{administration_id}/retention",
         json={"retentionDays": 30, "hold": False},
     )
-    purged = client.post(f"/api/v2/admin/assessment/administrations/{administration_id}/purge")
+    with session_factory(client.app.state.settings)() as database:
+        database.add_all(
+            [
+                AssessmentParticipant(
+                    administration_id=administration_id,
+                    kind="anonymous",
+                    receipt_hash="a" * 64,
+                ),
+                AssessmentParticipant(
+                    administration_id=administration_id,
+                    kind="anonymous",
+                    receipt_hash="b" * 64,
+                ),
+            ]
+        )
+        database.commit()
+    first_batch = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/purge?batchSize=1"
+    )
+    assert first_batch.status_code == 200
+    assert first_batch.json()["status"] == "closed"
+    assert first_batch.json()["remaining"] == 1
+    purged = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/purge?batchSize=1"
+    )
     assert purged.status_code == 200
     assert purged.json()["status"] == "purged"
+    preserved = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/aggregates/reconcile"
+    )
+    assert preserved.status_code == 200
+    assert preserved.json()["source"] == "preserved"
+    assert preserved.json()["aggregate"]["responses"] == 0
 
 
 def test_student_session_restore_logout_and_stale_save_reconciliation(tmp_path: Path) -> None:
@@ -349,6 +383,7 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     )
     assert submitted.status_code == 200
     assert submitted.json()["needsGrading"] is True
+    assert "score" not in submitted.json()
     unreleased = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
     assert unreleased.status_code == 404
 
@@ -394,3 +429,41 @@ def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) 
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
     assert "'=Somchai" in exported.text
+
+
+def test_deadline_sweeper_auto_submits_incomplete_attempts(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    draft = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Timed quiz", "document": _document()},
+    ).json()
+    published = client.post(
+        f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
+        json={"mode": "formative", "durationSeconds": 1, "maxAttempts": 1},
+    ).json()
+    administration_id = published["administrationId"]
+    client.post(f"/api/v2/admin/assessment/administrations/{administration_id}/open")
+    access = client.post(
+        "/api/v2/assessment/access",
+        json={"kind": "anonymous", "publicId": published["publicId"]},
+    ).json()
+    headers = {"X-CSRF-Token": access["csrfToken"]}
+    attempt_id = client.post(
+        "/api/v2/assessment/attempts",
+        headers={**headers, "Idempotency-Key": "deadline-start"},
+    ).json()["id"]
+    with session_factory(client.app.state.settings)() as database:
+        attempt = database.get(AssessmentAttempt, attempt_id)
+        assert attempt is not None
+        attempt.started_at = utc_now() - timedelta(seconds=2)
+        database.commit()
+
+    swept = client.post(
+        f"/api/v2/admin/assessment/administrations/{administration_id}/deadlines/sweep"
+    )
+    assert swept.status_code == 200
+    assert swept.json() == {"scanned": 1, "autoSubmitted": 1}
+    result = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
+    assert result.status_code == 200
+    assert result.json()["status"] == "auto_submitted"
+    assert result.json()["score"]["points"] == "0.000"
