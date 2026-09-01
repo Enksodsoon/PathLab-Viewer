@@ -12,13 +12,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@fontsource-variable/cormorant-garamond": "^5.3.0",
     "@fontsource-variable/sofia-sans": "5.3.0",
     "@fontsource-variable/source-sans-3": "^5.3.0",
     "@pathlab/viewer-ui": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
-    "openseadragon": "6.1.0",
     "onnxruntime-web": "1.27.0",
+    "openseadragon": "6.1.0",
     "polygon-clipping": "0.15.7",
     "qrcode.react": "4.2.0",
     "rbush": "4.0.1",

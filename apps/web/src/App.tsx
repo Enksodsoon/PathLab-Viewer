@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Route, Routes, useNavigate } from 'react-router-dom'
 
 import { Loader } from './components/Loader'
 
@@ -13,6 +13,14 @@ const ClassroomInvitePage = lazy(() => import('./pages/ClassroomInvitePage').the
 const StudyPage = lazy(() => import('./pages/StudyPage').then((module) => ({ default: module.StudyPage })))
 const StudyAdminPage = lazy(() => import('./pages/StudyAdminPage').then((module) => ({ default: module.StudyAdminPage })))
 const StudyPackAuthoringPage = lazy(() => import('./pages/StudyPackAuthoringPage').then((module) => ({ default: module.StudyPackAuthoringPage })))
+
+function AdminRedirect() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    void navigate('/admin', { replace: true })
+  }, [navigate])
+  return null
+}
 
 export function App() {
   return <Routes>
@@ -29,6 +37,6 @@ export function App() {
     <Route path="/s/:publicId" element={<Suspense fallback={<Loader label="Opening slide…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />
     <Route path="/c/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="collection" /></Suspense>} />
-    <Route path="*" element={<Navigate to="/admin" replace />} />
+    <Route path="*" element={<AdminRedirect />} />
   </Routes>
 }
