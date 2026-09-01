@@ -6,6 +6,20 @@ from wsi_viewer.database import create_schema
 from wsi_viewer.main import create_app
 
 
+def test_assessment_source_is_isolated_from_study_coach_and_ai_runtime() -> None:
+    root = Path(__file__).parents[2]
+    sources = [
+        *root.glob("server/wsi_viewer/assessment*.py"),
+        *root.glob("apps/web/src/assessment/*.ts"),
+        *root.glob("apps/web/src/pages/Assessment*.tsx"),
+        root / "apps/web/src/components/AssessmentDiagnosticField.tsx",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8").casefold() for path in sources)
+    assert "onnxruntime" not in combined
+    assert "tracesim" not in combined
+    assert "study coach" not in combined
+
+
 def test_disabled_assessment_routes_are_not_registered(tmp_path: Path) -> None:
     app = create_app(
         Settings(

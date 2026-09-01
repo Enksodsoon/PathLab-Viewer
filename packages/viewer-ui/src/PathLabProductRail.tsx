@@ -32,6 +32,7 @@ export interface PathLabProductRailProps {
   onAssessment?: () => void
   onStorage?: () => void
   storageActive?: boolean
+  activeDestination?: 'library' | 'upload' | 'classroom' | 'study' | 'assessment' | 'storage'
   onSecurity: () => void
   onSignOut: () => void
   uploadLabel?: string
@@ -57,12 +58,13 @@ export function PathLabProductRail({
   onAssessment,
   onStorage,
   storageActive = false,
+  activeDestination,
   onSecurity,
   onSignOut,
   uploadLabel = 'Upload',
   classroomLabel = 'Classroom',
   studyLabel = 'Study Coach',
-  assessmentLabel = 'Assessment',
+  assessmentLabel = 'Teacher Studio',
   accountLabel = 'Account',
   signOutLabel = 'Sign out',
 }: PathLabProductRailProps) {
@@ -99,8 +101,9 @@ export function PathLabProductRail({
         <button
           ref={navigatorButtonRef}
           type="button"
-          className={navigatorOpen ? 'active mobile-navigator-toggle' : 'mobile-navigator-toggle'}
+          className={navigatorOpen || activeDestination === 'library' ? 'active mobile-navigator-toggle' : 'mobile-navigator-toggle'}
           aria-label="Slide library"
+          aria-current={activeDestination === 'library' ? 'page' : undefined}
           aria-controls="library-navigator"
           aria-expanded={navigatorOpen}
           onClick={onNavigator}
@@ -108,24 +111,24 @@ export function PathLabProductRail({
           <Menu aria-hidden="true" />
           <span>Slide library</span>
         </button>
-        <button type="button" aria-label={uploadLabel} onClick={onUpload}>
+        <button type="button" className={activeDestination === 'upload' ? 'active' : ''} aria-label={uploadLabel} aria-current={activeDestination === 'upload' ? 'page' : undefined} onClick={onUpload}>
           <Upload aria-hidden="true" />
           <span>{uploadLabel}</span>
         </button>
         {onClassroom ? (
-          <button type="button" aria-label={classroomLabel} onClick={onClassroom}>
+          <button type="button" className={activeDestination === 'classroom' ? 'active' : ''} aria-label={classroomLabel} aria-current={activeDestination === 'classroom' ? 'page' : undefined} onClick={onClassroom}>
             <ChalkboardTeacher aria-hidden="true" />
             <span>{classroomLabel}</span>
           </button>
         ) : null}
         {onStudy ? (
-          <button type="button" aria-label={studyLabel} onClick={onStudy}>
+          <button type="button" className={activeDestination === 'study' ? 'active' : ''} aria-label={studyLabel} aria-current={activeDestination === 'study' ? 'page' : undefined} onClick={onStudy}>
             <Brain aria-hidden="true" />
             <span>{studyLabel}</span>
           </button>
         ) : null}
         {onAssessment ? (
-          <button type="button" aria-label={assessmentLabel} onClick={onAssessment}>
+          <button type="button" className={activeDestination === 'assessment' ? 'active' : ''} aria-label={assessmentLabel} aria-current={activeDestination === 'assessment' ? 'page' : undefined} onClick={onAssessment}>
             <ClipboardText aria-hidden="true" />
             <span>{assessmentLabel}</span>
           </button>
@@ -135,9 +138,9 @@ export function PathLabProductRail({
         {onStorage ? (
           <button
             type="button"
-            className={`library-storage-meter ${storageActive ? 'active' : ''}`}
+            className={`library-storage-meter ${storageActive || activeDestination === 'storage' ? 'active' : ''}`}
             aria-label={`Open storage, ${storageLabel}`}
-            aria-current={storageActive ? 'page' : undefined}
+            aria-current={storageActive || activeDestination === 'storage' ? 'page' : undefined}
             title={`${storageLabel}. Open managed storage.`}
             onClick={onStorage}
           >

@@ -38,6 +38,7 @@ export interface EligibleAssessmentSlide {
 
 export interface AssessmentDocument {
   title: string
+  description?: string
   items: AssessmentItem[]
   settings: {
     mode?: 'practice' | 'formative' | 'quiz'
@@ -51,6 +52,10 @@ export interface AssessmentDraft {
   status: 'draft' | 'archived'
   revision: number
   document: AssessmentDocument
+  courseId?: string | null
+  courseName?: string | null
+  classId?: string | null
+  className?: string | null
 }
 
 export interface AssessmentDraftList {

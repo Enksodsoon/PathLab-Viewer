@@ -61,7 +61,12 @@ def test_prepare_creates_scoped_hardlink_grants_and_open_requires_them(tmp_path:
     ).json()
     published = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
-        json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2},
+        json={
+            "mode": "formative",
+            "durationSeconds": 3600,
+            "maxAttempts": 2,
+            "syntheticFixture": True,
+        },
     ).json()
     administration_id = published["administrationId"]
     public_id = published["publicId"]

@@ -16,19 +16,26 @@
       "id": "assessment",
       "displayName": "Manual-First PathLab Assessment",
       "domain": "Assessment",
-      "evidenceState": "NOT_IMPLEMENTED",
-      "releaseSha": "c4446a92b0760d4eeaf9234becb6e867f681faa2",
+      "evidenceState": "BUILT",
+      "releaseSha": "d33aedd448c05be96fd8af4c4083dd6b1baffec8",
       "featureFlag": "PATHLAB_ASSESSMENT_ENABLED",
       "supportingEvidence": [
         "docs/architecture/ASSESSMENT.md",
-        "docs/assessment/IMPLEMENTATION_PLAN.md"
+        "docs/assessment/IMPLEMENTATION_PLAN.md",
+        "docs/assessment/RUNBOOK.md",
+        ".github/workflows/assessment-capacity.yml"
       ],
       "requiredTests": [
-        "tests/backend/test_assessment_foundation.py"
+        "tests/backend/test_assessment_foundation.py",
+        "tests/backend/test_assessment_contract.py",
+        "tests/backend/test_assessment_runtime.py",
+        "tests/backend/test_assessment_capacity_evidence.py",
+        "apps/web/src/test/assessment-authoring.test.tsx",
+        "apps/web/src/test/assessment-student.test.tsx"
       ],
       "claimRestrictions": [
         "production remains disabled",
-        "not built",
+        "built and locally regression-tested only",
         "not synthetically capacity verified",
         "not pilot-validated",
         "not production-certified"

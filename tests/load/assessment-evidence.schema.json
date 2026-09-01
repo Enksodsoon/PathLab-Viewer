@@ -1,15 +1,52 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["status", "releaseSha", "database", "services", "latency", "host", "cleanup"],
+  "required": ["status", "releaseSha", "generatedAt", "campaign", "database", "services", "latency", "host", "cleanup", "gates"],
   "properties": {
     "status": {"enum": ["SUCCESS", "PARTIAL", "NEGATIVE", "NOT_EVALUABLE"]},
     "releaseSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "database": {"type": "object", "required": ["engine", "maxConnections", "peakConnections", "poolTimeouts", "lockTimeouts"]},
-    "services": {"type": "object", "required": ["assessmentWorkers", "restarts", "oomKills"]},
-    "latency": {"type": "object", "required": ["autosaveP95Ms", "submitP95Ms", "tileP95Ms"]},
-    "host": {"type": "object", "required": ["sustainedCpuPercent", "peakMemoryPercent", "swapBytes"]},
-    "cleanup": {"type": "object", "required": ["fixturesRemoved", "grantsRemoved", "sessionsRemoved"]}
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "campaign": {
+      "type": "object",
+      "required": ["shards", "seats", "holdSeconds", "autosaves", "reconnects", "submits", "submitStormSeconds", "monitorSampleCount", "offlineResume", "browserOutageRecovery", "aggregateVerified", "exportVerified"],
+      "properties": {
+        "shards": {"type": "integer", "minimum": 0}, "seats": {"type": "integer", "minimum": 0}, "holdSeconds": {"type": "integer", "minimum": 0},
+        "autosaves": {"type": "integer", "minimum": 0}, "reconnects": {"type": "integer", "minimum": 0}, "submits": {"type": "integer", "minimum": 0},
+        "submitStormSeconds": {"type": "number", "minimum": 0}, "monitorSampleCount": {"type": "integer", "minimum": 0},
+        "offlineResume": {"type": "boolean"}, "browserOutageRecovery": {"type": "boolean"},
+        "aggregateVerified": {"type": "boolean"}, "exportVerified": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "database": {
+      "type": "object", "required": ["engine", "maxConnections", "peakConnections", "poolTimeouts", "lockTimeouts"],
+      "properties": {"engine": {"type": "string"}, "maxConnections": {"type": "number", "minimum": 0}, "peakConnections": {"type": "number", "minimum": 0}, "poolTimeouts": {"type": "number", "minimum": 0}, "lockTimeouts": {"type": "number", "minimum": 0}},
+      "additionalProperties": true
+    },
+    "services": {
+      "type": "object", "required": ["assessmentWorkers", "restarts", "oomKills"],
+      "properties": {"assessmentWorkers": {"type": "number", "minimum": 0}, "restarts": {"type": "number", "minimum": 0}, "oomKills": {"type": "number", "minimum": 0}},
+      "additionalProperties": true
+    },
+    "latency": {
+      "type": "object", "required": ["autosaveP95Ms", "submitP95Ms", "tileP95Ms"],
+      "properties": {"autosaveP95Ms": {"type": "number", "minimum": 0}, "submitP95Ms": {"type": "number", "minimum": 0}, "tileP95Ms": {"type": "number", "minimum": 0}},
+      "additionalProperties": false
+    },
+    "host": {
+      "type": "object", "required": ["sustainedCpuPercent", "peakMemoryPercent", "swapBytes"],
+      "properties": {"sustainedCpuPercent": {"type": "number", "minimum": 0}, "peakMemoryPercent": {"type": "number", "minimum": 0}, "swapBytes": {"type": "number", "minimum": 0}},
+      "additionalProperties": true
+    },
+    "cleanup": {
+      "type": "object", "required": ["fixturesRemoved", "grantsRemoved", "sessionsRemoved", "administrationPurged"],
+      "properties": {"fixturesRemoved": {"type": "boolean"}, "grantsRemoved": {"type": "boolean"}, "sessionsRemoved": {"type": "boolean"}, "administrationPurged": {"type": "boolean"}},
+      "additionalProperties": true
+    },
+    "gates": {
+      "type": "array", "minItems": 20,
+      "items": {"type": "object", "required": ["name", "passed", "observed"], "properties": {"name": {"type": "string"}, "passed": {"type": "boolean"}}, "additionalProperties": true}
+    }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

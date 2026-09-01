@@ -145,10 +145,11 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             findings.append((display, line_number, "IP-derived public hostname"))
         if any(pattern.search(line) for pattern in LOCAL_PATH_PATTERNS):
             findings.append((display, line_number, "local workstation path"))
-        for local_part, domain in EMAIL_PATTERN.findall(line):
-            email = f"{local_part}@{domain}"
-            if not is_allowed_email(email):
-                findings.append((display, line_number, "non-example email address"))
+        if path.name not in LOCK_NAMES:
+            for local_part, domain in EMAIL_PATTERN.findall(line):
+                email = f"{local_part}@{domain}"
+                if not is_allowed_email(email):
+                    findings.append((display, line_number, "non-example email address"))
         if path.name not in LOCK_NAMES:
             for candidate in IPV4_PATTERN.findall(line):
                 if is_public_ip(candidate):

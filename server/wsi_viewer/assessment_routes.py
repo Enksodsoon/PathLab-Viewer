@@ -4,10 +4,11 @@ import hmac
 import json
 import secrets
 from collections.abc import Callable, Iterator
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import (
     Cookie,
@@ -22,7 +23,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 
@@ -47,6 +48,8 @@ from .models import (
     AssessmentAdministration,
     AssessmentAssetGrant,
     AssessmentAttempt,
+    AssessmentCourse,
+    AssessmentCourseEnrollment,
     AssessmentDraft,
     AssessmentGradebookRow,
     AssessmentMutationReceipt,
@@ -59,6 +62,7 @@ from .models import (
     AssessmentVersion,
     Cohort,
     CohortEnrollment,
+    Folder,
     LearnerProfile,
     PublicationGrant,
     Session,
@@ -75,8 +79,11 @@ from .time_support import as_utc, utc_now
 
 
 class DraftCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     title: str = Field(min_length=1, max_length=200)
     document: dict[str, Any]
+    course_id: str | None = Field(default=None, alias="courseId")
+    cohort_id: str | None = Field(default=None, alias="classId")
 
 
 class DraftPatch(BaseModel):
@@ -98,18 +105,165 @@ class ClassCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
 
 
-class ClassPatch(BaseModel):
+CourseIconKey = Literal[
+    "general",
+    "integumentary",
+    "bone",
+    "muscular",
+    "neuroscience",
+    "endocrine",
+    "cardiology",
+    "immune",
+    "respiratory",
+    "digestive",
+    "urinary",
+    "reproductive",
+    "anatomy",
+    "vision",
+    "hearing",
+    "dental",
+    "microscope",
+    "laboratory",
+    "medicine",
+    "pharmacology",
+    "first_aid",
+    "genetics",
+    "microbiology",
+    "science",
+    "botany",
+    "mathematics",
+]
+
+
+class CourseCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=160)
+    course_code: str = Field(alias="courseCode", min_length=1, max_length=60)
+    semester: str = Field(min_length=1, max_length=80)
+    academic_year: str = Field(alias="academicYear", min_length=1, max_length=20)
+    icon_key: CourseIconKey = Field(default="general", alias="iconKey")
+    scoring_method: str = Field(default="percentage", alias="scoringMethod")
+    description: str | None = Field(default=None, max_length=4000)
+    opens_at: datetime | None = Field(default=None, alias="opensAt")
+    closes_at: datetime | None = Field(default=None, alias="closesAt")
+    status: str = "draft"
+
+
+class CoursePatch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, str_strip_whitespace=True)
     name: str | None = Field(default=None, min_length=1, max_length=160)
+    course_code: str | None = Field(default=None, alias="courseCode", min_length=1, max_length=60)
+    semester: str | None = Field(default=None, min_length=1, max_length=80)
+    academic_year: str | None = Field(
+        default=None, alias="academicYear", min_length=1, max_length=20
+    )
+    icon_key: CourseIconKey | None = Field(default=None, alias="iconKey")
+    scoring_method: str | None = Field(default=None, alias="scoringMethod")
+    description: str | None = Field(default=None, max_length=4000)
+    opens_at: datetime | None = Field(default=None, alias="opensAt")
+    closes_at: datetime | None = Field(default=None, alias="closesAt")
     status: str | None = None
+
+
+class RosterRuleFilter(BaseModel):
+    field: str = Field(min_length=1, max_length=180)
+    values: list[str] = Field(min_length=1, max_length=100)
+
+
+class ClassRosterRule(BaseModel):
+    mode: Literal["all", "filters", "existing"] = "all"
+    filters: list[RosterRuleFilter] = Field(default_factory=list, max_length=100)
+
+
+class CourseClassCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    name: str = Field(min_length=1, max_length=160)
+    section_code: str = Field(alias="sectionCode", min_length=1, max_length=60)
+    description: str | None = Field(default=None, max_length=4000)
+    location: str | None = Field(default=None, max_length=160)
+    opens_at: datetime | None = Field(default=None, alias="opensAt")
+    closes_at: datetime | None = Field(default=None, alias="closesAt")
+    roster_rule: ClassRosterRule = Field(default_factory=ClassRosterRule, alias="rosterRule")
+
+
+class ClassRosterPatch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    roster_rule: ClassRosterRule = Field(alias="rosterRule")
+
+
+class ClassPatch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    section_code: str | None = Field(default=None, alias="sectionCode", max_length=60)
+    description: str | None = Field(default=None, max_length=4000)
+    location: str | None = Field(default=None, max_length=160)
+    folder_id: str | None = Field(default=None, alias="folderId", max_length=36)
+    opens_at: datetime | None = Field(default=None, alias="opensAt")
+    closes_at: datetime | None = Field(default=None, alias="closesAt")
+    status: str | None = None
+
+
+def _roster_rule_json(rule: ClassRosterRule) -> dict[str, Any]:
+    return rule.model_dump(mode="json")
+
+
+def _learner_rule_value(learner: LearnerProfile, field: str) -> str | None:
+    if field == "group":
+        return learner.group_name
+    if field == "subgroup":
+        return learner.subgroup_name
+    if field.startswith("metadata.") and len(field) > len("metadata."):
+        value = (learner.roster_metadata or {}).get(field.removeprefix("metadata."))
+        return str(value) if value not in (None, "") else None
+    raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_CLASS_ROSTER_RULE_INVALID"})
+
+
+def _resolve_roster_rule(
+    learners: list[LearnerProfile],
+    rule: ClassRosterRule,
+    existing_ids: set[str] | None = None,
+) -> set[str]:
+    allowed_ids = {learner.id for learner in learners}
+    if rule.mode == "all":
+        return allowed_ids
+    if rule.mode == "existing":
+        return allowed_ids.intersection(existing_ids or set())
+    if not rule.filters:
+        return set()
+    selected: set[str] = set()
+    for learner in learners:
+        matches = True
+        for item in rule.filters:
+            accepted = {value.strip().casefold() for value in item.values if value.strip()}
+            actual = _learner_rule_value(learner, item.field)
+            if not accepted or actual is None or actual.strip().casefold() not in accepted:
+                matches = False
+                break
+        if matches:
+            selected.add(learner.id)
+    return selected
 
 
 class EnrollmentPatch(BaseModel):
     status: str
 
 
+class LearnerProfilePatch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    student_id: str = Field(alias="studentId", min_length=1, max_length=200)
+    first_name: str = Field(alias="firstName", min_length=1, max_length=160)
+    last_name: str | None = Field(default=None, alias="lastName", max_length=160)
+    group_name: str | None = Field(default=None, alias="group", max_length=100)
+    subgroup_name: str | None = Field(default=None, alias="subgroup", max_length=100)
+    email: str | None = Field(default=None, max_length=254)
+    metadata: dict[str, str] = Field(default_factory=dict, max_length=50)
+
+
 class ImportRows(BaseModel):
-    rows: str = Field(min_length=1, max_length=64 * 1024)
+    model_config = ConfigDict(populate_by_name=True)
+    rows: str = Field(min_length=1, max_length=8 * 1024 * 1024)
     checksum: str | None = None
+    confirm_warnings: bool = Field(default=False, alias="confirmWarnings")
 
 
 class PublishSettings(BaseModel):
@@ -119,6 +273,11 @@ class PublishSettings(BaseModel):
     duration_seconds: int = Field(default=3600, alias="durationSeconds", ge=1, le=14_400)
     max_attempts: int = Field(default=1, alias="maxAttempts", ge=1, le=3)
     access_code: str | None = Field(default=None, alias="accessCode", min_length=4, max_length=64)
+    synthetic_fixture: bool = Field(default=False, alias="syntheticFixture")
+
+
+class AdministrationStatusPatch(BaseModel):
+    status: str
 
 
 class AccessRequest(BaseModel):
@@ -169,32 +328,244 @@ class DraftJson(BaseModel):
     status: str
     revision: int
     document: dict[str, Any]
+    course_id: str | None = Field(serialization_alias="courseId")
+    cohort_id: str | None = Field(serialization_alias="classId")
 
 
-def _draft_json(draft: AssessmentDraft) -> dict[str, Any]:
-    return DraftJson.model_validate(draft).model_dump()
+def _draft_json(draft: AssessmentDraft, database: OrmSession | None = None) -> dict[str, Any]:
+    value = DraftJson.model_validate(draft).model_dump(by_alias=True)
+    course = (
+        database.get(AssessmentCourse, draft.course_id) if database and draft.course_id else None
+    )
+    cohort = database.get(Cohort, draft.cohort_id) if database and draft.cohort_id else None
+    value["courseName"] = course.name if course is not None else None
+    value["className"] = cohort.name if cohort is not None else None
+    return value
 
 
-def _parse_rows(raw: str) -> list[tuple[str, str | None]]:
-    parsed: list[tuple[str, str | None]] = []
+@dataclass(frozen=True)
+class RosterRow:
+    identifier: str
+    student_id: str | None
+    first_name: str | None
+    last_name: str | None
+    display_name: str | None
+    group_name: str | None = None
+    subgroup_name: str | None = None
+    email: str | None = None
+    metadata: dict[str, str] | None = None
+
+
+_ROSTER_HEADER_ALIASES = {
+    "student_id": {"student_id", "student_number", "student_no", "id", "รหัสนักศึกษา"},
+    "first_name": {"first_name", "given_name", "name", "ชื่อ"},
+    "last_name": {"last_name", "surname", "family_name", "นามสกุล"},
+    "display_name": {"display_name", "full_name"},
+    "group_name": {"group", "group_name", "class_group", "กลุ่ม"},
+    "subgroup_name": {"subgroup", "sub_group", "subgroup_name", "กลุ่มย่อย"},
+    "email": {"email", "email_address", "e_mail", "อีเมล"},
+}
+
+MAX_ASSESSMENT_ROSTER = 5000
+
+
+def _header_key(value: str) -> str:
+    return "_".join(value.lstrip("\ufeff").strip().casefold().replace("-", " ").split())
+
+
+def _parse_rows(raw: str, *, require_structured: bool = False) -> list[RosterRow]:
+    source = list(csv.reader(StringIO(raw)))
+    if not source:
+        raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_INVALID"})
+    first = [_header_key(value) for value in source[0]]
+    known = {alias: field for field, aliases in _ROSTER_HEADER_ALIASES.items() for alias in aliases}
+    mapped = {index: known[value] for index, value in enumerate(first) if value in known}
+    structured = "student_id" in mapped.values()
+    if require_structured and not structured:
+        raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_HEADER_REQUIRED"})
+    if structured and "first_name" not in mapped.values():
+        raise HTTPException(
+            status_code=400, detail={"code": "ASSESSMENT_ROSTER_NAME_COLUMNS_REQUIRED"}
+        )
+    data_rows = source[1:] if structured else source
+    parsed: list[RosterRow] = []
     seen: set[str] = set()
-    for row in csv.reader(StringIO(raw)):
+    for row in data_rows:
         if not row or not row[0].strip():
             continue
-        identifier = row[0].strip()
+        if structured:
+            values = {
+                field: (row[index].strip() if index < len(row) else "")
+                for index, field in mapped.items()
+            }
+            identifier = values.get("student_id", "")
+            first_name = values.get("first_name", "")
+            last_name = values.get("last_name", "")
+            if not identifier or not first_name:
+                raise HTTPException(
+                    status_code=400, detail={"code": "ASSESSMENT_ROSTER_REQUIRED_VALUE"}
+                )
+            display_name = values.get("display_name") or f"{first_name} {last_name}".strip()
+            recognized_indexes = set(mapped)
+            metadata = {
+                (first[index] or f"column_{index + 1}"): value.strip()
+                for index, value in enumerate(row)
+                if index not in recognized_indexes and value.strip()
+            }
+            roster_row = RosterRow(
+                identifier=identifier,
+                student_id=identifier,
+                first_name=first_name[:160],
+                last_name=last_name[:160] or None,
+                display_name=display_name[:160],
+                group_name=values.get("group_name", "")[:100] or None,
+                subgroup_name=values.get("subgroup_name", "")[:100] or None,
+                email=values.get("email", "")[:254] or None,
+                metadata=metadata,
+            )
+        else:
+            identifier = row[0].strip()
+            optional_display_name = (
+                row[1].strip()[:160] if len(row) > 1 and row[1].strip() else None
+            )
+            roster_row = RosterRow(identifier, None, None, None, optional_display_name)
         if len(identifier) > 200 or identifier.casefold() in seen:
             raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_INVALID"})
         seen.add(identifier.casefold())
-        display_name = row[1].strip()[:160] if len(row) > 1 and row[1].strip() else None
-        parsed.append((identifier, display_name))
-    if not parsed or len(parsed) > 500:
+        parsed.append(roster_row)
+    if not parsed or len(parsed) > MAX_ASSESSMENT_ROSTER:
         raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_LIMIT"})
     return parsed
 
 
-def _rows_checksum(rows: list[tuple[str, str | None]]) -> str:
-    canonical = "\n".join(f"{identifier.casefold()}\t{name or ''}" for identifier, name in rows)
+def _rows_checksum(rows: list[RosterRow]) -> str:
+    canonical = "\n".join(
+        json.dumps(
+            {
+                "studentId": row.identifier.casefold(),
+                "firstName": row.first_name,
+                "lastName": row.last_name,
+                "displayName": row.display_name,
+                "group": row.group_name,
+                "subgroup": row.subgroup_name,
+                "email": row.email,
+                "metadata": row.metadata or {},
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        for row in rows
+    )
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _identifier_metadata_keys(metadata: dict[str, str] | None) -> set[str]:
+    keys: set[str] = set()
+    for key in metadata or {}:
+        normalized = _header_key(key)
+        if (
+            normalized.endswith("_id")
+            or "identifier" in normalized
+            or normalized
+            in {"passport", "passport_number", "national_id", "registration_number", "username"}
+        ):
+            keys.add(key)
+    return keys
+
+
+def _roster_import_warnings(
+    database: OrmSession,
+    course_id: str,
+    rows: list[RosterRow],
+) -> list[dict[str, str]]:
+    existing = database.scalars(
+        select(LearnerProfile)
+        .join(
+            AssessmentCourseEnrollment, AssessmentCourseEnrollment.learner_id == LearnerProfile.id
+        )
+        .where(AssessmentCourseEnrollment.course_id == course_id)
+    ).all()
+    warnings: list[dict[str, str]] = []
+    by_student_id = {
+        learner.student_id.casefold(): learner for learner in existing if learner.student_id
+    }
+    by_full_name: dict[tuple[str, str], list[LearnerProfile]] = {}
+    for learner in existing:
+        if learner.first_name and learner.last_name:
+            by_full_name.setdefault(
+                (learner.first_name.casefold(), learner.last_name.casefold()), []
+            ).append(learner)
+    for row in rows:
+        student_id = row.student_id or row.identifier
+        exact = by_student_id.get(student_id.casefold())
+        if exact is not None:
+            warnings.append(
+                {
+                    "code": "existing_student_id",
+                    "studentId": student_id,
+                    "matchedStudentId": exact.student_id or "",
+                    "message": (
+                        f"Student ID {student_id} is already in this roster and will be skipped."
+                    ),
+                }
+            )
+            continue
+        if row.first_name and row.last_name:
+            for match in by_full_name.get(
+                (row.first_name.casefold(), row.last_name.casefold()), []
+            ):
+                warnings.append(
+                    {
+                        "code": "matching_full_name",
+                        "studentId": student_id,
+                        "matchedStudentId": match.student_id or "",
+                        "message": (
+                            f"{row.display_name} matches an existing full name with a "
+                            "different student ID."
+                        ),
+                    }
+                )
+                break
+        row_identifiers = {
+            key: value.casefold()
+            for key, value in (row.metadata or {}).items()
+            if key in _identifier_metadata_keys(row.metadata) and value
+        }
+        if row.email:
+            row_identifiers["email"] = row.email.casefold()
+        if not row_identifiers:
+            continue
+        for match in existing:
+            match_identifiers = {
+                key: value.casefold()
+                for key, value in (match.roster_metadata or {}).items()
+                if key in row_identifiers and value
+            }
+            if match.email:
+                match_identifiers["email"] = match.email.casefold()
+            matched_key = next(
+                (
+                    key
+                    for key, value in row_identifiers.items()
+                    if match_identifiers.get(key) == value
+                ),
+                None,
+            )
+            if matched_key:
+                warnings.append(
+                    {
+                        "code": "matching_identifier",
+                        "studentId": student_id,
+                        "matchedStudentId": match.student_id or "",
+                        "field": matched_key,
+                        "message": (
+                            f"{student_id} shares the same "
+                            f"{matched_key.replace('_', ' ')} with another learner."
+                        ),
+                    }
+                )
+                break
+    return warnings
 
 
 def register_assessment_routes(
@@ -226,6 +597,15 @@ def register_assessment_routes(
         )
         if draft is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_DRAFT_NOT_FOUND"})
+        return draft
+
+    def editable_draft(database: OrmSession, draft_id: str, org_id: str) -> AssessmentDraft:
+        draft = owned_draft(database, draft_id, org_id)
+        if draft.status == "archived":
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_DRAFT_ARCHIVED"},
+            )
         return draft
 
     @app.get("/api/v2/assessment/administrations/{public_id}")
@@ -392,7 +772,12 @@ def register_assessment_routes(
         request: Request,
         response: Response,
         database: Database,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
     ) -> dict[str, Any]:
+        if not 1 <= len(idempotency_key) <= 200:
+            raise HTTPException(
+                status_code=400, detail={"code": "ASSESSMENT_IDEMPOTENCY_KEY_INVALID"}
+            )
         consume_access_throttle(database, request, payload)
         administration = database.scalar(
             select(AssessmentAdministration).where(
@@ -402,17 +787,45 @@ def register_assessment_routes(
         )
         if administration is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        session_material = f"access-session\0{payload.public_id}\0{idempotency_key}"
+        raw_token = hmac.new(
+            identifier_secret.encode(), session_material.encode(), hashlib.sha256
+        ).hexdigest()
+        csrf_token = hmac.new(
+            identifier_secret.encode(), f"csrf\0{session_material}".encode(), hashlib.sha256
+        ).hexdigest()
+        session_id = hashlib.sha256(raw_token.encode()).hexdigest()
+        existing_session = database.get(AssessmentSession, session_id)
         receipt: str | None = None
         participant: AssessmentParticipant | None = None
         if payload.kind == "anonymous" and administration.mode == "formative":
-            receipt = secrets.token_urlsafe(32)
-            participant = AssessmentParticipant(
-                administration_id=administration.id,
-                kind="anonymous",
-                receipt_hash=hashlib.sha256(receipt.encode()).hexdigest(),
-            )
-            database.add(participant)
-            database.flush()
+            receipt = hmac.new(
+                identifier_secret.encode(),
+                f"anonymous-receipt\0{payload.public_id}\0{idempotency_key}".encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            if existing_session is not None:
+                existing_participant = database.get(
+                    AssessmentParticipant, existing_session.participant_id
+                )
+                if (
+                    existing_participant is None
+                    or existing_participant.administration_id != administration.id
+                    or existing_participant.kind != "anonymous"
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"code": "ASSESSMENT_IDEMPOTENCY_CONFLICT"},
+                    )
+                participant = existing_participant
+            else:
+                participant = AssessmentParticipant(
+                    administration_id=administration.id,
+                    kind="anonymous",
+                    receipt_hash=hashlib.sha256(receipt.encode()).hexdigest(),
+                )
+                database.add(participant)
+                database.flush()
         elif (
             payload.kind == "roster"
             and administration.mode in {"formative", "quiz"}
@@ -458,6 +871,27 @@ def register_assessment_routes(
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
         if participant is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_ACCESS_INVALID"})
+        if existing_session is not None:
+            if existing_session.participant_id != participant.id:
+                raise HTTPException(
+                    status_code=409, detail={"code": "ASSESSMENT_IDEMPOTENCY_CONFLICT"}
+                )
+            existing_session.expires_at = utc_now() + timedelta(hours=5)
+            database.commit()
+            response.set_cookie(
+                "pathlab_assessment_session",
+                raw_token,
+                httponly=True,
+                secure=secure_cookies,
+                samesite="lax",
+                max_age=5 * 3600,
+            )
+            return {
+                "kind": participant.kind,
+                "publicId": administration.public_id,
+                "csrfToken": csrf_token,
+                **({"receipt": receipt} if receipt is not None else {}),
+            }
         active_sessions = database.scalars(
             select(AssessmentSession).where(
                 AssessmentSession.participant_id == participant.id,
@@ -471,11 +905,9 @@ def register_assessment_routes(
         if payload.takeover:
             for active_session in active_sessions:
                 active_session.revoked_at = utc_now()
-        raw_token = secrets.token_urlsafe(32)
-        csrf_token = secrets.token_urlsafe(32)
         database.add(
             AssessmentSession(
-                id=hashlib.sha256(raw_token.encode()).hexdigest(),
+                id=session_id,
                 participant_id=participant.id,
                 csrf_token=csrf_token,
                 device_generation=generation,
@@ -541,10 +973,7 @@ def register_assessment_routes(
                 )
             ]
         manifest = json.loads(json.dumps(version.learner_manifest))
-        if (
-            attempt is not None
-            and manifest.get("settings", {}).get("shuffleQuestions") is True
-        ):
+        if attempt is not None and manifest.get("settings", {}).get("shuffleQuestions") is True:
             manifest["items"] = sorted(
                 manifest.get("items", []),
                 key=lambda item: hashlib.sha256(
@@ -666,9 +1095,7 @@ def register_assessment_routes(
     ) -> dict[str, Any]:
         stored_session = student_session(database, raw_token, csrf_token)
         if len(payload.model_dump_json(by_alias=True).encode()) > 64 * 1024:
-            raise HTTPException(
-                status_code=413, detail={"code": "ASSESSMENT_RESPONSE_BATCH_LIMIT"}
-            )
+            raise HTTPException(status_code=413, detail={"code": "ASSESSMENT_RESPONSE_BATCH_LIMIT"})
         receipt, key_hash, request_hash = mutation_receipt(
             database,
             stored_session,
@@ -960,14 +1387,27 @@ def register_assessment_routes(
         authenticated: AdminSession,
         database: Database,
         requested_org: ActiveOrganization = None,
+        cohort_id: str | None = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
+        statement = select(AssessmentDraft).where(AssessmentDraft.organization_id == org_id)
+        if cohort_id is not None:
+            owned_class(database, cohort_id, org_id)
+            linked_drafts = (
+                select(AssessmentVersion.draft_id)
+                .join(
+                    AssessmentAdministration,
+                    AssessmentAdministration.version_id == AssessmentVersion.id,
+                )
+                .where(AssessmentAdministration.cohort_id == cohort_id)
+            )
+            statement = statement.where(
+                or_(AssessmentDraft.cohort_id == cohort_id, AssessmentDraft.id.in_(linked_drafts))
+            )
         drafts = database.scalars(
-            select(AssessmentDraft)
-            .where(AssessmentDraft.organization_id == org_id)
-            .order_by(AssessmentDraft.updated_at.desc(), AssessmentDraft.id)
+            statement.order_by(AssessmentDraft.updated_at.desc(), AssessmentDraft.id)
         ).all()
-        return {"items": [_draft_json(item) for item in drafts], "total": len(drafts)}
+        return {"items": [_draft_json(item, database) for item in drafts], "total": len(drafts)}
 
     @app.post("/api/v2/admin/assessment/drafts", status_code=status.HTTP_201_CREATED)
     def create_draft(
@@ -977,15 +1417,30 @@ def register_assessment_routes(
         requested_org: ActiveOrganization = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
+        course: AssessmentCourse | None = None
+        cohort: Cohort | None = None
+        if payload.course_id is not None:
+            course = owned_course(database, payload.course_id, org_id)
+        if payload.cohort_id is not None:
+            cohort = owned_class(database, payload.cohort_id, org_id)
+            if course is None and cohort.assessment_course_id is not None:
+                course = owned_course(database, cohort.assessment_course_id, org_id)
+            if course is None or cohort.assessment_course_id != course.id:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "ASSESSMENT_DRAFT_CLASS_COURSE_MISMATCH"},
+                )
         draft = AssessmentDraft(
             organization_id=org_id,
+            course_id=course.id if course is not None else None,
+            cohort_id=cohort.id if cohort is not None else None,
             title=payload.title,
             document=payload.document,
             created_by_user_id=authenticated.user_id,
         )
         database.add(draft)
         database.commit()
-        return _draft_json(draft)
+        return _draft_json(draft, database)
 
     @app.get("/api/v2/admin/assessment/drafts/{draft_id}")
     def get_draft(
@@ -995,7 +1450,7 @@ def register_assessment_routes(
         requested_org: ActiveOrganization = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
-        return _draft_json(owned_draft(database, draft_id, org_id))
+        return _draft_json(editable_draft(database, draft_id, org_id), database)
 
     @app.patch("/api/v2/admin/assessment/drafts/{draft_id}")
     def save_draft(
@@ -1007,7 +1462,7 @@ def register_assessment_routes(
         requested_org: ActiveOrganization = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
-        draft = owned_draft(database, draft_id, org_id)
+        draft = editable_draft(database, draft_id, org_id)
         if expected_revision is None or expected_revision.strip('"') != str(draft.revision):
             raise HTTPException(
                 status_code=409,
@@ -1018,7 +1473,7 @@ def register_assessment_routes(
         draft.revision += 1
         draft.updated_at = utc_now()
         database.commit()
-        return _draft_json(draft)
+        return _draft_json(draft, database)
 
     def fresh_item(source: dict[str, Any]) -> dict[str, Any]:
         item: dict[str, Any] = json.loads(json.dumps(source))
@@ -1047,19 +1502,21 @@ def register_assessment_routes(
         requested_org: ActiveOrganization = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
-        source = owned_draft(database, draft_id, org_id)
+        source = editable_draft(database, draft_id, org_id)
         document = json.loads(json.dumps(source.document))
         document["items"] = [fresh_item(item) for item in document.get("items", [])]
         document["title"] = payload.title or f"{source.title} copy"
         duplicate = AssessmentDraft(
             organization_id=org_id,
+            course_id=source.course_id,
+            cohort_id=source.cohort_id,
             title=document["title"],
             document=document,
             created_by_user_id=authenticated.user_id,
         )
         database.add(duplicate)
         database.commit()
-        return _draft_json(duplicate)
+        return _draft_json(duplicate, database)
 
     @app.post("/api/v2/admin/assessment/drafts/{draft_id}/import-questions")
     def import_questions(
@@ -1070,8 +1527,8 @@ def register_assessment_routes(
         requested_org: ActiveOrganization = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
-        destination = owned_draft(database, draft_id, org_id)
-        source = owned_draft(database, payload.source_draft_id, org_id)
+        destination = editable_draft(database, draft_id, org_id)
+        source = editable_draft(database, payload.source_draft_id, org_id)
         if destination.revision != payload.expected_revision:
             raise HTTPException(
                 status_code=409,
@@ -1093,7 +1550,7 @@ def register_assessment_routes(
         destination.revision += 1
         destination.updated_at = utc_now()
         database.commit()
-        return _draft_json(destination)
+        return _draft_json(destination, database)
 
     @app.post("/api/v2/admin/assessment/drafts/{draft_id}/archive")
     def archive_draft(
@@ -1107,12 +1564,27 @@ def register_assessment_routes(
         draft.status = "archived"
         draft.archived_at = utc_now()
         database.commit()
-        return _draft_json(draft)
+        return _draft_json(draft, database)
+
+    @app.post("/api/v2/admin/assessment/drafts/{draft_id}/restore")
+    def restore_draft(
+        draft_id: str,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        draft = owned_draft(database, draft_id, org_id)
+        draft.status = "draft"
+        draft.archived_at = None
+        draft.updated_at = utc_now()
+        database.commit()
+        return _draft_json(draft, database)
 
     def compile_owned(
         draft_id: str, authenticated: Session, database: OrmSession, requested_org: str | None
     ) -> tuple[AssessmentDraft, CompiledAssessment]:
-        draft = owned_draft(
+        draft = editable_draft(
             database, draft_id, organization_id(authenticated, database, requested_org)
         )
         try:
@@ -1214,7 +1686,7 @@ def register_assessment_routes(
                     if payload.access_code is not None
                     else None
                 ),
-                settings={},
+                settings={"syntheticFixture": payload.synthetic_fixture},
             )
             database.add(administration)
             database.flush()
@@ -1231,7 +1703,7 @@ def register_assessment_routes(
                     )
                     .limit(501)
                 ).all()
-                if len(learners) > 500:
+                if len(learners) > MAX_ASSESSMENT_ROSTER:
                     raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_LIMIT"})
                 for learner in learners:
                     if learner.login_identifier_hash is None:
@@ -1306,9 +1778,7 @@ def register_assessment_routes(
                     "id": slide.id,
                     "publicId": slide.public_id,
                     "displayName": slide.display_name,
-                    "tileSource": (
-                        f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"
-                    ),
+                    "tileSource": (f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"),
                     "thumbnail": (
                         f"/tiles/{slide.public_id}/thumbnail.jpg"
                         if slide.thumbnail_filename is not None
@@ -1324,21 +1794,29 @@ def register_assessment_routes(
         authenticated: AdminSession,
         database: Database,
         requested_org: ActiveOrganization = None,
+        cohort_id: str | None = None,
     ) -> dict[str, Any]:
         org_id = organization_id(authenticated, database, requested_org)
-        rows = database.execute(
+        statement = (
             select(AssessmentAdministration, AssessmentVersion, AssessmentDraft)
             .join(AssessmentVersion, AssessmentVersion.id == AssessmentAdministration.version_id)
             .join(AssessmentDraft, AssessmentDraft.id == AssessmentVersion.draft_id)
             .where(AssessmentAdministration.organization_id == org_id)
             .order_by(AssessmentAdministration.created_at.desc(), AssessmentAdministration.id)
-        ).all()
+        )
+        if cohort_id is not None:
+            owned_class(database, cohort_id, org_id)
+            statement = statement.where(AssessmentAdministration.cohort_id == cohort_id)
+        rows = database.execute(statement).all()
         return {
             "items": [
                 {
                     "id": administration.id,
+                    "draftId": draft.id,
+                    "cohortId": administration.cohort_id,
                     "publicId": administration.public_id,
                     "title": draft.title,
+                    "version": version.version,
                     "mode": administration.mode,
                     "status": administration.status,
                     "createdAt": administration.created_at,
@@ -1351,8 +1829,32 @@ def register_assessment_routes(
                         )
                         or 0
                     ),
+                    "expectedParticipants": (
+                        int(
+                            database.scalar(
+                                select(func.count(AssessmentRosterSnapshot.id)).where(
+                                    AssessmentRosterSnapshot.administration_id == administration.id,
+                                    AssessmentRosterSnapshot.status == "active",
+                                )
+                            )
+                            or 0
+                        )
+                        if administration.cohort_id is not None
+                        else None
+                    ),
+                    "completedParticipants": int(
+                        database.scalar(
+                            select(
+                                func.count(func.distinct(AssessmentAttempt.participant_id))
+                            ).where(
+                                AssessmentAttempt.administration_id == administration.id,
+                                AssessmentAttempt.status.in_(("submitted", "auto_submitted")),
+                            )
+                        )
+                        or 0
+                    ),
                 }
-                for administration, _, draft in rows
+                for administration, version, draft in rows
             ],
             "total": len(rows),
         }
@@ -1474,6 +1976,88 @@ def register_assessment_routes(
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_ASSETS_NOT_PREPARED"})
         administration.status = "open"
         administration.opens_at = utc_now()
+        bind_assessment_administration(database, administration.id)
+        database.commit()
+        return {"id": administration.id, "status": administration.status}
+
+    @app.patch("/api/v2/admin/assessment/administrations/{administration_id}/status")
+    def change_administration_status(
+        administration_id: str,
+        payload: AdministrationStatusPatch,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        target = payload.status.casefold()
+        if target not in {"draft", "open", "closed"}:
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        if administration.status == target:
+            return {"id": administration.id, "status": administration.status}
+
+        if target in {"draft", "closed"}:
+            was_live = administration.status in {"preparing", "open"}
+            administration.status = target
+            if was_live:
+                administration.closes_at = utc_now()
+                if administration.mode != "practice":
+                    begin_assessment_cooldown(database, now=administration.closes_at)
+                for grant in database.scalars(
+                    select(AssessmentAssetGrant).where(
+                        AssessmentAssetGrant.administration_id == administration.id
+                    )
+                ):
+                    grant.expires_at = administration.closes_at + timedelta(hours=24)
+                snapshot_aggregate(database, administration)
+            database.commit()
+            return {"id": administration.id, "status": administration.status}
+
+        if administration.status not in {"draft", "closed", "preparing"}:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        version = database.get(AssessmentVersion, administration.version_id)
+        if version is None:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_VERSION_MISSING"})
+        slide_ids = definition_slide_ids(version.definition)
+        if administration.mode == "practice":
+            administration.status = "preparing"
+            try:
+                prepare_asset_grants(database, storage, administration, slide_ids)
+            except AssessmentAssetError as error:
+                database.rollback()
+                raise HTTPException(status_code=409, detail={"code": error.code}) from error
+            administration.status = "open"
+            administration.opens_at = utc_now()
+            administration.closes_at = None
+            database.commit()
+            return {"id": administration.id, "status": administration.status}
+        protection = request_assessment_protection(
+            database, assessment_administration_id=administration.id
+        )
+        if protection.conflicting_runtime:
+            database.commit()
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_RUNTIME_BUSY"},
+                headers={"Retry-After": "120"},
+            )
+        if protection.running_jobs:
+            database.commit()
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "ASSESSMENT_DRAINING", "runningJobs": protection.running_jobs},
+                headers={"Retry-After": "2"},
+            )
+        administration.status = "preparing"
+        try:
+            prepare_asset_grants(database, storage, administration, slide_ids)
+        except AssessmentAssetError as error:
+            database.rollback()
+            raise HTTPException(status_code=409, detail={"code": error.code}) from error
+        administration.status = "open"
+        administration.opens_at = utc_now()
+        administration.closes_at = None
         bind_assessment_administration(database, administration.id)
         database.commit()
         return {"id": administration.id, "status": administration.status}
@@ -1753,11 +2337,49 @@ def register_assessment_routes(
         def stream_rows() -> Iterator[str]:
             buffer = StringIO()
             writer = csv.writer(buffer, lineterminator="\n")
-            writer.writerow(("student", "status", "points", "maximum_points", "score_version"))
+            metadata_query = (
+                select(LearnerProfile.roster_metadata)
+                .join(
+                    AssessmentParticipant,
+                    AssessmentParticipant.learner_id == LearnerProfile.id,
+                )
+                .where(AssessmentParticipant.administration_id == administration.id)
+            )
+            metadata_keys = sorted(
+                {
+                    key
+                    for metadata in database.scalars(metadata_query)
+                    for key, value in (metadata or {}).items()
+                    if value
+                }
+            )[:50]
+            writer.writerow(
+                (
+                    "student_id",
+                    "first_name",
+                    "last_name",
+                    "display_name",
+                    "group",
+                    "subgroup",
+                    "email",
+                    *metadata_keys,
+                    "status",
+                    "points",
+                    "maximum_points",
+                    "score_version",
+                )
+            )
             yield buffer.getvalue()
             query = (
                 select(
+                    LearnerProfile.student_id,
+                    LearnerProfile.first_name,
+                    LearnerProfile.last_name,
                     AssessmentRosterSnapshot.display_name,
+                    LearnerProfile.group_name,
+                    LearnerProfile.subgroup_name,
+                    LearnerProfile.email,
+                    LearnerProfile.roster_metadata,
                     AssessmentGradebookRow.status,
                     AssessmentScoreVersion.points,
                     AssessmentScoreVersion.maximum_points,
@@ -1772,6 +2394,7 @@ def register_assessment_routes(
                     (AssessmentRosterSnapshot.administration_id == administration.id)
                     & (AssessmentRosterSnapshot.learner_id == AssessmentParticipant.learner_id),
                 )
+                .join(LearnerProfile, LearnerProfile.id == AssessmentParticipant.learner_id)
                 .outerjoin(
                     AssessmentScoreVersion,
                     AssessmentScoreVersion.id == AssessmentGradebookRow.score_version_id,
@@ -1783,7 +2406,19 @@ def register_assessment_routes(
             for row in database.execute(query):
                 buffer.seek(0)
                 buffer.truncate(0)
-                writer.writerow(tuple(safe_cell(value) for value in row))
+                profile_values = row[:7]
+                metadata = row[7] or {}
+                result_values = row[8:]
+                writer.writerow(
+                    tuple(
+                        safe_cell(value)
+                        for value in (
+                            *profile_values,
+                            *(metadata.get(key, "") for key in metadata_keys),
+                            *result_values,
+                        )
+                    )
+                )
                 yield buffer.getvalue()
 
         filename = f"assessment-{administration.public_id}.csv"
@@ -1818,6 +2453,13 @@ def register_assessment_routes(
             select(
                 AssessmentAttempt,
                 AssessmentRosterSnapshot.display_name,
+                LearnerProfile.student_id,
+                LearnerProfile.first_name,
+                LearnerProfile.last_name,
+                LearnerProfile.group_name,
+                LearnerProfile.subgroup_name,
+                LearnerProfile.email,
+                LearnerProfile.roster_metadata,
                 AssessmentGradebookRow.status,
                 AssessmentScoreVersion,
             )
@@ -1830,6 +2472,7 @@ def register_assessment_routes(
                 (AssessmentRosterSnapshot.administration_id == administration.id)
                 & (AssessmentRosterSnapshot.learner_id == AssessmentParticipant.learner_id),
             )
+            .join(LearnerProfile, LearnerProfile.id == AssessmentParticipant.learner_id)
             .outerjoin(
                 AssessmentGradebookRow,
                 (AssessmentGradebookRow.administration_id == administration.id)
@@ -1857,9 +2500,7 @@ def register_assessment_routes(
             return {
                 response.item_id: response.response
                 for response in database.scalars(
-                    select(AssessmentResponse).where(
-                        AssessmentResponse.attempt_id == attempt_id
-                    )
+                    select(AssessmentResponse).where(AssessmentResponse.attempt_id == attempt_id)
                 )
             }
 
@@ -1875,7 +2516,14 @@ def register_assessment_routes(
                 "items": [
                     {
                         "attemptId": attempt.id,
+                        "studentId": student_id,
+                        "firstName": first_name,
+                        "lastName": last_name,
                         "displayName": display_name,
+                        "group": group_name,
+                        "subgroup": subgroup_name,
+                        "email": email,
+                        "metadata": roster_metadata or {},
                         "status": grade_status or attempt.status,
                         "scoreVersion": score.version if score is not None else None,
                         "points": (
@@ -1889,7 +2537,19 @@ def register_assessment_routes(
                         "breakdown": score.breakdown if score is not None else {},
                         "responses": response_map(attempt.id),
                     }
-                    for attempt, display_name, grade_status, score in individual_rows
+                    for (
+                        attempt,
+                        display_name,
+                        student_id,
+                        first_name,
+                        last_name,
+                        group_name,
+                        subgroup_name,
+                        email,
+                        roster_metadata,
+                        grade_status,
+                        score,
+                    ) in individual_rows
                 ],
             },
         }
@@ -1962,6 +2622,22 @@ def register_assessment_routes(
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_HOLD_ACTIVE"})
         if administration.status != "closed":
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        retention_days = int(administration.settings.get("retentionDays", 365))
+        eligible_at = (
+            as_utc(administration.closes_at) + timedelta(days=retention_days)
+            if administration.closes_at is not None
+            else None
+        )
+        if not administration.settings.get("syntheticFixture", False) and (
+            eligible_at is None or eligible_at > utc_now()
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ASSESSMENT_RETENTION_ACTIVE",
+                    "eligibleAt": eligible_at.isoformat() if eligible_at is not None else None,
+                },
+            )
         participant_ids = list(
             database.scalars(
                 select(AssessmentParticipant.id)
@@ -1992,6 +2668,890 @@ def register_assessment_routes(
             "status": administration.status,
             "deleted": len(participant_ids),
             "remaining": remaining,
+        }
+
+    @app.post(
+        "/api/v2/admin/assessment/administrations/{administration_id}/synthetic-fixture/cleanup"
+    )
+    def cleanup_synthetic_fixture(
+        administration_id: str,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, bool]:
+        administration = owned_administration(
+            administration_id, authenticated, database, requested_org
+        )
+        if not administration.settings.get("syntheticFixture", False):
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_NOT_SYNTHETIC_FIXTURE"}
+            )
+        if administration.status != "purged":
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_STATE_INVALID"})
+        version = database.get(AssessmentVersion, administration.version_id)
+        if version is None:
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_VERSION_MISSING"})
+        version_count = int(
+            database.scalar(
+                select(func.count(AssessmentVersion.id)).where(
+                    AssessmentVersion.draft_id == version.draft_id
+                )
+            )
+            or 0
+        )
+        administration_count = int(
+            database.scalar(
+                select(func.count(AssessmentAdministration.id)).where(
+                    AssessmentAdministration.version_id == version.id
+                )
+            )
+            or 0
+        )
+        if version_count != 1 or administration_count != 1:
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_SYNTHETIC_FIXTURE_REUSED"}
+            )
+        cohort_id = administration.cohort_id
+        learner_ids = (
+            list(
+                database.scalars(
+                    select(CohortEnrollment.learner_id).where(
+                        CohortEnrollment.cohort_id == cohort_id
+                    )
+                )
+            )
+            if cohort_id is not None
+            else []
+        )
+        public_id = administration.public_id
+        draft_id = version.draft_id
+        database.delete(administration)
+        database.flush()
+        database.delete(version)
+        database.flush()
+        draft = database.get(AssessmentDraft, draft_id)
+        if draft is not None:
+            database.delete(draft)
+        if cohort_id is not None:
+            cohort = database.get(Cohort, cohort_id)
+            if cohort is not None:
+                database.delete(cohort)
+        database.flush()
+        for learner_id in learner_ids:
+            remaining_enrollments = int(
+                database.scalar(
+                    select(func.count(CohortEnrollment.id)).where(
+                        CohortEnrollment.learner_id == learner_id
+                    )
+                )
+                or 0
+            )
+            if remaining_enrollments == 0:
+                learner = database.get(LearnerProfile, learner_id)
+                if learner is not None:
+                    database.delete(learner)
+        database.commit()
+        return {
+            "fixturesRemoved": True,
+            "grantsRemoved": not storage.assessment_delivery_for(public_id).exists(),
+            "sessionsRemoved": True,
+            "administrationPurged": True,
+        }
+
+    def owned_course(database: OrmSession, course_id: str, org_id: str) -> AssessmentCourse:
+        course = database.scalar(
+            select(AssessmentCourse).where(
+                AssessmentCourse.id == course_id,
+                AssessmentCourse.organization_id == org_id,
+            )
+        )
+        if course is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_COURSE_NOT_FOUND"})
+        return course
+
+    def validate_course_values(
+        scoring_method: str,
+        course_status: str,
+        opens_at: datetime | None,
+        closes_at: datetime | None,
+    ) -> None:
+        if scoring_method not in {"points", "percentage", "weighted", "pass_fail"}:
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_COURSE_INVALID"})
+        if course_status not in {"draft", "active", "archived"}:
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_COURSE_INVALID"})
+        if opens_at is not None and closes_at is not None and as_utc(closes_at) <= as_utc(opens_at):
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_COURSE_DATES_INVALID"})
+
+    def course_json(
+        database: OrmSession, course: AssessmentCourse, *, detail: bool = False
+    ) -> dict[str, Any]:
+        roster_count = int(
+            database.scalar(
+                select(func.count(AssessmentCourseEnrollment.id)).where(
+                    AssessmentCourseEnrollment.course_id == course.id,
+                    AssessmentCourseEnrollment.status == "active",
+                )
+            )
+            or 0
+        )
+        class_rows = database.execute(
+            select(Cohort, func.count(CohortEnrollment.id))
+            .outerjoin(
+                CohortEnrollment,
+                (CohortEnrollment.cohort_id == Cohort.id) & (CohortEnrollment.status == "active"),
+            )
+            .where(Cohort.assessment_course_id == course.id)
+            .group_by(Cohort.id)
+            .order_by(Cohort.name, Cohort.id)
+        ).all()
+        value: dict[str, Any] = {
+            "id": course.id,
+            "name": course.name,
+            "courseCode": course.course_code,
+            "semester": course.semester,
+            "academicYear": course.academic_year,
+            "iconKey": course.icon_key,
+            "scoringMethod": course.scoring_method,
+            "description": course.description,
+            "opensAt": as_utc(course.opens_at) if course.opens_at else None,
+            "closesAt": as_utc(course.closes_at) if course.closes_at else None,
+            "status": course.status,
+            "rosterCount": roster_count,
+            "classCount": len(class_rows),
+        }
+        if detail:
+            value["classes"] = [
+                {
+                    "id": cohort.id,
+                    "name": cohort.name,
+                    "sectionCode": cohort.section_code,
+                    "description": cohort.description,
+                    "location": cohort.location,
+                    "folderId": cohort.folder_id,
+                    "rosterRule": cohort.roster_rule or {"mode": "existing", "filters": []},
+                    "opensAt": as_utc(cohort.opens_at) if cohort.opens_at else None,
+                    "closesAt": as_utc(cohort.closes_at) if cohort.closes_at else None,
+                    "status": cohort.status,
+                    "studentCount": int(student_count),
+                }
+                for cohort, student_count in class_rows
+            ]
+        return value
+
+    @app.get("/api/v2/admin/assessment/courses")
+    def list_courses(
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        courses = database.scalars(
+            select(AssessmentCourse)
+            .where(AssessmentCourse.organization_id == org_id)
+            .order_by(AssessmentCourse.updated_at.desc(), AssessmentCourse.id)
+        ).all()
+        return {
+            "items": [course_json(database, course) for course in courses],
+            "total": len(courses),
+        }
+
+    @app.post("/api/v2/admin/assessment/courses", status_code=status.HTTP_201_CREATED)
+    def create_course(
+        payload: CourseCreate,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        validate_course_values(
+            payload.scoring_method, payload.status, payload.opens_at, payload.closes_at
+        )
+        course = AssessmentCourse(
+            organization_id=org_id,
+            name=payload.name.strip(),
+            course_code=payload.course_code.strip(),
+            semester=payload.semester.strip(),
+            academic_year=payload.academic_year,
+            icon_key=payload.icon_key,
+            scoring_method=payload.scoring_method,
+            description=payload.description.strip() if payload.description else None,
+            opens_at=payload.opens_at,
+            closes_at=payload.closes_at,
+            status=payload.status,
+            created_by_user_id=authenticated.user_id,
+        )
+        database.add(course)
+        try:
+            database.commit()
+        except IntegrityError as exc:
+            database.rollback()
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_COURSE_CODE_EXISTS"}
+            ) from exc
+        return course_json(database, course, detail=True)
+
+    @app.get("/api/v2/admin/assessment/courses/{course_id}")
+    def get_course(
+        course_id: str,
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        course = owned_course(
+            database, course_id, organization_id(authenticated, database, requested_org)
+        )
+        return course_json(database, course, detail=True)
+
+    @app.patch("/api/v2/admin/assessment/courses/{course_id}")
+    def update_course(
+        course_id: str,
+        payload: CoursePatch,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        course = owned_course(
+            database, course_id, organization_id(authenticated, database, requested_org)
+        )
+        updates = payload.model_dump(exclude_unset=True)
+        for key, value in updates.items():
+            setattr(course, key, value.strip() if isinstance(value, str) else value)
+        validate_course_values(
+            course.scoring_method, course.status, course.opens_at, course.closes_at
+        )
+        try:
+            database.commit()
+        except IntegrityError as exc:
+            database.rollback()
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_COURSE_CODE_EXISTS"}
+            ) from exc
+        return course_json(database, course, detail=True)
+
+    @app.post("/api/v2/admin/assessment/courses/{course_id}/roster/import/preview")
+    def preview_course_roster(
+        course_id: str,
+        payload: ImportRows,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        owned_course(database, course_id, organization_id(authenticated, database, requested_org))
+        rows = _parse_rows(payload.rows, require_structured=True)
+        warnings = _roster_import_warnings(database, course_id, rows)
+        return {
+            "validCount": len(rows),
+            "checksum": _rows_checksum(rows),
+            "warningCount": len(warnings),
+            "warnings": warnings[:50],
+            "preview": [
+                {
+                    "studentId": row.student_id,
+                    "firstName": row.first_name,
+                    "lastName": row.last_name,
+                    "displayName": row.display_name,
+                    "group": row.group_name,
+                    "subgroup": row.subgroup_name,
+                    "metadata": row.metadata or {},
+                }
+                for row in rows[:20]
+            ],
+        }
+
+    @app.post(
+        "/api/v2/admin/assessment/courses/{course_id}/roster/import/commit",
+        status_code=status.HTTP_201_CREATED,
+    )
+    def commit_course_roster(
+        course_id: str,
+        payload: ImportRows,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, int]:
+        org_id = organization_id(authenticated, database, requested_org)
+        owned_course(database, course_id, org_id)
+        rows = _parse_rows(payload.rows, require_structured=True)
+        if payload.checksum is None or not hmac.compare_digest(
+            payload.checksum, _rows_checksum(rows)
+        ):
+            raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_IMPORT_CHANGED"})
+        warnings = _roster_import_warnings(database, course_id, rows)
+        if warnings and not payload.confirm_warnings:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ASSESSMENT_ROSTER_CONFIRMATION_REQUIRED",
+                    "warningCount": len(warnings),
+                    "warnings": warnings[:50],
+                },
+            )
+        existing_count = int(
+            database.scalar(
+                select(func.count(AssessmentCourseEnrollment.id)).where(
+                    AssessmentCourseEnrollment.course_id == course_id,
+                    AssessmentCourseEnrollment.status == "active",
+                )
+            )
+            or 0
+        )
+        created = 0
+        skipped = 0
+        for row in rows:
+            identifier_hash = hmac.new(
+                identifier_secret.encode(), row.identifier.casefold().encode(), hashlib.sha256
+            ).hexdigest()
+            learner = database.scalar(
+                select(LearnerProfile).where(
+                    LearnerProfile.organization_id == org_id,
+                    (LearnerProfile.student_id == row.student_id)
+                    | (LearnerProfile.login_identifier_hash == identifier_hash),
+                )
+            )
+            enrollment = (
+                None
+                if learner is None
+                else database.scalar(
+                    select(AssessmentCourseEnrollment).where(
+                        AssessmentCourseEnrollment.course_id == course_id,
+                        AssessmentCourseEnrollment.learner_id == learner.id,
+                    )
+                )
+            )
+            if learner is not None and enrollment is not None and enrollment.status == "active":
+                skipped += 1
+                continue
+            if learner is None:
+                learner = LearnerProfile(
+                    organization_id=org_id,
+                    teaching_pseudonym=f"learner-{identifier_hash[:12]}",
+                    login_identifier_hash=identifier_hash,
+                    created_by_user_id=authenticated.user_id,
+                )
+                database.add(learner)
+                database.flush()
+                learner.student_id = row.student_id
+                learner.first_name = row.first_name
+                learner.last_name = row.last_name
+                learner.display_name = row.display_name
+                learner.group_name = row.group_name
+                learner.subgroup_name = row.subgroup_name
+                learner.email = row.email
+                learner.roster_metadata = row.metadata or {}
+            if enrollment is None:
+                if existing_count + created >= MAX_ASSESSMENT_ROSTER:
+                    raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_LIMIT"})
+                database.add(
+                    AssessmentCourseEnrollment(
+                        organization_id=org_id,
+                        course_id=course_id,
+                        learner_id=learner.id,
+                        created_by_user_id=authenticated.user_id,
+                    )
+                )
+                created += 1
+            elif enrollment.status == "withdrawn":
+                enrollment.status = "active"
+                created += 1
+        database.commit()
+        return {"created": created, "skipped": skipped}
+
+    @app.get("/api/v2/admin/assessment/courses/{course_id}/roster")
+    def list_course_roster(
+        course_id: str,
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+        query: str = "",
+        sort_by: str = "name",
+        sort_direction: str = "asc",
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        owned_course(database, course_id, org_id)
+        sort_columns = {
+            "name": (
+                LearnerProfile.first_name,
+                LearnerProfile.last_name,
+                LearnerProfile.student_id,
+            ),
+            "student_id": (LearnerProfile.student_id,),
+            "group": (
+                LearnerProfile.group_name,
+                LearnerProfile.subgroup_name,
+                LearnerProfile.first_name,
+            ),
+            "subgroup": (
+                LearnerProfile.subgroup_name,
+                LearnerProfile.group_name,
+                LearnerProfile.first_name,
+            ),
+            "email": (LearnerProfile.email, LearnerProfile.first_name),
+            "status": (AssessmentCourseEnrollment.status, LearnerProfile.first_name),
+        }
+        columns = sort_columns.get(sort_by, sort_columns["name"])
+        descending = sort_direction.casefold() == "desc"
+        order = [
+            func.coalesce(column, "").desc() if descending else func.coalesce(column, "").asc()
+            for column in columns
+        ]
+        filters = [AssessmentCourseEnrollment.course_id == course_id]
+        if query.strip():
+            pattern = f"%{query.strip()}%"
+            filters.append(
+                LearnerProfile.student_id.ilike(pattern)
+                | LearnerProfile.first_name.ilike(pattern)
+                | LearnerProfile.last_name.ilike(pattern)
+                | LearnerProfile.group_name.ilike(pattern)
+                | LearnerProfile.subgroup_name.ilike(pattern)
+            )
+        statement = (
+            select(LearnerProfile, AssessmentCourseEnrollment)
+            .join(
+                AssessmentCourseEnrollment,
+                AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+            )
+            .where(*filters)
+            .order_by(*order, LearnerProfile.id)
+        )
+        total = int(database.scalar(select(func.count()).select_from(statement.subquery())) or 0)
+        column_rows = database.execute(
+            select(
+                LearnerProfile.group_name,
+                LearnerProfile.subgroup_name,
+                LearnerProfile.email,
+                LearnerProfile.roster_metadata,
+            )
+            .join(
+                AssessmentCourseEnrollment,
+                AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+            )
+            .where(*filters)
+        ).all()
+        visible_columns = [
+            {"key": "student_id", "label": "Student ID", "sortable": True},
+            {"key": "name", "label": "Name", "sortable": True},
+        ]
+        if any(row.group_name for row in column_rows):
+            visible_columns.append({"key": "group", "label": "Group", "sortable": True})
+        if any(row.subgroup_name for row in column_rows):
+            visible_columns.append({"key": "subgroup", "label": "Subgroup", "sortable": True})
+        if any(row.email for row in column_rows):
+            visible_columns.append({"key": "email", "label": "Email", "sortable": True})
+        metadata_keys: list[str] = []
+        for column_row in column_rows:
+            for key, value in (column_row.roster_metadata or {}).items():
+                if value and key not in metadata_keys and len(metadata_keys) < 20:
+                    metadata_keys.append(key)
+        visible_columns.extend(
+            {
+                "key": f"metadata:{key}",
+                "label": key.replace("_", " ").strip().title(),
+                "sortable": False,
+            }
+            for key in metadata_keys
+        )
+        visible_columns.append({"key": "status", "label": "Status", "sortable": True})
+        rows = database.execute(
+            statement.offset(max(0, offset)).limit(max(1, min(limit, 200)))
+        ).all()
+        return {
+            "items": [
+                {
+                    "id": learner.id,
+                    "studentId": learner.student_id,
+                    "firstName": learner.first_name,
+                    "lastName": learner.last_name,
+                    "displayName": learner.display_name,
+                    "group": learner.group_name,
+                    "subgroup": learner.subgroup_name,
+                    "email": learner.email,
+                    "metadata": learner.roster_metadata or {},
+                    "status": enrollment.status,
+                }
+                for learner, enrollment in rows
+            ],
+            "columns": visible_columns,
+            "total": total,
+            "limit": min(limit, 200),
+            "offset": max(0, offset),
+        }
+
+    @app.get("/api/v2/admin/assessment/courses/{course_id}/roster/export")
+    def export_course_roster(
+        course_id: str,
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> StreamingResponse:
+        org_id = organization_id(authenticated, database, requested_org)
+        course = owned_course(database, course_id, org_id)
+        rows = database.execute(
+            select(LearnerProfile, AssessmentCourseEnrollment)
+            .join(
+                AssessmentCourseEnrollment,
+                AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+            )
+            .where(AssessmentCourseEnrollment.course_id == course_id)
+            .order_by(LearnerProfile.student_id, LearnerProfile.id)
+        ).all()
+        include_email = any(learner.email for learner, _ in rows)
+        metadata_keys: list[str] = []
+        for learner, _ in rows:
+            for key, value in (learner.roster_metadata or {}).items():
+                if value and key not in metadata_keys:
+                    metadata_keys.append(key)
+        output = StringIO()
+        writer = csv.writer(output, lineterminator="\r\n")
+        header = ["student_id", "first_name", "last_name", "group", "subgroup"]
+        if include_email:
+            header.append("email")
+        header.extend(metadata_keys)
+        header.append("status")
+        writer.writerow(header)
+        for learner, enrollment in rows:
+            values = [
+                learner.student_id or "",
+                learner.first_name or "",
+                learner.last_name or "",
+                learner.group_name or "",
+                learner.subgroup_name or "",
+            ]
+            if include_email:
+                values.append(learner.email or "")
+            values.extend((learner.roster_metadata or {}).get(key, "") for key in metadata_keys)
+            values.append(enrollment.status)
+            writer.writerow(values)
+        safe_code = "".join(
+            character if character.isalnum() or character in "-_" else "-"
+            for character in course.course_code
+        )
+        return StreamingResponse(
+            iter(["\ufeff" + output.getvalue()]),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{safe_code}-roster.csv"'},
+        )
+
+    @app.patch("/api/v2/admin/assessment/courses/{course_id}/roster/{learner_id}")
+    def update_course_enrollment(
+        course_id: str,
+        learner_id: str,
+        payload: EnrollmentPatch,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, str]:
+        org_id = organization_id(authenticated, database, requested_org)
+        owned_course(database, course_id, org_id)
+        if payload.status not in {"active", "withdrawn"}:
+            raise HTTPException(
+                status_code=422, detail={"code": "ASSESSMENT_COURSE_ROSTER_INVALID"}
+            )
+        enrollment = database.scalar(
+            select(AssessmentCourseEnrollment).where(
+                AssessmentCourseEnrollment.course_id == course_id,
+                AssessmentCourseEnrollment.learner_id == learner_id,
+                AssessmentCourseEnrollment.organization_id == org_id,
+            )
+        )
+        if enrollment is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_STUDENT_NOT_FOUND"})
+        enrollment.status = payload.status
+        if payload.status == "withdrawn":
+            database.execute(
+                update(CohortEnrollment)
+                .where(
+                    CohortEnrollment.learner_id == learner_id,
+                    CohortEnrollment.cohort_id.in_(
+                        select(Cohort.id).where(Cohort.assessment_course_id == course_id)
+                    ),
+                )
+                .values(status="withdrawn")
+            )
+        database.commit()
+        return {"learnerId": learner_id, "status": enrollment.status}
+
+    @app.patch("/api/v2/admin/assessment/courses/{course_id}/roster/{learner_id}/profile")
+    def update_course_learner_profile(
+        course_id: str,
+        learner_id: str,
+        payload: LearnerProfilePatch,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        owned_course(database, course_id, org_id)
+        learner = database.scalar(
+            select(LearnerProfile)
+            .join(
+                AssessmentCourseEnrollment,
+                AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+            )
+            .where(
+                AssessmentCourseEnrollment.course_id == course_id,
+                LearnerProfile.id == learner_id,
+                LearnerProfile.organization_id == org_id,
+            )
+        )
+        if learner is None:
+            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_STUDENT_NOT_FOUND"})
+        metadata: dict[str, str] = {}
+        reserved = {
+            "student_id",
+            "first_name",
+            "last_name",
+            "group",
+            "subgroup",
+            "email",
+            "status",
+            "name",
+        }
+        for raw_key, raw_value in payload.metadata.items():
+            key = _header_key(raw_key)[:80]
+            value = raw_value.strip()[:1000]
+            if key and value and key not in reserved:
+                metadata[key] = value
+        student_id = payload.student_id.strip()
+        first_name = payload.first_name.strip()
+        last_name = payload.last_name.strip() if payload.last_name else None
+        learner.student_id = student_id
+        learner.first_name = first_name
+        learner.last_name = last_name or None
+        learner.display_name = f"{first_name} {last_name or ''}".strip()
+        learner.group_name = payload.group_name.strip() if payload.group_name else None
+        learner.subgroup_name = payload.subgroup_name.strip() if payload.subgroup_name else None
+        learner.email = payload.email.strip() if payload.email else None
+        learner.roster_metadata = metadata
+        learner.login_identifier_hash = hmac.new(
+            identifier_secret.encode(),
+            student_id.casefold().encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        try:
+            database.commit()
+        except IntegrityError as exc:
+            database.rollback()
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_STUDENT_ID_EXISTS"}
+            ) from exc
+        enrollment = database.scalar(
+            select(AssessmentCourseEnrollment).where(
+                AssessmentCourseEnrollment.course_id == course_id,
+                AssessmentCourseEnrollment.learner_id == learner_id,
+            )
+        )
+        return {
+            "id": learner.id,
+            "studentId": learner.student_id,
+            "firstName": learner.first_name,
+            "lastName": learner.last_name,
+            "displayName": learner.display_name,
+            "group": learner.group_name,
+            "subgroup": learner.subgroup_name,
+            "email": learner.email,
+            "metadata": learner.roster_metadata or {},
+            "status": enrollment.status if enrollment else "active",
+        }
+
+    @app.delete("/api/v2/admin/assessment/courses/{course_id}/roster")
+    def remove_all_course_learners(
+        course_id: str,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, int]:
+        org_id = organization_id(authenticated, database, requested_org)
+        owned_course(database, course_id, org_id)
+        learner_ids = list(
+            database.scalars(
+                select(AssessmentCourseEnrollment.learner_id).where(
+                    AssessmentCourseEnrollment.course_id == course_id,
+                    AssessmentCourseEnrollment.organization_id == org_id,
+                )
+            ).all()
+        )
+        if learner_ids:
+            database.execute(
+                delete(CohortEnrollment).where(
+                    CohortEnrollment.learner_id.in_(learner_ids),
+                    CohortEnrollment.cohort_id.in_(
+                        select(Cohort.id).where(Cohort.assessment_course_id == course_id)
+                    ),
+                )
+            )
+            database.execute(
+                delete(AssessmentCourseEnrollment).where(
+                    AssessmentCourseEnrollment.course_id == course_id,
+                    AssessmentCourseEnrollment.organization_id == org_id,
+                )
+            )
+        database.commit()
+        return {"removed": len(learner_ids)}
+
+    @app.post(
+        "/api/v2/admin/assessment/courses/{course_id}/classes", status_code=status.HTTP_201_CREATED
+    )
+    def create_course_class(
+        course_id: str,
+        payload: CourseClassCreate,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        course = owned_course(database, course_id, org_id)
+        opens_at = payload.opens_at if payload.opens_at is not None else course.opens_at
+        closes_at = payload.closes_at if payload.closes_at is not None else course.closes_at
+        if opens_at is not None and closes_at is not None and as_utc(closes_at) <= as_utc(opens_at):
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_CLASS_DATES_INVALID"})
+        learners = list(
+            database.scalars(
+                select(LearnerProfile)
+                .join(
+                    AssessmentCourseEnrollment,
+                    AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+                )
+                .where(
+                    AssessmentCourseEnrollment.course_id == course_id,
+                    AssessmentCourseEnrollment.status == "active",
+                )
+            ).all()
+        )
+        selected_ids = _resolve_roster_rule(learners, payload.roster_rule)
+        cohort = Cohort(
+            organization_id=org_id,
+            assessment_course_id=course_id,
+            name=payload.name.strip(),
+            section_code=payload.section_code.strip(),
+            description=payload.description,
+            location=payload.location,
+            roster_rule=_roster_rule_json(payload.roster_rule),
+            opens_at=opens_at,
+            closes_at=closes_at,
+            created_by_user_id=authenticated.user_id,
+        )
+        database.add(cohort)
+        try:
+            database.flush()
+            for learner_id in selected_ids:
+                database.add(
+                    CohortEnrollment(
+                        organization_id=org_id,
+                        cohort_id=cohort.id,
+                        learner_id=learner_id,
+                        created_by_user_id=authenticated.user_id,
+                    )
+                )
+            database.commit()
+        except IntegrityError as exc:
+            database.rollback()
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_CLASS_NAME_EXISTS"}
+            ) from exc
+        return {
+            "id": cohort.id,
+            "name": cohort.name,
+            "sectionCode": cohort.section_code,
+            "studentCount": len(selected_ids),
+            "status": cohort.status,
+        }
+
+    @app.put("/api/v2/admin/assessment/classes/{cohort_id}/roster")
+    def replace_class_roster(
+        cohort_id: str,
+        payload: ClassRosterPatch,
+        authenticated: CsrfSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, int]:
+        org_id = organization_id(authenticated, database, requested_org)
+        cohort = owned_class(database, cohort_id, org_id)
+        if cohort.assessment_course_id is None:
+            raise HTTPException(
+                status_code=409, detail={"code": "ASSESSMENT_CLASS_COURSE_REQUIRED"}
+            )
+        learners = list(
+            database.scalars(
+                select(LearnerProfile)
+                .join(
+                    AssessmentCourseEnrollment,
+                    AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+                )
+                .where(
+                    AssessmentCourseEnrollment.course_id == cohort.assessment_course_id,
+                    AssessmentCourseEnrollment.status == "active",
+                )
+            ).all()
+        )
+        existing = {
+            item.learner_id: item
+            for item in database.scalars(
+                select(CohortEnrollment).where(CohortEnrollment.cohort_id == cohort_id)
+            ).all()
+        }
+        selected_ids = _resolve_roster_rule(learners, payload.roster_rule, set(existing))
+        for learner_id, enrollment in existing.items():
+            enrollment.status = "active" if learner_id in selected_ids else "withdrawn"
+        for learner_id in selected_ids - existing.keys():
+            database.add(
+                CohortEnrollment(
+                    organization_id=org_id,
+                    cohort_id=cohort_id,
+                    learner_id=learner_id,
+                    created_by_user_id=authenticated.user_id,
+                )
+            )
+        cohort.roster_rule = _roster_rule_json(payload.roster_rule)
+        database.commit()
+        return {"active": len(selected_ids)}
+
+    @app.get("/api/v2/admin/assessment/classes/{cohort_id}/roster-selection")
+    def class_roster_selection(
+        cohort_id: str,
+        authenticated: AdminSession,
+        database: Database,
+        requested_org: ActiveOrganization = None,
+    ) -> dict[str, Any]:
+        org_id = organization_id(authenticated, database, requested_org)
+        cohort = owned_class(database, cohort_id, org_id)
+        if cohort.assessment_course_id is None:
+            return {"items": [], "total": 0}
+        selected_ids = set(
+            database.scalars(
+                select(CohortEnrollment.learner_id).where(
+                    CohortEnrollment.cohort_id == cohort_id, CohortEnrollment.status == "active"
+                )
+            ).all()
+        )
+        rows = database.execute(
+            select(LearnerProfile, AssessmentCourseEnrollment)
+            .join(
+                AssessmentCourseEnrollment,
+                AssessmentCourseEnrollment.learner_id == LearnerProfile.id,
+            )
+            .where(
+                AssessmentCourseEnrollment.course_id == cohort.assessment_course_id,
+                AssessmentCourseEnrollment.status == "active",
+            )
+            .order_by(LearnerProfile.display_name, LearnerProfile.id)
+        ).all()
+        return {
+            "items": [
+                {
+                    "id": learner.id,
+                    "studentId": learner.student_id,
+                    "displayName": learner.display_name,
+                    "group": learner.group_name,
+                    "subgroup": learner.subgroup_name,
+                    "metadata": learner.roster_metadata or {},
+                    "selected": learner.id in selected_ids,
+                }
+                for learner, _ in rows
+            ],
+            "rosterRule": cohort.roster_rule or {"mode": "existing", "filters": []},
+            "total": len(rows),
         }
 
     def owned_class(database: OrmSession, cohort_id: str, org_id: str) -> Cohort:
@@ -2066,10 +3626,38 @@ def register_assessment_routes(
             raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_CLASS_INVALID"})
         if payload.name is not None:
             cohort.name = payload.name
+        for field in ("section_code", "description", "location", "opens_at", "closes_at"):
+            if field in payload.model_fields_set:
+                setattr(cohort, field, getattr(payload, field))
+        if "folder_id" in payload.model_fields_set:
+            if payload.folder_id is not None:
+                folder = database.scalar(
+                    select(Folder).where(
+                        Folder.id == payload.folder_id,
+                        Folder.trashed_at.is_(None),
+                    )
+                )
+                if folder is None:
+                    raise HTTPException(
+                        status_code=422, detail={"code": "ASSESSMENT_CLASS_FOLDER_INVALID"}
+                    )
+            cohort.folder_id = payload.folder_id
         if payload.status is not None:
             cohort.status = payload.status
+        if (
+            cohort.opens_at is not None
+            and cohort.closes_at is not None
+            and as_utc(cohort.closes_at) <= as_utc(cohort.opens_at)
+        ):
+            raise HTTPException(status_code=422, detail={"code": "ASSESSMENT_CLASS_DATES_INVALID"})
         database.commit()
-        return {"id": cohort.id, "name": cohort.name, "status": cohort.status}
+        return {
+            "id": cohort.id,
+            "name": cohort.name,
+            "sectionCode": cohort.section_code,
+            "folderId": cohort.folder_id,
+            "status": cohort.status,
+        }
 
     @app.post("/api/v2/admin/assessment/classes/{cohort_id}/import/preview")
     def preview_import(
@@ -2084,7 +3672,7 @@ def register_assessment_routes(
         return {
             "validCount": len(rows),
             "checksum": _rows_checksum(rows),
-            "preview": [{"displayName": name} for _, name in rows[:20]],
+            "preview": [{"displayName": row.display_name} for row in rows[:20]],
         }
 
     @app.post(
@@ -2115,9 +3703,9 @@ def register_assessment_routes(
             or 0
         )
         created = 0
-        for identifier, display_name in rows:
+        for row in rows:
             identifier_hash = hmac.new(
-                identifier_secret.encode(), identifier.casefold().encode(), hashlib.sha256
+                identifier_secret.encode(), row.identifier.casefold().encode(), hashlib.sha256
             ).hexdigest()
             learner = database.scalar(
                 select(LearnerProfile).where(
@@ -2130,11 +3718,20 @@ def register_assessment_routes(
                     organization_id=org_id,
                     teaching_pseudonym=f"learner-{identifier_hash[:12]}",
                     login_identifier_hash=identifier_hash,
-                    display_name=display_name,
+                    display_name=row.display_name,
                     created_by_user_id=authenticated.user_id,
                 )
                 database.add(learner)
                 database.flush()
+            if row.student_id is not None:
+                learner.student_id = row.student_id
+                learner.first_name = row.first_name
+                learner.last_name = row.last_name
+                learner.display_name = row.display_name
+                learner.group_name = row.group_name
+                learner.subgroup_name = row.subgroup_name
+                learner.email = row.email
+                learner.roster_metadata = row.metadata or {}
             enrollment = database.scalar(
                 select(CohortEnrollment).where(
                     CohortEnrollment.cohort_id == cohort_id,
@@ -2147,7 +3744,7 @@ def register_assessment_routes(
                     created += 1
                 continue
             created += 1
-            if existing + created > 500:
+            if existing + created > MAX_ASSESSMENT_ROSTER:
                 raise HTTPException(status_code=400, detail={"code": "ASSESSMENT_ROSTER_LIMIT"})
             database.add(
                 CohortEnrollment(
@@ -2193,9 +3790,7 @@ def register_assessment_routes(
             "total": total,
         }
 
-    @app.patch(
-        "/api/v2/admin/assessment/classes/{cohort_id}/students/{learner_id}"
-    )
+    @app.patch("/api/v2/admin/assessment/classes/{cohort_id}/students/{learner_id}")
     def update_enrollment(
         cohort_id: str,
         learner_id: str,

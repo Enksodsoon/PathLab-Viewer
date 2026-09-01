@@ -10,9 +10,10 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { ApiError, getFolderChildren, getLibraryNavigation, listSlides } from '../api'
+import { ApiError, listSlides } from '../api'
+import { classFolderOptions, loadAllLibraryFolders } from '../assessment/classFolders'
 import {
   answerQuestion,
   clearTeacherPointer,
@@ -106,78 +107,6 @@ function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onC
   </div>
 }
 
-interface ClassroomFolderOption {
-  folder: LibraryFolder
-  depth: number
-  slideIds: string[]
-}
-
-async function loadClassroomFolders(): Promise<LibraryFolder[]> {
-  const navigation = await getLibraryNavigation()
-  const folders = [...navigation.folders]
-  const seen = new Set(folders.map((folder) => folder.id))
-  const queue = folders.filter((folder) => folder.hasChildren)
-  for (let index = 0; index < queue.length; index += 1) {
-    const children = await getFolderChildren(queue[index].id)
-    for (const child of children) {
-      if (seen.has(child.id)) continue
-      seen.add(child.id)
-      folders.push(child)
-      if (child.hasChildren) queue.push(child)
-    }
-  }
-  return folders
-}
-
-function classroomFolderOptions(
-  folders: LibraryFolder[],
-  slides: AdminSlide[],
-): ClassroomFolderOption[] {
-  const children = new Map<string | null, LibraryFolder[]>()
-  folders.forEach((folder) => {
-    const siblings = children.get(folder.parentId) ?? []
-    siblings.push(folder)
-    children.set(folder.parentId, siblings)
-  })
-
-  const slideIdsByFolder = new Map<string, string[]>()
-  slides.forEach((slide) => {
-    if (!slide.folderId) return
-    const ids = slideIdsByFolder.get(slide.folderId) ?? []
-    ids.push(slide.id)
-    slideIdsByFolder.set(slide.folderId, ids)
-  })
-
-  const options: ClassroomFolderOption[] = []
-  const slideMemo = new Map<string, string[]>()
-  const collecting = new Set<string>()
-  const collectSlideIds = (folder: LibraryFolder): string[] => {
-    const cached = slideMemo.get(folder.id)
-    if (cached) return cached
-    if (collecting.has(folder.id)) return []
-    collecting.add(folder.id)
-    const ids = [
-      ...(slideIdsByFolder.get(folder.id) ?? []),
-      ...(children.get(folder.id) ?? []).flatMap(collectSlideIds),
-    ]
-    collecting.delete(folder.id)
-    slideMemo.set(folder.id, ids)
-    return ids
-  }
-  const visited = new Set<string>()
-  const append = (folder: LibraryFolder, depth: number) => {
-    if (visited.has(folder.id)) return
-    visited.add(folder.id)
-    options.push({ folder, depth, slideIds: collectSlideIds(folder) })
-    ;(children.get(folder.id) ?? []).forEach((child) => append(child, depth + 1))
-  }
-  ;(children.get(null) ?? []).forEach((folder) => append(folder, 0))
-  folders.forEach((folder) => {
-    if (!visited.has(folder.id)) append(folder, 0)
-  })
-  return options
-}
-
 function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     {name === 'guide' ? <><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13" /></> : null}
@@ -213,9 +142,16 @@ function savedClassroom(): CreatedClassroom | null {
 
 export function ClassroomTeacherPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const lockedFolderId = searchParams.get('folderId') ?? ''
+  const classId = searchParams.get('classId') ?? ''
+  const courseId = searchParams.get('courseId') ?? ''
+  const classReturnPath = classId && courseId
+    ? `/admin/assessments/courses/${courseId}/classes/${classId}`
+    : '/admin'
   const [slides, setSlides] = useState<AdminSlide[]>([])
   const [folders, setFolders] = useState<LibraryFolder[]>([])
-  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [selectedFolderId, setSelectedFolderId] = useState(lockedFolderId)
   const [reviewExpiry, setReviewExpiry] = useState(defaultReviewExpiry)
   const [readiness, setReadiness] = useState<ClassroomReadiness | null>(null)
   const [recentClassrooms, setRecentClassrooms] = useState<Array<{
@@ -295,11 +231,11 @@ export function ClassroomTeacherPage() {
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([listSlides(), loadClassroomFolders()])
-      .then(([items, nextFolders]) => {
+    void Promise.all([listSlides(), loadAllLibraryFolders()])
+      .then(([items, library]) => {
         if (cancelled) return
         setSlides(items)
-        setFolders(nextFolders)
+        setFolders(library.folders)
       })
       .catch((loadError: unknown) => {
         if (cancelled) return
@@ -321,11 +257,11 @@ export function ClassroomTeacherPage() {
   }, [classroom])
 
   const folderOptions = useMemo(
-    () => classroomFolderOptions(folders, slides),
+    () => classFolderOptions(folders, slides),
     [folders, slides],
   )
   const selected = useMemo(
-    () => folderOptions.find((option) => option.folder.id === selectedFolderId)?.slideIds ?? [],
+    () => folderOptions.find((option) => option.folder.id === selectedFolderId)?.slides.map((slide) => slide.id) ?? [],
     [folderOptions, selectedFolderId],
   )
 
@@ -1010,12 +946,12 @@ export function ClassroomTeacherPage() {
       <Brand variant="library" />
       <div className="classroom-entry__actions">
         <ThemeControl compact />
-        <Link className="classroom-back-link" to="/admin">Back to library</Link>
+        <Link className="classroom-back-link" to={classReturnPath}>{classId ? 'Back to class' : 'Back to library'}</Link>
       </div>
     </header>
     <section className="classroom-entry__card">
       <p className="classroom-kicker">Prepare classroom</p>
-      <h1>Choose a class folder</h1>
+      <h1>{lockedFolderId ? 'Prepare this classroom' : 'Choose a class folder'}</h1>
       <p className="classroom-entry__intro">Create one protected link for review before, during, and after class.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
@@ -1025,13 +961,16 @@ export function ClassroomTeacherPage() {
       }).catch((endError: unknown) => handleAdminFailure(endError, 'The previous classroom could not be ended. Try again.'))}>
         End existing classroom
       </button>}
-      <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
+      {lockedFolderId ? <div className="classroom-locked-folder" aria-label="Saved class slide set">
+        <FolderOpen aria-hidden="true" />
+        <span><strong>{folderOptions.find((option) => option.folder.id === lockedFolderId)?.folder.name ?? 'Saved class folder'}</strong><small>{selected.length} {selected.length === 1 ? 'slide' : 'slides'} from this class</small></span>
+      </div> : <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
         {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class folders…</p> : null}
         {!setupLoading && !folderOptions.length ? (
           <p className="classroom-folder-picker__status">Create a library folder before starting a classroom.</p>
         ) : null}
-        {folderOptions.map(({ folder, depth, slideIds }) => {
-          const count = slideIds.length
+        {folderOptions.map(({ folder, depth, slides: folderSlides }) => {
+          const count = folderSlides.length
           const selectedFolder = selectedFolderId === folder.id
           return <label
             key={folder.id}
@@ -1055,7 +994,7 @@ export function ClassroomTeacherPage() {
             </span>
           </label>
         })}
-      </div>
+      </div>}
       {readiness?.blocked.length ? <div className="classroom-readiness-error" role="alert">
         <strong>{readiness.blocked.length} slide{readiness.blocked.length === 1 ? '' : 's'} need attention</strong>
         {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} · {item.reason.replaceAll('_', ' ')}</span>)}
@@ -1066,7 +1005,7 @@ export function ClassroomTeacherPage() {
       <button className="primary classroom-entry__primary" type="button" disabled={!selected.length || Boolean(readiness?.blocked.length)} onClick={() => void start()}>
         {selected.length
           ? `Prepare classroom with ${readiness?.ready.length ?? selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
-          : 'Choose a class folder'}
+          : lockedFolderId ? 'This class has no slides' : 'Choose a class folder'}
       </button>
       {recentClassrooms.some((item) => item.phase === 'review') ? <section className="classroom-recent-reviews">
         <h2>Recent review links</h2>
@@ -1082,7 +1021,7 @@ export function ClassroomTeacherPage() {
   if (classroom.phase !== 'live') return <main className="classroom-entry classroom-setup">
     <header className="classroom-entry__header">
       <Brand variant="library" />
-      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to="/admin">Back to library</Link></div>
+      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to={classReturnPath}>{classId ? 'Back to class' : 'Back to library'}</Link></div>
     </header>
     <section className="classroom-entry__card classroom-prepared-card">
       <p className="classroom-kicker">{classroom.phase === 'preview' ? 'Classroom prepared' : 'Post-class review'}</p>

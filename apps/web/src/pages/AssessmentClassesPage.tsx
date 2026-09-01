@@ -1,90 +1,83 @@
-import { Plus, UsersThree } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { ArrowRight, Books, CaretDown, CaretUp, CaretUpDown, MagnifyingGlass, Plus, UsersThree } from '@phosphor-icons/react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 
-import { commitAssessmentRoster, createAssessmentClass, listAssessmentClasses, listAssessmentStudents, previewAssessmentRoster, updateAssessmentEnrollment } from '../assessment/api'
+import { type AssessmentCourse, listAssessmentCourses } from '../assessment/api'
+import { AssessmentToolbar, AssessmentWorkspaceNav } from '../components/assessment/AssessmentChrome'
+import { CourseIcon } from '../components/assessment/CourseIcon'
 import './assessment.css'
 
-interface ClassSummary {
-  id: string
-  name: string
-  status: string
-  studentCount: number
+function dates(course: AssessmentCourse) {
+  if (!course.opensAt && !course.closesAt) return 'Dates not set'
+  const value = (date: string | null) => date ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date)) : 'Open'
+  return `${value(course.opensAt)} – ${value(course.closesAt)}`
+}
+
+type CourseSortKey = 'course' | 'semester' | 'dates' | 'roster' | 'classes' | 'status'
+type SortDirection = 'asc' | 'desc'
+
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+function semesterLabel(value: string) {
+  const trimmed = value.trim()
+  return /^\d+$/.test(trimmed) ? `Semester ${trimmed}` : trimmed
+}
+
+function compareCourses(left: AssessmentCourse, right: AssessmentCourse, key: CourseSortKey) {
+  if (key === 'course') return collator.compare(`${left.name} ${left.courseCode}`, `${right.name} ${right.courseCode}`)
+  if (key === 'semester') return collator.compare(semesterLabel(left.semester), semesterLabel(right.semester))
+  if (key === 'roster') return left.rosterCount - right.rosterCount
+  if (key === 'classes') return left.classCount - right.classCount
+  if (key === 'status') return collator.compare(left.status, right.status)
+  if (!left.opensAt && !right.opensAt) return 0
+  if (!left.opensAt) return 1
+  if (!right.opensAt) return -1
+  return new Date(left.opensAt).getTime() - new Date(right.opensAt).getTime()
 }
 
 export function AssessmentClassesPage() {
-  const [classes, setClasses] = useState<ClassSummary[]>([])
-  const [name, setName] = useState('')
-  const [selected, setSelected] = useState<ClassSummary | null>(null)
-  const [rows, setRows] = useState('')
-  const [checksum, setChecksum] = useState('')
-  const [preview, setPreview] = useState<Array<{ displayName: string | null }>>([])
-  const [students, setStudents] = useState<Array<{ id: string; displayName: string | null; status: string }>>([])
-  const [total, setTotal] = useState(0)
-  const [offset, setOffset] = useState(0)
-  useEffect(() => { void listAssessmentClasses().then((result) => setClasses(result.items)) }, [])
+  const [courses, setCourses] = useState<AssessmentCourse[]>([])
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('all')
+  const [sort, setSort] = useState<{ key: CourseSortKey; direction: SortDirection }>({ key: 'course', direction: 'asc' })
+  useEffect(() => { void listAssessmentCourses().then((result) => setCourses(result.items)) }, [])
+  const visible = useMemo(() => courses.filter((course) => {
+    const matchesQuery = `${course.name} ${course.courseCode}`.toLowerCase().includes(query.trim().toLowerCase())
+    return matchesQuery && (status === 'all' || course.status === status)
+  }).sort((left, right) => compareCourses(left, right, sort.key) * (sort.direction === 'asc' ? 1 : -1)), [courses, query, sort, status])
 
-  async function addClass() {
-    if (!name.trim()) return
-    const created = await createAssessmentClass(name.trim())
-    setClasses((current) => [{ ...created, studentCount: 0 }, ...current])
-    setName('')
+  const changeSort = (key: CourseSortKey) => setSort((current) => current.key === key
+    ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+    : { key, direction: 'asc' })
+
+  const sortButton = (key: CourseSortKey, label: string) => {
+    const active = sort.key === key
+    const direction = active ? sort.direction : null
+    const SortIcon = direction === 'asc' ? CaretUp : direction === 'desc' ? CaretDown : CaretUpDown
+    return <button type="button" onClick={() => changeSort(key)} aria-label={`Sort by ${label}${active ? `, currently ${direction === 'asc' ? 'ascending' : 'descending'}` : ''}`}><span>{label}</span><SortIcon aria-hidden="true" /></button>
   }
 
-  async function manage(item: ClassSummary, nextOffset = 0) {
-    setSelected(item)
-    setOffset(nextOffset)
-    const result = await listAssessmentStudents(item.id, nextOffset)
-    setStudents(result.items)
-    setTotal(result.total)
-  }
-
-  async function previewRows() {
-    if (!selected || !rows.trim()) return
-    const result = await previewAssessmentRoster(selected.id, rows)
-    setChecksum(result.checksum)
-    setPreview(result.preview)
-  }
-
-  async function commitRows() {
-    if (!selected || !checksum) return
-    await commitAssessmentRoster(selected.id, rows, checksum)
-    setRows(''); setChecksum(''); setPreview([])
-    await manage(selected)
-  }
-
-  async function changeStatus(learnerId: string, status: 'active' | 'withdrawn') {
-    if (!selected) return
-    await updateAssessmentEnrollment(selected.id, learnerId, status)
-    setStudents((current) => current.map((student) => student.id === learnerId ? { ...student, status } : student))
-  }
-
-  return <main className="assessment-main">
-    <p className="assessment-kicker">Roster management</p>
-    <h1>Classes</h1>
-    <div className="assessment-class-create">
-      <label>Class name <input value={name} onChange={(event) => setName(event.target.value)} /></label>
-      <button className="assessment-primary" type="button" onClick={() => void addClass()}>
-        <Plus /> Create class
-      </button>
+  return <><AssessmentToolbar title="Courses" /><div className="assessment-main assessment-courses-page">
+    <header className="assessment-page-header"><div><p className="assessment-kicker">Teaching organization</p><h1>Courses</h1><p>Manage shared rosters first, then organize learners into classes, sections, or lab groups.</p></div>
+      <Link className="assessment-primary assessment-icon-link" to="/admin/assessments/courses/new" aria-label="Create course" title="Create course"><Plus aria-hidden="true" /></Link>
+    </header>
+    <AssessmentWorkspaceNav />
+    <div className="assessment-course-tools">
+      <label className="assessment-search"><MagnifyingGlass aria-hidden="true" /><span className="visually-hidden">Search courses</span><input value={query} placeholder="Search by course name or ID" onChange={(event) => setQuery(event.target.value)} /></label>
+      <label><span className="visually-hidden">Filter by status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">Status: All</option><option value="draft">Draft</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
     </div>
-    <section className="assessment-class-grid" aria-label="Classes">
-      {classes.map((item) => <article key={item.id}>
-        <UsersThree aria-hidden="true" />
-        <div><h2>{item.name}</h2><p>{item.studentCount} students · {item.status}</p></div>
-        <button type="button" onClick={() => void manage(item)}>Manage students</button>
-      </article>)}
+    <section className="assessment-course-list" aria-label="Courses">
+      <div className="assessment-course-list-head"><span>{sortButton('course', 'Course')}</span><span>{sortButton('semester', 'Semester')}</span><span>{sortButton('dates', 'Active dates')}</span><span>{sortButton('roster', 'Roster')}</span><span>{sortButton('classes', 'Classes')}</span><span>{sortButton('status', 'Status')}</span><span /></div>
+      {visible.map((course) => <Link className="assessment-course-row" key={course.id} to={`/admin/assessments/courses/${course.id}`}>
+        <span className="assessment-course-identity"><CourseIcon iconKey={course.iconKey} aria-hidden="true" /><span><strong>{course.name}</strong><small>{course.courseCode}</small></span></span>
+        <span data-label="Semester">{semesterLabel(course.semester)}{course.academicYear ? <small>{course.academicYear}</small> : null}</span>
+        <span data-label="Active dates">{dates(course)}</span>
+        <span data-label="Roster"><UsersThree aria-hidden="true" /> {course.rosterCount}</span>
+        <span data-label="Classes">{course.classCount}</span>
+        <span data-label="Status"><i className={`assessment-state-dot assessment-state-dot--${course.status}`} />{course.status}</span>
+        <ArrowRight aria-hidden="true" />
+      </Link>)}
+      {visible.length === 0 ? <div className="assessment-empty"><Books aria-hidden="true" /><h2>No courses found</h2><p>Create a course to establish its shared roster and class sections.</p></div> : null}
     </section>
-    {selected ? <section className="assessment-settings" aria-label={`Students in ${selected.name}`}>
-      <button type="button" onClick={() => setSelected(null)}>Close</button>
-      <h2>{selected.name}</h2><p>{total} enrolled students</p>
-      <label>Paste student identifier and optional display name, one row per student
-        <textarea value={rows} placeholder={'student001, Somchai P.\nstudent002, Malee T.'} onChange={(event) => { setRows(event.target.value); setChecksum('') }} />
-      </label>
-      <label>Or choose a CSV file<input type="file" accept=".csv,text/csv" onChange={(event) => { const file = event.target.files?.[0]; if (file) void file.text().then((text) => { setRows(text); setChecksum('') }) }} /></label>
-      <button type="button" onClick={() => void previewRows()}>Preview import</button>
-      {checksum ? <div role="status"><p>{preview.length} preview rows validated. Confirm to add the roster.</p><ul>{preview.map((student, index) => <li key={`${student.displayName}-${index}`}>{student.displayName ?? 'Display name omitted'}</li>)}</ul><button className="assessment-primary" type="button" onClick={() => void commitRows()}>Commit import</button></div> : null}
-      <table><caption>Class roster</caption><thead><tr><th>Name</th><th>Status</th><th>Enrollment</th></tr></thead><tbody>{students.map((student) => <tr key={student.id}><td>{student.displayName ?? 'Private learner'}</td><td>{student.status}</td><td><button type="button" onClick={() => void changeStatus(student.id, student.status === 'active' ? 'withdrawn' : 'active')}>{student.status === 'active' ? 'Withdraw' : 'Reinstate'}</button></td></tr>)}</tbody></table>
-      <div className="assessment-pagination"><button type="button" disabled={offset === 0} onClick={() => void manage(selected, Math.max(0, offset - 50))}>Previous</button><span>{offset + 1}–{Math.min(offset + students.length, total)} of {total}</span><button type="button" disabled={offset + 50 >= total} onClick={() => void manage(selected, offset + 50)}>Next</button></div>
-    </section> : null}
-  </main>
+  </div></>
 }

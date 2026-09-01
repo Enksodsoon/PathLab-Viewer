@@ -333,9 +333,16 @@ test('shows selected annotations moving with the pointer before release', async 
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
     timeout: 30_000,
   })
-  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  const selectTool = page.getByRole('button', { name: 'Select', exact: true })
+  await selectTool.click()
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Open annotations' }).click()
-  await page.getByRole('button', { name: /Touch polygon/ }).click()
+  const annotationRow = page.locator('[data-annotation-row]').filter({
+    hasText: 'Touch polygon',
+  })
+  await annotationRow.click()
+  await expect(annotationRow).toHaveClass(/is-selected/)
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
 
   const overlay = page.locator('.annotation-svg-overlay')
   const shape = page.locator(
@@ -346,11 +353,20 @@ test('shows selected annotations moving with the pointer before release', async 
   const startX = before!.x + before!.width / 2
   const startY = before!.y + before!.height / 2
 
-  await shape.hover({
-    position: { x: before!.width / 2, y: before!.height / 2 },
+  const pointer = {
+    pointerId: 19,
+    pointerType: 'mouse',
+    button: 0,
+    buttons: 1,
+    clientX: startX,
+    clientY: startY,
+  }
+  await shape.dispatchEvent('pointerdown', pointer)
+  await overlay.dispatchEvent('pointermove', {
+    ...pointer,
+    clientX: startX + 36,
+    clientY: startY + 24,
   })
-  await page.mouse.down()
-  await page.mouse.move(startX + 36, startY + 24, { steps: 4 })
 
   await expect(overlay).toHaveClass(/is-moving-annotation/)
   const previewTranslation = await page.locator('.annotation-move-preview').evaluate((node) => {
@@ -363,7 +379,12 @@ test('shows selected annotations moving with the pointer before release', async 
   expect(Math.abs(during!.x - (before!.x + 36))).toBeLessThanOrEqual(3)
   expect(Math.abs(during!.y - (before!.y + 24))).toBeLessThanOrEqual(3)
 
-  await page.mouse.up()
+  await overlay.dispatchEvent('pointerup', {
+    ...pointer,
+    buttons: 0,
+    clientX: startX + 36,
+    clientY: startY + 24,
+  })
   await expect(overlay).not.toHaveClass(/is-moving-annotation/)
   await expect(page.locator('.annotation-move-preview')).toHaveCount(0)
 })
@@ -656,8 +677,14 @@ test('edits a polygon vertex through a 44px touch handle on mobile', async ({ pa
   })
 
   await page.getByRole('button', { name: 'Open annotations' }).click()
-  await page.getByRole('button', { name: 'Select', exact: true }).click()
-  await page.getByRole('button', { name: /Touch polygon/ }).click()
+  const selectTool = page.getByRole('button', { name: 'Select', exact: true })
+  await selectTool.click()
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
+  const annotationRow = page.locator('[data-annotation-row]').filter({
+    hasText: 'Touch polygon',
+  })
+  await annotationRow.click()
+  await expect(annotationRow).toHaveClass(/is-selected/)
   await page.getByRole('dialog', { name: 'Annotation inspector' })
     .getByRole('button', { name: 'Close annotation inspector' })
     .click()

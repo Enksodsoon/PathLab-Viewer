@@ -107,6 +107,19 @@ def test_current_tree_rejects_example_lookalike_domain(tmp_path: Path) -> None:
     assert "non-example email address" in scanned.stderr
 
 
+def test_current_tree_ignores_public_dependency_metadata_in_lockfiles(
+    tmp_path: Path,
+) -> None:
+    repo, _ = make_repo(tmp_path)
+    (repo / "pnpm-lock.yaml").write_text(
+        "deprecated: contact maintainer@" + "dependency.dev for upstream support\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "pnpm-lock.yaml")
+
+    assert run_scan(repo).returncode == 0
+
+
 def test_history_scan_allows_privacy_safe_commit_metadata(tmp_path: Path) -> None:
     repo, base = make_repo(tmp_path)
     (repo / "clean.txt").write_text("safe\n", encoding="utf-8")

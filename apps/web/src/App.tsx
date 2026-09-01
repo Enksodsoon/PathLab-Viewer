@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom'
 
 import { Loader } from './components/Loader'
 
@@ -17,7 +17,20 @@ const AssessmentAdminPage = lazy(() => import('./pages/AssessmentAdminPage').the
 const AssessmentBuilderPage = lazy(() => import('./pages/AssessmentBuilderPage').then((module) => ({ default: module.AssessmentBuilderPage })))
 const AssessmentStudentPage = lazy(() => import('./pages/AssessmentStudentPage').then((module) => ({ default: module.AssessmentStudentPage })))
 const AssessmentClassesPage = lazy(() => import('./pages/AssessmentClassesPage').then((module) => ({ default: module.AssessmentClassesPage })))
-const AssessmentResultsPage = lazy(() => import('./pages/AssessmentResultsPage').then((module) => ({ default: module.AssessmentResultsPage })))
+const AssessmentCourseFormPage = lazy(() => import('./pages/AssessmentCourseFormPage').then((module) => ({ default: module.AssessmentCourseFormPage })))
+const AssessmentCourseDetailPage = lazy(() => import('./pages/AssessmentCourseDetailPage').then((module) => ({ default: module.AssessmentCourseDetailPage })))
+const AssessmentCourseRosterPage = lazy(() => import('./pages/AssessmentCourseRosterPage').then((module) => ({ default: module.AssessmentCourseRosterPage })))
+const AssessmentClassFormPage = lazy(() => import('./pages/AssessmentClassFormPage').then((module) => ({ default: module.AssessmentClassFormPage })))
+const AssessmentClassDetailPage = lazy(() => import('./pages/AssessmentClassDetailPage').then((module) => ({ default: module.AssessmentClassDetailPage })))
+const AssessmentShell = lazy(() => import('./pages/AssessmentShell').then((module) => ({ default: module.AssessmentShell })))
+
+function LegacyAssessmentReportRedirect() {
+  const { draftId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const next = new URLSearchParams(searchParams)
+  next.set('tab', 'responses')
+  return <Navigate replace to={`/admin/assessments/${encodeURIComponent(draftId)}?${next.toString()}`} />
+}
 
 export function App() {
   return <Routes>
@@ -30,10 +43,19 @@ export function App() {
     <Route path="/classroom/:sessionId" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomStudentPage /></Suspense>} />
     <Route path="/admin/study" element={<Suspense fallback={<Loader label="Opening Study Coach…" size="large" fullscreen />}><StudyAdminPage /></Suspense>} />
     <Route path="/admin/study/packs/new" element={<Suspense fallback={<Loader label="Opening Study Pack authoring…" size="large" fullscreen />}><StudyPackAuthoringPage /></Suspense>} />
-    <Route path="/admin/assessments" element={<Suspense fallback={<Loader label="Opening Assessment…" size="large" fullscreen />}><AssessmentAdminPage /></Suspense>} />
-    <Route path="/admin/assessments/classes" element={<Suspense fallback={<Loader label="Opening classes…" size="large" fullscreen />}><AssessmentClassesPage /></Suspense>} />
-    <Route path="/admin/assessments/results" element={<Suspense fallback={<Loader label="Opening results…" size="large" fullscreen />}><AssessmentResultsPage /></Suspense>} />
-    <Route path="/admin/assessments/:draftId" element={<Suspense fallback={<Loader label="Opening assessment builder…" size="large" fullscreen />}><AssessmentBuilderPage /></Suspense>} />
+    <Route element={<Suspense fallback={<Loader label="Opening Assessment…" size="large" fullscreen />}><AssessmentShell /></Suspense>}>
+      <Route path="/admin/assessments" element={<AssessmentAdminPage />} />
+      <Route path="/admin/assessments/classes" element={<AssessmentClassesPage />} />
+      <Route path="/admin/assessments/courses/new" element={<AssessmentCourseFormPage />} />
+      <Route path="/admin/assessments/courses/:courseId" element={<AssessmentCourseDetailPage />} />
+      <Route path="/admin/assessments/courses/:courseId/edit" element={<AssessmentCourseFormPage />} />
+      <Route path="/admin/assessments/courses/:courseId/roster" element={<AssessmentCourseRosterPage />} />
+      <Route path="/admin/assessments/courses/:courseId/classes/new" element={<AssessmentClassFormPage />} />
+      <Route path="/admin/assessments/courses/:courseId/classes/:classId" element={<AssessmentClassDetailPage />} />
+      <Route path="/admin/assessments/courses/:courseId/classes/:classId/edit" element={<AssessmentClassFormPage />} />
+      <Route path="/admin/assessments/:draftId/report" element={<LegacyAssessmentReportRedirect />} />
+      <Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} />
+    </Route>
     <Route path="/assessment/:publicId" element={<Suspense fallback={<Loader label="Opening assessment…" size="large" fullscreen />}><AssessmentStudentPage /></Suspense>} />
     <Route path="/study" element={<Suspense fallback={<Loader label="Opening Study Mode…" size="large" fullscreen />}><StudyPage /></Suspense>} />
     <Route path="/s/:publicId" element={<Suspense fallback={<Loader label="Opening slide…" size="large" fullscreen />}><ViewerPage /></Suspense>} />

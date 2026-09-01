@@ -4,47 +4,246 @@ on:
   workflow_dispatch:
     inputs:
       release_sha:
-        description: Exact 40-character release SHA
+        description: Exact deployed 40-character release SHA
         required: true
-      public_id:
-        description: Protected synthetic rostered administration
+      slide_id:
+        description: Privacy-passed real static-DZI slide ID
         required: true
 
 permissions:
   contents: read
 
+env:
+  CAPACITY_BASE_URL: ${{ secrets.ASSESSMENT_CAPACITY_BASE_URL }}
+  HOST_OBSERVER_URL: ${{ secrets.ASSESSMENT_HOST_OBSERVER_URL }}
+
 jobs:
-  shard:
+  provision-campaign:
     environment: assessment-capacity
-    strategy:
-      fail-fast: true
-      matrix:
-        shard: [1, 2, 3, 4, 5]
     runs-on: ubuntu-24.04
-    env:
-      PATHLAB_ASSESSMENT_ENABLED: "false"
+    timeout-minutes: 10
+    outputs:
+      administration_id: ${{ steps.fixture.outputs.administration_id }}
+      public_id: ${{ steps.fixture.outputs.public_id }}
+      tile_url: ${{ steps.fixture.outputs.tile_url }}
+      start_epoch: ${{ steps.fixture.outputs.start_epoch }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.release_sha }}
-      - name: Reject moving or abbreviated release identity
-        shell: bash
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - name: Verify and provision exact-release 500-seat fixture
+        id: fixture
+        env:
+          ASSESSMENT_ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
+          ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
+          ASSESSMENT_OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
+          ASSESSMENT_CAPACITY_ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
         run: |
           test "$(git rev-parse HEAD)" = "${{ inputs.release_sha }}"
-          test "${#PATHLAB_ASSESSMENT_ENABLED}" -gt 0
-      - name: Execute one bounded 100-seat shard
-        uses: grafana/run-k6-action@v1
+          test "${#GITHUB_SHA}" -eq 40
+          python scripts/assessment_capacity_fixture.py \
+            --base-url "$CAPACITY_BASE_URL" \
+            --host-observer-url "$HOST_OBSERVER_URL" \
+            --release-sha "${{ inputs.release_sha }}" \
+            --slide-id "${{ inputs.slide_id }}" \
+            --seats 500 --prefix campaign \
+            --output artifacts/assessment-capacity/fixture.json
+          echo "administration_id=$(jq -r .administrationId artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+          echo "public_id=$(jq -r .publicId artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+          echo "tile_url=$(jq -r .tileUrl artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+          echo "start_epoch=$(($(date +%s) + 300))" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-fixture, path: artifacts/assessment-capacity/, if-no-files-found: error }
+
+  observer:
+    needs: provision-campaign
+    environment: assessment-capacity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - name: Poll readiness, counts, real DZI, host and database every 15 seconds
         env:
-          BASE_URL: ${{ secrets.ASSESSMENT_CAPACITY_BASE_URL }}
-          PUBLIC_ID: ${{ inputs.public_id }}
+          ASSESSMENT_ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
+          ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
+          ASSESSMENT_OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
+        run: >-
+          python scripts/assessment_capacity_observer.py
+          --base-url "$CAPACITY_BASE_URL"
+          --administration-id "${{ needs.provision-campaign.outputs.administration_id }}"
+          --tile-url "${{ needs.provision-campaign.outputs.tile_url }}"
+          --host-observer-url "$HOST_OBSERVER_URL"
+          --start-epoch "${{ needs.provision-campaign.outputs.start_epoch }}"
+          --output artifacts/assessment-capacity/observer.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-observer, path: artifacts/assessment-capacity/, if-no-files-found: error }
+
+  shard:
+    needs: provision-campaign
+    environment: assessment-capacity
+    strategy:
+      fail-fast: false
+      matrix: { shard: [1, 2, 3, 4, 5] }
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
+      - name: Execute exactly one 100-seat shard
+        env:
+          BASE_URL: ${{ env.CAPACITY_BASE_URL }}
+          PUBLIC_ID: ${{ needs.provision-campaign.outputs.public_id }}
+          TILE_URL: ${{ needs.provision-campaign.outputs.tile_url }}
           ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
           SHARD: ${{ matrix.shard }}
-        with:
-          path: tests/load/assessment-500.js
-      - name: Preserve raw shard evidence
+          START_EPOCH: ${{ needs.provision-campaign.outputs.start_epoch }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: mkdir -p artifacts/assessment-capacity && k6 run tests/load/assessment-500.js
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: assessment-capacity-shard-${{ matrix.shard }}
+          name: assessment-shard-${{ matrix.shard }}
           path: artifacts/assessment-capacity/
           if-no-files-found: error
+
+  cleanup-campaign:
+    if: always()
+    needs: [provision-campaign, observer, shard]
+    environment: assessment-capacity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - name: Close, verify aggregates/export, purge and remove campaign fixture
+        env:
+          ASSESSMENT_ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
+          ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
+        run: >-
+          python scripts/assessment_capacity_cleanup.py
+          --phase campaign
+          --base-url "$CAPACITY_BASE_URL"
+          --administration-id "${{ needs.provision-campaign.outputs.administration_id }}"
+          --output-dir artifacts/assessment-capacity
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-campaign-cleanup, path: artifacts/assessment-capacity/, if-no-files-found: error }
+
+  provision-canary:
+    needs: cleanup-campaign
+    environment: assessment-capacity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      administration_id: ${{ steps.fixture.outputs.administration_id }}
+      public_id: ${{ steps.fixture.outputs.public_id }}
+      identifier: ${{ steps.fixture.outputs.identifier }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - id: fixture
+        env:
+          ASSESSMENT_ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
+          ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
+          ASSESSMENT_OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
+          ASSESSMENT_CAPACITY_ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
+        run: |
+          python scripts/assessment_capacity_fixture.py \
+            --base-url "$CAPACITY_BASE_URL" --host-observer-url "$HOST_OBSERVER_URL" \
+            --release-sha "${{ inputs.release_sha }}" --slide-id "${{ inputs.slide_id }}" \
+            --seats 1 --prefix canary --output artifacts/assessment-capacity/fixture.json
+          echo "administration_id=$(jq -r .administrationId artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+          echo "public_id=$(jq -r .publicId artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+          echo "identifier=$(jq -r .identifier artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+
+  browser-canary:
+    needs: provision-canary
+    environment: assessment-capacity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.14.0", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - name: Run real browser offline and outage recovery canary
+        env:
+          ASSESSMENT_CAPACITY_BASE_URL: ${{ env.CAPACITY_BASE_URL }}
+          ASSESSMENT_CANARY_PUBLIC_ID: ${{ needs.provision-canary.outputs.public_id }}
+          ASSESSMENT_CANARY_ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
+          ASSESSMENT_CANARY_IDENTIFIER: ${{ needs.provision-canary.outputs.identifier }}
+        run: pnpm --dir apps/web exec playwright test --config playwright.assessment-capacity.config.ts
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-browser-canary, path: artifacts/assessment-capacity/, if-no-files-found: error }
+
+  cleanup-canary:
+    if: always()
+    needs: [provision-canary, browser-canary]
+    environment: assessment-capacity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with: { name: assessment-browser-canary, path: artifacts/browser }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with: { name: assessment-campaign-cleanup, path: artifacts/campaign }
+      - name: Materialize fail-closed placeholders without bypassing cleanup
+        run: |
+          mkdir -p artifacts/browser artifacts/campaign
+          test -f artifacts/browser/canaries-browser.json || echo '{"offlineResume":false,"browserOutageRecovery":false}' > artifacts/browser/canaries-browser.json
+          test -f artifacts/campaign/campaign-validation.json || echo '{"aggregateVerified":false,"exportVerified":false}' > artifacts/campaign/campaign-validation.json
+          test -f artifacts/campaign/campaign-cleanup.json || echo '{"fixturesRemoved":false,"grantsRemoved":false,"sessionsRemoved":false,"administrationPurged":false}' > artifacts/campaign/campaign-cleanup.json
+      - env:
+          ASSESSMENT_ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
+          ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
+        run: >-
+          python scripts/assessment_capacity_cleanup.py
+          --phase canary --base-url "$CAPACITY_BASE_URL"
+          --administration-id "${{ needs.provision-canary.outputs.administration_id }}"
+          --browser-evidence artifacts/browser/canaries-browser.json
+          --campaign-validation artifacts/campaign/campaign-validation.json
+          --output-dir artifacts/assessment-capacity
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-final-cleanup, path: artifacts/assessment-capacity/, if-no-files-found: error }
+
+  certify:
+    if: always()
+    needs: [cleanup-canary, observer, shard]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with: { pattern: assessment-shard-*, path: artifacts/all, merge-multiple: true }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with: { name: assessment-observer, path: artifacts/all }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with: { name: assessment-final-cleanup, path: artifacts/all }
+      - name: Close evidence fail-closed
+        id: close
+        continue-on-error: true
+        run: >-
+          python scripts/assessment_capacity_evidence.py
+          --artifacts artifacts/all --release-sha "${{ inputs.release_sha }}"
+          --output artifacts/final/assessment-500-evidence.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-500-evidence, path: artifacts/final/, if-no-files-found: error }
+      - name: Reject partial, negative or non-evaluable closure
+        run: test "${{ steps.close.outcome }}" = success

@@ -17,6 +17,7 @@ interface AppRailProps {
   onAssessment?: () => void
   onStorage: () => void
   storageActive: boolean
+  activeDestination?: 'library' | 'upload' | 'classroom' | 'study' | 'assessment' | 'storage'
   onSecurity: () => void
   onSignOut: () => void
 }
@@ -35,6 +36,7 @@ export function AppRail({
   onAssessment,
   onStorage,
   storageActive,
+  activeDestination,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
@@ -54,6 +56,7 @@ export function AppRail({
       onAssessment={onAssessment}
       onStorage={onStorage}
       storageActive={storageActive}
+      activeDestination={activeDestination}
       onSecurity={onSecurity}
       onSignOut={onSignOut}
     />
