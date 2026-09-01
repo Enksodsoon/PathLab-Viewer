@@ -1,3 +1,15 @@
+@font-face {
+  font-family: 'Source Sans 3 Variable';
+  font-display: swap;
+  font-weight: 200 900;
+  src: url('@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2');
+}
+@font-face {
+  font-family: 'Cormorant Garamond Variable';
+  font-display: swap;
+  font-weight: 300 700;
+  src: url('@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-normal.woff2');
+}
 :root { font-family:"Source Sans 3 Variable","Segoe UI",sans-serif; color:#14243a; background:#f5f7f9; font-synthesis:none; --navy:#10243d; --teal:#0f8b83; --line:#dce3e8; --muted:#68788a; --coral:#ce594e; --viewer-stage:#090807; --viewer-on-stage:#f2eadc; }
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }

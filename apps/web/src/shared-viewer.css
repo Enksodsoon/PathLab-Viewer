@@ -342,7 +342,7 @@
 
 @media (max-width: 760px) {
   .shared-viewer-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 68px minmax(0, 1fr);
   }
 
