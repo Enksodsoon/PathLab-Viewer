@@ -333,9 +333,16 @@ test('shows selected annotations moving with the pointer before release', async 
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({
     timeout: 30_000,
   })
-  await page.getByRole('button', { name: 'Select', exact: true }).click()
+  const selectTool = page.getByRole('button', { name: 'Select', exact: true })
+  await selectTool.click()
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Open annotations' }).click()
-  await page.getByRole('button', { name: /Touch polygon/ }).click()
+  const annotationRow = page.locator('[data-annotation-row]').filter({
+    hasText: 'Touch polygon',
+  })
+  await annotationRow.click()
+  await expect(annotationRow).toHaveClass(/is-selected/)
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
 
   const overlay = page.locator('.annotation-svg-overlay')
   const shape = page.locator(
