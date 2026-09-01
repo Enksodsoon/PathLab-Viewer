@@ -332,7 +332,7 @@ if [[ "${REQUEST}" == capacity-recover\ * ]]; then
   exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" "${REQUEST}"
 fi
 
-[[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})([[:space:]]classroom=(true|false))?([[:space:]]annotations=(true|false))?$ ]] || \
+[[ "${REQUEST}" =~ ^deploy[[:space:]]([0-9a-f]{40})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})([[:space:]]classroom=(true|false))?([[:space:]]annotations=(true|false))?([[:space:]]admin-annotation-canary=(true|false))?$ ]] || \
   fail "expected an authenticated deploy, one-time evidence-key provision, observe-load, or capacity control request"
 TARGET_SHA="${BASH_REMATCH[1]}"
 EVIDENCE_B64="${BASH_REMATCH[2]}"
@@ -340,8 +340,12 @@ EVIDENCE_SIGNATURE="${BASH_REMATCH[3]}"
 EVIDENCE_NONCE="${BASH_REMATCH[4]}"
 CLASSROOM_ENABLED="${BASH_REMATCH[6]:-}"
 ANNOTATIONS_ENABLED="${BASH_REMATCH[8]:-}"
+ADMIN_ANNOTATION_CANARY_ENABLED="${BASH_REMATCH[10]:-}"
 if [[ -n "${CLASSROOM_ENABLED}" && -z "${ANNOTATIONS_ENABLED}" ]]; then
   ANNOTATIONS_ENABLED=false
+fi
+if [[ -n "${CLASSROOM_ENABLED}" && -z "${ADMIN_ANNOTATION_CANARY_ENABLED}" ]]; then
+  ADMIN_ANNOTATION_CANARY_ENABLED=false
 fi
 DEPLOY_EVIDENCE="$(mktemp /run/pathlab-deploy-evidence-XXXXXX.json)"
 chmod 600 "${DEPLOY_EVIDENCE}"
@@ -411,6 +415,15 @@ if [[ -n "${ANNOTATIONS_ENABLED}" ]]; then
   else
     printf 'PATHLAB_ANNOTATIONS_ENABLED=%s\n' "${ANNOTATIONS_ENABLED}" >> \
       "${STAGE_DIR}/deploy/.env"
+  fi
+fi
+if [[ -n "${ADMIN_ANNOTATION_CANARY_ENABLED}" ]]; then
+  if grep -q '^PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=' "${STAGE_DIR}/deploy/.env"; then
+    sed -i "s/^PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=.*/PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=${ADMIN_ANNOTATION_CANARY_ENABLED}/" \
+      "${STAGE_DIR}/deploy/.env"
+  else
+    printf 'PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=%s\n' \
+      "${ADMIN_ANNOTATION_CANARY_ENABLED}" >> "${STAGE_DIR}/deploy/.env"
   fi
 fi
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"

@@ -261,6 +261,12 @@ def test_annotation_feature_flag_is_explicitly_default_off_in_deployment_example
     assert "PATHLAB_ANNOTATIONS_ENABLED=false" in root_example
     assert "PATHLAB_ANNOTATIONS_ENABLED=false" in deploy_example
     assert 'PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"' in compose
+    assert "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=false" in root_example
+    assert "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=false" in deploy_example
+    assert (
+        'PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED: '
+        '"${PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED:-false}"'
+    ) in compose
 
 
 def test_identity_governance_is_explicitly_default_off_everywhere() -> None:
@@ -602,6 +608,10 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "PATHLAB_CLASSROOM_ENABLED: ${{ inputs.classroom_enabled }}" in workflow
     assert "PATHLAB_ANNOTATIONS_ENABLED: ${{ inputs.annotations_enabled }}" in workflow
     assert (
+        "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED: "
+        "${{ inputs.admin_annotation_canary_enabled }}"
+    ) in workflow
+    assert (
         '"${PATHLAB_CLASSROOM_ENABLED}" "${PATHLAB_ANNOTATIONS_ENABLED}"'
     ) in workflow
     assert "vars.PATHLAB_CLASSROOM_ENABLED" not in workflow
@@ -645,6 +655,8 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert '"${ANNOTATIONS_ENABLED}" =~ ^(true|false)$' in script
     assert "annotations=${ANNOTATIONS_ENABLED}" in script
     assert '[[ "${ANNOTATIONS_ENABLED}" == true ]]' in script
+    assert '[[ "${ADMIN_ANNOTATION_CANARY_ENABLED}" == true ]]' in script
+    assert "admin-annotation-canary=${ADMIN_ANNOTATION_CANARY_ENABLED}" in script
 
 
 def test_deployment_reconciles_only_exact_terminal_pathlab_sessions() -> None:
@@ -759,8 +771,13 @@ def test_release_script_preserves_environment_and_never_touches_data() -> None:
     assert 'install -m 600 "${LIVE_DIR}/deploy/.env"' in script
     assert "classroom=(true|false)" in script
     assert "annotations=(true|false)" in script
+    assert "admin-annotation-canary=(true|false)" in script
     assert "PATHLAB_PRODUCTION_CLASSROOM_ENABLED=${CLASSROOM_ENABLED}" in script
     assert "PATHLAB_ANNOTATIONS_ENABLED=${ANNOTATIONS_ENABLED}" in script
+    assert (
+        "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED=${ADMIN_ANNOTATION_CANARY_ENABLED}"
+        in script
+    )
     assert '[[ -n "${CLASSROOM_ENABLED}" && -z "${ANNOTATIONS_ENABLED}" ]]' in script
     assert "ANNOTATIONS_ENABLED=false" in script
     assert "/srv/pathlab/data" not in script

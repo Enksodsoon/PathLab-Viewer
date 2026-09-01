@@ -59,7 +59,7 @@ def register_annotation_routes(
     csrf_dependency: Callable[..., Any],
 ) -> None:
     def require_enabled() -> None:
-        if not app.state.settings.annotations_enabled:
+        if not app.state.settings.admin_annotations_enabled:
             raise HTTPException(
                 status_code=404,
                 detail={"code": "ANNOTATIONS_DISABLED"},
