@@ -53,6 +53,21 @@ def test_annotations_are_disabled_by_default_and_accept_an_explicit_override(
     assert Settings(_env_file=None).annotations_enabled is True
 
 
+def test_admin_annotation_canary_is_default_off_and_effective_only_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_ANNOTATIONS_ENABLED", raising=False)
+    monkeypatch.delenv("PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED", raising=False)
+
+    assert Settings(_env_file=None).admin_annotations_enabled is False
+
+    monkeypatch.setenv("PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED", "true")
+    settings = Settings(_env_file=None)
+    assert settings.annotations_enabled is False
+    assert settings.admin_annotation_canary_enabled is True
+    assert settings.admin_annotations_enabled is True
+
+
 def test_classroom_is_disabled_by_default_and_accepts_an_explicit_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
