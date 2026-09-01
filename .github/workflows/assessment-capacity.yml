@@ -1,0 +1,50 @@
+name: Assessment 500-seat certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact 40-character release SHA
+        required: true
+      public_id:
+        description: Protected synthetic rostered administration
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  shard:
+    environment: assessment-capacity
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    runs-on: ubuntu-24.04
+    env:
+      PATHLAB_ASSESSMENT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+      - name: Reject moving or abbreviated release identity
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.release_sha }}"
+          test "${#PATHLAB_ASSESSMENT_ENABLED}" -gt 0
+      - name: Execute one bounded 100-seat shard
+        uses: grafana/run-k6-action@v1
+        env:
+          BASE_URL: ${{ secrets.ASSESSMENT_CAPACITY_BASE_URL }}
+          PUBLIC_ID: ${{ inputs.public_id }}
+          ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
+          SHARD: ${{ matrix.shard }}
+        with:
+          path: tests/load/assessment-500.js
+      - name: Preserve raw shard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-capacity-shard-${{ matrix.shard }}
+          path: artifacts/assessment-capacity/
+          if-no-files-found: error

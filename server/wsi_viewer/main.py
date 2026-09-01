@@ -79,6 +79,7 @@ MAX_LIBRARY_BODY_BYTES = 64 * 1024
 MAX_INTERNAL_BODY_BYTES = 64 * 1024
 MAX_ANNOTATION_BODY_BYTES = 256 * 1024
 MAX_ANNOTATION_IMPORT_BODY_BYTES = 8 * 1024 * 1024
+MAX_ASSESSMENT_BODY_BYTES = 64 * 1024
 
 
 def _is_sqlite_busy_or_locked(error: SQLAlchemyOperationalError) -> bool:
@@ -317,6 +318,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         AuthBodyLimitMiddleware,
         path_limits=(
+            ("/api/v2/assessment/", MAX_ASSESSMENT_BODY_BYTES),
             ("/api/v2/admin/annotations/", MAX_ANNOTATION_BODY_BYTES),
             ("/api/v2/admin/", MAX_LIBRARY_BODY_BYTES),
             ("/api/v1/internal/", MAX_INTERNAL_BODY_BYTES),
@@ -549,6 +551,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             admin_dependency=admin_session,
             csrf_dependency=csrf,
             identifier_secret=current.secret_key,
+            secure_cookies=current.secure_cookies,
         )
 
     @app.get("/livez")

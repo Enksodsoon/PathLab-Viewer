@@ -221,6 +221,14 @@
 .assessment-mode-grid label { display: grid; grid-template-columns: auto 1fr; gap: .4rem; min-height: 9rem; padding: 1rem; border: 1px solid var(--assessment-line); border-radius: .75rem; }
 .assessment-mode-grid span { grid-column: 2; color: var(--assessment-muted); }
 .assessment-loading { display: grid; place-items: center; min-height: 100vh; }
+.assessment-class-create { display: flex; align-items: end; gap: .75rem; margin: 1.5rem 0; }
+.assessment-class-create label { display: grid; gap: .35rem; }
+.assessment-class-create input { min-height: 44px; border: 1px solid var(--assessment-line); border-radius: .55rem; padding: .5rem .75rem; }
+.assessment-class-grid { display: grid; gap: .75rem; }
+.assessment-class-grid article { display: flex; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--assessment-line); border-radius: .8rem; background: white; box-shadow: var(--assessment-shadow); }
+.assessment-class-grid article > svg { width: 2rem; height: 2rem; color: var(--assessment-violet); }
+.assessment-class-grid article div { margin-right: auto; }
+.assessment-class-grid h2, .assessment-class-grid p { margin: 0; }
 .assessment-student {
   display: grid;
   grid-template: auto 1fr / 6rem minmax(0, 1fr);
