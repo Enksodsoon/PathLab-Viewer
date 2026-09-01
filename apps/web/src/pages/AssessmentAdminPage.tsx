@@ -2,7 +2,7 @@ import { ClipboardText, GraduationCap, Plus, UsersThree } from '@phosphor-icons/
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { createAssessmentDraft, listAssessmentDrafts } from '../assessment/api'
+import { archiveAssessmentDraft, createAssessmentDraft, duplicateAssessmentDraft, listAssessmentAdministrations, listAssessmentDrafts, type AssessmentAdministrationSummary } from '../assessment/api'
 import type { AssessmentDraft } from '../assessment/types'
 import './assessment.css'
 
@@ -15,12 +15,15 @@ const emptyDocument = {
 export function AssessmentAdminPage() {
   const navigate = useNavigate()
   const [drafts, setDrafts] = useState<AssessmentDraft[]>([])
+  const [administrations, setAdministrations] = useState<AssessmentAdministrationSummary[]>([])
+  const [query, setQuery] = useState('')
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
-    void listAssessmentDrafts()
-      .then((result) => {
-        setDrafts(result.items)
+    void Promise.all([listAssessmentDrafts(), listAssessmentAdministrations()])
+      .then(([draftResult, administrationResult]) => {
+        setDrafts(draftResult.items)
+        setAdministrations(administrationResult.items)
         setState('ready')
       })
       .catch(() => setState('error'))
@@ -29,6 +32,16 @@ export function AssessmentAdminPage() {
   async function createNew() {
     const draft = await createAssessmentDraft(emptyDocument.title, emptyDocument)
     navigate(`/admin/assessments/${draft.id}`)
+  }
+
+  async function duplicate(id: string) {
+    const created = await duplicateAssessmentDraft(id)
+    setDrafts((current) => [created, ...current])
+  }
+
+  async function archive(id: string) {
+    const updated = await archiveAssessmentDraft(id)
+    setDrafts((current) => current.map((item) => item.id === id ? updated : item))
   }
 
   return <div className="assessment-shell">
@@ -50,28 +63,26 @@ export function AssessmentAdminPage() {
       </header>
       <section className="assessment-metrics" aria-label="Assessment status">
         <article><span>Drafts</span><strong>{drafts.filter((item) => item.status === 'draft').length}</strong></article>
-        <article><span>Open</span><strong>0</strong></article>
-        <article><span>Closed</span><strong>0</strong></article>
-        <article><span>Total responses</span><strong>0</strong></article>
+        <article><span>Open</span><strong>{administrations.filter((item) => item.status === 'open').length}</strong></article>
+        <article><span>Closed</span><strong>{administrations.filter((item) => item.status === 'closed').length}</strong></article>
+        <article><span>Total responses</span><strong>{administrations.reduce((total, item) => total + item.responses, 0)}</strong></article>
       </section>
       <label className="assessment-search">Search assessments
-        <input type="search" placeholder="Search by title…" />
+        <input type="search" placeholder="Search by title…" value={query} onChange={(event) => setQuery(event.target.value)} />
       </label>
       {state === 'loading' ? <p role="status">Loading assessments…</p> : null}
       {state === 'error' ? <p role="alert">Assessment is currently unavailable.</p> : null}
       <div className="assessment-table" role="table" aria-label="Assessments">
         <div className="assessment-table-head" role="row">
-          <span>Assessment</span><span>Status</span><span>Responses</span><span>Revision</span>
+          <span>Assessment</span><span>Status</span><span>Reuse</span><span>Archive</span>
         </div>
-        {drafts.map((draft) => <button
+        {drafts.filter((draft) => draft.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).map((draft) => <div
           key={draft.id}
-          type="button"
           className="assessment-table-row"
-          onClick={() => navigate(`/admin/assessments/${draft.id}`)}
         >
-          <span><strong>{draft.title}</strong><small>Assessment draft</small></span>
-          <span><em>{draft.status}</em></span><span>0</span><span>v{draft.revision}</span>
-        </button>)}
+          <span><button type="button" onClick={() => navigate(`/admin/assessments/${draft.id}`)}><strong>{draft.title}</strong></button><small>Assessment draft</small></span>
+          <span><em>{draft.status}</em></span><span><button type="button" onClick={() => void duplicate(draft.id)}>Duplicate</button></span><span><button type="button" onClick={() => void archive(draft.id)} disabled={draft.status === 'archived'}>Archive</button></span>
+        </div>)}
       </div>
     </main>
   </div>
