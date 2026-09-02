@@ -1,0 +1,3 @@
+# Require the full 1,200-participant Classroom campaign
+
+The Classroom Launch Gate runs one teacher and 1,200 learners for 60 minutes: all learners join within five minutes, traverse six prebuilt static-DZI cases, receive teacher pointer and viewport updates at 10 Hz, answer six prompts, produce questions from 20 percent of learners, reconnect and resynchronize ten percent, and recover from one `pathlab-live` restart. It passes only with zero lost Durable Interactions, event-fanout p95 at or below one second, durable acknowledgement p95 at or below two seconds, reconnect/resynchronization p95 at or below ten seconds, correct Attendance Intervals, and no Host Resource Partition breach; the entire campaign is repeated with the qualified 100-viewer Galene overlay.

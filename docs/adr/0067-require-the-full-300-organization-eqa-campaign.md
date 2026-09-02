@@ -1,0 +1,3 @@
+# Require the full 300-organization EQA campaign
+
+The EQA Launch Gate runs one 100-case Round with 300 EQA Participants and two concurrent staff per organization for 120 minutes: each organization loads the governed package, produces at least one collaborative revision per case, five percent disconnect and reconcile, and the EQA Mode Process restarts once. All 300 Sealed Submissions arrive in the final 60 seconds, after which 30,000 case responses are scored, 300 reports issued, and 30 Appeals processed; it passes only with zero cross-organization exposure, duplicate receipts, or mutation of sealed data, draft-save p95 at or below two seconds, seal-receipt p95 at or below five seconds, and complete scoring, report, and Audit Record reconciliation within 30 minutes.

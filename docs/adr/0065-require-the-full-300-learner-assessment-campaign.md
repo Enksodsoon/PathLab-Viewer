@@ -1,0 +1,3 @@
+# Require the full 300-learner Assessment campaign
+
+The Assessment Launch Gate will run 300 learners through one immutable 100-item, 120-minute Exam Session: every learner starts within two minutes, writes a Response Revision every 30 seconds, ten percent experience a ten-minute disconnect and reconciliation, `pathlab-assessment` restarts once, and all 300 submit within the final 60 seconds. It passes only with zero lost confirmed work, zero duplicate Submission Receipts, save p95 at or below two seconds, receipt p95 at or below five seconds, complete grade and Audit Record reconciliation, and no Host Resource Partition breach.

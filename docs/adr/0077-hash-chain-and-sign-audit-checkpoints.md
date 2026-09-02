@@ -1,0 +1,3 @@
+# Hash-chain and sign Audit Checkpoints
+
+Audit Records will be append-only and partitioned into monotonic Audit Integrity Chains whose entries commit the predecessor hash, authoritative outbox identity, canonical payload hash, and record hash. PathLab signs an Audit Checkpoint daily and at each release boundary with the current audit Key Version, copies it off-host, and verifies all affected chains at startup, daily, before backup, and during restore; a gap, mutation, signature failure, or source-event mismatch makes readiness fail and blocks new authoritative writes without requiring a blockchain or hosted ledger.

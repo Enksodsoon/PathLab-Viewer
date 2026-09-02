@@ -1,0 +1,3 @@
+# Require an independent Institution-owned Backup Target
+
+Zero-Cash Production requires an Institution-owned or donated off-host disk or NAS that is physically independent of the production host, resides in an Approved Data Location, and is capacity-qualified for the full 35-day encrypted Backup Generation and WAL envelope. OCI free object storage and same-host volumes cannot satisfy this boundary; when Backup Freshness State is STALE, UNAVAILABLE, or CAPACITY_BLOCKED, PathLab remains available for safe reading but rejects new irreversible uploads, confirmed submissions or grades, sealed EQA work, and other authoritative admissions until protection is restored.

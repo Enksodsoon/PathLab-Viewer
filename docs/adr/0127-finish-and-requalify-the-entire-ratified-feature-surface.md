@@ -1,0 +1,3 @@
+# Finish and requalify the entire ratified feature surface
+
+Full-Surface Launch includes both requalification of the existing Viewer, Library, upload, DZI, sharing, annotation, Classroom, deterministic Study, Desktop, recovery, PostgreSQL, and identity foundations and implementation of every missing ratified context and production control. Historical, synthetic, default-off, partially implemented, or currently absent capabilities remain launch blockers until they satisfy the same completion rule; unresolved licenses, asset provenance, and derived branding block the release as firmly as missing code.

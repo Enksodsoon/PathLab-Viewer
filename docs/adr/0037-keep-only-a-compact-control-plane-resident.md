@@ -1,0 +1,3 @@
+# Keep only a compact control plane resident
+
+Zero-Cash Production will keep only Caddy, PostgreSQL, PgBouncer, single-node JetStream, and one compact Control Plane API continuously resident. That API covers identity, policy, Learning Catalog, audit intake, mode control, Imaging metadata, and authorization for static delivery; Live Learning, Galene, Assessment, conversion and upload processing, Research, EQA, Clinical and integration workers, bulk Edge synchronization, and import/export run as Mode Processes that start only under a protected reservation, drain or checkpoint safely, and return to zero active processes afterward.

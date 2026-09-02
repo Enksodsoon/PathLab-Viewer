@@ -1,0 +1,3 @@
+# Admit large uploads only through Imaging reservations
+
+Large-byte ingest will occur only during a scheduled Imaging Mode Reservation, with tusd started during prewarm and stopped after drain. The Resident Control Plane issues an Upload Reservation only after validating declared size, format-expansion evidence, conversion workspace, authoritative-storage headroom, and backup health; an interrupted upload pauses without becoming an accepted Source Asset, resumes in a later Imaging window under the same idempotent identity, and expires after seven inactive days, while buffering upload bodies in `pathlab-control` is prohibited.

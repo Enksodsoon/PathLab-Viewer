@@ -1,0 +1,3 @@
+# Remove exact clinical dates in v1
+
+The v1 Clinical Shadow policy removes every original source date and time and preserves no shifted or longitudinal temporal relationship. Its frozen PS3.15 actions remove `X` elements, zero `Z` elements only when the IOD permits, and use deterministic VR-valid dummies for `D` or required `Z/D` elements; ANN Content Date and Time are `19000101` and `000000.000000`, with Longitudinal Temporal Information Modified set to `REMOVED`, while real operational times remain only in the signed PathLab-native manifest. Purpose-scoped temporal shifting requires a later explicit profile and independent qualification.

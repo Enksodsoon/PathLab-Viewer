@@ -1,0 +1,3 @@
+# Cut SQLite over once without dual write
+
+Existing production data will move through a deterministic, twice-rehearsed offline migration under a maintenance write freeze, verified backups, immutable export and identifier manifests, context-database imports, count and hash reconciliation, and representative synthetic workflows. The untouched SQLite snapshot may resume authority only before the first PostgreSQL write; that commit permanently closes rollback to SQLite, after which recovery proceeds forward from PostgreSQL, outboxes, and backup evidence so indefinite dual write and split-brain are prohibited.

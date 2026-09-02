@@ -1,0 +1,3 @@
+# Package contexts by runtime lifecycle
+
+Zero-Cash Production will package PathLab code into a resident `pathlab-control` cell, dedicated `pathlab-live` and `pathlab-assessment` cells, a single-mode `pathlab-batch` cell for conversion, EQA, Clinical and integration work, Edge synchronization, and import/export, plus an isolated `pathlab-research-runner`. Caddy, PostgreSQL, PgBouncer, JetStream, Galene, tusd, and approved format tools remain independently supervised upstream executables; shared packaging grants no cross-context database access, and funded deployments may split a cell without changing its contracts.

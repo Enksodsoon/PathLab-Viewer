@@ -1,0 +1,3 @@
+# Use operator-unlocked envelope key management
+
+Zero-Cash Production will keep root recovery material offline under a two-of-three operator quorum and will not run a resident vault or depend on a paid KMS. After each host boot, an authorized operator unlocks a versioned encrypted Credential Bundle into root-controlled volatile storage, from which the service manager injects least-privilege credentials; data-encryption, token-signing, manifest-signing, and audit-integrity keys have separate Key Versions, rotation and restoration are tested, and plaintext keys or credentials are prohibited from repositories, environment files, databases, images, logs, and backups.

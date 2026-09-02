@@ -1,5 +1,7 @@
 # PathLab Viewer Project Guide
 
+This guide describes the current implemented product boundary. The ratified future Full-Surface destination is tracked independently in [Final Production Endpoint](architecture/FINAL_PRODUCTION_ENDPOINT.md), the [Feature Completion Matrix](architecture/FEATURE_COMPLETION_MATRIX.md), and the [Delivery State Ledger](architecture/DELIVERY_STATE_LEDGER.md); those plans do not expand a current capability or production claim until its implementation and exact-release qualification are complete.
+
 ## Product overview
 
 PathLab Viewer is a private-first web application for whole-slide image review and teaching. One authenticated administrator uploads an OME-TIFF file, the server validates and converts it into browser-friendly Deep Zoom tiles, and the administrator can publish an unlisted read-only link. Original slide files remain private.

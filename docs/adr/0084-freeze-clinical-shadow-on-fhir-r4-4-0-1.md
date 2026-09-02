@@ -1,0 +1,3 @@
+# Freeze Clinical Shadow on FHIR R4 4.0.1
+
+Clinical Shadow v1 will accept only strictly profiled FHIR R4 4.0.1 JSON after the upstream CapabilityStatement declares that exact version, wire negotiation declares `fhirVersion=4.0`, and every resource independently passes the executable PathLab profile package; a capability declaration alone is not acceptance evidence. The Integration Gateway permits only bounded metadata, read, and search GET operations; R4B, R5, ambiguous versions, write methods, batch/transaction, history, bulk export, subscriptions, and silent conversion are rejected, and the local read-only projection never becomes a general FHIR server or Clinical Writeback path.

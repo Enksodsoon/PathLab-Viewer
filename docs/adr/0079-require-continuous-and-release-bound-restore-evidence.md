@@ -1,0 +1,3 @@
+# Require continuous and release-bound restore evidence
+
+Audit and Operations will verify every WAL and object-manifest acknowledgement daily, perform a random-timestamp PostgreSQL PITR weekly, verify sampled authoritative object bytes monthly, and complete an offline-kit, Root Recovery Quorum, replacement-host cold Restore Drill for every release and at least quarterly. Each drill reconciles every context database, transactional outbox, Audit Integrity Chain, object hash, deletion obligation, and rebuilt derivative, records measured recovery time without claiming a fixed RTO, and blocks readiness when the Restore Evidence Window expires.

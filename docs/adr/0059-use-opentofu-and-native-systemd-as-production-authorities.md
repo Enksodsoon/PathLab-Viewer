@@ -1,0 +1,3 @@
+# Use OpenTofu and native systemd as production authorities
+
+Zero-Cash Production will use OpenTofu 1.12.6 with OCI provider 8.29.0 from a signed offline filesystem mirror and will run signed native ARM64 release bundles under distribution-pinned systemd on an immutable Oracle Linux 9 image. Systemd alone owns credentials, cgroups, service lifecycle, Mode Reservations, timers, and restart limits; Podman and Quadlet remain a separately qualified fallback, Docker Engine and Compose are development-only, and no hosted registry, CI, state service, or infrastructure control plane is required for build, deploy, restore, or activation.

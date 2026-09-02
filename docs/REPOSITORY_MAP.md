@@ -43,6 +43,16 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 - [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): input validation, processing, publication, and privacy architecture.
 - [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md): folder, collection, saved-view, Trash, search, pagination, thumbnail, and grant contracts.
 - [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): administrator credential lifecycle and abuse controls.
+- [`architecture/FINAL_PRODUCTION_ENDPOINT.md`](architecture/FINAL_PRODUCTION_ENDPOINT.md): ratified Full-Surface architecture, service topology, scale path and phase gates.
+- [`architecture/FEATURE_COMPLETION_MATRIX.md`](architecture/FEATURE_COMPLETION_MATRIX.md): current-source versus target capability inventory and remaining work.
+- [`architecture/PRODUCTION_QUALIFICATION.md`](architecture/PRODUCTION_QUALIFICATION.md): exact-release launch campaigns, evidence and decision rules.
+- [`architecture/DELIVERY_STATE_LEDGER.md`](architecture/DELIVERY_STATE_LEDGER.md): canonical plan-through-activation states and receipt schema.
+- [`architecture/RECEIPT_SCHEMA_REGISTRY.md`](architecture/RECEIPT_SCHEMA_REGISTRY.md): versioned receipt/result schemas, source ownership, dispositions and ledger effects.
+- [`architecture/ROLE_APPROVAL_MATRIX.md`](architecture/ROLE_APPROVAL_MATRIX.md): exact capabilities, role grants, approval pairs, separation and step-up rules.
+- [`architecture/EDGE_NODE_PROFILE.md`](architecture/EDGE_NODE_PROFILE.md): bounded disconnected acquisition appliance and zero-cash qualification profile.
+- [`architecture/GOLDEN_INSTITUTION_JOURNEY.md`](architecture/GOLDEN_INSTITUTION_JOURNEY.md): executable end-to-end actor, fixture, fault, receipt and cleanup manifest.
+- [`../CONTEXT-MAP.md`](../CONTEXT-MAP.md): the fourteen bounded contexts, canonical language and authority relationships.
+- [Wayfinder: Ratify the zero-cash Full-Surface production endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/187): canonical navigable decision map and execution-backlog handoff.
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md): branch, testing, review, documentation, and privacy standards.
 - [`evidence/QA.md`](evidence/QA.md): current verification results and unresolved evidence gates.
 - [`../deploy/README.md`](../deploy/README.md): deployment, update, password recovery, backup, and restore operations.

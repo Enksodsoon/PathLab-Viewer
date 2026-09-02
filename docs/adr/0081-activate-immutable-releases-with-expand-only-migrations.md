@@ -1,0 +1,3 @@
+# Activate immutable releases with expand-only migrations
+
+A release installs under its immutable hash, verifies its signed Offline Release Kit, requires fresh backup and restore evidence, applies only backward-compatible expand migrations, and starts on isolated loopback ports for dependency and synthetic checks. During a maintenance Mode Reservation the runtime atomically switches the release link and Caddy upstream, observes gates for 30 minutes, and rolls application binaries back on failure; destructive or contract migrations wait for a later qualified release so rollback never depends on reversing data loss.

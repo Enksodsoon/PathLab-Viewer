@@ -1,0 +1,3 @@
+# Block launch on the supported client and accessibility matrix
+
+The Supported Client Matrix will cover the current and previous major Chrome, Edge, Firefox, and Safari releases on desktop plus current and previous iOS Safari and Android Chrome, with physical low-memory phone, tablet, ordinary laptop, and desktop evidence. Every production workflow must pass the WCAG 2.2 AA Accessibility Gate for keyboard-only use, representative screen readers, 200-percent zoom and reflow, contrast and forced-colors behavior, visible focus, and reduced motion; accelerated Teacher AI may declare a narrower device capability, but Deterministic Authoring Templates must pass the complete matrix.

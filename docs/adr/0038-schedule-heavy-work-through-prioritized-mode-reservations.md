@@ -1,0 +1,3 @@
+# Schedule heavy work through prioritized Mode Reservations
+
+Heavy workloads will execute only through durable Mode Reservations ordered by incident or restore safety, timed Assessment, Live Learning and Teacher Broadcast, EQA deadline windows, Clinical and integration work, Imaging conversion and bulk Edge synchronization, then Research and export. Lower-priority work checkpoints before a higher reservation, unscheduled work queues under bounded admission, and an active learner-facing reservation cannot be automatically preempted except by a Safety Shutdown whose cause and recovery are audited.

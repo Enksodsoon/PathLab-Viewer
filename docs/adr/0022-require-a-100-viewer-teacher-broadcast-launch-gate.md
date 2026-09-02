@@ -1,0 +1,3 @@
+# Require a 100-viewer Teacher Broadcast launch gate
+
+Zero-Cash Production will not claim Teacher Broadcast readiness until one teacher can publish client-encoded audio and 540p video capped near 600 kbps to 100 simultaneous receive-only viewers for 60 minutes on the declared host. The campaign must run with the resident control plane, preserve all Durable Interactions, demonstrate Media Fallback under saturation and process failure, and avoid server transcoding, recording, restart, or out-of-memory termination; the other participants in a 1,200-seat Class Session remain on synchronized slides and text rather than expanding the media claim.
