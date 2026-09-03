@@ -1,5 +1,11 @@
 # Adaptive viewer and 300-user capacity contract
 
+> **Precedence status: `BASELINE_ONLY`.** This is a legacy capacity-measurement
+> baseline, not a production capacity promise or destination authority. The
+> [Architecture Precedence Register](./ARCHITECTURE_PRECEDENCE.md),
+> [Final Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md), and
+> [Production Qualification](./PRODUCTION_QUALIFICATION.md) control conflicts.
+
 ## Outcome
 
 The viewer is designed to remain useful on a 2 OCPU, 12 GB OCI host while up to

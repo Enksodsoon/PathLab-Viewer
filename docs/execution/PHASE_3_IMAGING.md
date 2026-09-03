@@ -18,7 +18,7 @@ Phase 3 preserves every current Viewer, Library, upload, DZI, sharing, annotatio
 - **Outcome:** Produce one deterministic source-to-context map for every existing SQLite table/row/identifier and filesystem object, including Imaging, Trust, Study/Catalog, Classroom/Live, Desktop/Edge and private result data.
 - **Depends on:** `P3-T01` `MERGED`.
 - **External prerequisites:** label=EP-P3-SOURCE-01; kind=DATA_OR_CORPUS; requires=AVAILABLE; accountable=Source custodian; validity=exact SQLite bytes object roots and custody remain unchanged through P3-T02 closure; evidence=SignedSourceSnapshotReceipt.
-- **Read first:** [SQLite-to-PostgreSQL](../architecture/SQLITE_TO_POSTGRESQL.md), [PostgreSQL Migration](../architecture/POSTGRES_MIGRATION.md), migrations `0001` onward, P4 plan.
+- **Read first:** [SQLite-to-PostgreSQL](../architecture/SQLITE_TO_POSTGRESQL.md), the migration-input-only [PostgreSQL Migration](../architecture/POSTGRES_MIGRATION.md), migrations `0001` onward, and the P4 plan; SQLite to PostgreSQL and accepted ADRs control conflicts.
 - **Change surface:** read-only inventory/mapping tooling, signed fixture manifests and tests.
 - **Implement:** counts, null/enums/timestamps, keys/relationships, privacy/retention class, destination owner, orphan/missing/symlink/corrupt classification and stable hashes.
 - **Prove:** repeated-run equality and 100% table/column/object coverage.
@@ -29,7 +29,7 @@ Phase 3 preserves every current Viewer, Library, upload, DZI, sharing, annotatio
 
 - **Outcome:** Deterministically map originals, DZI derivatives, thumbnails, public aliases, annotation exports and Private Result Artifacts to immutable manifests, hashes, provenance and authoritative/rebuildable classifications.
 - **Depends on:** `P3-T01`, `P3-T02`, `P1-T08` `MERGED`.
-- **Read first:** Imaging context, [Rebuildable Tile Cache](../architecture/REBUILDABLE_TILE_CACHE.md), current storage/publication/delivery code.
+- **Read first:** Imaging context, the migration-input-only [Rebuildable Tile Cache](../architecture/REBUILDABLE_TILE_CACHE.md), and current storage/publication/delivery code; the Imaging Control context and accepted ADRs control conflicts.
 - **Change surface:** Imaging manifest/reconciler, current storage/delivery/worker/Desktop finalizer adapters and tests.
 - **Implement:** alias/reference reconciliation, duplicate content identity, missing/orphan reporting and rebuild recipe identity without pixel decode during inventory.
 - **Prove:** repeated identity, corruption/path/symlink/missing/orphan/duplicate fixtures and exact manifest roots.
@@ -51,7 +51,7 @@ Phase 3 preserves every current Viewer, Library, upload, DZI, sharing, annotatio
 
 - **Outcome:** Run tus receipt plus the existing bounded TIFF/BigTIFF/OME validation contract inside the Imaging reservation with content offsets/hashes, restart and terminal rejection/expiry.
 - **Depends on:** `P3-T04` `MERGED`.
-- **Read first:** [OME-TIFF Pipeline](../architecture/OME_TIFF_PIPELINE.md), current upload/OME/prepared-ingest code and Upload Receipt schema.
+- **Read first:** the migration-input-only [OME-TIFF Pipeline](../architecture/OME_TIFF_PIPELINE.md), current upload/OME/prepared-ingest code, and Upload Receipt schema; the Imaging Control context and accepted ADRs control conflicts.
 - **Change surface:** upload API/tusd integration, OME validators, worker/frontend transport and focused tests.
 - **Implement:** no user paths, size/expansion/dimension/compression/metadata limits, safe ICC/color handling and privacy/rejection staging.
 - **Prove:** disconnect at multiple offsets, process restart, malformed offset, truncation, corrupt TIFF, bomb, traversal, disk/inode pressure and cleanup.
@@ -95,7 +95,7 @@ Phase 3 preserves every current Viewer, Library, upload, DZI, sharing, annotatio
 
 - **Outcome:** Search, facets, bounded cursors, source/privacy/storage metadata and authorized Library reads use Imaging repositories without filesystem walks or cross-context queries.
 - **Depends on:** `P3-T03`, `P3-T08` `MERGED`.
-- **Read first:** [Library Domain](../architecture/LIBRARY_DOMAIN.md), current library backend/UI/tests.
+- **Read first:** the migration-input-only [Library Domain](../architecture/LIBRARY_DOMAIN.md) and current library backend/UI/tests; the Imaging Control context and accepted ADRs control conflicts.
 - **Change surface:** Imaging Library schema/repository/API and web data adapters.
 - **Implement:** deterministic stable cursors, query limits, Institution/purpose filters, exact route compatibility and no WSI decode for browsing.
 - **Prove:** maximum fixture, Unicode/search/facet/cursor consistency, concurrent changes, wrong Institution and bounded query/resource behavior.
@@ -150,7 +150,7 @@ Phase 3 preserves every current Viewer, Library, upload, DZI, sharing, annotatio
 
 - **Outcome:** Owner-private drafts with one expiring editor lease and optimistic predecessors produce immutable audience/purpose-restricted Annotation Layer Versions.
 - **Depends on:** `P2-T04`, `P3-T08` `MERGED`.
-- **Read first:** Imaging context, [Private Administrator Annotations](../architecture/ADMIN_ANNOTATIONS.md), ADRs 0076 and 0111.
+- **Read first:** Imaging context, baseline-only [Private Administrator Annotations](../architecture/ADMIN_ANNOTATIONS.md), and ADRs 0076 and 0111; the Imaging Control context and accepted ADRs control conflicts.
 - **Change surface:** annotation backend/routes, `apps/web/src/annotations/`, migrations/interchange and tests.
 - **Implement:** 25,000-object/50-MB/100-layer bounds, geometry/calibration/version validation, recovery drafts, retention/deletion, GeoJSON/QuPath quarantine and restricted consumption.
 - **Prove:** lease conflict/expiry, restart/restore, malicious/out-of-bounds/self-intersecting geometry, uncalibrated measurement, limits, browser memory and authorization.

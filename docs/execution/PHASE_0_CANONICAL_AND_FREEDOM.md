@@ -117,7 +117,7 @@ Phase 0 makes the accepted destination reviewable on `main` and removes every kn
 
 - **Outcome:** Remove or replace the unresolved histology imagery and any visual identity that copies or implies affiliation with another product, then record all replacements in the Asset Rights Ledger.
 - **Depends on:** `P0-T05` `MERGED`.
-- **Read first:** ADR 0048, the Asset Rights Ledger, `apps/web/DESIGN.md`, `apps/web/PRODUCT.md`, brand and asset source files.
+- **Read first:** ADR 0048, the Asset Rights Ledger, baseline-only `apps/web/DESIGN.md`, `apps/web/PRODUCT.md`, brand and asset source files; the Architecture Precedence Register and rights contracts control conflicts.
 - **Change surface:** web assets/styles/components, screenshots/docs, visual regression and responsive tests, ledger entries.
 - **Implement:** establish an Independent PathLab Identity; preserve accessibility, theme behavior, route function and performance budgets; do not redesign unrelated workflows.
 - **Prove:** rights scan, hash reconciliation, light/dark and supported viewport visual checks, accessibility checks, full web build/test, and removal of superseded files from release output.

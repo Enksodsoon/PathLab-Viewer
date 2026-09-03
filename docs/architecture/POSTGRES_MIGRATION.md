@@ -1,6 +1,12 @@
 # SQLite to PostgreSQL migration contract
 
-> **Status: legacy single-database migration implementation input only.** This document records a pre-ratification staging command and HMAC manifest; it is not the current production authority-cutover or per-context migration contract. [Final Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md), [SQLite to PostgreSQL](./SQLITE_TO_POSTGRESQL.md), accepted ADRs [0034](../adr/0034-use-one-postgresql-cluster-with-context-owned-namespaces.md), [0035](../adr/0035-use-one-logical-database-per-bounded-context.md), [0036](../adr/0036-cap-postgresql-at-48-backends.md), and [0082](../adr/0082-cut-sqlite-over-once-without-dual-write.md), and the current [Phase 1 migration/cutover cards](../execution/PHASE_1_RESIDENT_FOUNDATION.md) control all conflicts. The single-target-database assumptions, HMAC-only evidence, `PATHLAB_SECRET_KEY`, and “Program 0B” wording below do not authorize or define the ratified production cutover.
+> **Precedence status: `MIGRATION_INPUT_ONLY`.** This document records a
+> pre-ratification staging command and HMAC manifest; it is not the current
+> production authority-cutover or per-context migration contract. The
+> [Architecture Precedence Register](./ARCHITECTURE_PRECEDENCE.md), [Final
+> Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md), [SQLite to
+> PostgreSQL](./SQLITE_TO_POSTGRESQL.md), accepted ADRs 0034, 0035, 0036, and
+> 0082, and current Phase 1 execution cards control all conflicts.
 
 This command is a one-way staging migration. It does not modify or delete the
 SQLite source and it is not a production migration certificate.

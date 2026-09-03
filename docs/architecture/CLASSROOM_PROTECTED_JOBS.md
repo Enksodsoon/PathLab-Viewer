@@ -1,5 +1,12 @@
 # Classroom-protected background jobs
 
+> **Precedence status: `BASELINE_ONLY`.** This default-off runtime guard records
+> current implementation behavior only. The [Architecture Precedence
+> Register](./ARCHITECTURE_PRECEDENCE.md), [Live Learning
+> context](../contexts/live-learning/CONTEXT.md), and [Zero-Cash
+> Runtime](./ZERO_CASH_RUNTIME.md) control destination scheduling, isolation,
+> capacity, and activation conflicts.
+
 This contract is disabled by default through
 `PATHLAB_CLASSROOM_PROTECTION_ENABLED=false`. It does not change the deployed
 Classroom until separately activated and verified.

@@ -40,9 +40,10 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 
 - [`../README.md`](../README.md): project overview, supported contract, setup, and verification commands.
 - [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md): product scope, architecture, lifecycle, and operational boundaries.
-- [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): input validation, processing, publication, and privacy architecture.
-- [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md): folder, collection, saved-view, Trash, search, pagination, thumbnail, and grant contracts.
-- [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): administrator credential lifecycle and abuse controls.
+- [`architecture/ARCHITECTURE_PRECEDENCE.md`](architecture/ARCHITECTURE_PRECEDENCE.md): complete architecture inventory, authority ranking, legacy dispositions, and conflict controllers.
+- [`architecture/OME_TIFF_PIPELINE.md`](architecture/OME_TIFF_PIPELINE.md): migration-input-only current validation and processing contract; the Imaging Control context and accepted ADRs control conflicts.
+- [`architecture/LIBRARY_DOMAIN.md`](architecture/LIBRARY_DOMAIN.md): migration-input-only current library contract; the Imaging Control context and accepted ADRs control conflicts.
+- [`architecture/PASSWORD_RECOVERY.md`](architecture/PASSWORD_RECOVERY.md): legacy migration input; the Trust Governance context and accepted ADRs control conflicts.
 - [`architecture/FINAL_PRODUCTION_ENDPOINT.md`](architecture/FINAL_PRODUCTION_ENDPOINT.md): ratified Full-Surface architecture, service topology, scale path and phase gates.
 - [`architecture/FEATURE_COMPLETION_MATRIX.md`](architecture/FEATURE_COMPLETION_MATRIX.md): current-source versus target capability inventory and remaining work.
 - [`architecture/PRODUCTION_QUALIFICATION.md`](architecture/PRODUCTION_QUALIFICATION.md): exact-release launch campaigns, evidence and decision rules.
@@ -61,6 +62,7 @@ Use this guide to locate the code, documentation, tests, and operational assets 
 
 | Purpose | Command |
 |---|---|
+| Architecture precedence | `python scripts/validate_architecture_precedence.py` |
 | Backend tests | `pytest tests/backend` |
 | Python lint | `ruff check server tests migrations` |
 | Python type checking | `mypy server/wsi_viewer` |

@@ -2,7 +2,7 @@
 
 This is the ratified destination for PathLab Full-Surface Launch. It is a plan and acceptance contract, not evidence that the current source, deployment, or OCI host has reached the destination. Planning, implementation, local checks, protected checks, merge, deployment, pilot, qualification, and activation remain separate states under the [Delivery State Ledger](./DELIVERY_STATE_LEDGER.md). The dependency-ordered, one-chat work packages are maintained in the [Full-Surface Execution Playbook](../execution/README.md).
 
-The complete accepted decision history is indexed in the [Production Endpoint Decision Register](../adr/README.md), and the navigable closure is [Wayfinder: Ratify the zero-cash Full-Surface production endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/187).
+The complete accepted decision history is indexed in the [Production Endpoint Decision Register](../adr/README.md). The [Architecture Precedence Register](./ARCHITECTURE_PRECEDENCE.md) classifies current and historical planning documents and routes every conflict back to its controller. The navigable closure is [Wayfinder: Ratify the zero-cash Full-Surface production endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/187).
 
 ## Destination
 

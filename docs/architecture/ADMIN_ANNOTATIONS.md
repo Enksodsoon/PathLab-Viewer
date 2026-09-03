@@ -1,5 +1,11 @@
 # Private Administrator Annotations
 
+> **Precedence status: `BASELINE_ONLY`.** This document describes the current
+> private, default-off implementation. The [Architecture Precedence
+> Register](./ARCHITECTURE_PRECEDENCE.md), [Imaging Control
+> context](../contexts/imaging-control/CONTEXT.md), and accepted ADRs control
+> target annotation, sharing, role, and activation semantics.
+
 ## Boundary and failure model
 
 PathLab annotations are a private, admin-only review aid. They are not a

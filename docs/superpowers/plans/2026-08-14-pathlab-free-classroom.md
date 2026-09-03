@@ -1,5 +1,13 @@
 # PathLab Viewer Free-Tier 1,200-Seat Stability Implementation Plan
 
+> **Precedence status: `SUPERSEDED`.** This historical implementation plan
+> creates no current requirement. The [Architecture Precedence
+> Register](../../architecture/ARCHITECTURE_PRECEDENCE.md), [Final Production
+> Endpoint](../../architecture/FINAL_PRODUCTION_ENDPOINT.md), [Zero-Cash
+> Runtime](../../architecture/ZERO_CASH_RUNTIME.md), and [Production
+> Qualification](../../architecture/PRODUCTION_QUALIFICATION.md) control all
+> conflicts.
+
 ## Context
 
 Implement the approved design in `docs/superpowers/specs/2026-08-14-pathlab-free-classroom-design.md` from exact `origin/main` SHA `16cc3b84f6a17564bf2c8c544d7ca0bb32be9e0c`. Preserve the dirty root checkout. Capacity and production claims are fail-closed.

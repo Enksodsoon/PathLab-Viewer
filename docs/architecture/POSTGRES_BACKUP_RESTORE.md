@@ -1,5 +1,12 @@
 # PostgreSQL backup and restore evidence
 
+> **Precedence status: `MIGRATION_INPUT_ONLY`.** This Program 0B `pg_dump` and
+> HMAC bundle is retained for migration rehearsal; it is not production backup,
+> restore, or rollback authority. The [Architecture Precedence
+> Register](./ARCHITECTURE_PRECEDENCE.md), [Zero-Cash Durability and
+> Security](./ZERO_CASH_DURABILITY_SECURITY.md), and [SQLite to
+> PostgreSQL](./SQLITE_TO_POSTGRESQL.md) control conflicts.
+
 This is a Program 0B staging mechanism. It is not active in the current SQLite
 deployment and does not constitute production certification.
 

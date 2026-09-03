@@ -54,6 +54,7 @@ jobs:
           fi
       - run: pip install -e .[dev]
       - run: python scripts/validate_capability_registry.py
+      - run: python scripts/validate_architecture_precedence.py
       - run: ruff check server tests migrations
       - run: mypy server/wsi_viewer
       - run: pytest --cov=wsi_viewer --cov-report=term-missing

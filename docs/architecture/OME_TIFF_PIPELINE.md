@@ -1,5 +1,12 @@
 # OME-TIFF Processing Architecture
 
+> **Precedence status: `MIGRATION_INPUT_ONLY`.** This durable current-source
+> processing contract remains an implementation and migration input. The
+> [Architecture Precedence Register](./ARCHITECTURE_PRECEDENCE.md), [Imaging
+> Control context](../contexts/imaging-control/CONTEXT.md), and [Clinical Imaging
+> Interoperability](./CLINICAL_IMAGING_INTEROPERABILITY.md) control destination
+> format, authority, publication, and activation conflicts.
+
 ## Purpose
 
 PathLab Viewer accepts a constrained OME-TIFF input, keeps the original file private, and produces a sanitized Deep Zoom derivative for browser viewing. This document records the durable system contract rather than an implementation checklist.

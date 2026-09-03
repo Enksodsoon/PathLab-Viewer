@@ -1,5 +1,12 @@
 # PathLab Viewer Canvas Focus design record
 
+> **Precedence status: `BASELINE_ONLY`.** This document controls the current UI
+> implementation only. The [Architecture Precedence
+> Register](../../docs/architecture/ARCHITECTURE_PRECEDENCE.md), [Governed
+> Product Workflows](../../docs/architecture/GOVERNED_PRODUCT_WORKFLOWS.md), and
+> applicable accessibility, rights, and release contracts control destination
+> changes.
+
 PathLab Viewer uses a warm, light-dominant clinical canvas inspired by the
 supplied editorial reference. It is a PathLab design system, not a copy of the
 reference product or brand.
