@@ -2,7 +2,7 @@
 
 > **NON-EFFECTIVE DRAFT — DOES NOT SATISFY P0-T02.** This file is preparation
 > material only. It is not a copyright representation, license grant,
-> relicensing approval, or signed receipt. Every `PENDING_HUMAN_EDIT` value must
+> relicensing approval, or signed receipt. Every `PENDING_` value must
 > be replaced by the accountable rights holder, the final artifact must be
 > reviewed as a whole, and its signature and SHA-256 must be verified before the
 > disposition may be recorded as `APPROVED`.
@@ -25,9 +25,9 @@ depend on a legal conclusion:
 
 ## Prepared receipt
 
-The invalid placeholder disposition prevents accidental use before human
-completion. Replace it with exactly `APPROVED`, `REJECTED`, or `PARTIAL` only
-after making the corresponding decision.
+The substantive payload below records the accountable person's supplied
+`APPROVED` intent but remains non-effective until that person reviews it and
+creates the final authenticated GitHub web commit described below.
 
 ```yaml
 schema: pathlab.relicensing-disposition/1
@@ -88,10 +88,12 @@ representations:
   authority_to_grant_proposed_license: true
   third_party_works_not_relicensed: true
   generated_material_terms_reviewed: true
-signature_method: PENDING_HUMAN_EDIT_NO_SIGNING_KEY_CONFIGURED
-signature_identity: PENDING_HUMAN_EDIT_NO_VERIFIABLE_SIGNING_IDENTITY_CONFIGURED
-signature: PENDING_HUMAN_EDIT_NO_SIGNATURE_AVAILABLE
-artifact_sha256: PENDING_AFTER_FINAL_CONTENT_AND_SIGNATURE
+human_confirmation: PENDING_HUMAN_WEB_CONFIRMATION
+signature_method: github-web-flow-signed-commit
+signature_identity: "github:Enksodsoon (authenticated platform identity)"
+signature: PENDING_HUMAN_WEB_COMMIT
+artifact_hash_scope: "SHA-256 of canonical JSON for fields schema through representations, YAML scalar strings, UTF-8, sorted keys, compact separators"
+artifact_sha256: a079277066576dfa07740e3e757f6d08094ec568e2b55b418efd479e934fcd05
 ```
 
 ## Required human edits
@@ -101,10 +103,18 @@ Only the accountable rights holder can supply or decide these items:
 The accountable signer supplied the legal name, intended disposition, authority
 representations, generated-material disposition, absence of competing claims,
 and decision timestamp. Repository evidence supplied the deterministic ledger
-scope above. The remaining human action is to review the complete wording and
-scope, then provide a verifiable signing identity/method and signature. Compute
-the final artifact SHA-256 only after the signed content is immutable.
+scope and canonical payload hash. The remaining human action is to review the
+complete wording and scope in GitHub's authenticated editor, replace exactly:
 
-Until all seven items are complete and independently verifiable, the observed
+```yaml
+human_confirmation: I_HAVE_REVIEWED_AND_APPROVE_THIS_DISPOSITION
+signature: embedded-github-web-flow-commit-signature
+```
+
+and click **Commit changes**. Do not edit any other payload field without first
+recomputing `artifact_sha256`. GitHub must display the resulting commit as
+`Verified`; otherwise the receipt remains unavailable.
+
+Until that authenticated human commit is complete and independently verifiable, the observed
 external-prerequisite disposition remains `UNAVAILABLE`; P0-T02 and its
 downstream tasks must remain blocked.
