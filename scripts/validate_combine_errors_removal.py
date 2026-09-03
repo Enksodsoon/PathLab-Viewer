@@ -15,6 +15,7 @@ DEFAULT_LOCK = ROOT / "pnpm-lock.yaml"
 DEFAULT_WORKSPACE = ROOT / "pnpm-workspace.yaml"
 DEFAULT_INVENTORY = ROOT / "docs" / "supply-chain" / "dependency-inventory.json"
 DEFAULT_PATCH = ROOT / "patches" / "tus-js-client-4.3.1.patch"
+DEFAULT_WEB_DOCKERFILE = ROOT / "deploy" / "Dockerfile.web"
 FORBIDDEN_ID = "npm:combine-errors@3.0.3"
 PATCHED_PACKAGE = "tus-js-client@4.3.1"
 
@@ -28,6 +29,7 @@ def validate(
     workspace_path: Path = DEFAULT_WORKSPACE,
     inventory_path: Path = DEFAULT_INVENTORY,
     patch_path: Path = DEFAULT_PATCH,
+    web_dockerfile_path: Path = DEFAULT_WEB_DOCKERFILE,
 ) -> dict[str, Any]:
     lock_text = lock_path.read_text(encoding="utf-8")
     if "combine-errors" in lock_text:
@@ -59,6 +61,12 @@ def validate(
     ids = {record["id"] for record in inventory.get("records", [])}
     if FORBIDDEN_ID in ids:
         fail("combine-errors remains in the dependency inventory")
+
+    dockerfile = web_dockerfile_path.read_text(encoding="utf-8")
+    if "COPY patches ./patches" not in dockerfile:
+        fail("the web image does not copy the content-addressed patch")
+    if ".pnpmfile.cjs" not in dockerfile:
+        fail("the web image does not copy the dependency-resolution hook")
     return inventory
 
 

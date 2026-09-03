@@ -17,6 +17,8 @@ The package-manager hook removes the dependency before resolution; the lock bind
 checksum and exact patch SHA-256. No mutable fork, prerelease upgrade, hosted service, or new
 runtime package is introduced. The upstream MIT license and existing tus source/notice evidence
 continue to govern the patched distribution, and this document records the local modification.
+The web image build copies the resolution hook and content-addressed patch into its existing build
+stage before the frozen install; this changes build inputs only, not the produced runtime topology.
 
 ## Validation
 
@@ -28,11 +30,13 @@ python -m pytest -q tests/backend/test_combine_errors_removal.py
 pnpm lint
 pnpm test
 pnpm build
+docker buildx build --platform linux/arm64 -f deploy/Dockerfile.web .
 ```
 
-The validator rejects a reintroduced resolution, inventory record, unbound patch, or changed
-patch bytes. The Node characterization check covers the patched two-error and original-error
-branches. Existing web tests cover the browser upload transport.
+The validator rejects a reintroduced resolution, inventory record, unbound patch, changed patch
+bytes, or a web image definition that omits the hook or patch input. The Node characterization
+check covers the patched two-error and original-error branches. Existing web tests cover the
+browser upload transport.
 
 ## Boundaries and rollback
 
