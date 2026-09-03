@@ -4,7 +4,7 @@
 
 `P0-T03` completed its original inventory audit with a `NEGATIVE` result because it found
 unresolved mandatory inputs. P0-T04 refreshed the current inventory against implementation commit
-`f7c62e2ee2643c69527eac773c608c6b3f0aee72` after removing the unresolved `combine-errors`
+`58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89` after removing the unresolved `combine-errors`
 path. The remaining blocked inputs continue to block their Phase 0 admission; neither task changes
 ratified architecture or authorizes deployment, qualification, or activation work.
 
@@ -69,13 +69,13 @@ patched tus snapshot and patch digest.
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject f7c62e2ee2643c69527eac773c608c6b3f0aee72
+python scripts/generate_dependency_inventory.py --subject 58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject f7c62e2ee2643c69527eac773c608c6b3f0aee72
+python scripts/validate_dependency_inventory.py --subject 58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89
 python scripts/validate_combine_errors_removal.py
 python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```
