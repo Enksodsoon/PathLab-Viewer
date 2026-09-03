@@ -8,6 +8,18 @@
     ".tiff", ".ttf", ".wav", ".webm", ".webp", ".woff", ".woff2", ".xd"
   ],
   "ignoredDirectories": [".git", ".pnpm", "dist", "node_modules", "__pycache__"],
+  "retiredAssets": [
+    {"locator": "apps/web/src/assets/auth-histology-solace-dark.webp", "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744"},
+    {"locator": "apps/web/src/assets/auth-histology-solace-light.webp", "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960"},
+    {"locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx", "contentSha256": "f3b57924fa000ab5bc5a4b4276eae4d7687a67509f05b389a11978321dca4e6c"},
+    {"locator": "docs/design/admin-concept.png", "contentSha256": "bb3f685fd445dce3de273ccaedadcf762f793a85cb3496fac09d7e384bcb4dc1"},
+    {"locator": "docs/design/viewer-concept.png", "contentSha256": "b9d8f51a4a5d183ddaad7aacd40d3451680fd0453c5eae67dfcf073a8b3e6826"},
+    {"locator": "docs/evidence/admin-desktop.png", "contentSha256": "3451f71366702107fd1bf3436742c1ee44fefce523be510069cc6a9afec3157c"},
+    {"locator": "docs/evidence/admin-mobile.png", "contentSha256": "e28c3826747cdfaf8cb53ee5e33f17987223f263d00cc60a0c6a5db662c45c81"},
+    {"locator": "docs/evidence/viewer-desktop.png", "contentSha256": "5c8684a8cebf22e98cdeddd2f5630a34c36925802dc379c1395b1ebafb370f03"},
+    {"locator": "docs/evidence/viewer-mobile.png", "contentSha256": "6a4e307820cca8669e1932f3d1a748ae25fa6004a33423faa490f62281ca684b"},
+    {"locator": "docs/evidence/viewer-tablet.png", "contentSha256": "22c958f422741a1320c7fccf455d5828cddc081783658eac82c3c8d5873bb15e"}
+  ],
   "archiveExtensions": [".docx"],
   "archiveMemberExtensions": [
     ".avif", ".bmp", ".eot", ".gif", ".ico", ".jpeg", ".jpg", ".mp3",

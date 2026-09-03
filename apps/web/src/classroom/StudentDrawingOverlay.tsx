@@ -1,11 +1,23 @@
 import {
+  ArrowCounterClockwise,
+  Check,
+  Circle,
+  ClockCounterClockwise,
+  Eraser,
+  Highlighter,
+  LineSegment,
+  Palette,
+  PenNib,
+  Rectangle,
+  Trash,
+} from '@phosphor-icons/react'
+import {
   forwardRef,
   type CSSProperties,
   type PointerEvent,
   useCallback,
   useEffect,
   useImperativeHandle,
-  useId,
   useRef,
   useState,
 } from 'react'
@@ -51,46 +63,20 @@ const TOOL_LABELS: Record<DrawingTool, string> = {
 }
 
 function DrawingToolIcon({ tool }: { tool: DrawingTool | 'done' }) {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    {tool === 'pen' ? <><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></> : null}
-    {tool === 'highlight' ? <><path d="m5 15 7-10 5 3-7 10-5-3Z" /><path d="M4 20h15M5 15l5 3" /></> : null}
-    {tool === 'line' ? <><path d="M5 19 19 5" /><circle cx="5" cy="19" r="1" fill="currentColor" /><circle cx="19" cy="5" r="1" fill="currentColor" /></> : null}
-    {tool === 'rectangle' ? <rect x="4.5" y="6" width="15" height="12" rx="1" /> : null}
-    {tool === 'ellipse' ? <ellipse cx="12" cy="12" rx="8" ry="6" /> : null}
-    {tool === 'eraser' ? <><path d="m7 18-3-3 9-10 6 6-7 7H7Z" /><path d="m10 8 6 6M11 18h9" /></> : null}
-    {tool === 'done' ? <path d="m5 12 4 4L19 6" /> : null}
-  </svg>
+  if (tool === 'pen') return <PenNib aria-hidden="true" size={18} />
+  if (tool === 'highlight') return <Highlighter aria-hidden="true" size={18} />
+  if (tool === 'line') return <LineSegment aria-hidden="true" size={18} />
+  if (tool === 'rectangle') return <Rectangle aria-hidden="true" size={18} />
+  if (tool === 'ellipse') return <Circle aria-hidden="true" size={18} />
+  if (tool === 'eraser') return <Eraser aria-hidden="true" size={18} />
+  return <Check aria-hidden="true" size={18} />
 }
 
 function DrawingUtilityIcon({ icon }: { icon: 'palette' | 'undo' | 'clear' | 'history' }) {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    {icon === 'palette' ? <><path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 6-6c0-2.2-4-4-9-4Z" /><circle cx="7.5" cy="10" r=".8" fill="currentColor" /><circle cx="9" cy="6.5" r=".8" fill="currentColor" /><circle cx="14" cy="6" r=".8" fill="currentColor" /><circle cx="17.5" cy="8.5" r=".8" fill="currentColor" /></> : null}
-    {icon === 'undo' ? <><path d="M9 7 4 12l5 5" /><path d="M5 12h8a6 6 0 0 1 6 6" /></> : null}
-    {icon === 'clear' ? <><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13" /><path d="M10 11v5M14 11v5" /></> : null}
-    {icon === 'history' ? <><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6" /><path d="M4 4v4.6h4.6M12 8v5l3 2" /></> : null}
-  </svg>
-}
-
-function normalizedPath(stroke: DrawingStroke): string {
-  const first = stroke.points[0]
-  const last = stroke.points.at(-1)
-  if (!first || !last) return ''
-  const x1 = first.x * 100
-  const y1 = first.y * 100
-  const x2 = last.x * 100
-  const y2 = last.y * 100
-  if (stroke.tool === 'line') return `M${x1} ${y1}L${x2} ${y2}`
-  if (stroke.tool === 'rectangle') return `M${x1} ${y1}H${x2}V${y2}H${x1}Z`
-  if (stroke.tool === 'ellipse') {
-    const cx = (x1 + x2) / 2
-    const cy = (y1 + y2) / 2
-    const rx = Math.abs(x2 - x1) / 2
-    const ry = Math.abs(y2 - y1) / 2
-    return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`
-  }
-  return stroke.points.map((point, index) => (
-    `${index ? 'L' : 'M'}${(point.x * 100).toFixed(3)} ${(point.y * 100).toFixed(3)}`
-  )).join(' ')
+  if (icon === 'palette') return <Palette aria-hidden="true" size={18} />
+  if (icon === 'undo') return <ArrowCounterClockwise aria-hidden="true" size={18} />
+  if (icon === 'clear') return <Trash aria-hidden="true" size={18} />
+  return <ClockCounterClockwise aria-hidden="true" size={18} />
 }
 
 export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
@@ -117,22 +103,12 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const strokes = useRef<DrawingStroke[]>([])
   const currentStroke = useRef<DrawingStroke | null>(null)
-  const renderFrame = useRef<number | null>(null)
-  const maskId = useId().replace(/:/g, '')
   const [tool, setTool] = useState<DrawingTool>('pen')
   const [color, setColor] = useState<string>(COLORS[0])
   const [width, setWidth] = useState<number>(WIDTHS[1])
   const [styleOpen, setStyleOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [revision, setRevision] = useState(0)
-
-  const requestVisibleRender = () => {
-    if (renderFrame.current !== null) return
-    renderFrame.current = window.requestAnimationFrame(() => {
-      renderFrame.current = null
-      setRevision((current) => current + 1)
-    })
-  }
+  const [, setRevision] = useState(0)
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
@@ -258,7 +234,6 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     observer.observe(container)
     return () => {
       observer.disconnect()
-      if (renderFrame.current !== null) window.cancelAnimationFrame(renderFrame.current)
     }
   }, [redraw])
 
@@ -304,7 +279,6 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
     if (stroke.tool === 'line' || stroke.tool === 'rectangle' || stroke.tool === 'ellipse') {
       stroke.points = [stroke.points[0], pointFromEvent(event)]
       redraw()
-      requestVisibleRender()
       return
     }
     const coalesced = event.nativeEvent.getCoalescedEvents?.() ?? []
@@ -339,7 +313,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
           if (accepted === false) return
           strokes.current = strokes.current.filter((item) => item.id !== stroke.id)
           redraw()
-          requestVisibleRender()
+          setRevision((current) => current + 1)
         }).catch(() => undefined)
       }
     } else {
@@ -349,7 +323,7 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
           if (accepted === false) return
           strokes.current = strokes.current.filter((item) => item.id !== stroke.id)
           redraw()
-          requestVisibleRender()
+          setRevision((current) => current + 1)
         }).catch(() => undefined)
       }
     }
@@ -379,38 +353,6 @@ export const StudentDrawingOverlay = forwardRef<StudentDrawingHandle, {
       onPointerUp={end}
       onPointerCancel={end}
     />
-    <svg
-      className="classroom-drawing-visible"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      data-revision={revision}
-      aria-hidden="true"
-    >
-      <defs><mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-        <rect width="100" height="100" fill="white" />
-        {strokes.current.filter((stroke) => stroke.tool === 'eraser').map((stroke) => <path
-          key={stroke.id}
-          d={normalizedPath(stroke)}
-          fill="none"
-          stroke="black"
-          strokeWidth={stroke.width * 5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />)}
-      </mask></defs>
-      <g mask={`url(#${maskId})`}>{strokes.current.filter((stroke) => stroke.tool !== 'eraser').map((stroke) => <path
-        key={stroke.id}
-        d={normalizedPath(stroke)}
-        fill="none"
-        stroke={stroke.color}
-        strokeWidth={stroke.tool === 'highlight' ? stroke.width * 4 : stroke.width}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={stroke.tool === 'highlight' ? 0.42 : 1}
-        vectorEffect="non-scaling-stroke"
-      />)}</g>
-    </svg>
     {active ? <div className="classroom-drawing-tools" role="toolbar" aria-label={toolbarLabel}>
       <div className="classroom-drawing-cluster classroom-drawing-toolset" role="group" aria-label="Drawing tool">
         {(['pen', 'highlight', 'line', 'rectangle', 'ellipse', ...(allowEraser ? ['eraser'] as const : [])] as DrawingTool[]).map((item) => <button

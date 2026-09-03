@@ -190,7 +190,7 @@ it('uses a dedicated near-black navigator surface in dark mode', () => {
   const libraryCss = readFileSync('src/library.css', 'utf8')
   const darkBlock = themeCss.match(/\[data-theme='dark'\]\s*\{([\s\S]*?)\}/)?.[1]
 
-  expect(darkBlock).toContain('--navigator-surface: #141310')
+  expect(darkBlock).toContain('--navigator-surface: #06141d')
   expect(libraryCss).toContain('background: var(--navigator-surface)')
 })
 

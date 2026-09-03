@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,18 +18,21 @@ from scripts.validate_asset_rights_ledger import (
     reconcile_discovered,
     record_map,
     validate,
+    validate_retired_assets,
 )
 
-SUBJECT = "3e08440e12110aad649f8b15b1b50454485c40c8"
+SUBJECT = "355ef0675cd88d8c457e0fc4380ef367fdc8600d"
 
 
-def test_current_asset_set_reconciles_and_remains_release_blocked() -> None:
+def test_current_asset_set_reconciles_with_only_the_separate_agpl_boundary_blocked() -> None:
     ledger = validate()
     assert ledger["subjectCommit"] == SUBJECT
-    assert len(ledger["records"]) == 35
+    assert len(ledger["records"]) == 5
     assert ledger["releaseAdmission"] == "BLOCKED"
-    assert len(ledger["releaseBlockers"]) == 31
-    with pytest.raises(ReleaseBlocked, match="release BLOCKED by 31"):
+    assert ledger["releaseBlockers"] == [
+        "asset:inline-svg:packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1"
+    ]
+    with pytest.raises(ReleaseBlocked, match="release BLOCKED by 1"):
         validate(require_release_admission=True)
 
 
@@ -73,6 +77,26 @@ def test_changed_asset_hash_is_rejected() -> None:
 def test_imported_icon_subset_is_individually_hash_bound() -> None:
     ledger = json.loads(DEFAULT_OUTPUT.read_text())
     icon_set = next(record for record in ledger["records"] if record["kind"] == "package-icon-set")
-    assert len(icon_set["embeddedAssets"]) == 87
-    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 87
+    assert len(icon_set["embeddedAssets"]) == 99
+    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 99
     assert all(len(item["contentSha256"]) == 64 for item in icon_set["embeddedAssets"])
+
+
+def test_retired_asset_cannot_return_by_path_or_content(tmp_path: Path) -> None:
+    policy = {
+        "governedRoots": ["assets"],
+        "ignoredDirectories": [],
+        "retiredAssets": [
+            {"locator": "assets/retired.png", "contentSha256": "a" * 64},
+        ],
+    }
+    retired = tmp_path / "assets" / "retired.png"
+    retired.parent.mkdir(parents=True)
+    retired.write_bytes(b"different")
+    with pytest.raises(ValueError, match="retired asset path returned"):
+        validate_retired_assets(tmp_path, policy)
+
+    retired.rename(tmp_path / "assets" / "renamed.png")
+    policy["retiredAssets"][0]["contentSha256"] = hashlib.sha256(b"different").hexdigest()
+    with pytest.raises(ValueError, match="retired asset content returned"):
+        validate_retired_assets(tmp_path, policy)

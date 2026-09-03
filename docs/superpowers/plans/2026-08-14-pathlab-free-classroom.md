@@ -23,7 +23,7 @@ Implement the approved design in `docs/superpowers/specs/2026-08-14-pathlab-free
 
 ## Task 1: Design artifact and evidence-pipeline repair
 
-- Clone the retained System Design DOCX template into `docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx` and fill it with the approved design, operations, security, alternatives, rollout, and evidence boundaries.
+- Historical note: the retained System Design DOCX was later removed because its embedded asset and font rights were unresolved; current canonical Markdown contracts supersede it.
 - Preserve template styles/page setup and run structural audits. Render every page with the provided document runtime; if LibreOffice remains unavailable, record the missing visual-render gate without substituting a different renderer.
 - Add failing load-contract tests for the exact five-service topology and executable observer path.
 - Fix observer/workflow agreement for `api`, `classroom`, `caddy`, `tile-service`, `tusd`, and `worker` as each environment requires, and eliminate direct execution dependence when file mode cannot be preserved.

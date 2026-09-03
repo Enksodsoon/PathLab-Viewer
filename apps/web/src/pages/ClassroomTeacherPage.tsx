@@ -1,5 +1,20 @@
 import OpenSeadragon from 'openseadragon'
-import { Copy, FolderOpen, ShareNetwork } from '@phosphor-icons/react'
+import {
+  ArrowUpRight,
+  Broadcast,
+  Broom,
+  Check,
+  Copy,
+  Crosshair,
+  Cursor,
+  FolderOpen,
+  MouseSimple,
+  PenNib,
+  Question,
+  ShareNetwork,
+  Trash,
+  Users,
+} from '@phosphor-icons/react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   useCallback,
@@ -179,25 +194,21 @@ function classroomFolderOptions(
 }
 
 function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    {name === 'guide' ? <><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13" /></> : null}
-    {name === 'navigate' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
-    {name === 'draw' ? <><path d="m4 20 4.2-1 10.4-10.4-3.2-3.2L5 15.8 4 20Z" /><path d="m13.8 7 3.2 3.2" /></> : null}
-    {name === 'arrow' ? <><path d="M5 19 19 5" strokeWidth="2.8" /><path d="M10 5h9v9" strokeWidth="2.8" /></> : null}
-  </svg>
+  if (name === 'guide') return <Broadcast aria-hidden="true" size={19} />
+  if (name === 'navigate') return <Cursor aria-hidden="true" size={19} />
+  if (name === 'draw') return <PenNib aria-hidden="true" size={19} />
+  return <ArrowUpRight aria-hidden="true" size={19} weight="bold" />
 }
 
 function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks' | 'locate' | 'check' | 'remove' | 'clear' | 'control' }) {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    {name === 'students' ? <><circle cx="9" cy="8" r="3" /><path d="M3.5 19v-1.5A4.5 4.5 0 0 1 8 13h2a4.5 4.5 0 0 1 4.5 4.5V19M16 5.5a3 3 0 0 1 0 5.8M17 14a4 4 0 0 1 3.5 4" /></> : null}
-    {name === 'questions' ? <><path d="M5 5.5h14v10H9l-4 3v-13Z" /><path d="M10 9a2 2 0 1 1 3.5 1.3c-.9.7-1.5 1.1-1.5 2M12 14h.01" /></> : null}
-    {name === 'marks' ? <><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></> : null}
-    {name === 'locate' ? <><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></> : null}
-    {name === 'check' ? <path d="m5 12 4 4L19 6" /> : null}
-    {name === 'remove' ? <><path d="M6 7h12M9 7V4h6v3M8 7l1 13h6l1-13M11 11v5M13 11v5" /></> : null}
-    {name === 'clear' ? <><path d="M4 7h16M8 7V4h8v3M7 7l1 13h8l1-13" /><path d="M10 11v5M14 11v5" /></> : null}
-    {name === 'control' ? <path d="m5 3 13.5 9-6.1 1.2L9.5 19 5 3Z" fill="currentColor" /> : null}
-  </svg>
+  if (name === 'students') return <Users aria-hidden="true" size={18} />
+  if (name === 'questions') return <Question aria-hidden="true" size={18} />
+  if (name === 'marks') return <PenNib aria-hidden="true" size={18} />
+  if (name === 'locate') return <Crosshair aria-hidden="true" size={18} />
+  if (name === 'check') return <Check aria-hidden="true" size={18} />
+  if (name === 'remove') return <Trash aria-hidden="true" size={18} />
+  if (name === 'clear') return <Broom aria-hidden="true" size={18} />
+  return <MouseSimple aria-hidden="true" size={18} />
 }
 
 function savedClassroom(): CreatedClassroom | null {
