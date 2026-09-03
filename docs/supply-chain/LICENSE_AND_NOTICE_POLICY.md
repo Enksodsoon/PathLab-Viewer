@@ -54,12 +54,15 @@ The Python project metadata declares `Apache-2.0` and packages `LICENSE` and
 The web build copies `LICENSE` and `NOTICE` to the root of `apps/web/dist` after
 Vite succeeds. Any archive made from that directory must retain both files.
 
-Other binary bundles, installers, container images, offline kits, and appliance
-images must expose readable copies at a conventional license location documented
-by their release owner and include all applicable third-party notices. Until a
-bundle proves those placements and its complete dependency/asset admission, it
-is not a releasable PathLab distribution. This policy does not itself implement
-or approve a deployment, release, pilot, qualification, or activation.
+PathLab container images place both files at
+`/usr/share/licenses/pathlab-viewer/`; the web image also serves the copies in
+its built `dist` root. Other binary bundles, installers, offline kits, and
+appliance images must expose readable copies at a conventional license location
+documented by their release owner and include all applicable third-party
+notices. Until a bundle proves those placements and its complete
+dependency/asset admission, it is not a releasable PathLab distribution. This
+policy does not itself implement or approve a deployment, release, pilot,
+qualification, or activation.
 
 ## Fail-closed checks
 

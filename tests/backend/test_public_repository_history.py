@@ -72,6 +72,13 @@ def make_repo(tmp_path: Path) -> tuple[Path, str]:
     (web / "scripts" / "copy-release-legal-files.mjs").write_text(
         "// SPDX-License-Identifier: Apache-2.0\n", encoding="utf-8"
     )
+    deploy = repo / "deploy"
+    deploy.mkdir()
+    for name in ("Dockerfile.backend", "Dockerfile.web"):
+        (deploy / name).write_text(
+            "COPY LICENSE NOTICE /usr/share/licenses/pathlab-viewer/\n",
+            encoding="utf-8",
+        )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "base")
     return repo, git(repo, "rev-parse", "HEAD").stdout.strip()
@@ -109,6 +116,18 @@ def test_current_tree_rejects_package_license_mismatch(tmp_path: Path) -> None:
 
     assert scanned.returncode == 1
     assert "JavaScript package license is not Apache-2.0" in scanned.stderr
+
+
+def test_current_tree_rejects_container_notice_omission(tmp_path: Path) -> None:
+    repo, _ = make_repo(tmp_path)
+    (repo / "deploy" / "Dockerfile.web").write_text(
+        "COPY LICENSE /usr/share/licenses/pathlab-viewer/\n", encoding="utf-8"
+    )
+
+    scanned = run_scan(repo)
+
+    assert scanned.returncode == 1
+    assert "container build omits root legal files" in scanned.stderr
 
 
 def test_history_scan_catches_sensitive_file_deleted_before_final_tree(

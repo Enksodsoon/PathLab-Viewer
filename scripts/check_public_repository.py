@@ -216,6 +216,15 @@ def scan_license_policy(root: Path = ROOT) -> list[Finding]:
             )
         )
 
+    for relative in ("deploy/Dockerfile.backend", "deploy/Dockerfile.web"):
+        dockerfile, errors = _read_required_text(root, relative)
+        findings.extend(errors)
+        if dockerfile is not None:
+            if "LICENSE NOTICE" not in dockerfile:
+                findings.append((relative, 1, "container build omits root legal files"))
+            if "/usr/share/licenses/pathlab-viewer/" not in dockerfile:
+                findings.append((relative, 1, "container license placement is missing"))
+
     return findings
 
 
