@@ -1,0 +1,5 @@
+# P0-T03A pure-Python ARM64-capable runtime and verification inputs.
+cryptography==50.0.1
+rfc8785==0.1.4
+spdx-tools==0.8.5
+webauthn==3.0.0

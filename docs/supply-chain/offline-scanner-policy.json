@@ -1,0 +1,18 @@
+{
+  "schema": "pathlab.offline-scanner-policy/1",
+  "network": "disabled",
+  "automaticDatabaseUpdate": false,
+  "missingDatabaseDisposition": "BLOCKED",
+  "databases": {
+    "grype": {
+      "tool": "grype@0.118.0-linux-arm64",
+      "mirrorPathTemplate": "offline/databases/grype/<release-bound-snapshot-sha256>/",
+      "releaseRequirement": "exact snapshot metadata and sha256 must be admitted by the release manifest"
+    },
+    "osv": {
+      "tool": "osv-scanner@2.5.1-linux-arm64",
+      "mirrorPathTemplate": "offline/databases/osv/<release-bound-snapshot-sha256>/",
+      "releaseRequirement": "exact snapshot archive and sha256 must be admitted by the release manifest"
+    }
+  }
+}
