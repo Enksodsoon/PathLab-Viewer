@@ -818,11 +818,8 @@ def test_security_workflow_supports_manual_event_recovery() -> None:
     assert "workflow_dispatch:" in workflow
 
 
-def test_web_container_includes_shared_viewer_ui_workspace() -> None:
+def test_web_container_builds_without_retired_shared_viewer_ui_workspace() -> None:
     dockerfile = Path("deploy/Dockerfile.web").read_text(encoding="utf-8")
 
     assert "COPY apps/web ./apps/web" in dockerfile
-    assert "COPY packages/viewer-ui ./packages/viewer-ui" in dockerfile
-    assert dockerfile.index("COPY packages/viewer-ui") < dockerfile.index(
-        "pnpm install --frozen-lockfile"
-    )
+    assert "packages/viewer-ui" not in dockerfile

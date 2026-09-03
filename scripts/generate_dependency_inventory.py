@@ -143,9 +143,12 @@ def walk_npm(lock: dict[str, Any], roots: dict[str, str]) -> tuple[set[str], set
 
 def npm_roles(lock: dict[str, Any]) -> dict[str, tuple[str, bool]]:
     web = lock["importers"]["apps/web"]
-    viewer = lock["importers"]["packages/viewer-ui"]
     runtime, runtime_optional = walk_npm(lock, web.get("dependencies", {}))
-    dev = {**web.get("devDependencies", {}), **viewer.get("devDependencies", {})}
+    dev = {
+        name: resolution
+        for importer in lock["importers"].values()
+        for name, resolution in importer.get("devDependencies", {}).items()
+    }
     test_roots = {name: value for name, value in dev.items() if name in TEST_ROOTS}
     build_roots = {name: value for name, value in dev.items() if name in BUILD_ROOTS}
     test, test_optional = walk_npm(lock, test_roots)

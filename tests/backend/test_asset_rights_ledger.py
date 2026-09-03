@@ -19,6 +19,7 @@ from scripts.validate_asset_rights_ledger import (
     record_map,
     validate,
     validate_retired_assets,
+    validate_subject_paths,
 )
 
 SUBJECT = "355ef0675cd88d8c457e0fc4380ef367fdc8600d"
@@ -100,3 +101,7 @@ def test_retired_asset_cannot_return_by_path_or_content(tmp_path: Path) -> None:
     policy["retiredAssets"][0]["contentSha256"] = hashlib.sha256(b"different").hexdigest()
     with pytest.raises(ValueError, match="retired asset content returned"):
         validate_retired_assets(tmp_path, policy)
+
+
+def test_subject_path_check_accepts_no_repository_owned_assets(tmp_path: Path) -> None:
+    validate_subject_paths(tmp_path, SUBJECT, [])

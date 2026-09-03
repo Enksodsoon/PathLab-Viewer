@@ -4,7 +4,6 @@ RUN npm install --global pnpm@11.9.0 && pnpm --version
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./
 COPY patches ./patches
 COPY apps/web ./apps/web
-COPY packages/viewer-ui ./packages/viewer-ui
 RUN pnpm install --frozen-lockfile
 RUN pnpm --dir apps/web build
 
