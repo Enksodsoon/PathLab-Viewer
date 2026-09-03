@@ -1,6 +1,7 @@
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 SCANNER = Path(__file__).resolve().parents[2] / "scripts" / "check_public_repository.py"
@@ -25,6 +26,52 @@ def make_repo(tmp_path: Path) -> tuple[Path, str]:
     (repo / "scripts").mkdir()
     shutil.copy2(SCANNER, repo / "scripts" / "check_public_repository.py")
     (repo / "README.md").write_text("clean\n", encoding="utf-8")
+    (repo / "LICENSE").write_text(
+        "Apache License\nVersion 2.0, January 2004\n", encoding="utf-8"
+    )
+    (repo / "NOTICE").write_text(
+        "PathLab Viewer\nCopyright 2026 Example\nThird-party works retain their terms.\n",
+        encoding="utf-8",
+    )
+    (repo / "CONTRIBUTING.md").write_text(
+        "Signed-off-by: Name <safe@example.test>\n"
+        "Developer Certificate of Origin\nDisclose tool-assisted material.\n",
+        encoding="utf-8",
+    )
+    policy = repo / "docs" / "supply-chain" / "LICENSE_AND_NOTICE_POLICY.md"
+    policy.parent.mkdir(parents=True)
+    policy.write_text(
+        "SPDX-License-Identifier: Apache-2.0\nSigned-off-by:\n"
+        ".dist-info/licenses/\napps/web/dist\n",
+        encoding="utf-8",
+    )
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "fixture"\nversion = "0.0.0"\n'
+        'license = "Apache-2.0"\nlicense-files = ["LICENSE", "NOTICE"]\n',
+        encoding="utf-8",
+    )
+    (repo / "package.json").write_text(
+        '{"name":"fixture","private":true,"license":"Apache-2.0"}\n',
+        encoding="utf-8",
+    )
+    web = repo / "apps" / "web"
+    (web / "scripts").mkdir(parents=True)
+    (web / "package.json").write_text(
+        textwrap.dedent(
+            """\
+            {
+              "name": "fixture-web",
+              "private": true,
+              "license": "Apache-2.0",
+              "scripts": {"build": "node scripts/copy-release-legal-files.mjs"}
+            }
+            """
+        ),
+        encoding="utf-8",
+    )
+    (web / "scripts" / "copy-release-legal-files.mjs").write_text(
+        "// SPDX-License-Identifier: Apache-2.0\n", encoding="utf-8"
+    )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "base")
     return repo, git(repo, "rev-parse", "HEAD").stdout.strip()
@@ -37,6 +84,31 @@ def run_scan(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         capture_output=True,
     )
+
+
+def test_current_tree_rejects_missing_root_notice(tmp_path: Path) -> None:
+    repo, _ = make_repo(tmp_path)
+    (repo / "NOTICE").unlink()
+    git(repo, "add", "-u")
+
+    scanned = run_scan(repo)
+
+    assert scanned.returncode == 1
+    assert "NOTICE:1: required license or notice file is missing" in scanned.stderr
+
+
+def test_current_tree_rejects_package_license_mismatch(tmp_path: Path) -> None:
+    repo, _ = make_repo(tmp_path)
+    (repo / "apps" / "web" / "package.json").write_text(
+        '{"name":"fixture-web","private":true,"license":"UNLICENSED",'
+        '"scripts":{"build":"node scripts/copy-release-legal-files.mjs"}}\n',
+        encoding="utf-8",
+    )
+
+    scanned = run_scan(repo)
+
+    assert scanned.returncode == 1
+    assert "JavaScript package license is not Apache-2.0" in scanned.stderr
 
 
 def test_history_scan_catches_sensitive_file_deleted_before_final_tree(

@@ -2,9 +2,10 @@
   "name": "@pathlab/viewer-web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "build": "tsc -b && vite build --config vite.config.ts --manifest",
+    "build": "tsc -b && vite build --config vite.config.ts --manifest && node scripts/copy-release-legal-files.mjs",
     "check:annotation-bundle": "node scripts/check-annotation-bundle-budget.mjs",
     "dev": "vite --config vite.config.ts --host 127.0.0.1",
     "lint": "eslint . --max-warnings 0",

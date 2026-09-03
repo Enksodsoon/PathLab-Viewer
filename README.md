@@ -131,6 +131,13 @@ Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serv
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing code. Keep changes focused, add regression coverage for behavior changes, run the relevant checks, and submit changes through a reviewable pull request.
 
+## License
+
+PathLab-authored material admitted to the release boundary is available under
+the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) and the
+[license and notice policy](docs/supply-chain/LICENSE_AND_NOTICE_POLICY.md) for
+the exact boundary, third-party treatment, and distribution requirements.
+
 ## Project status
 
 PathLab Viewer is under active development. A green CI run verifies automated checks but does not by itself establish production readiness, external load capacity, backup recovery, network performance, or device compatibility. Use the evidence ledger for the current acceptance status of those operational gates.
