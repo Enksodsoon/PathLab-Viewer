@@ -23,10 +23,10 @@ repository image is a design input.
   content hash in `asset-rights-policy.json`. The validator rejects their
   reintroduction under a different name.
 
-The remaining custom SVG belongs to the separately AGPL-declared
-`packages/viewer-ui` boundary. P0-T07 does not alter or admit it; P0-T05A owns
-its replacement or isolation. This record also does not establish the broader
-copyright/relicensing authority that remains governed by P0-T02.
+P0-T05A subsequently removed the separately AGPL-declared `packages/viewer-ui`
+work and replaced its one live consumer with local code using the same admitted
+Phosphor icon source. No custom application SVG remains. This record does not
+establish the broader copyright/relicensing authority governed by P0-T02.
 
 ## Product and evidence boundaries
 
@@ -38,7 +38,6 @@ visual evidence must use a rights-clear synthetic fixture and pass sensitive
 data review before publication.
 
 The machine ledger is generated from and bound to the exact implementation
-commit. A successful P0-T07 check requires all retired content absent, no custom
+commit. The current check requires all retired content absent, no custom
 application SVG or data-image art, exact package-asset hashes, web tests and
-build success, and only the explicitly separate P0-T05A record remaining in the
-asset release blocker list.
+build success, and an empty asset release blocker list.

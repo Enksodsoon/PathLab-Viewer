@@ -8,7 +8,7 @@ from pathlib import Path
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89"
+SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
@@ -30,10 +30,10 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
     assert records["terraform-provider:oracle/oci@8.29.0-linux-arm64"]["admission"] == "BLOCKED"
 
 
-def test_inventory_subject_is_p0_t04_implementation_tree() -> None:
+def test_inventory_subject_is_current_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
     assert inventory["subjectCommit"] == SUBJECT
-    assert inventory["subjectTree"] == "41e8a7fe88ce3682715c63c783b51ea39f4c97b1"
+    assert inventory["subjectTree"] == "6a3bcff58e1e0f298fc7a0960a75038b771aefe6"
 
 
 def test_source_sha256_receipts_use_canonical_git_blob_bytes() -> None:

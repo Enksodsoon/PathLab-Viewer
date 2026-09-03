@@ -1,25 +1,6 @@
 {
-  "policySha256": "7daaf5a775cde3349f186ce27577e4061c9251df3b21ffa47df67b5e76b1a171",
+  "policySha256": "5ec4d32621224c220bfc05aaaa0856fd0abb3069918922bb82d4e60ab43edaa8",
   "records": [
-    {
-      "attribution": "Retain package license and source offer if distributed as the separate AGPL work.",
-      "blockers": [
-        "APACHE_RELEASE_BOUNDARY_UNRESOLVED",
-        "CREATOR_AUTHORITY_UNVERIFIED"
-      ],
-      "contentSha256": "f49b876bd28cfd483d3280ce4ab6c6ceb2587f598ca5df5220da83e57411e951",
-      "creator": "UNVERIFIED",
-      "distributionScope": "SHIPPED_RUNTIME",
-      "id": "asset:inline-svg:packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1",
-      "kind": "inline-svg",
-      "licensePermission": "AGPL-3.0-or-later_PACKAGE_BOUNDARY",
-      "locator": "packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1",
-      "permittedUse": "SEPARATE_AGPL_WORK_ONLY",
-      "privacyClass": "PUBLIC_NON_PERSONAL",
-      "provenance": "SVG source is inside the AGPL-declared viewer package and lacks separate Apache-compatible authority evidence.",
-      "releaseDisposition": "BLOCKED_RELEASE",
-      "sizeBytes": 465
-    },
     {
       "attribution": "Preserve the package OFL-1.1 license notice and Cormorant Project attribution.",
       "blockers": [],
@@ -543,10 +524,8 @@
       ]
     }
   ],
-  "releaseAdmission": "BLOCKED",
-  "releaseBlockers": [
-    "asset:inline-svg:packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1"
-  ],
+  "releaseAdmission": "ADMITTED",
+  "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "355ef0675cd88d8c457e0fc4380ef367fdc8600d"
+  "subjectCommit": "929e561db7820e48b24f26fda165ffcaabfb0049"
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T12:37:11.943112Z",
+  "generatedAt": "2026-09-03T14:50:27.821775Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -15536,9 +15536,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "9d9e0b46def5300a207f38c3f802754c28c18edc",
+      "gitBlob": "a272bef792b6db2f4bbe151b14cc54a7a04bc00d",
       "path": "pnpm-lock.yaml",
-      "sha256": "ddf48a1d1162c80b2c537de2ec5734347c4bff29bdda87d41062ba00d4748a91"
+      "sha256": "7fa7553aaea7634d9a1ea39968ddbd27f1bcc7276754db0a2097c13f431fc59f"
     },
     {
       "gitBlob": "56a156869a3fc3d9d264995b09685b25d47d66ef",
@@ -15556,6 +15556,6 @@
       "sha256": "c2b43acf55fe0052306c1ebf687c73d7851b87b3821f252687b629daea6a28ed"
     }
   ],
-  "subjectCommit": "58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89",
-  "subjectTree": "41e8a7fe88ce3682715c63c783b51ea39f4c97b1"
+  "subjectCommit": "929e561db7820e48b24f26fda165ffcaabfb0049",
+  "subjectTree": "6a3bcff58e1e0f298fc7a0960a75038b771aefe6"
 }
