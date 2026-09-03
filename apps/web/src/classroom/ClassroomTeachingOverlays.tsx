@@ -1,24 +1,8 @@
 import OpenSeadragon from 'openseadragon'
+import { ArrowUpRight } from '@phosphor-icons/react'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 
 import type { TeacherPointer, TeachingAnnotation } from './api'
-
-function normalizedPath(annotation: TeachingAnnotation): string {
-  const points = annotation.points.map((point) => ({ x: point.x * 100, y: point.y * 100 }))
-  const first = points[0]
-  const last = points.at(-1)
-  if (!first || !last) return ''
-  if (annotation.tool === 'line') return `M${first.x} ${first.y}L${last.x} ${last.y}`
-  if (annotation.tool === 'rectangle') return `M${first.x} ${first.y}H${last.x}V${last.y}H${first.x}Z`
-  if (annotation.tool === 'ellipse') {
-    const cx = (first.x + last.x) / 2
-    const cy = (first.y + last.y) / 2
-    const rx = Math.abs(last.x - first.x) / 2
-    const ry = Math.abs(last.y - first.y) / 2
-    return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`
-  }
-  return points.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${point.y}`).join(' ')
-}
 
 export interface ClassroomTeachingOverlayHandle {
   setPointer: (pointer: TeacherPointer | null) => void
@@ -35,9 +19,8 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
   slideId,
   viewer,
 }, ref) {
-  const rootRef = useRef<SVGSVGElement | null>(null)
-  const annotationLayerRef = useRef<SVGGElement | null>(null)
-  const pointerNodeRef = useRef<SVGGElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const pointerNodeRef = useRef<HTMLSpanElement | null>(null)
   const pointerRef = useRef<TeacherPointer | null>(pointer)
   const pointerFrameRef = useRef<number | null>(null)
   const visibleAnnotations = useMemo(
@@ -49,16 +32,16 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
     const pointerNode = pointerNodeRef.current
     const item = viewer?.world.getItemAt(0)
     if (!pointerNode || !viewer || !item || !visiblePointer) {
-      pointerNode?.setAttribute('visibility', 'hidden')
+      if (pointerNode) pointerNode.hidden = true
       return
     }
     const dimensions = item.source.dimensions
     const next = viewer.viewport.viewportToViewerElementCoordinates(
       item.imageToViewportCoordinates(visiblePointer.x * dimensions.x, visiblePointer.y * dimensions.y),
     )
-    pointerNode.setAttribute('class', `classroom-teacher-pointer is-${visiblePointer.style}`)
-    pointerNode.setAttribute('transform', `translate(${next.x} ${next.y})`)
-    pointerNode.setAttribute('visibility', 'visible')
+    pointerNode.className = `classroom-teacher-pointer is-${visiblePointer.style}`
+    pointerNode.style.transform = `translate(${next.x}px, ${next.y}px)`
+    pointerNode.hidden = false
   }, [slideId, viewer])
 
   const schedulePointerProjection = useCallback(() => {
@@ -86,8 +69,8 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
   }, [])
 
   useEffect(() => {
-    const root = rootRef.current
-    if (!viewer || !root) return
+    const canvas = canvasRef.current
+    if (!viewer || !canvas) return
     let frame: number | null = null
     const render = () => {
       if (!visibleAnnotations.length && pointerRef.current?.slideId !== slideId) return
@@ -102,12 +85,45 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
             item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
           )
         )
-        const annotationLayer = annotationLayerRef.current
-        if (annotationLayer && visibleAnnotations.length) {
-          const origin = project({ x: 0, y: 0 })
-          const horizontal = project({ x: 1, y: 0 })
-          const vertical = project({ x: 0, y: 1 })
-          annotationLayer.setAttribute('transform', `matrix(${(horizontal.x - origin.x) / 100} ${(horizontal.y - origin.y) / 100} ${(vertical.x - origin.x) / 100} ${(vertical.y - origin.y) / 100} ${origin.x} ${origin.y})`)
+        const bounds = canvas.getBoundingClientRect()
+        const scale = Math.min(window.devicePixelRatio || 1, 2)
+        canvas.width = Math.max(1, Math.round(bounds.width * scale))
+        canvas.height = Math.max(1, Math.round(bounds.height * scale))
+        const context = canvas.getContext('2d')
+        context?.setTransform(scale, 0, 0, scale, 0, 0)
+        context?.clearRect(0, 0, bounds.width, bounds.height)
+        if (context) for (const annotation of visibleAnnotations) {
+          const points = annotation.points.map(project)
+          const first = points[0]
+          const last = points.at(-1)
+          if (!first || !last) continue
+          context.save()
+          context.strokeStyle = annotation.color
+          context.lineWidth = annotation.tool === 'highlight' ? annotation.width * 4 : annotation.width
+          context.lineCap = 'round'
+          context.lineJoin = 'round'
+          context.globalAlpha = annotation.tool === 'highlight' ? 0.42 : 1
+          context.beginPath()
+          if (annotation.tool === 'rectangle') {
+            context.rect(first.x, first.y, last.x - first.x, last.y - first.y)
+          } else if (annotation.tool === 'ellipse') {
+            context.ellipse(
+              (first.x + last.x) / 2,
+              (first.y + last.y) / 2,
+              Math.abs(last.x - first.x) / 2,
+              Math.abs(last.y - first.y) / 2,
+              0,
+              0,
+              Math.PI * 2,
+            )
+          } else {
+            context.moveTo(first.x, first.y)
+            for (const point of annotation.tool === 'line' ? [last] : points.slice(1)) {
+              context.lineTo(point.x, point.y)
+            }
+          }
+          context.stroke()
+          context.restore()
         }
         projectPointer()
       })
@@ -127,24 +143,13 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
     }
   }, [viewer, visibleAnnotations, projectPointer, slideId])
 
-  return <svg ref={rootRef} className="classroom-teaching-overlay" aria-hidden="true">
-    <g ref={annotationLayerRef} data-teaching-annotations="">{visibleAnnotations.map((annotation) => <path
-        key={annotation.id}
-        data-teaching-stroke=""
-        d={normalizedPath(annotation)}
-        fill="none"
-        stroke={annotation.color}
-        strokeWidth={annotation.tool === 'highlight' ? annotation.width * 4 : annotation.width}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={annotation.tool === 'highlight' ? 0.42 : 1}
-        vectorEffect="non-scaling-stroke"
-      />)}</g>
-    <g
+  return <div className="classroom-teaching-overlay" aria-hidden="true">
+    <canvas ref={canvasRef} data-teaching-annotations="" />
+    <span
       ref={pointerNodeRef}
       data-teacher-pointer=""
       className="classroom-teacher-pointer"
-      visibility="hidden"
-    ><path d="M4 38 36 6M17 6h19v19" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" /></g>
-  </svg>
+      hidden
+    ><ArrowUpRight aria-hidden="true" size={40} weight="bold" /></span>
+  </div>
 })

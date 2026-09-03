@@ -749,12 +749,13 @@
 .classroom-teaching-tools button.is-active { color: var(--ink); box-shadow: inset 0 -2px var(--primary); }
 .classroom-teaching-tools button:disabled { cursor: not-allowed; opacity: .4; }
 
-.classroom-teacher-pointer { will-change: transform; }
+.classroom-teaching-overlay canvas { width:100%; height:100%; display:block; }
+.classroom-teacher-pointer { position:absolute; top:-20px; left:-20px; will-change:transform; }
 
 .classroom-teacher-pointer.is-green-arrow { fill: #36d77a; stroke: #fff; stroke-width: 1.5; }
 .classroom-teacher-pointer.is-red-arrow { fill: #ff4c42; stroke: #fff; stroke-width: 1.5; }
-.classroom-teacher-pointer.is-green-arrow path { color: #36d77a; stroke: currentColor; }
-.classroom-teacher-pointer.is-red-arrow path { color: #ff4c42; stroke: currentColor; }
+.classroom-teacher-pointer.is-green-arrow svg { color: #36d77a; }
+.classroom-teacher-pointer.is-red-arrow svg { color: #ff4c42; }
 
 .classroom-pointer-options {
   position: absolute;
@@ -823,15 +824,6 @@
   touch-action: none;
 }
 
-.classroom-drawing-visible {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-
 .classroom-drawing.is-active canvas {
   cursor: crosshair;
   pointer-events: auto;
@@ -839,15 +831,15 @@
 }
 
 .classroom-drawing.is-active[data-tool='pen'] canvas {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M5 23l2-6L20 4l4 4L11 21l-6 2Z' fill='%23ef765f' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='m17 7 4 4M7 17l4 4' fill='none' stroke='%23181715' stroke-width='1.4'/%3E%3C/svg%3E") 5 23, crosshair;
+  cursor: crosshair;
 }
 
 .classroom-drawing.is-active[data-tool='highlight'] canvas {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='m6 20 4-8L18 4l6 6-8 8-8 4-2-2Z' fill='%23f6c84a' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='m14 8 6 6M8 18l2 2' fill='none' stroke='%23181715' stroke-width='1.4'/%3E%3C/svg%3E") 6 21, crosshair;
+  cursor: crosshair;
 }
 
 .classroom-drawing.is-active[data-tool='eraser'] canvas {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='m5 19 10-13 8 7-8 10H9l-4-4Z' fill='%23f6f2e8' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='m10 13 8 7M15 23h9' fill='none' stroke='%23181715' stroke-width='1.4'/%3E%3C/svg%3E") 6 21, crosshair;
+  cursor: crosshair;
 }
 
 .classroom-drawing-tools {

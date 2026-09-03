@@ -17,28 +17,24 @@ test('persists theme choice and remains usable at every layout boundary', async 
   await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toBeVisible({ timeout: 20_000 })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.getByRole('radio', { name: 'System' })).toBeChecked()
-  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
+  await expect(page.locator('.auth-visual-field')).toBeVisible()
 
-  const initialArtworkRequests = await page.evaluate(() => performance
+  const visualImageRequests = await page.evaluate(() => performance
     .getEntriesByType('resource')
     .filter((entry) => (entry as PerformanceResourceTiming).initiatorType === 'img')
-    .map((entry) => entry.name)
-    .filter((name) => name.includes('auth-histology-solace-')))
-  expect(initialArtworkRequests.some((name) => name.includes('dark'))).toBe(true)
-  expect(initialArtworkRequests.some((name) => name.includes('light'))).toBe(false)
+    .map((entry) => entry.name))
+  expect(visualImageRequests).toEqual([])
 
   await page.getByRole('radio', { name: 'Light' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'light')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await expect(page.getByRole('radio', { name: 'Light' })).toBeChecked()
 
   await page.getByRole('radio', { name: 'System' }).click()
   await page.emulateMedia({ colorScheme: 'dark' })
-  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'dark')
   await page.emulateMedia({ colorScheme: 'light' })
-  await expect(page.locator('.auth-visual-image')).toHaveAttribute('data-auth-artwork-theme', 'light')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 
   for (const width of [320, 390, 768, 820, 940, 941, 1024, 1584, 1920]) {
     await page.setViewportSize({ width, height: width <= 940 ? 844 : 900 })
@@ -59,7 +55,7 @@ test('keeps recovery immediate, focused, and motion-safe', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/admin')
   await expect(page.getByRole('heading', { name: 'Administrator sign in' })).toBeVisible({ timeout: 20_000 })
-  const animationName = await page.locator('.auth-visual-image').evaluate((element) => getComputedStyle(element).animationName)
+  const animationName = await page.locator('.auth-visual-field').evaluate((element) => getComputedStyle(element).animationName)
   expect(animationName).toBe('none')
 
   await page.getByRole('button', { name: 'Recover administrator access' }).click()

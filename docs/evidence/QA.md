@@ -157,15 +157,10 @@ The recorded local workflow used the real FastAPI and tusd services rather than 
 5. Request representative DZI and JPEG tile resources.
 6. Exercise viewer controls at desktop and mobile viewport sizes.
 
-Historical screenshot names:
-
-- `admin-desktop.png`
-- `admin-mobile.png`
-- `viewer-desktop.png`
-- `viewer-mobile.png`
-- `viewer-tablet.png`
-
-Screenshots are supporting evidence only when they are stored with the candidate they represent and reviewed for sensitive data before publication.
+The earlier unverified screenshots were removed by P0-T07. New visual evidence
+must be generated from a rights-clear synthetic fixture, bound to the candidate,
+and reviewed for sensitive data before publication. Browser assertions and
+traceable test output remain the authority for the checks described here.
 
 ## Visual acceptance criteria
 

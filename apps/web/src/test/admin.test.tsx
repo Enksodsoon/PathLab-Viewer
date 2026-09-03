@@ -47,15 +47,14 @@ function renderAuthPanel(props: { onSuccess: () => void; notice?: string }) {
 }
 
 describe('PathLab brand', () => {
-  it('uses an original tissue-layer mark while retaining the accessible product name', () => {
+  it('uses the admitted microscope mark while retaining the accessible product name', () => {
     const view = render(<Brand variant="library" />)
     const brand = screen.getByLabelText('PathLab Viewer')
-    const mark = within(brand).getByTestId('pathlab-tissue-mark')
+    const mark = within(brand).getByTestId('pathlab-microscope-mark')
 
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
     expect(mark.tagName).toBe('svg')
     expect(mark).toHaveAttribute('aria-hidden', 'true')
-    expect(mark.querySelectorAll('[data-tissue-layer]')).toHaveLength(3)
     expect(mark).not.toHaveAttribute('aria-label')
   })
 })
@@ -69,7 +68,7 @@ describe('administrator authentication', () => {
     expect(screen.getByText(/built for detail\. designed for focus\./i)).toBeVisible()
     expect(view.container.querySelector('.brand-mark-layers')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Theme preference' })).toBeVisible()
-    expect(screen.getAllByTestId('pathlab-tissue-mark')).toHaveLength(1)
+    expect(screen.getAllByTestId('pathlab-microscope-mark')).toHaveLength(1)
     expect(screen.getByRole('button', { name: /enter workspace/i })).toBeVisible()
     expect(screen.getByRole('button', { name: /recover administrator access/i })).toBeVisible()
   })

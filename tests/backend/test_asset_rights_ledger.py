@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from scripts.validate_asset_rights_ledger import (
     reconcile_discovered,
     record_map,
     validate,
+    validate_retired_assets,
 )
 
 SUBJECT = "3e08440e12110aad649f8b15b1b50454485c40c8"
@@ -76,3 +78,23 @@ def test_imported_icon_subset_is_individually_hash_bound() -> None:
     assert len(icon_set["embeddedAssets"]) == 87
     assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 87
     assert all(len(item["contentSha256"]) == 64 for item in icon_set["embeddedAssets"])
+
+
+def test_retired_asset_cannot_return_by_path_or_content(tmp_path: Path) -> None:
+    policy = {
+        "governedRoots": ["assets"],
+        "ignoredDirectories": [],
+        "retiredAssets": [
+            {"locator": "assets/retired.png", "contentSha256": "a" * 64},
+        ],
+    }
+    retired = tmp_path / "assets" / "retired.png"
+    retired.parent.mkdir(parents=True)
+    retired.write_bytes(b"different")
+    with pytest.raises(ValueError, match="retired asset path returned"):
+        validate_retired_assets(tmp_path, policy)
+
+    retired.rename(tmp_path / "assets" / "renamed.png")
+    policy["retiredAssets"][0]["contentSha256"] = hashlib.sha256(b"different").hexdigest()
+    with pytest.raises(ValueError, match="retired asset content returned"):
+        validate_retired_assets(tmp_path, policy)

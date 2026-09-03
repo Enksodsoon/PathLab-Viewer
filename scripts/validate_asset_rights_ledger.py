@@ -122,6 +122,32 @@ def validate_record_fields(record: dict[str, Any]) -> None:
         fail(f"{record['id']}: admitted asset retains blockers")
 
 
+def validate_retired_assets(root: Path, policy: dict[str, Any]) -> None:
+    retired = policy.get("retiredAssets", [])
+    locators = [item.get("locator") for item in retired]
+    hashes = [item.get("contentSha256") for item in retired]
+    if len(locators) != len(set(locators)) or len(hashes) != len(set(hashes)):
+        fail("retired asset policy contains duplicate locators or hashes")
+    if any(not isinstance(locator, str) or not locator for locator in locators):
+        fail("retired asset policy contains an invalid locator")
+    if any(not isinstance(digest, str) or len(digest) != 64 for digest in hashes):
+        fail("retired asset policy contains an invalid SHA-256")
+    for locator in locators:
+        if (root / locator).exists():
+            fail(f"retired asset path returned: {locator}")
+    retired_hashes = set(hashes)
+    ignored = set(policy["ignoredDirectories"])
+    for relative_root in policy["governedRoots"]:
+        search_root = root / relative_root
+        if not search_root.exists():
+            continue
+        for path in search_root.rglob("*"):
+            if not path.is_file() or any(part in ignored for part in path.parts):
+                continue
+            if sha256(path.read_bytes()) in retired_hashes:
+                fail(f"retired asset content returned: {path.relative_to(root).as_posix()}")
+
+
 def reconcile_discovered(
     discovered: list[dict[str, Any]], records: dict[str, dict[str, Any]]
 ) -> set[str]:
@@ -224,6 +250,7 @@ def validate(
     policy_hash = sha256(json.dumps(policy, separators=(",", ":"), sort_keys=True).encode())
     if ledger.get("policySha256") != policy_hash:
         fail("ledger is not bound to the current asset policy")
+    validate_retired_assets(root, policy)
     validate_subject(root, ledger.get("subjectCommit", ""))
 
     records = record_map(ledger.get("records", []))
