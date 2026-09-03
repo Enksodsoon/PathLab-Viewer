@@ -1,2 +1,2 @@
 *.sh text eol=lf
-patches/*.patch whitespace=-blank-at-eol
+patches/*.patch text eol=lf whitespace=-blank-at-eol
