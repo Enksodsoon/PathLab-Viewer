@@ -60,6 +60,22 @@ Public repository documentation should be durable and product-focused. Do not co
 
 Place durable system decisions in `docs/architecture`, operational procedures in `deploy/README.md`, and current verification evidence in `docs/evidence/QA.md`.
 
+## Asset rights
+
+Every committed or bundled image, icon, font, audio/video object, design source, screenshot,
+derived visual, and media fixture must reconcile through
+[`docs/supply-chain/ASSET_RIGHTS_LEDGER.json`](docs/supply-chain/ASSET_RIGHTS_LEDGER.json). Before
+adding or changing one, record its creator, provenance, license or permission, attribution,
+content hash, permitted use, privacy class, distribution scope, and release disposition in the
+asset policy. Git history and repository presence are not rights evidence.
+
+Run the frozen install, commit the asset-bearing change, regenerate the ledger against that exact
+commit, and run `python scripts/validate_asset_rights_ledger.py`. Unknown assets, changed hashes,
+prohibited uses, unresolved attribution, or PHI-risk must remain `BLOCKED_RELEASE`; do not mark an
+asset admitted without an accountable immutable receipt. The stricter `--release` check must pass
+for a release candidate. Test-only fixtures must be labeled `TEST_ONLY` and
+`EXCLUDED_NON_RELEASE`, never silently treated as shipped assets.
+
 ## Security and privacy review
 
 Before requesting review, confirm that the change cannot expose originals, temporary uploads, private derivatives, databases, logs, credentials, recovery codes, or patient data through the public web path.

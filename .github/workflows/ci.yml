@@ -58,6 +58,10 @@ jobs:
           python scripts/validate_dependency_inventory.py
           python scripts/validate_combine_errors_removal.py
           ruff check scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
+      - name: Validate asset rights ledger
+        run: |
+          python scripts/validate_asset_rights_ledger.py
+          ruff check scripts/generate_asset_rights_ledger.py scripts/validate_asset_rights_ledger.py tests/backend/test_asset_rights_ledger.py
       - name: Validate admitted runtime toolchain
         run: |
           python scripts/validate_runtime_toolchain_admission.py

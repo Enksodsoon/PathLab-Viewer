@@ -1,0 +1,1151 @@
+{
+  "policySha256": "38729162b95cc42629db1523d36138d581673868ad10d6aa2c075ecbf5a01f1e",
+  "records": [
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "d55d0ca5a027475c35cfc5a9ebf038e5d0d7c5140083ec2732a67727eaeb20c5",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-bold.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-bold.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 89720
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "ba7822562fd8133eef9d83d197cdb19e55cfc5a4077029e081aa38f07a7981e5",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-boldItalic.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-boldItalic.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 91516
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "a627c106749fdc7c3893c3e1385de3f73f7c311c8cf841c5a2176f55a6883cae",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-italic.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-italic.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 92888
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "f4b06f1a460c24da8a2a62210250f662064d1ec9ed3b0ef1d673f281e5445426",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-regular.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-regular.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 90892
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "f4b06f1a460c24da8a2a62210250f662064d1ec9ed3b0ef1d673f281e5445426",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-bold.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-bold.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 90892
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "a627c106749fdc7c3893c3e1385de3f73f7c311c8cf841c5a2176f55a6883cae",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-boldItalic.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-boldItalic.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 92888
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "da6d9fc94465945e04009194d533da3e1ec96c7f6177ee6a77fa89247d3c5784",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-italic.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-italic.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 92588
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "86fadd919d6b0c78b61b928828768a3137b9ad67e9a14ddc2891c6ce25b23f0f",
+      "creator": "Helvetica Neue rights holder UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-regular.ttf",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-regular.ttf",
+      "permittedUse": "PROHIBITED_FROM_RELEASE",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 90572
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "container": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "687d4c319fc6d14e872e9048454f504aa04ff3e909474f9728d63b4cccc47f32",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/media/image1.png",
+      "kind": "archive-member",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/media/image1.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Embedded diagram has no independent design-source or creator receipt.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 101545
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "891b1e15b4ec667c0c14f05c3a5f415c3eee32fb15e2204d20cdc0e7a2168e7e",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-data:apps/web/src/classroom/classroom.css#data-image-1",
+      "kind": "inline-data",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/classroom.css#data-image-1",
+      "mediaType": "image/svg+xml",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline cursor artwork is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 4
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "891b1e15b4ec667c0c14f05c3a5f415c3eee32fb15e2204d20cdc0e7a2168e7e",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-data:apps/web/src/classroom/classroom.css#data-image-2",
+      "kind": "inline-data",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/classroom.css#data-image-2",
+      "mediaType": "image/svg+xml",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline cursor artwork is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 4
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "891b1e15b4ec667c0c14f05c3a5f415c3eee32fb15e2204d20cdc0e7a2168e7e",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-data:apps/web/src/classroom/classroom.css#data-image-3",
+      "kind": "inline-data",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/classroom.css#data-image-3",
+      "mediaType": "image/svg+xml",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline cursor artwork is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 4
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "7a8db8dd23003a3c088cb18bda85fff1a09506e0ea878b7df89c492b4c46fc17",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/classroom/ClassroomTeachingOverlays.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/ClassroomTeachingOverlays.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 894
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "865302a0e83c6b2ec0b5be76af05f903e0ccc0f7bbc119fbb44038822895ddba",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 876
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "200a859779d07061a1c19e5d0f01de0a641323c77b7514f8028cc9d04c359350",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-2",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-2",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 855
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "7c2ac006a1783f1d4d79787865747b7fd1ea6c5cd5fcffa715fd96a7cf9919c2",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-3",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-3",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 1204
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "77691cb0be40031dede939630dc92f52de27260bf8d5a0e0d7d06e361fa1c093",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/components/Brand.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 612
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "1e1b9a7762e2ac81f927d69e83ddb48e0079f1f3d33835db95c2013220cd78d4",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/components/Loader.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 270
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "b75ee9f33e6fcaa7baabf2f03b84f7e08058f9299e2568210e456e93cd1e811c",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/pages/ClassroomTeacherPage.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/pages/ClassroomTeacherPage.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 715
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "facf03c4d55761f2da7b6046ccb1d2a17b1fac98f29d094b64a35248bf17be31",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/pages/ClassroomTeacherPage.tsx#inline-svg-2",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/pages/ClassroomTeacherPage.tsx#inline-svg-2",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 1127
+    },
+    {
+      "attribution": "Retain package license and source offer if distributed as the separate AGPL work.",
+      "blockers": [
+        "APACHE_RELEASE_BOUNDARY_UNRESOLVED",
+        "CREATOR_AUTHORITY_UNVERIFIED"
+      ],
+      "contentSha256": "f49b876bd28cfd483d3280ce4ab6c6ceb2587f598ca5df5220da83e57411e951",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "AGPL-3.0-or-later_PACKAGE_BOUNDARY",
+      "locator": "packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1",
+      "permittedUse": "SEPARATE_AGPL_WORK_ONLY",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "SVG source is inside the AGPL-declared viewer package and lacks separate Apache-compatible authority evidence.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 465
+    },
+    {
+      "attribution": "Preserve the package OFL-1.1 license notice and Cormorant Project attribution.",
+      "blockers": [],
+      "contentSha256": "d80df8ff5aecd299a61549f9e29ab1ed0b9b05f4ea71d50fe978e07d5240b235",
+      "creator": "The Cormorant Project Authors",
+      "dependencyId": "npm:@fontsource-variable/cormorant-garamond@5.3.0",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:package-font:npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2",
+      "kind": "package-font",
+      "licensePermission": "OFL-1.1",
+      "locator": "npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2",
+      "permittedUse": "BUNDLED_SELF_HOSTED_WEB_FONT",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 37640,
+      "sourceArtifact": "https://registry.npmjs.org/@fontsource-variable/cormorant-garamond/-/cormorant-garamond-5.3.0.tgz",
+      "sourceArtifactChecksum": "sha512-rgZJ/5w3hi60swAPnrOXpZf5wEH6NTrvm4H8D9Y4b1QIFUqlX14eM3QTMU/eAznjfh0eXpO1QUqsFhiy58aoMg==",
+      "sourceNoticeHashes": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "732f37009943e7f4378cf37113c9bcc4716af002a8583511aa91ed5d37683e73"
+        }
+      ]
+    },
+    {
+      "attribution": "Preserve the package OFL-1.1 license notice and Sofia Sans Project attribution.",
+      "blockers": [],
+      "contentSha256": "2176b732b7e4e2bf32a38335a1ee0a127efef2478266d3ec2ed806edaf9671a8",
+      "creator": "The Sofia Sans Project Authors",
+      "dependencyId": "npm:@fontsource-variable/sofia-sans@5.3.0",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:package-font:npm:@fontsource-variable/sofia-sans@5.3.0#files/sofia-sans-latin-wght-normal.woff2",
+      "kind": "package-font",
+      "licensePermission": "OFL-1.1",
+      "locator": "npm:@fontsource-variable/sofia-sans@5.3.0#files/sofia-sans-latin-wght-normal.woff2",
+      "permittedUse": "BUNDLED_SELF_HOSTED_WEB_FONT",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 40372,
+      "sourceArtifact": "https://registry.npmjs.org/@fontsource-variable/sofia-sans/-/sofia-sans-5.3.0.tgz",
+      "sourceArtifactChecksum": "sha512-lVLpBgrjxSMjrrBF70Jr9qBLdFac5tDAvVn9oHlS+vAaVyhUN6dWmr0nNjWzwTh6tYIECP45h4zDfllQbXtqtA==",
+      "sourceNoticeHashes": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "062921eb9bbe83c9a28723b6a4b642da6f4b5c1b9789bd28fbe0c2c249b11365"
+        }
+      ]
+    },
+    {
+      "attribution": "Preserve the package OFL-1.1 license notice.",
+      "blockers": [],
+      "contentSha256": "7a19a7027e125257d310c6dbd78ae3a30b5ea1e3794d60b12bb28227a003bfda",
+      "creator": "Google Inc. and the Source Sans 3 project authors",
+      "dependencyId": "npm:@fontsource-variable/source-sans-3@5.3.0",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:package-font:npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2",
+      "kind": "package-font",
+      "licensePermission": "OFL-1.1",
+      "locator": "npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2",
+      "permittedUse": "BUNDLED_SELF_HOSTED_WEB_FONT",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 28740,
+      "sourceArtifact": "https://registry.npmjs.org/@fontsource-variable/source-sans-3/-/source-sans-3-5.3.0.tgz",
+      "sourceArtifactChecksum": "sha512-dpi0GZk7EQe2tYpg6Q0Fx0OmUgnuGu+0rHPgtXqtKhglYmJuP7jZ12Mu1uN+NfRaJRY1Emn8AQJEWzmoZ4wa9g==",
+      "sourceNoticeHashes": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3"
+        }
+      ]
+    },
+    {
+      "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
+      "blockers": [],
+      "contentSha256": "f6682ef8289320344d655d3a588d479ef77b032da6ac9995c58093697089b9e6",
+      "creator": "Phosphor Icons",
+      "dependencyId": "npm:@phosphor-icons/react@2.1.10",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "embeddedAssets": [
+        {
+          "contentSha256": "69999eb9e7aefb7bd5151277ba532726b0c6d29095f1516dbc4a6dd4656e0caa",
+          "name": "Angle"
+        },
+        {
+          "contentSha256": "f40acbb37ef79c3895136e4ca9048db3672c6958f3db9fadfbc66ad653002743",
+          "name": "Archive"
+        },
+        {
+          "contentSha256": "61059c23583e06910c592b098e9239c789c60a838d8e08ee410a747087d35a19",
+          "name": "ArrowClockwise"
+        },
+        {
+          "contentSha256": "2c9bafbf5e351e74cb4610bb5a02755593dc93b7e5e0bfc934f3231e7cdf7ca1",
+          "name": "ArrowCounterClockwise"
+        },
+        {
+          "contentSha256": "363082a249ed70e5b40267808be3295b43c6e804b5ae59046ef20e8389b19623",
+          "name": "ArrowLeft"
+        },
+        {
+          "contentSha256": "3c1b54e96b358833f7e5ada9f0562829707ada03eed14ac8ba3e8d551a292321",
+          "name": "ArrowRight"
+        },
+        {
+          "contentSha256": "04c20ed2b0f0f872d87e6e5740b08b3727ce9a22b8bf4e9602f2d25b07561840",
+          "name": "ArrowSquareOut"
+        },
+        {
+          "contentSha256": "f13bac8fa6a98c1772b1ad86a3b81f2dfd9486aa5c11542cf69389b1888eaf67",
+          "name": "ArrowUUpLeft"
+        },
+        {
+          "contentSha256": "9425489bd4de62acb8ec7f5a8d7050475e6d96adcb31dba4b2f0efb224a5d8e1",
+          "name": "ArrowUp"
+        },
+        {
+          "contentSha256": "b7212d2c9286595ad14e09735c0717643d8e8fead4ee0d7dd59f5f17ca3173b9",
+          "name": "ArrowsOut"
+        },
+        {
+          "contentSha256": "91da4244c4e790f86151d4ba8873dc18f951b694ba566ad7d48a6b352a5e0fab",
+          "name": "Bookmark"
+        },
+        {
+          "contentSha256": "d5aa7cc3056849746c3be1f2707278bc0e853c19d9b0bbb31a97efb745c118d6",
+          "name": "BookmarkSimple"
+        },
+        {
+          "contentSha256": "05300cf8415197b34c271c884d49261f005551855796ce53d5fcbef9dac1f981",
+          "name": "Brain"
+        },
+        {
+          "contentSha256": "0c82ae8a86f9608d6d6b92361990b015b0ae6b0807f59f84fc1576dd0512ebbc",
+          "name": "CaretDoubleLeft"
+        },
+        {
+          "contentSha256": "6116cd592e91f6520aaade28ded2b906102f99b4ff7807e985d230b93a23560d",
+          "name": "CaretDoubleRight"
+        },
+        {
+          "contentSha256": "2d78bb5690f7c05b09144cb79763673a97990b7097f345b516601cd74d5d014e",
+          "name": "CaretDown"
+        },
+        {
+          "contentSha256": "2c4ee826d0057155b4ebc4f5b330b5a00f59a4b7f7cf6af3de22e45d96ce375b",
+          "name": "CaretLeft"
+        },
+        {
+          "contentSha256": "e58bcc72e78dbc3437111e09ba874c43fe0d4ed042db9483ea6adc018ddda044",
+          "name": "CaretRight"
+        },
+        {
+          "contentSha256": "e80de593840c7f3912dfbdc35cef758759fb00959e982cc46008889f1bb8646e",
+          "name": "CaretUp"
+        },
+        {
+          "contentSha256": "2860057fe58ac449bb81f324ce9835300f6c21dc001aec53c7791a75e4ca7c61",
+          "name": "ChalkboardTeacher"
+        },
+        {
+          "contentSha256": "accb02e028769f92c6922547f7a76f25a752d74f6b7e2963c904d8eb396a3d7e",
+          "name": "Check"
+        },
+        {
+          "contentSha256": "924c4baf566532b23bae5a7ca4a4025af733e322001396f385c55afaa03d3de7",
+          "name": "CheckCircle"
+        },
+        {
+          "contentSha256": "9c8aa08d2825c39f7686b04a61b26ebe977b65edc7dce3d05e0dc73527d64de1",
+          "name": "Circle"
+        },
+        {
+          "contentSha256": "0e0e9d77ca5a8834cf62055ca4b01b162a5e163c903631a072bbfbf2028d650e",
+          "name": "CircleDashed"
+        },
+        {
+          "contentSha256": "3b230f4701a5fae4c13e1c69ef854c092b0b878b454288638298c61766236dbc",
+          "name": "Clipboard"
+        },
+        {
+          "contentSha256": "8a3326377b6246379b4688c6d99552bd20db7acab1c3627759a28f2a5724d75d",
+          "name": "ClipboardText"
+        },
+        {
+          "contentSha256": "1db4e03aa31f5d479be3a48ba5c2a36ac5f6116eba0ab6565a32cbdd68175caa",
+          "name": "Clock"
+        },
+        {
+          "contentSha256": "873646b9af69d8ed97314caaa993d09fc07675d9d88a729a481df07d20ce14b1",
+          "name": "Copy"
+        },
+        {
+          "contentSha256": "c23fe85d953df196fdb9fc1608595b92b14636831836082352111f78f98f2eb7",
+          "name": "Crosshair"
+        },
+        {
+          "contentSha256": "8e297990ae05c157de5bb68a71fd32a1e599194376987c41f4235e95ab72da1f",
+          "name": "Cursor"
+        },
+        {
+          "contentSha256": "c76088753977aa4ba138e3cae930ebed39a015cb3bd39ae366627363e3d66cef",
+          "name": "Desktop"
+        },
+        {
+          "contentSha256": "74a92667447fc568d11a20e236aae55165df3ab5c70812a590bdf14354120f49",
+          "name": "DotsSixVertical"
+        },
+        {
+          "contentSha256": "48d0d7432835bfcca5c8b8a096598c77b2b22718be7edaafdf93a4a49e61661c",
+          "name": "DotsThree"
+        },
+        {
+          "contentSha256": "2aad6641a32bd7519eebc1e970ca5aaf3783a537053515514b9a9d29cd25193c",
+          "name": "DotsThreeVertical"
+        },
+        {
+          "contentSha256": "ea975f3d89053f9eff98a6e975060626b42229f59b0ad1f543c6b8f57792a895",
+          "name": "DownloadSimple"
+        },
+        {
+          "contentSha256": "5594c12a58e687dfe8916a688c41c76e072f7a514b5d78fe0dc04eb2cff75ec0",
+          "name": "Eye"
+        },
+        {
+          "contentSha256": "0963a2d13e00cf27da19dcc32531de8558b936202fa213f1e14cbeb4e1513bd1",
+          "name": "EyeSlash"
+        },
+        {
+          "contentSha256": "62bd36d309d651310acbb682378fdb7629b8eda7c84573e16ba93c5b5dea7882",
+          "name": "File"
+        },
+        {
+          "contentSha256": "e700e628a4892c7e38571454d237db4c2ab9af9c3fd931179bb7c2bf9c922f2c",
+          "name": "FileArrowUp"
+        },
+        {
+          "contentSha256": "d10a4a785cf8d1d9f39b7ea3ef99efeeeb6ab6648c0b28d2efea16703da2ec6b",
+          "name": "FileImage"
+        },
+        {
+          "contentSha256": "15dfc9cbee598d105f3df4bd5dc373721a235c4bd2bb76f66e028e02afcd3a07",
+          "name": "FloppyDisk"
+        },
+        {
+          "contentSha256": "78fd2a17016a7f14a06d347c6ae11e904f9d8711d7da778b5a446ae94ce3b505",
+          "name": "Folder"
+        },
+        {
+          "contentSha256": "587e7997388f2480b61926e9eaebaf3ba3a1e53a235684f4205e679987103a09",
+          "name": "FolderOpen"
+        },
+        {
+          "contentSha256": "21b000fe80b4416eee95fc3f354e7fbec2c7e22915d4eede075046a39b41a05a",
+          "name": "FolderPlus"
+        },
+        {
+          "contentSha256": "f389bdc600dee19a042cc48da3c44fc93effdfe787d7f0f04bfa85a9d6bf4c58",
+          "name": "FolderSimple"
+        },
+        {
+          "contentSha256": "280f6e1e9bd8570cedc24c24fb18c37a13f05f4d4796324c2ea419f79f1e954a",
+          "name": "Funnel"
+        },
+        {
+          "contentSha256": "7144d289e52803b8aee7b49c394def76fd80d08b1f3d557ccd6d578aa7a928da",
+          "name": "Globe"
+        },
+        {
+          "contentSha256": "b7f165383d01170add51a190246c2b2e6fc42808226d5f1c820dbf83d859a856",
+          "name": "GridFour"
+        },
+        {
+          "contentSha256": "09dba0178caca6d709332244f315d2df2d66aaf9db2c2837c1df60757ce780d6",
+          "name": "Hand"
+        },
+        {
+          "contentSha256": "44be92497e0119af993778b5e2e76efe4f86980ff733d3556bdd39428e45154d",
+          "name": "HardDrives"
+        },
+        {
+          "contentSha256": "c07afcc420763edbc30b87a5a7717c88d79131a877141824f6315c3b7d9ea3b8",
+          "name": "House"
+        },
+        {
+          "contentSha256": "5c40b462c889d4870cea63a11839236e3a91f391b17fc30166295268d48f7592",
+          "name": "Info"
+        },
+        {
+          "contentSha256": "5838a3ba7a2ffad0e7a86ed3c95a65813d0b61bf83ac74b80ad8e338913a1494",
+          "name": "Key"
+        },
+        {
+          "contentSha256": "a8f533e6d910d2020653fc8419a6e67b0cf3e3de854b1df60ce9b0ff57f5fc0d",
+          "name": "LineSegment"
+        },
+        {
+          "contentSha256": "fde3048ab0c522fce5f2fa0dc7e87f99db78674c19ef59bc9fdbaead730d44cd",
+          "name": "Link"
+        },
+        {
+          "contentSha256": "710e7dbc6315b6a37debda2aaed156c508a0dd4b0da1866568d71da53a34cc3c",
+          "name": "LinkBreak"
+        },
+        {
+          "contentSha256": "450db6d260cbc58a8937ad8198e232dc247abd75bb0a26391cb8d77389f4f9c6",
+          "name": "List"
+        },
+        {
+          "contentSha256": "5c028fe08b7809026525830a746c1c2e495372fcc001e5958c73213c2e23bc53",
+          "name": "Lock"
+        },
+        {
+          "contentSha256": "022f4c4eef2b3b3ff15e393258a036dd6c72ba3b01bdf6ac226c52d6d67a1a71",
+          "name": "LockOpen"
+        },
+        {
+          "contentSha256": "9a2164657c41f0ae2768095cde99cc8d68e6c351721da1480fd99509eb06900d",
+          "name": "MagnifyingGlass"
+        },
+        {
+          "contentSha256": "b150d8abcef1b66eeb587945a7484309a8f6a30c54e59ef8b151d1de29e18bb7",
+          "name": "Minus"
+        },
+        {
+          "contentSha256": "b9839cdf4a541c98e1fca86e11ec58c1e56f4ba9642cd07af08f4b182a457f83",
+          "name": "MinusCircle"
+        },
+        {
+          "contentSha256": "92640df13e177d8b4513fb980a051867bab919d8bd8b8647e74829c5a5801acb",
+          "name": "Moon"
+        },
+        {
+          "contentSha256": "776b248b23ac358c333d188200f6ceca910712b7f49f8bb23ccb2383edd3b683",
+          "name": "PencilSimple"
+        },
+        {
+          "contentSha256": "74e819b4c4685e45fa64b0ea7e771b511cfd77ab3b63d4b5e22b7bdbe7f677b0",
+          "name": "Play"
+        },
+        {
+          "contentSha256": "22af97a8b619a93ed4dd512d19a39f8298ae1be9cc48b8dff876ec2d65b2fd47",
+          "name": "Plus"
+        },
+        {
+          "contentSha256": "0ea7b75907814127da7b165f20ce3f1f0a03d7c230b6d1052316a825fece865c",
+          "name": "PlusCircle"
+        },
+        {
+          "contentSha256": "4badaf1e5e5718dbe3a37734bf663beb57d2c440d404d6dd265d20ad983b3a7d",
+          "name": "Polygon"
+        },
+        {
+          "contentSha256": "315b03e533928b19e2f102ecaeed916cdb7309a8343152bf3da22bf847591f11",
+          "name": "Rectangle"
+        },
+        {
+          "contentSha256": "f63fa25a05fe92667e9846e105801374e93f8e3533afe2f54306ac55b595496a",
+          "name": "Ruler"
+        },
+        {
+          "contentSha256": "a06213febb0ee3ef1d46c142e6e98a06bebe48474e93d21878f109c152117711",
+          "name": "Scribble"
+        },
+        {
+          "contentSha256": "5eadf6f976d86d0609076dd339f40dfb10f33348a11471b495b2b99795f82086",
+          "name": "Selection"
+        },
+        {
+          "contentSha256": "e28f5006c58d3bdf7e5600350201a26fa2ceddc41e66c89006b14b564b1de8b8",
+          "name": "ShareNetwork"
+        },
+        {
+          "contentSha256": "ee3b67d84f0014635dc8d176a515553566ac7192e7dc03468254e7d30f5d0903",
+          "name": "ShieldCheck"
+        },
+        {
+          "contentSha256": "ab32686c013e186ae2e68783fb7326a271dda9596eb7b7c1b65c54f98c93e6e9",
+          "name": "SidebarSimple"
+        },
+        {
+          "contentSha256": "a95d8a9032859e1ce865e59a27a5300515cc29a2b6ccae2fed72a9ee11046ef0",
+          "name": "SignOut"
+        },
+        {
+          "contentSha256": "1c0e08a91a7982ad66d134763a487255e865d095ce7e3f6f1580ec3caa193978",
+          "name": "SquaresFour"
+        },
+        {
+          "contentSha256": "117a0c75d24b7346d0f9732a63c76a8957a8ae8a5542fd27e671c62782c29334",
+          "name": "Stop"
+        },
+        {
+          "contentSha256": "ec236f43cc4b16df0e7b3bb19a7e6b22e8c97f3605578879aa813f261a04f8e1",
+          "name": "Sun"
+        },
+        {
+          "contentSha256": "de17ca93a7608769e2e4f6de373e6965b8e18e4a69edb30a859c8897a195ff8d",
+          "name": "Table"
+        },
+        {
+          "contentSha256": "5446330105b1ed0a0afd737aaa540dd32f70f284e777611fd4acb8421dd06323",
+          "name": "Tag"
+        },
+        {
+          "contentSha256": "8bc15a9fc5cf9b8aed06889dbc1a0dd391de6942395623b76d19fe349d6b8217",
+          "name": "TextT"
+        },
+        {
+          "contentSha256": "d2e05b9eac142bec8c870a46a8a38515298126aaf2733841d7a2375f45fd2169",
+          "name": "Trash"
+        },
+        {
+          "contentSha256": "fedd2ce11ad12474a50050d8b9cf54bb4cc7e5103c0e9d331f4e8f28f9497b44",
+          "name": "UploadSimple"
+        },
+        {
+          "contentSha256": "2203a4403e3e0cdd97d2388492225cdd96acdf400caa66788dc205a4afd8e393",
+          "name": "WarningCircle"
+        },
+        {
+          "contentSha256": "4cb8b69830ae8d98860064d57ee28def14bab4e291b95a8df0c0745fc0932009",
+          "name": "X"
+        },
+        {
+          "contentSha256": "4f9dc9d4bf68de480b9978071e614a2a2ae4a0d030924aeec0b088553b07c9ce",
+          "name": "XCircle"
+        }
+      ],
+      "id": "asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons",
+      "kind": "package-icon-set",
+      "licensePermission": "MIT",
+      "locator": "npm:@phosphor-icons/react@2.1.10#imported-svg-icons",
+      "permittedUse": "BUNDLED_APPLICATION_ICONS",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 243636,
+      "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
+      "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
+      "sourceNoticeHashes": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "6918b72504641180600cbbd4a86b0dfa9dfccf788775694325b71b9a029f6eb4"
+        },
+        {
+          "path": "package/dist/csr/Copyright.d.ts",
+          "sha256": "d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483"
+        },
+        {
+          "path": "package/dist/csr/Copyright.es.js",
+          "sha256": "30e92f8d417156e2c3f867bfe8ecddaefa942f0e265602fd95091dbd4886c61c"
+        },
+        {
+          "path": "package/dist/defs/Copyright.d.ts",
+          "sha256": "29df7754beffda9d321e8874bc6e3c76c132d325e79e7a81bbd88928638b12fa"
+        },
+        {
+          "path": "package/dist/defs/Copyright.es.js",
+          "sha256": "41b85edab0ce43c343109ae70d7397297497959a05ac20d8844c2b435e62b14f"
+        },
+        {
+          "path": "package/dist/ssr/Copyright.d.ts",
+          "sha256": "d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483"
+        },
+        {
+          "path": "package/dist/ssr/Copyright.es.js",
+          "sha256": "f37b1c16b366d1416cb7a8a2f03a7037d45a919a722b4f3fb91cbac084af7fa6"
+        }
+      ]
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/assets/auth-histology-solace-dark.webp",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_SYNTHETIC_UNVERIFIED",
+      "provenance": "Git introduction records repository presence only; no creator, source-generation, or provider-terms receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 184212
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/assets/auth-histology-solace-light.webp",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_SYNTHETIC_UNVERIFIED",
+      "provenance": "Git introduction records repository presence only; no creator, source-generation, or provider-terms receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 151666
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "EMBEDDED_RIGHTS_UNRESOLVED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "f3b57924fa000ab5bc5a4b4276eae4d7687a67509f05b389a11978321dca4e6c",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Git history identifies an introducing commit; embedded-media and font rights are evaluated separately and are unresolved.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 535636
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "bb3f685fd445dce3de273ccaedadcf762f793a85cb3496fac09d7e384bcb4dc1",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/design/admin-concept.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/design/admin-concept.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Git history identifies an introducing commit but not the image, tissue, device-frame, or trade-dress rights source.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 997542
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "b9d8f51a4a5d183ddaad7aacd40d3451680fd0453c5eae67dfcf073a8b3e6826",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/design/viewer-concept.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/design/viewer-concept.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Git history identifies an introducing commit but not the image, tissue, device-frame, or trade-dress rights source.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 3066745
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "DISPLAYED_CONTENT_SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "3451f71366702107fd1bf3436742c1ee44fefce523be510069cc6a9afec3157c",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/evidence/admin-desktop.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/evidence/admin-desktop.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Screenshot capture history is present, but the displayed slide/case source and deidentification receipt are absent.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 57296
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "DISPLAYED_CONTENT_SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "e28c3826747cdfaf8cb53ee5e33f17987223f263d00cc60a0c6a5db662c45c81",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/evidence/admin-mobile.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/evidence/admin-mobile.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Screenshot capture history is present, but the displayed slide/case source and deidentification receipt are absent.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 56439
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "DISPLAYED_CONTENT_SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "5c8684a8cebf22e98cdeddd2f5630a34c36925802dc379c1395b1ebafb370f03",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/evidence/viewer-desktop.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/evidence/viewer-desktop.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Screenshot capture history is present, but the displayed slide/case source and deidentification receipt are absent.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 677987
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "DISPLAYED_CONTENT_SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "6a4e307820cca8669e1932f3d1a748ae25fa6004a33423faa490f62281ca684b",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/evidence/viewer-mobile.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/evidence/viewer-mobile.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Screenshot capture history is present, but the displayed slide/case source and deidentification receipt are absent.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 246608
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "DISPLAYED_CONTENT_SOURCE_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE",
+        "PHI_REVIEW_UNAVAILABLE"
+      ],
+      "contentSha256": "22c958f422741a1320c7fccf455d5828cddc081783658eac82c3c8d5873bb15e",
+      "creator": "UNVERIFIED",
+      "distributionScope": "PUBLISHED_SOURCE",
+      "id": "asset:repository-file:docs/evidence/viewer-tablet.png",
+      "kind": "repository-file",
+      "licensePermission": "UNVERIFIED",
+      "locator": "docs/evidence/viewer-tablet.png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PHI_RISK_UNVERIFIED",
+      "provenance": "Screenshot capture history is present, but the displayed slide/case source and deidentification receipt are absent.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 903880
+    }
+  ],
+  "releaseAdmission": "BLOCKED",
+  "releaseBlockers": [
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-bold.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-boldItalic.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-italic.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeue-regular.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-bold.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-boldItalic.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-italic.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/fonts/HelveticaNeueLight-regular.ttf",
+    "asset:archive-member:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx!word/media/image1.png",
+    "asset:inline-data:apps/web/src/classroom/classroom.css#data-image-1",
+    "asset:inline-data:apps/web/src/classroom/classroom.css#data-image-2",
+    "asset:inline-data:apps/web/src/classroom/classroom.css#data-image-3",
+    "asset:inline-svg:apps/web/src/classroom/ClassroomTeachingOverlays.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-2",
+    "asset:inline-svg:apps/web/src/classroom/StudentDrawingOverlay.tsx#inline-svg-3",
+    "asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/pages/ClassroomTeacherPage.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/pages/ClassroomTeacherPage.tsx#inline-svg-2",
+    "asset:inline-svg:packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1",
+    "asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
+    "asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp",
+    "asset:repository-file:docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+    "asset:repository-file:docs/design/admin-concept.png",
+    "asset:repository-file:docs/design/viewer-concept.png",
+    "asset:repository-file:docs/evidence/admin-desktop.png",
+    "asset:repository-file:docs/evidence/admin-mobile.png",
+    "asset:repository-file:docs/evidence/viewer-desktop.png",
+    "asset:repository-file:docs/evidence/viewer-mobile.png",
+    "asset:repository-file:docs/evidence/viewer-tablet.png"
+  ],
+  "schemaVersion": 1,
+  "subjectCommit": "3e08440e12110aad649f8b15b1b50454485c40c8"
+}
