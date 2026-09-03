@@ -1,0 +1,3 @@
+# Require a four-hour Research isolation campaign
+
+The Research Launch Gate runs a four-hour reference workflow over a 20-GB Dataset Snapshot, checkpoints and terminates the runner, resumes it, proves idle suspension and resume, and independently breaches CPU, memory, disk, wall-time, and egress quotas while attempting production-database, host-filesystem, and credential access. It passes only with zero isolation escape, successful containment, responsive Resident Control Plane, signed-only artifact import, complete cleanup, and identical artifact hashes and provenance from a repeated deterministic workload.

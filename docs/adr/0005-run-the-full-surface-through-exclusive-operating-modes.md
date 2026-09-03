@@ -1,0 +1,3 @@
+# Run the full surface through exclusive operating modes
+
+Every planned context will be installed and individually production-qualified on the Zero-Cash Production host, but heavy workloads will execute through exclusive operating modes rather than concurrently. Classroom, Assessment, conversion, Research compute, EQA events, bulk federation, and similar work must stop admitting, checkpoint, or queue when another protected mode owns the host; inactive workers scale to zero, while the lightweight trust, audit, catalog, imaging-control, database, messaging, and delivery plane remains bounded and available.

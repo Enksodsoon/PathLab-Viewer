@@ -1,0 +1,3 @@
+# Encrypt primary data with LUKS2 and purpose keys
+
+PostgreSQL, private objects, WAL staging, and authoritative audit data will reside on an operator-unlocked LUKS2 Encrypted Data Volume whose key is recovered through the Root Recovery Quorum. Clinical identifiers, recovery material, adapter credentials, Provisional Journals, and other classified high-risk data also use application-level envelope encryption under distinct purpose-bound Key Versions; provider disk encryption is enabled only as defense in depth and cannot replace PathLab-controlled recovery, rotation, cryptographic deletion, or portability.

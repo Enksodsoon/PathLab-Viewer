@@ -1,0 +1,3 @@
+# Co-deploy contexts only when their runtime lifecycles match
+
+Zero-Cash Production will keep Caddy, PostgreSQL, PgBouncer, JetStream, and a compact `pathlab-control` resident while starting Live, Assessment, batch, and Research processes only inside their Mode Reservations. Logical databases, roles, migrations, APIs, and outboxes remain context-owned even when Platform, Trust, Catalog, Credential Ledger, audit intake, imaging metadata, notices, and minimal integration ingress share the control process, preserving a direct path to later physical separation without paying the idle-resource cost now.

@@ -1,0 +1,3 @@
+# Export portable context-neutral Institution packages
+
+PathLab will export a Portable Institution Package containing canonical JSONL records and schemas per context, identifier maps, original objects, non-rebuildable artifacts, governed Achievement Credentials, hashes, provenance, retention and deletion state, and Audit Checkpoints, signed and encrypted to Institution recipients. Authentication Credentials, Adapter Credentials, Service Credentials, sessions, private keys, recovery material, caches, and rebuildable derivatives are excluded; protected-mode export/import requires storage admission, no-write dry run, resumable atomic context commands, round-trip reconciliation, and N-through-N-2 compatibility, while raw database dumps remain disaster recovery only.

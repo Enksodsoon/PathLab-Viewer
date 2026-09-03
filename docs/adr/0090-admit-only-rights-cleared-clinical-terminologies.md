@@ -1,0 +1,3 @@
+# Admit only rights-cleared clinical terminologies
+
+FHIR R4 structural and administrative code systems required by the pinned `hl7.fhir.r4.core#4.0.1` profile dependency closure are protocol vocabulary, not admitted clinical semantics. Clinical semantics admit only audited DICOM DCM codes, UCUM units, and Institution-authorized LOINC content; the v1 DICOM ANN profile further fixes category `(111050, DCM, "Quality Assessment")` with type `(131501, DCM, "Usable tissue")` or `(131502, DCM, "Unusable tissue")`. SNOMED CT, unknown systems or versions, codes outside those frozen sets, and unfrozen expansions remain rejected until rights and offline validation evidence are approved, preserving Zero-Cash and fail-closed claims.

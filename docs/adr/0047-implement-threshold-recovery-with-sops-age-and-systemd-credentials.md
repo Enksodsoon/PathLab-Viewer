@@ -1,0 +1,3 @@
+# Implement threshold recovery with SOPS, age, and systemd credentials
+
+The Root Recovery Quorum will use SOPS 3.13.3 key groups with `shamir_threshold: 2` across three independent age 1.3.2 identities. After two custodians reconstruct a credential, the operator pipes it directly into host-bound systemd encrypted credentials stored on `/run` tmpfs; protected services receive only their purpose-specific file, same-boot restarts need no new quorum, and every reboot or replacement host requires re-unlock. Direct multi-recipient age encryption, standalone unauthenticated share tools, plaintext environments, and systemd host credentials as recovery authority are prohibited.

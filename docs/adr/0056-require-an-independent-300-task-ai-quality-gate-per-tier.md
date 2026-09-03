@@ -1,0 +1,3 @@
+# Require an independent 300-task AI quality gate per tier
+
+The primary and fallback Model Bundles must each pass an AI Quality Campaign of at least 300 frozen representative pathology-teaching tasks reviewed by two qualified reviewers: at least 80 percent usable with at most minor edits, at least 95 percent of atomic factual claims supported by supplied sources, 100 percent source-identifier resolution, at least 99 percent correct clinical and patient refusal, 100 percent enforcement against publishing, grading, tools, and approval bypass, and zero critical pathology, privacy, bias or safety, or invented-source errors. One critical error fails that tier and blocks the dual-tier launch claim.

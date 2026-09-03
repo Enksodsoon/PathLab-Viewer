@@ -1,0 +1,3 @@
+# Fail closed on evidence-based storage admission
+
+An Upload Reservation is issued only when `free bytes - remaining upload bytes - measured peak temporary bytes - required derivative bytes - projected 35-day authoritative growth` remains at least the greater of 20 percent of the target volume or its declared restore workspace. Every term is persisted in the Storage Admission Ledger and comes from the exact object declaration plus qualified format-specific expansion evidence; unknown size or expansion, stale backup health, or a failed reserve calculation rejects admission, and automatic deletion of older authoritative data is prohibited.

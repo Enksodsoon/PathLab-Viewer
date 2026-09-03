@@ -1,0 +1,3 @@
+# Require the full 100-node Edge Federation campaign
+
+The Edge Launch Gate mixes 100 nodes across protocol versions N, N-1, and N-2, disconnects them for seven days, then synchronizes one million events and 50 GB of objects within the Edge Capacity Envelope. It injects duplicate, reordered, replayed, corrupted, and interrupted batches, five percent governed conflicts, expired leases, clock skew, Key Rotation, and one batch-process restart; it passes only with zero lost accepted events, duplicate effects, silent overwrites, unauthorized Publication, or cross-Institution exposure, control-receipt p95 at or below two seconds, and complete bounded drain within 24 hours.

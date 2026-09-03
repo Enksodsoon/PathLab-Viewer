@@ -49,7 +49,7 @@ packages = ["server/wsi_viewer"]
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 testpaths = ["tests/backend"]
-pythonpath = ["server"]
+pythonpath = ["server", "."]
 
 [tool.ruff]
 target-version = "py312"

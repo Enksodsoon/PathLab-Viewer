@@ -1,0 +1,3 @@
+# Require one golden Institution journey
+
+The final candidate must complete one sequential end-to-end Institution journey spanning governance, identity, learning import, WSI admission and viewing, reviewed annotations, Live Learning and media, the deterministic learning journey, Assessment and grade return, Achievement Credentials, EQA, Clinical Shadow, Research, Edge synchronization, publication, portability, deletion, backup, and cold restore. Restarts, dependency loss, network and clock faults, key rotation, storage pressure, mode transitions, and malicious or unsupported inputs are injected during the journey so isolated feature success cannot conceal broken cross-context behavior.

@@ -1,0 +1,3 @@
+# Require the DICOM confidentiality profile and human release
+
+Clinical Shadow will admit a DICOM case only after the DICOM 2026c Basic Application Level Confidentiality Profile has been applied with the Clean Pixel Data, Clean Recognizable Visual Features, Clean Graphics, Clean Structured Content, and Clean Descriptors options. Retain-identity options and private elements are prohibited. A versioned tag/action and coded-value replacement table, purpose-scoped deterministic UID remapping, full metadata validation, OCR and visual-content inspection, and an accountable human review must all pass before the case can leave quarantine or be referenced by FHIR, DICOMweb, learning, Research, or EQA features.

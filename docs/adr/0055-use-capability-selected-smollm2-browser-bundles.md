@@ -1,0 +1,3 @@
+# Use capability-selected SmolLM2 browser bundles
+
+Teacher Authoring will select exactly one signed same-origin Model Bundle after a local capability probe: SmolLM2-1.7B-Instruct revision `31b70e2e869a7173562077fd711b654946d38674` in q4f16 through WebLLM 0.2.84 and WebGPU as primary, or SmolLM2-360M-Instruct revision `a10cc1512eabd3dde888204e902eca88bddb4951` in ONNX q4 through Transformers.js 4.2.0 and ONNX Runtime Web 1.29.0 WASM as fallback. Devices never download both tiers, WebGL and remote fallback are prohibited, exact conversions and all shards are signed and hashed, and devices qualifying for neither tier retain Deterministic Authoring Templates.

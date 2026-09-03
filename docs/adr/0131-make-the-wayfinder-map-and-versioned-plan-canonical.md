@@ -1,0 +1,3 @@
+# Make the Wayfinder map and versioned plan canonical
+
+The GitHub issue [Wayfinder: Ratify the zero-cash Full-Surface production endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/187), labelled `wayfinder:map`, is the navigable index for the ratified production endpoint, while ADRs, context glossaries, architecture contracts, and the feature completion matrix hold the durable detail in version control. Once this decision frontier is empty, implementation and evidence work moves to a separate backlog; later scope or authority changes require a named Wayfinder decision and versioned ADR rather than silent edits, and no planning artifact itself authorizes merge, deployment, or activation.

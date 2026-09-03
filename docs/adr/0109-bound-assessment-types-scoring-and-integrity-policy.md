@@ -1,0 +1,3 @@
+# Bound Assessment types, scoring, and integrity policy
+
+Assessment will support single choice, multiple choice, true/false, numeric, short text, essay, hotspot, shared stimulus, and native WSI point or region Item Versions, using deterministic versioned scoring and manual evaluation where required; AI scoring, adaptive testing, and default negative marking are prohibited. Exam Sessions bind accommodations and deterministic randomization, permit one active device with an audited staff-authorized transfer, require moderation for high-stakes outcomes, allow a 30-day appeal, and use no webcam or screen-surveillance proctoring.
