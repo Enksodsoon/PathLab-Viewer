@@ -22,7 +22,7 @@ The OpenTofu lockfile contains both operator-platform and `linux_arm64` hashes. 
 ## Native release layout
 
 - systemd is the sole lifecycle, dependency, credential, cgroup, timer, socket, watchdog, mode-reservation, and restart-throttle authority.
-- Signed immutable application bundles install at `/opt/pathlab/releases/<release-sha>/`; an atomic `current` link activates one qualified release.
+- Signed immutable application bundles install at `/opt/pathlab/releases/<release-sha>/`; an atomic `current` link selects one release for deployment routing. It does not confer production activation.
 - Every service has a dedicated Unix user, SELinux labels and enforcing policy, explicit filesystem and network grants, `LoadCredentialEncrypted=`, `MemoryHigh=`, `MemoryMax=`, `MemorySwapMax=0`, `CPUQuota=`, `TasksMax=`, and bounded `StartLimit*` behavior.
 - Native ARM64 binaries and libraries are qualified on the exact image. QEMU-emulated success is non-certifying.
 - Podman/Quadlet is not installed by default. A future admission must use the distribution build, offline signed OCI archives, digest pins, `Pull=never`, and systemd supervision without creating a second lifecycle authority.
@@ -32,7 +32,7 @@ The OpenTofu lockfile contains both operator-platform and `linux_arm64` hashes. 
 
 The exact release must pass clean-host install, upgrade, rollback, host-loss restore, SELinux-enforcing, cgroup pressure and containment, watchdog and restart-throttle, credential unlock, mode transition, package-cache deletion, and offline reinstall campaigns. Monthly patched candidates require the same ABI and workload evidence before replacing a pin; no automatic package or provider promotion is permitted.
 
-## Release activation
+## Immutable release deployment switch
 
 1. Install the signed Offline Release Kit immutably under `/opt/pathlab/releases/<release-sha>/` and verify every manifest, SBOM, notice, binary, migration, and signature.
 2. Require HEALTHY Backup Freshness State plus current release-bound restore evidence.
@@ -40,4 +40,4 @@ The exact release must pass clean-host install, upgrade, rollback, host-loss res
 4. Start candidate services on isolated loopback ports under their final credentials, SELinux policy, and cgroups; run dependency checks and complete synthetic product transactions.
 5. Enter a maintenance Mode Reservation, atomically switch the `current` link and Caddy upstream, and record the release transition in the Audit Integrity Chain.
 6. Observe all health, error, resource, outbox, and synthetic gates for 30 minutes. A breach rolls application binaries and routing back without reversing compatible schema expansion.
-7. Mark activation complete only after the observation receipt and off-host state, audit, and release acknowledgements succeed.
+7. Mark the deployment transition complete only after the observation receipt and off-host state, audit, and release acknowledgements succeed. This does not confer the Delivery State Ledger's `ACTIVATED` state; that requires the later two-person ceremony in Phase 8.

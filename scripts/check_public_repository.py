@@ -12,9 +12,17 @@ ROOT = Path(__file__).resolve().parents[1]
 SELF_RELATIVE = Path(__file__).resolve().relative_to(ROOT).as_posix()
 TEXT_SUFFIXES = {
     "",
+    ".bat",
     ".caddyfile",
+    ".cfg",
+    ".cmd",
+    ".cnf",
+    ".conf",
+    ".config",
     ".css",
+    ".csv",
     ".env",
+    ".hcl",
     ".html",
     ".ini",
     ".js",
@@ -22,12 +30,26 @@ TEXT_SUFFIXES = {
     ".jsx",
     ".md",
     ".mjs",
+    ".p12",
+    ".path",
+    ".pem",
+    ".pfx",
+    ".key",
+    ".properties",
+    ".ps1",
     ".py",
+    ".service",
     ".sh",
+    ".socket",
+    ".sql",
+    ".target",
+    ".tf",
+    ".timer",
     ".toml",
     ".ts",
     ".tsx",
     ".txt",
+    ".xml",
     ".yaml",
     ".yml",
 }
@@ -36,6 +58,9 @@ PRIVATE_KEY_MARKERS = (
     "-----BEGIN RSA PRIVATE KEY-----",
     "-----BEGIN OPENSSH PRIVATE KEY-----",
     "-----BEGIN EC PRIVATE KEY-----",
+    "-----BEGIN DSA PRIVATE KEY-----",
+    "-----BEGIN ENCRYPTED PRIVATE KEY-----",
+    "-----BEGIN PGP PRIVATE KEY BLOCK-----",
 )
 TOKEN_PATTERNS = (
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{30,}\b"),
@@ -47,6 +72,10 @@ EMAIL_PATTERN = re.compile(
     r"(?<![\w.+-])([\w.+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})(?![\w.-])"
 )
 IPV4_PATTERN = re.compile(r"(?<![0-9])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9])")
+IPV6_PATTERN = re.compile(
+    r"(?<![0-9A-Fa-f:.])\[?([0-9A-Fa-f:.]*:[0-9A-Fa-f:.]+)\]?"
+    r"(?![0-9A-Fa-f:.])"
+)
 DYNAMIC_DNS_PATTERN = re.compile(
     r"\b(?:[0-9]{1,3}[-.]){3}[0-9]{1,3}\.(?:sslip|nip)\.io\b", re.I
 )
@@ -54,7 +83,14 @@ LOCAL_PATH_PATTERNS = (
     re.compile(r"\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+", re.I),
     re.compile(r"(?<![\w/])/Users/[^/\s]+/"),
     re.compile(r"(?<![\w/])/home/(?!runner(?:/|$))[^/\s]+/"),
+    re.compile(
+        r"(?<![\\\w])\\\\[A-Za-z0-9][A-Za-z0-9._-]{0,252}"
+        r"\\[A-Za-z0-9$][A-Za-z0-9$._ -]{0,79}"
+        r"(?=\\|[\s'\"),;]|$)",
+        re.I,
+    ),
 )
+BINARY_SECRET_SUFFIXES = {".p12", ".pfx"}
 SENSITIVE_PATH_PARTS = {".claude", ".codex", ".cursor", ".superpowers"}
 ALLOWED_EMAIL_DOMAINS = {
     "example.com",
@@ -115,6 +151,29 @@ def is_public_ip(value: str) -> bool:
     )
 
 
+def is_embedded_numeric_identifier(line: str, start: int, end: int) -> bool:
+    """Return true when an IPv4-shaped substring is one segment of a longer OID."""
+    has_numeric_segment_before = (
+        start >= 2 and line[start - 1] == "." and line[start - 2].isdigit()
+    )
+    has_numeric_segment_after = (
+        end + 1 < len(line) and line[end] == "." and line[end + 1].isdigit()
+    )
+    return has_numeric_segment_before or has_numeric_segment_after
+
+
+def is_lockfile_network_context(line: str, start: int) -> bool:
+    prefix = line[max(0, start - 160) : start]
+    return bool(
+        re.search(
+            r"(?:https?|ssh|git)://[^\s'\"<>]*$|"
+            r"(?:host|hostname|address|endpoint|resolved|url)\s*[:=]\s*[^\s'\"<>]*$",
+            prefix,
+            re.IGNORECASE,
+        )
+    )
+
+
 def is_sensitive_repository_path(relative: str) -> bool:
     return any(part.casefold() in SENSITIVE_PATH_PARTS for part in Path(relative).parts)
 
@@ -136,6 +195,10 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
     if not should_scan_text(relative):
         return findings
 
+    if path.suffix.casefold() in BINARY_SECRET_SUFFIXES:
+        findings.append((display, 1, "sensitive credential container"))
+        return findings
+
     for line_number, line in enumerate(text.splitlines(), start=1):
         if any(marker in line for marker in PRIVATE_KEY_MARKERS):
             findings.append((display, line_number, "private key material"))
@@ -149,10 +212,22 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             email = f"{local_part}@{domain}"
             if not is_allowed_email(email):
                 findings.append((display, line_number, "non-example email address"))
-        if path.name not in LOCK_NAMES:
-            for candidate in IPV4_PATTERN.findall(line):
-                if is_public_ip(candidate):
-                    findings.append((display, line_number, "public IP address"))
+        for match in IPV4_PATTERN.finditer(line):
+            if is_embedded_numeric_identifier(line, match.start(), match.end()):
+                continue
+            candidate = match.group(0)
+            if is_public_ip(candidate) and (
+                path.name not in LOCK_NAMES
+                or is_lockfile_network_context(line, match.start())
+            ):
+                findings.append((display, line_number, "public IP address"))
+        for match in IPV6_PATTERN.finditer(line):
+            candidate = match.group(1)
+            if is_public_ip(candidate) and (
+                path.name not in LOCK_NAMES
+                or is_lockfile_network_context(line, match.start())
+            ):
+                findings.append((display, line_number, "public IPv6 address"))
     return findings
 
 
@@ -170,9 +245,13 @@ def scan_current_tree() -> list[Finding]:
         )
         if not should_scan_text(relative) and not is_env_file:
             continue
+        if is_env_file:
+            findings.append((relative, 1, "committed environment file"))
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
+            findings.append((relative, 1, "unreadable or non-UTF-8 governed text"))
             continue
         findings.extend(scan_text(relative, text))
     return findings
@@ -209,10 +288,7 @@ def text_at_commit(commit: str, relative: str) -> str | None:
         result = git("show", f"{commit}:{relative}")
     except subprocess.CalledProcessError:
         return None
-    try:
-        return result.stdout.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
+    return result.stdout.decode("utf-8")
 
 
 def scan_history(base: str) -> list[Finding]:
@@ -233,6 +309,15 @@ def scan_history(base: str) -> list[Finding]:
             if is_sensitive_repository_path(relative):
                 findings.append((f"{short}:{relative}", 1, "local development workspace path"))
                 continue
+            path = Path(relative)
+            is_env_file = path.name == ".env" or (
+                path.name.startswith(".env.") and path.name != ".env.example"
+            )
+            if is_env_file:
+                findings.append((f"{short}:{relative}", 1, "committed environment file"))
+                continue
+            if not should_scan_text(relative):
+                continue
             try:
                 blob = git("rev-parse", f"{commit}:{relative}").stdout.decode().strip()
             except subprocess.CalledProcessError:
@@ -241,7 +326,17 @@ def scan_history(base: str) -> list[Finding]:
             if key in seen_blobs:
                 continue
             seen_blobs.add(key)
-            text = text_at_commit(commit, relative)
+            try:
+                text = text_at_commit(commit, relative)
+            except UnicodeDecodeError:
+                findings.append(
+                    (
+                        f"{short}:{relative}",
+                        1,
+                        "unreadable or non-UTF-8 governed text",
+                    )
+                )
+                continue
             if text is None:
                 continue
             findings.extend(scan_text(relative, text, label=short))

@@ -1,5 +1,7 @@
 # PostgreSQL runtime cutover
 
+> **Status: legacy baseline and migration input only.** This pre-ratification Compose-era document records earlier fixed-pool, selector, `pg_dump`, and staging evidence behavior; it is not the Full-Surface production runtime or cutover authority. The controlling contracts are [Final Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md), [Zero-Cash Runtime](./ZERO_CASH_RUNTIME.md), [SQLite to PostgreSQL](./SQLITE_TO_POSTGRESQL.md), accepted ADRs [0034](../adr/0034-use-one-postgresql-cluster-with-context-owned-namespaces.md), [0035](../adr/0035-use-one-logical-database-per-bounded-context.md), [0036](../adr/0036-cap-postgresql-at-48-backends.md), [0059](../adr/0059-use-opentofu-and-native-systemd-as-production-authorities.md), and [0082](../adr/0082-cut-sqlite-over-once-without-dual-write.md), plus the current [Phase 1 execution cards](../execution/PHASE_1_RESIDENT_FOUNDATION.md). Those controllers win on every conflict. Nothing below authorizes Compose as production authority, a single logical database, fixed legacy pool allocations, or `pg_dump` as the production durability/rollback mechanism.
+
 This phase prepares PathLab for PostgreSQL as the authoritative deployment database without changing or activating the current production topology.
 
 ## Runtime contract

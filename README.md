@@ -125,7 +125,7 @@ Production deployment uses the assets in `deploy/`. Caddy terminates HTTPS, serv
 - Credentials, recovery codes, source slides, generated tiles, databases, and `.env` files must not be committed.
 - Suspected vulnerabilities or patient-data exposure should be reported privately rather than through a public issue.
 
-Administrator recovery architecture is documented in [`docs/architecture/PASSWORD_RECOVERY.md`](docs/architecture/PASSWORD_RECOVERY.md).
+[`docs/architecture/PASSWORD_RECOVERY.md`](docs/architecture/PASSWORD_RECOVERY.md) records legacy source behavior and migration input only. The ratified recovery authority, quorum, and implementation sequence are controlled by [`docs/architecture/FINAL_PRODUCTION_ENDPOINT.md`](docs/architecture/FINAL_PRODUCTION_ENDPOINT.md), [`docs/architecture/ROLE_APPROVAL_MATRIX.md`](docs/architecture/ROLE_APPROVAL_MATRIX.md), and [`docs/execution/PHASE_2_TRUST_AND_OPERATIONS.md`](docs/execution/PHASE_2_TRUST_AND_OPERATIONS.md) wherever they conflict.
 
 ## Contributing
 
@@ -148,5 +148,6 @@ The future Full-Surface destination is specified separately from the current imp
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) defines the fourteen bounded contexts and authority relationships.
 - [`docs/adr/README.md`](docs/adr/README.md) indexes all 131 accepted decisions.
 - [Wayfinder: Ratify the zero-cash Full-Surface production endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/187) is the canonical navigable decision map; execution and evidence remain in its separately linked backlog.
+- [Tracking issue #188: Implement and qualify the ratified PathLab Full-Surface endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/188) tracks delivery work without reopening the closed decision record in issue #187.
 
 These documents are planning and acceptance contracts. They do not claim that the current source, CI, deployment, production host, or feature flags have already implemented, qualified, or activated the destination.

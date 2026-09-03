@@ -16,15 +16,17 @@ Release admission verifies SOPS checksums, Sigstore and SLSA provenance, age che
 - Store one opaque SOPS binary document per service credential or narrowly scoped key ring.
 - Identify every data-encryption and private signing key with an immutable purpose-bound Key Version.
 - Keep previous data keys decrypt-only and previous public signing keys verify-only for only the applicable retention period.
-- Never store two custodian identities together; each custodian maintains redundant protected copies of only their own identity.
+- Never persist, expose to one operator, or place two custodian identities in the same filesystem object or operator-visible process. Each custodian maintains redundant protected copies of only their own identity and supplies it independently at recovery time.
+
+Before any Institution exists, the installation manifest may name exactly one installation-scoped, one-use `svc-platform` bootstrap public credential and its trust root. Its signed scope binds the repository identity, exact release fingerprint, installation identifier, bootstrap purpose, expiry, and non-Institution discriminator. The private half is held only in the threshold SOPS bundle and delivered as a volatile credential solely to the bootstrap controller. Bootstrap is a single atomic transaction: verify the pinned trust root and unused nonce, establish the first Institution, create a fresh Institution-bound `svc-platform` Principal/Purpose Identity and Key Version, consume the nonce, revoke and destroy the bootstrap credential, and emit the linked replacement receipt. The bootstrap credential cannot authorize ordinary governed mutations, cannot be reused or shared by installations, and leaves Institution nullable only on this pre-Institution receipt. A failed transaction creates no Institution, identity, consumption, revocation, or replacement receipt; a committed nonce can never be replayed.
 
 ## Boot and restart flow
 
 1. Protected services remain stopped behind `pathlab-credentials.target`; a credential-free local maintenance endpoint may report that unlock is required.
-2. Two custodians present separate protected media and passphrases through the console or a controlled root session.
-3. The operator verifies `/run` is tmpfs, creates a root-only staging directory with `umask 077`, and decrypts only the two selected identities into a regular temporary file. Private material is never placed in arguments, environment values, shell tracing, or journald.
-4. SOPS reads the identity file through `SOPS_AGE_KEY_FILE`, reconstructs each document, and pipes its plaintext directly to `systemd-creds encrypt --with-key=host --name=<purpose>` under a versioned `/run/pathlab-credentials` directory.
-5. The operator verifies every expected credential, atomically selects the version, removes the temporary identities, unmounts custodian media, and starts the protected target.
+2. Two custodians independently present separate protected media and passphrases to the quorum helper through distinct anonymous file descriptors; neither custodian nor the operator receives the other's identity.
+3. The helper verifies `/run` is tmpfs and creates a sealed, anonymous in-memory identity bundle that is inaccessible to the operator shell. It never writes either identity or their combination to a regular file and never places private material in arguments, environment values, shell tracing, or journald.
+4. The helper exposes the sealed bundle only as the `SOPS_AGE_KEY_FILE` input for its child SOPS process, reconstructs each document, and pipes its plaintext directly to `systemd-creds encrypt --with-key=host --name=<purpose>` under a versioned `/run/pathlab-credentials` directory. It closes and zeroizes every identity-bearing descriptor immediately after SOPS exits.
+5. The operator verifies every expected credential by non-secret fingerprint, atomically selects the version, the helper proves descriptor zeroization, custodians unmount their own media, and the operator starts the protected target.
 6. Units use `LoadCredentialEncrypted=` and receive only their own read-only credential file. Same-boot restarts reuse host-wrapped `/run` blobs; reboot or host loss clears them and requires a fresh two-custodian unlock.
 
 The systemd host key is not recovery authority. A replacement host generates a new host key and rewraps credentials from SOPS after quorum recovery.
@@ -44,6 +46,6 @@ Every rotation and at least one annual isolated replacement-host drill must prov
 
 - PostgreSQL, private object files, WAL staging, and authoritative audit data reside only on an operator-unlocked LUKS2 Encrypted Data Volume.
 - The volume key is recovered through the same SOPS two-of-three hierarchy and never delegated to provider-managed encryption as its authority.
-- Clinical identifiers, recovery material, adapter credentials, Provisional Journals, and any later classified high-risk data use additional application-level envelope encryption under distinct purpose-bound Key Versions.
+- Every deletion-bound governed plaintext is envelope-encrypted before database or object persistence under an Institution-, owning-context-, purpose-, and retention-bound Key Version. Independently deletable content uses a random per-object DEK; content with the same Institution, purpose, and retention deadline may share an Institution-bound purpose-and-retention-epoch DEK. Neither a Key Version nor a DEK may cross Institution boundaries. Clinical Shadow or quarantine data, recovery material, Adapter Credentials, Provisional Journals, assessment answers, and clinical identifiers are minimum examples, not an exhaustive high-risk-only boundary.
 - Decrypt privileges belong only to the owning context, and plaintext may exist only in its bounded process memory or root-controlled volatile credential path.
 - Provider-side block encryption remains enabled when available as defense in depth but cannot satisfy recovery, rotation, cryptographic deletion, or portability evidence.
