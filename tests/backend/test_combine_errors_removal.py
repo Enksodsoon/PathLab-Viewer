@@ -33,6 +33,16 @@ def test_tampered_patch_is_rejected(tmp_path: Path) -> None:
         validate(DEFAULT_LOCK, DEFAULT_WORKSPACE, DEFAULT_INVENTORY, patch)
 
 
+def test_windows_checkout_line_endings_preserve_patch_identity(tmp_path: Path) -> None:
+    patch = tmp_path / "tus.patch"
+    patch.write_text(
+        DEFAULT_PATCH.read_text(encoding="utf-8").replace("\n", "\r\n"),
+        encoding="utf-8",
+        newline="",
+    )
+    validate(DEFAULT_LOCK, DEFAULT_WORKSPACE, DEFAULT_INVENTORY, patch)
+
+
 def test_web_image_without_patch_input_is_rejected(tmp_path: Path) -> None:
     dockerfile = tmp_path / "Dockerfile.web"
     dockerfile.write_text(
