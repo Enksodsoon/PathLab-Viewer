@@ -5,7 +5,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl libvips42 libvips-tools \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY pyproject.toml README.md alembic.ini ./
+COPY pyproject.toml README.md LICENSE NOTICE alembic.ini ./
+COPY LICENSE NOTICE /usr/share/licenses/pathlab-viewer/
 COPY deploy/backend-requirements.txt ./deploy/backend-requirements.txt
 COPY migrations ./migrations
 COPY server ./server

@@ -30,6 +30,21 @@ Behavior changes require a regression test that fails before the implementation 
 
 Documentation-only changes should still be checked for broken links, stale claims, formatting errors, and unintended disclosure of infrastructure details.
 
+## Contribution provenance and licensing
+
+Contributions intended for inclusion are submitted under Apache-2.0 unless a
+clearly identified file or component states different terms. Add a
+`Signed-off-by: Name <privacy-safe-address>` trailer to each commit to certify
+the [Developer Certificate of Origin](https://developercertificate.org/).
+
+Disclose copied, adapted, generated, or tool-assisted material in the pull
+request. Identify its source and license or applicable terms, preserve required
+copyright and attribution notices, and update the relevant record under
+`docs/supply-chain/`. Do not submit work when ownership is unknown, the terms are
+incompatible, or you lack authority to contribute it. Package names, generated
+output, and repository presence are not evidence of permission. See the
+[license and notice policy](docs/supply-chain/LICENSE_AND_NOTICE_POLICY.md).
+
 Run the checks relevant to the change:
 
 ```bash

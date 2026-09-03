@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
+import json
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -104,6 +106,126 @@ ALLOWED_RESERVED_EMAIL_SUFFIXES = (".example", ".invalid", ".test")
 LOCK_NAMES = {"pnpm-lock.yaml", "package-lock.json", "yarn.lock"}
 
 Finding = tuple[str, int, str]
+
+REQUIRED_RIGHTS_FILES = (
+    "LICENSE",
+    "NOTICE",
+    "docs/supply-chain/LICENSE_AND_NOTICE_POLICY.md",
+)
+
+
+def _read_required_text(root: Path, relative: str) -> tuple[str | None, list[Finding]]:
+    path = root / relative
+    try:
+        return path.read_text(encoding="utf-8"), []
+    except FileNotFoundError:
+        return None, [(relative, 1, "required license or notice file is missing")]
+    except (UnicodeDecodeError, OSError):
+        return None, [(relative, 1, "required license or notice file is unreadable")]
+
+
+def scan_license_policy(root: Path = ROOT) -> list[Finding]:
+    findings: list[Finding] = []
+    texts: dict[str, str] = {}
+    for relative in REQUIRED_RIGHTS_FILES:
+        text, errors = _read_required_text(root, relative)
+        findings.extend(errors)
+        if text is not None:
+            texts[relative] = text
+
+    license_text = texts.get("LICENSE", "")
+    if "Apache License" not in license_text or "Version 2.0, January 2004" not in license_text:
+        findings.append(("LICENSE", 1, "root license is not Apache-2.0 text"))
+
+    notice_text = texts.get("NOTICE", "")
+    for marker in ("PathLab Viewer", "Copyright", "Third-party"):
+        if marker not in notice_text:
+            findings.append(("NOTICE", 1, f"required notice marker is missing: {marker}"))
+
+    policy_text = texts.get("docs/supply-chain/LICENSE_AND_NOTICE_POLICY.md", "")
+    for marker in (
+        "SPDX-License-Identifier: Apache-2.0",
+        "Signed-off-by:",
+        ".dist-info/licenses/",
+        "apps/web/dist",
+    ):
+        if marker not in policy_text:
+            findings.append(
+                (
+                    "docs/supply-chain/LICENSE_AND_NOTICE_POLICY.md",
+                    1,
+                    f"required license policy marker is missing: {marker}",
+                )
+            )
+
+    contributing, errors = _read_required_text(root, "CONTRIBUTING.md")
+    findings.extend(errors)
+    if contributing is not None:
+        for marker in ("Signed-off-by:", "Developer Certificate of Origin", "tool-assisted"):
+            if marker not in contributing:
+                findings.append(
+                    ("CONTRIBUTING.md", 1, f"contribution provenance rule is missing: {marker}")
+                )
+
+    pyproject_text, errors = _read_required_text(root, "pyproject.toml")
+    findings.extend(errors)
+    if pyproject_text is not None:
+        try:
+            project = tomllib.loads(pyproject_text).get("project", {})
+        except tomllib.TOMLDecodeError:
+            findings.append(("pyproject.toml", 1, "package metadata is invalid TOML"))
+        else:
+            if project.get("license") != "Apache-2.0":
+                findings.append(("pyproject.toml", 1, "Python package license is not Apache-2.0"))
+            if set(project.get("license-files", [])) != {"LICENSE", "NOTICE"}:
+                findings.append(
+                    ("pyproject.toml", 1, "Python package license-files must be LICENSE and NOTICE")
+                )
+
+    for relative in ("package.json", "apps/web/package.json"):
+        package_text, errors = _read_required_text(root, relative)
+        findings.extend(errors)
+        if package_text is None:
+            continue
+        try:
+            package = json.loads(package_text)
+        except json.JSONDecodeError:
+            findings.append((relative, 1, "package metadata is invalid JSON"))
+            continue
+        if package.get("license") != "Apache-2.0":
+            findings.append((relative, 1, "JavaScript package license is not Apache-2.0"))
+
+    web_package_path = root / "apps/web/package.json"
+    if web_package_path.is_file():
+        try:
+            web_package = json.loads(web_package_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+            pass
+        else:
+            build = web_package.get("scripts", {}).get("build", "")
+            if "copy-release-legal-files.mjs" not in build:
+                findings.append(
+                    ("apps/web/package.json", 1, "web build does not copy release legal files")
+                )
+    if not (root / "apps/web/scripts/copy-release-legal-files.mjs").is_file():
+        findings.append(
+            (
+                "apps/web/scripts/copy-release-legal-files.mjs",
+                1,
+                "web release legal-file copier is missing",
+            )
+        )
+
+    for relative in ("deploy/Dockerfile.backend", "deploy/Dockerfile.web"):
+        dockerfile, errors = _read_required_text(root, relative)
+        findings.extend(errors)
+        if dockerfile is not None:
+            if "LICENSE NOTICE" not in dockerfile:
+                findings.append((relative, 1, "container build omits root legal files"))
+            if "/usr/share/licenses/pathlab-viewer/" not in dockerfile:
+                findings.append((relative, 1, "container license placement is missing"))
+
+    return findings
 
 
 def git(*args: str) -> subprocess.CompletedProcess[bytes]:
@@ -364,6 +486,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     findings = scan_current_tree()
+    findings.extend(scan_license_policy())
     if args.history_base:
         findings.extend(scan_history(args.history_base))
 

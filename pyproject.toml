@@ -7,6 +7,8 @@ name = "pathlab-viewer"
 version = "0.1.0"
 description = "Public OME-TIFF whole-slide image viewer"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "alembic>=1.16,<2",
