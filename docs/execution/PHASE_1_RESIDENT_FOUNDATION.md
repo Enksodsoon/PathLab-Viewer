@@ -83,7 +83,7 @@ Phase 1 builds the lightweight, offline-verifiable resident foundation. Its host
 
 - **Outcome:** Add content-addressed immutable object storage on the encrypted data volume with atomic writes, signed/versioned manifests, reference accounting, filesystem grants, integrity verification and rebuildable/authoritative classification.
 - **Depends on:** `P1-T01`, `P1-T02`, and `P0-T10` `MERGED`.
-- **Read first:** ADR 0010, [Final Production Endpoint](../architecture/FINAL_PRODUCTION_ENDPOINT.md), [Rebuildable Tile Cache](../architecture/REBUILDABLE_TILE_CACHE.md).
+- **Read first:** ADR 0010, [Final Production Endpoint](../architecture/FINAL_PRODUCTION_ENDPOINT.md), and the migration-input-only [Rebuildable Tile Cache](../architecture/REBUILDABLE_TILE_CACHE.md); the Final Production Endpoint, Imaging Control context, and accepted ADRs control conflicts.
 - **Change surface:** object storage library, manifest schemas, filesystem layout, integrity and traversal tests.
 - **Implement:** hash-addressed paths, safe staging/rename, size/count limits, ownership metadata, no user-derived paths and deterministic inventory.
 - **Prove:** partial writes, hash collision simulation, traversal/symlink, corruption, concurrent admit/delete and restart cases.

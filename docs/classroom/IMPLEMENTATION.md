@@ -1,5 +1,12 @@
 # Lightweight Classroom implementation
 
+> **Precedence status: `BASELINE_ONLY`.** This document records the implemented
+> Classroom baseline and does not establish the Full-Surface destination,
+> capacity, qualification, or activation. The [Architecture Precedence
+> Register](../architecture/ARCHITECTURE_PRECEDENCE.md), [Live Learning
+> context](../contexts/live-learning/CONTEXT.md), and [Final Production
+> Endpoint](../architecture/FINAL_PRODUCTION_ENDPOINT.md) control conflicts.
+
 ## Scope and release state
 
 This implementation is deliberately limited to the active-learning loop:

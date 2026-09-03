@@ -2,6 +2,10 @@
 
 These 131 accepted ADRs are the complete decision baseline for the ratified PathLab Full-Surface production endpoint. They record planning authority only: an accepted ADR does not establish implementation, merge, deployment, qualification, pilot, or activation. Later changes require a named decision and a new or superseding ADR rather than rewriting history silently.
 
+The [Architecture Precedence Register](../architecture/ARCHITECTURE_PRECEDENCE.md)
+classifies every architecture document and names the accepted controllers for
+legacy or conflicting material. It does not rewrite the ADRs below.
+
 - [0001 — Separate zero-cash production from funded scalability](./0001-separate-zero-cash-production-from-funded-scalability.md)
 - [0002 — Require a 1,200-seat zero-cash Classroom launch gate](./0002-require-1200-seat-zero-cash-classroom-launch.md)
 - [0003 — Protect zero-cash data without an uptime promise](./0003-protect-zero-cash-data-without-an-uptime-promise.md)

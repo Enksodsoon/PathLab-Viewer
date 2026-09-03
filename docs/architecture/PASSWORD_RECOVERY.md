@@ -1,5 +1,12 @@
 # Administrator Password Recovery
 
+> **Precedence status: `MIGRATION_INPUT_ONLY`.** This single-administrator
+> recovery design records legacy source behavior and migration input only. The
+> [Architecture Precedence Register](./ARCHITECTURE_PRECEDENCE.md), [Trust
+> Governance context](../contexts/trust-governance/CONTEXT.md), and [Role
+> Approval Matrix](./ROLE_APPROVAL_MATRIX.md) control workforce identity,
+> privileged recovery, approval, and activation conflicts.
+
 ## Purpose
 
 PathLab Viewer supports one administrator account. Password management has two paths:

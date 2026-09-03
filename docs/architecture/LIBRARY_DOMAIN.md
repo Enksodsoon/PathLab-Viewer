@@ -1,5 +1,12 @@
 # Library Domain and Bounded Query Contract
 
+> **Precedence status: `MIGRATION_INPUT_ONLY`.** This current-source library
+> contract is retained as migration input. The [Architecture Precedence
+> Register](./ARCHITECTURE_PRECEDENCE.md), [Imaging Control
+> context](../contexts/imaging-control/CONTEXT.md), and [Governed Product
+> Workflows](./GOVERNED_PRODUCT_WORKFLOWS.md) control target ownership, sharing,
+> persistence, role, and activation conflicts.
+
 ## Domain boundaries
 
 Folders, collections, and saved views are separate concepts:

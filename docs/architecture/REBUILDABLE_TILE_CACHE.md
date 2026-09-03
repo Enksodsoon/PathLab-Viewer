@@ -1,5 +1,12 @@
 # Rebuildable tile-cache index
 
+> **Precedence status: `MIGRATION_INPUT_ONLY`.** This current-source cache index
+> contract is retained as migration input. The [Architecture Precedence
+> Register](./ARCHITECTURE_PRECEDENCE.md), [Imaging Control
+> context](../contexts/imaging-control/CONTEXT.md), and [Zero-Cash Durability and
+> Security](./ZERO_CASH_DURABILITY_SECURITY.md) control target cache authority,
+> durability, recovery, and activation conflicts.
+
 The dynamic OME tile cache is disposable and is not part of PathLab's durable
 application state. Program 0B therefore removes its SQLite metadata database
 instead of moving high-frequency LRU writes into PostgreSQL.

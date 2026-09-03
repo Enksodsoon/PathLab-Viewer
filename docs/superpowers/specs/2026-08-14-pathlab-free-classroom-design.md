@@ -1,5 +1,13 @@
 # PathLab Viewer Free-Tier 1,200-Seat Stability Design
 
+> **Precedence status: `SUPERSEDED`.** This historical plan creates no current
+> requirement or production claim. The [Architecture Precedence
+> Register](../../architecture/ARCHITECTURE_PRECEDENCE.md), [Final Production
+> Endpoint](../../architecture/FINAL_PRODUCTION_ENDPOINT.md), [Zero-Cash
+> Runtime](../../architecture/ZERO_CASH_RUNTIME.md), and [Production
+> Qualification](../../architecture/PRODUCTION_QUALIFICATION.md) control all
+> conflicts.
+
 ## Status
 
 Approved for implementation on 2026-08-14. Production capacity claims remain fail-closed until the protected live certification completes.

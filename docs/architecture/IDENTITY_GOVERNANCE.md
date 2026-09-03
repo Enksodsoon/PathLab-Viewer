@@ -1,5 +1,12 @@
 # Identity and Governance Foundation
 
+> **Precedence status: `BASELINE_ONLY`.** This document records an earlier
+> default-off implementation slice; it does not define the destination identity
+> or privileged-recovery authority. The [Architecture Precedence
+> Register](./ARCHITECTURE_PRECEDENCE.md), [Trust Governance
+> context](../contexts/trust-governance/CONTEXT.md), and [Role Approval
+> Matrix](./ROLE_APPROVAL_MATRIX.md) control conflicts.
+
 ## Status and boundary
 
 This is the first deployable Program 1 identity slice. It is disabled by default with
