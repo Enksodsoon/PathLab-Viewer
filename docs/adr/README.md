@@ -133,4 +133,3 @@ These 131 accepted ADRs are the complete decision baseline for the ratified Path
 - [0129 — Require one golden Institution journey](./0129-require-one-golden-institution-journey.md)
 - [0130 — Separate plan, build, deploy, qualification, and activation](./0130-separate-plan-build-deploy-qualification-and-activation.md)
 - [0131 — Make the Wayfinder map and versioned plan canonical](./0131-make-the-wayfinder-map-and-versioned-plan-canonical.md)
-
