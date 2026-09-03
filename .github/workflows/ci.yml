@@ -66,6 +66,11 @@ jobs:
         run: |
           python scripts/validate_viewer_ui_boundary.py
           ruff check scripts/validate_viewer_ui_boundary.py tests/backend/test_viewer_ui_boundary.py
+      - name: Validate security-control and egress baseline
+        run: |
+          python scripts/validate_security_baseline.py
+          ruff check scripts/validate_security_baseline.py tests/backend/test_security_baseline.py
+          pytest -q tests/backend/test_security_baseline.py
       - name: Validate admitted runtime toolchain
         run: |
           python scripts/validate_runtime_toolchain_admission.py

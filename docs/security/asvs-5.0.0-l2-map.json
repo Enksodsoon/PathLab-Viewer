@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "profile": "OWASP ASVS 5.0.0 Level 2",
+  "source": {
+    "releaseTag": "v5.0.0_release",
+    "commit": "5cf9b032440be53ce345ab3c130fda46ba1ce7a2",
+    "path": "5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.flat.json",
+    "gitBlob": "f7ae2926598c4648ff7614a6968e4c8fd89524bd",
+    "sha256": "8201b20eec2908c3380ac600c91c8ba746346fbb808859366abb232027532311",
+    "license": "CC-BY-SA-4.0",
+    "url": "https://github.com/OWASP/ASVS/blob/5cf9b032440be53ce345ab3c130fda46ba1ce7a2/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.flat.json",
+    "level2ControlCount": 253,
+    "level2ControlSetSha256": "65a2bdf17c6bf4ae3fa52d48eaa62b63d4f87086efca4f105ab37427a8856cd0"
+  },
+  "chapterMappings": [
+    {"chapter":"V1","title":"Encoding and Sanitization","controlCount":27,"disposition":"APPLICABLE","owner":"Platform Security Owner","ownerTasks":["P1-T02","P3-T03","P7-G01"],"surfaceClasses":["HTTP_API","FILE_INGEST","WEB_FRONTEND"]},
+    {"chapter":"V2","title":"Validation and Business Logic","controlCount":11,"disposition":"APPLICABLE","owner":"Platform Security Owner","ownerTasks":["P2-T04","P3-T03","P7-G01"],"surfaceClasses":["HTTP_API","GOVERNED_MUTATION"]},
+    {"chapter":"V3","title":"Web Frontend Security","controlCount":19,"disposition":"APPLICABLE","owner":"Web Security Owner","ownerTasks":["P2-T06","P3-T18","P7-G01"],"surfaceClasses":["WEB_FRONTEND","PUBLIC_BROWSER"]},
+    {"chapter":"V4","title":"API and Web Service","controlCount":10,"disposition":"APPLICABLE","owner":"Platform Security Owner","ownerTasks":["P1-T02","P2-T04","P7-G01"],"surfaceClasses":["HTTP_API","INTERNAL_HTTP"]},
+    {"chapter":"V5","title":"File Handling","controlCount":9,"disposition":"APPLICABLE","owner":"Imaging Security Owner","ownerTasks":["P1-T08","P3-T03","P7-G01"],"surfaceClasses":["FILE_INGEST","OBJECT_DELIVERY"]},
+    {"chapter":"V6","title":"Authentication","controlCount":35,"disposition":"APPLICABLE","owner":"Trust Security Owner","ownerTasks":["P2-T06","P2-T07","P2-T08","P7-G01"],"surfaceClasses":["AUTHENTICATION","RECOVERY","DEVICE_PAIRING"]},
+    {"chapter":"V7","title":"Session Management","controlCount":18,"disposition":"APPLICABLE","owner":"Trust Security Owner","ownerTasks":["P2-T06","P7-G01"],"surfaceClasses":["AUTHENTICATED_HTTP","PARTICIPANT_SESSION"]},
+    {"chapter":"V8","title":"Authorization","controlCount":7,"disposition":"APPLICABLE","owner":"Trust Security Owner","ownerTasks":["P2-T04","P2-T05","P7-G01"],"surfaceClasses":["AUTHENTICATED_HTTP","GOVERNED_MUTATION","PUBLIC_DELIVERY"]},
+    {"chapter":"V9","title":"Self-contained Tokens","controlCount":7,"disposition":"APPLICABLE","owner":"Trust Security Owner","ownerTasks":["P2-T06","P3-T03","P7-G01"],"surfaceClasses":["UPLOAD_GRANT","INVITATION_GRANT","DEVICE_PAIRING"]},
+    {"chapter":"V10","title":"OAuth and OIDC","controlCount":29,"disposition":"NOT_APPLICABLE","owner":"Integration Security Owner","ownerTasks":["P5-T01","P7-G01"],"surfaceClasses":[],"evidence":"Full-Surface v1 has no OAuth authorization server, OAuth client, or OIDC relying-party surface; future Integration Gateway work requires a new mapping before exposure.","controlIds":["V10.1.1","V10.1.2","V10.2.1","V10.2.2","V10.3.1","V10.3.2","V10.3.3","V10.3.4","V10.4.1","V10.4.10","V10.4.11","V10.4.2","V10.4.3","V10.4.4","V10.4.5","V10.4.6","V10.4.7","V10.4.8","V10.4.9","V10.5.1","V10.5.2","V10.5.3","V10.5.4","V10.5.5","V10.6.1","V10.6.2","V10.7.1","V10.7.2","V10.7.3"]},
+    {"chapter":"V11","title":"Cryptography","controlCount":14,"disposition":"APPLICABLE","owner":"Cryptography Owner","ownerTasks":["P1-T11","P1-T12","P7-G01"],"surfaceClasses":["CREDENTIALS","SIGNED_RECEIPTS","ENCRYPTED_DATA"]},
+    {"chapter":"V12","title":"Secure Communication","controlCount":9,"disposition":"APPLICABLE","owner":"Platform Security Owner","ownerTasks":["P1-T16","P1-T20","P7-G01"],"surfaceClasses":["PUBLIC_TLS","INTERNAL_HTTP","BACKUP_TRANSPORT"]},
+    {"chapter":"V13","title":"Configuration","controlCount":13,"disposition":"APPLICABLE","owner":"Platform Operations Owner","ownerTasks":["P1-T16","P1-T20","P7-G01"],"surfaceClasses":["DEPLOYMENT","HTTP_API","BUILD"]},
+    {"chapter":"V14","title":"Data Protection","controlCount":9,"disposition":"APPLICABLE","owner":"Privacy and Data Protection Owner","ownerTasks":["P1-T12","P2-T10","P2-T12","P7-G01"],"surfaceClasses":["PRIVATE_PIXEL","PHI_RISK","ASSESSMENT_ANSWER","TELEMETRY"]},
+    {"chapter":"V15","title":"Secure Coding and Architecture","controlCount":13,"disposition":"APPLICABLE","owner":"Platform Security Owner","ownerTasks":["P1-T01","P1-T02","P7-G01"],"surfaceClasses":["SOURCE","DEPENDENCY","SERVICE_BOUNDARY"]},
+    {"chapter":"V16","title":"Security Logging and Error Handling","controlCount":16,"disposition":"APPLICABLE","owner":"Audit Security Owner","ownerTasks":["P2-T13","P2-T17","P7-G01"],"surfaceClasses":["AUDIT","LOGGING","ERROR_RESPONSE"]},
+    {"chapter":"V17","title":"WebRTC","controlCount":7,"disposition":"NOT_APPLICABLE","owner":"Live Learning Security Owner","ownerTasks":["P4-T20","P7-G01"],"surfaceClasses":[],"evidence":"Full-Surface v1 current tree has no TURN, WebRTC signaling, DTLS-SRTP media server, or recording surface; later media work requires a new mapping before exposure.","controlIds":["V17.1.1","V17.2.1","V17.2.2","V17.2.3","V17.2.4","V17.3.1","V17.3.2"]}
+  ],
+  "evidenceExclusions": {
+    "SECRET":"Never include credentials, private keys, recovery material, session tokens, signing material, or full authentication headers.",
+    "PHI_PRIVATE_PIXEL":"Never include private pixels, clinical identifiers, unredacted metadata, or PHI-risk payloads.",
+    "ASSESSMENT_ANSWER":"Never include learner answers, answer keys, provisional journals, grades, or accommodations beyond synthetic canaries.",
+    "TELEMETRY":"No third-party telemetry. Local evidence uses minimized identifiers, bounded timestamps, reason codes, and content hashes."
+  },
+  "qualificationBoundary":"This map assigns scope and evidence ownership only. It is not an ASVS certification or exact-release security result."
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "discoveryRoots": [".github/workflows", "apps/web", "deploy", "scripts", "server/wsi_viewer"],
+  "rules": [
+    {"glob":".github/workflows/*","class":"HOSTED_VALIDATION_OR_DEPLOY_CONTROL","environment":"HOSTED_NON_AUTHORITATIVE","defaultDenyTarget":"P0-T09 and P1-T20: authoritative build stays offline; deployment permits only exact GitHub/OCI endpoints during an approved operation","ownerTasks":["P0-T09","P1-T20"]},
+    {"glob":"apps/web/e2e/*","class":"TEST_ONLY_NETWORK_FIXTURE","environment":"TEST_ONLY","defaultDenyTarget":"Excluded from production artifact; test origin is explicit and synthetic","ownerTasks":["P7-G01"]},
+    {"glob":"apps/web/*.config.ts","class":"TEST_OR_BUILD_ORIGIN","environment":"BUILD_OR_TEST","defaultDenyTarget":"Authoritative build runs offline; browser tests permit only declared local fixture origin","ownerTasks":["P0-T09","P7-G01"]},
+    {"glob":"apps/web/src/*","class":"SAME_ORIGIN_BROWSER_REQUEST","environment":"PRODUCTION_BROWSER","defaultDenyTarget":"CSP and connect-src admit only same-origin application endpoints unless a later task declares a purpose-bound exception","ownerTasks":["P1-T20","P3-T18"]},
+    {"glob":"deploy/Dockerfile.*","class":"BUILD_INPUT_ACQUISITION","environment":"IMAGE_BUILD","defaultDenyTarget":"P0-T09 mirrors every input; authoritative build executes with network disabled","ownerTasks":["P0-T09"]},
+    {"glob":"deploy/README.md","class":"DOCUMENTED_OPERATOR_ENDPOINT","environment":"DOCUMENTATION","defaultDenyTarget":"Documentation creates no permit; each executable path must have its own rule","ownerTasks":["P1-T20"]},
+    {"glob":"deploy/compose*.yaml","class":"PRIVATE_SERVICE_CELL","environment":"PRODUCTION_RUNTIME","defaultDenyTarget":"Permit only named private service identities/ports and loopback health probes","ownerTasks":["P1-T20"]},
+    {"glob":"deploy/*requirements*","class":"BUILD_INPUT_METADATA","environment":"BUILD","defaultDenyTarget":"P0-T09 mirrors hashes and sources; runtime/restore use no package-network access","ownerTasks":["P0-T09"]},
+    {"glob":"deploy/scripts/*","class":"BOUNDED_OPERATOR_OR_INTERNAL_FLOW","environment":"PRODUCTION_BUILD_BACKUP_RESTORE","defaultDenyTarget":"P1-T20 permits only declared OCI Bastion, Institution network identity, selected production origin, loopback/private service, and Backup Target directions; all else denied","ownerTasks":["P1-T20"]},
+    {"glob":"deploy/terraform/*","class":"OCI_PROVISIONING_CONTROL_PLANE","environment":"PROVISIONING","defaultDenyTarget":"Permit exact OCI API endpoints only during an approved infrastructure operation; no production workload credential","ownerTasks":["P1-T20"]},
+    {"glob":"scripts/*","class":"DEVELOPMENT_OR_SUPPLY_CHAIN_TOOL","environment":"DEVELOPMENT_OR_AUTHORITATIVE_BUILD","defaultDenyTarget":"P0-T09 provides mirrored inputs; authoritative build blocks network and development retrieval is non-authoritative","ownerTasks":["P0-T09"]},
+    {"glob":"server/wsi_viewer/*","class":"PRIVATE_SERVICE_OR_CONFIGURED_TARGET","environment":"PRODUCTION_RUNTIME","defaultDenyTarget":"P1-T20 permits named private service cells only; public internet, hosted telemetry, KMS, AI, registry, and notification endpoints denied","ownerTasks":["P1-T20"]}
+  ],
+  "explicitExternalExceptions": [
+    {"id":"OCI_CONTROL_PLANE","initiator":"approved operator workflow","destination":"exact OCI tenancy API and Bastion endpoints","protocol":"TLS and pinned SSH host key","purpose":"bounded deployment or capacity operation","timeBoundary":"single approved run","ownerTasks":["P1-T20"]},
+    {"id":"INSTITUTION_NETWORK_IDENTITY","initiator":"network identity updater","destination":"Institution-approved DNS/network identity provider","protocol":"TLS","purpose":"maintain selected public endpoint identity","timeBoundary":"bounded scheduled update","ownerTasks":["P0-T09A","P1-T20"]},
+    {"id":"BACKUP_TARGET_PULL_AND_RECEIPT","initiator":"Institution-owned Backup Target","destination":"selected Production endpoint","protocol":"mutually authenticated purpose-bound transport","purpose":"WAL/object pull and signed receipt return","timeBoundary":"declared backup window","ownerTasks":["P2-T19","P2-T20"]}
+  ],
+  "forbiddenMandatoryServices":["hosted CI","public package registry","third-party telemetry","hosted KMS","hosted backup","remote AI","external notification service","paid mandatory API"]
+}

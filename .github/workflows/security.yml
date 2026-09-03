@@ -27,6 +27,12 @@ jobs:
           python-version: "3.12"
       - name: Check public repository content
         run: python scripts/check_public_repository.py
+      - name: Validate security-control and egress baseline
+        run: |
+          python scripts/validate_security_baseline.py
+          python -m pip install ruff pytest
+          ruff check scripts/validate_security_baseline.py tests/backend/test_security_baseline.py
+          pytest -q tests/backend/test_security_baseline.py
       - name: Audit Python dependencies
         run: |
           python -m pip install --upgrade pip pip-audit
