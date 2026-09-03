@@ -85,12 +85,12 @@ representations:
   authority_to_grant_proposed_license: true
   third_party_works_not_relicensed: true
   generated_material_terms_reviewed: true
-human_confirmation: I_HAVE_REVIEWED_AND_APPROVE_THIS_FINAL_RECEIPT
+human_confirmation: PENDING_FINAL_HUMAN_CONFIRMATION
 signature_method: github-web-flow-signed-commit
 signature_identity: "github:Enksodsoon (authenticated platform identity)"
-signature: embedded-github-web-flow-commit-signature
-artifact_hash_scope: "SHA-256 of canonical JSON for fields schema through representations, YAML scalar strings, UTF-8, sorted keys, compact separators"
-artifact_sha256: a079277066576dfa07740e3e757f6d08094ec568e2b55b418efd479e934fcd05
+signature: PENDING_FINAL_GITHUB_WEB_COMMIT
+artifact_hash_scope: "SHA-256 of canonical JSON for fields schema through representations, all YAML scalars treated as strings, UTF-8, sorted keys, compact separators"
+artifact_sha256: 1780f31ebb0145e31b8eadbce9a8d5b2726c887b66ff5190c3a985f3bbbfe07a
 ```
 
 ## Verification
