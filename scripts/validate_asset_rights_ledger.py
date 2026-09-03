@@ -85,6 +85,20 @@ def validate_subject(root: Path, subject: str) -> None:
         fail("ledger subjectCommit is not an available immutable Git commit")
 
 
+def validate_subject_paths(root: Path, subject: str, discovered: list[dict[str, Any]]) -> None:
+    paths: set[str] = set()
+    for record in discovered:
+        locator = record["locator"]
+        paths.add(locator.split("!", 1)[0].split("#", 1)[0])
+    result = subprocess.run(
+        ["git", "diff", "--quiet", subject, "--", *sorted(paths)],
+        cwd=root,
+        check=False,
+    )
+    if result.returncode:
+        fail("governed asset inputs differ from ledger subjectCommit")
+
+
 def validate_record_fields(record: dict[str, Any]) -> None:
     missing = sorted(REQUIRED_FIELDS - record.keys())
     if missing:
@@ -217,6 +231,7 @@ def validate(
         validate_record_fields(record)
 
     discovered = discover_repository_records(root, policy) + discover_inline_records(root, policy)
+    validate_subject_paths(root, ledger["subjectCommit"], discovered)
     discovered_ids = reconcile_discovered(discovered, records)
 
     package_ids = validate_package_assets(root, policy, inventory, records)

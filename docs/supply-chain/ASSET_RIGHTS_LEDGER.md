@@ -5,8 +5,8 @@
 The machine-readable [`ASSET_RIGHTS_LEDGER.json`](./ASSET_RIGHTS_LEDGER.json) reconciles every
 currently governed repository visual/media file, archive member, inline image, bundled runtime
 font, and imported icon at subject commit
-`cf9e07d6914532a75db3aac9a1c19a26732e33be`. That subject is the P0-T04 merge and the exact
-asset-bearing tree inspected before this ledger and its validators were added. P0-T01 authority is
+`3e08440e12110aad649f8b15b1b50454485c40c8`. That subject is the exact P0-T05 implementation
+tree inspected before the final receipt refresh. P0-T01 authority is
 PR [#190](https://github.com/Enksodsoon/PathLab-Viewer/pull/190), merged as
 `c62b11172e95f2246def92aabf77ff7925413eb7`.
 

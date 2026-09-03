@@ -19,9 +19,12 @@ from scripts.validate_asset_rights_ledger import (
     validate,
 )
 
+SUBJECT = "3e08440e12110aad649f8b15b1b50454485c40c8"
+
 
 def test_current_asset_set_reconciles_and_remains_release_blocked() -> None:
     ledger = validate()
+    assert ledger["subjectCommit"] == SUBJECT
     assert len(ledger["records"]) == 35
     assert ledger["releaseAdmission"] == "BLOCKED"
     assert len(ledger["releaseBlockers"]) == 31
