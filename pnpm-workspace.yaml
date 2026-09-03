@@ -10,3 +10,5 @@ overrides:
 allowBuilds:
   esbuild: true
   protobufjs: true
+patchedDependencies:
+  tus-js-client@4.3.1: patches/tus-js-client-4.3.1.patch

@@ -1,0 +1,102 @@
+diff --git a/lib/node/urlStorage.js b/lib/node/urlStorage.js
+index 7906335bdea48f8053c9f1819ab9884aa8bcc058..42b97e304ce39e8ac098d8a6b0c22ddce85f2114 100644
+--- a/lib/node/urlStorage.js
++++ b/lib/node/urlStorage.js
+@@ -1,7 +1,16 @@
+ import { readFile, writeFile } from 'fs'
+-import combineErrors from 'combine-errors'
+ import * as lockfile from 'proper-lockfile'
+ 
++function aggregateReleaseErrors(operationError, releaseError) {
++  const error = new AggregateError(
++    [operationError, releaseError],
++    `${operationError.message}; ${releaseError.message}`,
++  )
++  error.name = 'MultiError'
++  error.stack = `${operationError.stack}\n\n${releaseError.stack}`
++  return error
++}
++
+ export const canStoreURLs = true
+ 
+ export class FileUrlStorage {
+@@ -118,7 +127,7 @@ export class FileUrlStorage {
+       if (err) {
+         release()
+           .then(() => cb(err))
+-          .catch((releaseErr) => cb(combineErrors([err, releaseErr])))
++          .catch((releaseErr) => cb(aggregateReleaseErrors(err, releaseErr)))
+         return
+       }
+ 
+diff --git a/lib.es5/node/urlStorage.js b/lib.es5/node/urlStorage.js
+index c27059562f7644ab3cdf71bae29f350ebe012754..6052f4bb613367c59268e036fa5348d2ba0c3fa1 100644
+--- a/lib.es5/node/urlStorage.js
++++ b/lib.es5/node/urlStorage.js
+@@ -5,11 +5,16 @@ Object.defineProperty(exports, "__esModule", {
+ });
+ exports.canStoreURLs = exports.FileUrlStorage = void 0;
+ var _fs = require("fs");
+-var _combineErrors = _interopRequireDefault(require("combine-errors"));
+ var lockfile = _interopRequireWildcard(require("proper-lockfile"));
+ function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function (e) { return e ? t : r; })(e); }
+ function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
++function aggregateReleaseErrors(operationError, releaseError) {
++  var error = new AggregateError([operationError, releaseError], "".concat(operationError.message, "; ").concat(releaseError.message));
++  error.name = "MultiError";
++  error.stack = "".concat(operationError.stack, "\n\n").concat(releaseError.stack);
++  return error;
++}
+ function _typeof(o) {
+   "@babel/helpers - typeof";
+ 
+@@ -176,7 +181,7 @@ var FileUrlStorage = exports.FileUrlStorage = /*#__PURE__*/function () {
+           release().then(function () {
+             return cb(err);
+           })["catch"](function (releaseErr) {
+-            return cb((0, _combineErrors.default)([err, releaseErr]));
++            return cb(aggregateReleaseErrors(err, releaseErr));
+           });
+           return;
+         }
+diff --git a/lib.esm/node/urlStorage.js b/lib.esm/node/urlStorage.js
+index 7ef35ad5c6ce767b28280620db94e64f38256e9e..9c64a90189a734b49bed1f89a700c845949e333b 100644
+--- a/lib.esm/node/urlStorage.js
++++ b/lib.esm/node/urlStorage.js
+@@ -5,8 +5,13 @@ function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _d
+ function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+ import { readFile, writeFile } from 'fs';
+-import combineErrors from 'combine-errors';
+ import * as lockfile from 'proper-lockfile';
++function aggregateReleaseErrors(operationError, releaseError) {
++  var error = new AggregateError([operationError, releaseError], "".concat(operationError.message, "; ").concat(releaseError.message));
++  error.name = 'MultiError';
++  error.stack = "".concat(operationError.stack, "\n\n").concat(releaseError.stack);
++  return error;
++}
+ export var canStoreURLs = true;
+ export var FileUrlStorage = /*#__PURE__*/function () {
+   function FileUrlStorage(filePath) {
+@@ -128,7 +133,7 @@ export var FileUrlStorage = /*#__PURE__*/function () {
+           release().then(function () {
+             return cb(err);
+           })["catch"](function (releaseErr) {
+-            return cb(combineErrors([err, releaseErr]));
++            return cb(aggregateReleaseErrors(err, releaseErr));
+           });
+           return;
+         }
+diff --git a/package.json b/package.json
+index 0079f2a82b51668762d2f43404991fef6ef33b96..67fec5b8c75211848379f3865531212bb003f884 100644
+--- a/package.json
++++ b/package.json
+@@ -55,7 +55,6 @@
+   },
+   "dependencies": {
+     "buffer-from": "^1.1.2",
+-    "combine-errors": "^3.0.3",
+     "is-stream": "^2.0.0",
+     "js-base64": "^3.7.2",
+     "lodash.throttle": "^4.1.1",

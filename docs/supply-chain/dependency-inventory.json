@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T09:16:45.596303Z",
+  "generatedAt": "2026-09-03T12:37:11.943112Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -5147,31 +5147,6 @@
       "version": "1.1.4"
     },
     {
-      "admission": "BLOCKED",
-      "artifact": "https://registry.npmjs.org/combine-errors/-/combine-errors-3.0.3.tgz",
-      "blockers": [
-        "UNKNOWN_OR_UNLICENSED",
-        "NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE"
-      ],
-      "checksum": "sha512-C8ikRNRMygCwaTx+Ek3Yr+OuZzgZjduCOfSQBjbM8V3MfgcjSTeto/GXP6PAwKvJz/v15b7GHZvx5rOlczFw/Q==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:combine-errors@3.0.3",
-      "license": "UNKNOWN",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "f5f3d969c93c567ab1fb287afb783daf4c5efa1cd79cb99c7e13bbc5a516687f",
-      "name": "combine-errors",
-      "noticeFiles": [],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/combine-errors/3.0.3",
-      "version": "3.0.3"
-    },
-    {
       "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/convert-source-map/-/convert-source-map-2.0.0.tgz",
       "blockers": [],
@@ -5332,30 +5307,6 @@
       "role": "build-only",
       "source": "https://registry.npmjs.org/csstype/3.2.3",
       "version": "3.2.3"
-    },
-    {
-      "admission": "BLOCKED",
-      "artifact": "https://registry.npmjs.org/custom-error-instance/-/custom-error-instance-2.1.1.tgz",
-      "blockers": [
-        "NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE"
-      ],
-      "checksum": "sha512-p6JFxJc3M4OTD2li2qaHkDCw9SfMw82Ldr6OC9Je1aXiGfhx2W8p3GaoeaGrPJTUN9NirTM/KTxHWMUdR1rsUg==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:custom-error-instance@2.1.1",
-      "license": "ISC",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "343dd3cf156048b193d7073f4943557b1200af8c9662eda63916afcaaa3f3283",
-      "name": "custom-error-instance",
-      "noticeFiles": [],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/custom-error-instance/2.1.1",
-      "version": "2.1.1"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -7534,168 +7485,6 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash._baseiteratee/-/lodash._baseiteratee-4.7.0.tgz",
-      "blockers": [],
-      "checksum": "sha512-nqB9M+wITz0BX/Q2xg6fQ8mLkyfF7MU7eE+MNBNjTHFKeKaZAPEzEg+E8LWxKWf1DQVflNEn9N49yAuqKh2mWQ==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash._baseiteratee@4.7.0",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "aa33775a9ae4b52568a23303d7fc050b1e1e8687a94d756e0ee1ff69e782f711",
-      "name": "lodash._baseiteratee",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash._baseiteratee/4.7.0",
-      "version": "4.7.0"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash._basetostring/-/lodash._basetostring-4.12.0.tgz",
-      "blockers": [],
-      "checksum": "sha512-SwcRIbyxnN6CFEEK4K1y+zuApvWdpQdBHM/swxP962s8HIxPO3alBH5t3m/dl+f4CMUug6sJb7Pww8d13/9WSw==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash._basetostring@4.12.0",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "5ce0887be581eeb814238529677f29dc61540d611dd6994db3eb970c3b1a3c1c",
-      "name": "lodash._basetostring",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash._basetostring/4.12.0",
-      "version": "4.12.0"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash._baseuniq/-/lodash._baseuniq-4.6.0.tgz",
-      "blockers": [],
-      "checksum": "sha512-Ja1YevpHZctlI5beLA7oc5KNDhGcPixFhcqSiORHNsp/1QTv7amAXzw+gu4YOvErqVlMVyIJGgtzeepCnnur0A==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash._baseuniq@4.6.0",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "7235e1f0f1a3d97095768b6a43587b654476239ca9ac29749e396a124fabdfc1",
-      "name": "lodash._baseuniq",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash._baseuniq/4.6.0",
-      "version": "4.6.0"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash._createset/-/lodash._createset-4.0.3.tgz",
-      "blockers": [],
-      "checksum": "sha512-GTkC6YMprrJZCYU3zcqZj+jkXkrXzq3IPBcF/fIPpNEAB4hZEtXU8zp/RwKOvZl43NUmwDbyRk3+ZTbeRdEBXA==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash._createset@4.0.3",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "01cadd1914dce4a5a02fe3d575d4acb6d86369d39c4c10ba547b958616104ec6",
-      "name": "lodash._createset",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash._createset/4.0.3",
-      "version": "4.0.3"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash._root/-/lodash._root-3.0.1.tgz",
-      "blockers": [],
-      "checksum": "sha512-O0pWuFSK6x4EXhM1dhZ8gchNtG7JMqBtrHdoUFUWXD7dJnNSUze1GuyQr5sOs0aCvgGeI3o/OJW8f4ca7FDxmQ==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash._root@3.0.1",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "eef71b2d1ff9a33523d5cf17b24d1e9aef81d0acd4f083367486f5562f94ee5b",
-      "name": "lodash._root",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "5b36b1230e57ce107ef477283adbf8c20561846626a67e1a7d648f6c6e902980"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash._root/3.0.1",
-      "version": "3.0.1"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash._stringtopath/-/lodash._stringtopath-4.8.0.tgz",
-      "blockers": [],
-      "checksum": "sha512-SXL66C731p0xPDC5LZg4wI5H+dJo/EO4KTqOMwLYCH3+FmmfAKJEZCm6ohGpI+T1xwsDsJCfL4OnhorllvlTPQ==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash._stringtopath@4.8.0",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "c3705cbdf8b86ba1f0f6b086684f3fcde71f5099172b0cba18f700f3dedd5022",
-      "name": "lodash._stringtopath",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash._stringtopath/4.8.0",
-      "version": "4.8.0"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/lodash.merge/-/lodash.merge-4.6.2.tgz",
       "blockers": [],
       "checksum": "sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==",
@@ -7747,33 +7536,6 @@
       "role": "runtime-mandatory",
       "source": "https://registry.npmjs.org/lodash.throttle/4.1.1",
       "version": "4.1.1"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/lodash.uniqby/-/lodash.uniqby-4.5.0.tgz",
-      "blockers": [],
-      "checksum": "sha512-IRt7cfTtHy6f1aRVA5n7kT8rgN3N1nH6MOWLcHfpWG2SH19E3JksLK38MktLxZDhlAjCP9jpIXkOnRXlu6oByQ==",
-      "checksumVerified": true,
-      "distribution": "bundled",
-      "ecosystem": "npm",
-      "id": "npm:lodash.uniqby@4.5.0",
-      "license": "MIT",
-      "manifestRefs": [
-        "pnpm-lock.yaml"
-      ],
-      "metadataSha256": "18cff61796bad49f012f4bbe3f78d4194fc70e37787e16782c54471c5a454cd7",
-      "name": "lodash.uniqby",
-      "noticeFiles": [
-        {
-          "path": "package/LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ],
-      "optional": false,
-      "purpose": "web dependency resolved from pnpm-lock.yaml",
-      "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/lodash.uniqby/4.5.0",
-      "version": "4.5.0"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -12456,7 +12218,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b670fe9b0483a6fafa9348c2e101b448ec1fa8fc2eed874de48f848ebea04483",
+      "metadataSha256": "16d30a4379bc3be8c747187330c48a6e0e2900d7a2e56fe467d5dc4ee656ca13",
       "name": "lxml",
       "noticeFiles": [
         {
@@ -15774,9 +15536,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "26a72a905d65a389bd09e3096b1cd0acbd100c0c",
+      "gitBlob": "9d9e0b46def5300a207f38c3f802754c28c18edc",
       "path": "pnpm-lock.yaml",
-      "sha256": "b5fdc59dfc82caf796af881fe34def4e19b4eea3e5603f09ec8491821487e91e"
+      "sha256": "ddf48a1d1162c80b2c537de2ec5734347c4bff29bdda87d41062ba00d4748a91"
     },
     {
       "gitBlob": "56a156869a3fc3d9d264995b09685b25d47d66ef",
@@ -15794,6 +15556,6 @@
       "sha256": "c2b43acf55fe0052306c1ebf687c73d7851b87b3821f252687b629daea6a28ed"
     }
   ],
-  "subjectCommit": "79800a5d7f6ffaf0ef1280d4ef8a599a65fcbe1f",
-  "subjectTree": "4a8610edf7c05e064e2eb0b02671b4fc27c1e00f"
+  "subjectCommit": "58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89",
+  "subjectTree": "41e8a7fe88ce3682715c63c783b51ea39f4c97b1"
 }

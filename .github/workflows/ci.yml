@@ -56,7 +56,8 @@ jobs:
       - name: Validate dependency inventory
         run: |
           python scripts/validate_dependency_inventory.py
-          ruff check scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py tests/backend/test_dependency_inventory.py
+          python scripts/validate_combine_errors_removal.py
+          ruff check scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
       - name: Validate admitted runtime toolchain
         run: |
           python scripts/validate_runtime_toolchain_admission.py
@@ -196,6 +197,7 @@ jobs:
         with: { node-version: "24.14.0", cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web lint
+      - run: node tests/supply-chain/test_tus_error_aggregation.mjs
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web build
       - name: Check annotation bundle budgets against the real base

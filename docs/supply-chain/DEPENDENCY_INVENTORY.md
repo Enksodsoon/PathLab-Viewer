@@ -2,17 +2,16 @@
 
 ## Result
 
-`P0-T03` completed its inventory audit against commit
-`79800a5d7f6ffaf0ef1280d4ef8a599a65fcbe1f` and tree
-`4a8610edf7c05e064e2eb0b02671b4fc27c1e00f`. The gate result is `NEGATIVE`:
-the audit ran to completion and found unresolved mandatory inputs. This result blocks Phase 0
-admission for those inputs; it does not change any ratified architecture or authorize product,
-deployment, qualification, or activation work.
+`P0-T03` completed its original inventory audit with a `NEGATIVE` result because it found
+unresolved mandatory inputs. P0-T04 refreshed the current inventory against implementation commit
+`58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89` after removing the unresolved `combine-errors`
+path. The remaining blocked inputs continue to block their Phase 0 admission; neither task changes
+ratified architecture or authorizes deployment, qualification, or activation work.
 
 The authoritative machine-readable record is
-[`dependency-inventory.json`](dependency-inventory.json). It contains 507 unique records:
+[`dependency-inventory.json`](dependency-inventory.json). It contains 498 unique records:
 
-- 375 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
+- 366 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
   packages;
 - 74 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
 - 58 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
@@ -29,10 +28,11 @@ The checked-in inventory does not treat registry metadata alone as final legal a
 
 ## Fail-closed findings
 
-124 records are `BLOCKED`. The material blockers are:
+122 records are `BLOCKED`. The material blockers are:
 
-- `combine-errors@3.0.3` is a mandatory bundled npm dependency with no declared license or
-  archived notice text. P0-T04 owns removal of that dependency path; it is not admitted here.
+- P0-T04 removed `combine-errors@3.0.3` and its now-unused transitive path. The current lock and
+  inventory reject its reintroduction; `tus-js-client@4.3.1` remains exact, MIT-licensed, and
+  bound to the documented content-addressed compatibility patch.
 - `pyproject.toml` supplies ranged, unhashed Python build/test inputs. P0-T03A must establish the
   exact offline build and verification toolchain rather than treating a developer environment as
   authoritative.
@@ -60,22 +60,25 @@ capacity, recovery, rights, or zero-cash decisions.
 `scripts/validate_dependency_inventory.py` fails closed unless the inventory contains exactly all
 pnpm lock resolutions, both Python hash-lock closures, every immutable external GitHub Action,
 every digest-pinned external container, and the required native/model/standard records. It also
-requires unresolved license, checksum, or notice evidence to be blocked; freezes the
-`combine-errors` and TRACE-SIM dispositions; rejects mutable hosted CI as production authority;
-and verifies source-manifest SHA-256 and Git-blob receipts.
+requires unresolved license, checksum, or notice evidence to be blocked; rejects reintroduction
+of `combine-errors`; freezes the TRACE-SIM disposition; rejects mutable hosted CI as production authority;
+and verifies source-manifest SHA-256 and Git-blob receipts. The P0-T04 validator separately
+rejects any reintroduced `combine-errors` resolution or inventory record and verifies the exact
+patched tus snapshot and patch digest.
 
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject 79800a5d7f6ffaf0ef1280d4ef8a599a65fcbe1f
+python scripts/generate_dependency_inventory.py --subject 58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject 79800a5d7f6ffaf0ef1280d4ef8a599a65fcbe1f
-python -m pytest -q tests/backend/test_dependency_inventory.py
+python scripts/validate_dependency_inventory.py --subject 58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89
+python scripts/validate_combine_errors_removal.py
+python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```
 
-The inventory subject intentionally remains the pre-change repository tree audited by P0-T03.
-Later tasks must create new evidence rather than silently rebinding this receipt.
+The inventory subject is the exact P0-T04 implementation commit immediately before receipt
+generation. Later tasks must create new evidence rather than silently rebinding this receipt.

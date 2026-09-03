@@ -193,9 +193,11 @@ def validate(path: Path, subject: str | None = None) -> dict[str, Any]:
     if missing_bundled:
         fail(f"required bundled font, icon, or binary records missing: {sorted(missing_bundled)}")
 
-    combine = by_id.get("npm:combine-errors@3.0.3")
-    if not combine or combine["role"] != "runtime-mandatory" or combine["admission"] != "BLOCKED":
-        fail("combine-errors must remain a blocked mandatory runtime dependency")
+    if "npm:combine-errors@3.0.3" in by_id:
+        fail("combine-errors must remain absent after P0-T04")
+    tus = by_id.get("npm:tus-js-client@4.3.1")
+    if not tus or tus["license"] != "MIT" or tus["admission"] == "BLOCKED":
+        fail("the patched tus-js-client dependency must retain its admitted MIT evidence")
     trace_id = "model:trace-sim@2d625b1fad5c97584e1f7c69c3a95a6761fd934adaf17b1cecce329247e9fa0d"
     trace = by_id[trace_id]
     if trace["role"] != "excluded-production" or trace["admission"] != "BLOCKED":

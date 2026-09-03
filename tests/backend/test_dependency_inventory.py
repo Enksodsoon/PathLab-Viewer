@@ -8,12 +8,12 @@ from pathlib import Path
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "79800a5d7f6ffaf0ef1280d4ef8a599a65fcbe1f"
+SUBJECT = "58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
     inventory = validate(DEFAULT_INVENTORY, SUBJECT)
-    assert len(inventory["records"]) >= 500
+    assert len(inventory["records"]) >= 490
 
 
 def test_inventory_preserves_fail_closed_production_boundaries() -> None:
@@ -21,7 +21,8 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
         record["id"]: record
         for record in json.loads(DEFAULT_INVENTORY.read_text())["records"]
     }
-    assert records["npm:combine-errors@3.0.3"]["admission"] == "BLOCKED"
+    assert "npm:combine-errors@3.0.3" not in records
+    assert records["npm:tus-js-client@4.3.1"]["license"] == "MIT"
     assert records[
         "model:trace-sim@2d625b1fad5c97584e1f7c69c3a95a6761fd934adaf17b1cecce329247e9fa0d"
     ]["role"] == "excluded-production"
@@ -29,10 +30,10 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
     assert records["terraform-provider:oracle/oci@8.29.0-linux-arm64"]["admission"] == "BLOCKED"
 
 
-def test_inventory_subject_is_pre_change_tree() -> None:
+def test_inventory_subject_is_p0_t04_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
     assert inventory["subjectCommit"] == SUBJECT
-    assert inventory["subjectTree"] == "4a8610edf7c05e064e2eb0b02671b4fc27c1e00f"
+    assert inventory["subjectTree"] == "41e8a7fe88ce3682715c63c783b51ea39f4c97b1"
 
 
 def test_source_sha256_receipts_use_canonical_git_blob_bytes() -> None:
