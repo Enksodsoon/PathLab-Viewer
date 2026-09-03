@@ -208,11 +208,12 @@ def validate(path: Path, subject: str | None = None) -> dict[str, Any]:
         fail("mutable hosted CI must not become software or Zero-Cash authority")
 
     for receipt in inventory.get("sources", []):
-        source = ROOT / receipt["path"]
-        if hashlib.sha256(source.read_bytes()).hexdigest() != receipt["sha256"]:
-            fail(f"source receipt drifted: {receipt['path']}")
-        if git("hash-object", receipt["path"]) != receipt["gitBlob"]:
+        actual_blob = git("hash-object", "--path", receipt["path"], receipt["path"])
+        if actual_blob != receipt["gitBlob"]:
             fail(f"source Git blob drifted: {receipt['path']}")
+        blob_bytes = subprocess.check_output(["git", "cat-file", "blob", actual_blob], cwd=ROOT)
+        if hashlib.sha256(blob_bytes).hexdigest() != receipt["sha256"]:
+            fail(f"canonical source receipt drifted: {receipt['path']}")
     return inventory
 
 

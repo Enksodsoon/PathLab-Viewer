@@ -82,10 +82,12 @@ def git(*args: str) -> str:
 
 
 def manifest_receipt(path: Path) -> dict[str, Any]:
-    data = path.read_bytes()
+    relative = path.relative_to(ROOT).as_posix()
+    git_blob = git("hash-object", "--path", relative, relative)
+    data = subprocess.check_output(["git", "cat-file", "blob", git_blob], cwd=ROOT)
     return {
-        "path": path.relative_to(ROOT).as_posix(),
-        "gitBlob": git("hash-object", path.relative_to(ROOT).as_posix()),
+        "path": relative,
+        "gitBlob": git_blob,
         "sha256": sha256(data),
     }
 

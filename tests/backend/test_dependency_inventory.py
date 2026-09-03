@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
@@ -31,3 +33,12 @@ def test_inventory_subject_is_pre_change_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
     assert inventory["subjectCommit"] == SUBJECT
     assert inventory["subjectTree"] == "4a8610edf7c05e064e2eb0b02671b4fc27c1e00f"
+
+
+def test_source_sha256_receipts_use_canonical_git_blob_bytes() -> None:
+    inventory = json.loads(DEFAULT_INVENTORY.read_text())
+    for receipt in inventory["sources"]:
+        blob = subprocess.check_output(
+            ["git", "cat-file", "blob", receipt["gitBlob"]], cwd=ROOT
+        )
+        assert hashlib.sha256(blob).hexdigest() == receipt["sha256"]
