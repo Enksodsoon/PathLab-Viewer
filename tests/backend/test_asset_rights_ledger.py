@@ -14,26 +14,23 @@ from scripts.generate_asset_rights_ledger import (
     load_json,
 )
 from scripts.validate_asset_rights_ledger import (
-    ReleaseBlocked,
     reconcile_discovered,
     record_map,
     validate,
     validate_retired_assets,
+    validate_subject_paths,
 )
 
-SUBJECT = "355ef0675cd88d8c457e0fc4380ef367fdc8600d"
+SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
 
 
-def test_current_asset_set_reconciles_with_only_the_separate_agpl_boundary_blocked() -> None:
+def test_current_asset_set_is_release_admitted() -> None:
     ledger = validate()
     assert ledger["subjectCommit"] == SUBJECT
-    assert len(ledger["records"]) == 5
-    assert ledger["releaseAdmission"] == "BLOCKED"
-    assert ledger["releaseBlockers"] == [
-        "asset:inline-svg:packages/viewer-ui/src/PathLabProductRail.tsx#inline-svg-1"
-    ]
-    with pytest.raises(ReleaseBlocked, match="release BLOCKED by 1"):
-        validate(require_release_admission=True)
+    assert len(ledger["records"]) == 4
+    assert ledger["releaseAdmission"] == "ADMITTED"
+    assert ledger["releaseBlockers"] == []
+    validate(require_release_admission=True)
 
 
 def test_injected_unknown_asset_is_rejected(tmp_path: Path) -> None:
@@ -100,3 +97,7 @@ def test_retired_asset_cannot_return_by_path_or_content(tmp_path: Path) -> None:
     policy["retiredAssets"][0]["contentSha256"] = hashlib.sha256(b"different").hexdigest()
     with pytest.raises(ValueError, match="retired asset content returned"):
         validate_retired_assets(tmp_path, policy)
+
+
+def test_subject_path_check_accepts_no_repository_owned_assets(tmp_path: Path) -> None:
+    validate_subject_paths(tmp_path, SUBJECT, [])

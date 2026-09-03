@@ -122,21 +122,6 @@
     },
     {
       "kind": "inline-svg",
-      "locatorGlob": "packages/viewer-ui/*#inline-svg-*",
-      "metadata": {
-        "creator": "UNVERIFIED",
-        "provenance": "SVG source is inside the AGPL-declared viewer package and lacks separate Apache-compatible authority evidence.",
-        "licensePermission": "AGPL-3.0-or-later_PACKAGE_BOUNDARY",
-        "attribution": "Retain package license and source offer if distributed as the separate AGPL work.",
-        "permittedUse": "SEPARATE_AGPL_WORK_ONLY",
-        "privacyClass": "PUBLIC_NON_PERSONAL",
-        "distributionScope": "SHIPPED_RUNTIME",
-        "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["APACHE_RELEASE_BOUNDARY_UNRESOLVED", "CREATOR_AUTHORITY_UNVERIFIED"]
-      }
-    },
-    {
-      "kind": "inline-svg",
       "locatorGlob": "apps/web/src/*#inline-svg-*",
       "metadata": {
         "creator": "UNVERIFIED",
@@ -218,7 +203,7 @@
     "locator": "npm:@phosphor-icons/react@2.1.10#imported-svg-icons",
     "dependencyId": "npm:@phosphor-icons/react@2.1.10",
     "importSpecifier": "@phosphor-icons/react",
-    "scanRoots": ["apps/web/src", "packages"],
+    "scanRoots": ["apps/web/src"],
     "installedDefinitions": "apps/web/node_modules/@phosphor-icons/react/dist/defs/{name}.es.js",
     "creator": "Phosphor Icons",
     "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",

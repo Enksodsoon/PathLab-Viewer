@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "auditSubjectCommit": "7816671b0d9e531158868d820d132ed8808c0b76",
+  "sourcePackageTreeSha256": "b27cc56e01475061ab2168131cb174a57d2347981b1a11d96debb00556e96e65",
+  "retiredFiles": [
+    {"path": "packages/viewer-ui/README.md", "contentSha256": "85d93a1d692a56133113961d6f04e34c87fab2d5f56d644935620dc1b371da69"},
+    {"path": "packages/viewer-ui/package.json", "contentSha256": "9fc377c23f6d7dad11b0b7a1ec4510df1bfe55d4f88dfb3f54c462a669a216a8"},
+    {"path": "packages/viewer-ui/src/AnnotationToolbar.tsx", "contentSha256": "e82d3f251149981ed960a67a569af2ad9185cb10f615c8dad509a96e53df894b"},
+    {"path": "packages/viewer-ui/src/PathLabProductRail.tsx", "contentSha256": "c3957b6da4628e6fbf6b2de6c55cf95a2f06ce2bebd6cc3cfba27a25d2fd6d91"},
+    {"path": "packages/viewer-ui/src/ViewerCanvasShell.tsx", "contentSha256": "cad16fff4c4dddf291bcdd1087f4da2998b65f6bd24a00367cd70b4cf6aab243"},
+    {"path": "packages/viewer-ui/src/adapters.ts", "contentSha256": "6bac984241f5652fc333920aa69b0f369161609e480eee99bdbb6c83af3b616c"},
+    {"path": "packages/viewer-ui/src/index.ts", "contentSha256": "0af8312281bf7c37e5417451690d2e5dfeaabc5db9626a4677a8f81a475fd54f"},
+    {"path": "packages/viewer-ui/src/styles.css", "contentSha256": "812696b57942bb3b294deb0c1efa1e93d46061610b6ab497f785026c2ecdafa3"},
+    {"path": "packages/viewer-ui/src/theme.css", "contentSha256": "d9cbf06843845a682b4948f7e04ca674608741f88550d817ee1b1dce71fb6ddf"}
+  ],
+  "releaseReferenceFiles": [
+    "apps/web/package.json",
+    "apps/web/src/components/library/AppRail.tsx",
+    "deploy/Dockerfile.web",
+    "pnpm-lock.yaml"
+  ],
+  "forbiddenReleaseTokens": [
+    "@pathlab/viewer-ui",
+    "packages/viewer-ui"
+  ]
+}

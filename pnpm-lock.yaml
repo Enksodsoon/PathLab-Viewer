@@ -30,9 +30,6 @@ importers:
       '@fontsource-variable/source-sans-3':
         specifier: ^5.3.0
         version: 5.3.0
-      '@pathlab/viewer-ui':
-        specifier: workspace:*
-        version: link:../../packages/viewer-ui
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -118,19 +115,6 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@6.4.3(@types/node@26.2.0)(lightningcss@1.33.0))
-
-  packages/viewer-ui:
-    dependencies:
-      '@phosphor-icons/react':
-        specifier: ^2.1.10
-        version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      react:
-        specifier: 19.2.8
-        version: 19.2.8
 
 packages:
 

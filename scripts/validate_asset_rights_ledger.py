@@ -90,6 +90,8 @@ def validate_subject_paths(root: Path, subject: str, discovered: list[dict[str, 
     for record in discovered:
         locator = record["locator"]
         paths.add(locator.split("!", 1)[0].split("#", 1)[0])
+    if not paths:
+        return
     result = subprocess.run(
         ["git", "diff", "--quiet", subject, "--", *sorted(paths)],
         cwd=root,

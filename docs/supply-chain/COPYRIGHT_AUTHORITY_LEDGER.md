@@ -167,6 +167,22 @@ license metadata stays unchanged, and no downstream task may convert
 `PATHLAB_SUBMISSION_UNRESOLVED`, `UNRESOLVED`, or `CLEAN_ROOM_REQUIRED` into
 `PROVEN_PATHLAB_AUTHORED`.
 
+## P0-T05A incremental disposition
+
+At implementation commit `929e561db7820e48b24f26fda165ffcaabfb0049`,
+P0-T05A removed all nine `packages/viewer-ui` files listed above, removed the
+workspace dependency and container-copy edge, and replaced the package's one
+live consumer with local application code. The replacement uses existing
+admitted Phosphor icons and the P0-T07 `Brand`; it preserves the rail's tested
+navigation, storage-meter, inert, and accessibility behavior.
+
+This is deletion and replacement, not relicensing. The old package paths and
+content hashes are fail-closed in `viewer-ui-clean-room-policy.json`, and CI
+rejects their return or a new release-graph reference. P0-T05A therefore closes
+only the AGPL shared-viewer artifact boundary. It does not change this audit's
+`NOT_EVALUABLE` result, prove authorship of any remaining source, establish a
+root license, or satisfy the signed authority prerequisite owned by P0-T02.
+
 ## Reproduction
 
 The exact commands and immutable source references are recorded in
