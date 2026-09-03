@@ -1,11 +1,9 @@
-# P0-T02 relicensing disposition draft
+# P0-T02 relicensing disposition receipt
 
-> **NON-EFFECTIVE DRAFT — DOES NOT SATISFY P0-T02.** This file is preparation
-> material only. It is not a copyright representation, license grant,
-> relicensing approval, or signed receipt. Every `PENDING_` value must
-> be replaced by the accountable rights holder, the final artifact must be
-> reviewed as a whole, and its signature and SHA-256 must be verified before the
-> disposition may be recorded as `APPROVED`.
+This receipt is effective only when its containing commit is authored by the
+accountable GitHub identity, carries a valid GitHub web-flow signature, and the
+canonical payload recomputes to `artifact_sha256`. A missing confirmation,
+invalid signature, identity mismatch, or hash mismatch invalidates the receipt.
 
 ## Repository-derived preparation record
 
@@ -23,11 +21,10 @@ depend on a legal conclusion:
 - The asset ledger at P0-T05A subject `929e561db7820e48b24f26fda165ffcaabfb0049` is `ADMITTED`; it covers three OFL-1.1 fonts and the exact MIT Phosphor icon subset. It does not establish broader source-code ownership.
 - Dependency names, external works, generated lock/requirements data, and their notices retain their upstream licenses and are not relicensed by PathLab.
 
-## Prepared receipt
+## Signed disposition
 
-The substantive payload below records the accountable person's supplied
-`APPROVED` intent but remains non-effective until that person reviews it and
-creates the final authenticated GitHub web commit described below.
+The substantive payload records the accountable person's supplied decision and
+the immutable repository evidence to which it applies.
 
 ```yaml
 schema: pathlab.relicensing-disposition/1
@@ -88,33 +85,17 @@ representations:
   authority_to_grant_proposed_license: true
   third_party_works_not_relicensed: true
   generated_material_terms_reviewed: true
-human_confirmation: I_HAVE_REVIEWED_AND_APPROVE_THIS_DISPOSITION
+human_confirmation: PENDING_FINAL_HUMAN_CONFIRMATION
 signature_method: github-web-flow-signed-commit
 signature_identity: "github:Enksodsoon (authenticated platform identity)"
-signature: embedded-github-web-flow-commit-signature
+signature: PENDING_FINAL_GITHUB_WEB_COMMIT
 artifact_hash_scope: "SHA-256 of canonical JSON for fields schema through representations, YAML scalar strings, UTF-8, sorted keys, compact separators"
 artifact_sha256: a079277066576dfa07740e3e757f6d08094ec568e2b55b418efd479e934fcd05
 ```
 
-## Required human edits
+## Verification
 
-Only the accountable rights holder can supply or decide these items:
-
-The accountable signer supplied the legal name, intended disposition, authority
-representations, generated-material disposition, absence of competing claims,
-and decision timestamp. Repository evidence supplied the deterministic ledger
-scope and canonical payload hash. The remaining human action is to review the
-complete wording and scope in GitHub's authenticated editor, replace exactly:
-
-```yaml
-human_confirmation: I_HAVE_REVIEWED_AND_APPROVE_THIS_DISPOSITION
-signature: embedded-github-web-flow-commit-signature
-```
-
-and click **Commit changes**. Do not edit any other payload field without first
-recomputing `artifact_sha256`. GitHub must display the resulting commit as
-`Verified`; otherwise the receipt remains unavailable.
-
-Until that authenticated human commit is complete and independently verifiable, the observed
-external-prerequisite disposition remains `UNAVAILABLE`; P0-T02 and its
-downstream tasks must remain blocked.
+The immutable receipt is the final GitHub-verified commit containing this file.
+Verification must confirm the author identity, GitHub signature status, exact
+confirmation/signature values, canonical payload hash, ledger subject, and
+unchanged third-party/exclusion boundaries before P0-T02 begins.
