@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "governedRoots": ["apps/web", "packages", "docs", "tests"],
+  "governedFileExtensions": [
+    ".ai", ".avif", ".bmp", ".docx", ".eot", ".fig", ".flac", ".gif",
+    ".ico", ".jpeg", ".jpg", ".m4a", ".mkv", ".mov", ".mp3", ".mp4",
+    ".ogg", ".otf", ".pdf", ".png", ".psd", ".sketch", ".svg", ".tif",
+    ".tiff", ".ttf", ".wav", ".webm", ".webp", ".woff", ".woff2", ".xd"
+  ],
+  "ignoredDirectories": [".git", ".pnpm", "dist", "node_modules", "__pycache__"],
+  "archiveExtensions": [".docx"],
+  "archiveMemberExtensions": [
+    ".avif", ".bmp", ".eot", ".gif", ".ico", ".jpeg", ".jpg", ".mp3",
+    ".mp4", ".ogg", ".otf", ".png", ".svg", ".tif", ".tiff", ".ttf",
+    ".wav", ".webm", ".webp", ".woff", ".woff2"
+  ],
+  "inlineSvgRoots": ["apps/web/src", "packages"],
+  "inlineDataRoots": ["apps/web/src", "packages"],
+  "inlineSourceExtensions": [".css", ".html", ".ts", ".tsx"],
+  "rules": [
+    {
+      "kind": "repository-file",
+      "locatorGlob": "apps/web/src/assets/*.webp",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Git introduction records repository presence only; no creator, source-generation, or provider-terms receipt exists.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PUBLIC_SYNTHETIC_UNVERIFIED",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["CREATOR_UNVERIFIED", "SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "repository-file",
+      "locatorGlob": "docs/design/*.png",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Git history identifies an introducing commit but not the image, tissue, device-frame, or trade-dress rights source.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PHI_RISK_UNVERIFIED",
+        "distributionScope": "PUBLISHED_SOURCE",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["CREATOR_UNVERIFIED", "SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE", "PHI_REVIEW_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "repository-file",
+      "locatorGlob": "docs/evidence/*.png",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Screenshot capture history is present, but the displayed slide/case source and deidentification receipt are absent.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PHI_RISK_UNVERIFIED",
+        "distributionScope": "PUBLISHED_SOURCE",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["DISPLAYED_CONTENT_SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE", "PHI_REVIEW_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "repository-file",
+      "locatorGlob": "docs/architecture/*.docx",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Git history identifies an introducing commit; embedded-media and font rights are evaluated separately and are unresolved.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "PUBLISHED_SOURCE",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["CREATOR_UNVERIFIED", "EMBEDDED_RIGHTS_UNRESOLVED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "archive-member",
+      "locatorGlob": "docs/architecture/*.docx!word/media/*",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Embedded diagram has no independent design-source or creator receipt.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "PUBLISHED_SOURCE",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["CREATOR_UNVERIFIED", "SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "archive-member",
+      "locatorGlob": "docs/architecture/*.docx!word/fonts/*",
+      "metadata": {
+        "creator": "Helvetica Neue rights holder UNVERIFIED",
+        "provenance": "Font binaries are embedded in the document without a redistribution license or source receipt.",
+        "licensePermission": "UNVERIFIED_PROPRIETARY_FONT",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "PROHIBITED_FROM_RELEASE",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "PUBLISHED_SOURCE",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["REDISTRIBUTION_RIGHTS_UNAVAILABLE", "ATTRIBUTION_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "packages/viewer-ui/*#inline-svg-*",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "SVG source is inside the AGPL-declared viewer package and lacks separate Apache-compatible authority evidence.",
+        "licensePermission": "AGPL-3.0-or-later_PACKAGE_BOUNDARY",
+        "attribution": "Retain package license and source offer if distributed as the separate AGPL work.",
+        "permittedUse": "SEPARATE_AGPL_WORK_ONLY",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["APACHE_RELEASE_BOUNDARY_UNRESOLVED", "CREATOR_AUTHORITY_UNVERIFIED"]
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/*#inline-svg-*",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["CREATOR_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+      }
+    },
+    {
+      "kind": "inline-data",
+      "locatorGlob": "apps/web/src/*#data-image-*",
+      "metadata": {
+        "creator": "UNVERIFIED",
+        "provenance": "Inline cursor artwork is repository-derived; no asset-specific creator or assignment receipt exists.",
+        "licensePermission": "UNVERIFIED",
+        "attribution": "REQUIRED_UNAVAILABLE",
+        "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": ["CREATOR_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+      }
+    }
+  ],
+  "packageAssets": [
+    {
+      "kind": "package-font",
+      "locator": "npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2",
+      "dependencyId": "npm:@fontsource-variable/source-sans-3@5.3.0",
+      "installedPath": "apps/web/node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2",
+      "creator": "Google Inc. and the Source Sans 3 project authors",
+      "provenance": "Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.",
+      "licensePermission": "OFL-1.1",
+      "attribution": "Preserve the package OFL-1.1 license notice.",
+      "permittedUse": "BUNDLED_SELF_HOSTED_WEB_FONT",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "releaseDisposition": "ADMITTED",
+      "blockers": []
+    },
+    {
+      "kind": "package-font",
+      "locator": "npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2",
+      "dependencyId": "npm:@fontsource-variable/cormorant-garamond@5.3.0",
+      "installedPath": "apps/web/node_modules/@fontsource-variable/cormorant-garamond/files/cormorant-garamond-latin-wght-normal.woff2",
+      "creator": "The Cormorant Project Authors",
+      "provenance": "Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.",
+      "licensePermission": "OFL-1.1",
+      "attribution": "Preserve the package OFL-1.1 license notice and Cormorant Project attribution.",
+      "permittedUse": "BUNDLED_SELF_HOSTED_WEB_FONT",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "releaseDisposition": "ADMITTED",
+      "blockers": []
+    },
+    {
+      "kind": "package-font",
+      "locator": "npm:@fontsource-variable/sofia-sans@5.3.0#files/sofia-sans-latin-wght-normal.woff2",
+      "dependencyId": "npm:@fontsource-variable/sofia-sans@5.3.0",
+      "installedPath": "apps/web/node_modules/@fontsource-variable/sofia-sans/files/sofia-sans-latin-wght-normal.woff2",
+      "creator": "The Sofia Sans Project Authors",
+      "provenance": "Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.",
+      "licensePermission": "OFL-1.1",
+      "attribution": "Preserve the package OFL-1.1 license notice and Sofia Sans Project attribution.",
+      "permittedUse": "BUNDLED_SELF_HOSTED_WEB_FONT",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "releaseDisposition": "ADMITTED",
+      "blockers": []
+    }
+  ],
+  "packageIconSet": {
+    "kind": "package-icon-set",
+    "locator": "npm:@phosphor-icons/react@2.1.10#imported-svg-icons",
+    "dependencyId": "npm:@phosphor-icons/react@2.1.10",
+    "importSpecifier": "@phosphor-icons/react",
+    "scanRoots": ["apps/web/src", "packages"],
+    "installedDefinitions": "apps/web/node_modules/@phosphor-icons/react/dist/defs/{name}.es.js",
+    "creator": "Phosphor Icons",
+    "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
+    "licensePermission": "MIT",
+    "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
+    "permittedUse": "BUNDLED_APPLICATION_ICONS",
+    "privacyClass": "PUBLIC_NON_PERSONAL",
+    "distributionScope": "SHIPPED_RUNTIME",
+    "releaseDisposition": "ADMITTED",
+    "blockers": []
+  }
+}
