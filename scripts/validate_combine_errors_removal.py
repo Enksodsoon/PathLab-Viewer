@@ -40,7 +40,8 @@ def validate(
     configured_patch = workspace.get("patchedDependencies", {}).get(PATCHED_PACKAGE)
     if configured_patch != "patches/tus-js-client-4.3.1.patch":
         fail("the exact tus-js-client patch is not configured")
-    expected_hash = hashlib.sha256(patch_path.read_bytes()).hexdigest()
+    patch_bytes = patch_path.read_text(encoding="utf-8").replace("\r\n", "\n").encode()
+    expected_hash = hashlib.sha256(patch_bytes).hexdigest()
     if lock.get("patchedDependencies", {}).get(PATCHED_PACKAGE) != expected_hash:
         fail("the pnpm lock does not bind the exact tus-js-client patch hash")
 
