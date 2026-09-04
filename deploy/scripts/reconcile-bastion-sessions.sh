@@ -51,7 +51,12 @@ if [[ "${oci_rc}" -ne 0 ]]; then
   fail "session inventory could not be read (exit code ${oci_rc})"
 fi
 
-cp "${raw_out}" "${SESSIONS_FILE}"
+if [[ ! -s "${raw_out}" ]]; then
+  # When the Bastion inventory is completely empty (0 sessions), OCI CLI 3.92.0 returns 0 bytes.
+  echo '{"data": []}' > "${SESSIONS_FILE}"
+else
+  cp "${raw_out}" "${SESSIONS_FILE}"
+fi
 
 if ! jq -e '.data | type == "array"' "${SESSIONS_FILE}" >/dev/null 2>&1; then
   echo "--- Raw stdout from OCI command (${SESSIONS_FILE}) ---" >&2
@@ -124,6 +129,9 @@ while (( SECONDS < deadline )); do
   "${OCI_COMMAND}" bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
     > "${SESSIONS_FILE}" || \
     fail "session inventory could not be refreshed"
+  if [[ ! -s "${SESSIONS_FILE}" ]]; then
+    echo '{"data": []}' > "${SESSIONS_FILE}"
+  fi
   remaining=0
   while IFS=$'\t' read -r session_id _owner_run _prior_state; do
     state="$(jq -r --arg id "${session_id}" \

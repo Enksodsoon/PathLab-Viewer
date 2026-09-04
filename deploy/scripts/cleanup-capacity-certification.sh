@@ -127,6 +127,9 @@ fixtures_removed=true
 # release to the 300-seat safety floor before recording a failed cleanup result.
 sessions_json="${work_dir}/bastion-sessions.json"
 oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions_json}"
+if [[ ! -s "${sessions_json}" ]]; then
+  echo '{"data": []}' > "${sessions_json}"
+fi
 remaining="$(jq --arg prefix "pathlab-capacity-${GITHUB_RUN_ID}-" \
   '[.data[] | select((."display-name" // "") | startswith($prefix)) |
     select(."lifecycle-state" == "ACTIVE" or ."lifecycle-state" == "CREATING" or
