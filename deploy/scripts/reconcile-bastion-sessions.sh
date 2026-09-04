@@ -23,13 +23,47 @@ fail() {
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${OCI_BASTION_ID:?OCI_BASTION_ID is required}"
 
-"${OCI_COMMAND}" bastion session list --bastion-id "${OCI_BASTION_ID}" --all --output json \
-  > "${SESSIONS_FILE}" 2>&1 || \
-  fail "session inventory could not be read"
+echo "=== Bastion Reconciliation Diagnostic ===" >&2
+echo "OCI command: ${OCI_COMMAND} (resolved: $(command -v "${OCI_COMMAND}" 2>/dev/null || true))" >&2
+echo "Current user: $(whoami 2>/dev/null || true), home: ${HOME:-unknown}" >&2
+if [[ -f "${HOME:-}/.oci/config" ]]; then
+  echo "OCI config file exists (${HOME}/.oci/config), size: $(wc -c < "${HOME}/.oci/config") bytes" >&2
+else
+  echo "OCI config file NOT found at ${HOME:-}/.oci/config" >&2
+fi
+
+raw_out="${WORK_DIR}/raw_stdout.json"
+raw_err="${WORK_DIR}/raw_stderr.log"
+oci_rc=0
+"${OCI_COMMAND}" bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
+  > "${raw_out}" 2> "${raw_err}" || oci_rc=$?
+
+echo "OCI invocation return code: ${oci_rc}" >&2
+echo "OCI stdout bytes: $(wc -c < "${raw_out}")" >&2
+echo "OCI stderr bytes: $(wc -c < "${raw_err}")" >&2
+
+if [[ "${oci_rc}" -ne 0 ]]; then
+  if [[ -s "${raw_err}" ]]; then
+    echo "--- OCI stderr output ---" >&2
+    cat "${raw_err}" >&2
+    echo "--- End OCI stderr output ---" >&2
+  fi
+  fail "session inventory could not be read (exit code ${oci_rc})"
+fi
+
+cp "${raw_out}" "${SESSIONS_FILE}"
+
 if ! jq -e '.data | type == "array"' "${SESSIONS_FILE}" >/dev/null 2>&1; then
-  echo "--- Raw output from OCI command (${SESSIONS_FILE}) ---" >&2
+  echo "--- Raw stdout from OCI command (${SESSIONS_FILE}) ---" >&2
   cat "${SESSIONS_FILE}" >&2
-  echo "--- End raw output ---" >&2
+  echo "--- End raw stdout ---" >&2
+  if [[ -s "${raw_err}" ]]; then
+    echo "--- Raw stderr from OCI command ---" >&2
+    cat "${raw_err}" >&2
+    echo "--- End raw stderr ---" >&2
+  fi
+  echo "--- Testing with --debug to identify API failure ---" >&2
+  "${OCI_COMMAND}" bastion session list --bastion-id "${OCI_BASTION_ID}" --debug >&2 || true
   fail "session inventory is malformed"
 fi
 
@@ -87,8 +121,8 @@ done < "${OWNED_FILE}"
 
 deadline=$((SECONDS + 600))
 while (( SECONDS < deadline )); do
-  "${OCI_COMMAND}" bastion session list --bastion-id "${OCI_BASTION_ID}" --all --output json \
-    > "${SESSIONS_FILE}" 2>&1 || \
+  "${OCI_COMMAND}" bastion session list --bastion-id "${OCI_BASTION_ID}" --all \
+    > "${SESSIONS_FILE}" || \
     fail "session inventory could not be refreshed"
   remaining=0
   while IFS=$'\t' read -r session_id _owner_run _prior_state; do
