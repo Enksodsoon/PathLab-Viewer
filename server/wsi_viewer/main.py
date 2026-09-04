@@ -5,7 +5,7 @@ import re
 import shutil
 import sqlite3
 import time
-from collections import defaultdict, deque
+from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta

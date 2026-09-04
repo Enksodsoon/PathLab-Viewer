@@ -4,7 +4,7 @@ import hashlib
 import re
 import shutil
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

@@ -978,7 +978,7 @@ def register_study_routes(
         try:
             stat = target.stat()
         except OSError:
-            raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"})
+            raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"}) from None
         if (
             not target.is_file()
             or stat.st_size != expected_bytes
