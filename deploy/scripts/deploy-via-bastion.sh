@@ -45,6 +45,9 @@ cleanup_bastion_session() {
           cleanup_failed=1
           break
         }
+      if [[ ! -s "${sessions_file}" ]]; then
+        echo '{"data": []}' > "${sessions_file}"
+      fi
       SESSION_ID="$(jq -r '.data[0].id // empty' "${sessions_file}")"
       session_state="$(jq -r '.data[0]."lifecycle-state" // empty' "${sessions_file}")"
       if [[ "${SESSION_ID}" == ocid1.bastionsession.* ]]; then
@@ -131,6 +134,9 @@ NONTERMINAL_SESSIONS="$(
     --query 'length(data[?"lifecycle-state" == `ACTIVE` || "lifecycle-state" == `CREATING` || "lifecycle-state" == `DELETING`])' \
     --raw-output
 )" || fail "Bastion preflight could not verify nonterminal sessions"
+if [[ -z "${NONTERMINAL_SESSIONS}" || "${NONTERMINAL_SESSIONS}" == "null" ]]; then
+  NONTERMINAL_SESSIONS=0
+fi
 [[ "${NONTERMINAL_SESSIONS}" == 0 ]] || \
   fail "Bastion preflight requires zero nonterminal sessions"
 
