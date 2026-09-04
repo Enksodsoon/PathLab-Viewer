@@ -277,6 +277,36 @@ def test_deployment_check_blocks_an_active_real_classroom_session(
     assert "a" * 64 not in output.err
 
 
+def test_deployment_check_reconciles_expired_and_synthetic_classroom_sessions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "deployment-check-expired-classroom.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.add(
+            ClassroomSession(
+                join_code_hash="b" * 64,
+                expires_at=datetime.now(UTC) - timedelta(hours=2),
+                status="active",
+            )
+        )
+        database.commit()
+    monkeypatch.setattr("sys.argv", ["pathlab-admin", "deployment-check"])
+
+    main()
+
+    with session_factory(settings)() as database:
+        session = database.scalar(
+            select(ClassroomSession).where(ClassroomSession.join_code_hash == "b" * 64)
+        )
+        assert session is not None
+        assert session.status == "ended"
+
+
 def test_deployment_check_blocks_classroom_cooldown(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
