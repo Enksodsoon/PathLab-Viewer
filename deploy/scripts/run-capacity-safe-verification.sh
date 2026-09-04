@@ -74,6 +74,9 @@ owned_bastion_count() {
   local owner_run="${1:-${GITHUB_RUN_ID}}"
   local sessions="${work_dir}/bastion.json"
   oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}"
+  if [[ ! -s "${sessions}" ]]; then
+    echo '{"data": []}' > "${sessions}"
+  fi
   jq --arg prefix "pathlab-capacity-${owner_run}-" \
     '[.data[] | select((."display-name" // "") | startswith($prefix)) |
       select(."lifecycle-state" == "ACTIVE" or ."lifecycle-state" == "CREATING" or
@@ -83,6 +86,9 @@ owned_bastion_count() {
 delete_owned_bastion() {
   local owner_run="$1" sessions="${work_dir}/bastion-delete.json"
   oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}"
+  if [[ ! -s "${sessions}" ]]; then
+    echo '{"data": []}' > "${sessions}"
+  fi
   while IFS= read -r session_id; do
     delete_requested=false
     for _ in 1 2 3; do
