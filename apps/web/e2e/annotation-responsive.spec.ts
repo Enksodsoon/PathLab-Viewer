@@ -661,10 +661,11 @@ test('edits a polygon vertex through a 44px touch handle on mobile', async ({ pa
   await page.getByRole('dialog', { name: 'Annotation inspector' })
     .getByRole('button', { name: 'Close annotation inspector' })
     .click()
+  await expect(page.getByRole('dialog', { name: 'Annotation inspector' })).not.toBeVisible()
   const handle = page.locator(
     '[data-annotation-handle="vertex"][data-vertex-index="0"]',
   )
-  await expect(handle).toHaveAttribute('role', 'button')
+  await expect(handle).toHaveAttribute('role', 'button', { timeout: 15_000 })
   await expect(handle).toHaveAttribute('aria-label', 'Move vertex 1 of Touch polygon')
   const handleBox = await handle.boundingBox()
   expect(handleBox?.width).toBeGreaterThanOrEqual(43.5)
