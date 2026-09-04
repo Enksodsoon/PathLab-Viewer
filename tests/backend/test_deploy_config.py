@@ -635,6 +635,8 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert '[[ "${ANNOTATIONS_ENABLED}" == true ]]' in script
     assert '[[ "${ADMIN_ANNOTATION_CANARY_ENABLED}" == true ]]' in script
     assert "admin-annotation-canary=${ADMIN_ANNOTATION_CANARY_ENABLED}" in script
+    assert 'echo \'{"data": []}\' > "${sessions_file}"' in script
+    assert '-z "${NONTERMINAL_SESSIONS}" || "${NONTERMINAL_SESSIONS}" == "null"' in script
 
 
 def test_deployment_reconciles_only_exact_terminal_pathlab_sessions() -> None:
