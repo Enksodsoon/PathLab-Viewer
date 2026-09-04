@@ -279,7 +279,8 @@ def recover_password(
 
     # End the read-only fast-path transaction before taking SQLite's write lock.
     database.rollback()
-    database.execute(text("BEGIN IMMEDIATE"))
+    if database.get_bind().dialect.name == "sqlite":
+        database.execute(text("BEGIN IMMEDIATE"))
     if _recovery_is_throttled(database, key, ip_key, attempted_at):
         database.rollback()
         raise RecoveryThrottled

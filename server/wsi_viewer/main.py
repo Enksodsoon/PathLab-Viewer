@@ -5,7 +5,7 @@ import re
 import shutil
 import sqlite3
 import time
-from collections import defaultdict, deque
+from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -146,18 +146,38 @@ class UploadCompleteRequest(BaseModel):
     length: int = Field(gt=0)
 
 
+MAX_THROTTLE_KEYS = 10_000
+
+
 class LoginThrottle:
-    def __init__(self) -> None:
-        self.attempts: dict[str, deque[datetime]] = defaultdict(deque)
+    def __init__(self, max_keys: int = MAX_THROTTLE_KEYS) -> None:
+        self.attempts: dict[str, deque[datetime]] = {}
+        self.max_keys = max_keys
 
     def check(self, key: str, now: datetime) -> None:
         cutoff = now - timedelta(minutes=5)
-        attempts = self.attempts[key]
-        while attempts and attempts[0] < cutoff:
-            attempts.popleft()
-        if len(attempts) >= 5:
+        attempts = self.attempts.get(key)
+        if attempts is not None:
+            while attempts and attempts[0] < cutoff:
+                attempts.popleft()
+            if not attempts:
+                self.attempts.pop(key, None)
+                attempts = None
+        if attempts is not None and len(attempts) >= 5:
             raise HTTPException(status_code=429, detail={"code": "AUTH_THROTTLED"})
+        if attempts is None:
+            if len(self.attempts) >= self.max_keys:
+                self.purge_expired(cutoff)
+                if len(self.attempts) >= self.max_keys:
+                    self.attempts.pop(next(iter(self.attempts)), None)
+            attempts = deque()
+            self.attempts[key] = attempts
         attempts.append(now)
+
+    def purge_expired(self, cutoff: datetime) -> None:
+        expired = [k for k, q in self.attempts.items() if not q or q[-1] < cutoff]
+        for k in expired:
+            self.attempts.pop(k, None)
 
     def clear(self, key: str) -> None:
         self.attempts.pop(key, None)
@@ -553,8 +573,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         payload: LoginRequest, request: Request, response: Response, db: Database
     ) -> dict[str, str]:
         key = request.client.host if request.client else "unknown"
+        user_key = f"user:{payload.username.strip().casefold()}"
         now = datetime.now(UTC)
         throttle.check(key, now)
+        throttle.check(user_key, now)
         token = random_token()
         csrf_token = random_token()
         expires = now + timedelta(hours=current.session_hours)
@@ -570,6 +592,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not authenticated:
             raise HTTPException(status_code=401, detail={"code": "INVALID_CREDENTIALS"})
         throttle.clear(key)
+        throttle.clear(user_key)
         response.set_cookie(
             COOKIE_NAME,
             token,

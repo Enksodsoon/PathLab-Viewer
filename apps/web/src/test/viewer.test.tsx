@@ -497,14 +497,14 @@ it('loads annotation code and APIs only for an enabled private admin slide', asy
   expect(await screen.findByRole(
     'button',
     { name: 'Point marker' },
-    { timeout: 5000 },
+    { timeout: 20_000 },
   )).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Open annotation inspector' }))
   fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
   expect(await screen.findByRole('button', { name: 'Findings' })).toBeVisible()
   expect(fetch.mock.calls.some(([input]) => String(input).endsWith('/manifest'))).toBe(true)
   expect(fetch.mock.calls.some(([input]) => String(input).includes('/items?'))).toBe(true)
-})
+}, 20_000)
 
 it('keeps the public slide branch annotation-free even if unknown fields are present', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(

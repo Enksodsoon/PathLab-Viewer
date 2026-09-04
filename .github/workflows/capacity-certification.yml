@@ -668,6 +668,7 @@ jobs:
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
           CAPACITY_SYNTHETIC_330MB: ${{ runner.temp }}/synthetic-capacity-330mb.ome.tiff
           CAPACITY_SENTINEL_RESULT: ${{ runner.temp }}/capacity-sentinel.json
+          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ runner.temp }}/sentinel-stage-manifest.json
         run: |
           cp "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json" "${RUNNER_TEMP}/sentinel-stage-manifest.json"
           export CAPACITY_CLASSROOM_JOIN_CODE="$(jq -er '.["sustained-1200"]["join" + "Code"]' "${RUNNER_TEMP}/sentinel-stage-manifest.json")"

@@ -10,7 +10,7 @@ from .config import Settings
 from .models import Base
 
 
-class PoolOptions(TypedDict):
+class PoolOptions(TypedDict, total=False):
     pool_size: int
     max_overflow: int
     pool_timeout: float
@@ -40,6 +40,8 @@ def database_target_for(settings: Settings) -> str | URL:
 
 
 def pool_options_for(settings: Settings) -> PoolOptions:
+    if settings.database_url in {"sqlite://", "sqlite:///:memory:"}:
+        return {}
     pool_sizes = {
         "classroom": 4,
         "general": 5,
@@ -72,9 +74,9 @@ def _engine_key(settings: Settings) -> EngineKey:
         settings.database_url,
         str(settings.database_password_file) if settings.database_password_file else None,
         settings.service_role,
-        options["pool_size"],
-        options["max_overflow"],
-        options["pool_timeout"],
+        options.get("pool_size", 0),
+        options.get("max_overflow", 0),
+        options.get("pool_timeout", 0.0),
     )
 
 

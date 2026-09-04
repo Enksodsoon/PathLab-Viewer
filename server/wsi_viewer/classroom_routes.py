@@ -1036,6 +1036,8 @@ def register_classroom_routes(
         key = f"{request.client.host if request.client else 'unknown'}:{public_id}"
         cutoff = _now() - timedelta(minutes=5)
         attempts = [attempt for attempt in unlock_attempts.get(key, []) if attempt >= cutoff]
+        if not attempts and key in unlock_attempts:
+            unlock_attempts.pop(key, None)
         if len(attempts) >= 8:
             raise HTTPException(status_code=429, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
         classroom = invite_classroom(public_id, db)
@@ -1044,6 +1046,12 @@ def register_classroom_routes(
         candidate = payload.access_code.strip().upper()
         if not secrets.compare_digest(classroom.join_code_hash, _hash(candidate)):
             attempts.append(_now())
+            if len(unlock_attempts) >= 10_000:
+                expired = [k for k, v in unlock_attempts.items() if not v or v[-1] < cutoff]
+                for k in expired:
+                    unlock_attempts.pop(k, None)
+                if len(unlock_attempts) >= 10_000:
+                    unlock_attempts.pop(next(iter(unlock_attempts)), None)
             unlock_attempts[key] = attempts
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
         unlock_attempts.pop(key, None)
