@@ -49,6 +49,7 @@ from .time_support import as_utc, utc_now
 
 STUDY_COOKIE = "pathlab_study"
 SUBMISSION_INTERVAL_SECONDS = 30
+_verified_asset_hashes: dict[tuple[str, int, int], str] = {}
 MODEL_APPROVAL_STATUS = "public_beta_bounded_safe_actions"
 PILOT_AUTHORIZATION = "closed_pilot_unapproved"
 ALLOWED_AI_ACTIONS = {
@@ -974,12 +975,22 @@ def register_study_routes(
         target = storage.root / "private" / "study-models" / expected_name
         expected_bytes = manifest.get("artifactBytes")
         expected_hash = manifest.get("artifactSha256")
+        try:
+            stat = target.stat()
+        except OSError:
+            raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"})
         if (
             not target.is_file()
-            or target.stat().st_size != expected_bytes
+            or stat.st_size != expected_bytes
             or not isinstance(expected_hash, str)
-            or hashlib.sha256(target.read_bytes()).hexdigest() != expected_hash
         ):
+            raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"})
+        cache_key = (str(target), stat.st_mtime_ns, stat.st_size)
+        actual_hash = _verified_asset_hashes.get(cache_key)
+        if actual_hash is None:
+            actual_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+            _verified_asset_hashes[cache_key] = actual_hash
+        if actual_hash != expected_hash:
             raise HTTPException(status_code=404, detail={"code": "STUDY_AI_UNAVAILABLE"})
         return deliver_file(
             target,

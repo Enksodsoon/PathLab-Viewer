@@ -1401,7 +1401,8 @@ def register_library_routes(
             )
         expires_at = payload.expires_at
         if expires_at is not None:
-            expires_at = expires_at.replace(tzinfo=None)
+            if expires_at.tzinfo is not None:
+                expires_at = expires_at.astimezone(UTC).replace(tzinfo=None)
             if expires_at <= utcnow():
                 raise HTTPException(
                     status_code=422,

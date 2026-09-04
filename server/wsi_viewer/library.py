@@ -171,18 +171,24 @@ def _apply_text_search(
     found = _search_ids(database, query.strip())
     if found is not None:
         return statement.where(Slide.id.in_(found or [""]))
-    escaped = query.strip().casefold()
+    escaped = (
+        query.strip()
+        .casefold()
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
     pattern = f"%{escaped}%"
     return statement.where(
         or_(
-            func.lower(Slide.display_name).like(pattern),
-            func.lower(Slide.original_filename).like(pattern),
-            func.lower(Slide.case_id).like(pattern),
-            func.lower(Slide.organ_site).like(pattern),
-            func.lower(Slide.stain).like(pattern),
-            func.lower(Slide.diagnosis).like(pattern),
-            func.lower(Slide.course).like(pattern),
-            func.lower(func.cast(Slide.tags, String)).like(pattern),
+            func.lower(Slide.display_name).like(pattern, escape="\\"),
+            func.lower(Slide.original_filename).like(pattern, escape="\\"),
+            func.lower(Slide.case_id).like(pattern, escape="\\"),
+            func.lower(Slide.organ_site).like(pattern, escape="\\"),
+            func.lower(Slide.stain).like(pattern, escape="\\"),
+            func.lower(Slide.diagnosis).like(pattern, escape="\\"),
+            func.lower(Slide.course).like(pattern, escape="\\"),
+            func.lower(func.cast(Slide.tags, String)).like(pattern, escape="\\"),
         )
     )
 

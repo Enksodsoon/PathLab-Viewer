@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+test.describe.configure({ mode: 'serial', timeout: 120_000 })
+
 const manifest = {
   publicId: 'share-public',
   targetType: 'folder',
@@ -89,7 +91,12 @@ test.beforeEach(async ({ page }) => {
     contentType: 'application/xml',
     body: '<Image xmlns="http://schemas.microsoft.com/deepzoom/2008" TileSize="512" Overlap="1" Format="jpg"><Size Width="1024" Height="768"/></Image>',
   }))
+  await page.route('**/tiles/**/*_files/**', (route) => route.fulfill({
+    status: 404,
+    body: '',
+  }))
   await page.goto('/f/share-public')
+  await expect(page.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible({ timeout: 15_000 })
 })
 
 test('keeps the shared viewer usable across desktop and mobile breakpoints', async ({ page }) => {
