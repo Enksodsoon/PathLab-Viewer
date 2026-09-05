@@ -22,7 +22,19 @@ export function Loader({
       role="status"
       aria-live="polite"
     >
-      <span className="pathlab-loader__indicator" aria-hidden="true" />
+      <svg
+        className="pathlab-loader__container"
+        viewBox="0 0 50 50"
+        aria-hidden="true"
+      >
+        <rect
+          className="pathlab-loader__boxes"
+          x="0"
+          y="0"
+          width="50"
+          height="50"
+        />
+      </svg>
       <span className="pathlab-loader__label">{label}</span>
     </span>
   )

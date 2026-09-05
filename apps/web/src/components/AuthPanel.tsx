@@ -9,7 +9,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { ApiError, login, recoverPassword } from '../api'
+import darkArtwork from '../assets/auth-histology-solace-dark.webp'
+import lightArtwork from '../assets/auth-histology-solace-light.webp'
 import { ThemeControl } from '../theme/ThemeControl'
+import { useTheme } from '../theme/ThemeProvider'
 import { Brand } from './Brand'
 import { Loader } from './Loader'
 import { StatusMessage } from './StatusMessage'
@@ -29,6 +32,7 @@ interface AuthPanelProps {
 }
 
 export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
+  const { resolvedTheme } = useTheme()
   const [mode, setMode] = useState<'login' | 'recover'>('login')
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
@@ -257,12 +261,15 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
         </section>
 
         <section className="auth-visual" aria-labelledby="auth-visual-title">
-          <div className="auth-visual-field" aria-hidden="true">
-            <span className="auth-visual-cell auth-visual-cell--one" />
-            <span className="auth-visual-cell auth-visual-cell--two" />
-            <span className="auth-visual-cell auth-visual-cell--three" />
-            <span className="auth-visual-cell auth-visual-cell--four" />
-          </div>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="auth-visual-image"
+            data-auth-artwork-theme={resolvedTheme}
+            decoding="async"
+            fetchPriority="high"
+            src={resolvedTheme === 'dark' ? darkArtwork : lightArtwork}
+          />
           <div className="auth-visual-grain" aria-hidden="true" />
           <div className="auth-visual-content">
             <h1 id="auth-visual-title">
