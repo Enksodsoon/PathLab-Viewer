@@ -228,3 +228,41 @@ def test_dangling_binding_symlink_blocks_deployment(tmp_path, entry):
     assert result.returncode != 0
     assert "requires explicit" in result.stderr
     assert "STAGING" not in trace.read_text()
+
+
+@pytest.mark.skipif(not BASH, reason="bash unavailable")
+@pytest.mark.parametrize(
+    "capacity_lines",
+    [
+        "",
+        "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000\n",
+        "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=100\nPATHLAB_CLASSROOM_MAX_PARTICIPANTS=2000\n",
+    ],
+)
+def test_staged_release_cannot_inherit_campaign_capacity(tmp_path, capacity_lines):
+    stage = tmp_path / "stage"
+    (stage / "deploy").mkdir(parents=True)
+    environment = stage / "deploy/.env"
+    retained = "PATHLAB_ANNOTATIONS_ENABLED=false\nUNRELATED=value\n"
+    environment.write_text(retained + capacity_lines, encoding="utf-8", newline="\n")
+    source = SOURCE.read_text(encoding="utf-8")
+    start = source.index("if grep -q '^PATHLAB_CLASSROOM_MAX_PARTICIPANTS='")
+    end = source.index("printf '%s\\n' \"${TARGET_SHA}\"", start)
+    script = tmp_path / "normalize.sh"
+    script.write_text(
+        "set -Eeuo pipefail\nSTAGE_DIR=" + quote(stage) + "\n" + source[start:end],
+        encoding="utf-8",
+        newline="\n",
+    )
+    result = subprocess.run([BASH, str(script)], capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    lines = environment.read_text(encoding="utf-8").splitlines()
+    values = [
+        line.split("=", 1)[1]
+        for line in lines
+        if line.startswith("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=")
+    ]
+    assert values and set(values) == {"300"}
+    assert retained.splitlines() == [
+        line for line in lines if not line.startswith("PATHLAB_CLASSROOM_MAX_PARTICIPANTS=")
+    ]
