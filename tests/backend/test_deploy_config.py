@@ -597,7 +597,7 @@ def test_production_deploy_uses_temporary_oci_bastion_session() -> None:
     assert "pip install --require-hashes -r deploy/oci-cli-requirements.txt" in workflow
     lockfile = Path("deploy/oci-cli-requirements.txt").read_text(encoding="utf-8")
     assert "oci-cli==3.92.0" in lockfile
-    assert "cryptography==50.0.0" in lockfile
+    assert "cryptography==50.0.1" in lockfile
     assert "--hash=sha256:" in lockfile
 
 
