@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T07:29:20.453387Z",
+  "generatedAt": "2026-09-05T07:58:03.136627Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -291,7 +291,7 @@
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/docker/setup-qemu-action/tree/96fe6ef7f33517b61c61be40b68a1882f3264fb8",
+      "artifact": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -299,7 +299,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8",
+      "id": "github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a",
       "license": "Apache-2.0",
       "manifestRefs": [
         ".github/workflows"
@@ -310,12 +310,12 @@
       "optional": false,
       "purpose": "CI cross-platform emulation",
       "role": "build-only",
-      "source": "https://github.com/docker/setup-qemu-action/tree/96fe6ef7f33517b61c61be40b68a1882f3264fb8",
-      "version": "96fe6ef7f33517b61c61be40b68a1882f3264fb8"
+      "source": "https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a",
+      "version": "1f40c72289eff860ee54a304f1438e3cff362e0a"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28",
+      "artifact": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -323,7 +323,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28",
+      "id": "github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
       "license": "MIT",
       "manifestRefs": [
         ".github/workflows"
@@ -334,12 +334,12 @@
       "optional": false,
       "purpose": "CI security analysis execution",
       "role": "test-only",
-      "source": "https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28",
-      "version": "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
+      "source": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
     },
     {
       "admission": "BLOCKED",
-      "artifact": "https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28",
+      "artifact": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
       "blockers": [
         "ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED"
       ],
@@ -347,7 +347,7 @@
       "checksumVerified": false,
       "distribution": "hosted-CI-only",
       "ecosystem": "github-action",
-      "id": "github-action:github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28",
+      "id": "github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
       "license": "MIT",
       "manifestRefs": [
         ".github/workflows"
@@ -358,8 +358,8 @@
       "optional": false,
       "purpose": "CI security analysis initialization",
       "role": "test-only",
-      "source": "https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28",
-      "version": "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"
+      "source": "https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "version": "cdf488f595d80d6e07e03d4674febd5ab45fa938"
     },
     {
       "admission": "BLOCKED",
@@ -15520,11 +15520,11 @@
       "sha256": "8ae56866d9ef2d4b26ee6081ca5df481be8a750cb42189dfc7b41e3062b6e63e"
     },
     {
-      "gitBlob": "ef826a7e941a47070c23f3fe5a8ad2f9963797ea",
+      "gitBlob": "c829725b4c902e6f8522164c378c1d1369e9387c",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "c2b43acf55fe0052306c1ebf687c73d7851b87b3821f252687b629daea6a28ed"
+      "sha256": "aba77098b80267930613e43b79a21dd1ae488eaea9fe0633f164a1c1579d1f01"
     }
   ],
-  "subjectCommit": "dbf94345613997a9dfa20de317873bfa996a43b1",
-  "subjectTree": "22f57b91aec4a802dfb4aeb2ca8a4dcb805a3e35"
+  "subjectCommit": "28d3cf8197563ac4c751a7cc789f7c3af8fca049",
+  "subjectTree": "ee1041b2fc714b82a8f0bcfdeecfb7764be42acb"
 }
