@@ -52,6 +52,14 @@
 		reverse_proxy {$PATHLAB_CLASSROOM_SERVICE_URL}
 	}
 
+	@assessment_disabled {
+		path /api/v2/assessment/* /api/v2/admin/assessment/* /assessment-assets/*
+		expression `{env.PATHLAB_ASSESSMENT_ENABLED} != "true"`
+	}
+	handle @assessment_disabled {
+		respond 404
+	}
+
 	@assessment_api path /api/v2/assessment/* /api/v2/admin/assessment/*
 	handle @assessment_api {
 		header ?Cache-Control "no-store"

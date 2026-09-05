@@ -75,6 +75,8 @@ Every file in `docs/architecture` other than this register appears exactly once.
 | `docs/architecture/ZERO_CASH_RUNTIME.md` | `SUPPORTING_CONTRACT` | [Final Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md), ADRs [0001](../adr/0001-separate-zero-cash-production-from-funded-scalability.md), [0004](../adr/0004-make-every-planned-context-a-zero-cash-launch-gate.md), [0040](../adr/0040-partition-the-zero-cash-host-with-emergency-headroom.md), [0041](../adr/0041-degrade-modes-before-their-hard-resource-limit.md), [0059](../adr/0059-use-opentofu-and-native-systemd-as-production-authorities.md), and [0116](../adr/0116-qualify-zero-cash-accounting-over-evidence-windows.md) |
 | `docs/architecture/ZERO_CASH_SERVICE_CELLS.md` | `SUPPORTING_CONTRACT` | [Zero-Cash Runtime](./ZERO_CASH_RUNTIME.md), ADRs [0038](../adr/0038-schedule-heavy-work-through-prioritized-mode-reservations.md) and [0066](../adr/0066-require-the-full-1200-participant-classroom-campaign.md) |
 
+| `docs/architecture/ASSESSMENT.md` | `BASELINE_ONLY` | [Final Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md); Assessment remains default off pending qualification. |
+
 ## Repository planning families
 
 | Path or family | Status | Controller or limitation |

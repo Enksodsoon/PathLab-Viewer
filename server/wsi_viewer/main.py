@@ -576,7 +576,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         register_assessment_routes(
             app,
             database_dependency=database,
-            admin_dependency=admin_session,
+            admin_dependency=authenticated_session,
             csrf_dependency=csrf,
             identifier_secret=current.secret_key,
             secure_cookies=current.secure_cookies,

@@ -21,6 +21,7 @@ services:
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
       PATHLAB_CLASSROOM_SERVICE_URL: http://classroom:8001
       PATHLAB_ASSESSMENT_SERVICE_URL: http://assessment:8002
+      PATHLAB_ASSESSMENT_ENABLED: "${PATHLAB_ASSESSMENT_ENABLED:-false}"
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -32,8 +33,6 @@ services:
       api:
         condition: service_healthy
       classroom:
-        condition: service_healthy
-      assessment:
         condition: service_healthy
       tile-service:
         condition: service_healthy
@@ -130,6 +129,7 @@ services:
     cpu_shares: 1024
 
   assessment:
+    profiles: ["assessment"]
     image: pathlab-viewer-assessment:${PATHLAB_RELEASE_IMAGE_TAG:-live}
     build:
       context: ..

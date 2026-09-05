@@ -1,5 +1,7 @@
 # PathLab Assessment
 
+> Precedence status: `BASELINE_ONLY`. See the [architecture precedence register](./ARCHITECTURE_PRECEDENCE.md). Current implementation does not supersede the Final Production Endpoint or qualification gates.
+
 PathLab Assessment is a manual-first assessment authoring and delivery product for pathology slides. The approved contract is `pathlab.assessment/1`; drafts remain editable JSON documents, while published definitions and learner manifests are immutable and separately checksummed.
 
 The feature and its dedicated service role are disabled by default. Production activation requires PostgreSQL, identity governance, backup/restore evidence, exact-release capacity certification, staged pilots, and explicit approval. Assessment does not import Study Coach, TRACE-SIM, AI, or `onnxruntime-web` code.
