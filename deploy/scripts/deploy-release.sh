@@ -24,6 +24,54 @@ DATA_DIR=""
 BACKUP_DIR=""
 DATABASE_ENGINE=""
 
+exclude_capacity_for_deployment() {
+  # The deployment lock is already held. Nonblocking acquisition prevents a
+  # cycle with a recovery caller that owns the controller lock first.
+  local capacity_lock=/run/pathlab-capacity-controller.lock units jobs
+  if [[ ! -e "${capacity_lock}" && ! -L "${capacity_lock}" ]]; then
+    (umask 077; set -C; : > "${capacity_lock}") || fail "capacity lock creation failed"
+  fi
+  [[ -f "${capacity_lock}" && ! -L "${capacity_lock}" ]] || fail "capacity lock is invalid"
+  exec 8<>"${capacity_lock}"
+  python3 - "${capacity_lock}" "/proc/$$/fd/8" <<'PY' || fail "capacity lock ownership is invalid"
+import os, stat, sys
+try:
+    path, descriptor = os.lstat(sys.argv[1]), os.stat(sys.argv[2])
+    valid = (stat.S_ISREG(path.st_mode) and path.st_uid == 0
+             and path.st_mode & 0o022 == 0
+             and (path.st_dev, path.st_ino) == (descriptor.st_dev, descriptor.st_ino))
+except OSError:
+    valid = False
+raise SystemExit(0 if valid else 1)
+PY
+  flock --exclusive --nonblock 8 || fail "capacity controller operation is in progress"
+  [[ ! -e /run/pathlab-capacity-controller && ! -L /run/pathlab-capacity-controller ]] || \
+    fail "capacity controller binding requires explicit retirement before deployment"
+  [[ ! -e /run/pathlab-capacity-active.json && ! -L /run/pathlab-capacity-active.json ]] || \
+    fail "capacity campaign requires explicit recovery before deployment"
+  units="$(LC_ALL=C timeout --signal=TERM --kill-after=5s 30s systemctl list-units --all --plain --no-legend --no-pager \
+    --type=service,timer 'pathlab-capacity-*')" || fail "capacity unit inventory is unavailable"
+  jobs="$(LC_ALL=C timeout --signal=TERM --kill-after=5s 30s systemctl list-jobs --no-legend --no-pager --plain)" || \
+    fail "capacity job inventory is unavailable"
+  python3 - "${units}" "${jobs}" <<'PY' || fail "capacity unit inactivity is unproved"
+import re, sys
+if len(sys.argv[1]) > 262144 or len(sys.argv[2]) > 262144:
+    raise SystemExit(1)
+for line in sys.argv[1].splitlines():
+    fields = line.split()
+    if (len(fields) < 4 or not re.fullmatch(r"pathlab-capacity-[a-z0-9-]+\.(service|timer)", fields[0])
+            or fields[1] not in {"loaded", "masked"}
+            or (fields[2], fields[3]) not in {("inactive", "dead"), ("failed", "failed")}):
+        raise SystemExit(1)
+for line in sys.argv[2].splitlines():
+    if line == "No jobs running." and len(sys.argv[2].splitlines()) == 1:
+        continue
+    fields = line.split()
+    if len(fields) < 4 or not fields[0].isdigit() or fields[1].startswith("pathlab-capacity-"):
+        raise SystemExit(1)
+PY
+}
+
 compose_release() {
   local release_dir="$1"
   shift
@@ -375,6 +423,10 @@ fi
 if [[ -n "${CLASSROOM_ENABLED}" && -z "${ADMIN_ANNOTATION_CANARY_ENABLED}" ]]; then
   ADMIN_ANNOTATION_CANARY_ENABLED=false
 fi
+command -v flock >/dev/null || fail "flock is required"
+exec 9>"${LOCK_FILE}"
+flock -n 9 || fail "another production deployment is already running"
+exclude_capacity_for_deployment
 DEPLOY_EVIDENCE="$(mktemp /run/pathlab-deploy-evidence-XXXXXX.json)"
 chmod 600 "${DEPLOY_EVIDENCE}"
 trap cleanup_exit EXIT
@@ -391,10 +443,6 @@ if len(payload) > 65536:
     raise SystemExit(1)
 pathlib.Path(destination).write_bytes(payload)
 PY
-
-command -v flock >/dev/null || fail "flock is required"
-exec 9>"${LOCK_FILE}"
-flock -n 9 || fail "another production deployment is already running"
 
 REMOTE_MAIN_SHA="$(git ls-remote "${REPOSITORY_URL}" refs/heads/main | awk '{print $1}')"
 [[ "${REMOTE_MAIN_SHA}" == "${TARGET_SHA}" ]] || \
