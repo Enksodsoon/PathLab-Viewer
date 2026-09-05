@@ -193,6 +193,59 @@ def test_alembic_upgrade_from_0001_preserves_users_and_sessions(
         ).scalar_one() == 1
 
 
+@pytest.mark.parametrize(
+    ("user_ids", "expected_creator"),
+    [(("teacher-1",), "teacher-1"), (("teacher-1", "teacher-2"), None)],
+)
+def test_classroom_creator_migration_backfills_only_one_unambiguous_user(
+    tmp_path: Path,
+    monkeypatch,
+    user_ids: tuple[str, ...],
+    expected_creator: str | None,
+) -> None:
+    database_path = tmp_path / f"classroom-creator-{len(user_ids)}.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path / "data"))
+    config = Config("alembic.ini")
+    command.upgrade(config, "20260905_0026")
+    settings = Settings(database_url=f"sqlite:///{database_path}", data_root=tmp_path / "data")
+    with session_factory(settings)() as database:
+        for index, user_id in enumerate(user_ids):
+            database.execute(
+                text(
+                    "INSERT INTO users "
+                    "(id, username, password_hash, credential_generation, created_at) "
+                    "VALUES (:id, :username, 'hash', 1, '2026-09-05 08:00:00')"
+                ),
+                {"id": user_id, "username": f"teacher-{index}"},
+            )
+        database.execute(
+            text(
+                "INSERT INTO classroom_sessions "
+                "(id, join_code_hash, phase, code_generation, status, presenter_sequence, "
+                "presenter_sequence_reserved, control_epoch, state_version, expires_at, "
+                "created_at) "
+                "VALUES ('legacy-classroom', :join_hash, 'live', 1, 'active', 0, 0, 0, 1, "
+                "'2026-09-06 08:00:00', '2026-09-05 08:00:00')"
+            ),
+            {"join_hash": "a" * 64},
+        )
+        database.commit()
+
+    command.upgrade(config, "head")
+
+    with session_factory(settings)() as database:
+        assert (
+            database.execute(
+                text(
+                    "SELECT created_by_user_id FROM classroom_sessions "
+                    "WHERE id = 'legacy-classroom'"
+                )
+            ).scalar_one()
+            == expected_creator
+        )
+
+
 def test_current_migration_indexes_recovery_audit_retention_queries(
     tmp_path: Path, monkeypatch
 ) -> None:

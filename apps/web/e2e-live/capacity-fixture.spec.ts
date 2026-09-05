@@ -74,7 +74,7 @@ test('prepare a synthetic public capacity fixture', async ({ page }) => {
 
     stage = 'upload-and-conversion'
     writeDiagnostic(prepareDiagnosticPath, stage)
-    await expect(page.getByText('Upload complete. Processing is queued.', {
+    await expect(page.getByRole('dialog', { name: 'Upload OME-TIFF' }).getByText('1 file uploaded. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
     await waitForSlideConversion(page, slideId)

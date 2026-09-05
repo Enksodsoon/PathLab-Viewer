@@ -3,10 +3,11 @@ import hmac
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session as OrmSession
 
+from .admission import lock_admission
 from .models import AuditEvent, PasswordRecoveryAttempt, PasswordRecoveryCode, Session, User
 from .security import (
     hash_password,
@@ -277,9 +278,10 @@ def recover_password(
         database.rollback()
         raise RecoveryThrottled
 
-    # End the read-only fast-path transaction before taking SQLite's write lock.
+    # Recheck under one shared lock for every client/IP/global recovery scope.
+    # Keep it through the attempt insert or credential replacement and commit.
     database.rollback()
-    database.execute(text("BEGIN IMMEDIATE"))
+    lock_admission(database, "recovery")
     if _recovery_is_throttled(database, key, ip_key, attempted_at):
         database.rollback()
         raise RecoveryThrottled

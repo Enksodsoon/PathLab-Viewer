@@ -12,6 +12,7 @@ from sqlalchemy import select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
+from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import Slide, User
 from wsi_viewer.ome_ingest import serialize_ome_tile_index
@@ -38,7 +39,10 @@ def _client(tmp_path: Path, *, internal_file_redirects: bool = False) -> TestCli
             text("INSERT INTO alembic_version (version_num) VALUES (:head)"),
             {"head": ALEMBIC_HEAD},
         )
-        database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
+        admin = User(username="admin", password_hash=hash_password("correct horse battery"))
+        database.add(admin)
+        database.flush()
+        ensure_default_owner_membership(database, admin)
         database.commit()
     return TestClient(create_app(settings))
 
@@ -422,8 +426,8 @@ def test_public_proxy_and_deployment_configuration_disclose_no_live_target() -> 
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
 
     assert "@internal_api path /api/v1/internal/*" in caddyfile
-    assert "respond @internal_api 404" in caddyfile
-    assert caddyfile.index("respond @internal_api 404") < caddyfile.index("handle @backend")
+    assert "handle @internal_api {\n\t\trespond 404\n\t}" in caddyfile
+    assert caddyfile.index("handle @internal_api") < caddyfile.index("handle @backend")
     assert 'Content-Security-Policy "' in caddyfile
     assert 'Strict-Transport-Security "' in caddyfile
     assert 'X-Robots-Tag "noindex, nofollow, noarchive"' in caddyfile

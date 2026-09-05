@@ -75,6 +75,18 @@ jobs:
         run: |
           python scripts/validate_runtime_toolchain_admission.py
           ruff check scripts/validate_runtime_toolchain_admission.py scripts/verify_runtime_toolchain_sources.py tests/backend/test_runtime_toolchain_admission.py
+      - name: Validate deterministic software inventories
+        run: |
+          TOOLCHAIN_DIR="${RUNNER_TEMP}/pathlab-p0-t06-python-toolchain"
+          python -m pip install --target "${TOOLCHAIN_DIR}" --require-hashes \
+            -r docs/supply-chain/runtime-toolchain-requirements.txt
+          python scripts/validate_software_inventories.py
+          PYTHONPATH="${TOOLCHAIN_DIR}" python -m spdx_tools.spdx.clitools.pyspdxtools \
+            -i docs/supply-chain/software-inventories/source.spdx.json
+          PYTHONPATH="${TOOLCHAIN_DIR}" python -m spdx_tools.spdx.clitools.pyspdxtools \
+            -i docs/supply-chain/software-inventories/build.spdx.json
+          ruff check scripts/generate_software_inventories.py scripts/validate_software_inventories.py tests/backend/test_software_inventories.py
+          pytest -q tests/backend/test_software_inventories.py
       - name: Verify Python distribution license files
         run: |
           set -euo pipefail
@@ -92,6 +104,10 @@ jobs:
       - run: ruff check server tests migrations
       - run: mypy server/wsi_viewer
       - run: pytest --cov=wsi_viewer --cov-report=term-missing
+      - name: Verify capacity harness and evidence contracts without load
+        run: |
+          pip install --require-hashes -r deploy/oci-cli-requirements.txt
+          pytest -q tests/load
 
   postgres:
     runs-on: ubuntu-24.04
@@ -123,6 +139,8 @@ jobs:
           tests/backend/test_postgres_foundation.py
           tests/backend/test_postgres_migration.py
           tests/backend/test_postgres_classroom.py
+          tests/backend/test_security_admission.py
+          tests/backend/test_identity_mutation_lock.py
       - name: Verify PostgreSQL backup and disposable restore
         env:
           PATHLAB_DATABASE_URL: postgresql+psycopg://pathlab_test:pathlab_test@127.0.0.1:5432/pathlab_test
@@ -275,14 +293,52 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium firefox webkit
-      - name: Run private annotation and public isolation browser matrix
+      - name: Run authentication, library, Classroom and viewer browser matrix
         env:
           PLAYWRIGHT_PORT: "5217"
         run: >-
           pnpm --dir apps/web exec playwright test
           e2e/annotation-responsive.spec.ts
           e2e/shared-viewer-responsive.spec.ts
+          e2e/auth-responsive.spec.ts
+          e2e/library-responsive.spec.ts
+          e2e/classroom-disabled.spec.ts
+          e2e/capacity-upload-dialog.spec.ts
           --workers=2
+      - name: Retain browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-failure-diagnostics
+          path: apps/web/test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+  fullstack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: { python-version: "3.12" }
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.14.0", cache: pnpm }
+      - name: Install native test services at repository runtime versions
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libvips-tools
+          go install github.com/tus/tusd/v2/cmd/tusd@v2.9.2
+          go install github.com/caddyserver/caddy/v2/cmd/caddy@v2.11.4
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: pip install -e .[dev]
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - name: Run disposable real imaging journey
+        run: python scripts/run_fullstack_tests.py
 
   containers:
     runs-on: ubuntu-24.04
@@ -314,6 +370,16 @@ jobs:
           -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro"
           caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
           caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Verify effective internal route denial order
+        run: |
+          set -euo pipefail
+          docker run --rm -e DOMAIN -e ACME_EMAIL \
+            -e PATHLAB_CLASSROOM_SERVICE_URL=http://classroom:8001 \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648 \
+            caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile \
+            > "${RUNNER_TEMP}/caddy-adapted.json"
+          python3 scripts/validate_caddy_boundaries.py "${RUNNER_TEMP}/caddy-adapted.json"
       - name: Build ARM64 backend image
         run: >-
           docker buildx build --platform linux/arm64

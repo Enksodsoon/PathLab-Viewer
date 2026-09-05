@@ -20,10 +20,14 @@
 	}
 
 	@internal_api path /api/v1/internal/*
-	respond @internal_api 404
+	handle @internal_api {
+		respond 404
+	}
 
 	@direct_dynamic path /_pathlab_ome/*
-	respond @direct_dynamic 404
+	handle @direct_dynamic {
+		respond 404
+	}
 
 	@uploads path /api/v1/uploads/*
 	handle @uploads {

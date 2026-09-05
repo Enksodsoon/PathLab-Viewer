@@ -84,6 +84,22 @@ def has_capability(context: StaffOrganizationContext, capability: str) -> bool:
     return capability in context.capabilities
 
 
+def is_default_legacy_owner(database: OrmSession, user_id: str) -> bool:
+    membership_id = database.scalar(
+        select(OrganizationMembership.id)
+        .join(Organization, Organization.id == OrganizationMembership.organization_id)
+        .where(
+            OrganizationMembership.user_id == user_id,
+            OrganizationMembership.organization_id == DEFAULT_ORGANIZATION_ID,
+            OrganizationMembership.role == "owner",
+            OrganizationMembership.status == "active",
+            Organization.status == "active",
+        )
+        .limit(1)
+    )
+    return membership_id is not None
+
+
 def ensure_default_owner_membership(database: OrmSession, user: User) -> OrganizationMembership:
     membership = database.scalar(
         select(OrganizationMembership).where(

@@ -23,16 +23,16 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
 } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { ApiError, getFolderChildren, getLibraryNavigation, listSlides } from '../api'
+import { ApiError } from '../api'
 import {
   answerQuestion,
   clearTeacherPointer,
   clearTeachingAnnotations,
   classroomReadiness,
+  classroomSetupFolders,
   createClassroom,
   endActiveClassroom,
   endClassroom,
@@ -50,6 +50,7 @@ import {
   teacherState,
   type ClassroomParticipant,
   type ClassroomReadiness,
+  type ClassroomSetupFolder,
   type CreatedClassroom,
   type TeacherParticipantsPage,
   type TeacherState,
@@ -59,6 +60,7 @@ import { ClassroomPinOverlays, type ClassroomVisiblePin } from '../classroom/Cla
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
 import { createLatestSender } from '../classroom/latestSender'
+import { localDateTimeInputValue } from '../classroom/localDateTime'
 import { applyPresenterViewport, readPresenterViewport } from '../classroom/presenterViewport'
 import { createRosterReconciler } from '../classroom/roster'
 import {
@@ -81,16 +83,13 @@ import {
   type ViewerAttachmentCallback,
 } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
-import type { AdminSlide, LibraryFolder } from '../types'
 import { CLASSROOM_VIEWER_NETWORK_PROFILE } from '../viewerNetwork'
 import '../classroom/classroom.css'
 
 const ACTIVE_CLASSROOM_KEY = 'pathlab-active-classroom:v1'
 
 function defaultReviewExpiry(): string {
-  const value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  value.setMinutes(value.getMinutes() - value.getTimezoneOffset())
-  return value.toISOString().slice(0, 16)
+  return localDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
 }
 
 function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onClose: () => void }) {
@@ -121,78 +120,6 @@ function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onC
   </div>
 }
 
-interface ClassroomFolderOption {
-  folder: LibraryFolder
-  depth: number
-  slideIds: string[]
-}
-
-async function loadClassroomFolders(): Promise<LibraryFolder[]> {
-  const navigation = await getLibraryNavigation()
-  const folders = [...navigation.folders]
-  const seen = new Set(folders.map((folder) => folder.id))
-  const queue = folders.filter((folder) => folder.hasChildren)
-  for (let index = 0; index < queue.length; index += 1) {
-    const children = await getFolderChildren(queue[index].id)
-    for (const child of children) {
-      if (seen.has(child.id)) continue
-      seen.add(child.id)
-      folders.push(child)
-      if (child.hasChildren) queue.push(child)
-    }
-  }
-  return folders
-}
-
-function classroomFolderOptions(
-  folders: LibraryFolder[],
-  slides: AdminSlide[],
-): ClassroomFolderOption[] {
-  const children = new Map<string | null, LibraryFolder[]>()
-  folders.forEach((folder) => {
-    const siblings = children.get(folder.parentId) ?? []
-    siblings.push(folder)
-    children.set(folder.parentId, siblings)
-  })
-
-  const slideIdsByFolder = new Map<string, string[]>()
-  slides.forEach((slide) => {
-    if (!slide.folderId) return
-    const ids = slideIdsByFolder.get(slide.folderId) ?? []
-    ids.push(slide.id)
-    slideIdsByFolder.set(slide.folderId, ids)
-  })
-
-  const options: ClassroomFolderOption[] = []
-  const slideMemo = new Map<string, string[]>()
-  const collecting = new Set<string>()
-  const collectSlideIds = (folder: LibraryFolder): string[] => {
-    const cached = slideMemo.get(folder.id)
-    if (cached) return cached
-    if (collecting.has(folder.id)) return []
-    collecting.add(folder.id)
-    const ids = [
-      ...(slideIdsByFolder.get(folder.id) ?? []),
-      ...(children.get(folder.id) ?? []).flatMap(collectSlideIds),
-    ]
-    collecting.delete(folder.id)
-    slideMemo.set(folder.id, ids)
-    return ids
-  }
-  const visited = new Set<string>()
-  const append = (folder: LibraryFolder, depth: number) => {
-    if (visited.has(folder.id)) return
-    visited.add(folder.id)
-    options.push({ folder, depth, slideIds: collectSlideIds(folder) })
-    ;(children.get(folder.id) ?? []).forEach((child) => append(child, depth + 1))
-  }
-  ;(children.get(null) ?? []).forEach((folder) => append(folder, 0))
-  folders.forEach((folder) => {
-    if (!visited.has(folder.id)) append(folder, 0)
-  })
-  return options
-}
-
 function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
   if (name === 'guide') return <Broadcast aria-hidden="true" size={19} />
   if (name === 'navigate') return <Cursor aria-hidden="true" size={19} />
@@ -211,21 +138,23 @@ function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks'
   return <MouseSimple aria-hidden="true" size={18} />
 }
 
-function savedClassroom(): CreatedClassroom | null {
+function savedClassroomId(): string {
   try {
     const value = sessionStorage.getItem(ACTIVE_CLASSROOM_KEY)
-    if (!value) return null
-    const parsed = JSON.parse(value) as CreatedClassroom
-    return { ...parsed, publicId: parsed.publicId ?? null, phase: parsed.phase ?? 'live', reviewExpiresAt: parsed.reviewExpiresAt ?? null }
+    if (!value) return ''
+    const parsed = JSON.parse(value) as { id?: unknown }
+    return typeof parsed.id === 'string' ? parsed.id : ''
   } catch {
-    return null
+    return ''
   }
 }
 
 export function ClassroomTeacherPage() {
   const navigate = useNavigate()
-  const [slides, setSlides] = useState<AdminSlide[]>([])
-  const [folders, setFolders] = useState<LibraryFolder[]>([])
+  const [setupFolders, setSetupFolders] = useState<ClassroomSetupFolder[]>([])
+  const [setupCursor, setSetupCursor] = useState<string | null>(null)
+  const [setupQuery, setSetupQuery] = useState('')
+  const deferredSetupQuery = useDeferredValue(setupQuery.trim())
   const [selectedFolderId, setSelectedFolderId] = useState('')
   const [reviewExpiry, setReviewExpiry] = useState(defaultReviewExpiry)
   const [readiness, setReadiness] = useState<ClassroomReadiness | null>(null)
@@ -233,7 +162,12 @@ export function ClassroomTeacherPage() {
     id: string; publicId: string; phase: 'preview' | 'live' | 'review' | 'revoked'; joinCode: string; reviewExpiresAt: string
   }>>([])
   const [setupLoading, setSetupLoading] = useState(true)
-  const [classroom, setClassroom] = useState<CreatedClassroom | null>(savedClassroom)
+  const [setupLoadingMore, setSetupLoadingMore] = useState(false)
+  const [setupError, setSetupError] = useState('')
+  const [startBusy, setStartBusy] = useState(false)
+  const [classroom, setClassroom] = useState<CreatedClassroom | null>(null)
+  const [resumeBusy, setResumeBusy] = useState('')
+  const [cachedClassroomId] = useState(savedClassroomId)
   const [state, setState] = useState<TeacherState | null>(null)
   const [roster, setRoster] = useState<TeacherParticipantsPage>({
     items: [], total: 0, nextCursor: null, rosterVersion: 0,
@@ -274,6 +208,9 @@ export function ClassroomTeacherPage() {
   const pointerColorRef = useRef(pointerColor)
   const teachingOverlayRef = useRef<ClassroomTeachingOverlayHandle | null>(null)
   const adminAuthFailed = useRef(false)
+  const setupRequest = useRef(0)
+  const startBusyRef = useRef(false)
+  const resumeBusyRef = useRef('')
   const localPointerElementRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => { stateRef.current = state }, [state])
@@ -306,39 +243,52 @@ export function ClassroomTeacherPage() {
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([listSlides(), loadClassroomFolders()])
-      .then(([items, nextFolders]) => {
-        if (cancelled) return
-        setSlides(items)
-        setFolders(nextFolders)
+    const request = ++setupRequest.current
+    setSetupLoading(true)
+    setSetupLoadingMore(false)
+    setSetupError('')
+    void classroomSetupFolders({ q: deferredSetupQuery })
+      .then((page) => {
+        if (cancelled || request !== setupRequest.current) return
+        setSetupFolders(page.items)
+        setSetupCursor(page.nextCursor)
+        setSelectedFolderId((current) => (
+          page.items.some((folder) => folder.id === current) ? current : ''
+        ))
+        setReadiness(null)
       })
       .catch((loadError: unknown) => {
-        if (cancelled) return
+        if (cancelled || request !== setupRequest.current) return
         if (loadError instanceof ApiError && loadError.status === 401) {
           navigate('/admin', { replace: true })
           return
         }
-        setError('Class folders could not be loaded.')
+        setSetupError('Class folders could not be loaded.')
       })
       .finally(() => {
-        if (!cancelled) setSetupLoading(false)
+        if (!cancelled && request === setupRequest.current) setSetupLoading(false)
       })
     return () => { cancelled = true }
-  }, [navigate])
+  }, [deferredSetupQuery, navigate])
 
   useEffect(() => {
     if (classroom) return
-    void listClassrooms().then((result) => setRecentClassrooms(result.sessions)).catch(() => undefined)
-  }, [classroom])
+    let cancelled = false
+    void listClassrooms().then((result) => {
+      if (!cancelled) setRecentClassrooms(result.sessions)
+    }).catch((loadError: unknown) => {
+      if (!cancelled) handleAdminFailure(loadError, 'Existing classrooms could not be loaded.')
+    })
+    return () => { cancelled = true }
+  }, [classroom, handleAdminFailure])
 
-  const folderOptions = useMemo(
-    () => classroomFolderOptions(folders, slides),
-    [folders, slides],
+  const selectedFolder = useMemo(
+    () => setupFolders.find((folder) => folder.id === selectedFolderId) ?? null,
+    [selectedFolderId, setupFolders],
   )
-  const selected = useMemo(
-    () => folderOptions.find((option) => option.folder.id === selectedFolderId)?.slideIds ?? [],
-    [folderOptions, selectedFolderId],
-  )
+  const selectedCount = readiness?.ready.length ?? selectedFolder?.readyCount ?? 0
+  const selectedBlockedCount = readiness?.blocked.length ?? selectedFolder?.blockedCount ?? 0
+  const selectedTooLarge = readiness?.tooManySlides ?? selectedFolder?.tooManySlides ?? false
 
   useEffect(() => {
     if (!selectedFolderId || classroom) {
@@ -988,13 +938,96 @@ export function ClassroomTeacherPage() {
     }
   }, [applyRemote, classroom, currentSlide, handleAdminFailure])
 
+  const loadMoreSetupFolders = async () => {
+    if (!setupCursor || setupLoading || setupLoadingMore) return
+    const request = setupRequest.current
+    const query = deferredSetupQuery
+    setSetupLoadingMore(true)
+    setSetupError('')
+    try {
+      const page = await classroomSetupFolders({ cursor: setupCursor, q: query })
+      if (request !== setupRequest.current || query !== deferredSetupQuery) return
+      setSetupFolders((current) => {
+        const byId = new Map(current.map((folder) => [folder.id, folder]))
+        page.items.forEach((folder) => byId.set(folder.id, folder))
+        return [...byId.values()]
+      })
+      setSetupCursor(page.nextCursor)
+    } catch (loadError) {
+      if (request !== setupRequest.current) return
+      if (loadError instanceof ApiError && loadError.status === 401) {
+        handleAdminFailure(loadError, '')
+      } else {
+        setSetupError('More class folders could not be loaded.')
+      }
+    } finally {
+      if (request === setupRequest.current) setSetupLoadingMore(false)
+    }
+  }
+
+  const resumeClassroom = async (sessionId: string) => {
+    if (resumeBusyRef.current) return
+    resumeBusyRef.current = sessionId
+    setResumeBusy(sessionId)
+    setError('')
+    try {
+      const nextState = await teacherState(sessionId)
+      if (
+        nextState.session.id !== sessionId
+        || !nextState.session.publicId
+        || !nextState.session.joinCode
+        || !nextState.session.reviewExpiresAt
+        || !['preview', 'live', 'review'].includes(nextState.session.phase)
+        || !nextState.slides.length
+      ) {
+        throw new ApiError(409, 'CLASSROOM_SNAPSHOT_INVALID')
+      }
+      const resumed: CreatedClassroom = {
+        id: nextState.session.id,
+        joinCode: nextState.session.joinCode,
+        publicId: nextState.session.publicId,
+        phase: nextState.session.phase,
+        reviewExpiresAt: nextState.session.reviewExpiresAt,
+        stateVersion: nextState.stateVersion,
+        slides: nextState.slides,
+      }
+      streamCursor.current = createClassroomStreamCursor(0)
+      noteClassroomSnapshot(streamCursor.current, nextState.stateVersion)
+      stateRef.current = nextState
+      presenterRef.current = nextState.presenter
+      setState(nextState)
+      setSlideId(nextState.presenter.slideId ?? nextState.slides[0].id)
+      setClassroom(resumed)
+      sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(resumed))
+    } catch (resumeError) {
+      if (resumeError instanceof ApiError && resumeError.status === 404) {
+        setRecentClassrooms((current) => current.filter((item) => item.id !== sessionId))
+        if (cachedClassroomId === sessionId) sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        setError('That classroom has ended or expired and cannot be resumed.')
+      } else {
+        handleAdminFailure(resumeError, 'The classroom could not be resumed safely.')
+      }
+    } finally {
+      if (resumeBusyRef.current === sessionId) {
+        resumeBusyRef.current = ''
+        setResumeBusy('')
+      }
+    }
+  }
+
   const start = async () => {
+    if (startBusyRef.current || !selectedFolderId) return
+    startBusyRef.current = true
+    setStartBusy(true)
     setError('')
     setActiveConflict(false)
     try {
-      if (!selectedFolderId) return
       const checked = await classroomReadiness(selectedFolderId)
       setReadiness(checked)
+      if (checked.tooManySlides) {
+        setError('This folder has more than 50 slides. Choose a smaller class folder.')
+        return
+      }
       if (checked.blocked.length) {
         setError(`This folder is blocked: ${checked.blocked.map((item) => item.displayName).join(', ')} must be republished.`)
         return
@@ -1008,11 +1041,16 @@ export function ClassroomTeacherPage() {
       if (startError instanceof ApiError && startError.code === 'CLASSROOM_ALREADY_ACTIVE') {
         setError('A classroom is already active. End it before starting another.')
         setActiveConflict(true)
+      } else if (startError instanceof ApiError && startError.code === 'CLASSROOM_IN_USE') {
+        setError('Another classroom is currently active. Try again after it ends.')
       } else if (startError instanceof ApiError && (startError.code === 'CLASSROOM_SLIDE_NOT_READY' || startError.code === 'CLASSROOM_SLIDES_BLOCKED')) {
         setError('The classroom could not be prepared. One or more slides must be republished.')
       } else {
         setError('The classroom could not start. Try again.')
       }
+    } finally {
+      startBusyRef.current = false
+      setStartBusy(false)
     }
   }
 
@@ -1033,56 +1071,93 @@ export function ClassroomTeacherPage() {
         sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
         setActiveConflict(false)
         setError('The previous classroom ended. You can start a new one now.')
-      }).catch((endError: unknown) => handleAdminFailure(endError, 'The previous classroom could not be ended. Try again.'))}>
+      }).catch((endError: unknown) => {
+        if (endError instanceof ApiError && (endError.status === 404 || endError.status === 409)) {
+          setActiveConflict(false)
+          setError('No active classroom owned by this account was found. Refresh and try again.')
+          return
+        }
+        handleAdminFailure(endError, 'The previous classroom could not be ended. Try again.')
+      })}>
         End existing classroom
       </button>}
+      {setupError && <p role="alert" className="classroom-error">{setupError}</p>}
+      <label className="classroom-expiry">Search class folders
+        <input
+          type="search"
+          value={setupQuery}
+          onChange={(event) => {
+            setupRequest.current += 1
+            setSetupError('')
+            setSetupCursor(null)
+            setSelectedFolderId('')
+            setReadiness(null)
+            setSetupLoading(true)
+            setSetupQuery(event.target.value)
+          }}
+          placeholder="Folder name"
+          autoComplete="off"
+        />
+      </label>
       <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
         {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class folders…</p> : null}
-        {!setupLoading && !folderOptions.length ? (
-          <p className="classroom-folder-picker__status">Create a library folder before starting a classroom.</p>
+        {!setupLoading && !setupFolders.length ? (
+          <p className="classroom-folder-picker__status">{deferredSetupQuery
+            ? 'No class folders match this search.'
+            : 'Create a library folder before starting a classroom.'}</p>
         ) : null}
-        {folderOptions.map(({ folder, depth, slideIds }) => {
-          const count = slideIds.length
+        {setupFolders.map((folder) => {
+          const count = folder.readyCount + folder.blockedCount
           const selectedFolder = selectedFolderId === folder.id
           return <label
             key={folder.id}
             className={selectedFolder ? 'selected' : undefined}
-            style={{ '--classroom-folder-depth': depth } as CSSProperties}
           >
             <input
               type="radio"
               name="classroom-folder"
               value={folder.id}
               checked={selectedFolder}
-              disabled={count === 0}
+              disabled={count === 0 || folder.tooManySlides}
               onChange={() => setSelectedFolderId(folder.id)}
             />
             <span className="classroom-folder-picker__icon"><FolderOpen aria-hidden="true" /></span>
             <span className="classroom-folder-picker__copy">
               <strong>{folder.name}</strong>
-              <small>{count === 0
+              <small>{folder.tooManySlides
+                ? 'More than 50 slides · choose a smaller folder'
+                : count === 0
                 ? 'No slides'
                 : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
+              {folder.folderPath.length > 1 ? <small>{folder.folderPath.slice(0, -1).join(' / ')}</small> : null}
             </span>
           </label>
         })}
+        {setupCursor ? <button type="button" disabled={setupLoading || setupLoadingMore} onClick={() => void loadMoreSetupFolders()}>
+          {setupLoadingMore ? 'Loading more folders…' : 'Load more folders'}
+        </button> : null}
       </div>
       {readiness?.blocked.length ? <div className="classroom-readiness-error" role="alert">
         <strong>{readiness.blocked.length} slide{readiness.blocked.length === 1 ? '' : 's'} need attention</strong>
         {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} · {item.reason.replaceAll('_', ' ')}</span>)}
       </div> : null}
       <label className="classroom-expiry">Review access expires
-        <input type="datetime-local" min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)} max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)} value={reviewExpiry} onChange={(event) => setReviewExpiry(event.target.value)} />
+        <input type="datetime-local" min={localDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000))} max={localDateTimeInputValue(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))} value={reviewExpiry} onChange={(event) => setReviewExpiry(event.target.value)} />
       </label>
-      <button className="primary classroom-entry__primary" type="button" disabled={!selected.length || Boolean(readiness?.blocked.length)} onClick={() => void start()}>
-        {selected.length
-          ? `Prepare classroom with ${readiness?.ready.length ?? selected.length} ${selected.length === 1 ? 'slide' : 'slides'}`
+      <button className="primary classroom-entry__primary" type="button" disabled={startBusy || !selectedCount || Boolean(selectedBlockedCount) || selectedTooLarge} onClick={() => void start()}>
+        {startBusy
+          ? 'Preparing classroom…'
+          : selectedCount
+          ? `Prepare classroom with ${selectedCount} ${selectedCount === 1 ? 'slide' : 'slides'}`
           : 'Choose a class folder'}
       </button>
-      {recentClassrooms.some((item) => item.phase === 'review') ? <section className="classroom-recent-reviews">
-        <h2>Recent review links</h2>
-        {recentClassrooms.filter((item) => item.phase === 'review').map((item) => <div key={item.id}>
-          <span><strong>{item.joinCode}</strong><small>Expires {new Date(item.reviewExpiresAt).toLocaleString()}</small></span>
+      {recentClassrooms.length ? <section className="classroom-recent-reviews">
+        <h2>Open classrooms</h2>
+        {recentClassrooms.map((item) => <div key={item.id}>
+          <span><strong>{item.joinCode}</strong><small>{item.phase} · expires {new Date(item.reviewExpiresAt).toLocaleString()}{cachedClassroomId === item.id ? ' · last opened' : ''}</small></span>
+          <button type="button" disabled={Boolean(resumeBusy)} aria-label={`Resume classroom ${item.joinCode}`} onClick={() => void resumeClassroom(item.id)}>
+            {resumeBusy === item.id ? 'Resuming…' : 'Resume'}
+          </button>
           <button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/classroom/invite/${item.publicId}`)}>Copy link</button>
           <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id)))}>Revoke</button>
         </div>)}

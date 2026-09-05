@@ -6,16 +6,18 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy import select
 from wsi_viewer import worker
 from wsi_viewer.config import Settings
 from wsi_viewer.conversion import ConversionResult
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Job, Slide
+from wsi_viewer.models import DesktopCredential, DesktopPairing, Job, Slide, User
 from wsi_viewer.storage import admission_required
 from wsi_viewer.worker import (
     StorageCapacityMonitor,
     WorkerScheduler,
+    expire_desktop_pairings,
     expire_incomplete_uploads,
     recover_stale_jobs,
     run_worker_loop,
@@ -98,6 +100,128 @@ def test_worker_capacity_check_runs_once_per_minute() -> None:
     scheduler.run_due()
 
     assert report_capacity.call_count == 2
+
+
+def pairing(identifier: str, expires: datetime, status: str = "pending") -> DesktopPairing:
+    return DesktopPairing(
+        id=identifier,
+        device_code_hash=identifier,
+        device_secret_hash="fixture-secret-hash",
+        user_code=identifier,
+        device_name="Expiry fixture",
+        status=status,
+        expires_at=expires,
+    )
+
+
+def test_pairing_expiry_is_bounded_idempotent_and_preserves_credentials(tmp_path: Path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'expiry.sqlite3'}", data_root=tmp_path)
+    create_schema(settings)
+    factory = session_factory(settings)
+    now = datetime.now(UTC)
+    with factory() as database:
+        database.add(User(id="fixture-user", username="expiry-fixture", password_hash="unused"))
+        database.flush()
+        database.add_all(
+            pairing(
+                f"expired-{index}",
+                now - timedelta(seconds=1),
+                ("pending", "approved", "exchanged")[index % 3],
+            )
+            for index in range(1001)
+        )
+        database.add(pairing("at-boundary", now))
+        database.add(pairing("valid-pending", now + timedelta(minutes=5)))
+        database.add(pairing("valid-approved", now + timedelta(minutes=5), "approved"))
+        database.add_all(
+            DesktopCredential(
+                id=f"credential-{index}",
+                user_id="fixture-user",
+                device_name="Issued credential",
+                scopes=["slides:read"],
+                expires_at=now + timedelta(days=index - 1),
+                revoked_at=now if index == 2 else None,
+            )
+            for index in range(3)
+        )
+        database.commit()
+        before = database.execute(select(DesktopCredential.__table__)).all()
+
+    assert expire_desktop_pairings(factory, now=now) == 1000
+    with factory() as database:
+        assert len(database.scalars(select(DesktopPairing.id)).all()) == 4
+    assert expire_desktop_pairings(factory, now=now) == 2
+    assert expire_desktop_pairings(factory, now=now) == 0
+    with factory() as database:
+        assert set(database.scalars(select(DesktopPairing.id))) == {
+            "valid-pending",
+            "valid-approved",
+        }
+        assert database.execute(select(DesktopCredential.__table__)).all() == before
+
+
+def test_idle_worker_expires_pairings_without_incoming_requests(tmp_path: Path) -> None:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'idle.sqlite3'}", data_root=tmp_path)
+    create_schema(settings)
+    factory = session_factory(settings)
+    now = datetime.now(UTC)
+    with factory() as database:
+        database.add(pairing("expires-soon", now + timedelta(seconds=30)))
+        database.commit()
+    clock = Mock(return_value=0.0)
+    wall_clock = Mock(return_value=now)
+    cleanup = Mock(side_effect=lambda: expire_desktop_pairings(factory, now=wall_clock()))
+    scheduler = WorkerScheduler(
+        recover_stale=Mock(),
+        cleanup_uploads=Mock(),
+        process_job=Mock(return_value=False),
+        cleanup_pairings=cleanup,
+        monotonic=clock,
+    )
+    scheduler.run_due()
+    wall_clock.return_value = now + timedelta(days=1)
+    for timestamp in (0.0, 2.0, 59.0, 59.0):
+        clock.return_value = timestamp
+        scheduler.run_due()
+    assert cleanup.call_count == 1  # Wall-clock jumps do not accelerate housekeeping.
+    with factory() as database:
+        assert database.get(DesktopPairing, "expires-soon") is not None
+    clock.return_value = 60.0
+    scheduler.run_due()
+    scheduler.run_due()
+    assert cleanup.call_count == 2
+    with factory() as database:
+        assert database.get(DesktopPairing, "expires-soon") is None
+    clock.return_value = 120.0
+    scheduler.run_due()
+    assert cleanup.call_count == 3
+
+
+def test_worker_pairing_expiry_waits_for_background_mode_to_resume() -> None:
+    clock = Mock(return_value=0.0)
+    allowed = Mock(return_value=False)
+    cleanup = Mock()
+    scheduler = WorkerScheduler(
+        recover_stale=Mock(),
+        cleanup_uploads=Mock(),
+        process_job=Mock(return_value=False),
+        cleanup_pairings=cleanup,
+        monotonic=clock,
+        background_allowed=allowed,
+    )
+    for timestamp in (0.0, 60.0, 120.0):
+        clock.return_value = timestamp
+        assert scheduler.run_due() == 2.0
+    cleanup.assert_not_called()
+    allowed.return_value = True
+    for timestamp in (120.0, 179.0):
+        clock.return_value = timestamp
+        scheduler.run_due()
+    cleanup.assert_not_called()
+    clock.return_value = 180.0
+    scheduler.run_due()
+    scheduler.run_due()
+    cleanup.assert_called_once_with()
 
 
 def test_worker_processes_queued_jobs_without_an_extra_delay() -> None:

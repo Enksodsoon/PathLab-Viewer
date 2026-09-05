@@ -866,6 +866,7 @@ button.library-storage-meter:focus-visible {
 .library-empty button:hover {
   border-color: var(--primary-hover) !important;
   background: var(--primary-hover) !important;
+  color: var(--on-primary-hover) !important;
 }
 
 /* Filters */

@@ -64,6 +64,7 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "preflight",
         "fixtures",
         "arm",
+        "failure-watchdog",
         "shard",
         "sentinels",
         "fault-recovery",
@@ -98,8 +99,36 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "${{ always() && needs.preflight.result == 'success' "
         "&& needs.fixtures.result == 'success' }}"
     )
+    assert jobs["decision"]["needs"] == [
+        "preflight",
+        "fixtures",
+        "arm",
+        "failure-watchdog",
+        "shard",
+        "sentinels",
+        "fault-recovery",
+    ]
     assert jobs["postflight"]["if"] == "${{ always() && needs.cleanup.result != 'skipped' }}"
     assert jobs["postflight"]["needs"] == ["preflight", "decision", "cleanup"]
+
+
+def test_terminal_observation_survives_artifact_download_failure_without_phase_deadline() -> None:
+    terminal = workflow()["jobs"]["terminal-summary"]
+    steps = terminal["steps"]
+    writer = next(step for step in steps if step.get("name") == "Write compact terminal status")
+    download = next(step for step in steps if "download-artifact" in step.get("uses", ""))
+    upload = next(step for step in steps if "upload-artifact" in step.get("uses", ""))
+    assert writer["if"] == "always()"
+    assert upload["if"] == "always()"
+    assert download["continue-on-error"] == "true"
+    assert "build_capacity_terminal_status.py" in writer["run"]
+    assert "capacity_window.py" not in writer["run"]
+    assert "20s gh api" in writer["run"]
+
+
+def test_postflight_deadline_failure_returns_before_timeout_invocation() -> None:
+    serialized = WORKFLOW.read_text(encoding="utf-8")
+    assert '--plan "${plan}" remaining --phase postflight)" || return $?' in serialized
 
 
 def test_capacity_cost_queries_use_monthly_utc_day_boundaries() -> None:
@@ -143,8 +172,8 @@ def test_capacity_accounting_evidence_is_uploaded_before_strict_gate() -> None:
 
     assert upload_index < gate_index
     gate = steps[gate_index]["run"]
-    assert '.monthToDateCost >= 0' in gate
-    assert '.permanentResourcesAdded == false' in gate
+    assert ".monthToDateCost >= 0" in gate
+    assert ".permanentResourcesAdded == false" in gate
     assert "observedResourceCount" in gate
     assert "observedInventoryDigest" in gate
 
@@ -195,7 +224,7 @@ def test_capacity_workflow_binds_exact_sha_current_browser_and_future_epoch() ->
     assert "chromium firefox webkit" in serialized
     assert "arm-not-after=${arm_not_after}" in serialized
     assert "restore-not-after=${restore_not_after}" in serialized
-    assert '.cleanupExecutionDeadlineEpoch' in serialized
+    assert ".cleanupExecutionDeadlineEpoch" in serialized
     assert "steps.signed-decision.outputs.selected != '300'" in serialized
     assert "steps.signed-decision.outputs.selected == '300'" in serialized
 
@@ -204,7 +233,7 @@ def test_postflight_always_queries_the_same_release_runtime_manifest() -> None:
     serialized = WORKFLOW.read_text(encoding="utf-8")
 
     assert 'expected_sha="${GITHUB_SHA}"' in serialized
-    assert 'capacity-postflight expected=${expected_sha} manifest=${manifest_digest}' in serialized
+    assert "capacity-postflight expected=${expected_sha} manifest=${manifest_digest}" in serialized
     assert "capacity-rollback-postflight.json" not in serialized
 
 
@@ -248,10 +277,12 @@ def test_capacity_workflow_bounds_each_final_phase_by_absolute_wall_clock() -> N
 def test_capacity_workflow_validates_runtime_manifest_before_fixture_mutation() -> None:
     jobs = workflow()["jobs"]  # type: ignore[index]
     preflight_runs = "\n".join(
-        str(step.get("run", "")) for step in jobs["preflight"]["steps"]  # type: ignore[index]
+        str(step.get("run", ""))
+        for step in jobs["preflight"]["steps"]  # type: ignore[index]
     )
     arm_runs = "\n".join(
-        str(step.get("run", "")) for step in jobs["arm"]["steps"]  # type: ignore[index]
+        str(step.get("run", ""))
+        for step in jobs["arm"]["steps"]  # type: ignore[index]
     )
 
     assert preflight_runs.count("capacity-control-via-bastion.sh") >= 1
@@ -273,28 +304,48 @@ def test_capacity_recovery_is_exact_terminal_run_bound_and_precedes_new_fixtures
     runtime = preflight.index("Validate the exact same-release runtime safety checkpoint")
     fixtures = serialized.index("Create and encrypt exact run-owned fixtures")
     assert recovery < admission < runtime < fixtures
-    assert 'inputs.recovery_run_id != \'\'' in preflight
+    assert "inputs.recovery_run_id != ''" in preflight
     assert (
-        '.conclusion == "failure" or .conclusion == "cancelled" or '
-        '.conclusion == "timed_out"'
+        '.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"'
     ) in preflight
     assert '.workflowName == "Capacity certification"' in preflight
     assert "capacity_fixtures.py reconcile" in preflight
     assert "capacity-recover run=${RECOVERY_RUN_ID} sha=${failed_sha}" in preflight
     assert "capacity_fixtures.py assert-empty" in preflight
-    assert 'pathlab-capacity-${RECOVERY_RUN_ID}-' in preflight
-    assert "/api/v1/admin/classroom/sessions\")" not in preflight
+    assert "pathlab-capacity-${RECOVERY_RUN_ID}-" in preflight
+    assert '/api/v1/admin/classroom/sessions")' not in preflight
 
 
 def test_same_release_restore_uses_runtime_manifest_and_fails_closed() -> None:
     restore = Path("deploy/scripts/restore-capacity-runtime.sh").read_text(encoding="utf-8")
 
-    assert '.pathlab-runtime-safety.json' in restore
+    assert ".pathlab-runtime-safety.json" in restore
     assert '"PATHLAB_CLASSROOM_MAX_PARTICIPANTS": "300"' in restore
     assert '"PATHLAB_ANNOTATIONS_ENABLED": "false"' in restore
     assert 'runtime_safety_manifest.py"' in restore and "verify-live" in restore
-    assert 'stop api classroom' in restore
+    assert "stop api classroom" in restore
     assert "rollback" not in restore.lower()
+
+
+def test_failed_run_recovery_receipt_is_retained_without_changing_success_gates() -> None:
+    steps = workflow()["jobs"]["preflight"]["steps"]
+    names = [step.get("name", "") for step in steps]
+    recovery = names.index("Reconcile an exact terminal failed-run fixture")
+    retained = names.index("Retain the exact failed-run recovery receipt")
+    admission = names.index("Reject admission while any real or synthetic Classroom is present")
+    assert recovery < retained < admission
+    upload = steps[retained]
+    assert upload["if"] == "always() && inputs.recovery_run_id != ''"
+    assert upload["uses"].startswith("actions/upload-artifact@")
+    assert upload["with"] == {
+        "name": "capacity-recovery",
+        "path": "${{ runner.temp }}/capacity-recovery.json",
+        "if-no-files-found": "ignore",
+        "retention-days": "14",
+    }
+    assert "continue-on-error" not in steps[recovery]
+    assert "continue-on-error" not in upload
+    assert "if" not in steps[admission]
 
 
 def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_rollback() -> None:
@@ -310,7 +361,7 @@ def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_r
         'login="$(curl',
         "/desktop-cleanup",
         "/share-cleanup",
-            "capacity_fixtures.py cleanup",
+        "capacity_fixtures.py cleanup",
         "validate_sentinel_evidence.py",
         "oci bastion session list",
     ):
@@ -333,9 +384,7 @@ def test_cleanup_timeout_signals_the_entire_process_tree_before_recovery_reserve
 
 
 def test_cleanup_uses_exact_owned_delete_without_synthetic_reset() -> None:
-    cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(
-        encoding="utf-8"
-    )
+    cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(encoding="utf-8")
 
     assert "synthetic-reset" not in cleanup
     assert "capacity_fixtures.py cleanup" in cleanup
@@ -352,7 +401,7 @@ def test_aborted_restored_state_can_only_restore_the_bound_same_release() -> Non
     ).read_text(encoding="utf-8")
     assert '[[ "$(cat "${LIVE_DIR}/.pathlab-release"' in unit
     assert '"${WORKFLOW_SHA}" "${RUNTIME_MANIFEST_DIGEST}"' in unit
-    assert '.pathlab-release' in restore and '"${EXPECTED_SHA}"' in restore
+    assert ".pathlab-release" in restore and '"${EXPECTED_SHA}"' in restore
     assert "rollback-capacity-candidate" not in host + unit + restore
 
 
@@ -432,9 +481,7 @@ def test_fixture_job_creates_before_publication_and_consumers_materialize_after_
 
 
 def test_cleanup_installs_abort_trap_before_fixture_validation() -> None:
-    cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(
-        encoding="utf-8"
-    )
+    cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(encoding="utf-8")
 
     trap_index = cleanup.index("trap write_result EXIT")
     assert trap_index < cleanup.index(': "${DEPLOY_EVIDENCE_KEY:?')

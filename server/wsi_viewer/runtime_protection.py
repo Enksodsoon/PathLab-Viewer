@@ -50,8 +50,10 @@ def _guard(database: OrmSession) -> RuntimeGuard:
     return guard
 
 
-def _active_classroom_statement(now: datetime) -> Select[tuple[ClassroomSession]]:
-    return select(ClassroomSession).where(
+def _active_classroom_statement(now: datetime) -> Select[tuple[str]]:
+    # Deployment invokes this before migrations. Read only the identity needed
+    # by the guard, never newer mapped columns from the staged application.
+    return select(ClassroomSession.id).where(
         ClassroomSession.status == "active",
         ClassroomSession.phase == "live",
         ClassroomSession.expires_at > now,
@@ -83,7 +85,7 @@ def _reconcile(database: OrmSession, guard: RuntimeGuard, now: datetime) -> Runt
     active = database.scalar(_active_classroom_statement(now))
     if active is not None:
         guard.mode = LIVE
-        guard.classroom_session_id = active.id
+        guard.classroom_session_id = active
         guard.cooldown_until = None
         _block_waiting_jobs(database)
         return guard
@@ -171,7 +173,7 @@ def read_protection_snapshot(
     if active is not None:
         return ProtectionSnapshot(
             mode=LIVE,
-            classroom_session_id=active.id,
+            classroom_session_id=active,
             cooldown_until=None,
         )
     guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)

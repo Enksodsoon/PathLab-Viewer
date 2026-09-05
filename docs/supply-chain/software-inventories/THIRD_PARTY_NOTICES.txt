@@ -1,0 +1,5134 @@
+PATHLAB VIEWER THIRD-PARTY NOTICE BUNDLE
+
+This deterministic bundle is an inventory of recorded licenses and notice-file hashes.
+It does not replace missing upstream notice text or admit a blocked component.
+
+PATHLAB ROOT NOTICE
+-------------------
+PathLab Viewer
+Copyright 2026 Piyakawin Sodsoon
+
+PathLab-authored material admitted to the release boundary is licensed under
+the Apache License, Version 2.0. Third-party software, assets, generated
+dependency metadata, and other excluded works retain their own copyright,
+license, and notice terms; the root Apache-2.0 license does not relicense them.
+
+Distributions must preserve all applicable third-party attributions and notices
+identified by the repository supply-chain records.
+
+RECORDED COMPONENTS
+-------------------
+
+ID: container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+Name: caddy
+Version: 2.11.4-alpine
+License: UNKNOWN
+Admission: BLOCKED
+Source: docker.io/library/caddy
+Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
+Notice files: NONE RECORDED
+
+ID: container:node@sha256:ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63
+Name: node
+Version: 26.7.0-alpine3.23
+License: UNKNOWN
+Admission: BLOCKED
+Source: docker.io/library/node
+Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
+Notice files: NONE RECORDED
+
+ID: container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+Name: postgres
+Version: 18.6-alpine
+License: UNKNOWN
+Admission: BLOCKED
+Source: docker.io/library/postgres
+Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
+Notice files: NONE RECORDED
+
+ID: container:python@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b
+Name: python
+Version: 3.12.13-slim-bookworm
+License: UNKNOWN
+Admission: BLOCKED
+Source: docker.io/library/python
+Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
+Notice files: NONE RECORDED
+
+ID: container:tusproject/tusd@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3
+Name: tusproject/tusd
+Version: 2.9.2
+License: UNKNOWN
+Admission: BLOCKED
+Source: docker.io/tusproject/tusd
+Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
+Notice files: NONE RECORDED
+
+ID: github-action:actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+Name: actions/cache
+Version: 55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/actions/cache/tree/55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+Name: actions/checkout
+Version: 3d3c42e5aac5ba805825da76410c181273ba90b1
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/actions/checkout/tree/3d3c42e5aac5ba805825da76410c181273ba90b1
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+Name: actions/download-artifact
+Version: 3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/actions/download-artifact/tree/3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+Name: actions/setup-node
+Version: 820762786026740c76f36085b0efc47a31fe5020
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/actions/setup-node/tree/820762786026740c76f36085b0efc47a31fe5020
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+Name: actions/setup-python
+Version: 5fda3b95a4ea91299a34e894583c3862153e4b97
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/actions/setup-python/tree/5fda3b95a4ea91299a34e894583c3862153e4b97
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+Name: actions/upload-artifact
+Version: 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/actions/upload-artifact/tree/043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+Name: docker/setup-buildx-action
+Version: 37fe631027851001ddb9b187196cc803df7f5f0e
+License: Apache-2.0
+Admission: BLOCKED
+Source: https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b187196cc803df7f5f0e
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+Name: docker/setup-qemu-action
+Version: 96fe6ef7f33517b61c61be40b68a1882f3264fb8
+License: Apache-2.0
+Admission: BLOCKED
+Source: https://github.com/docker/setup-qemu-action/tree/96fe6ef7f33517b61c61be40b68a1882f3264fb8
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Name: github/codeql-action/analyze
+Version: db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Name: github/codeql-action/init
+Version: db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065
+Name: grafana/setup-k6-action
+Version: db07bd9765aac508ef18982e52ab937fe633a065
+License: Apache-2.0
+Admission: BLOCKED
+Source: https://github.com/grafana/setup-k6-action/tree/db07bd9765aac508ef18982e52ab937fe633a065
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+Name: pnpm/action-setup
+Version: b906affcce14559ad1aafd4ab0e942779e9f58b1
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/pnpm/action-setup/tree/b906affcce14559ad1aafd4ab0e942779e9f58b1
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: github-action:pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+Name: pnpm/action-setup
+Version: f40ffcd9367d9f12939873eb1018b921a783ffaa
+License: MIT
+Admission: BLOCKED
+Source: https://github.com/pnpm/action-setup/tree/f40ffcd9367d9f12939873eb1018b921a783ffaa
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: model-runtime:onnxruntime-web@1.29.0
+Name: ONNX Runtime Web
+Version: 1.29.0
+License: UNKNOWN
+Admission: BLOCKED
+Source: npm-upstream
+Blockers: NOT_PRESENT_IN_CURRENT_LOCKFILE_OR_OFFLINE_MIRROR
+Notice files: NONE RECORDED
+
+ID: model-runtime:transformers.js@4.2.0
+Name: Transformers.js
+Version: 4.2.0
+License: UNKNOWN
+Admission: BLOCKED
+Source: npm-upstream
+Blockers: NOT_PRESENT_IN_CURRENT_LOCKFILE_OR_OFFLINE_MIRROR
+Notice files: NONE RECORDED
+
+ID: model-runtime:webllm@0.2.84
+Name: WebLLM
+Version: 0.2.84
+License: UNKNOWN
+Admission: BLOCKED
+Source: npm-upstream
+Blockers: NOT_PRESENT_IN_CURRENT_LOCKFILE_OR_OFFLINE_MIRROR
+Notice files: NONE RECORDED
+
+ID: model:smollm2-1.7b-instruct@31b70e2e869a7173562077fd711b654946d38674
+Name: SmolLM2-1.7B-Instruct
+Version: 31b70e2e869a7173562077fd711b654946d38674
+License: UNKNOWN
+Admission: BLOCKED
+Source: Hugging-Face-upstream
+Blockers: CONVERSION_SHARDS_CHECKSUMS_SIGNATURE_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: model:smollm2-360m-instruct@a10cc1512eabd3dde888204e902eca88bddb4951
+Name: SmolLM2-360M-Instruct
+Version: a10cc1512eabd3dde888204e902eca88bddb4951
+License: UNKNOWN
+Admission: BLOCKED
+Source: Hugging-Face-upstream
+Blockers: CONVERSION_SHARDS_CHECKSUMS_SIGNATURE_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: model:trace-sim@2d625b1fad5c97584e1f7c69c3a95a6761fd934adaf17b1cecce329247e9fa0d
+Name: TRACE-SIM
+Version: checkpoint-2d625b1fad5c97584e1f7c69c3a95a6761fd934adaf17b1cecce329247e9fa0d
+License: UNKNOWN
+Admission: BLOCKED
+Source: repository-study-coach-artifact
+Blockers: LICENSE_AND_RIGHTS_REVIEW_PENDING, PRODUCTION_APPROVAL_REJECTED
+Notice files: NONE RECORDED
+
+ID: npm:@adobe/css-tools@4.5.0
+Name: @adobe/css-tools
+Version: 4.5.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@adobe%2Fcss-tools/4.5.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:326ff3850062286003ff4cbdaa8f61764e128f9a6532431bccf97e4e2bd75059
+
+ID: npm:@asamuzakjp/css-color@6.0.7
+Name: @asamuzakjp/css-color
+Version: 6.0.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@asamuzakjp%2Fcss-color/6.0.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:bd4539377980dd797fc6a51d90e664e52b2b2625b2158f01d4c68b5fe107eacb
+
+ID: npm:@asamuzakjp/dom-selector@8.3.2
+Name: @asamuzakjp/dom-selector
+Version: 8.3.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@asamuzakjp%2Fdom-selector/8.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:7cdf9db3b91cc77b9ec947ad0c7126140f00e34528b67c3a58e9fc1a98055e14
+
+ID: npm:@babel/code-frame@7.29.7
+Name: @babel/code-frame
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fcode-frame/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/compat-data@7.29.7
+Name: @babel/compat-data
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fcompat-data/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/core@7.29.7
+Name: @babel/core
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fcore/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/generator@7.29.8
+Name: @babel/generator
+Version: 7.29.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fgenerator/7.29.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-compilation-targets@7.29.7
+Name: @babel/helper-compilation-targets
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-compilation-targets/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-globals@7.29.7
+Name: @babel/helper-globals
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-globals/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-module-imports@7.29.7
+Name: @babel/helper-module-imports
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-module-imports/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-module-transforms@7.29.7
+Name: @babel/helper-module-transforms
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-module-transforms/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-plugin-utils@7.29.7
+Name: @babel/helper-plugin-utils
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-plugin-utils/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-string-parser@7.29.7
+Name: @babel/helper-string-parser
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-string-parser/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-validator-identifier@7.29.7
+Name: @babel/helper-validator-identifier
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-validator-identifier/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helper-validator-option@7.29.7
+Name: @babel/helper-validator-option
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelper-validator-option/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/helpers@7.29.7
+Name: @babel/helpers
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fhelpers/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4be9d87b56a306293223b490c0d0b245e9e94f39884147bf051a6c7b825aeb30
+
+ID: npm:@babel/parser@7.29.8
+Name: @babel/parser
+Version: 7.29.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fparser/7.29.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2e97627cb278aa7556fb9e8817368302301a595b6c7582512b8d74c57b773652
+
+ID: npm:@babel/plugin-transform-react-jsx-self@7.29.7
+Name: @babel/plugin-transform-react-jsx-self
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fplugin-transform-react-jsx-self/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/plugin-transform-react-jsx-source@7.29.7
+Name: @babel/plugin-transform-react-jsx-source
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fplugin-transform-react-jsx-source/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/runtime@7.29.7
+Name: @babel/runtime
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Fruntime/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/template@7.29.7
+Name: @babel/template
+Version: 7.29.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Ftemplate/7.29.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/traverse@7.29.8
+Name: @babel/traverse
+Version: 7.29.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Ftraverse/7.29.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@babel/types@7.29.8
+Name: @babel/types
+Version: 7.29.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@babel%2Ftypes/7.29.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76
+
+ID: npm:@bramus/specificity@2.4.2
+Name: @bramus/specificity
+Version: 2.4.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@bramus%2Fspecificity/2.4.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:ae842a63dd9bc829c95a2ec22dda25a08e422a368b71dbca67a45cde7c4a4b81
+
+ID: npm:@csstools/color-helpers@6.1.0
+Name: @csstools/color-helpers
+Version: 6.1.0
+License: MIT-0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@csstools%2Fcolor-helpers/6.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:947e32047a166cd05f04e45938d172b412c07cbee0b9735afd14bae30e02c2f6
+
+ID: npm:@csstools/css-calc@3.3.0
+Name: @csstools/css-calc
+Version: 3.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@csstools%2Fcss-calc/3.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:d00d032f517721b45c56c70c46bf904ebb71ad313df4d4db7722266b38069665
+
+ID: npm:@csstools/css-color-parser@4.1.10
+Name: @csstools/css-color-parser
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@csstools%2Fcss-color-parser/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:d00d032f517721b45c56c70c46bf904ebb71ad313df4d4db7722266b38069665
+
+ID: npm:@csstools/css-parser-algorithms@4.0.0
+Name: @csstools/css-parser-algorithms
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@csstools%2Fcss-parser-algorithms/4.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:d00d032f517721b45c56c70c46bf904ebb71ad313df4d4db7722266b38069665
+
+ID: npm:@csstools/css-syntax-patches-for-csstree@1.1.7
+Name: @csstools/css-syntax-patches-for-csstree
+Version: 1.1.7
+License: MIT-0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@csstools%2Fcss-syntax-patches-for-csstree/1.1.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:947e32047a166cd05f04e45938d172b412c07cbee0b9735afd14bae30e02c2f6
+
+ID: npm:@csstools/css-tokenizer@4.0.0
+Name: @csstools/css-tokenizer
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@csstools%2Fcss-tokenizer/4.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:d00d032f517721b45c56c70c46bf904ebb71ad313df4d4db7722266b38069665
+
+ID: npm:@esbuild/aix-ppc64@0.25.12
+Name: @esbuild/aix-ppc64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Faix-ppc64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/android-arm64@0.25.12
+Name: @esbuild/android-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fandroid-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/android-arm@0.25.12
+Name: @esbuild/android-arm
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fandroid-arm/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/android-x64@0.25.12
+Name: @esbuild/android-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fandroid-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/darwin-arm64@0.25.12
+Name: @esbuild/darwin-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fdarwin-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/darwin-x64@0.25.12
+Name: @esbuild/darwin-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fdarwin-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/freebsd-arm64@0.25.12
+Name: @esbuild/freebsd-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Ffreebsd-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/freebsd-x64@0.25.12
+Name: @esbuild/freebsd-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Ffreebsd-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-arm64@0.25.12
+Name: @esbuild/linux-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-arm@0.25.12
+Name: @esbuild/linux-arm
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-arm/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-ia32@0.25.12
+Name: @esbuild/linux-ia32
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-ia32/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-loong64@0.25.12
+Name: @esbuild/linux-loong64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-loong64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-mips64el@0.25.12
+Name: @esbuild/linux-mips64el
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-mips64el/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-ppc64@0.25.12
+Name: @esbuild/linux-ppc64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-ppc64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-riscv64@0.25.12
+Name: @esbuild/linux-riscv64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-riscv64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-s390x@0.25.12
+Name: @esbuild/linux-s390x
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-s390x/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/linux-x64@0.25.12
+Name: @esbuild/linux-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Flinux-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/netbsd-arm64@0.25.12
+Name: @esbuild/netbsd-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fnetbsd-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/netbsd-x64@0.25.12
+Name: @esbuild/netbsd-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fnetbsd-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/openbsd-arm64@0.25.12
+Name: @esbuild/openbsd-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fopenbsd-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/openbsd-x64@0.25.12
+Name: @esbuild/openbsd-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fopenbsd-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/openharmony-arm64@0.25.12
+Name: @esbuild/openharmony-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fopenharmony-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/sunos-x64@0.25.12
+Name: @esbuild/sunos-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fsunos-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/win32-arm64@0.25.12
+Name: @esbuild/win32-arm64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fwin32-arm64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/win32-ia32@0.25.12
+Name: @esbuild/win32-ia32
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fwin32-ia32/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@esbuild/win32-x64@0.25.12
+Name: @esbuild/win32-x64
+Version: 0.25.12
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@esbuild%2Fwin32-x64/0.25.12
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@eslint-community/eslint-utils@4.10.1
+Name: @eslint-community/eslint-utils
+Version: 4.10.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint-community%2Feslint-utils/4.10.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:fcf6eabf68ca96988a6b506b4fdc6cc32535d80eb2e11c79724af5ac6f50262b
+
+ID: npm:@eslint-community/regexpp@4.12.2
+Name: @eslint-community/regexpp
+Version: 4.12.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint-community%2Fregexpp/4.12.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:fcf6eabf68ca96988a6b506b4fdc6cc32535d80eb2e11c79724af5ac6f50262b
+
+ID: npm:@eslint/config-array@0.21.2
+Name: @eslint/config-array
+Version: 0.21.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Fconfig-array/0.21.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@eslint/config-helpers@0.4.2
+Name: @eslint/config-helpers
+Version: 0.4.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Fconfig-helpers/0.4.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@eslint/core@0.17.0
+Name: @eslint/core
+Version: 0.17.0
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Fcore/0.17.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@eslint/eslintrc@3.3.6
+Name: @eslint/eslintrc
+Version: 3.3.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Feslintrc/3.3.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3b6be04f862a077a4b97929dbf247299360824d9365f8603c263769303ace18c
+
+ID: npm:@eslint/js@9.39.5
+Name: @eslint/js
+Version: 9.39.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Fjs/9.39.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3b6be04f862a077a4b97929dbf247299360824d9365f8603c263769303ace18c
+
+ID: npm:@eslint/object-schema@2.1.7
+Name: @eslint/object-schema
+Version: 2.1.7
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Fobject-schema/2.1.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@eslint/plugin-kit@0.4.1
+Name: @eslint/plugin-kit
+Version: 0.4.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@eslint%2Fplugin-kit/0.4.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@exodus/bytes@1.15.1
+Name: @exodus/bytes
+Version: 1.15.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@exodus%2Fbytes/1.15.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:dbffd380d59504ba19fcf87ff5a1a33c37edf66d5b09966b0ad5368ab87bc2af
+
+ID: npm:@fontsource-variable/cormorant-garamond@5.3.0
+Name: @fontsource-variable/cormorant-garamond
+Version: 5.3.0
+License: OFL-1.1
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@fontsource-variable%2Fcormorant-garamond/5.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:732f37009943e7f4378cf37113c9bcc4716af002a8583511aa91ed5d37683e73
+
+ID: npm:@fontsource-variable/sofia-sans@5.3.0
+Name: @fontsource-variable/sofia-sans
+Version: 5.3.0
+License: OFL-1.1
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@fontsource-variable%2Fsofia-sans/5.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:062921eb9bbe83c9a28723b6a4b642da6f4b5c1b9789bd28fbe0c2c249b11365
+
+ID: npm:@fontsource-variable/source-sans-3@5.3.0
+Name: @fontsource-variable/source-sans-3
+Version: 5.3.0
+License: OFL-1.1
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@fontsource-variable%2Fsource-sans-3/5.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3
+
+ID: npm:@humanfs/core@0.19.2
+Name: @humanfs/core
+Version: 0.19.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@humanfs%2Fcore/0.19.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@humanfs/node@0.16.8
+Name: @humanfs/node
+Version: 0.16.8
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@humanfs%2Fnode/0.16.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@humanfs/types@0.15.0
+Name: @humanfs/types
+Version: 0.15.0
+License: Apache-2.0
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@humanfs%2Ftypes/0.15.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@humanwhocodes/module-importer@1.0.1
+Name: @humanwhocodes/module-importer
+Version: 1.0.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@humanwhocodes%2Fmodule-importer/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@humanwhocodes/retry@0.4.3
+Name: @humanwhocodes/retry
+Version: 0.4.3
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@humanwhocodes%2Fretry/0.4.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:@jridgewell/gen-mapping@0.3.13
+Name: @jridgewell/gen-mapping
+Version: 0.3.13
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@jridgewell%2Fgen-mapping/0.3.13
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c
+
+ID: npm:@jridgewell/remapping@2.3.5
+Name: @jridgewell/remapping
+Version: 2.3.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@jridgewell%2Fremapping/2.3.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c
+
+ID: npm:@jridgewell/resolve-uri@3.1.2
+Name: @jridgewell/resolve-uri
+Version: 3.1.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@jridgewell%2Fresolve-uri/3.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b8778b155bfde5a28b023a558753c0fa058a52bb9de35c343c250be1bbcdedab
+
+ID: npm:@jridgewell/sourcemap-codec@1.5.5
+Name: @jridgewell/sourcemap-codec
+Version: 1.5.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@jridgewell%2Fsourcemap-codec/1.5.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c
+
+ID: npm:@jridgewell/trace-mapping@0.3.31
+Name: @jridgewell/trace-mapping
+Version: 0.3.31
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@jridgewell%2Ftrace-mapping/0.3.31
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:769d154fbde32a915af110b1123650bc79f4cbe675acc66e005265bf069c6c6c
+
+ID: npm:@napi-rs/lzma-linux-x64-gnu@1.5.1
+Name: @napi-rs/lzma-linux-x64-gnu
+Version: 1.5.1
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@napi-rs%2Flzma-linux-x64-gnu/1.5.1
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@phosphor-icons/react@2.1.10
+Name: @phosphor-icons/react
+Version: 2.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@phosphor-icons%2Freact/2.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:6918b72504641180600cbbd4a86b0dfa9dfccf788775694325b71b9a029f6eb4
+  - package/dist/csr/Copyright.d.ts sha256:d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483
+  - package/dist/csr/Copyright.es.js sha256:30e92f8d417156e2c3f867bfe8ecddaefa942f0e265602fd95091dbd4886c61c
+  - package/dist/defs/Copyright.d.ts sha256:29df7754beffda9d321e8874bc6e3c76c132d325e79e7a81bbd88928638b12fa
+  - package/dist/defs/Copyright.es.js sha256:41b85edab0ce43c343109ae70d7397297497959a05ac20d8844c2b435e62b14f
+  - package/dist/ssr/Copyright.d.ts sha256:d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483
+  - package/dist/ssr/Copyright.es.js sha256:f37b1c16b366d1416cb7a8a2f03a7037d45a919a722b4f3fb91cbac084af7fa6
+
+ID: npm:@playwright/test@1.62.1
+Name: @playwright/test
+Version: 1.62.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@playwright%2Ftest/1.62.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb
+  - package/NOTICE sha256:6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d
+
+ID: npm:@protobufjs/aspromise@1.1.2
+Name: @protobufjs/aspromise
+Version: 1.1.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Faspromise/1.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/base64@1.1.2
+Name: @protobufjs/base64
+Version: 1.1.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Fbase64/1.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/codegen@2.0.5
+Name: @protobufjs/codegen
+Version: 2.0.5
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Fcodegen/2.0.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/eventemitter@1.1.1
+Name: @protobufjs/eventemitter
+Version: 1.1.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Feventemitter/1.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/fetch@1.1.1
+Name: @protobufjs/fetch
+Version: 1.1.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Ffetch/1.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/float@1.0.2
+Name: @protobufjs/float
+Version: 1.0.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Ffloat/1.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/path@1.1.2
+Name: @protobufjs/path
+Version: 1.1.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Fpath/1.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/pool@1.1.0
+Name: @protobufjs/pool
+Version: 1.1.0
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Fpool/1.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@protobufjs/utf8@1.1.2
+Name: @protobufjs/utf8
+Version: 1.1.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@protobufjs%2Futf8/1.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794
+
+ID: npm:@rolldown/pluginutils@1.0.0-beta.27
+Name: @rolldown/pluginutils
+Version: 1.0.0-beta.27
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@rolldown%2Fpluginutils/1.0.0-beta.27
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:23ecfff35a5a2e80d92142f75228912c3b1abc4b5a8337a821ff4397e2f9f734
+
+ID: npm:@rollup/rollup-android-arm-eabi@4.62.4
+Name: @rollup/rollup-android-arm-eabi
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-android-arm-eabi/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-android-arm64@4.62.4
+Name: @rollup/rollup-android-arm64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-android-arm64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-darwin-arm64@4.62.4
+Name: @rollup/rollup-darwin-arm64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-darwin-arm64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-darwin-x64@4.62.4
+Name: @rollup/rollup-darwin-x64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-darwin-x64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-freebsd-arm64@4.62.4
+Name: @rollup/rollup-freebsd-arm64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-freebsd-arm64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-freebsd-x64@4.62.4
+Name: @rollup/rollup-freebsd-x64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-freebsd-x64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-arm-gnueabihf@4.62.4
+Name: @rollup/rollup-linux-arm-gnueabihf
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-arm-gnueabihf/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-arm-musleabihf@4.62.4
+Name: @rollup/rollup-linux-arm-musleabihf
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-arm-musleabihf/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-arm64-gnu@4.62.4
+Name: @rollup/rollup-linux-arm64-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-arm64-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-arm64-musl@4.62.4
+Name: @rollup/rollup-linux-arm64-musl
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-arm64-musl/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-loong64-gnu@4.62.4
+Name: @rollup/rollup-linux-loong64-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-loong64-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-loong64-musl@4.62.4
+Name: @rollup/rollup-linux-loong64-musl
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-loong64-musl/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-ppc64-gnu@4.62.4
+Name: @rollup/rollup-linux-ppc64-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-ppc64-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-ppc64-musl@4.62.4
+Name: @rollup/rollup-linux-ppc64-musl
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-ppc64-musl/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-riscv64-gnu@4.62.4
+Name: @rollup/rollup-linux-riscv64-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-riscv64-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-riscv64-musl@4.62.4
+Name: @rollup/rollup-linux-riscv64-musl
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-riscv64-musl/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-s390x-gnu@4.62.4
+Name: @rollup/rollup-linux-s390x-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-s390x-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-x64-gnu@4.62.4
+Name: @rollup/rollup-linux-x64-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-x64-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-linux-x64-musl@4.62.4
+Name: @rollup/rollup-linux-x64-musl
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-linux-x64-musl/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-openbsd-x64@4.62.4
+Name: @rollup/rollup-openbsd-x64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-openbsd-x64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-openharmony-arm64@4.62.4
+Name: @rollup/rollup-openharmony-arm64
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-openharmony-arm64/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-win32-arm64-msvc@4.62.4
+Name: @rollup/rollup-win32-arm64-msvc
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-win32-arm64-msvc/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-win32-ia32-msvc@4.62.4
+Name: @rollup/rollup-win32-ia32-msvc
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-win32-ia32-msvc/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-win32-x64-gnu@4.62.4
+Name: @rollup/rollup-win32-x64-gnu
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-win32-x64-gnu/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@rollup/rollup-win32-x64-msvc@4.62.4
+Name: @rollup/rollup-win32-x64-msvc
+Version: 4.62.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/@rollup%2Frollup-win32-x64-msvc/4.62.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:@standard-schema/spec@1.1.0
+Name: @standard-schema/spec
+Version: 1.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@standard-schema%2Fspec/1.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:653b779005a3a4d64a7288c940f7b9a0e8f0b1e0375f6aa6af9473caf131e564
+
+ID: npm:@testing-library/dom@10.4.1
+Name: @testing-library/dom
+Version: 10.4.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@testing-library%2Fdom/10.4.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:bf8fd38056b7606deccfcadb4d8ca1c210082d8ef5513426d2650daedc30bed3
+
+ID: npm:@testing-library/jest-dom@7.0.1
+Name: @testing-library/jest-dom
+Version: 7.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@testing-library%2Fjest-dom/7.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:bf8fd38056b7606deccfcadb4d8ca1c210082d8ef5513426d2650daedc30bed3
+
+ID: npm:@testing-library/react@16.3.2
+Name: @testing-library/react
+Version: 16.3.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@testing-library%2Freact/16.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9680978280d509520d2a7b51e93ffbf7d9ec2b9de4411a6989daba5b659048e0
+
+ID: npm:@testing-library/user-event@14.6.3
+Name: @testing-library/user-event
+Version: 14.6.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@testing-library%2Fuser-event/14.6.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b5a4028c49c48f820831421de69c8ea83d621a062914bf16739fd0703c7c9fba
+
+ID: npm:@types/aria-query@5.0.4
+Name: @types/aria-query
+Version: 5.0.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Faria-query/5.0.4
+Blockers: NONE
+Notice files:
+  - aria-query/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/babel__core@7.20.5
+Name: @types/babel__core
+Version: 7.20.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fbabel__core/7.20.5
+Blockers: NONE
+Notice files:
+  - babel__core/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/babel__generator@7.27.0
+Name: @types/babel__generator
+Version: 7.27.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fbabel__generator/7.27.0
+Blockers: NONE
+Notice files:
+  - babel__generator/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/babel__template@7.4.4
+Name: @types/babel__template
+Version: 7.4.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fbabel__template/7.4.4
+Blockers: NONE
+Notice files:
+  - babel__template/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/babel__traverse@7.28.0
+Name: @types/babel__traverse
+Version: 7.28.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fbabel__traverse/7.28.0
+Blockers: NONE
+Notice files:
+  - babel__traverse/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/chai@5.2.3
+Name: @types/chai
+Version: 5.2.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fchai/5.2.3
+Blockers: NONE
+Notice files:
+  - chai/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/deep-eql@4.0.2
+Name: @types/deep-eql
+Version: 4.0.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fdeep-eql/4.0.2
+Blockers: NONE
+Notice files:
+  - deep-eql/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/estree@1.0.9
+Name: @types/estree
+Version: 1.0.9
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Festree/1.0.9
+Blockers: NONE
+Notice files:
+  - estree/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/json-schema@7.0.15
+Name: @types/json-schema
+Version: 7.0.15
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fjson-schema/7.0.15
+Blockers: NONE
+Notice files:
+  - json-schema/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/node@26.2.0
+Name: @types/node
+Version: 26.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Fnode/26.2.0
+Blockers: NONE
+Notice files:
+  - node/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/react-dom@19.2.4
+Name: @types/react-dom
+Version: 19.2.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Freact-dom/19.2.4
+Blockers: NONE
+Notice files:
+  - react-dom/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@types/react@19.2.18
+Name: @types/react
+Version: 19.2.18
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@types%2Freact/19.2.18
+Blockers: NONE
+Notice files:
+  - react/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
+
+ID: npm:@typescript-eslint/eslint-plugin@8.67.0
+Name: @typescript-eslint/eslint-plugin
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Feslint-plugin/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@typescript-eslint/parser@8.67.0
+Name: @typescript-eslint/parser
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Fparser/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@typescript-eslint/project-service@8.67.0
+Name: @typescript-eslint/project-service
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Fproject-service/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:053a75a14b7508a897466b65e12797201a06b0e9b5066d1223da72cac99601b5
+
+ID: npm:@typescript-eslint/scope-manager@8.67.0
+Name: @typescript-eslint/scope-manager
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Fscope-manager/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@typescript-eslint/tsconfig-utils@8.67.0
+Name: @typescript-eslint/tsconfig-utils
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftsconfig-utils/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:053a75a14b7508a897466b65e12797201a06b0e9b5066d1223da72cac99601b5
+
+ID: npm:@typescript-eslint/type-utils@8.67.0
+Name: @typescript-eslint/type-utils
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftype-utils/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:f3c51ace7f159b21566d72535e84ff354505ae7ffdca835dac81fcdafbf9e879
+
+ID: npm:@typescript-eslint/types@8.67.0
+Name: @typescript-eslint/types
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftypes/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@typescript-eslint/typescript-estree@8.67.0
+Name: @typescript-eslint/typescript-estree
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftypescript-estree/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@typescript-eslint/utils@8.67.0
+Name: @typescript-eslint/utils
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Futils/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@typescript-eslint/visitor-keys@8.67.0
+Name: @typescript-eslint/visitor-keys
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@typescript-eslint%2Fvisitor-keys/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:@vitejs/plugin-react@4.7.0
+Name: @vitejs/plugin-react
+Version: 4.7.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitejs%2Fplugin-react/4.7.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:29b68325fe026047d13e187b44c33b2acacf7dc647dec4583702e59f235e13b5
+
+ID: npm:@vitest/expect@4.1.10
+Name: @vitest/expect
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Fexpect/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@vitest/mocker@4.1.10
+Name: @vitest/mocker
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Fmocker/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@vitest/pretty-format@4.1.10
+Name: @vitest/pretty-format
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Fpretty-format/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@vitest/runner@4.1.10
+Name: @vitest/runner
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Frunner/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@vitest/snapshot@4.1.10
+Name: @vitest/snapshot
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Fsnapshot/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@vitest/spy@4.1.10
+Name: @vitest/spy
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Fspy/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@vitest/utils@4.1.10
+Name: @vitest/utils
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@vitest%2Futils/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:acorn-jsx@5.3.2
+Name: acorn-jsx
+Version: 5.3.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/acorn-jsx/5.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:cfa72b62b9ae173078823a3796b25c027a9071046a263beddf966df67018ce06
+
+ID: npm:acorn@8.18.0
+Name: acorn
+Version: 8.18.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/acorn/8.18.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:76a876cf886ff9be2a8b5e2e86514fed06223c8c9f0c1e9ee9606e93841e00b7
+
+ID: npm:ajv@6.15.0
+Name: ajv
+Version: 6.15.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ajv/6.15.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:e85e131fa4ed25538ff1f4962ced1fb6f68b079bd9164a790597a0f30b8fd030
+
+ID: npm:ansi-regex@5.0.1
+Name: ansi-regex
+Version: 5.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ansi-regex/5.0.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:ansi-styles@4.3.0
+Name: ansi-styles
+Version: 4.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ansi-styles/4.3.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:ansi-styles@5.2.0
+Name: ansi-styles
+Version: 5.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ansi-styles/5.2.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:argparse@2.0.1
+Name: argparse
+Version: 2.0.1
+License: Python-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/argparse/2.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:de4d1f2d2ad5ad0cfd1657a106476b31cb5db5ef9d1ff842b237c0c81f0c8a23
+
+ID: npm:aria-query@5.3.0
+Name: aria-query
+Version: 5.3.0
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/aria-query/5.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c8df456c7ccba74b959087dff494d4ac2a12dfb0400c08b46b2494a08a000567
+
+ID: npm:aria-query@5.3.2
+Name: aria-query
+Version: 5.3.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/aria-query/5.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c8df456c7ccba74b959087dff494d4ac2a12dfb0400c08b46b2494a08a000567
+
+ID: npm:assertion-error@2.0.1
+Name: assertion-error
+Version: 2.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/assertion-error/2.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2130216d5ab4c02134f8247f32999feda0abe1eaf028218baeac445c19ce4cea
+
+ID: npm:balanced-match@4.0.4
+Name: balanced-match
+Version: 4.0.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/balanced-match/4.0.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:d408f38ffa3355c5faec517153295338892eb0f1ea43f57874bb23c6075979b5
+
+ID: npm:baseline-browser-mapping@2.11.14
+Name: baseline-browser-mapping
+Version: 2.11.14
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/baseline-browser-mapping/2.11.14
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:bidi-js@1.0.3
+Name: bidi-js
+Version: 1.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bidi-js/1.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:49d4d143fed599deb502a0fe6e02f49832f87e9a3a4cd0502e469596d50faa6d
+
+ID: npm:brace-expansion@5.0.9
+Name: brace-expansion
+Version: 5.0.9
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/brace-expansion/5.0.9
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e
+
+ID: npm:browserslist@4.28.8
+Name: browserslist
+Version: 4.28.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/browserslist/4.28.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:21c2679a63d7699c0e644409e2f17d0adbc7a965003feb06b3ff4b833d21f722
+
+ID: npm:buffer-from@1.1.2
+Name: buffer-from
+Version: 1.1.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/buffer-from/1.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:14275f5c8139d02054c5259d52a88ccbba662a86af18c30f071c8d082dc6004c
+
+ID: npm:callsites@3.1.0
+Name: callsites
+Version: 3.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/callsites/3.1.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:caniuse-lite@1.0.30001809
+Name: caniuse-lite
+Version: 1.0.30001809
+License: CC-BY-4.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/caniuse-lite/1.0.30001809
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:fd3a263fe19ed8faa9068b43abaebafc02c77897b0c6fc09abc04bb592e5f16e
+
+ID: npm:chai@6.2.2
+Name: chai
+Version: 6.2.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/chai/6.2.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b181da80336ff9dd1043fc8be1a764d7382363433319aa872e4d2cb5ce2a3066
+
+ID: npm:chalk@4.1.2
+Name: chalk
+Version: 4.1.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/chalk/4.1.2
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:color-convert@2.0.1
+Name: color-convert
+Version: 2.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/color-convert/2.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:693866fc419c6f61c8570438ec00659d156ec2b4d4a4d04091711f5f11a365d4
+
+ID: npm:color-name@1.1.4
+Name: color-name
+Version: 1.1.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/color-name/1.1.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c064f7a3e353bc1bc977f3c897941c75ef763f44f41677e0a15370ca0853d6e2
+
+ID: npm:convert-source-map@2.0.0
+Name: convert-source-map
+Version: 2.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/convert-source-map/2.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:1fa6ee8bb95a81ae3d73a5bd074a3ac380ffec13697051063ca1a601921b91db
+
+ID: npm:cookie@1.1.1
+Name: cookie
+Version: 1.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/cookie/1.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858
+
+ID: npm:cross-spawn@7.0.6
+Name: cross-spawn
+Version: 7.0.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/cross-spawn/7.0.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:aaa78451b6fecd1b9c4594c796c133c0e90cad100372ff8bc6de615e9ef9adf1
+
+ID: npm:css-tree@3.2.1
+Name: css-tree
+Version: 3.2.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/css-tree/3.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:719a251ceca49c057ea90a1152af6546b767ec88e6d573bb6324454267b32c22
+
+ID: npm:css.escape@1.5.1
+Name: css.escape
+Version: 1.5.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/css.escape/1.5.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT.txt sha256:483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a
+
+ID: npm:csstype@3.2.3
+Name: csstype
+Version: 3.2.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/csstype/3.2.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:11d55bd4541c75ee7879547ac49089c489163dae49551389713c3d026cab383e
+
+ID: npm:data-urls@7.0.0
+Name: data-urls
+Version: 7.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/data-urls/7.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:528eec83cb836a0adda9f8fc3d6a2a70a710d6cc0be9a155f92212c8df28acfa
+
+ID: npm:debug@4.4.3
+Name: debug
+Version: 4.4.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/debug/4.4.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95
+
+ID: npm:decimal.js@10.6.0
+Name: decimal.js
+Version: 10.6.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/decimal.js/10.6.0
+Blockers: NONE
+Notice files:
+  - package/LICENCE.md sha256:3108b546bcff5d346923a82f48b2d252ca722f9088076db6d145f6b67757ad6c
+
+ID: npm:deep-is@0.1.4
+Name: deep-is
+Version: 0.1.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/deep-is/0.1.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:f2042f3634c4136d06b5139c9c6aefb81a3a462b514548bc1845953233dfba98
+
+ID: npm:dequal@2.0.3
+Name: dequal
+Version: 2.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/dequal/2.0.3
+Blockers: NONE
+Notice files:
+  - package/license sha256:306fa513e39b23a6e8747520de761809d206b99800ef41907b530226574c59ae
+
+ID: npm:detect-libc@2.1.2
+Name: detect-libc
+Version: 2.1.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/detect-libc/2.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1
+
+ID: npm:dom-accessibility-api@0.5.16
+Name: dom-accessibility-api
+Version: 0.5.16
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/dom-accessibility-api/0.5.16
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:0ffe67fe630169de46df2d29dc18f5857b4c98f0f95b0cd9e3c21fef51f9a9b8
+
+ID: npm:dom-accessibility-api@0.6.3
+Name: dom-accessibility-api
+Version: 0.6.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/dom-accessibility-api/0.6.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:0ffe67fe630169de46df2d29dc18f5857b4c98f0f95b0cd9e3c21fef51f9a9b8
+
+ID: npm:electron-to-chromium@1.5.406
+Name: electron-to-chromium
+Version: 1.5.406
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/electron-to-chromium/1.5.406
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:25ba5c59dad3e0dd8f9540beaa0f0a86a10e3aec35af5fdc8e88c5f6a5c0d8c6
+
+ID: npm:entities@8.0.0
+Name: entities
+Version: 8.0.0
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/entities/8.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:cb992345949ccd6e8394b2cd6c465f7b897c864f845937dbf64e8997f389e164
+
+ID: npm:es-module-lexer@2.3.1
+Name: es-module-lexer
+Version: 2.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/es-module-lexer/2.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8a4b6c44eebfb026d23719a348145a661a555568dbfdc11618ff2d0dd9306b00
+
+ID: npm:esbuild@0.25.12
+Name: esbuild
+Version: 0.25.12
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/esbuild/0.25.12
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681
+
+ID: npm:escalade@3.2.0
+Name: escalade
+Version: 3.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/escalade/3.2.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:9a9edad7baae52622bddf3c15b2ef8a33d2c89f2d25408ad13e8a7481c6b0c97
+
+ID: npm:escape-string-regexp@4.0.0
+Name: escape-string-regexp
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/escape-string-regexp/4.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:eslint-plugin-react-hooks@5.2.0
+Name: eslint-plugin-react-hooks
+Version: 5.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint-plugin-react-hooks/5.2.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
+
+ID: npm:eslint-plugin-react-refresh@0.5.4
+Name: eslint-plugin-react-refresh
+Version: 0.5.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint-plugin-react-refresh/0.5.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:fba570176c68f716676e04cad6c39fb56b763e44fc11be22fe6863ff19092a9b
+
+ID: npm:eslint-scope@8.4.0
+Name: eslint-scope
+Version: 8.4.0
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint-scope/8.4.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d3a724e2ed749f172ff70b62a1d0631b7d4b0ea273782365a3464d4e2d6b6dbd
+
+ID: npm:eslint-visitor-keys@3.4.3
+Name: eslint-visitor-keys
+Version: 3.4.3
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint-visitor-keys/3.4.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d8bf34ff6d190640a01e7704ad78253fc181bc128949d71273fbbaa12f33c0b4
+
+ID: npm:eslint-visitor-keys@4.2.1
+Name: eslint-visitor-keys
+Version: 4.2.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint-visitor-keys/4.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d8bf34ff6d190640a01e7704ad78253fc181bc128949d71273fbbaa12f33c0b4
+
+ID: npm:eslint-visitor-keys@5.0.1
+Name: eslint-visitor-keys
+Version: 5.0.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint-visitor-keys/5.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d8bf34ff6d190640a01e7704ad78253fc181bc128949d71273fbbaa12f33c0b4
+
+ID: npm:eslint@9.39.5
+Name: eslint
+Version: 9.39.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/eslint/9.39.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3b6be04f862a077a4b97929dbf247299360824d9365f8603c263769303ace18c
+
+ID: npm:espree@10.4.0
+Name: espree
+Version: 10.4.0
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/espree/10.4.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:26c95937762a3dc17a3934a0a2773c70259ba4bf28dab713c225e4af8eb9d349
+
+ID: npm:esquery@1.7.0
+Name: esquery
+Version: 1.7.0
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/esquery/1.7.0
+Blockers: NONE
+Notice files:
+  - package/license.txt sha256:ac68116ae73740de4190892f334992e449a124600924ec761e64319d3aac9e6e
+
+ID: npm:esrecurse@4.3.0
+Name: esrecurse
+Version: 4.3.0
+License: BSD-2-Clause
+Admission: BLOCKED
+Source: https://registry.npmjs.org/esrecurse/4.3.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:estraverse@5.3.0
+Name: estraverse
+Version: 5.3.0
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/estraverse/5.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.BSD sha256:0e74697a68cebdcd61502c30fe80ab7f9e341d995dcd452023654d57133534b1
+
+ID: npm:estree-walker@3.0.3
+Name: estree-walker
+Version: 3.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/estree-walker/3.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8a6dcbabe7179f9c8489c08a7d874d0f1e093ae7449e03756ccf87cb9d0e296e
+
+ID: npm:esutils@2.0.3
+Name: esutils
+Version: 2.0.3
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/esutils/2.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.BSD sha256:0e74697a68cebdcd61502c30fe80ab7f9e341d995dcd452023654d57133534b1
+
+ID: npm:expect-type@1.4.0
+Name: expect-type
+Version: 1.4.0
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/expect-type/1.4.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:7c6cc83c84eaa249a85bf12fe3eedd831bb50c696e8890b5248223ae68c7b408
+
+ID: npm:fast-deep-equal@3.1.3
+Name: fast-deep-equal
+Version: 3.1.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fast-deep-equal/3.1.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a
+
+ID: npm:fast-json-stable-stringify@2.1.0
+Name: fast-json-stable-stringify
+Version: 2.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fast-json-stable-stringify/2.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a833d366242c298cf1b10263516572fb8dcbe68eb5072cdcac2b4546e2b4eb36
+
+ID: npm:fast-levenshtein@2.0.6
+Name: fast-levenshtein
+Version: 2.0.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fast-levenshtein/2.0.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:942a98cb8846a6354266193f173c1354615827fbb7d67f68399599dff12c4d6a
+
+ID: npm:fdir@6.5.0
+Name: fdir
+Version: 6.5.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fdir/6.5.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9a39f2aadab11a3697edd668ff2d8ad885b649737b7ab4d3bf12b34e5ada0c86
+
+ID: npm:file-entry-cache@8.0.0
+Name: file-entry-cache
+Version: 8.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/file-entry-cache/8.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a0e2f73971f663b49d3c66cc6749fc88de0f475680ccf5b980a9cbcc0c52490f
+
+ID: npm:find-up@5.0.0
+Name: find-up
+Version: 5.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/find-up/5.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:flat-cache@4.0.1
+Name: flat-cache
+Version: 4.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/flat-cache/4.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a6a23fb76d91d98669f5ed6eb58213df594ab2d56c9e981ae021b194e3d662a7
+
+ID: npm:flatbuffers@25.9.23
+Name: flatbuffers
+Version: 25.9.23
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/flatbuffers/25.9.23
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: npm:flatted@3.4.4
+Name: flatted
+Version: 3.4.4
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/flatted/3.4.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:148718606d34f467fd08a2176bb4c1ab275f999576f779368503d8d3e3642861
+
+ID: npm:fsevents@2.3.2
+Name: fsevents
+Version: 2.3.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fsevents/2.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2a8a5d6197bb97a018b8a190dd3ed853d750ca87c8e80c17aad41d6c6ff448e1
+
+ID: npm:fsevents@2.3.3
+Name: fsevents
+Version: 2.3.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fsevents/2.3.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2a8a5d6197bb97a018b8a190dd3ed853d750ca87c8e80c17aad41d6c6ff448e1
+
+ID: npm:gensync@1.0.0-beta.2
+Name: gensync
+Version: 1.0.0-beta.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/gensync/1.0.0-beta.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:e3a956681ee067f971ac413994171b3d90ca801ec6324e76c9c55366cfe31cb0
+
+ID: npm:glob-parent@6.0.2
+Name: glob-parent
+Version: 6.0.2
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/glob-parent/6.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:fc68eb8f1c8e1d6b8be50f3c177927e24791cae7dc251e6253a012f37926a30c
+
+ID: npm:globals@14.0.0
+Name: globals
+Version: 14.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/globals/14.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:globals@17.9.0
+Name: globals
+Version: 17.9.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/globals/17.9.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:graceful-fs@4.2.11
+Name: graceful-fs
+Version: 4.2.11
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/graceful-fs/4.2.11
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:f65c5d9f22a317b2a10803bd1868461ce6499c2ed7217bc80c0cc772a748789c
+
+ID: npm:guid-typescript@1.0.9
+Name: guid-typescript
+Version: 1.0.9
+License: ISC
+Admission: BLOCKED
+Source: https://registry.npmjs.org/guid-typescript/1.0.9
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:has-flag@4.0.0
+Name: has-flag
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/has-flag/4.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:html-encoding-sniffer@6.0.0
+Name: html-encoding-sniffer
+Version: 6.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/html-encoding-sniffer/6.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:528eec83cb836a0adda9f8fc3d6a2a70a710d6cc0be9a155f92212c8df28acfa
+
+ID: npm:ignore@5.3.2
+Name: ignore
+Version: 5.3.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ignore/5.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT sha256:9c94db23dc4b1e9aaee5d195668b916afc71efed54af226b66cf0ccc4389c1c0
+
+ID: npm:ignore@7.0.6
+Name: ignore
+Version: 7.0.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ignore/7.0.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT sha256:9c94db23dc4b1e9aaee5d195668b916afc71efed54af226b66cf0ccc4389c1c0
+
+ID: npm:import-fresh@3.3.1
+Name: import-fresh
+Version: 3.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/import-fresh/3.3.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:imurmurhash@0.1.4
+Name: imurmurhash
+Version: 0.1.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/imurmurhash/0.1.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:indent-string@4.0.0
+Name: indent-string
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/indent-string/4.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:is-extglob@2.1.1
+Name: is-extglob
+Version: 2.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/is-extglob/2.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:73b5283588baa142c5baaef5f56d3e8fdea7a30b214e8c5737e87640f882453a
+
+ID: npm:is-glob@4.0.3
+Name: is-glob
+Version: 4.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/is-glob/4.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4cd903859549d4b20b571041f96dfae1136ed079c476126268f9d7cc1b611150
+
+ID: npm:is-potential-custom-element-name@1.0.1
+Name: is-potential-custom-element-name
+Version: 1.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/is-potential-custom-element-name/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT.txt sha256:483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a
+
+ID: npm:is-stream@2.0.1
+Name: is-stream
+Version: 2.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/is-stream/2.0.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:isexe@2.0.0
+Name: isexe
+Version: 2.0.0
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/isexe/2.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:js-base64@3.9.1
+Name: js-base64
+Version: 3.9.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/js-base64/3.9.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:fcf06aacb36ee29237110d6b3a9fbd6296e85ad4324263abf5f8a5cfb5706c81
+
+ID: npm:js-tokens@4.0.0
+Name: js-tokens
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/js-tokens/4.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2213d91c606205c71eb051a199478cdc2adde945893404d7f1421436dd6d5cc1
+
+ID: npm:js-yaml@4.3.1
+Name: js-yaml
+Version: 4.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/js-yaml/4.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550
+
+ID: npm:jsdom@30.0.1
+Name: jsdom
+Version: 30.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/jsdom/30.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:242d37e7cab25cbafc36cc973ee88f9345fddf066afe4f72b7ac3d9ad4e24cce
+
+ID: npm:jsesc@3.1.0
+Name: jsesc
+Version: 3.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/jsesc/3.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT.txt sha256:483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a
+
+ID: npm:json-buffer@3.0.1
+Name: json-buffer
+Version: 3.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/json-buffer/3.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:715f1f0f2eb7688e53e4e958acdc7fc9e365ae3eaf26efc2604b93cc65fdc3f5
+
+ID: npm:json-schema-traverse@0.4.1
+Name: json-schema-traverse
+Version: 0.4.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/json-schema-traverse/0.4.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a
+
+ID: npm:json-stable-stringify-without-jsonify@1.0.1
+Name: json-stable-stringify-without-jsonify
+Version: 1.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/json-stable-stringify-without-jsonify/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b
+
+ID: npm:json5@2.2.3
+Name: json5
+Version: 2.2.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/json5/2.2.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:53e59feb13058722d977c699eb0407c7bce2f93c949b681bbd2ff31698535927
+
+ID: npm:keyv@4.5.4
+Name: keyv
+Version: 4.5.4
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/keyv/4.5.4
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:levn@0.4.1
+Name: levn
+Version: 0.4.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/levn/0.4.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b9eb082c39fe245e38793699074c394c43a722c51fce031c3c165cb92a31035c
+
+ID: npm:lightningcss-android-arm64@1.33.0
+Name: lightningcss-android-arm64
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-android-arm64/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-darwin-arm64@1.33.0
+Name: lightningcss-darwin-arm64
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-darwin-arm64/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-darwin-x64@1.33.0
+Name: lightningcss-darwin-x64
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-darwin-x64/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-freebsd-x64@1.33.0
+Name: lightningcss-freebsd-x64
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-freebsd-x64/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-linux-arm-gnueabihf@1.33.0
+Name: lightningcss-linux-arm-gnueabihf
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-linux-arm-gnueabihf/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-linux-arm64-gnu@1.33.0
+Name: lightningcss-linux-arm64-gnu
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-linux-arm64-gnu/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-linux-arm64-musl@1.33.0
+Name: lightningcss-linux-arm64-musl
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-linux-arm64-musl/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-linux-x64-gnu@1.33.0
+Name: lightningcss-linux-x64-gnu
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-linux-x64-gnu/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-linux-x64-musl@1.33.0
+Name: lightningcss-linux-x64-musl
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-linux-x64-musl/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-win32-arm64-msvc@1.33.0
+Name: lightningcss-win32-arm64-msvc
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-win32-arm64-msvc/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss-win32-x64-msvc@1.33.0
+Name: lightningcss-win32-x64-msvc
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss-win32-x64-msvc/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:lightningcss@1.33.0
+Name: lightningcss
+Version: 1.33.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lightningcss/1.33.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e
+
+ID: npm:locate-path@6.0.0
+Name: locate-path
+Version: 6.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/locate-path/6.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:lodash.merge@4.6.2
+Name: lodash.merge
+Version: 4.6.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lodash.merge/4.6.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc
+
+ID: npm:lodash.throttle@4.1.1
+Name: lodash.throttle
+Version: 4.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lodash.throttle/4.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272
+
+ID: npm:long@5.3.2
+Name: long
+Version: 5.3.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/long/5.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: npm:lru-cache@11.5.2
+Name: lru-cache
+Version: 11.5.2
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lru-cache/11.5.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004
+
+ID: npm:lru-cache@5.1.1
+Name: lru-cache
+Version: 5.1.1
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lru-cache/5.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:lz-string@1.5.0
+Name: lz-string
+Version: 1.5.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lz-string/1.5.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80
+
+ID: npm:magic-string@0.30.21
+Name: magic-string
+Version: 0.30.21
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/magic-string/0.30.21
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:1cbe51b907662f6cb1492b16c359384a595180bf0e4d101603ed525e75c4e484
+
+ID: npm:mdn-data@2.27.1
+Name: mdn-data
+Version: 2.27.1
+License: CC0-1.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/mdn-data/2.27.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673
+
+ID: npm:min-indent@1.0.1
+Name: min-indent
+Version: 1.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/min-indent/1.0.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:9638fa87f845af6cecc56fab498c1f74f4a98522d3b53377bedcbdb44b5a8dcc
+
+ID: npm:minimatch@10.2.5
+Name: minimatch
+Version: 10.2.5
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/minimatch/10.2.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:2c7c5d22ed5a8ee968c64757710979afcd77438c48b4a265b94e615babd8a901
+
+ID: npm:minimatch@10.2.6
+Name: minimatch
+Version: 10.2.6
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/minimatch/10.2.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:2c7c5d22ed5a8ee968c64757710979afcd77438c48b4a265b94e615babd8a901
+
+ID: npm:ms@2.1.3
+Name: ms
+Version: 2.1.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ms/2.1.3
+Blockers: NONE
+Notice files:
+  - package/license.md sha256:1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801
+
+ID: npm:nanoid@3.3.18
+Name: nanoid
+Version: 3.3.18
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/nanoid/3.3.18
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:da4db1480d9beea3483a2eda5c53b22238d0827d57da162b48f122e04d2d9987
+
+ID: npm:natural-compare@1.4.0
+Name: natural-compare
+Version: 1.4.0
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/natural-compare/1.4.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:node-releases@2.0.53
+Name: node-releases
+Version: 2.0.53
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/node-releases/2.0.53
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3706296ed611888111ceccc1dff4712844dea4bde0b185c82d718c3b69895abe
+
+ID: npm:obug@2.1.4
+Name: obug
+Version: 2.1.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/obug/2.1.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:ee48679d379ca6b4493d5e231094d85f818dd9be40b1a4f234fb7ff657ee35d9
+
+ID: npm:onnxruntime-common@1.27.0
+Name: onnxruntime-common
+Version: 1.27.0
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/onnxruntime-common/1.27.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:onnxruntime-web@1.27.0
+Name: onnxruntime-web
+Version: 1.27.0
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/onnxruntime-web/1.27.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:openseadragon@6.1.0
+Name: openseadragon
+Version: 6.1.0
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/openseadragon/6.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:17da96b26ac706d2cbd06d4555dedb43026782f4943faf0156fe7acf89454228
+
+ID: npm:optionator@0.9.4
+Name: optionator
+Version: 0.9.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/optionator/0.9.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b9eb082c39fe245e38793699074c394c43a722c51fce031c3c165cb92a31035c
+
+ID: npm:p-limit@3.1.0
+Name: p-limit
+Version: 3.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/p-limit/3.1.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:p-locate@5.0.0
+Name: p-locate
+Version: 5.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/p-locate/5.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:parent-module@1.0.1
+Name: parent-module
+Version: 1.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/parent-module/1.0.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:parse5@8.0.1
+Name: parse5
+Version: 8.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/parse5/8.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8c535800331e1e4439835555b3f9edc7fe9dee2fab0d8bbbd5a982e8b8343d4d
+
+ID: npm:path-exists@4.0.0
+Name: path-exists
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/path-exists/4.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:path-key@3.1.1
+Name: path-key
+Version: 3.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/path-key/3.1.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:pathe@2.0.3
+Name: pathe
+Version: 2.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/pathe/2.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:52e92576851154bad7737e90cc72818936f43665cb0e3f7428ed8edc8cc5709b
+
+ID: npm:picocolors@1.1.1
+Name: picocolors
+Version: 1.1.1
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/picocolors/1.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:6582629e2979466878f6014313dcc2f3756c9616148682227ce3063dde310750
+
+ID: npm:picomatch@4.0.5
+Name: picomatch
+Version: 4.0.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/picomatch/4.0.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d0cd141b0c322fded5dfad1d4645bb2fedfc05b7321fe1009469638190d59ef9
+
+ID: npm:platform@1.3.6
+Name: platform
+Version: 1.3.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/platform/1.3.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4a161ebed4f1ef933e16ccfa00d86c718703f5d015a9987ea7ce1bb72a43cd22
+
+ID: npm:playwright-core@1.62.1
+Name: playwright-core
+Version: 1.62.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/playwright-core/1.62.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb
+  - package/NOTICE sha256:6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d
+
+ID: npm:playwright@1.62.1
+Name: playwright
+Version: 1.62.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/playwright/1.62.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb
+  - package/NOTICE sha256:6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d
+
+ID: npm:polygon-clipping@0.15.7
+Name: polygon-clipping
+Version: 0.15.7
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/polygon-clipping/0.15.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0
+
+ID: npm:postcss@8.5.26
+Name: postcss
+Version: 8.5.26
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/postcss/8.5.26
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5be1f3465bba68a626777f984878814aaf35e7ef8e9fd314d469bcf887050fb8
+
+ID: npm:prelude-ls@1.2.1
+Name: prelude-ls
+Version: 1.2.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/prelude-ls/1.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b9eb082c39fe245e38793699074c394c43a722c51fce031c3c165cb92a31035c
+
+ID: npm:pretty-format@27.5.1
+Name: pretty-format
+Version: 27.5.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/pretty-format/27.5.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85
+
+ID: npm:proper-lockfile@4.1.2
+Name: proper-lockfile
+Version: 4.1.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/proper-lockfile/4.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:aaa78451b6fecd1b9c4594c796c133c0e90cad100372ff8bc6de615e9ef9adf1
+
+ID: npm:protobufjs@7.6.5
+Name: protobufjs
+Version: 7.6.5
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/protobufjs/7.6.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:49d6a1c9a623784c61c6cb70f773f3457faceb1914a13c8560a9823b7631950c
+  - package/google/LICENSE sha256:4ab87e6e3c0c0b78e47c77d49ec10c048f8a519fb8062e6e3217e3e6e9b0c6e9
+
+ID: npm:punycode@2.3.1
+Name: punycode
+Version: 2.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/punycode/2.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT.txt sha256:483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a
+
+ID: npm:qrcode.react@4.2.0
+Name: qrcode.react
+Version: 4.2.0
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/qrcode.react/4.2.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:908a4454d01d77cd6a0ae1eea0bafaa74a2e3befdbc4b7b714de2499a22351ce
+
+ID: npm:querystringify@2.2.0
+Name: querystringify
+Version: 2.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/querystringify/2.2.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3b2a6a268aa815dec121d614245e03b5c68db1f044d5b525e36db7d5dc7fb9c3
+
+ID: npm:quickselect@3.0.0
+Name: quickselect
+Version: 3.0.0
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/quickselect/3.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:238ddb00e12a420a54e060afa19bdab4f70bf49e0e2a8ebb1a5e851f9ef447df
+
+ID: npm:rbush@4.0.1
+Name: rbush
+Version: 4.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/rbush/4.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:bf20b07b8e41f306d22b73bfa6b0e248e81ee8caaa6a04285acb0b8e963c01ec
+
+ID: npm:react-dom@19.2.8
+Name: react-dom
+Version: 19.2.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/react-dom/19.2.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
+
+ID: npm:react-is@17.0.2
+Name: react-is
+Version: 17.0.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/react-is/17.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85
+
+ID: npm:react-refresh@0.17.0
+Name: react-refresh
+Version: 0.17.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/react-refresh/0.17.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
+
+ID: npm:react-router-dom@7.18.2
+Name: react-router-dom
+Version: 7.18.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/react-router-dom/7.18.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49
+
+ID: npm:react-router@7.18.2
+Name: react-router
+Version: 7.18.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/react-router/7.18.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49
+
+ID: npm:react@19.2.8
+Name: react
+Version: 19.2.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/react/19.2.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
+
+ID: npm:redent@3.0.0
+Name: redent
+Version: 3.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/redent/3.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:require-from-string@2.0.2
+Name: require-from-string
+Version: 2.0.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/require-from-string/2.0.2
+Blockers: NONE
+Notice files:
+  - package/license sha256:6ee0feb1f6ef996ff5a68600f8cf98909cf412d39ef3cdceaefd87d636fa1b7f
+
+ID: npm:requires-port@1.0.0
+Name: requires-port
+Version: 1.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/requires-port/1.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3b2a6a268aa815dec121d614245e03b5c68db1f044d5b525e36db7d5dc7fb9c3
+
+ID: npm:resolve-from@4.0.0
+Name: resolve-from
+Version: 4.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/resolve-from/4.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:retry@0.12.0
+Name: retry
+Version: 0.12.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/retry/0.12.0
+Blockers: NONE
+Notice files:
+  - package/License sha256:01ad164273e8e095abc9dbd1c21e194594a671af7d528cb43ee7b4c903ba7da3
+
+ID: npm:robust-predicates@3.0.3
+Name: robust-predicates
+Version: 3.0.3
+License: Unlicense
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/robust-predicates/3.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd
+
+ID: npm:rollup@4.62.4
+Name: rollup
+Version: 4.62.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/rollup/4.62.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:fa1bd040c5bdeefe65b3821cebf474f2733ce65df13089bd151dda1778e62fe8
+
+ID: npm:saxes@6.0.0
+Name: saxes
+Version: 6.0.0
+License: ISC
+Admission: BLOCKED
+Source: https://registry.npmjs.org/saxes/6.0.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:scheduler@0.27.0
+Name: scheduler
+Version: 0.27.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/scheduler/0.27.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
+
+ID: npm:semver@6.3.1
+Name: semver
+Version: 6.3.1
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/semver/6.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:semver@7.8.5
+Name: semver
+Version: 7.8.5
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/semver/7.8.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:set-cookie-parser@2.7.2
+Name: set-cookie-parser
+Version: 2.7.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/set-cookie-parser/2.7.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c5c6c5183a789d122f267c405f685037efb87e27fcde28ab1dd7378a2d2f5962
+
+ID: npm:shebang-command@2.0.0
+Name: shebang-command
+Version: 2.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/shebang-command/2.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:69dee148a2cc470554dfa7142e830662062394d0fe67cddd379aba90dc60d6b3
+
+ID: npm:shebang-regex@3.0.0
+Name: shebang-regex
+Version: 3.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/shebang-regex/3.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:siginfo@2.0.0
+Name: siginfo
+Version: 2.0.0
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/siginfo/2.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3bdddf0b9b08aaa2fe4365b803fc958ed32c0597ca0bd727be8d9fcb8b248d18
+
+ID: npm:signal-exit@3.0.7
+Name: signal-exit
+Version: 3.0.7
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/signal-exit/3.0.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:e05b1eaf5b5f99b7ad75cd1f38858ff9a311780b97715ead67936d60bf96aa7e
+
+ID: npm:source-map-js@1.2.1
+Name: source-map-js
+Version: 1.2.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/source-map-js/1.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:6cb0631f71c7749763fd3dd1d5bee52dd1070ec17f2edc1710079ad070bd2fbd
+
+ID: npm:splaytree@3.2.3
+Name: splaytree
+Version: 3.2.3
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/splaytree/3.2.3
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:stackback@0.0.2
+Name: stackback
+Version: 0.0.2
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/stackback/0.0.2
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
+ID: npm:std-env@4.2.0
+Name: std-env
+Version: 4.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/std-env/4.2.0
+Blockers: NONE
+Notice files:
+  - package/LICENCE sha256:a6f36438e46fb911859f3b9c4cad045ba64e1af3d8f4512c60258fa2d7552d28
+
+ID: npm:strip-indent@3.0.0
+Name: strip-indent
+Version: 3.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/strip-indent/3.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:strip-json-comments@3.1.1
+Name: strip-json-comments
+Version: 3.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/strip-json-comments/3.1.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:supports-color@7.2.0
+Name: supports-color
+Version: 7.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/supports-color/7.2.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:symbol-tree@3.2.4
+Name: symbol-tree
+Version: 3.2.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/symbol-tree/3.2.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9ea1eccdabe469767a9edb9249a840b2461cf91b2434bf8a3e2fc1f414311cb1
+
+ID: npm:tinybench@2.9.0
+Name: tinybench
+Version: 2.9.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tinybench/2.9.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:cebc084d54e6dd99e53292ddb4bc1cdb63d9bfcd9ce438fe3aa6eb106d79e2ea
+
+ID: npm:tinyexec@1.3.0
+Name: tinyexec
+Version: 1.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tinyexec/1.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:f95f668fe64081ddb4153b322e34fdd719b991285ed08177d5ad7133b7988d92
+
+ID: npm:tinyglobby@0.2.17
+Name: tinyglobby
+Version: 0.2.17
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tinyglobby/0.2.17
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:22c68811e174cbbfb3813d4135918df4f540959c14d872e601d9abe83d3cde8f
+
+ID: npm:tinyrainbow@3.1.1
+Name: tinyrainbow
+Version: 3.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tinyrainbow/3.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENCE sha256:cebc084d54e6dd99e53292ddb4bc1cdb63d9bfcd9ce438fe3aa6eb106d79e2ea
+
+ID: npm:tldts-core@7.4.10
+Name: tldts-core
+Version: 7.4.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tldts-core/7.4.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c64182d48160db948b6aa97a984f1a32974ce4d2053900361264cd33853796cb
+
+ID: npm:tldts@7.4.10
+Name: tldts
+Version: 7.4.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tldts/7.4.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c64182d48160db948b6aa97a984f1a32974ce4d2053900361264cd33853796cb
+
+ID: npm:tough-cookie@6.0.2
+Name: tough-cookie
+Version: 6.0.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tough-cookie/6.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:22ec6791c91ba42c0516a05f4cbdde019aae4687f8a38c5ca7e8a69ee68f851d
+
+ID: npm:tr46@6.0.0
+Name: tr46
+Version: 6.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tr46/6.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:499d6d466d064e0460427967a344e2a32fcb86ea8c6cd1a285ec4f1fa03fba67
+
+ID: npm:ts-api-utils@2.5.0
+Name: ts-api-utils
+Version: 2.5.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ts-api-utils/2.5.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:76c9d5f5ea942054715c026f33f8717c9e24603196a3737b8899afa216bcbdab
+
+ID: npm:tus-js-client@4.3.1
+Name: tus-js-client
+Version: 4.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tus-js-client/4.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2ec372e137fa65938a6551e9abaa3d3ea21f5ebd398fca00a13354ea881e6539
+
+ID: npm:type-check@0.4.0
+Name: type-check
+Version: 0.4.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/type-check/0.4.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b9eb082c39fe245e38793699074c394c43a722c51fce031c3c165cb92a31035c
+
+ID: npm:typescript-eslint@8.67.0
+Name: typescript-eslint
+Version: 8.67.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/typescript-eslint/8.67.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
+
+ID: npm:typescript@5.9.3
+Name: typescript
+Version: 5.9.3
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/typescript/5.9.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47
+
+ID: npm:undici-types@8.3.0
+Name: undici-types
+Version: 8.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/undici-types/8.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27
+
+ID: npm:undici@8.10.0
+Name: undici
+Version: 8.10.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/undici/8.10.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27
+
+ID: npm:update-browserslist-db@1.3.1
+Name: update-browserslist-db
+Version: 1.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/update-browserslist-db/1.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9877e90da14aa8c931a1f9d07cc2a20ce119106e5dab1ebb41af865266d0cd2a
+
+ID: npm:uri-js@4.4.1
+Name: uri-js
+Version: 4.4.1
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/uri-js/4.4.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:0af366eff4c01ec147c9c61ea9e8ffad64a4294754c9d79355f3fd1b97cb2fb9
+
+ID: npm:url-parse@1.5.10
+Name: url-parse
+Version: 1.5.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/url-parse/1.5.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3b2a6a268aa815dec121d614245e03b5c68db1f044d5b525e36db7d5dc7fb9c3
+
+ID: npm:vite@6.4.3
+Name: vite
+Version: 6.4.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/vite/6.4.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:008938a3441801ca3960f8e3ccb4c0738e7996442a53063141d57d3769a7344d
+
+ID: npm:vitest@4.1.10
+Name: vitest
+Version: 4.1.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/vitest/4.1.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:881d660c26831481b697e39724d4a35c9f86e07b67156d4aeb693a0b39910435
+
+ID: npm:w3c-xmlserializer@5.0.0
+Name: w3c-xmlserializer
+Version: 5.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/w3c-xmlserializer/5.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:ab654de803cdaa9e2819ab2e934bdf7f757e308649ec231d78e80e92425cdc34
+
+ID: npm:webidl-conversions@8.0.1
+Name: webidl-conversions
+Version: 8.0.1
+License: BSD-2-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/webidl-conversions/8.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:a889cc4dbee2ae172c179856b25d75b0b7a5a136e1b97109b9b590b2ff1a879c
+
+ID: npm:whatwg-mimetype@5.0.0
+Name: whatwg-mimetype
+Version: 5.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/whatwg-mimetype/5.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:528eec83cb836a0adda9f8fc3d6a2a70a710d6cc0be9a155f92212c8df28acfa
+
+ID: npm:whatwg-url@16.0.1
+Name: whatwg-url
+Version: 16.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/whatwg-url/16.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:db480f236292a093e77a83c35431a8496624e1e664a3547768a9ce2bdde39877
+
+ID: npm:whatwg-url@17.1.0
+Name: whatwg-url
+Version: 17.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/whatwg-url/17.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:db480f236292a093e77a83c35431a8496624e1e664a3547768a9ce2bdde39877
+
+ID: npm:which@2.0.2
+Name: which
+Version: 2.0.2
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/which/2.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:why-is-node-running@2.3.0
+Name: why-is-node-running
+Version: 2.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/why-is-node-running/2.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:6a134e51aa31496c15a741592fc5d782b2dbf8d8b6b8524e15c8520ae0cd6374
+
+ID: npm:word-wrap@1.2.5
+Name: word-wrap
+Version: 1.2.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/word-wrap/1.2.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:73b5283588baa142c5baaef5f56d3e8fdea7a30b214e8c5737e87640f882453a
+
+ID: npm:xml-name-validator@5.0.0
+Name: xml-name-validator
+Version: 5.0.0
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/xml-name-validator/5.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9
+
+ID: npm:xmlchars@2.2.0
+Name: xmlchars
+Version: 2.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/xmlchars/2.2.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:45d196313c2647d313cc65ca9b093d2d6974b64d35ee7346f2c60c9d518dff2c
+
+ID: npm:yallist@3.1.1
+Name: yallist
+Version: 3.1.1
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/yallist/3.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:yocto-queue@0.1.0
+Name: yocto-queue
+Version: 0.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/yocto-queue/0.1.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: platform:oracle-linux@9
+Name: Oracle Linux
+Version: 9-immutable-image-unresolved
+License: UNKNOWN
+Admission: BLOCKED
+Source: Oracle-Linux-image-publisher
+Blockers: EXACT_IMAGE_ID_CHECKSUM_SBOM_LICENSE_AND_NOTICE_UNRESOLVED
+Notice files: NONE RECORDED
+
+ID: pypi:aiohappyeyeballs@2.7.1
+Name: aiohappyeyeballs
+Version: 2.7.1
+License: Python Software Foundation License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/aiohappyeyeballs/2.7.1/json
+Blockers: NONE
+Notice files:
+  - aiohappyeyeballs-2.7.1/LICENSE sha256:3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf
+
+ID: pypi:aiohttp@3.14.3
+Name: aiohttp
+Version: 3.14.3
+License: Apache-2.0 AND MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/aiohttp/3.14.3/json
+Blockers: NONE
+Notice files:
+  - aiohttp-3.14.3/LICENSE.txt sha256:2e4be5fc6c4c72a466fcb665d726e049a6891981fe536c4f04b6366749461d23
+  - aiohttp-3.14.3/vendor/llhttp/LICENSE sha256:628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d
+
+ID: pypi:aiosignal@1.4.0
+Name: aiosignal
+Version: 1.4.0
+License: Apache Software License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/aiosignal/1.4.0/json
+Blockers: NONE
+Notice files:
+  - aiosignal-1.4.0/LICENSE sha256:6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6
+
+ID: pypi:alembic@1.19.1
+Name: alembic
+Version: 1.19.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/alembic/1.19.1/json
+Blockers: NONE
+Notice files:
+  - alembic-1.19.1/LICENSE sha256:6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc
+
+ID: pypi:annotated-doc@0.0.5
+Name: annotated-doc
+Version: 0.0.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/annotated-doc/0.0.5/json
+Blockers: NONE
+Notice files:
+  - annotated_doc-0.0.5/LICENSE sha256:fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf
+
+ID: pypi:annotated-types@0.8.0
+Name: annotated-types
+Version: 0.8.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/annotated-types/0.8.0/json
+Blockers: NONE
+Notice files:
+  - annotated_types-0.8.0/LICENSE sha256:fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d
+
+ID: pypi:anyio@4.14.2
+Name: anyio
+Version: 4.14.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/anyio/4.14.2/json
+Blockers: NONE
+Notice files:
+  - anyio-4.14.2/LICENSE sha256:5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0
+
+ID: pypi:argon2-cffi-bindings@25.1.0
+Name: argon2-cffi-bindings
+Version: 25.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/argon2-cffi-bindings/25.1.0/json
+Blockers: NONE
+Notice files:
+  - argon2_cffi_bindings-25.1.0/LICENSE sha256:9c158d4f433627f48ac24b6b4d37970afe4172514673c5318014d7cca157c6df
+  - argon2_cffi_bindings-25.1.0/extras/libargon2/LICENSE sha256:ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590
+
+ID: pypi:argon2-cffi@25.1.0
+Name: argon2-cffi
+Version: 25.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/argon2-cffi/25.1.0/json
+Blockers: NONE
+Notice files:
+  - argon2_cffi-25.1.0/LICENSE sha256:b6944d386e87ccf49d9632da083685a4b7624733e686a7fe283dd2d428341d77
+
+ID: pypi:arrow@1.4.0
+Name: arrow
+Version: 1.4.0
+License: Apache Software License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/arrow/1.4.0/json
+Blockers: NONE
+Notice files:
+  - arrow-1.4.0/LICENSE sha256:b481f87296cb0abdb13fd8cbb94b14c328be880ec9e68547a61b84dacffd067a
+
+ID: pypi:attrs@26.1.0
+Name: attrs
+Version: 26.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/attrs/26.1.0/json
+Blockers: NONE
+Notice files:
+  - attrs-26.1.0/LICENSE sha256:882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f
+  - attrs-26.1.0/docs/license.md sha256:b26415d5042a70fcc29edc17112f68311aa09935290a208218d4930d9b571a7a
+
+ID: pypi:certifi@2025.11.12
+Name: certifi
+Version: 2025.11.12
+License: Mozilla Public License 2.0 (MPL 2.0)
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/certifi/2025.11.12/json
+Blockers: NONE
+Notice files:
+  - certifi-2025.11.12/LICENSE sha256:e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7
+
+ID: pypi:certifi@2026.7.22
+Name: certifi
+Version: 2026.7.22
+License: Mozilla Public License 2.0 (MPL 2.0)
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/certifi/2026.7.22/json
+Blockers: NONE
+Notice files:
+  - certifi-2026.7.22/LICENSE sha256:e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7
+
+ID: pypi:cffi@2.1.0
+Name: cffi
+Version: 2.1.0
+License: MIT-0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/cffi/2.1.0/json
+Blockers: NONE
+Notice files:
+  - cffi-2.1.0/LICENSE sha256:5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63
+
+ID: pypi:cffi@2.1.1
+Name: cffi
+Version: 2.1.1
+License: MIT-0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/cffi/2.1.1/json
+Blockers: NONE
+Notice files:
+  - cffi-2.1.1/LICENSE sha256:5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63
+
+ID: pypi:circuitbreaker@2.1.3
+Name: circuitbreaker
+Version: 2.1.3
+License: BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/circuitbreaker/2.1.3/json
+Blockers: NONE
+Notice files:
+  - circuitbreaker-2.1.3/LICENSE.rst sha256:9500df8630df8b12e67d8fc24f913ac988aa37cda57897190edeae930b0efefe
+
+ID: pypi:click@8.4.2
+Name: click
+Version: 8.4.2
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/click/8.4.2/json
+Blockers: NONE
+Notice files:
+  - click-8.4.2/LICENSE.txt sha256:9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d
+  - click-8.4.2/docs/license.md sha256:b4aa3a8b0dfd4c8cea97ea65b3f19ef54bd280665533478f35c0a5d205a7d341
+
+ID: pypi:colorama@0.4.6
+Name: colorama
+Version: 0.4.6
+License: BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/colorama/0.4.6/json
+Blockers: NONE
+Notice files:
+  - colorama-0.4.6/LICENSE.txt sha256:cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318
+
+ID: pypi:crc32c@2.8
+Name: crc32c
+Version: 2.8
+License: GNU Lesser General Public License v2 or later (LGPLv2+)
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/crc32c/2.8/json
+Blockers: NONE
+Notice files:
+  - crc32c-2.8/LICENSE sha256:dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551
+  - crc32c-2.8/LICENSE.google-crc32c sha256:a1f30b77c01e0995fa32a00119e00749e8731ee8a3c4c3549bce74083c72b0b6
+  - crc32c-2.8/LICENSE.slice-by-8 sha256:7890b6a914d1a5164dad78d642f20b4565d128f3375f75b861133026ad016d07
+
+ID: pypi:cryptography@50.0.0
+Name: cryptography
+Version: 50.0.0
+License: Apache-2.0 OR BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/cryptography/50.0.0/json
+Blockers: NONE
+Notice files:
+  - cryptography-50.0.0/LICENSE sha256:3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb
+  - cryptography-50.0.0/LICENSE.APACHE sha256:aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe
+  - cryptography-50.0.0/LICENSE.BSD sha256:602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb
+
+ID: pypi:fastapi@0.141.1
+Name: fastapi
+Version: 0.141.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/fastapi/0.141.1/json
+Blockers: NONE
+Notice files:
+  - fastapi-0.141.1/LICENSE sha256:4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e
+
+ID: pypi:frozenlist@1.8.0
+Name: frozenlist
+Version: 1.8.0
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/frozenlist/1.8.0/json
+Blockers: NONE
+Notice files:
+  - frozenlist-1.8.0/LICENSE sha256:6fd5243e92dd7f98ec69c7ac377728e74905709ff527a5bf98d6d0263c04f5b6
+
+ID: pypi:greenlet@3.5.5
+Name: greenlet
+Version: 3.5.5
+License: MIT AND PSF-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/greenlet/3.5.5/json
+Blockers: NONE
+Notice files:
+  - greenlet-3.5.5/LICENSE sha256:769831d6e5dfaf2c20802faccff1fafb4c2025dd8f6253dfa47fcad59d4d0979
+  - greenlet-3.5.5/LICENSE.PSF sha256:e5ff3c23c110e494cd7d736c10fd96d462457bafeca310840db6527298c7d46b
+
+ID: pypi:h11@0.16.0
+Name: h11
+Version: 0.16.0
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/h11/0.16.0/json
+Blockers: NONE
+Notice files:
+  - h11-0.16.0/LICENSE.txt sha256:37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361
+
+ID: pypi:httpcore@1.0.9
+Name: httpcore
+Version: 1.0.9
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/httpcore/1.0.9/json
+Blockers: NONE
+Notice files:
+  - httpcore-1.0.9/LICENSE.md sha256:fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5
+
+ID: pypi:httptools@0.8.0
+Name: httptools
+Version: 0.8.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/httptools/0.8.0/json
+Blockers: NONE
+Notice files:
+  - httptools-0.8.0/LICENSE sha256:f4573e7cb7676745fb5b8d36fa548aa93e391cfb6872ddacd65130c45ea6a92d
+  - httptools-0.8.0/vendor/http-parser/LICENSE-MIT sha256:79e6ba8b687cb54786207342b9b6fcee0ac10218453ed9009b84d949b2233cc0
+  - httptools-0.8.0/vendor/llhttp/LICENSE sha256:628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d
+  - httptools-0.8.0/vendor/llhttp/LICENSE-MIT sha256:ebca854e0134cd256d673627c20499f42577eb74bacf08b9f25b626a73c91277
+
+ID: pypi:httpx@0.28.1
+Name: httpx
+Version: 0.28.1
+License: BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/httpx/0.28.1/json
+Blockers: NONE
+Notice files:
+  - httpx-0.28.1/LICENSE.md sha256:4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d
+
+ID: pypi:idna@3.18
+Name: idna
+Version: 3.18
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/idna/3.18/json
+Blockers: NONE
+Notice files:
+  - idna-3.18/LICENSE.md sha256:1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04
+
+ID: pypi:idna@3.19
+Name: idna
+Version: 3.19
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/idna/3.19/json
+Blockers: NONE
+Notice files:
+  - idna-3.19/LICENSE.md sha256:1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04
+
+ID: pypi:itsdangerous@2.2.0
+Name: itsdangerous
+Version: 2.2.0
+License: BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/itsdangerous/2.2.0/json
+Blockers: NONE
+Notice files:
+  - itsdangerous-2.2.0/LICENSE.txt sha256:63af09891b6be8ad1a4252ed43af0f4efba7fc948e228367bed7f3c5ae0b09d7
+  - itsdangerous-2.2.0/docs/license.rst sha256:1e07e9c25f2618a040560b70e63f42259eab24e558d0f3532e6163d751cb4eea
+
+ID: pypi:jmespath@1.0.1
+Name: jmespath
+Version: 1.0.1
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/jmespath/1.0.1/json
+Blockers: NONE
+Notice files:
+  - jmespath-1.0.1/LICENSE.txt sha256:66b313cce80ed0623fc7db3f24863a0c80fd83eb341a46b57864158ae74faa56
+
+ID: pypi:lxml@6.1.1
+Name: lxml
+Version: 6.1.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/lxml/6.1.1/json
+Blockers: NONE
+Notice files:
+  - lxml-6.1.1/LICENSE.txt sha256:8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855
+
+ID: pypi:mako@1.4.1
+Name: mako
+Version: 1.4.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/mako/1.4.1/json
+Blockers: NONE
+Notice files:
+  - mako-1.4.1/LICENSE sha256:8c1d171bc5d341ad9cd33d5e2c39b96a82c7bd49b3ae89a470c37e5822232054
+
+ID: pypi:markupsafe@3.0.3
+Name: markupsafe
+Version: 3.0.3
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/markupsafe/3.0.3/json
+Blockers: NONE
+Notice files:
+  - markupsafe-3.0.3/LICENSE.txt sha256:489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea
+  - markupsafe-3.0.3/docs/license.rst sha256:6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d
+
+ID: pypi:multidict@6.7.1
+Name: multidict
+Version: 6.7.1
+License: Apache License 2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/multidict/6.7.1/json
+Blockers: NONE
+Notice files:
+  - multidict-6.7.1/LICENSE sha256:93d11a968e2f0f36373c40811ff6d20e173f58c3cab5884cd6617bbfd795492a
+
+ID: pypi:numpy@2.5.2
+Name: numpy
+Version: 2.5.2
+License: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/numpy/2.5.2/json
+Blockers: NONE
+Notice files:
+  - numpy-2.5.2/.spin/LICENSE sha256:990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b
+  - numpy-2.5.2/LICENSE.txt sha256:1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491
+  - numpy-2.5.2/doc/source/license.rst sha256:563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256
+  - numpy-2.5.2/numpy/ma/LICENSE sha256:05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6
+  - numpy-2.5.2/numpy/random/LICENSE.md sha256:103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f
+  - numpy-2.5.2/vendored-meson/meson/COPYING sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: pypi:oci-cli@3.92.0
+Name: oci-cli
+Version: 3.92.0
+License: Apache Software License | Universal Permissive License (UPL)
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/oci-cli/3.92.0/json
+Blockers: NONE
+Notice files:
+  - oci-cli-3.92.0/LICENSE.txt sha256:938b5d84e5c20da7421793d1490062e9086998af0751de8a3c478d3246c69514
+
+ID: pypi:oci@2.185.1
+Name: oci
+Version: 2.185.1
+License: Apache Software License | Universal Permissive License (UPL)
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/oci/2.185.1/json
+Blockers: NONE
+Notice files:
+  - oci-2.185.1/LICENSE.txt sha256:8922f6a4bf38ae164a077bd7a294d690cb9e60826d1651d3b36cc7358379bf96
+
+ID: pypi:ome-types@0.6.3
+Name: ome-types
+Version: 0.6.3
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/ome-types/0.6.3/json
+Blockers: NONE
+Notice files:
+  - ome_types-0.6.3/LICENSE sha256:b4fabf9bc25d74808d21002a72eb5179cfc061a840d69275eea522119fadf669
+
+ID: pypi:pillow@12.3.0
+Name: pillow
+Version: 12.3.0
+License: MIT-CMU
+Admission: BLOCKED
+Source: https://pypi.org/pypi/pillow/12.3.0/json
+Blockers: LOCK_HASH_OR_ARTIFACT_MISMATCH
+Notice files:
+  - pillow-12.3.0/LICENSE sha256:15181e7363dca9aed78b79bebebc7fde7f1814b8bd311ea3b87ae8ccadfc185b
+  - pillow-12.3.0/Tests/fonts/LICENSE.txt sha256:b79f6f6a2fc060b2e0a6e7a6946c446ae199bec07b92a3df1295975e25c4d96b
+  - pillow-12.3.0/Tests/icc/LICENSE.txt sha256:09e62757edb34e284bc11c54e3429b438d9db37f46c9cb36bd57b1b25ae36184
+  - pillow-12.3.0/docs/COPYING sha256:d44ce2bbf81806be0eb34ec0ecb0cb013ccd56a94057daf214fb7381adde8f0c
+
+ID: pypi:prompt-toolkit@3.0.43
+Name: prompt-toolkit
+Version: 3.0.43
+License: BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/prompt-toolkit/3.0.43/json
+Blockers: NONE
+Notice files:
+  - prompt_toolkit-3.0.43/LICENSE sha256:303574d9bdd85c757d6025017942bf17baeedf2778f62bd7f425d07d880f4c4a
+
+ID: pypi:propcache@0.5.2
+Name: propcache
+Version: 0.5.2
+License: Apache Software License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/propcache/0.5.2/json
+Blockers: NONE
+Notice files:
+  - propcache-0.5.2/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+  - propcache-0.5.2/NOTICE sha256:56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838
+
+ID: pypi:psycopg-binary@3.3.4
+Name: psycopg-binary
+Version: 3.3.4
+License: LGPL-3.0-only
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/psycopg-binary/3.3.4/json
+Blockers: NONE
+Notice files:
+  - psycopg_binary-3.3.4.dist-info/licenses/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+
+ID: pypi:psycopg@3.3.4
+Name: psycopg
+Version: 3.3.4
+License: LGPL-3.0-only
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/psycopg/3.3.4/json
+Blockers: NONE
+Notice files:
+  - psycopg-3.3.4/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+
+ID: pypi:pycparser@3.0
+Name: pycparser
+Version: 3.0
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pycparser/3.0/json
+Blockers: NONE
+Notice files:
+  - pycparser-3.0/LICENSE sha256:0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1
+
+ID: pypi:pydantic-core@2.46.4
+Name: pydantic-core
+Version: 2.46.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pydantic-core/2.46.4/json
+Blockers: NONE
+Notice files:
+  - pydantic_core-2.46.4/LICENSE sha256:2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a
+
+ID: pypi:pydantic-extra-types@2.11.1
+Name: pydantic-extra-types
+Version: 2.11.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pydantic-extra-types/2.11.1/json
+Blockers: NONE
+Notice files:
+  - pydantic_extra_types-2.11.1/LICENSE sha256:a09bbbbb46be63e89ef39a5a6f72d610da47b2a6b6ba0eef1442327f1cf23eeb
+
+ID: pypi:pydantic-settings@2.15.0
+Name: pydantic-settings
+Version: 2.15.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pydantic-settings/2.15.0/json
+Blockers: NONE
+Notice files:
+  - pydantic_settings-2.15.0/LICENSE sha256:eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998
+
+ID: pypi:pydantic@2.13.4
+Name: pydantic
+Version: 2.13.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pydantic/2.13.4/json
+Blockers: NONE
+Notice files:
+  - pydantic-2.13.4/LICENSE sha256:a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3
+
+ID: pypi:pyjwt@2.13.0
+Name: pyjwt
+Version: 2.13.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pyjwt/2.13.0/json
+Blockers: NONE
+Notice files:
+  - pyjwt-2.13.0/LICENSE sha256:797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5
+
+ID: pypi:pyopenssl@26.4.0
+Name: pyopenssl
+Version: 26.4.0
+License: Apache Software License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pyopenssl/26.4.0/json
+Blockers: NONE
+Notice files:
+  - pyopenssl-26.4.0/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: pypi:python-dateutil@2.9.0.post0
+Name: python-dateutil
+Version: 2.9.0.post0
+License: Apache Software License | BSD License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/python-dateutil/2.9.0.post0/json
+Blockers: NONE
+Notice files:
+  - python-dateutil-2.9.0.post0/LICENSE sha256:ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e
+
+ID: pypi:python-dotenv@1.2.3
+Name: python-dotenv
+Version: 1.2.3
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/python-dotenv/1.2.3/json
+Blockers: NONE
+Notice files:
+  - python_dotenv-1.2.3/LICENSE sha256:80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9
+  - python_dotenv-1.2.3/docs/license.md sha256:80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9
+
+ID: pypi:pytz@2026.2
+Name: pytz
+Version: 2026.2
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pytz/2026.2/json
+Blockers: NONE
+Notice files:
+  - pytz-2026.2/LICENSE.txt sha256:be8b1a37ebe26c592a90f6c0eb33103a7f383ce2f4d7498c0af9a526990a07b8
+
+ID: pypi:pyvips@3.1.1
+Name: pyvips
+Version: 3.1.1
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pyvips/3.1.1/json
+Blockers: NONE
+Notice files:
+  - pyvips-3.1.1/LICENSE.txt sha256:2237848c0c93932b1ef57fd0785ec659606acb845022240b02188134ab58866c
+
+ID: pypi:pyyaml@6.0.2
+Name: pyyaml
+Version: 6.0.2
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pyyaml/6.0.2/json
+Blockers: NONE
+Notice files:
+  - pyyaml-6.0.2/LICENSE sha256:8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4
+
+ID: pypi:pyyaml@6.0.3
+Name: pyyaml
+Version: 6.0.3
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/pyyaml/6.0.3/json
+Blockers: NONE
+Notice files:
+  - pyyaml-6.0.3/LICENSE sha256:8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4
+
+ID: pypi:setuptools@80.10.2
+Name: setuptools
+Version: 80.10.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/setuptools/80.10.2/json
+Blockers: NONE
+Notice files:
+  - setuptools-80.10.2/LICENSE sha256:86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741
+  - setuptools-80.10.2/setuptools/config/NOTICE sha256:2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8
+
+ID: pypi:six@1.17.0
+Name: six
+Version: 1.17.0
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/six/1.17.0/json
+Blockers: NONE
+Notice files:
+  - six-1.17.0/LICENSE sha256:4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0
+
+ID: pypi:sqlalchemy@2.0.52
+Name: sqlalchemy
+Version: 2.0.52
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/sqlalchemy/2.0.52/json
+Blockers: NONE
+Notice files:
+  - sqlalchemy-2.0.52/LICENSE sha256:e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9
+  - sqlalchemy-2.0.52/doc/build/copyright.rst sha256:4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87
+  - sqlalchemy-2.0.52/doc/copyright.html sha256:0c691797527763df1d52d1dcac62911ba31b7555b1dba27208c935377ac7d5d9
+
+ID: pypi:starlette@1.6.0
+Name: starlette
+Version: 1.6.0
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/starlette/1.6.0/json
+Blockers: NONE
+Notice files:
+  - starlette-1.6.0/LICENSE.md sha256:dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf
+
+ID: pypi:terminaltables@3.1.10
+Name: terminaltables
+Version: 3.1.10
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/terminaltables/3.1.10/json
+Blockers: NONE
+Notice files:
+  - terminaltables-3.1.10/LICENSE sha256:2e1320fd337db06a3136d0f4101bd62f13249c95c5b581304f35481e979d432a
+
+ID: pypi:tifffile@2026.8.16
+Name: tifffile
+Version: 2026.8.16
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/tifffile/2026.8.16/json
+Blockers: NONE
+Notice files:
+  - tifffile-2026.8.16/LICENSE sha256:3cf196b1625812d2d119518294043e71017fe858355a58eb48e1e35b61213ce9
+
+ID: pypi:typing-extensions@4.16.0
+Name: typing-extensions
+Version: 4.16.0
+License: PSF-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/typing-extensions/4.16.0/json
+Blockers: NONE
+Notice files:
+  - typing_extensions-4.16.0/LICENSE sha256:3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf
+
+ID: pypi:typing-inspection@0.4.4
+Name: typing-inspection
+Version: 0.4.4
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/typing-inspection/0.4.4/json
+Blockers: NONE
+Notice files:
+  - typing_inspection-0.4.4/LICENSE sha256:804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3
+
+ID: pypi:tzdata@2026.3
+Name: tzdata
+Version: 2026.3
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/tzdata/2026.3/json
+Blockers: NONE
+Notice files:
+  - tzdata-2026.3/LICENSE sha256:df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46
+  - tzdata-2026.3/licenses/LICENSE_APACHE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: pypi:urllib3@2.7.0
+Name: urllib3
+Version: 2.7.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/urllib3/2.7.0/json
+Blockers: NONE
+Notice files:
+  - urllib3-2.7.0/LICENSE.txt sha256:130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686
+
+ID: pypi:uvicorn@0.52.3
+Name: uvicorn
+Version: 0.52.3
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/uvicorn/0.52.3/json
+Blockers: NONE
+Notice files:
+  - uvicorn-0.52.3/LICENSE.md sha256:efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371
+
+ID: pypi:uvloop@0.22.1
+Name: uvloop
+Version: 0.22.1
+License: Apache Software License | MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/uvloop/0.22.1/json
+Blockers: NONE
+Notice files:
+  - uvloop-0.22.1/LICENSE-APACHE sha256:377025287798f9dcd819e1f826fa5fc5e2f382528691ab0528c5cf8c8c282c27
+  - uvloop-0.22.1/LICENSE-MIT sha256:6dd4c399f26de043d77a2ad7e31db4cb5bf08ea8368b0a42d6e158635cc8ab62
+  - uvloop-0.22.1/vendor/libuv/LICENSE sha256:16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c
+  - uvloop-0.22.1/vendor/libuv/LICENSE-docs sha256:cce5d01fa4a83b794271bd2c28cffdf99afd43c803e6ddefddae39b591ea7448
+  - uvloop-0.22.1/vendor/libuv/LICENSE-extra sha256:262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836
+
+ID: pypi:watchfiles@1.2.0
+Name: watchfiles
+Version: 1.2.0
+License: MIT License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/watchfiles/1.2.0/json
+Blockers: NONE
+Notice files:
+  - watchfiles-1.2.0/LICENSE sha256:4fd78355b67ce2677ede9fb6f63a250f377bb7e22088136a5f4699adb4bc069f
+
+ID: pypi:wcwidth@0.8.2
+Name: wcwidth
+Version: 0.8.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/wcwidth/0.8.2/json
+Blockers: NONE
+Notice files:
+  - wcwidth-0.8.2/LICENSE sha256:70b98a95a2144eb70af8017fa8c6d95ce247e40867436e8bc649e137fe13d21a
+
+ID: pypi:websockets@17.0.1
+Name: websockets
+Version: 17.0.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/websockets/17.0.1/json
+Blockers: NONE
+Notice files:
+  - websockets-17.0.1/LICENSE sha256:3d6a0c050d8bec52fabad502e45fb25bd02bcadbd70dea34d447b6a0ff4e6da8
+
+ID: pypi:xsdata@26.2
+Name: xsdata
+Version: 26.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/xsdata/26.2/json
+Blockers: NONE
+Notice files:
+  - xsdata-26.2/LICENSE sha256:b5d91ed480d2f5e61bc3a32cb731aaf5641b83226055cdbc3b9d764a9dce4525
+
+ID: pypi:yarl@1.24.5
+Name: yarl
+Version: 1.24.5
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/yarl/1.24.5/json
+Blockers: NONE
+Notice files:
+  - yarl-1.24.5/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+  - yarl-1.24.5/NOTICE sha256:56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838
+
+ID: standards:caliper@1.2
+Name: Caliper Analytics
+Version: 1.2
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:case@1.1
+Name: CASE
+Version: 1.1
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:clr@2.0-context-2.0.1
+Name: CLR
+Version: 2.0-context-2.0.1
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_CONTEXT_SCHEMA_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:dicom@2026c
+Name: DICOM
+Version: 2026c
+License: UNKNOWN
+Admission: BLOCKED
+Source: NEMA-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:fhir-r4-core@4.0.1
+Name: hl7.fhir.r4.core
+Version: 4.0.1
+License: UNKNOWN
+Admission: BLOCKED
+Source: HL7-upstream
+Blockers: PACKAGE_CHECKSUM_LICENSE_NOTICE_TERMINOLOGY_RIGHTS_AND_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:json-schema@2020-12
+Name: JSON Schema
+Version: 2020-12
+License: UNKNOWN
+Admission: BLOCKED
+Source: json-schema.org
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:lti-advantage@1.3-2.0
+Name: LTI 1.3 DL NRPS AGS
+Version: 1.3-and-2.0-services
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:ome-zarr@0.5.2-zarr-v3
+Name: OME-Zarr on Zarr
+Version: 0.5.2-zarr-v3
+License: UNKNOWN
+Admission: BLOCKED
+Source: OME-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:oneroster@1.2-rest-1.2.1-csv
+Name: OneRoster
+Version: REST-1.2-CSV-1.2.1
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:open-badges@3.0-context-3.0.3
+Name: Open Badges
+Version: 3.0-context-3.0.3
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_CONTEXT_SCHEMA_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:owasp-asvs@5.0.0
+Name: OWASP ASVS
+Version: 5.0.0
+License: UNKNOWN
+Admission: BLOCKED
+Source: OWASP-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:qti@3.0.1
+Name: QTI
+Version: 3.0.1
+License: UNKNOWN
+Admission: BLOCKED
+Source: 1EdTech-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:w3c-vc-bitstring-rdfc@2.0-1.0-1.0
+Name: W3C VC Bitstring Status List RDFC
+Version: VC-2.0-Bitstring-1.0-RDFC-1.0
+License: UNKNOWN
+Admission: BLOCKED
+Source: W3C-upstream
+Blockers: EXACT_CONTEXT_SCHEMA_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: standards:wcag@2.2
+Name: WCAG
+Version: 2.2
+License: UNKNOWN
+Admission: BLOCKED
+Source: W3C-upstream
+Blockers: EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: terraform-provider:oracle/oci@7.32.0
+Name: oracle/oci
+Version: 7.32.0
+License: MPL-2.0
+Admission: BLOCKED
+Source: registry.terraform.io/oracle/oci
+Blockers: CANONICAL_PRODUCTION_REQUIRES_8.29.0, LOCK_HASHES_NOT_RECONCILED_TO_OFFLINE_ARTIFACT
+Notice files: NONE RECORDED
+
+ID: terraform-provider:oracle/oci@8.29.0-linux-arm64
+Name: oracle/oci
+Version: 8.29.0-linux-arm64
+License: MPL-2.0
+Admission: BLOCKED
+Source: registry.terraform.io/oracle/oci/8.29.0
+Blockers: CURRENT_TERRAFORM_LOCK_IS_7.32.0, SIGNED_OFFLINE_MIRROR_AND_NOTICE_NOT_PRESENT
+Notice files: NONE RECORDED
+
+ID: tool:age@1.3.2-linux-arm64
+Name: age
+Version: 1.3.2-linux-arm64
+License: BSD-3-Clause
+Admission: BLOCKED
+Source: https://github.com/FiloSottile/age/releases/tag/v1.3.2
+Blockers: ARTIFACT_SIGNATURE_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:barman@3.19.1
+Name: Barman
+Version: 3.19.1
+License: GPL-3.0-or-later
+Admission: BLOCKED
+Source: https://github.com/EnterpriseDB/barman/tree/release/3.19.1
+Blockers: PINNED_SOURCE_ARTIFACT_RUNTIME_SBOM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:container-apt-packages@unresolved
+Name: ca-certificates curl libvips42 libvips-tools
+Version: UNPINNED
+License: UNKNOWN
+Admission: BLOCKED
+Source: Debian-package-repository
+Blockers: UNPINNED_MUTABLE_PACKAGES_WITHOUT_CHECKSUMS_LICENSES_OR_NOTICES
+Notice files: NONE RECORDED
+
+ID: tool:github-runner@ubuntu-latest
+Name: GitHub hosted runner
+Version: ubuntu-latest
+License: UNKNOWN
+Admission: BLOCKED
+Source: https://github.com/actions/runner-images
+Blockers: MUTABLE_ONLINE_SERVICE_NOT_ZERO_CASH_SOFTWARE_AUTHORITY
+Notice files: NONE RECORDED
+
+ID: tool:host-build-suite@unresolved
+Name: Docker Compose shell curl jq OpenSSH OpenSSL
+Version: UNRESOLVED
+License: UNKNOWN
+Admission: BLOCKED
+Source: host-environment
+Blockers: EXACT_VERSIONS_CHECKSUMS_LICENSES_AND_NOTICES_UNRESOLVED
+Notice files: NONE RECORDED
+
+ID: tool:k6@2.1.0
+Name: k6
+Version: 2.1.0
+License: AGPL-3.0-or-later
+Admission: BLOCKED
+Source: https://github.com/grafana/k6/releases/tag/v2.1.0
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:node-ci@24.14.0
+Name: Node.js
+Version: 24.14.0
+License: MIT
+Admission: BLOCKED
+Source: nodejs.org
+Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:opentofu@1.12.6-linux-arm64
+Name: OpenTofu
+Version: 1.12.6-linux-arm64
+License: MPL-2.0
+Admission: BLOCKED
+Source: https://github.com/opentofu/opentofu/releases/tag/v1.12.6
+Blockers: SIGNED_OFFLINE_MIRROR_AND_NOTICE_NOT_PRESENT
+Notice files: NONE RECORDED
+
+ID: tool:pnpm@11.9.0
+Name: pnpm
+Version: 11.9.0
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/pnpm/11.9.0
+Blockers: PACKAGE_ARTIFACT_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:postgresql-client@18.x
+Name: PostgreSQL client
+Version: 18-matching-server-minor
+License: UNKNOWN
+Admission: BLOCKED
+Source: distribution-package-repository
+Blockers: EXACT_MINOR_PACKAGE_CHECKSUM_LICENSE_AND_NOTICE_UNRESOLVED
+Notice files: NONE RECORDED
+
+ID: tool:production-native-services@unresolved
+Name: PostgreSQL PgBouncer Caddy NATS
+Version: UNRESOLVED
+License: UNKNOWN
+Admission: BLOCKED
+Source: UNRESOLVED
+Blockers: EXACT_VERSIONS_ARTIFACTS_CHECKSUMS_LICENSES_AND_NOTICES_UNRESOLVED
+Notice files: NONE RECORDED
+
+ID: tool:python-ci@3.12
+Name: Python
+Version: 3.12-mutable-minor
+License: UNKNOWN
+Admission: BLOCKED
+Source: actions/setup-python
+Blockers: MINOR_ARTIFACT_CHECKSUM_LICENSE_AND_NOTICE_UNRESOLVED
+Notice files: NONE RECORDED
+
+ID: tool:python-dev-inputs@unlocked
+Name: hatchling imagecodecs jsonschema mypy pytest pytest-cov tzdata ruff
+Version: RANGES_ONLY
+License: UNKNOWN
+Admission: BLOCKED
+Source: pyproject.toml
+Blockers: NO_HASH_LOCK_FOR_BUILD_AND_TEST_DEPENDENCIES
+Notice files: NONE RECORDED
+
+ID: tool:rest-server@0.14.0
+Name: rest-server
+Version: 0.14.0
+License: BSD-2-Clause
+Admission: BLOCKED
+Source: https://github.com/restic/rest-server/releases/tag/v0.14.0
+Blockers: ARM64_ARTIFACT_CHECKSUM_SBOM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:restic@0.19.1
+Name: restic
+Version: 0.19.1
+License: BSD-2-Clause
+Admission: BLOCKED
+Source: https://github.com/restic/restic/releases/tag/v0.19.1
+Blockers: ARM64_ARTIFACT_CHECKSUM_SBOM_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:sops@3.13.3-linux-arm64
+Name: SOPS
+Version: 3.13.3-linux-arm64
+License: MPL-2.0
+Admission: BLOCKED
+Source: https://github.com/getsops/sops/releases/tag/v3.13.3
+Blockers: ARTIFACT_SIGNATURE_AND_NOTICE_NOT_MIRRORED
+Notice files: NONE RECORDED
+
+ID: tool:systemd@250+
+Name: systemd
+Version: 250-or-newer-distribution-pinned
+License: LGPL-2.1-or-later
+Admission: BLOCKED
+Source: Oracle-Linux-distribution-package-repository
+Blockers: EXACT_ORACLE_LINUX_PACKAGE_SET_AND_NOTICE_UNRESOLVED
+Notice files: NONE RECORDED
+
+ID: caddy@2.11.4-linux-arm64
+Name: Caddy
+Version: 2.11.4
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_arm64.tar.gz.sig
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/caddyserver/caddy/v2.11.4/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: cosign@3.1.3-linux-arm64
+Name: Cosign
+Version: 3.1.3
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-arm64.sigstore.json
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/sigstore/cosign/v3.1.3/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: cyclonedx-cli@0.33.1-linux-arm64
+Name: CycloneDX CLI
+Version: 0.33.1
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/CycloneDX/cyclonedx-cli/releases/tag/v0.33.1
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/CycloneDX/cyclonedx-cli/v0.33.1/LICENSE sha256:6c29f22a4a7385285c6f579ec9f33c5e989f00739d6b257243a0b082ec9447ae
+
+ID: grype@0.118.0-linux-arm64
+Name: Grype
+Version: 0.118.0
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_checksums.txt.sig
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/anchore/grype/v0.118.0/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: nats-server@2.14.6-linux-arm64
+Name: NATS Server with JetStream
+Version: 2.14.6
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/nats-io/nats-server/releases/download/v2.14.6/nats-server-v2.14.6-linux-arm64.sbom.spdx.json
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/nats-io/nats-server/v2.14.6/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: osv-scanner@2.5.1-linux-arm64
+Name: OSV-Scanner
+Version: 2.5.1
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/google/osv-scanner/releases/download/v2.5.1/osv-scanner_SHA256SUMS
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/google/osv-scanner/v2.5.1/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: pgbouncer@1.25.2-source
+Name: PgBouncer
+Version: 1.25.2
+License: ISC
+Admission: ADMITTED
+Source: https://github.com/pgbouncer/pgbouncer/releases/tag/pgbouncer_1_25_2
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/pgbouncer/pgbouncer/pgbouncer_1_25_2/COPYRIGHT sha256:af68760b7e2115d97b35680d5f84c0096857d581e8c19c5f7642cfe98eda9f4c
+
+ID: postgresql@18.6-source
+Name: PostgreSQL
+Version: 18.6
+License: PostgreSQL
+Admission: ADMITTED
+Source: https://ftp.postgresql.org/pub/source/v18.6/postgresql-18.6.tar.bz2.sha256
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/postgres/postgres/REL_18_6/COPYRIGHT sha256:3d6af92ff8a4c2cdf69afb1cf44edea727922f5cd0cf8b5f72b11cdecac8fdfd
+
+ID: pypi:cryptography@50.0.1
+Name: cryptography
+Version: 50.0.1
+License: Apache-2.0 OR BSD-3-Clause
+Admission: ADMITTED
+Source: https://pypi.org/project/cryptography/50.0.1/
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/pyca/cryptography/50.0.1/LICENSE sha256:3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb
+
+ID: pypi:rfc8785@0.1.4
+Name: rfc8785
+Version: 0.1.4
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://pypi.org/project/rfc8785/0.1.4/
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/trailofbits/rfc8785.py/v0.1.4/LICENSE sha256:0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594
+
+ID: pypi:spdx-tools@0.8.5
+Name: spdx-tools
+Version: 0.8.5
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://pypi.org/project/spdx-tools/0.8.5/
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/spdx/tools-python/v0.8.5/LICENSE sha256:c5accbbd8546e94c34aed24afe689a617627d18eed5a6c48277e48db57c23851
+
+ID: pypi:webauthn@3.0.0
+Name: webauthn
+Version: 3.0.0
+License: BSD-3-Clause
+Admission: ADMITTED
+Source: https://pypi.org/project/webauthn/3.0.0/
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/duo-labs/py_webauthn/v3.0.0/LICENSE sha256:5922ad23a214080d72535c733f69aa36de0f0135f7e5859239758a550042de81
+
+ID: slsa-verifier@2.7.1-linux-arm64
+Name: SLSA Verifier
+Version: 2.7.1
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/slsa-framework/slsa-verifier/releases/download/v2.7.1/slsa-verifier-linux-arm64.intoto.jsonl
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/slsa-framework/slsa-verifier/v2.7.1/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: syft@1.51.1-linux-arm64
+Name: Syft
+Version: 1.51.1
+License: Apache-2.0
+Admission: ADMITTED
+Source: https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_checksums.txt.sig
+Blockers: NONE
+Notice files:
+  - https://raw.githubusercontent.com/anchore/syft/v1.51.1/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1
+Name: apps/web/src/components/Brand.tsx#inline-svg-1
+Version: 77691cb0be40031d
+License: Apache-2.0
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 7bf6d2c9d45527df1c339852e49a8545b9f544e6, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1
+Name: apps/web/src/components/Loader.tsx#inline-svg-1
+Version: 1e1b9a7762e2ac81
+License: Apache-2.0
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 2bd6c0e1948950c54da81ea2d2111675c73fc74a, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:package-font:npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2
+Name: npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2
+Version: d80df8ff5aecd299
+License: OFL-1.1
+Admission: ADMITTED
+Source: Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:package-font:npm:@fontsource-variable/sofia-sans@5.3.0#files/sofia-sans-latin-wght-normal.woff2
+Name: npm:@fontsource-variable/sofia-sans@5.3.0#files/sofia-sans-latin-wght-normal.woff2
+Version: 2176b732b7e4e2bf
+License: OFL-1.1
+Admission: ADMITTED
+Source: Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:package-font:npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2
+Name: npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2
+Version: 7a19a7027e125257
+License: OFL-1.1
+Admission: ADMITTED
+Source: Exact Fontsource package and Google Fonts source metadata bound by the dependency inventory.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons
+Name: npm:@phosphor-icons/react@2.1.10#imported-svg-icons
+Version: f37850c42bd91205
+License: MIT
+Admission: ADMITTED
+Source: Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp
+Name: apps/web/src/assets/auth-histology-solace-dark.webp
+Version: 77def403831d2ae4
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_8VtZhIVFntDcQ0rZW5d9ABFX, source-to-WebP reproduction verified byte-for-byte.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp
+Name: apps/web/src/assets/auth-histology-solace-light.webp
+Version: 319459263cc4d66e
+License: OWNER_APPROVED_PATHLAB_DISTRIBUTION
+Admission: ADMITTED
+Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_tdDaJBLLM4J0WkMqb6sxvmlJ, source-to-WebP reproduction verified byte-for-byte.
+Blockers: NONE
+Notice files: NONE RECORDED

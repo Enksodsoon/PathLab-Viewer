@@ -1,5 +1,7 @@
 # Phase 4 — Learning Foundation
 
+Capacity authority: [ADR 0132](../adr/0132-qualify-3000-learner-combined-broadcast-with-zero-cash-admission.md) controls the 3,000-learner combined target, media quality, zero-cash admission and safe partial-delivery rules. Existing operating limits remain unchanged until implementation and fresh qualification.
+
 Phase 4 creates Learning Catalog, deterministic learning, Teacher Authoring/local AI, Live Learning/media and Assessment as complete governed vertical slices. Persistence/import prerequisites deliberately overlap Phase 3 so the legacy SQLite source is cut over once. All tasks inherit [README](./README.md).
 
 ## P4-T00 — Freeze discoverable learning routes and navigation
@@ -364,7 +366,7 @@ Phase 4 creates Learning Catalog, deterministic learning, Teacher Authoring/loca
 
 ## P4-T20 — Run the Live Learning engineering campaign
 
-- **Outcome:** Exact phase candidate completes the 1-Instructor + 1,200-learner, 60-minute, six-DZI Live campaign without media.
+- **Outcome:** Exact phase candidate completes the 1-Instructor + 3,000-learner, 60-minute, six-DZI Live campaign without media.
 - **Depends on:** `P4-T14`–`P4-T18` `MERGED`.
 - **External prerequisites:** label=EP-P4-LIVE-FIXTURES; kind=DATA_OR_CORPUS; requires=FROZEN; accountable=Live qualification lead; validity=actor workload DZI and fault-manifest hashes remain unchanged through campaign closure; evidence=SignedLiveFixtureManifestReceipt | label=EP-P4-LIVE-CLIENTS; kind=HARDWARE; requires=AVAILABLE; accountable=Live qualification lead; validity=declared physical client matrix remains available and unchanged through campaign closure; evidence=SignedLiveClientAdmissionReceipt | label=EP-P4-LIVE-NETWORK; kind=NETWORK_IDENTITY; requires=DECLARED; accountable=Network Operator; validity=network and shaping tuple remains unchanged through campaign closure; evidence=SignedLiveNetworkManifestReceipt.
 - **Read first:** Production Qualification Live gate and [Adaptive Viewer Capacity](../architecture/ADAPTIVE_VIEWER_CAPACITY.md) as legacy measurement-baseline input only; the [Final Production Endpoint](../architecture/FINAL_PRODUCTION_ENDPOINT.md) and current accepted Live/resource/capacity contracts control any conflict.
@@ -376,7 +378,7 @@ Phase 4 creates Learning Catalog, deterministic learning, Teacher Authoring/loca
 
 ## P4-T20A — Run the Teacher Broadcast engineering campaign
 
-- **Outcome:** Exact phase candidate completes the separate 1-Instructor + 100 receive-only-viewer, 60-minute 540p VP8/Opus direct/TURN campaign.
+- **Outcome:** Exact phase candidate completes the separate 1-Instructor + 3,000 receive-only-viewer, 60-minute 540p VP8/Opus direct/TURN campaign.
 - **Depends on:** `P4-T19` `MERGED`.
 - **External prerequisites:** label=EP-P4-MEDIA-FIXTURES; kind=DATA_OR_CORPUS; requires=FROZEN; accountable=Broadcast qualification lead; validity=media browser network and fault-manifest hashes remain unchanged through campaign closure; evidence=SignedBroadcastFixtureManifestReceipt | label=EP-P4-MEDIA-CLIENTS; kind=HARDWARE; requires=AVAILABLE; accountable=Broadcast qualification lead; validity=declared physical publisher and receiver sample remains available and unchanged through campaign closure; evidence=SignedBroadcastClientAdmissionReceipt | label=EP-P4-MEDIA-NETWORK; kind=NETWORK_IDENTITY; requires=DECLARED; accountable=Network Operator; validity=direct and ratified relay topology remains unchanged through campaign closure; evidence=SignedBroadcastNetworkManifestReceipt.
 - **Read first:** Production Qualification Teacher Broadcast gate and Live media contract.
@@ -388,12 +390,12 @@ Phase 4 creates Learning Catalog, deterministic learning, Teacher Authoring/loca
 
 ## P4-T20B — Run the combined media-failure and synchronized-fallback repeat
 
-- **Outcome:** Repeat the exact 1-Instructor + 1,200-learner, 60-minute, six-DZI Live workload with exactly 100 receive-only learners on the qualified Galene overlay and the other 1,100 on synchronized slides/text, then inject the declared media failure and prove automatic fallback without durable-state loss or resource-boundary breach.
+- **Outcome:** Repeat the exact 1-Instructor + 3,000-learner, 60-minute, six-DZI Live workload with all 3,000 learners receiving decoded teacher audio/video on the qualified Galene overlay while using synchronized slides and interactions, then inject the declared media failure and prove automatic fallback without durable-state loss or resource-boundary breach.
 - **Depends on:** current `P4-T20=SUCCESS` and `P4-T20A=SUCCESS` on the same phase tuple.
 - **Read first:** Live/Teacher Broadcast failure contract, both campaign manifests, and [Adaptive Viewer Capacity](../architecture/ADAPTIVE_VIEWER_CAPACITY.md) as legacy measurement-baseline input only; the [Final Production Endpoint](../architecture/FINAL_PRODUCTION_ENDPOINT.md) and current accepted Live/resource/capacity contracts control any conflict.
 - **Change surface:** combined fault/evidence execution and cleanup only; fixes are separate tasks.
 - **Implement:** none; run the immutable combined workload and fault schedule, preserve receipt cursors and perform terminal media/session cleanup.
-- **Prove:** exact 1,200/100/60-minute/six-slide counts, reservation exclusivity, fault timing, fallback convergence for all participants, reconnect/restart, durable interaction equality, resource/error distributions, no record/transcode and complete cleanup.
+- **Prove:** exact 3,000 learner and media-receiver/60-minute/six-slide counts, reservation exclusivity, fault timing, fallback convergence for all participants, reconnect/restart, durable interaction equality, resource/error distributions, no record/transcode and complete cleanup.
 - **Stop/hand off:** mixed candidates/manifests, a shortened repeat or manual fallback substitution is `PARTIAL` or `NEGATIVE` as applicable.
 - **Unlocks:** `P4-T30` and Phase 7 exact rerun.
 

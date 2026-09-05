@@ -1,23 +1,27 @@
 import asyncio
+import base64
+import binascii
 import hashlib
 import hmac
 import json
 import re
 import secrets
 import threading
+import time
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager, suppress
 from datetime import datetime, timedelta
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, literal, or_, select
 from sqlalchemy.orm import Session as OrmSession
+from sqlalchemy.orm import aliased
 from starlette.concurrency import run_in_threadpool
 
 from .classroom_hub import ClassroomHub
@@ -25,6 +29,7 @@ from .classroom_presenter import PresenterRuntime, PresenterSnapshot
 from .classroom_prewarm import ClassroomPrewarmer, PrewarmSlide
 from .config import Settings
 from .domain import SlideState
+from .identity import is_default_legacy_owner
 from .models import (
     ClassroomParticipant,
     ClassroomQuestion,
@@ -52,6 +57,9 @@ ALIAS_WORDS = ("MINT", "AMBER", "CORAL", "FERN", "IRIS", "JADE", "LILAC", "OAK")
 ALIAS_COLLISION_RETRIES = 8
 CLASSROOM_MUTATION_TIMEOUT_SECONDS = 1.0
 CLASSROOM_RETRY_AFTER_SECONDS = "1"
+CLASSROOM_SETUP_PAGE_SIZE = 20
+CLASSROOM_SETUP_MAX_PAGE_SIZE = 50
+CLASSROOM_MAX_SLIDES = 50
 
 
 class ClassroomMutationGate:
@@ -267,6 +275,28 @@ def _session_slide_json(item: ClassroomSessionSlide) -> dict[str, Any]:
     }
 
 
+def _folder_cursor(folder: Folder) -> str:
+    encoded = json.dumps([folder.normalized_name, folder.id], separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(encoded).decode("ascii").rstrip("=")
+
+
+def _decode_folder_cursor(cursor: str) -> tuple[str, str]:
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        decoded = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
+        if (
+            not isinstance(decoded, list)
+            or len(decoded) != 2
+            or not all(isinstance(value, str) for value in decoded)
+        ):
+            raise ValueError
+        return decoded[0], decoded[1]
+    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise HTTPException(
+            status_code=400, detail={"code": "CLASSROOM_SETUP_CURSOR_INVALID"}
+        ) from error
+
+
 def register_classroom_routes(
     app: FastAPI,
     *,
@@ -387,16 +417,23 @@ def register_classroom_routes(
         return width, height, tile_size, tile_format
 
     def slide_readiness(
-        slide: Slide, db: OrmSession
+        slide: Slide,
+        db: OrmSession,
+        *,
+        publication_grants: set[str] | None = None,
     ) -> tuple[str | None, tuple[int, int, int, str] | None]:
         metadata = slide.slide_metadata or {}
         width = metadata.get("width")
         height = metadata.get("height")
-        grant = db.scalar(
-            select(PublicationGrant.id).where(
-                PublicationGrant.slide_id == slide.id,
-                PublicationGrant.source_type == INDIVIDUAL,
-                PublicationGrant.source_id == slide.id,
+        grant = (
+            slide.id in publication_grants
+            if publication_grants is not None
+            else db.scalar(
+                select(PublicationGrant.id).where(
+                    PublicationGrant.slide_id == slide.id,
+                    PublicationGrant.source_type == INDIVIDUAL,
+                    PublicationGrant.source_id == slide.id,
+                )
             )
         )
         if (
@@ -404,7 +441,7 @@ def register_classroom_routes(
             or slide.privacy_status != "passed"
             or slide.render_mode != "static_dzi"
             or not slide.sha256
-            or grant is None
+            or not grant
         ):
             return "publication_incomplete", None
         if not isinstance(width, int) or not isinstance(height, int) or width <= 0 or height <= 0:
@@ -477,20 +514,27 @@ def register_classroom_routes(
                 request_prewarm(classroom.id, classroom.current_slide_id, database)
 
     def folder_slide_ids(folder_id: str, db: OrmSession) -> list[str]:
-        folders = list(db.scalars(select(Folder).where(Folder.trashed_at.is_(None))))
-        descendants = {folder_id}
-        changed = True
-        while changed:
-            changed = False
-            for folder in folders:
-                if folder.parent_id in descendants and folder.id not in descendants:
-                    descendants.add(folder.id)
-                    changed = True
+        descendants = (
+            select(Folder.id.label("id"))
+            .where(Folder.id == folder_id, Folder.trashed_at.is_(None))
+            .cte("classroom_folder_descendants", recursive=True)
+        )
+        child = aliased(Folder)
+        descendants = descendants.union_all(
+            select(child.id).where(
+                child.parent_id == descendants.c.id,
+                child.trashed_at.is_(None),
+            )
+        )
         return list(
             db.scalars(
                 select(Slide.id)
-                .where(Slide.folder_id.in_(descendants), Slide.trashed_at.is_(None))
+                .where(
+                    Slide.folder_id.in_(select(descendants.c.id)),
+                    Slide.trashed_at.is_(None),
+                )
                 .order_by(Slide.created_at, Slide.id)
+                .limit(CLASSROOM_MAX_SLIDES + 1)
             )
         )
 
@@ -500,7 +544,8 @@ def register_classroom_routes(
             raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
         ready: list[dict[str, Any]] = []
         blocked: list[dict[str, Any]] = []
-        for slide_id in folder_slide_ids(folder_id, db):
+        slide_ids = folder_slide_ids(folder_id, db)
+        for slide_id in slide_ids[:CLASSROOM_MAX_SLIDES]:
             slide = db.get(Slide, slide_id)
             if slide is None:
                 continue
@@ -514,7 +559,12 @@ def register_classroom_routes(
                 blocked.append({**item, "reason": reason})
             else:
                 ready.append(item)
-        return {"folderId": folder_id, "ready": ready, "blocked": blocked}
+        return {
+            "folderId": folder_id,
+            "ready": ready,
+            "blocked": blocked,
+            "tooManySlides": len(slide_ids) > CLASSROOM_MAX_SLIDES,
+        }
 
     def slide_folder_path(slide: Slide, db: OrmSession) -> list[str]:
         path: list[str] = []
@@ -530,7 +580,24 @@ def register_classroom_routes(
         path.reverse()
         return path
 
-    def admin_from_request(request: Request) -> None:
+    def owned_classroom(
+        session_id: str,
+        authenticated: Session,
+        db: OrmSession,
+        *,
+        code: str = "CLASSROOM_NOT_FOUND",
+        status_code: int = 404,
+    ) -> ClassroomSession:
+        classroom = db.get(ClassroomSession, session_id)
+        if (
+            classroom is None
+            or classroom.created_by_user_id is None
+            or classroom.created_by_user_id != authenticated.user_id
+        ):
+            raise HTTPException(status_code=status_code, detail={"code": code})
+        return classroom
+
+    def admin_from_request(request: Request) -> Session:
         token = request.cookies.get("pathlab_session")
         if not token:
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
@@ -541,6 +608,9 @@ def register_classroom_routes(
             user = db.get(User, stored.user_id)
             if user is None or stored.credential_generation != user.credential_generation:
                 raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
+            if not is_default_legacy_owner(db, stored.user_id):
+                raise HTTPException(status_code=403, detail={"code": "LEGACY_ADMIN_FORBIDDEN"})
+            return cast(Session, stored)
 
     def participant_from_request(
         request: Request, db: OrmSession, session_id: str
@@ -575,10 +645,21 @@ def register_classroom_routes(
         session_id: str,
         db: OrmSession,
         *,
+        authenticated: Session | None = None,
         code: str = "CLASSROOM_NOT_LIVE",
         status_code: int = 409,
     ) -> ClassroomSession:
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = (
+            owned_classroom(
+                session_id,
+                authenticated,
+                db,
+                code=code,
+                status_code=status_code,
+            )
+            if authenticated is not None
+            else db.get(ClassroomSession, session_id)
+        )
         deadline = classroom.live_expires_at or classroom.expires_at if classroom else None
         if (
             classroom is None
@@ -630,6 +711,163 @@ def register_classroom_routes(
             "viewport": current.viewport,
         }
 
+    @app.get("/api/v1/admin/classroom/setup/folders")
+    def classroom_setup_folders(
+        _: AdminSession,
+        db: Database,
+        cursor: Annotated[str | None, Query(max_length=1000)] = None,
+        limit: Annotated[
+            int, Query(ge=1, le=CLASSROOM_SETUP_MAX_PAGE_SIZE)
+        ] = CLASSROOM_SETUP_PAGE_SIZE,
+        q: Annotated[str | None, Query(max_length=120)] = None,
+    ) -> dict[str, Any]:
+        statement = select(Folder).where(Folder.trashed_at.is_(None))
+        normalized_query = unicodedata.normalize("NFKC", q or "").strip().casefold()
+        if normalized_query:
+            escaped_query = (
+                normalized_query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            )
+            statement = statement.where(
+                Folder.normalized_name.like(f"%{escaped_query}%", escape="\\")
+            )
+        if cursor:
+            after_name, after_id = _decode_folder_cursor(cursor)
+            statement = statement.where(
+                or_(
+                    Folder.normalized_name > after_name,
+                    and_(Folder.normalized_name == after_name, Folder.id > after_id),
+                )
+            )
+        folders = list(
+            db.scalars(statement.order_by(Folder.normalized_name, Folder.id).limit(limit + 1))
+        )
+        page = folders[:limit]
+        if not page:
+            return {"items": [], "nextCursor": None}
+
+        folder_ids = [folder.id for folder in page]
+        parent_ids = set(
+            db.scalars(
+                select(Folder.parent_id)
+                .where(
+                    Folder.parent_id.in_(folder_ids),
+                    Folder.trashed_at.is_(None),
+                )
+                .distinct()
+            )
+        )
+        descendant = (
+            select(
+                Folder.id.label("root_id"),
+                Folder.id.label("descendant_id"),
+            )
+            .where(Folder.id.in_(folder_ids), Folder.trashed_at.is_(None))
+            .cte("classroom_setup_descendants", recursive=True)
+        )
+        descendant_folder = aliased(Folder)
+        descendant = descendant.union_all(
+            select(descendant.c.root_id, descendant_folder.id).where(
+                descendant_folder.parent_id == descendant.c.descendant_id,
+                descendant_folder.trashed_at.is_(None),
+            )
+        )
+        ranked_slides = (
+            select(
+                descendant.c.root_id,
+                Slide.id.label("slide_id"),
+                func.row_number()
+                .over(
+                    partition_by=descendant.c.root_id,
+                    order_by=(Slide.created_at, Slide.id),
+                )
+                .label("slide_rank"),
+            )
+            .select_from(descendant)
+            .join(Slide, Slide.folder_id == descendant.c.descendant_id)
+            .where(Slide.trashed_at.is_(None))
+            .subquery()
+        )
+        slide_rows = list(
+            db.execute(
+                select(ranked_slides.c.root_id, Slide)
+                .join(Slide, Slide.id == ranked_slides.c.slide_id)
+                .where(ranked_slides.c.slide_rank <= CLASSROOM_MAX_SLIDES + 1)
+                .order_by(ranked_slides.c.root_id, ranked_slides.c.slide_rank)
+            )
+        )
+        slides_by_root: dict[str, list[Slide]] = {folder_id: [] for folder_id in folder_ids}
+        unique_slides: dict[str, Slide] = {}
+        for root_id, slide in slide_rows:
+            slides_by_root[root_id].append(slide)
+            unique_slides[slide.id] = slide
+        publication_grants = (
+            set(
+                db.scalars(
+                    select(PublicationGrant.slide_id).where(
+                        PublicationGrant.slide_id.in_(unique_slides),
+                        PublicationGrant.source_type == INDIVIDUAL,
+                        PublicationGrant.source_id == PublicationGrant.slide_id,
+                    )
+                )
+            )
+            if unique_slides
+            else set()
+        )
+        readiness_by_slide = {
+            slide_id: slide_readiness(slide, db, publication_grants=publication_grants)[0]
+            for slide_id, slide in unique_slides.items()
+        }
+
+        ancestor = (
+            select(
+                Folder.id.label("root_id"),
+                Folder.parent_id.label("parent_id"),
+                Folder.name.label("name"),
+                literal(0).label("depth"),
+            )
+            .where(Folder.id.in_(folder_ids), Folder.trashed_at.is_(None))
+            .cte("classroom_setup_ancestors", recursive=True)
+        )
+        parent_folder = aliased(Folder)
+        ancestor = ancestor.union_all(
+            select(
+                ancestor.c.root_id,
+                parent_folder.parent_id,
+                parent_folder.name,
+                ancestor.c.depth + 1,
+            ).where(
+                parent_folder.id == ancestor.c.parent_id,
+                parent_folder.trashed_at.is_(None),
+                ancestor.c.depth < 19,
+            )
+        )
+        paths: dict[str, list[tuple[int, str]]] = {folder_id: [] for folder_id in folder_ids}
+        for root_id, _parent_id, name, depth in db.execute(select(ancestor)):
+            paths[root_id].append((int(depth), name))
+
+        items: list[dict[str, Any]] = []
+        for folder in page:
+            candidates = slides_by_root[folder.id]
+            bounded = candidates[:CLASSROOM_MAX_SLIDES]
+            ready_count = sum(readiness_by_slide[item.id] is None for item in bounded)
+            folder_path = [name for _depth, name in sorted(paths[folder.id], reverse=True)]
+            items.append(
+                {
+                    "id": folder.id,
+                    "name": folder.name,
+                    "folderPath": folder_path,
+                    "depth": max(0, len(folder_path) - 1),
+                    "hasChildren": folder.id in parent_ids,
+                    "readyCount": ready_count,
+                    "blockedCount": len(bounded) - ready_count,
+                    "tooManySlides": len(candidates) > CLASSROOM_MAX_SLIDES,
+                }
+            )
+        return {
+            "items": items,
+            "nextCursor": _folder_cursor(page[-1]) if len(folders) > limit else None,
+        }
+
     @app.post("/api/v1/admin/classroom/readiness")
     def classroom_readiness(
         payload: ReadinessRequest, _: AdminSession, db: Database
@@ -642,7 +880,7 @@ def register_classroom_routes(
     )
     def create_session(
         payload: CreateSessionRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
         synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
@@ -675,7 +913,12 @@ def register_classroom_routes(
             db.commit()
         active = db.scalar(select(ClassroomSession).where(ClassroomSession.status == "active"))
         if active is not None:
-            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_ALREADY_ACTIVE"})
+            conflict_code = (
+                "CLASSROOM_ALREADY_ACTIVE"
+                if active.created_by_user_id == authenticated.user_id
+                else "CLASSROOM_IN_USE"
+            )
+            raise HTTPException(status_code=409, detail={"code": conflict_code})
         is_smart_invite = payload.folder_id is not None
         if is_smart_invite:
             if payload.slide_ids is not None or payload.review_expires_at is None:
@@ -686,6 +929,14 @@ def register_classroom_routes(
             ):
                 raise HTTPException(status_code=422, detail={"code": "CLASSROOM_EXPIRY_INVALID"})
             readiness = readiness_snapshot(payload.folder_id or "", db)
+            if readiness["tooManySlides"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "CLASSROOM_TOO_MANY_SLIDES",
+                        "maximum": CLASSROOM_MAX_SLIDES,
+                    },
+                )
             if readiness["blocked"]:
                 raise HTTPException(
                     status_code=409,
@@ -704,9 +955,7 @@ def register_classroom_routes(
         if len(slides_by_id) != len(set(slide_ids)):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
         if settings.classroom_protection_enabled and not is_smart_invite:
-            protection = request_classroom_protection(
-                db, classroom_session_id=None, now=now
-            )
+            protection = request_classroom_protection(db, classroom_session_id=None, now=now)
             if protection.running_jobs:
                 db.commit()
                 raise HTTPException(
@@ -734,6 +983,7 @@ def register_classroom_routes(
             live_expires_at=None if is_smart_invite else now + timedelta(hours=8),
             started_at=None if is_smart_invite else now,
             current_slide_id=slide_ids[0],
+            created_by_user_id=authenticated.user_id,
         )
         db.add(classroom)
         db.flush()
@@ -780,9 +1030,12 @@ def register_classroom_routes(
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/start")
     def start_session(
-        session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
+        session_id: str,
+        authenticated: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
     ) -> dict[str, Any]:
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = owned_classroom(session_id, authenticated, db)
         if (
             classroom is None
             or classroom.phase != "preview"
@@ -791,9 +1044,7 @@ def register_classroom_routes(
         ):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         if settings.classroom_protection_enabled:
-            protection = request_classroom_protection(
-                db, classroom_session_id=classroom.id
-            )
+            protection = request_classroom_protection(db, classroom_session_id=classroom.id)
             if protection.running_jobs:
                 db.commit()
                 raise HTTPException(
@@ -823,9 +1074,12 @@ def register_classroom_routes(
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/end", status_code=204)
     def end_live_session(
-        session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
+        session_id: str,
+        authenticated: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
     ) -> None:
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = owned_classroom(session_id, authenticated, db)
         if classroom is None or classroom.phase != "live":
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         classroom.phase = "review"
@@ -844,10 +1098,15 @@ def register_classroom_routes(
         "/api/v1/admin/classroom/sessions/active",
         status_code=status.HTTP_204_NO_CONTENT,
     )
-    def end_active_session(_: CsrfSession, _guard: MutationGuard, db: Database) -> None:
-        classroom = db.scalar(select(ClassroomSession).where(ClassroomSession.status == "active"))
+    def end_active_session(authenticated: CsrfSession, _guard: MutationGuard, db: Database) -> None:
+        classroom = db.scalar(
+            select(ClassroomSession).where(
+                ClassroomSession.status == "active",
+                ClassroomSession.created_by_user_id == authenticated.user_id,
+            )
+        )
         if classroom is None:
-            return
+            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
         was_live = classroom.phase == "live"
         session_id = classroom.id
         next_state_version = classroom.state_version + 1
@@ -982,7 +1241,10 @@ def register_classroom_routes(
         response: Response,
     ) -> Any:
         try:
-            await asyncio.wait_for(join_queue_lock.acquire(), timeout=mutation_gate.timeout_seconds)
+            await asyncio.wait_for(
+                join_queue_lock.acquire(),
+                timeout=max(5.0, mutation_gate.timeout_seconds),
+            )
         except TimeoutError as error:
             raise HTTPException(
                 status_code=503,
@@ -1036,6 +1298,8 @@ def register_classroom_routes(
         key = f"{request.client.host if request.client else 'unknown'}:{public_id}"
         cutoff = _now() - timedelta(minutes=5)
         attempts = [attempt for attempt in unlock_attempts.get(key, []) if attempt >= cutoff]
+        if not attempts and key in unlock_attempts:
+            unlock_attempts.pop(key, None)
         if len(attempts) >= 8:
             raise HTTPException(status_code=429, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
         classroom = invite_classroom(public_id, db)
@@ -1044,6 +1308,12 @@ def register_classroom_routes(
         candidate = payload.access_code.strip().upper()
         if not secrets.compare_digest(classroom.join_code_hash, _hash(candidate)):
             attempts.append(_now())
+            if len(unlock_attempts) >= 10_000:
+                expired = [k for k, v in unlock_attempts.items() if not v or v[-1] < cutoff]
+                for k in expired:
+                    unlock_attempts.pop(k, None)
+                if len(unlock_attempts) >= 10_000:
+                    unlock_attempts.pop(next(iter(unlock_attempts)), None)
             unlock_attempts[key] = attempts
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_INVITE_UNAVAILABLE"})
         unlock_attempts.pop(key, None)
@@ -1092,9 +1362,7 @@ def register_classroom_routes(
             serializer,
             settings.secure_cookies,
             201,
-            max_age_seconds=max(
-                1, int((as_utc(review_expires_at) - _now()).total_seconds())
-            ),
+            max_age_seconds=max(1, int((as_utc(review_expires_at) - _now()).total_seconds())),
         )
         return {**result, "publicId": public_id, "phase": classroom.phase}
 
@@ -1170,11 +1438,35 @@ def register_classroom_routes(
 
     @app.get("/api/v1/admin/classroom/sessions/{session_id}")
     def teacher_state(
-        session_id: str, _: AdminSession, _guard: MutationGuard, db: Database
+        session_id: str,
+        authenticated: AdminSession,
+        _guard: MutationGuard,
+        db: Database,
     ) -> dict[str, Any]:
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is None:
+        classroom = owned_classroom(session_id, authenticated, db)
+        now = _now()
+        resumable = (
+            classroom.phase in {"preview", "live"}
+            and classroom.status == "active"
+            and as_utc(classroom.expires_at) > now
+        ) or (
+            classroom.phase == "review"
+            and classroom.status == "ended"
+            and classroom.review_expires_at is not None
+            and as_utc(classroom.review_expires_at) > now
+        )
+        if not resumable:
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        slides = list(
+            db.scalars(
+                select(ClassroomSessionSlide)
+                .where(ClassroomSessionSlide.session_id == classroom.id)
+                .order_by(ClassroomSessionSlide.slide_position)
+                .limit(CLASSROOM_MAX_SLIDES + 1)
+            )
+        )
+        if len(slides) > CLASSROOM_MAX_SLIDES:
+            raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SNAPSHOT_INVALID"})
         participants = list(
             db.scalars(
                 select(ClassroomParticipant)
@@ -1225,6 +1517,7 @@ def register_classroom_routes(
                 else None,
             },
             "stateVersion": classroom.state_version,
+            "slides": [_session_slide_json(item) for item in slides],
             "participantCount": participant_count,
             "rosterVersion": roster_version,
             "presenter": presenter_json(classroom),
@@ -1269,7 +1562,7 @@ def register_classroom_routes(
     @app.get("/api/v1/admin/classroom/sessions/{session_id}/participants")
     def teacher_participants(
         session_id: str,
-        _: AdminSession,
+        authenticated: AdminSession,
         _guard: MutationGuard,
         db: Database,
         after: Annotated[str | None, Query(max_length=16)] = None,
@@ -1277,9 +1570,7 @@ def register_classroom_routes(
         q: Annotated[str | None, Query(max_length=80)] = None,
         requested: bool = False,
     ) -> dict[str, Any]:
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is None:
-            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        owned_classroom(session_id, authenticated, db)
 
         filters: list[Any] = [
             ClassroomParticipant.session_id == session_id,
@@ -1344,7 +1635,7 @@ def register_classroom_routes(
     def signal_synthetic_safety_stop(
         session_id: str,
         body: CapacitySafetyStopRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         db: Database,
         synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
         plan_digest: Annotated[str | None, Header(alias="X-PathLab-Plan-Digest")] = None,
@@ -1356,7 +1647,7 @@ def register_classroom_routes(
             raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_PLAN_REQUIRED"})
         if stage_nonce is None or re.fullmatch(r"[A-Za-z0-9._-]{32,128}", stage_nonce) is None:
             raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_NONCE_REQUIRED"})
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = owned_classroom(session_id, authenticated, db)
         if classroom is None or classroom.status != "active" or classroom.phase != "live":
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         hub.signal_capacity_safety_stop(
@@ -1371,13 +1662,13 @@ def register_classroom_routes(
     def acknowledge_synthetic_stage(
         session_id: str,
         body: SyntheticStageAckRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         db: Database,
         synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
     ) -> dict[str, int | bool]:
         if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
             raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = owned_classroom(session_id, authenticated, db)
         if classroom is None or classroom.status != "active" or classroom.phase != "live":
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         count = hub.acknowledge_synthetic_stage(
@@ -1392,26 +1683,38 @@ def register_classroom_routes(
     def mark_synthetic_recovery_ready(
         session_id: str,
         body: SyntheticRecoveryReadyRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         db: Database,
         synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
     ) -> None:
         if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
             raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = owned_classroom(session_id, authenticated, db)
         if classroom is None or classroom.status != "active" or classroom.phase != "live":
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         hub.mark_recovery_ready(session_id, body.epoch_ms)
 
     @app.get("/api/v1/admin/classroom/sessions")
-    def list_classroom_sessions(_: AdminSession, db: Database) -> dict[str, Any]:
+    def list_classroom_sessions(authenticated: AdminSession, db: Database) -> dict[str, Any]:
+        now = _now()
         sessions = list(
             db.scalars(
                 select(ClassroomSession)
                 .where(
+                    ClassroomSession.created_by_user_id == authenticated.user_id,
                     ClassroomSession.public_id.is_not(None),
-                    ClassroomSession.phase.in_(("preview", "live", "review")),
-                    ClassroomSession.review_expires_at > _now(),
+                    or_(
+                        and_(
+                            ClassroomSession.phase.in_(("preview", "live")),
+                            ClassroomSession.status == "active",
+                            ClassroomSession.expires_at > now,
+                        ),
+                        and_(
+                            ClassroomSession.phase == "review",
+                            ClassroomSession.status == "ended",
+                            ClassroomSession.review_expires_at > now,
+                        ),
+                    ),
                 )
                 .order_by(ClassroomSession.created_at.desc())
                 .limit(20)
@@ -1750,13 +2053,17 @@ def register_classroom_routes(
     def delete_question(
         session_id: str,
         question_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> None:
         question = db.get(ClassroomQuestion, question_id)
         classroom = require_live_classroom(
-            session_id, db, code="QUESTION_NOT_FOUND", status_code=404
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="QUESTION_NOT_FOUND",
+            status_code=404,
         )
         if question is None or question.session_id != session_id:
             raise HTTPException(status_code=404, detail={"code": "QUESTION_NOT_FOUND"})
@@ -1793,11 +2100,16 @@ def register_classroom_routes(
     def grant_control(
         session_id: str,
         payload: ControlRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, Any]:
-        classroom = require_live_classroom(session_id, db, code="CONTROL_NOT_AVAILABLE")
+        classroom = require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="CONTROL_NOT_AVAILABLE",
+        )
         participant = db.get(ClassroomParticipant, payload.participant_id)
         if participant is None or participant.session_id != session_id:
             raise HTTPException(status_code=409, detail={"code": "CONTROL_NOT_AVAILABLE"})
@@ -1831,10 +2143,17 @@ def register_classroom_routes(
         status_code=status.HTTP_204_NO_CONTENT,
     )
     def revoke_control(
-        session_id: str, _: CsrfSession, _guard: MutationGuard, db: Database
+        session_id: str,
+        authenticated: CsrfSession,
+        _guard: MutationGuard,
+        db: Database,
     ) -> None:
         classroom = require_live_classroom(
-            session_id, db, code="CLASSROOM_NOT_FOUND", status_code=404
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="CLASSROOM_NOT_FOUND",
+            status_code=404,
         )
         classroom.control_epoch += 1
         classroom.state_version += 1
@@ -1915,11 +2234,16 @@ def register_classroom_routes(
     def teacher_presenter(
         session_id: str,
         payload: TeacherPresenterRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, int]:
-        classroom = require_live_classroom(session_id, db, code="PRESENTER_NOT_ACCEPTED")
+        classroom = require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="PRESENTER_NOT_ACCEPTED",
+        )
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
@@ -1984,11 +2308,16 @@ def register_classroom_routes(
     def teacher_pointer(
         session_id: str,
         payload: TeacherPointerRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(session_id, db, code="POINTER_NOT_ACCEPTED")
+        require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="POINTER_NOT_ACCEPTED",
+        )
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
@@ -2012,11 +2341,16 @@ def register_classroom_routes(
     )
     def clear_teacher_pointer(
         session_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(session_id, db, code="POINTER_NOT_ACCEPTED")
+        require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="POINTER_NOT_ACCEPTED",
+        )
         if hub.clear_teacher_pointer(session_id):
             hub.publish(session_id, "pointer-removed", {}, critical=True)
 
@@ -2027,11 +2361,16 @@ def register_classroom_routes(
     def add_teaching_annotation(
         session_id: str,
         payload: TeachingAnnotationRequest,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(session_id, db, code="ANNOTATION_NOT_ACCEPTED")
+        require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="ANNOTATION_NOT_ACCEPTED",
+        )
         slide_exists = db.scalar(
             select(ClassroomSessionSlide.id).where(
                 ClassroomSessionSlide.session_id == session_id,
@@ -2063,11 +2402,16 @@ def register_classroom_routes(
     def remove_teaching_annotation(
         session_id: str,
         annotation_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(session_id, db, code="ANNOTATION_NOT_ACCEPTED")
+        require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="ANNOTATION_NOT_ACCEPTED",
+        )
         if hub.remove_teaching_annotation(session_id, annotation_id):
             hub.publish(
                 session_id,
@@ -2082,11 +2426,16 @@ def register_classroom_routes(
     )
     def clear_teaching_annotations(
         session_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(session_id, db, code="ANNOTATION_NOT_ACCEPTED")
+        require_live_classroom(
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="ANNOTATION_NOT_ACCEPTED",
+        )
         if hub.clear_teaching_annotations(session_id):
             hub.publish(session_id, "teaching-annotations-cleared", {}, critical=True)
 
@@ -2094,12 +2443,16 @@ def register_classroom_routes(
     def open_question(
         session_id: str,
         question_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
     ) -> dict[str, int]:
         classroom = require_live_classroom(
-            session_id, db, code="QUESTION_NOT_FOUND", status_code=404
+            session_id,
+            db,
+            authenticated=authenticated,
+            code="QUESTION_NOT_FOUND",
+            status_code=404,
         )
         question = db.get(ClassroomQuestion, question_id)
         if question is None or question.session_id != session_id:
@@ -2154,14 +2507,12 @@ def register_classroom_routes(
     )
     def end_session(
         session_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
         synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
     ) -> None:
-        classroom = db.get(ClassroomSession, session_id)
-        if classroom is None:
-            raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        classroom = owned_classroom(session_id, authenticated, db)
         if classroom.synthetic_run_id is not None and not (
             synthetic_run is not None
             and secrets.compare_digest(classroom.synthetic_run_id, synthetic_run)
@@ -2195,14 +2546,14 @@ def register_classroom_routes(
     )
     def reset_synthetic_session(
         session_id: str,
-        _: CsrfSession,
+        authenticated: CsrfSession,
         _guard: MutationGuard,
         db: Database,
         synthetic_run: Annotated[str | None, Header(alias="X-PathLab-Synthetic-Run")] = None,
     ) -> None:
         if synthetic_run is None or re.fullmatch(r"[a-z0-9-]{1,64}", synthetic_run) is None:
             raise HTTPException(status_code=400, detail={"code": "SYNTHETIC_RUN_REQUIRED"})
-        classroom = db.get(ClassroomSession, session_id)
+        classroom = owned_classroom(session_id, authenticated, db)
         if classroom is None or classroom.status != "active" or classroom.phase != "live":
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         if classroom.synthetic_run_id is None or not secrets.compare_digest(
@@ -2251,10 +2602,32 @@ def register_classroom_routes(
                 return None
             return int(classroom.state_version)
 
+    def teacher_stream_is_authorized(
+        classroom_session_id: str,
+        authenticated_session_id: str,
+        user_id: str,
+    ) -> bool:
+        with factory() as db:
+            stored = db.get(Session, authenticated_session_id)
+            user = db.get(User, user_id)
+            classroom = db.get(ClassroomSession, classroom_session_id)
+            return bool(
+                stored is not None
+                and stored.user_id == user_id
+                and as_utc(stored.expires_at) >= _now()
+                and user is not None
+                and stored.credential_generation == user.credential_generation
+                and is_default_legacy_owner(db, user_id)
+                and classroom is not None
+                and classroom.created_by_user_id == user_id
+            )
+
     async def event_stream(
         session_id: str,
         audience: str,
         participant_id: str | None = None,
+        teacher_session_id: str | None = None,
+        teacher_user_id: str | None = None,
     ) -> Any:
         stream_audience: Literal["teacher", "student"] = (
             "teacher" if audience == "teacher" else "student"
@@ -2262,6 +2635,17 @@ def register_classroom_routes(
         async with hub.subscribe(
             session_id, stream_audience, participant_id=participant_id
         ) as subscriber:
+            last_teacher_authorization = time.monotonic()
+            if stream_audience == "teacher":
+                if teacher_session_id is None or teacher_user_id is None:
+                    return
+                if not await run_in_threadpool(
+                    teacher_stream_is_authorized,
+                    session_id,
+                    teacher_session_id,
+                    teacher_user_id,
+                ):
+                    return
             if not hub.subscription_is_current(session_id, subscriber):
                 return
             initial_event_sequence = hub.event_sequence(session_id, stream_audience)
@@ -2276,9 +2660,25 @@ def register_classroom_routes(
             }
             yield f"event: stream-ready\ndata: {json.dumps(ready, separators=(',', ':'))}\n\n"
             while True:
+                timed_out = False
                 try:
                     event = await asyncio.wait_for(subscriber.next_event(), timeout=15)
                 except TimeoutError:
+                    event = None
+                    timed_out = True
+                if (
+                    stream_audience == "teacher"
+                    and time.monotonic() - last_teacher_authorization >= 15
+                ):
+                    if not await run_in_threadpool(
+                        teacher_stream_is_authorized,
+                        session_id,
+                        cast(str, teacher_session_id),
+                        cast(str, teacher_user_id),
+                    ):
+                        return
+                    last_teacher_authorization = time.monotonic()
+                if timed_out:
                     yield ": heartbeat\n\n"
                     continue
                 if event is None:
@@ -2290,9 +2690,17 @@ def register_classroom_routes(
         session_id: str,
         audience: str,
         participant_id: str | None = None,
+        teacher_session_id: str | None = None,
+        teacher_user_id: str | None = None,
     ) -> StreamingResponse:
         return StreamingResponse(
-            event_stream(session_id, audience, participant_id),
+            event_stream(
+                session_id,
+                audience,
+                participant_id,
+                teacher_session_id,
+                teacher_user_id,
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-store",
@@ -2303,8 +2711,15 @@ def register_classroom_routes(
 
     @app.get("/api/v1/admin/classroom/sessions/{session_id}/events")
     def teacher_events(session_id: str, request: Request) -> StreamingResponse:
-        admin_from_request(request)
-        return stream_response(session_id, "teacher")
+        authenticated = admin_from_request(request)
+        with factory() as db:
+            owned_classroom(session_id, authenticated, db)
+        return stream_response(
+            session_id,
+            "teacher",
+            teacher_session_id=authenticated.id,
+            teacher_user_id=authenticated.user_id,
+        )
 
     @app.get("/api/v1/classroom/sessions/{session_id}/events")
     def participant_events(session_id: str, request: Request) -> StreamingResponse:

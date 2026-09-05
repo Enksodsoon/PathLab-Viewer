@@ -777,7 +777,8 @@ printf '{"status":"%s","conclusion":"%s"}\n' "${GH_RUN_STATUS}" "${GH_RUN_CONCLU
     )
     jq = fake_bin / "jq"
     jq.write_text(
-        f"""#!{_shell_path(Path(sys.executable))}
+        f"""#!/usr/bin/env bash
+exec "{_shell_path(Path(sys.executable))}" - "$@" <<'PY'
 import json
 import sys
 
@@ -799,6 +800,7 @@ elif "select(.id == $id)" in query:
     for item in payload.get("data", []):
         if item.get("id") == wanted:
             print(item.get("lifecycle-state", ""))
+PY
 """,
         encoding="utf-8",
     )

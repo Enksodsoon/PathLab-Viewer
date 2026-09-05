@@ -150,7 +150,8 @@ h1,h2,h3,.brand { font-family:var(--font-ui); }
 .center-state { min-height:100vh; display:grid; place-items:center; color:var(--muted); }
 .center-state.dark { color:var(--muted); background:var(--canvas); }
 .pathlab-loader { --pathlab-loader-size:32px; display:inline-grid; justify-items:center; align-items:center; gap:10px; color:var(--primary); font-family:var(--font-ui); }
-.pathlab-loader__indicator { width:var(--pathlab-loader-size); height:var(--pathlab-loader-size); border:2px solid color-mix(in srgb,currentColor 24%,transparent); border-top-color:currentColor; border-radius:50%; animation:pathlab-loader-turn .9s linear infinite; }
+.pathlab-loader__container { width:var(--pathlab-loader-size); height:var(--pathlab-loader-size); overflow:hidden; }
+.pathlab-loader__boxes { width:50px; height:50px; fill:none; stroke:currentColor; stroke-width:50px; stroke-dasharray:50; stroke-dashoffset:50%; animation:pathlab-loader-boxes 2s linear infinite; }
 .pathlab-loader__label { color:var(--body); font-size:12px; font-weight:600; letter-spacing:.01em; }
 .pathlab-loader--small { --pathlab-loader-size:18px; gap:7px; }
 .pathlab-loader--large { --pathlab-loader-size:50px; gap:12px; }
@@ -159,7 +160,7 @@ h1,h2,h3,.brand { font-family:var(--font-ui); }
 .pathlab-loader--fullscreen { width:100%; min-height:100vh; place-content:center; background:var(--canvas); }
 button .pathlab-loader,
 button .pathlab-loader__label { color:currentColor; }
-@keyframes pathlab-loader-turn { to { transform:rotate(1turn); } }
+@keyframes pathlab-loader-boxes { to { stroke-dashoffset:250%; } }
 .viewer-shell { height:100vh; display:grid; grid-template-rows:68px minmax(0,1fr); overflow:hidden; background:var(--canvas); color:var(--ink); }
 .viewer-header { position:relative; z-index:5; gap:30px; padding:0 24px; }
 .viewer-title { min-width:0; display:flex; flex:1; flex-direction:column; padding-left:28px; border-left:1px solid var(--border); }
@@ -202,6 +203,7 @@ button .pathlab-loader__label { color:currentColor; }
 .viewer-message>div { text-align:center; }
 .viewer-message h1 { color:var(--navy); font-size:28px; margin-bottom:8px; }
 .viewer-message p { color:var(--muted); }
+.application-recovery-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:20px; }
 
 @media (max-width:760px) {
   .secure-dot,.storage-summary,.viewer-help { display:none; }
@@ -668,6 +670,7 @@ button .pathlab-loader__label { color:currentColor; }
 .login-card .auth-submit:hover:not(:disabled) {
   transform:translateY(-2px);
   background:var(--primary-hover);
+  color:var(--on-primary-hover);
   box-shadow:0 12px 28px color-mix(in srgb,var(--primary) 24%,transparent);
 }
 
@@ -909,7 +912,7 @@ button .pathlab-loader__label { color:currentColor; }
 }
 
 @media (prefers-reduced-motion:reduce) {
-  .pathlab-loader__indicator {
+  .pathlab-loader__boxes {
     animation:none;
   }
 

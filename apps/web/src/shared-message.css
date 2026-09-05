@@ -38,4 +38,5 @@
 .share-message button:hover {
   border-color: var(--primary-hover);
   background: var(--primary-hover);
+  color: var(--on-primary-hover);
 }

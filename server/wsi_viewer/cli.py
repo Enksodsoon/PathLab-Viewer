@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from sqlalchemy import inspect, select, text
+from sqlalchemy import inspect, select, text, update
 
 from .auth import issue_recovery_code, reset_password_by_cli
 from .config import Settings
@@ -19,10 +19,11 @@ from .postgres_migration import (
     migrate_sqlite_to_postgres,
     verify_cutover_source,
 )
-from .runtime_protection import CLASSROOM_GUARD_ID, IDLE
+from .runtime_protection import CLASSROOM_GUARD_ID, IDLE, protection_snapshot
 from .security import hash_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
+from .time_support import utc_now
 
 RUNTIME_GUARD_PREDECESSOR_REVISIONS = frozenset(
     {
@@ -162,12 +163,52 @@ def main() -> None:
             )
             if running_job is not None:
                 raise SystemExit("Deployment blocked: worker job is active")
-            active_classroom = database.scalar(
-                select(ClassroomSession.id).where(ClassroomSession.status == "active").limit(1)
-            )
-            if active_classroom is not None:
-                raise SystemExit("Deployment blocked: a Classroom session is active")
+            if inspect(database.get_bind()).has_table(ClassroomSession.__tablename__):
+                now = utc_now()
+                has_synthetic = "synthetic_run_id" in {
+                    column["name"]
+                    for column in inspect(database.get_bind()).get_columns(
+                        ClassroomSession.__tablename__
+                    )
+                }
+                expired_ids = list(
+                    database.scalars(
+                        select(ClassroomSession.id).where(
+                            ClassroomSession.status == "active",
+                            ClassroomSession.expires_at <= now,
+                        )
+                    )
+                )
+                if expired_ids:
+                    database.execute(
+                        update(ClassroomSession)
+                        .where(ClassroomSession.id.in_(expired_ids))
+                        .values(status="ended", ended_at=now)
+                    )
+                    database.commit()
+
+                if has_synthetic:
+                    database.execute(
+                        update(ClassroomSession)
+                        .where(
+                            ClassroomSession.status == "active",
+                            ClassroomSession.synthetic_run_id.is_not(None),
+                        )
+                        .values(status="ended", ended_at=now)
+                    )
+                    database.commit()
+
+                active_query = select(ClassroomSession.id).where(
+                    ClassroomSession.status == "active",
+                    ClassroomSession.expires_at > now,
+                )
+                if has_synthetic:
+                    active_query = active_query.where(ClassroomSession.synthetic_run_id.is_(None))
+                active_classroom = database.scalar(active_query.limit(1))
+                if active_classroom is not None:
+                    raise SystemExit("Deployment blocked: a Classroom session is active")
             if inspect(database.get_bind()).has_table(RuntimeGuard.__tablename__):
+                protection_snapshot(database)
                 runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
                 if runtime_guard is not None and runtime_guard.mode != IDLE:
                     raise SystemExit(

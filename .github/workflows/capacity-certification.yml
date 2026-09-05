@@ -211,6 +211,14 @@ jobs:
              .ready == true and .classroomEnabled == true and .finalCapacity == 300 and
              .annotationsEnabled == false and .controllerReconciled == true' \
             "${RUNNER_TEMP}/capacity-recovery.json" >/dev/null
+      - name: Retain the exact failed-run recovery receipt
+        if: always() && inputs.recovery_run_id != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capacity-recovery
+          path: ${{ runner.temp }}/capacity-recovery.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Reject admission while any real or synthetic Classroom is present
         env:
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
@@ -496,6 +504,29 @@ jobs:
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh; rm -f -- "${RUNNER_TEMP}/deploy-evidence.key"
 
+  failure-watchdog:
+    name: Capacity shard failure watchdog
+    needs: [arm]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 178
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {ref: "${{ github.sha }}", persist-credentials: false}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: {python-version: "3.12"}
+      - name: Cancel this attempt when a capacity shard cannot succeed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/watch_capacity_shards.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --expected-shards 6 --poll-seconds 15 --deadline-seconds 10500
+
   shard:
     needs: arm
     runs-on: ubuntu-24.04
@@ -663,11 +694,13 @@ jobs:
           test "$(wc -c < "${RUNNER_TEMP}/synthetic-capacity-330mb.ome.tiff")" -ge 330000000
       - name: Run concurrent full-feature synthetic sentinels
         env:
+          GH_TOKEN: ${{ github.token }}
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
           CAPACITY_SYNTHETIC_330MB: ${{ runner.temp }}/synthetic-capacity-330mb.ome.tiff
           CAPACITY_SENTINEL_RESULT: ${{ runner.temp }}/capacity-sentinel.json
+          CAPACITY_CLASSROOM_STAGE_MANIFEST_JSON: ${{ runner.temp }}/sentinel-stage-manifest.json
         run: |
           cp "${RUNNER_TEMP}/capacity-fixtures/stage-manifest.json" "${RUNNER_TEMP}/sentinel-stage-manifest.json"
           export CAPACITY_CLASSROOM_JOIN_CODE="$(jq -er '.["sustained-1200"]["join" + "Code"]' "${RUNNER_TEMP}/sentinel-stage-manifest.json")"
@@ -723,6 +756,7 @@ jobs:
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Wedge only Classroom and prove bounded recovery
         env:
+          GH_TOKEN: ${{ github.token }}
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
@@ -748,7 +782,7 @@ jobs:
 
   decision:
     if: ${{ always() && needs.preflight.result == 'success' && needs.fixtures.result == 'success' }}
-    needs: [preflight, fixtures, arm, shard, sentinels, fault-recovery]
+    needs: [preflight, fixtures, arm, failure-watchdog, shard, sentinels, fault-recovery]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     environment:
@@ -764,6 +798,7 @@ jobs:
         id: merge
         continue-on-error: true
         run: |
+          test "${{ needs.failure-watchdog.result }}" = success
           remaining="$(python deploy/scripts/capacity_window.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase decision)"
           timeout --signal=TERM --kill-after=10s "${remaining}s" \
@@ -918,7 +953,7 @@ jobs:
           bounded() {
             local remaining
             remaining="$(python deploy/scripts/capacity_window.py \
-              --plan "${plan}" remaining --phase postflight)"
+              --plan "${plan}" remaining --phase postflight)" || return $?
             timeout --signal=TERM --kill-after=10s "${remaining}s" "$@"
           }
           decision="${RUNNER_TEMP}/evidence/capacity-decision.json"
@@ -1074,65 +1109,33 @@ jobs:
 
   terminal-summary:
     if: always()
-    needs: [preflight, fixtures, arm, shard, sentinels, fault-recovery, decision, cleanup, postflight, aggregate]
+    needs: [preflight, fixtures, arm, failure-watchdog, shard, sentinels, fault-recovery, decision, cleanup, postflight, aggregate]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {ref: "${{ github.sha }}", persist-credentials: false}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         continue-on-error: true
         with: {pattern: "capacity-*", path: "${{ runner.temp }}/evidence", merge-multiple: true}
       - name: Write compact terminal status
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_RESULTS: ${{ toJSON(needs) }}
         run: |
           set -euo pipefail
-          started_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            --jq .run_started_at 2>/dev/null || date --iso-8601=seconds)"
-          python - "${RUNNER_TEMP}/capacity-status.json" "${started_at}" <<'PY'
-          import json, os, pathlib, sys
-          output, started_at = pathlib.Path(sys.argv[1]), sys.argv[2]
-          needs = json.loads(os.environ["JOB_RESULTS"])
-          results = {name: value.get("result", "unknown") for name, value in needs.items()}
-          failed = next(
-              (name for name, result in results.items() if result in {"failure", "cancelled"}),
-              None,
-          )
-          manifests = list(pathlib.Path(os.environ["RUNNER_TEMP"]).glob("evidence/**/capacity-certification.json"))
-          cleanup_files = list(
-              pathlib.Path(os.environ["RUNNER_TEMP"]).glob("evidence/**/capacity-cleanup.json")
-          )
-          cleanup = {}
-          if cleanup_files:
-              try:
-                  cleanup = json.loads(cleanup_files[0].read_text())
-              except (OSError, json.JSONDecodeError):
-                  cleanup = {}
-          state = "SUCCEEDED" if results.get("aggregate") == "success" else "FAILED_TERMINAL"
-          value = {
-              "jobId": os.environ["GITHUB_RUN_ID"],
-              "kind": "capacity-certification",
-              "state": state,
-              "releaseSha": os.environ["GITHUB_SHA"],
-              "startedAt": started_at,
-              "finishedAt": __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
-              "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
-              "progressCounters": results,
-              "resultManifest": str(manifests[0]) if manifests else None,
-              "failureCode": f"JOB_{failed.upper().replace('-', '_')}_FAILED" if failed else None,
-              "restorationState": (
-                  "RESTORED" if cleanup.get("configurationRestored") is True else "UNPROVED"
-              ),
-              "fixtureCount": 0 if cleanup.get("fixturesRemoved") is True else None,
-              "runOwnedBastionCount": cleanup.get("bastionSessionsRemaining"),
-              "logPath": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
-          }
-          output.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
-          PY
+          started_at="$(timeout --signal=TERM --kill-after=5s 20s gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --jq .run_started_at 2>/dev/null || true)"
+          python tests/load/build_capacity_terminal_status.py \
+            --evidence "${RUNNER_TEMP}/evidence" \
+            --output "${RUNNER_TEMP}/capacity-status.json" --started-at "${started_at}"
           jq '{state,releaseSha,failureCode,restorationState,fixtureCount,
             runOwnedBastionCount,progressCounters}' "${RUNNER_TEMP}/capacity-status.json" \
             >> "${GITHUB_STEP_SUMMARY}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
           name: capacity-terminal-status
           path: ${{ runner.temp }}/capacity-status.json

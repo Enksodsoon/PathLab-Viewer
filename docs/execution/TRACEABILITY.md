@@ -65,7 +65,7 @@ This file proves that every ratified capability, context, qualification gate and
 | Governance, retention and deletion | `P7-G04` | every owner adapter |
 | Viewer, Library and Imaging | `P7-G05` | actual max corpus, physical clients |
 | Teacher AI | `P7-G06` | two reviewers, physical device tiers |
-| Live Learning | `P7-G07` | 1,200-client/network capacity |
+| Live Learning | `P7-G07` | 3,000-client combined media/interaction network capacity under ADR 0132 |
 | Teacher Broadcast | `P7-G08` | 100 receivers, direct/TURN path |
 | Assessment | `P7-G09A` start, `P7-G09B` monitor, `P7-G09` close | 300 learners/100-item corpus and 120 elapsed minutes |
 | Learning and credential interoperability | `P7-G10` | official/reference and two independent implementations |

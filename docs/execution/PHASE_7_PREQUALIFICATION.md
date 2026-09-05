@@ -1,5 +1,7 @@
 # Phase 7 — Exact-Release Prequalification
 
+Capacity authority: [ADR 0132](../adr/0132-qualify-3000-learner-combined-broadcast-with-zero-cash-admission.md) controls the 3,000-learner combined target, media quality, zero-cash admission and safe partial-delivery rules. Existing operating limits remain unchanged until implementation and fresh qualification.
+
 Phase 7 integrates one immutable candidate, proves every mandatory non-pilot gate on one exact tuple, then executes the Golden Institution Journey. Candidate integration, merge and deployment intentionally occur after the Phase 6 harness/controller preflight but before its 90-day campaign begins, so the operated interval starts on the exact candidate. Engineering or historical phase evidence is supporting only unless admitted by the signed unchanged-input rule. All tasks inherit [README](./README.md).
 
 ## Journey and gate tooling
@@ -242,9 +244,9 @@ Every gate card below is a separate evidence task. It never implements or repair
 
 ## P7-G07 — Qualify Live Learning
 
-- **Outcome:** Emit the exact-release result for one Instructor plus 1,200 learners over 60 minutes and six DZI slides, including synchronized ephemeral traffic, durable interactions, reconnect/restart, convergence and the guest/non-durable boundary.
+- **Outcome:** Emit the exact-release result for one Instructor plus 3,000 learners over 60 minutes and six DZI slides, including synchronized ephemeral traffic, durable interactions, reconnect/restart, convergence and the guest/non-durable boundary.
 - **Depends on:** `P4-T20B`, `P4-T30`, `P7-T01`, and `P7-T03` `MERGED`; current exact-subject `P4-T20B=SUCCESS` and `P4-T30=SUCCESS`; active `P6-T30`; and current `P7-T12=DEPLOYED` on the identical candidate fingerprint and deployment-selection head.
-- **External prerequisites:** label=P7-EXT-G07-LOAD; kind=HARDWARE; requires=TWELVE_HUNDRED_CLIENT_LOAD_FLEET_RESERVED; accountable=Live Learning Qualification Owner; validity=exact client/load-generator fingerprints and campaign window; evidence=signed immutable Live Load Reservation Receipt | label=P7-EXT-G07-NETWORK; kind=NETWORK_IDENTITY; requires=DECLARED_NETWORK_PATH_RESERVED_AND_INSTRUMENTED; accountable=Institution Network Owner; validity=exact topology and campaign window; evidence=signed immutable Live Network Path Receipt
+- **External prerequisites:** label=P7-EXT-G07-LOAD; kind=HARDWARE; requires=THREE_THOUSAND_COMBINED_CLIENT_LOAD_FLEET_RESERVED; accountable=Live Learning Qualification Owner; validity=exact client/load-generator fingerprints and campaign window; evidence=signed immutable Live Load Reservation Receipt | label=P7-EXT-G07-NETWORK; kind=NETWORK_IDENTITY; requires=DECLARED_NETWORK_PATH_RESERVED_AND_INSTRUMENTED; accountable=Institution Network Owner; validity=exact topology and campaign window; evidence=signed immutable Live Network Path Receipt
 - **Read first:** Production Qualification Live Learning gate, Live Learning context and frozen phase campaign manifests.
 - **Change surface:** exact-release load/browser/host observations, signed receipts, cleanup and result only.
 - **Implement:** none; harness/product fixes require a separate task and a new run.
@@ -254,9 +256,9 @@ Every gate card below is a separate evidence task. It never implements or repair
 
 ## P7-G08 — Qualify Teacher Broadcast and Media Fallback
 
-- **Outcome:** Emit the exact-release result for one Instructor broadcasting client-encoded VP8/Opus 540p to 100 receive-only viewers for 60 minutes through direct and TURN paths, followed by Galene failure and synchronized slides/text fallback.
+- **Outcome:** Emit the exact-release result for one Instructor broadcasting client-encoded VP8/Opus 540p to 3,000 receive-only viewers for 60 minutes through direct and TURN paths, followed by Galene failure and synchronized slides/text fallback.
 - **Depends on:** `P4-T19`, `P4-T20B`, `P7-T01`, and `P7-T03` `MERGED`; current exact-subject `P4-T20B=SUCCESS`; active `P6-T30`; and current `P7-T12=DEPLOYED` on the identical candidate fingerprint and deployment-selection head.
-- **External prerequisites:** label=P7-EXT-G08-RECEIVERS; kind=HARDWARE; requires=ONE_HUNDRED_RECEIVE_CLIENTS_RESERVED; accountable=Broadcast Qualification Owner; validity=exact client fingerprints and campaign window; evidence=signed immutable Broadcast Receiver Reservation Receipt | label=P7-EXT-G08-NETWORK; kind=NETWORK_IDENTITY; requires=DIRECT_AND_TURN_PATHS_RESERVED_AND_ATTESTED; accountable=Institution Network Owner; validity=exact Galene TURN topology and campaign window; evidence=signed immutable Broadcast Network Path Receipt
+- **External prerequisites:** label=P7-EXT-G08-RECEIVERS; kind=HARDWARE; requires=THREE_THOUSAND_RECEIVE_CLIENTS_RESERVED; accountable=Broadcast Qualification Owner; validity=exact client fingerprints and campaign window; evidence=signed immutable Broadcast Receiver Reservation Receipt | label=P7-EXT-G08-NETWORK; kind=NETWORK_IDENTITY; requires=DIRECT_AND_TURN_PATHS_RESERVED_AND_ATTESTED; accountable=Institution Network Owner; validity=exact Galene TURN topology and campaign window; evidence=signed immutable Broadcast Network Path Receipt
 - **Read first:** Production Qualification Teacher Broadcast gate, accepted Galene/TURN topology and frozen network/browser manifest.
 - **Change surface:** exact-release media/network/browser/host evidence, fault receipts, cleanup and result only.
 - **Implement:** none; topology, token or fallback changes require remediation and a new candidate.

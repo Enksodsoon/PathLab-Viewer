@@ -57,7 +57,8 @@ class StorageCapacitySnapshot:
 
 
 def _begin_immediate(database: OrmSession) -> None:
-    database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+    if database.get_bind().dialect.name == "sqlite":
+        database.connection().exec_driver_sql("BEGIN IMMEDIATE")
 
 
 def storage_contribution_expression() -> ColumnElement[int]:

@@ -409,7 +409,7 @@ def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> Non
     assert "@dynamic_delivery header X-Accel-Redirect /_pathlab_ome/*" in caddyfile
     assert "reverse_proxy tile-service:8090" in caddyfile
     assert "@direct_dynamic path /_pathlab_ome/*" in caddyfile
-    assert "respond @direct_dynamic 404" in caddyfile
+    assert "handle @direct_dynamic {\n\t\trespond 404\n\t}" in caddyfile
 
 
 def test_caddy_flushes_classroom_sse_without_buffering() -> None:
@@ -635,6 +635,8 @@ def test_bastion_client_uses_ephemeral_key_and_always_deletes_session() -> None:
     assert '[[ "${ANNOTATIONS_ENABLED}" == true ]]' in script
     assert '[[ "${ADMIN_ANNOTATION_CANARY_ENABLED}" == true ]]' in script
     assert "admin-annotation-canary=${ADMIN_ANNOTATION_CANARY_ENABLED}" in script
+    assert 'echo \'{"data": []}\' > "${sessions_file}"' in script
+    assert '-z "${NONTERMINAL_SESSIONS}" || "${NONTERMINAL_SESSIONS}" == "null"' in script
 
 
 def test_deployment_reconciles_only_exact_terminal_pathlab_sessions() -> None:

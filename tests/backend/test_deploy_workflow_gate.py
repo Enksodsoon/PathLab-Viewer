@@ -1,6 +1,16 @@
 from pathlib import Path
 
 
+def test_production_gate_requires_real_stack_and_postgres_on_selected_release() -> None:
+    workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
+    selection = workflow.split("for check in ", 1)[1].split("; do", 1)[0]
+    assert {"backend", "browser", "fullstack", "postgres", "web", "containers"}.issubset(
+        selection.replace("\\", " ").split()
+    )
+    assert ".head_sha == $sha" in workflow
+    assert 'test "${conclusion}" = success' in workflow
+
+
 def test_production_ci_gate_passes_sha_as_a_jq_argument() -> None:
     workflow = Path(".github/workflows/deploy-production.yml").read_text(encoding="utf-8")
 

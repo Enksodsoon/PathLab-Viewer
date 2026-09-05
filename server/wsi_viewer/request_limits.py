@@ -1,3 +1,4 @@
+import re
 from collections import deque
 
 from starlette.responses import JSONResponse
@@ -14,16 +15,18 @@ class AuthBodyLimitMiddleware:
         path_prefixes: tuple[str, ...] = ("/api/v1/auth/",),
         path_limits: tuple[tuple[str, int], ...] | None = None,
         suffix_limits: tuple[tuple[str, str, int], ...] = (),
+        excluded_routes: tuple[tuple[str, str], ...] = (),
     ) -> None:
         self.app = app
         if path_limits is None:
             if max_bytes is None:
                 raise ValueError("max_bytes is required without path_limits")
             path_limits = tuple((prefix, max_bytes) for prefix in path_prefixes)
-        self.path_limits = tuple(
-            sorted(path_limits, key=lambda item: len(item[0]), reverse=True)
-        )
+        self.path_limits = tuple(sorted(path_limits, key=lambda item: len(item[0]), reverse=True))
         self.suffix_limits = suffix_limits
+        self.excluded_routes = tuple(
+            (method, re.compile(pattern)) for method, pattern in excluded_routes
+        )
 
     def _limit_for(self, path: str) -> int | None:
         for prefix, suffix, max_bytes in self.suffix_limits:
@@ -50,7 +53,14 @@ class AuthBodyLimitMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        max_bytes = self._limit_for(scope.get("path", ""))
+        path = scope.get("path", "")
+        if any(
+            scope.get("method") == method and pattern.fullmatch(path)
+            for method, pattern in self.excluded_routes
+        ):
+            await self.app(scope, receive, send)
+            return
+        max_bytes = self._limit_for(path)
         if max_bytes is None:
             await self.app(scope, receive, send)
             return

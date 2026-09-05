@@ -6,9 +6,10 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 
 import { ApiError, getPrivateSlide, getPublicSlide } from '../api'
+import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { Loader } from '../components/Loader'
 import {
@@ -21,9 +22,11 @@ import type { AdminSlide, PublicSlide } from '../types'
 
 export function ViewerPage() {
   const { publicId, slideId } = useParams()
+  const location = useLocation()
   const [slide, setSlide] = useState<PublicSlide | AdminSlide | null>(null)
-  const [missing, setMissing] = useState(false)
+  const [loadError, setLoadError] = useState<'unavailable' | 'retryable' | null>(null)
   const [authExpired, setAuthExpired] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [annotationWorkspace, setAnnotationWorkspace] = useState<ComponentType<{
     slideId: string
     slideName: string
@@ -47,7 +50,7 @@ export function ViewerPage() {
   }, [])
   useEffect(() => {
     let active = true
-    setMissing(false)
+    setLoadError(null)
     setAuthExpired(false)
     setSlide(null)
     const request = slideId ? getPrivateSlide(slideId) : getPublicSlide(publicId ?? '')
@@ -57,12 +60,12 @@ export function ViewerPage() {
       if (!active) return
       if (slideId && caught instanceof ApiError && caught.status === 401) {
         setAuthExpired(true)
-      } else {
-        setMissing(true)
-      }
+      } else if (caught instanceof ApiError && (caught.status === 404 || caught.status === 410)) {
+        setLoadError('unavailable')
+      } else setLoadError('retryable')
     })
     return () => { active = false }
-  }, [publicId, slideId])
+  }, [loadAttempt, publicId, slideId])
   useEffect(() => {
     let active = true
     const enabled = Boolean(
@@ -99,8 +102,10 @@ export function ViewerPage() {
     if (!robots) { robots = document.createElement('meta'); robots.name = 'robots'; document.head.append(robots) }
     robots.content = 'noindex, nofollow, noarchive'
   }, [])
-  if (authExpired) return <main className="viewer-message"><Brand /><div><h1>Administrator session expired</h1><p>Sign in again to reopen this private slide and its annotation tools.</p><Link className="button primary" to="/admin">Sign in again</Link></div></main>
-  if (missing) return <main className="viewer-message"><Brand /><div><h1>This slide is unavailable</h1><p>The link may be incorrect, private, or removed.</p></div></main>
+  const intendedPath = `${location.pathname}${location.search}${location.hash}`
+  if (authExpired) return <main className="viewer-message"><Brand /><div><h1>Administrator session expired</h1><p>Sign in again to reopen this private slide and its annotation tools.</p><Link className="button primary" to={adminSignInPath(intendedPath)}>Sign in again</Link></div></main>
+  if (loadError === 'unavailable') return <main className="viewer-message"><Brand /><div><h1>This slide is unavailable</h1><p>The link may be incorrect, private, or removed.</p></div></main>
+  if (loadError === 'retryable') return <main className="viewer-message"><Brand /><div><h1>This slide could not be opened</h1><p>PathLab could not reach the slide service. Check your connection and try again.</p><button className="button primary" type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</button></div></main>
   if (!slide) return <Loader label="Opening slide…" size="large" fullscreen />
   const scale = slide.metadata?.physicalSizeX
   const annotationsEnabled = Boolean(
