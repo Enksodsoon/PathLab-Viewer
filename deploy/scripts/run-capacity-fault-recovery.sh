@@ -7,6 +7,10 @@ PLAN_PATH="${1:?capacity plan path is required}"
 : "${CAPACITY_CLASSROOM_SESSION_ID:?CAPACITY_CLASSROOM_SESSION_ID is required}"
 : "${LOAD_TEST_ADMIN_USERNAME:?LOAD_TEST_ADMIN_USERNAME is required}"
 : "${LOAD_TEST_ADMIN_PASSWORD:?LOAD_TEST_ADMIN_PASSWORD is required}"
+: "${GH_TOKEN:?GH_TOKEN is required}"
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+: "${GITHUB_RUN_ID:?GITHUB_RUN_ID is required}"
+: "${GITHUB_RUN_ATTEMPT:?GITHUB_RUN_ATTEMPT is required}"
 [[ "${CAPACITY_BASE_URL}" =~ ^https://[^/?#]+/?$ ]] || { echo "Fault target must be an HTTPS origin." >&2; exit 1; }
 [[ -f "${PLAN_PATH}" ]] || { echo "Capacity plan is missing." >&2; exit 1; }
 
@@ -22,6 +26,19 @@ digest="$(jq -r .planDigest "${PLAN_PATH}")"
 recovery_epoch_ms="$(jq -r '.stages[] | select(.name == "recovery-1200") | .holdStartEpochMs + 15000' "${PLAN_PATH}")"
 [[ "${run_id}" =~ ^[a-z0-9-]{1,64}$ && "${sha}" =~ ^[0-9a-f]{40}$ && "${digest}" =~ ^[0-9a-f]{64}$ ]] || exit 1
 
+now_ms="$(( $(date +%s) * 1000 ))"
+if (( recovery_epoch_ms > now_ms )); then
+  sleep "$(( (recovery_epoch_ms - now_ms + 999) / 1000 ))"
+fi
+
+# Fail closed immediately before the first scheduled production mutation. The
+# gate is read-only and bound to this workflow attempt; it cannot replace the
+# independent normal-cancellation watchdog or host cleanup controller.
+python scripts/watch_capacity_shards.py --gate-mutation \
+  --repository "${GITHUB_REPOSITORY}" --run-id "${GITHUB_RUN_ID}" \
+  --run-attempt "${GITHUB_RUN_ATTEMPT}" --expected-shards 6
+unset GH_TOKEN
+
 # Authenticate an administrator without consuming a Classroom seat. The six
 # shards must retain all 1,200 student seats for the strict recovery hold.
 login="$(curl --fail --silent --show-error --max-time 10 \
@@ -31,10 +48,6 @@ login="$(curl --fail --silent --show-error --max-time 10 \
   "${CAPACITY_BASE_URL%/}/api/v1/auth/session")"
 csrf="$(jq -er .csrfToken <<< "${login}")"
 
-now_ms="$(( $(date +%s) * 1000 ))"
-if (( recovery_epoch_ms > now_ms )); then
-  sleep "$(( (recovery_epoch_ms - now_ms + 999) / 1000 ))"
-fi
 started_epoch="$(date +%s)"
 started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 bash deploy/scripts/capacity-control-via-bastion.sh \

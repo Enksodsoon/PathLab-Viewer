@@ -93,7 +93,9 @@ jobs:
       - run: mypy server/wsi_viewer
       - run: pytest --cov=wsi_viewer --cov-report=term-missing
       - name: Verify capacity harness and evidence contracts without load
-        run: pytest -q tests/load
+        run: |
+          pip install --require-hashes -r deploy/oci-cli-requirements.txt
+          pytest -q tests/load
 
   postgres:
     runs-on: ubuntu-24.04

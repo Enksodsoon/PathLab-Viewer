@@ -496,6 +496,29 @@ jobs:
       - if: always()
         run: rm -rf -- ~/.oci ~/.ssh; rm -f -- "${RUNNER_TEMP}/deploy-evidence.key"
 
+  failure-watchdog:
+    name: Capacity shard failure watchdog
+    needs: [arm]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 178
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {ref: "${{ github.sha }}", persist-credentials: false}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: {python-version: "3.12"}
+      - name: Cancel this attempt when a capacity shard cannot succeed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/watch_capacity_shards.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT}" \
+            --expected-shards 6 --poll-seconds 15 --deadline-seconds 10500
+
   shard:
     needs: arm
     runs-on: ubuntu-24.04
@@ -663,6 +686,7 @@ jobs:
           test "$(wc -c < "${RUNNER_TEMP}/synthetic-capacity-330mb.ome.tiff")" -ge 330000000
       - name: Run concurrent full-feature synthetic sentinels
         env:
+          GH_TOKEN: ${{ github.token }}
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           LOAD_TEST_ADMIN_USERNAME: ${{ secrets.LOAD_TEST_ADMIN_USERNAME }}
           LOAD_TEST_ADMIN_PASSWORD: ${{ secrets.LOAD_TEST_ADMIN_PASSWORD }}
@@ -724,6 +748,7 @@ jobs:
         run: bash deploy/scripts/configure-capacity-oci.sh
       - name: Wedge only Classroom and prove bounded recovery
         env:
+          GH_TOKEN: ${{ github.token }}
           CAPACITY_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
           OCI_BASTION_ID: ${{ vars.OCI_BASTION_ID }}
           OCI_INSTANCE_ID: ${{ vars.OCI_INSTANCE_ID }}
@@ -749,7 +774,7 @@ jobs:
 
   decision:
     if: ${{ always() && needs.preflight.result == 'success' && needs.fixtures.result == 'success' }}
-    needs: [preflight, fixtures, arm, shard, sentinels, fault-recovery]
+    needs: [preflight, fixtures, arm, failure-watchdog, shard, sentinels, fault-recovery]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     environment:
@@ -765,6 +790,7 @@ jobs:
         id: merge
         continue-on-error: true
         run: |
+          test "${{ needs.failure-watchdog.result }}" = success
           remaining="$(python deploy/scripts/capacity_window.py \
             --plan "${RUNNER_TEMP}/evidence/capacity-plan.json" remaining --phase decision)"
           timeout --signal=TERM --kill-after=10s "${remaining}s" \
@@ -1075,7 +1101,7 @@ jobs:
 
   terminal-summary:
     if: always()
-    needs: [preflight, fixtures, arm, shard, sentinels, fault-recovery, decision, cleanup, postflight, aggregate]
+    needs: [preflight, fixtures, arm, failure-watchdog, shard, sentinels, fault-recovery, decision, cleanup, postflight, aggregate]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

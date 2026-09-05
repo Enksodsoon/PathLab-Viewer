@@ -5,6 +5,10 @@ PLAN_PATH="${1:?capacity plan path is required}"
 : "${CAPACITY_BASE_URL:?CAPACITY_BASE_URL is required}"
 : "${CAPACITY_SENTINEL_RESULT:?CAPACITY_SENTINEL_RESULT is required}"
 : "${CAPACITY_SYNTHETIC_330MB:?CAPACITY_SYNTHETIC_330MB is required}"
+: "${GH_TOKEN:?GH_TOKEN is required}"
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+: "${GITHUB_RUN_ID:?GITHUB_RUN_ID is required}"
+: "${GITHUB_RUN_ATTEMPT:?GITHUB_RUN_ATTEMPT is required}"
 [[ -f "${PLAN_PATH}" ]] || { echo "Capacity plan is missing." >&2; exit 1; }
 [[ -f "${CAPACITY_SYNTHETIC_330MB}" ]] || {
   echo "The approved synthetic 330-MB fixture is missing." >&2
@@ -34,6 +38,14 @@ PY
 )"
 now_ms="$(( $(date +%s) * 1000 ))"
 if (( start_epoch_ms > now_ms )); then sleep "$(( (start_epoch_ms - now_ms + 999) / 1000 ))"; fi
+
+# Fail closed immediately before Playwright can create or change production
+# fixtures. A later GitHub API outage remains an external-state limitation; the
+# Playwright cleanup trap and host controller are still authoritative cleanup.
+python scripts/watch_capacity_shards.py --gate-mutation \
+  --repository "${GITHUB_REPOSITORY}" --run-id "${GITHUB_RUN_ID}" \
+  --run-attempt "${GITHUB_RUN_ATTEMPT}" --expected-shards 6
+unset GH_TOKEN
 
 export CAPACITY_SYNTHETIC_OME="${CAPACITY_SYNTHETIC_330MB}"
 export CAPACITY_BROWSER_RESULT="${CAPACITY_SENTINEL_RESULT}"

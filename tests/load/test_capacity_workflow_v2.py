@@ -64,6 +64,7 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "preflight",
         "fixtures",
         "arm",
+        "failure-watchdog",
         "shard",
         "sentinels",
         "fault-recovery",
@@ -98,6 +99,15 @@ def test_capacity_workflow_has_fail_closed_evidence_and_cleanup_jobs() -> None:
         "${{ always() && needs.preflight.result == 'success' "
         "&& needs.fixtures.result == 'success' }}"
     )
+    assert jobs["decision"]["needs"] == [
+        "preflight",
+        "fixtures",
+        "arm",
+        "failure-watchdog",
+        "shard",
+        "sentinels",
+        "fault-recovery",
+    ]
     assert jobs["postflight"]["if"] == "${{ always() && needs.cleanup.result != 'skipped' }}"
     assert jobs["postflight"]["needs"] == ["preflight", "decision", "cleanup"]
 
