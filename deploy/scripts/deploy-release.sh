@@ -426,6 +426,12 @@ if [[ -n "${ADMIN_ANNOTATION_CANARY_ENABLED}" ]]; then
       "${ADMIN_ANNOTATION_CANARY_ENABLED}" >> "${STAGE_DIR}/deploy/.env"
   fi
 fi
+if grep -q '^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=' "${STAGE_DIR}/deploy/.env"; then
+  sed -i "s/^PATHLAB_CLASSROOM_MAX_PARTICIPANTS=.*/PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300/" \
+    "${STAGE_DIR}/deploy/.env"
+else
+  printf 'PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n' >> "${STAGE_DIR}/deploy/.env"
+fi
 printf '%s\n' "${TARGET_SHA}" > "${STAGE_DIR}/.pathlab-release"
 chown -R ubuntu:ubuntu "${STAGE_DIR}"
 

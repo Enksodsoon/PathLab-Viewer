@@ -85,14 +85,22 @@ compose up -d >/dev/null
 run_bounded bash "${LIVE_DIR}/deploy/scripts/install-watchdog.sh" install "${LIVE_DIR}" >/dev/null
 
 status=""
+verify_err="${RUNNER_TEMP:-/tmp}/runtime-safety-verify-$$.err"
 while (( $(remaining_seconds) > 8 )); do
   if status="$(run_bounded python3 "${LIVE_DIR}/deploy/scripts/runtime_safety_manifest.py" \
       verify-live --live-dir "${LIVE_DIR}" --expected-sha "${EXPECTED_SHA}" \
-      --manifest-digest "${MANIFEST_DIGEST}" --require-safe 2>/dev/null)"; then
+      --manifest-digest "${MANIFEST_DIGEST}" --require-safe 2>"${verify_err}")"; then
     break
   fi
   sleep 2
 done
-[[ -n "${status}" ]] || exit 1
+if [[ -z "${status}" ]]; then
+  if [[ -f "${verify_err}" ]]; then
+    cat "${verify_err}" >&2
+    rm -f -- "${verify_err}"
+  fi
+  exit 1
+fi
+rm -f -- "${verify_err}"
 trap - EXIT
 printf '%s\n' "${status}"
