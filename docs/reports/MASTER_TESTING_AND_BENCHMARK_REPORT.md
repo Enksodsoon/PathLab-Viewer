@@ -67,7 +67,7 @@ gantt
 | **Python Linting** | `ruff` (target py312) | **Passed** | Clean formatting, zero lint violations across server, tests, and migrations. |
 | **Type Checking** | `mypy` (strict mode) | **Passed** | 46 source files verified with strict type annotations; 0 type errors. |
 | **Web Linting** | `eslint` (max-warnings 0) | **Passed** | TypeScript & React hooks validation passed cleanly with 0 warnings. |
-| **Application Security** | OWASP ASVS 5.0.0 L2 | **Passed** | All 167 backend API routes explicitly registered and audited against security surfaces. |
+| **Application Security** | OWASP ASVS 5.0.0 L2 | **Inventory mapped; assessment incomplete** | Route registration and finding-policy checks do not prove control effectiveness or exact-release ASVS compliance. Each applicable control still requires its own current evidence. |
 | **Egress Boundaries** | Supply-chain validator | **Passed** | Exactly 61 approved egress files; unapproved outbound connections denied. |
 | **Repository Disclosure** | `check_public_repository.py` | **Passed** | Zero secrets, private test keys, or infrastructure identities exposed. |
 

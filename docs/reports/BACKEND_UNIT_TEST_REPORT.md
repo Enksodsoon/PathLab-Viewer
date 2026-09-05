@@ -34,7 +34,7 @@ pie title Backend Test Results (775 Total)
 | **Study Coach (TRACE-SIM AI)** | `test_study_coach.py`, `test_study_routes.py` | 44 | **Passed** | ONNX TRACE-SIM model validation, sha256 artifact integrity checking, privacy-bounded learner history, and AI authoring actions. |
 | **Desktop Sync & Pairing** | `test_desktop_sync.py`, `test_desktop_routes.py` | 48 | **Passed** | Revocable pairing tokens, cursor-based change polling, incremental synchronization events, and conflict resolution. |
 | **Database & Migrations** | `test_database.py`, `test_postgres_migration.py`, `test_postgres_foundation.py` | 86 | **Passed** | All 25 Alembic migrations (upgrades & downgrades), SQLite WAL pragmas, and verified SQLite-to-PostgreSQL streaming migration. |
-| **Security Baseline & Governance** | `test_security_baseline.py`, `test_production_safety.py`, `test_asset_rights_ledger.py`, `test_dependency_inventory.py` | 73 | **Passed** | ASVS 5.0.0 L2 compliance, 167 backend routes mapped, 14 frontend routes mapped, 61 egress boundaries verified, and license policies checked. |
+| **Security Baseline & Governance** | `test_security_baseline.py`, `test_production_safety.py`, `test_asset_rights_ledger.py`, `test_dependency_inventory.py` | 73 | **Baseline checks passed** | Historical route/egress inventory and finding-policy validation; this does not verify all ASVS controls, enforce network boundaries, or establish exact-release security compliance. |
 
 ---
 
