@@ -11,6 +11,8 @@ const classroomApi = vi.hoisted(() => ({
   classroomInviteState: vi.fn(),
   classroomInvitePhase: vi.fn(),
   joinLiveClassroom: vi.fn(),
+  classroomSetupFolders: vi.fn(),
+  listClassrooms: vi.fn(),
   teacherState: vi.fn(),
   unlockClassroomInvite: vi.fn(),
 }))
@@ -39,6 +41,13 @@ describe('smart Classroom invite', () => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) },
     })
+    classroomApi.classroomSetupFolders.mockResolvedValue({ items: [], nextCursor: null })
+    classroomApi.listClassrooms.mockResolvedValue({
+      sessions: [{
+        id: 'session-1', publicId: 'opaque-public-id', joinCode: 'ABC234DEFG',
+        phase: 'preview', reviewExpiresAt: '2026-08-20T00:00:00Z',
+      }],
+    })
   })
 
   afterEach(() => {
@@ -56,11 +65,13 @@ describe('smart Classroom invite', () => {
     classroomApi.teacherState.mockResolvedValue({
       session: { id: 'session-1', status: 'active', phase: 'preview', publicId: 'opaque-public-id', joinCode: 'ABC234DEFG', reviewExpiresAt: '2026-08-20T00:00:00Z' },
       presenter: { sequence: 0, slideId: 'slide-1', viewport: null }, stateVersion: 1,
+      slides: [slide], participantCount: 0, rosterVersion: 0,
       controller: { participantId: null, leaseId: null, controlEpoch: 0, expiresAt: null },
       participants: [], pendingQuestions: [], activePins: [], teacherPointer: null, teachingAnnotations: [],
     })
 
     render(<MemoryRouter><ThemeProvider><ClassroomTeacherPage /></ThemeProvider></MemoryRouter>)
+    await userEvent.click(await screen.findByRole('button', { name: 'Resume classroom ABC234DEFG' }))
     await userEvent.click(await screen.findByRole('button', { name: /Access code.*Display QR and link/i }))
     const link = screen.getByRole('link', { name: /classroom\/invite\/opaque-public-id/i })
     expect(link).toHaveAttribute('href', 'http://localhost:3000/classroom/invite/opaque-public-id')

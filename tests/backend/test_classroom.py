@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session as OrmSession
 from starlette.concurrency import run_in_threadpool
@@ -123,6 +123,15 @@ def _admin_headers(client: TestClient) -> dict[str, str]:
     response = client.post(
         "/api/v1/auth/session",
         json={"username": "admin", "password": "correct horse battery"},
+    )
+    assert response.status_code == 201
+    return {"X-CSRF-Token": response.json()["csrfToken"]}
+
+
+def _login_headers(client: TestClient, username: str, password: str) -> dict[str, str]:
+    response = client.post(
+        "/api/v1/auth/session",
+        json={"username": username, "password": password},
     )
     assert response.status_code == 201
     return {"X-CSRF-Token": response.json()["csrfToken"]}
@@ -245,9 +254,7 @@ def test_synthetic_classroom_is_durably_run_owned_and_cleanup_is_exact(tmp_path:
         assert created.status_code == 201
         assert created.json()["syntheticRunId"] == run_id
         session_id = created.json()["id"]
-        state = client.get(
-            f"/api/v1/admin/classroom/sessions/{session_id}", headers=headers
-        )
+        state = client.get(f"/api/v1/admin/classroom/sessions/{session_id}", headers=headers)
         assert state.json()["session"]["syntheticRunId"] == run_id
         mismatch = client.delete(
             f"/api/v1/admin/classroom/sessions/{session_id}",
@@ -2074,3 +2081,244 @@ def test_capacity_inventory_is_bounded_and_exposes_only_synthetic_ownership(
             "truncated": False,
         }
         assert "joinCode" not in inventory.text
+
+
+def test_setup_folder_search_is_cursor_bounded_and_finds_deep_late_slides(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        settings = cast(Settings, client.app.state.settings)
+        factory = session_factory(settings)
+        with factory() as database:
+            root = database.get(Folder, "folder-1")
+            slide = database.get(Slide, "slide-1")
+            assert root is not None and slide is not None
+            root.name = "Zulu course"
+            root.normalized_name = "zulu course"
+            parent = root
+            for index, name in enumerate(("Year 1", "Block A", "Week 9"), start=1):
+                child = Folder(
+                    id=f"deep-{index}",
+                    parent_id=parent.id,
+                    name=name,
+                    normalized_name=name.casefold(),
+                )
+                database.add(child)
+                parent = child
+            slide.folder_id = parent.id
+            for index in range(8):
+                database.add(
+                    Folder(
+                        id=f"early-{index}",
+                        name=f"Alpha {index:02d}",
+                        normalized_name=f"alpha {index:02d}",
+                    )
+                )
+            database.commit()
+
+        cursor = None
+        seen: list[dict[str, Any]] = []
+        for _ in range(10):
+            response = client.get(
+                "/api/v1/admin/classroom/setup/folders",
+                headers=headers,
+                params={"limit": 3, **({"cursor": cursor} if cursor else {})},
+            )
+            assert response.status_code == 200, response.text
+            page = response.json()
+            assert len(page["items"]) <= 3
+            seen.extend(page["items"])
+            cursor = page["nextCursor"]
+            if cursor is None:
+                break
+
+        zulu = next(item for item in seen if item["id"] == "folder-1")
+        assert zulu["readyCount"] == 1
+        assert zulu["blockedCount"] == 0
+        assert zulu["hasChildren"] is True
+
+        deep = client.get(
+            "/api/v1/admin/classroom/setup/folders",
+            headers=headers,
+            params={"q": "week 9", "limit": 3},
+        )
+        assert deep.status_code == 200, deep.text
+        assert deep.json() == {
+            "items": [
+                {
+                    "id": "deep-3",
+                    "name": "Week 9",
+                    "folderPath": ["Zulu course", "Year 1", "Block A", "Week 9"],
+                    "depth": 3,
+                    "hasChildren": False,
+                    "readyCount": 1,
+                    "blockedCount": 0,
+                    "tooManySlides": False,
+                }
+            ],
+            "nextCursor": None,
+        }
+        invalid = client.get(
+            "/api/v1/admin/classroom/setup/folders",
+            headers=headers,
+            params={"cursor": "not-a-valid-cursor"},
+        )
+        assert invalid.status_code == 400
+        assert invalid.json()["detail"]["code"] == "CLASSROOM_SETUP_CURSOR_INVALID"
+
+
+def test_teacher_resume_state_uses_owned_immutable_snapshot_and_rejects_foreign_user(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        owner_headers = _admin_headers(client)
+        expiry = datetime.now(UTC) + timedelta(days=7)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=owner_headers,
+            json={"folderId": "folder-1", "reviewExpiresAt": expiry.isoformat()},
+        ).json()
+        original_slides = created["slides"]
+        settings = cast(Settings, client.app.state.settings)
+        factory = session_factory(settings)
+        with factory() as database:
+            stored = database.get(ClassroomSession, created["id"])
+            slide = database.get(Slide, "slide-1")
+            folder = database.get(Folder, "folder-1")
+            assert stored is not None and slide is not None and folder is not None
+            owner_id = stored.created_by_user_id
+            assert owner_id is not None
+            slide.display_name = "Changed library title"
+            folder.name = "Changed library folder"
+            database.add(
+                User(
+                    username="other-teacher",
+                    password_hash=hash_password("another correct horse battery"),
+                )
+            )
+            database.commit()
+
+        owner_state = client.get(
+            f"/api/v1/admin/classroom/sessions/{created['id']}", headers=owner_headers
+        )
+        assert owner_state.status_code == 200, owner_state.text
+        assert owner_state.json()["slides"] == original_slides
+        assert owner_state.json()["session"]["phase"] == "preview"
+
+        owner_conflict = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=owner_headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert owner_conflict.status_code == 409
+        assert owner_conflict.json()["detail"]["code"] == "CLASSROOM_ALREADY_ACTIVE"
+
+        other_headers = _login_headers(client, "other-teacher", "another correct horse battery")
+        assert client.get("/api/v1/admin/classroom/sessions", headers=other_headers).json() == {
+            "sessions": []
+        }
+        foreign_create = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=other_headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert foreign_create.status_code == 409
+        assert foreign_create.json()["detail"]["code"] == "CLASSROOM_IN_USE"
+        foreign_end = client.delete(
+            "/api/v1/admin/classroom/sessions/active", headers=other_headers
+        )
+        assert foreign_end.status_code == 404
+        assert foreign_end.json()["detail"]["code"] == "CLASSROOM_NOT_FOUND"
+        foreign_retry = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=other_headers,
+            json={"slideIds": ["slide-1"]},
+        )
+        assert foreign_retry.status_code == 409
+        assert foreign_retry.json()["detail"]["code"] == "CLASSROOM_IN_USE"
+        with factory() as database:
+            owner_classroom = database.get(ClassroomSession, created["id"])
+            assert owner_classroom is not None
+            assert owner_classroom.status == "active"
+        foreign_state = client.get(
+            f"/api/v1/admin/classroom/sessions/{created['id']}", headers=other_headers
+        )
+        assert foreign_state.status_code == 404
+        foreign_start = client.post(
+            f"/api/v1/admin/classroom/sessions/{created['id']}/start",
+            headers=other_headers,
+        )
+        assert foreign_start.status_code == 404
+
+
+def test_teacher_resume_rejects_expired_revoked_and_unowned_legacy_sessions(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _admin_headers(client)
+        expiry = datetime.now(UTC) + timedelta(days=7)
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=headers,
+            json={"folderId": "folder-1", "reviewExpiresAt": expiry.isoformat()},
+        ).json()
+        settings = cast(Settings, client.app.state.settings)
+        factory = session_factory(settings)
+        with factory() as database:
+            classroom = database.get(ClassroomSession, created["id"])
+            assert classroom is not None
+            classroom.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+            database.commit()
+        assert (
+            client.get(
+                f"/api/v1/admin/classroom/sessions/{created['id']}", headers=headers
+            ).status_code
+            == 404
+        )
+        assert client.get("/api/v1/admin/classroom/sessions", headers=headers).json() == {
+            "sessions": []
+        }
+
+        with factory() as database:
+            classroom = database.get(ClassroomSession, created["id"])
+            assert classroom is not None
+            classroom.expires_at = expiry
+            classroom.created_by_user_id = None
+            database.commit()
+        assert (
+            client.get(
+                f"/api/v1/admin/classroom/sessions/{created['id']}", headers=headers
+            ).status_code
+            == 404
+        )
+        assert (
+            client.post(
+                f"/api/v1/admin/classroom/sessions/{created['id']}/start", headers=headers
+            ).status_code
+            == 404
+        )
+
+        with factory() as database:
+            classroom = database.get(ClassroomSession, created["id"])
+            owner = database.scalar(select(User).where(User.username == "admin"))
+            assert classroom is not None and owner is not None
+            classroom.created_by_user_id = owner.id
+            database.commit()
+        revoked = client.delete(
+            f"/api/v1/admin/classroom/sessions/{created['id']}", headers=headers
+        )
+        assert revoked.status_code == 204
+        assert (
+            client.get(
+                f"/api/v1/admin/classroom/sessions/{created['id']}", headers=headers
+            ).status_code
+            == 404
+        )
+
+
+def test_classroom_setup_and_resume_discovery_require_authentication(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        assert client.get("/api/v1/admin/classroom/setup/folders").status_code == 401
+        assert client.get("/api/v1/admin/classroom/sessions").status_code == 401
+        assert client.get("/api/v1/admin/classroom/sessions/not-owned").status_code == 401

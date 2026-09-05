@@ -56,6 +56,23 @@ export interface ClassroomReadiness {
     folderPath: string[]
     reason: 'publication_incomplete' | 'delivery_missing' | 'metadata_invalid'
   }>
+  tooManySlides: boolean
+}
+
+export interface ClassroomSetupFolder {
+  id: string
+  name: string
+  folderPath: string[]
+  depth: number
+  hasChildren: boolean
+  readyCount: number
+  blockedCount: number
+  tooManySlides: boolean
+}
+
+export interface ClassroomSetupFoldersPage {
+  items: ClassroomSetupFolder[]
+  nextCursor: string | null
 }
 
 export interface ClassroomInviteState {
@@ -94,6 +111,7 @@ export interface TeacherState {
     reviewExpiresAt: string | null
   }
   stateVersion: number
+  slides: ClassroomSlide[]
   participantCount: number
   rosterVersion: number
   presenter: PresenterState
@@ -170,6 +188,20 @@ export async function classroomReadiness(folderId: string): Promise<ClassroomRea
   return body(await csrfFetch('/api/v1/admin/classroom/readiness', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folderId }),
   }))
+}
+
+export async function classroomSetupFolders(
+  query: { cursor?: string | null; limit?: number; q?: string } = {},
+): Promise<ClassroomSetupFoldersPage> {
+  const parameters = new URLSearchParams()
+  if (query.cursor) parameters.set('cursor', query.cursor)
+  parameters.set('limit', String(Math.max(1, Math.min(50, Math.floor(query.limit ?? 20)))))
+  const normalizedQuery = query.q?.trim()
+  if (normalizedQuery) parameters.set('q', normalizedQuery)
+  return body(await fetch(
+    `/api/v1/admin/classroom/setup/folders?${parameters.toString()}`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
 }
 
 export async function createClassroom(

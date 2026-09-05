@@ -1056,6 +1056,9 @@ class ClassroomSession(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     join_code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     synthetic_run_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     public_id: Mapped[str | None] = mapped_column(String(64), unique=True)

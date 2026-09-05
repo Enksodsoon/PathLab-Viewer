@@ -62,6 +62,16 @@ describe('classroom disabled-mode resource contract', () => {
     expect(styles).toContain('max-height: min(30vh, 260px)')
   })
 
+  it('uses bounded classroom folder pages instead of eager slide and tree traversal', () => {
+    const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
+
+    expect(teacher).toContain('classroomSetupFolders(')
+    expect(teacher).toContain('setupCursor')
+    expect(teacher).not.toContain('listSlides(')
+    expect(teacher).not.toContain('getFolderChildren(')
+    expect(teacher).not.toContain('loadClassroomFolders')
+  })
+
   it('uses the paginated roster signal instead of legacy participant bursts', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
     const styles = readFileSync(resolve('src/classroom/classroom.css'), 'utf8')
