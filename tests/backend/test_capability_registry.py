@@ -16,7 +16,7 @@ def test_capability_registry_validator_accepts_the_repository_registry() -> None
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "Capability registry valid: 7 entries\n"
+    assert result.stdout == "Capability registry valid: 8 entries\n"
 
 
 def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
@@ -27,6 +27,7 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
     assert registry["baselineReleaseSha"] == "b9d56022dea04940ffa8d262460a15b51074a37b"
     assert set(capabilities) == {
         "admin-annotations",
+        "assessment",
         "calibrated-measurements",
         "classroom",
         "classroom-background-protection",
@@ -35,6 +36,7 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         "qupath-geojson",
     }
     assert {item["evidenceState"] for item in capabilities.values()} == {
+        "NOT_IMPLEMENTED",
         "BUILT",
         "SYNTHETICALLY_VERIFIED",
     }
@@ -43,6 +45,7 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
         for key, value in capabilities.items()
         if key
         not in {
+            "assessment",
             "classroom-background-protection",
             "identity-governance-foundation",
             "postgres-runtime-cutover",
@@ -62,6 +65,10 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
     assert identity["releaseSha"] == "92e90714a964b025c5ad02979e249b45c5d3123d"
     assert "disabled by default and not production-activated" in identity["claimRestrictions"]
     assert "temporary Classroom participants remain separate" in identity["claimRestrictions"]
+    assessment = capabilities["assessment"]
+    assert assessment["evidenceState"] == "NOT_IMPLEMENTED"
+    assert assessment["featureFlag"] == "PATHLAB_ASSESSMENT_ENABLED"
+    assert "production remains disabled" in assessment["claimRestrictions"]
     assert "not production-certified" in capabilities["classroom"]["claimRestrictions"]
     assert "not collaborative" in capabilities["admin-annotations"]["claimRestrictions"]
     assert (
@@ -76,7 +83,8 @@ def test_existing_capabilities_remain_built_without_inflated_claims() -> None:
 
 def test_validator_rejects_duplicate_capability_ids(tmp_path: Path) -> None:
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-    registry["capabilities"].append(registry["capabilities"][0])
+    classroom = next(item for item in registry["capabilities"] if item["id"] == "classroom")
+    registry["capabilities"].append(classroom)
     invalid = tmp_path / "duplicate.json"
     invalid.write_text(json.dumps(registry), encoding="utf-8")
 

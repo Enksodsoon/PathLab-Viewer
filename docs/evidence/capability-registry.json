@@ -13,6 +13,28 @@
   ],
   "capabilities": [
     {
+      "id": "assessment",
+      "displayName": "Manual-First PathLab Assessment",
+      "domain": "Assessment",
+      "evidenceState": "NOT_IMPLEMENTED",
+      "releaseSha": "c4446a92b0760d4eeaf9234becb6e867f681faa2",
+      "featureFlag": "PATHLAB_ASSESSMENT_ENABLED",
+      "supportingEvidence": [
+        "docs/architecture/ASSESSMENT.md",
+        "docs/assessment/IMPLEMENTATION_PLAN.md"
+      ],
+      "requiredTests": [
+        "tests/backend/test_assessment_foundation.py"
+      ],
+      "claimRestrictions": [
+        "production remains disabled",
+        "not built",
+        "not synthetically capacity verified",
+        "not pilot-validated",
+        "not production-certified"
+      ]
+    },
+    {
       "id": "classroom",
       "displayName": "Lightweight live Classroom",
       "domain": "Classroom",
