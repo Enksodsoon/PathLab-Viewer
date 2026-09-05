@@ -1,0 +1,273 @@
+{
+  "artifacts": [
+    {
+      "path": "THIRD_PARTY_NOTICES.txt",
+      "sha256": "4ca7ec50663e379406cfd7c3845e180dc6b926e0c8342134e70cd68dcd3ef1c5",
+      "sizeBytes": 157432
+    },
+    {
+      "path": "build.cdx.json",
+      "sha256": "78a3b63d51c50c87db33796e766920ae0b3fb1b66668d1bd4502617f1c7a5015",
+      "sizeBytes": 626640
+    },
+    {
+      "path": "build.spdx.json",
+      "sha256": "2b51a2eedad3f9dde0eaf57c6093d0f31f777657089aa6c4f60df1dd89a048fe",
+      "sizeBytes": 506121
+    },
+    {
+      "path": "source.cdx.json",
+      "sha256": "e815995f8f09fc52ef74345213bd69ef79f53417cfc7c7c0938c1c379a0c581c",
+      "sizeBytes": 660700
+    },
+    {
+      "path": "source.spdx.json",
+      "sha256": "64a447f783c5c1cad38d6175c6466d9572881f71da075c122170d73708391738",
+      "sizeBytes": 532890
+    }
+  ],
+  "coverage": {
+    "assetRecordIdsSha256": "9c6ac23b55d11d57e9427d92948e3673f4c95b108599a94d242e38c94d56cc85",
+    "assetRecords": 8,
+    "buildComponents": 489,
+    "currentShippedInputs": 91,
+    "dependencyRecordIdsSha256": "14ddbf6cf1dd4d2a5947527de96580c68422ab98d5a87eddb1c2e17d8b5ccb6b",
+    "dependencyRecords": 498,
+    "sourceComponents": 520,
+    "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
+    "toolchainRecords": 14
+  },
+  "formats": {
+    "cyclonedx": "1.6",
+    "spdx": "SPDX-2.3"
+  },
+  "generatedAt": "2026-09-05T04:44:33Z",
+  "generator": "scripts/generate_software_inventories.py",
+  "inputs": [
+    {
+      "gitBlob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "path": "LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "sizeBytes": 11357
+    },
+    {
+      "gitBlob": "fd312c719b36b17ecb2955a91fa6d507f9e0cae5",
+      "path": "NOTICE",
+      "sha256": "2e0c4ec3c41b544f893e251afbd969253b1e25c54ff00e04658a833f468d33f5",
+      "sizeBytes": 485
+    },
+    {
+      "gitBlob": "25a827bbb94da906d8cf46d1354712fd96a78f26",
+      "path": "package.json",
+      "sha256": "f2d51678642f3d3729a8e9b3aae3620849b86e2f7558672b2e72c9fc8a6a2244",
+      "sizeBytes": 485
+    },
+    {
+      "gitBlob": "a272bef792b6db2f4bbe151b14cc54a7a04bc00d",
+      "path": "pnpm-lock.yaml",
+      "sha256": "7fa7553aaea7634d9a1ea39968ddbd27f1bcc7276754db0a2097c13f431fc59f",
+      "sizeBytes": 112878
+    },
+    {
+      "gitBlob": "8d11730d1f95b3554459a0d313717bd9a6f050d8",
+      "path": "pyproject.toml",
+      "sha256": "74c9f448ff9a78166be4910b71474af230b31e6796e86b86e82abeccd6026fe3",
+      "sizeBytes": 1514
+    },
+    {
+      "gitBlob": "4274e53c31b86cd54063459983af260dfe9ed807",
+      "path": "apps/web/package.json",
+      "sha256": "c86c37b962ac3eebcd3145981f94fb621f8ca4c528d551f47fbc9d534a140184",
+      "sizeBytes": 1616
+    },
+    {
+      "gitBlob": "56a156869a3fc3d9d264995b09685b25d47d66ef",
+      "path": "deploy/backend-requirements.txt",
+      "sha256": "4d84d8087dd272af8c5ec072c3a4f4312df5228356c3c1f77dc374aa35761c0d",
+      "sizeBytes": 101659
+    },
+    {
+      "gitBlob": "38ca3158b74e2b31430fec75642b0390c1b37a61",
+      "path": "deploy/oci-cli-requirements.txt",
+      "sha256": "dea6480becb768dbc1e28c7945cab5bdb5042b974a8fdedb0bc1ecfb7ef37e79",
+      "sizeBytes": 83128
+    },
+    {
+      "gitBlob": "9ba01d7a488a444c753b149484677fa36771f3ca",
+      "path": "deploy/Dockerfile.backend",
+      "sha256": "b94cadda6d22d87d641782b625acdcd9c381989c85b782c1d5ef4a99a85688f6",
+      "sizeBytes": 1278
+    },
+    {
+      "gitBlob": "341f4c1c5982652dd40979369166dbef2bba370a",
+      "path": "deploy/Dockerfile.web",
+      "sha256": "a4336ce8d01404c086c82ae6cfcc1d4c6846c3d629a71406e741fe7ec400e6bf",
+      "sizeBytes": 671
+    },
+    {
+      "gitBlob": "a2f6397751ba06fd70ecc237935463478ba20cf1",
+      "path": "deploy/compose.yaml",
+      "sha256": "3169941a8cfdf31e552f05ce68b8db30bc9b7d597cecc9aac5a1a97d8a90a6fa",
+      "sizeBytes": 8175
+    },
+    {
+      "gitBlob": "0890245c3e3d46e701563bbc95d69532fedc0242",
+      "path": "deploy/compose.postgres.yaml",
+      "sha256": "7c91f82f56d59550135100b7a2bc9c124bada07ffeb02257ce626f966f344a60",
+      "sizeBytes": 2179
+    },
+    {
+      "gitBlob": "c3f8d30033e9135287bdd258f5a372b96db9b3a7",
+      "path": "docs/supply-chain/dependency-inventory.json",
+      "sha256": "b2915dc9bbe98a7a6ecddb5dbf3ead1e1c311af3ac9c7838172e5b784b580363",
+      "sizeBytes": 669611
+    },
+    {
+      "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
+      "path": "docs/supply-chain/runtime-toolchain-inputs.json",
+      "sha256": "1bdd6d1797324c80c52d4d305666abb573e20bc535e355ac9ab571e0f6d8c112",
+      "sizeBytes": 14378
+    },
+    {
+      "gitBlob": "46778191263892a225bbb2b0467d5ea47ffb9eca",
+      "path": "docs/supply-chain/runtime-toolchain-source-receipt.json",
+      "sha256": "fd232214f45824da95c4c16bd2347c67f62c9c7b40f35e4b11c92ea60cb8ebfd",
+      "sizeBytes": 4815
+    },
+    {
+      "gitBlob": "06d7398f3cdc0e155dc65d53528f5422d3489626",
+      "path": "docs/supply-chain/runtime-toolchain-requirements.txt",
+      "sha256": "660acd35f08cddb71b8b92b6c2eff883e62aafa9a7c213aeaa809cb58bdbf84d",
+      "sizeBytes": 27183
+    },
+    {
+      "gitBlob": "8374deecac00aeb3a085f12c959b2897b2a5246d",
+      "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
+      "sha256": "394a395f36abfb2c7f1253c0ce3a587efb2e4d0ca067d9bffc1947b4fa184b22",
+      "sizeBytes": 24767
+    },
+    {
+      "gitBlob": "5d3ecd5271ea7b62f8eb613ef0ce64bf6dfb4ad8",
+      "path": "docs/supply-chain/asset-rights-policy.json",
+      "sha256": "694523730462c736cfd9327c14f9433f1e2f48073c881070b8948bb666f8f5f4",
+      "sizeBytes": 14627
+    },
+    {
+      "gitBlob": "d5dd1e6b2b9a342a87facaa5f43e0c195ca10633",
+      "path": "scripts/generate_software_inventories.py",
+      "sha256": "efe21144cd5816674ace25ef28af43149e5d359b57f9014d464ae6d3007ed7e0",
+      "sizeBytes": 21721
+    },
+    {
+      "gitBlob": "bddc3f17bb1a8d72a876243499d076bb8178d1d2",
+      "path": "scripts/validate_software_inventories.py",
+      "sha256": "9dc03a330cf5a119e1f55d67487c29696afe04a7abda4f62bae5a78f3ab1c350",
+      "sizeBytes": 15868
+    }
+  ],
+  "offlineKit": {
+    "assemblerOwner": "P1-T22A",
+    "includedInventoryScopes": [
+      "source",
+      "build"
+    ],
+    "state": "CONTRACT_ONLY_NOT_ASSEMBLED"
+  },
+  "releaseAdmission": "BLOCKED",
+  "releaseBlockers": [
+    "BLOCKED:npm:guid-typescript@1.0.9",
+    "BLOCKED:npm:onnxruntime-common@1.27.0",
+    "BLOCKED:npm:onnxruntime-web@1.27.0",
+    "BLOCKED:npm:splaytree@3.2.3",
+    "BLOCKED:pypi:pillow@12.3.0",
+    "RECORDED_UNREVIEWED:npm:@fontsource-variable/cormorant-garamond@5.3.0",
+    "RECORDED_UNREVIEWED:npm:@fontsource-variable/sofia-sans@5.3.0",
+    "RECORDED_UNREVIEWED:npm:@fontsource-variable/source-sans-3@5.3.0",
+    "RECORDED_UNREVIEWED:npm:@phosphor-icons/react@2.1.10",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/aspromise@1.1.2",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/base64@1.1.2",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/codegen@2.0.5",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/eventemitter@1.1.1",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/fetch@1.1.1",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/float@1.0.2",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/path@1.1.2",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/pool@1.1.0",
+    "RECORDED_UNREVIEWED:npm:@protobufjs/utf8@1.1.2",
+    "RECORDED_UNREVIEWED:npm:@types/node@26.2.0",
+    "RECORDED_UNREVIEWED:npm:buffer-from@1.1.2",
+    "RECORDED_UNREVIEWED:npm:cookie@1.1.1",
+    "RECORDED_UNREVIEWED:npm:flatbuffers@25.9.23",
+    "RECORDED_UNREVIEWED:npm:graceful-fs@4.2.11",
+    "RECORDED_UNREVIEWED:npm:is-stream@2.0.1",
+    "RECORDED_UNREVIEWED:npm:js-base64@3.9.1",
+    "RECORDED_UNREVIEWED:npm:lodash.throttle@4.1.1",
+    "RECORDED_UNREVIEWED:npm:long@5.3.2",
+    "RECORDED_UNREVIEWED:npm:openseadragon@6.1.0",
+    "RECORDED_UNREVIEWED:npm:platform@1.3.6",
+    "RECORDED_UNREVIEWED:npm:polygon-clipping@0.15.7",
+    "RECORDED_UNREVIEWED:npm:proper-lockfile@4.1.2",
+    "RECORDED_UNREVIEWED:npm:protobufjs@7.6.5",
+    "RECORDED_UNREVIEWED:npm:qrcode.react@4.2.0",
+    "RECORDED_UNREVIEWED:npm:querystringify@2.2.0",
+    "RECORDED_UNREVIEWED:npm:quickselect@3.0.0",
+    "RECORDED_UNREVIEWED:npm:rbush@4.0.1",
+    "RECORDED_UNREVIEWED:npm:react-dom@19.2.8",
+    "RECORDED_UNREVIEWED:npm:react-router-dom@7.18.2",
+    "RECORDED_UNREVIEWED:npm:react-router@7.18.2",
+    "RECORDED_UNREVIEWED:npm:react@19.2.8",
+    "RECORDED_UNREVIEWED:npm:requires-port@1.0.0",
+    "RECORDED_UNREVIEWED:npm:retry@0.12.0",
+    "RECORDED_UNREVIEWED:npm:robust-predicates@3.0.3",
+    "RECORDED_UNREVIEWED:npm:scheduler@0.27.0",
+    "RECORDED_UNREVIEWED:npm:set-cookie-parser@2.7.2",
+    "RECORDED_UNREVIEWED:npm:signal-exit@3.0.7",
+    "RECORDED_UNREVIEWED:npm:tus-js-client@4.3.1",
+    "RECORDED_UNREVIEWED:npm:undici-types@8.3.0",
+    "RECORDED_UNREVIEWED:npm:url-parse@1.5.10",
+    "RECORDED_UNREVIEWED:pypi:alembic@1.19.1",
+    "RECORDED_UNREVIEWED:pypi:annotated-doc@0.0.5",
+    "RECORDED_UNREVIEWED:pypi:annotated-types@0.8.0",
+    "RECORDED_UNREVIEWED:pypi:anyio@4.14.2",
+    "RECORDED_UNREVIEWED:pypi:argon2-cffi-bindings@25.1.0",
+    "RECORDED_UNREVIEWED:pypi:argon2-cffi@25.1.0",
+    "RECORDED_UNREVIEWED:pypi:certifi@2026.7.22",
+    "RECORDED_UNREVIEWED:pypi:cffi@2.1.1",
+    "RECORDED_UNREVIEWED:pypi:click@8.4.2",
+    "RECORDED_UNREVIEWED:pypi:fastapi@0.141.1",
+    "RECORDED_UNREVIEWED:pypi:greenlet@3.5.5",
+    "RECORDED_UNREVIEWED:pypi:h11@0.16.0",
+    "RECORDED_UNREVIEWED:pypi:httpcore@1.0.9",
+    "RECORDED_UNREVIEWED:pypi:httptools@0.8.0",
+    "RECORDED_UNREVIEWED:pypi:httpx@0.28.1",
+    "RECORDED_UNREVIEWED:pypi:idna@3.18",
+    "RECORDED_UNREVIEWED:pypi:itsdangerous@2.2.0",
+    "RECORDED_UNREVIEWED:pypi:lxml@6.1.1",
+    "RECORDED_UNREVIEWED:pypi:mako@1.4.1",
+    "RECORDED_UNREVIEWED:pypi:markupsafe@3.0.3",
+    "RECORDED_UNREVIEWED:pypi:numpy@2.5.2",
+    "RECORDED_UNREVIEWED:pypi:ome-types@0.6.3",
+    "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.4",
+    "RECORDED_UNREVIEWED:pypi:psycopg@3.3.4",
+    "RECORDED_UNREVIEWED:pypi:pycparser@3.0",
+    "RECORDED_UNREVIEWED:pypi:pydantic-core@2.46.4",
+    "RECORDED_UNREVIEWED:pypi:pydantic-extra-types@2.11.1",
+    "RECORDED_UNREVIEWED:pypi:pydantic-settings@2.15.0",
+    "RECORDED_UNREVIEWED:pypi:pydantic@2.13.4",
+    "RECORDED_UNREVIEWED:pypi:python-dotenv@1.2.3",
+    "RECORDED_UNREVIEWED:pypi:pyvips@3.1.1",
+    "RECORDED_UNREVIEWED:pypi:pyyaml@6.0.3",
+    "RECORDED_UNREVIEWED:pypi:sqlalchemy@2.0.52",
+    "RECORDED_UNREVIEWED:pypi:starlette@1.6.0",
+    "RECORDED_UNREVIEWED:pypi:tifffile@2026.8.16",
+    "RECORDED_UNREVIEWED:pypi:typing-extensions@4.16.0",
+    "RECORDED_UNREVIEWED:pypi:typing-inspection@0.4.4",
+    "RECORDED_UNREVIEWED:pypi:uvicorn@0.52.3",
+    "RECORDED_UNREVIEWED:pypi:uvloop@0.22.1",
+    "RECORDED_UNREVIEWED:pypi:watchfiles@1.2.0",
+    "RECORDED_UNREVIEWED:pypi:websockets@17.0.1",
+    "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
+  ],
+  "schema": "pathlab.software-inventory-manifest/1",
+  "subjectCommit": "9d567726f0c7206fe67e7e1273072eda423dc99a",
+  "subjectTree": "6e2d0a450563fd20faa6568a30f51c4ed23fd4d7"
+}
