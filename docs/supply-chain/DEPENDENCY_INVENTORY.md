@@ -9,11 +9,11 @@ path. The remaining blocked inputs continue to block their Phase 0 admission; ne
 ratified architecture or authorizes deployment, qualification, or activation work.
 
 The authoritative machine-readable record is
-[`dependency-inventory.json`](dependency-inventory.json). It contains 498 unique records:
+[`dependency-inventory.json`](dependency-inventory.json). It contains 497 unique records:
 
 - 366 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
   packages;
-- 74 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
+- 73 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
 - 58 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
   tools, planned production inputs, models and model runtimes, and standards artifacts. The exact
   bundled font, icon, and WASM runtime packages are among the npm records and are required by the
