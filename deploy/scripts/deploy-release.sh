@@ -548,12 +548,12 @@ LIVE_DATABASE_ENGINE="$(bash "${LIVE_DIR}/deploy/scripts/compose-pathlab.sh" eng
 compose_release "${STAGE_DIR}" config --quiet
 compose_release "${STAGE_DIR}" build
 
-deployment_check "${STAGE_DIR}" || fail "worker job is active"
+deployment_check "${STAGE_DIR}" || fail "pre-migration deployment safety check failed"
 OLD_WORKER_STOPPED=1
 OLD_SERVICES_STOPPED=1
 compose_release "${LIVE_DIR}" stop worker
 compose_release "${LIVE_DIR}" stop caddy tusd
-deployment_check "${STAGE_DIR}" || fail "worker job did not stop cleanly"
+deployment_check "${STAGE_DIR}" || fail "post-stop deployment safety check failed"
 
 BACKUP_PATH="$(
   cd "${STAGE_DIR}/deploy"
