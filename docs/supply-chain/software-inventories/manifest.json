@@ -2,27 +2,27 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "e0e8102efa9e9000d2e61018d3bd00f87f0bdaff99ea7b92b2b1c7a221adb029",
-      "sizeBytes": 157143
+      "sha256": "7954940b849cfddbf69b3dd8b9609181faf6d1be4c7c8563b09be797596c7fbb",
+      "sizeBytes": 157248
     },
     {
       "path": "build.cdx.json",
-      "sha256": "1bba69c8fe178f7cb4044f8b3225124df96f02ae7bdd340f867ca2a6f134fa91",
+      "sha256": "d9956c38abe2c404dc587ec31ed7906285f54a408a2b05f0022643b1f8f31194",
       "sizeBytes": 625235
     },
     {
       "path": "build.spdx.json",
-      "sha256": "bd0512218b3b9128db8ba0a3d5bc145e29dfde8576363b7aa2e139559fdaeb20",
+      "sha256": "ed796b731bdfab23ea910e53b40d60e9e430d55c63aa3c82aa13ad52f55f6096",
       "sizeBytes": 504906
     },
     {
       "path": "source.cdx.json",
-      "sha256": "a208afcc88481d3c84d89e0ba096b60fbad23c31e7c10dc0faba3d10a0b801c1",
+      "sha256": "7c35f9075636750f8bc7eecb8132f27a56676b6f0a5f7ba74fad5134565f23d5",
       "sizeBytes": 659295
     },
     {
       "path": "source.spdx.json",
-      "sha256": "c60722b7d1dc7c5385c6efba0128af5a90073e29a35d72c08a21fc9309d5fa43",
+      "sha256": "c06dfaced8762aca1e3c6132b382cf3fd97944cebc544197163e78c9077bbf27",
       "sizeBytes": 531675
     }
   ],
@@ -31,7 +31,7 @@
     "assetRecords": 8,
     "buildComponents": 488,
     "currentShippedInputs": 91,
-    "dependencyRecordIdsSha256": "bbb5c48456f058407a78a7a465b2bb732fd2aebcf546493709e790dcbcb86d8f",
+    "dependencyRecordIdsSha256": "b0ec7cae45c64aae61edf1aada5cb6b9ff239179608b02bec9c230ebe673aa78",
     "dependencyRecords": 497,
     "sourceComponents": 519,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-05T07:58:03Z",
+  "generatedAt": "2026-09-05T08:12:46Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -81,10 +81,10 @@
       "sizeBytes": 1616
     },
     {
-      "gitBlob": "56a156869a3fc3d9d264995b09685b25d47d66ef",
+      "gitBlob": "18ebbbdb2a154bdebf1992d2108ff212046aa33f",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "4d84d8087dd272af8c5ec072c3a4f4312df5228356c3c1f77dc374aa35761c0d",
-      "sizeBytes": 101659
+      "sha256": "660c24c6e46a90bd1b62cd9c8d5317f565fd64c3f7d070ffd5c8629f269f2f3f",
+      "sizeBytes": 109902
     },
     {
       "gitBlob": "3c21421766a6526f8b82bd519c23a70050fc64e4",
@@ -117,10 +117,10 @@
       "sizeBytes": 2179
     },
     {
-      "gitBlob": "b87fb26c5c2546fd420b76725ea6df98888b209d",
+      "gitBlob": "7fefeed2bbb3628e74c2571e21aa9bd6762e1be6",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "125bd0d76f8339d30027d2269619e147597696ef320d01fd3d497047ad504992",
-      "sizeBytes": 668358
+      "sha256": "6885559ed2ec8846bdf4c1543b60016160db62fd65b9b6d0e9c2300abc72f930",
+      "sizeBytes": 675888
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -228,46 +228,46 @@
     "RECORDED_UNREVIEWED:pypi:annotated-doc@0.0.5",
     "RECORDED_UNREVIEWED:pypi:annotated-types@0.8.0",
     "RECORDED_UNREVIEWED:pypi:anyio@4.14.2",
-    "RECORDED_UNREVIEWED:pypi:argon2-cffi-bindings@25.1.0",
+    "RECORDED_UNREVIEWED:pypi:argon2-cffi-bindings@26.1.0",
     "RECORDED_UNREVIEWED:pypi:argon2-cffi@25.1.0",
     "RECORDED_UNREVIEWED:pypi:certifi@2026.7.22",
     "RECORDED_UNREVIEWED:pypi:cffi@2.1.1",
-    "RECORDED_UNREVIEWED:pypi:click@8.4.2",
+    "RECORDED_UNREVIEWED:pypi:click@8.5.0",
     "RECORDED_UNREVIEWED:pypi:fastapi@0.141.1",
     "RECORDED_UNREVIEWED:pypi:greenlet@3.5.5",
     "RECORDED_UNREVIEWED:pypi:h11@0.16.0",
     "RECORDED_UNREVIEWED:pypi:httpcore@1.0.9",
     "RECORDED_UNREVIEWED:pypi:httptools@0.8.0",
     "RECORDED_UNREVIEWED:pypi:httpx@0.28.1",
-    "RECORDED_UNREVIEWED:pypi:idna@3.18",
+    "RECORDED_UNREVIEWED:pypi:idna@3.19",
     "RECORDED_UNREVIEWED:pypi:itsdangerous@2.2.0",
-    "RECORDED_UNREVIEWED:pypi:lxml@6.1.1",
+    "RECORDED_UNREVIEWED:pypi:lxml@6.1.2",
     "RECORDED_UNREVIEWED:pypi:mako@1.4.1",
     "RECORDED_UNREVIEWED:pypi:markupsafe@3.0.3",
     "RECORDED_UNREVIEWED:pypi:numpy@2.5.2",
     "RECORDED_UNREVIEWED:pypi:ome-types@0.6.3",
-    "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.4",
-    "RECORDED_UNREVIEWED:pypi:psycopg@3.3.4",
+    "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.5",
+    "RECORDED_UNREVIEWED:pypi:psycopg@3.3.5",
     "RECORDED_UNREVIEWED:pypi:pycparser@3.0",
-    "RECORDED_UNREVIEWED:pypi:pydantic-core@2.46.4",
+    "RECORDED_UNREVIEWED:pypi:pydantic-core@2.46.5",
     "RECORDED_UNREVIEWED:pypi:pydantic-extra-types@2.11.1",
     "RECORDED_UNREVIEWED:pypi:pydantic-settings@2.15.0",
-    "RECORDED_UNREVIEWED:pypi:pydantic@2.13.4",
+    "RECORDED_UNREVIEWED:pypi:pydantic@2.13.5",
     "RECORDED_UNREVIEWED:pypi:python-dotenv@1.2.3",
-    "RECORDED_UNREVIEWED:pypi:pyvips@3.1.1",
+    "RECORDED_UNREVIEWED:pypi:pyvips@3.2.0",
     "RECORDED_UNREVIEWED:pypi:pyyaml@6.0.3",
     "RECORDED_UNREVIEWED:pypi:sqlalchemy@2.0.52",
     "RECORDED_UNREVIEWED:pypi:starlette@1.6.0",
-    "RECORDED_UNREVIEWED:pypi:tifffile@2026.8.16",
+    "RECORDED_UNREVIEWED:pypi:tifffile@2026.8.23",
     "RECORDED_UNREVIEWED:pypi:typing-extensions@4.16.0",
     "RECORDED_UNREVIEWED:pypi:typing-inspection@0.4.4",
-    "RECORDED_UNREVIEWED:pypi:uvicorn@0.52.3",
+    "RECORDED_UNREVIEWED:pypi:uvicorn@0.52.4",
     "RECORDED_UNREVIEWED:pypi:uvloop@0.22.1",
     "RECORDED_UNREVIEWED:pypi:watchfiles@1.2.0",
-    "RECORDED_UNREVIEWED:pypi:websockets@17.0.1",
+    "RECORDED_UNREVIEWED:pypi:websockets@17.1",
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "82199849b6ac9262b35271c912f1bfb099f2ad5a",
-  "subjectTree": "7ca09d46dcf4b26d6cbaa6f2b1a763e248e09951"
+  "subjectCommit": "b97f2123f767617250bf473be7f5f9ec6d8f4ab0",
+  "subjectTree": "4c2ce4f63e0c317169e3e08c9a7971df8799c2bc"
 }
