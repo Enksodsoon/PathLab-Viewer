@@ -44,6 +44,7 @@ Every file in `docs/architecture` other than this register appears exactly once.
 
 | Document | Status | Controlling canonical source for conflicts |
 |---|---|---|
+| `docs/architecture/CAPACITY_EVIDENCE_PROTOCOL_V3.md` | `SUPPORTING_CONTRACT` | [Production Qualification](./PRODUCTION_QUALIFICATION.md) and ADR [0132](../adr/0132-qualify-3000-learner-combined-broadcast-with-zero-cash-admission.md); standalone protocol foundation, not measured qualification or activation authority. |
 | `docs/architecture/ADAPTIVE_VIEWER_CAPACITY.md` | `BASELINE_ONLY` | [Final Production Endpoint](./FINAL_PRODUCTION_ENDPOINT.md), [Production Qualification](./PRODUCTION_QUALIFICATION.md), ADRs [0066](../adr/0066-require-the-full-1200-participant-classroom-campaign.md), [0067](../adr/0067-require-the-full-300-organization-eqa-campaign.md), and [0128](../adr/0128-qualify-every-context-on-the-exact-release.md) |
 | `docs/architecture/ADMIN_ANNOTATIONS.md` | `BASELINE_ONLY` | [Imaging Control context](../contexts/imaging-control/CONTEXT.md), [Role Approval Matrix](./ROLE_APPROVAL_MATRIX.md), ADRs [0076](../adr/0076-version-annotations-under-single-editor-leases.md) and [0111](../adr/0111-readmit-anonymous-shares-and-restrict-annotation-publication.md) |
 | `docs/architecture/CLASSROOM_PROTECTED_JOBS.md` | `BASELINE_ONLY` | [Live Learning context](../contexts/live-learning/CONTEXT.md), [Zero-Cash Runtime](./ZERO_CASH_RUNTIME.md), ADRs [0038](../adr/0038-schedule-heavy-work-through-prioritized-mode-reservations.md), [0066](../adr/0066-require-the-full-1200-participant-classroom-campaign.md), and [0110](../adr/0110-separate-durable-live-learning-evidence-from-ephemeral-state.md) |
@@ -78,7 +79,7 @@ Every file in `docs/architecture` other than this register appears exactly once.
 
 | Path or family | Status | Controller or limitation |
 |---|---|---|
-| `docs/adr/README.md` and accepted `docs/adr/0001` through `0131` | `CANONICAL` | Accepted decision history; individual ADR supersession metadata controls within the family. |
+| `docs/adr/README.md` and accepted `docs/adr/0001` through `0132` | `CANONICAL` | Accepted decision history; individual ADR supersession metadata controls within the family. |
 | `docs/contexts/*/CONTEXT.md` and `CONTEXT-MAP.md` | `SUPPORTING_CONTRACT` | Final Production Endpoint and accepted ADRs control conflicts. |
 | `docs/execution/*.md` | `CANONICAL_EXECUTION_PLAN` | Sequencing and evidence only; no architecture or activation override. |
 | `docs/superpowers/specs/2026-08-14-pathlab-free-classroom-design.md` and `docs/superpowers/plans/2026-08-14-pathlab-free-classroom.md` | `SUPERSEDED` | Final Production Endpoint, Zero-Cash Runtime, Production Qualification, ADRs 0038, 0066, 0128, and 0129. |

@@ -92,6 +92,8 @@ jobs:
       - run: ruff check server tests migrations
       - run: mypy server/wsi_viewer
       - run: pytest --cov=wsi_viewer --cov-report=term-missing
+      - name: Verify capacity harness and evidence contracts without load
+        run: pytest -q tests/load
 
   postgres:
     runs-on: ubuntu-24.04
