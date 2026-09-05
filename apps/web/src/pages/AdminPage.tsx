@@ -369,6 +369,22 @@ export function AdminPage() {
   }, [loadNavigation])
 
   useEffect(() => {
+    if (!authorized || url.get('action') !== 'upload') return
+    setFormName('')
+    setFormDescription('')
+    setNotice('')
+    setMoveTarget('')
+    setCollectionTarget('')
+    setTagValue('')
+    setDialog('upload')
+    setUrl((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('action')
+      return next
+    }, { replace: true })
+  }, [authorized, setUrl, url])
+
+  useEffect(() => {
     const path = navigation.folderPath ?? []
     if (!authorized || path.length === 0) return
 
@@ -1343,6 +1359,7 @@ export function AdminPage() {
         navigatorOpen={navigatorOpen}
         navigatorButtonRef={navigatorToggleRef}
         storage={navigation.storage}
+        activeDestination={storageOpen ? 'storage' : 'library'}
         onToggleExpanded={() => setRailExpanded((current) => {
           persistRailExpanded(!current)
           return !current
@@ -1354,6 +1371,9 @@ export function AdminPage() {
           : undefined}
         onStudy={navigation.capabilities?.study
           ? () => navigate('/admin/study')
+          : undefined}
+        onAssessment={navigation.capabilities?.assessment
+          ? () => navigate('/admin/assessments')
           : undefined}
         onStorage={() => chooseLocation('storage')}
         storageActive={storageOpen}

@@ -191,9 +191,10 @@ export async function classroomReadiness(folderId: string): Promise<ClassroomRea
 }
 
 export async function classroomSetupFolders(
-  query: { cursor?: string | null; limit?: number; q?: string } = {},
+  query: { cursor?: string | null; limit?: number; q?: string; folderId?: string } = {},
 ): Promise<ClassroomSetupFoldersPage> {
   const parameters = new URLSearchParams()
+  if (query.folderId) parameters.set('folderId', query.folderId)
   if (query.cursor) parameters.set('cursor', query.cursor)
   parameters.set('limit', String(Math.max(1, Math.min(50, Math.floor(query.limit ?? 20)))))
   const normalizedQuery = query.q?.trim()

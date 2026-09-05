@@ -111,6 +111,7 @@ export interface LibraryNavigation {
   capabilities?: {
     classroom: boolean
     study?: boolean
+    assessment?: boolean
   }
   counts: {
     all: number

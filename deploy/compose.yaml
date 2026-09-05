@@ -20,16 +20,20 @@ services:
       DOMAIN: ${DOMAIN:?Set DOMAIN in deploy/.env}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
       PATHLAB_CLASSROOM_SERVICE_URL: http://classroom:8001
+      PATHLAB_ASSESSMENT_SERVICE_URL: http://assessment:8002
     volumes:
       - caddy_data:/data
       - caddy_config:/config
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/individual:/pathlab-individual:ro
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/private:/pathlab-private:ro
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/assessment:/pathlab-assessment:ro
     depends_on:
       api:
         condition: service_healthy
       classroom:
+        condition: service_healthy
+      assessment:
         condition: service_healthy
       tile-service:
         condition: service_healthy
@@ -67,6 +71,7 @@ services:
       PATHLAB_ANNOTATIONS_ENABLED: "${PATHLAB_ANNOTATIONS_ENABLED:-false}"
       PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED: "${PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED:-false}"
       PATHLAB_CLASSROOM_ENABLED: "${PATHLAB_PRODUCTION_CLASSROOM_ENABLED:-false}"
+      PATHLAB_ASSESSMENT_ENABLED: "${PATHLAB_ASSESSMENT_ENABLED:-false}"
       PATHLAB_STUDY_MODE_ENABLED: "${PATHLAB_STUDY_MODE_ENABLED:-false}"
       PATHLAB_STUDY_COACH_AI_ENABLED: "${PATHLAB_STUDY_COACH_AI_ENABLED:-false}"
       PATHLAB_STUDY_COACH_AI_PILOT_ENABLED: "${PATHLAB_STUDY_COACH_AI_PILOT_ENABLED:-false}"
@@ -117,6 +122,40 @@ services:
       - pathlab-internal
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://127.0.0.1:8001/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+    cpus: 1.00
+    cpu_shares: 1024
+
+  assessment:
+    image: pathlab-viewer-assessment:${PATHLAB_RELEASE_IMAGE_TAG:-live}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["uvicorn", "wsi_viewer.main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=*"]
+    expose: ["8002"]
+    environment:
+      <<: *pathlab-environment
+      PATHLAB_SERVICE_ROLE: assessment
+      PATHLAB_ASSESSMENT_ENABLED: "${PATHLAB_ASSESSMENT_ENABLED:-false}"
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - default
+      - pathlab-internal
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8002/readyz"]
       interval: 15s
       timeout: 5s
       retries: 5

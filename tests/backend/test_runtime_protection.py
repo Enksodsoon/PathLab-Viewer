@@ -6,12 +6,17 @@ from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import ClassroomSession, Job, RuntimeGuard, Slide
 from wsi_viewer.runtime_protection import (
+    ASSESSMENT_COOLDOWN,
+    ASSESSMENT_DRAINING,
+    ASSESSMENT_LIVE,
     COOLDOWN,
     DRAINING,
     IDLE,
     LIVE,
+    begin_assessment_cooldown,
     begin_classroom_cooldown,
     protection_snapshot,
+    request_assessment_protection,
     request_classroom_protection,
     utc_now,
 )
@@ -55,9 +60,7 @@ def test_protection_blocks_waiting_jobs_and_requests_running_cancellation(
         running_id = running.id
 
     with factory() as database:
-        snapshot = request_classroom_protection(
-            database, classroom_session_id="pending-classroom"
-        )
+        snapshot = request_classroom_protection(database, classroom_session_id="pending-classroom")
         database.commit()
         assert snapshot.mode == DRAINING
         assert snapshot.running_jobs == 1
@@ -114,9 +117,7 @@ def test_worker_admission_fails_closed_while_guard_is_live(tmp_path: Path) -> No
         )
         database.add(classroom)
         database.flush()
-        request_classroom_protection(
-            database, classroom_session_id="classroom-1", now=now
-        )
+        request_classroom_protection(database, classroom_session_id="classroom-1", now=now)
         database.commit()
         job_id = job.id
 
@@ -134,3 +135,55 @@ def test_worker_admission_fails_closed_while_guard_is_live(tmp_path: Path) -> No
 def test_disabled_protection_keeps_legacy_worker_admission(tmp_path: Path) -> None:
     _, factory = _factory(tmp_path)
     assert background_work_is_allowed(factory, enabled=False)
+
+
+def test_assessment_and_classroom_share_one_protected_runtime(tmp_path: Path) -> None:
+    settings, factory = _factory(tmp_path)
+    now = utc_now()
+    with factory() as database:
+        queued = _job(database)
+        running = _job(database, status="running")
+        protection = request_assessment_protection(
+            database,
+            assessment_administration_id="assessment-1",
+            now=now,
+        )
+        database.commit()
+        queued_id = queued.id
+        running_id = running.id
+        assert protection.mode == ASSESSMENT_DRAINING
+        assert protection.running_jobs == 1
+
+    with factory() as database:
+        running = database.get(Job, running_id)
+        assert database.get(Job, queued_id).status == "blocked_classroom"
+        assert running is not None and running.cancellation_requested_at is not None
+        running.status = "cancelled"
+        protection = request_assessment_protection(
+            database,
+            assessment_administration_id="assessment-1",
+            now=now + timedelta(seconds=1),
+        )
+        assert protection.mode == ASSESSMENT_LIVE
+        classroom = request_classroom_protection(
+            database,
+            classroom_session_id="classroom-1",
+            now=now + timedelta(seconds=1),
+        )
+        assert classroom.conflicting_runtime is True
+        database.commit()
+
+    assert not process_next(
+        factory,
+        layout=StorageLayout(settings.data_root),
+        protection_enabled=True,
+    )
+    with factory() as database:
+        cooldown = begin_assessment_cooldown(database, now=now + timedelta(seconds=2))
+        database.commit()
+        assert cooldown.mode == ASSESSMENT_COOLDOWN
+    with factory() as database:
+        snapshot = protection_snapshot(database, now=now + timedelta(seconds=123))
+        database.commit()
+        assert snapshot.mode == IDLE
+        assert database.get(Job, queued_id).status == "queued"

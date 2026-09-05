@@ -24,7 +24,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../api'
 import {
@@ -151,11 +151,18 @@ function savedClassroomId(): string {
 
 export function ClassroomTeacherPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const lockedFolderId = searchParams.get('folderId') ?? ''
+  const classId = searchParams.get('classId') ?? ''
+  const courseId = searchParams.get('courseId') ?? ''
+  const classReturnPath = classId && courseId
+    ? `/admin/assessments/courses/${encodeURIComponent(courseId)}/classes/${encodeURIComponent(classId)}`
+    : '/admin'
   const [setupFolders, setSetupFolders] = useState<ClassroomSetupFolder[]>([])
   const [setupCursor, setSetupCursor] = useState<string | null>(null)
   const [setupQuery, setSetupQuery] = useState('')
   const deferredSetupQuery = useDeferredValue(setupQuery.trim())
-  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [selectedFolderId, setSelectedFolderId] = useState(lockedFolderId)
   const [reviewExpiry, setReviewExpiry] = useState(defaultReviewExpiry)
   const [readiness, setReadiness] = useState<ClassroomReadiness | null>(null)
   const [recentClassrooms, setRecentClassrooms] = useState<Array<{
@@ -247,7 +254,7 @@ export function ClassroomTeacherPage() {
     setSetupLoading(true)
     setSetupLoadingMore(false)
     setSetupError('')
-    void classroomSetupFolders({ q: deferredSetupQuery })
+    void classroomSetupFolders({ q: lockedFolderId ? undefined : deferredSetupQuery, folderId: lockedFolderId })
       .then((page) => {
         if (cancelled || request !== setupRequest.current) return
         setSetupFolders(page.items)
@@ -269,7 +276,7 @@ export function ClassroomTeacherPage() {
         if (!cancelled && request === setupRequest.current) setSetupLoading(false)
       })
     return () => { cancelled = true }
-  }, [deferredSetupQuery, navigate])
+  }, [deferredSetupQuery, lockedFolderId, navigate])
 
   useEffect(() => {
     if (classroom) return
@@ -449,7 +456,7 @@ export function ClassroomTeacherPage() {
           setError('The previous classroom is no longer active.')
           return
         }
-        setError('The classroom connection was interrupted. Reconnecting…')
+        setError('The classroom connection was interrupted. Reconnectingâ€¦')
       })
       return
     }
@@ -1059,12 +1066,12 @@ export function ClassroomTeacherPage() {
       <Brand variant="library" />
       <div className="classroom-entry__actions">
         <ThemeControl compact />
-        <Link className="classroom-back-link" to="/admin">Back to library</Link>
+        <Link className="classroom-back-link" to={classReturnPath}>{classId ? 'Back to class' : 'Back to library'}</Link>
       </div>
     </header>
     <section className="classroom-entry__card">
       <p className="classroom-kicker">Prepare classroom</p>
-      <h1>Choose a class folder</h1>
+      <h1>{lockedFolderId ? 'Prepare this classroom' : 'Choose a class folder'}</h1>
       <p className="classroom-entry__intro">Create one protected link for review before, during, and after class.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
@@ -1082,7 +1089,7 @@ export function ClassroomTeacherPage() {
         End existing classroom
       </button>}
       {setupError && <p role="alert" className="classroom-error">{setupError}</p>}
-      <label className="classroom-expiry">Search class folders
+      {!lockedFolderId && <label className="classroom-expiry">Search class folders
         <input
           type="search"
           value={setupQuery}
@@ -1098,9 +1105,9 @@ export function ClassroomTeacherPage() {
           placeholder="Folder name"
           autoComplete="off"
         />
-      </label>
+      </label>}
       <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
-        {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class folders…</p> : null}
+        {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class foldersâ€¦</p> : null}
         {!setupLoading && !setupFolders.length ? (
           <p className="classroom-folder-picker__status">{deferredSetupQuery
             ? 'No class folders match this search.'
@@ -1125,28 +1132,28 @@ export function ClassroomTeacherPage() {
             <span className="classroom-folder-picker__copy">
               <strong>{folder.name}</strong>
               <small>{folder.tooManySlides
-                ? 'More than 50 slides · choose a smaller folder'
+                ? 'More than 50 slides Â· choose a smaller folder'
                 : count === 0
                 ? 'No slides'
-                : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
+                : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' Â· includes subfolders' : ''}`}</small>
               {folder.folderPath.length > 1 ? <small>{folder.folderPath.slice(0, -1).join(' / ')}</small> : null}
             </span>
           </label>
         })}
         {setupCursor ? <button type="button" disabled={setupLoading || setupLoadingMore} onClick={() => void loadMoreSetupFolders()}>
-          {setupLoadingMore ? 'Loading more folders…' : 'Load more folders'}
+          {setupLoadingMore ? 'Loading more foldersâ€¦' : 'Load more folders'}
         </button> : null}
       </div>
       {readiness?.blocked.length ? <div className="classroom-readiness-error" role="alert">
         <strong>{readiness.blocked.length} slide{readiness.blocked.length === 1 ? '' : 's'} need attention</strong>
-        {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} · {item.reason.replaceAll('_', ' ')}</span>)}
+        {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} Â· {item.reason.replaceAll('_', ' ')}</span>)}
       </div> : null}
       <label className="classroom-expiry">Review access expires
         <input type="datetime-local" min={localDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000))} max={localDateTimeInputValue(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))} value={reviewExpiry} onChange={(event) => setReviewExpiry(event.target.value)} />
       </label>
       <button className="primary classroom-entry__primary" type="button" disabled={startBusy || !selectedCount || Boolean(selectedBlockedCount) || selectedTooLarge} onClick={() => void start()}>
         {startBusy
-          ? 'Preparing classroom…'
+          ? 'Preparing classroomâ€¦'
           : selectedCount
           ? `Prepare classroom with ${selectedCount} ${selectedCount === 1 ? 'slide' : 'slides'}`
           : 'Choose a class folder'}
@@ -1154,9 +1161,9 @@ export function ClassroomTeacherPage() {
       {recentClassrooms.length ? <section className="classroom-recent-reviews">
         <h2>Open classrooms</h2>
         {recentClassrooms.map((item) => <div key={item.id}>
-          <span><strong>{item.joinCode}</strong><small>{item.phase} · expires {new Date(item.reviewExpiresAt).toLocaleString()}{cachedClassroomId === item.id ? ' · last opened' : ''}</small></span>
+          <span><strong>{item.joinCode}</strong><small>{item.phase} Â· expires {new Date(item.reviewExpiresAt).toLocaleString()}{cachedClassroomId === item.id ? ' Â· last opened' : ''}</small></span>
           <button type="button" disabled={Boolean(resumeBusy)} aria-label={`Resume classroom ${item.joinCode}`} onClick={() => void resumeClassroom(item.id)}>
-            {resumeBusy === item.id ? 'Resuming…' : 'Resume'}
+            {resumeBusy === item.id ? 'Resumingâ€¦' : 'Resume'}
           </button>
           <button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/classroom/invite/${item.publicId}`)}>Copy link</button>
           <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id)))}>Revoke</button>
@@ -1168,7 +1175,7 @@ export function ClassroomTeacherPage() {
   if (classroom.phase !== 'live') return <main className="classroom-entry classroom-setup">
     <header className="classroom-entry__header">
       <Brand variant="library" />
-      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to="/admin">Back to library</Link></div>
+      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to={classReturnPath}>{classId ? 'Back to class' : 'Back to library'}</Link></div>
     </header>
     <section className="classroom-entry__card classroom-prepared-card">
       <p className="classroom-kicker">{classroom.phase === 'preview' ? 'Classroom prepared' : 'Post-class review'}</p>
@@ -1249,7 +1256,7 @@ export function ClassroomTeacherPage() {
           type="button"
           aria-pressed={guideMode}
           aria-label={guideMode ? 'Stop guiding students' : 'Guide students'}
-          title={guideMode ? 'Guide mode on — students follow this view' : 'Guide mode off — navigation stays local'}
+          title={guideMode ? 'Guide mode on â€” students follow this view' : 'Guide mode off â€” navigation stays local'}
           onClick={() => {
             const next = !guideMode
             setGuideMode(next)
@@ -1315,16 +1322,16 @@ export function ClassroomTeacherPage() {
         {!rosterLoading && !participants.length && <p className="classroom-empty">
           {deferredRosterQuery ? 'No students match this search.' : 'Students appear here after joining.'}
         </p>}
-        {rosterLoading && !participants.length ? <p className="classroom-empty" role="status">Loading students…</p> : null}
+        {rosterLoading && !participants.length ? <p className="classroom-empty" role="status">Loading studentsâ€¦</p> : null}
         <ul className="classroom-participant-list" aria-label="Student roster">{participants.map((participant) => {
           const isController = state?.controller.participantId === participant.id
           return <li key={participant.id}>
             <div>
               <strong>{participant.alias}</strong>
-              <small>{participant.displayName ? `${participant.displayName} · ` : ''}{isController
-                ? `${participant.status} · controller`
+              <small>{participant.displayName ? `${participant.displayName} Â· ` : ''}{isController
+                ? `${participant.status} Â· controller`
                 : participant.controlRequested
-                  ? `${participant.status} · requested control`
+                  ? `${participant.status} Â· requested control`
                   : participant.status}</small>
             </div>
             {isController || participant.controlRequested ? <button className="classroom-icon-action" type="button" aria-label={isController ? `Take back control from ${participant.alias}` : `Give control to ${participant.alias}`} title={isController ? 'Take back control' : 'Give control'} disabled={participant.status === 'disconnected'} onClick={() => void (isController
@@ -1364,7 +1371,7 @@ export function ClassroomTeacherPage() {
             setError('More control requests could not be loaded.')
           })}
         >{pendingControlLoading
-            ? 'Loading control requests…'
+            ? 'Loading control requestsâ€¦'
             : `Load more control requests (${pinnedControlRequests.length} of ${pendingControlPage.total})`}</button> : null}
         {roster.nextCursor ? <button
           className="classroom-roster-more"
@@ -1373,7 +1380,7 @@ export function ClassroomTeacherPage() {
           onClick={() => void loadMoreRoster(classroom.id).catch(() => {
             setError('More students could not be loaded.')
           })}
-        >{rosterLoading ? 'Loading…' : `Load more (${roster.items.length} of ${roster.total})`}</button> : null}
+        >{rosterLoading ? 'Loadingâ€¦' : `Load more (${roster.items.length} of ${roster.total})`}</button> : null}
       </section>
       <section className="classroom-panel__section">
         <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span><strong className="classroom-panel__count" aria-label={`${state?.pendingQuestions.length ?? 0} pending questions`}>{state?.pendingQuestions.length ?? 0}</strong></h2>

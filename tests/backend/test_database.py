@@ -46,7 +46,14 @@ def test_sqlite_schema_has_contract_tables_and_wal(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("role", "expected_size"),
-    (("general", 5), ("classroom", 4), ("worker", 2), ("tile", 1), ("all", 5)),
+    (
+        ("general", 5),
+        ("classroom", 4),
+        ("assessment", 4),
+        ("worker", 2),
+        ("tile", 1),
+        ("all", 5),
+    ),
 )
 def test_sqlite_pool_is_bounded_by_runtime_role(role: str, expected_size: int) -> None:
     settings = Settings(_env_file=None, service_role=role)
@@ -54,7 +61,7 @@ def test_sqlite_pool_is_bounded_by_runtime_role(role: str, expected_size: int) -
     assert pool_options_for(settings) == {
         "pool_size": expected_size,
         "max_overflow": 0,
-        "pool_timeout": 1.0,
+        "pool_timeout": 0.5 if role == "assessment" else 1.0,
     }
 
 
@@ -63,6 +70,7 @@ def test_sqlite_pool_is_bounded_by_runtime_role(role: str, expected_size: int) -
     (
         ("general", (5_000, 1_000)),
         ("classroom", (2_000, 250)),
+        ("assessment", (2_000, 250)),
         ("worker", (30_000, 1_000)),
         ("tile", (5_000, 1_000)),
     ),

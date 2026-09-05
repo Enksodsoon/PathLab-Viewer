@@ -4,6 +4,7 @@ EXPECTED_COMPOSE_SERVICES = (
     "caddy",
     "api",
     "classroom",
+    "assessment",
     "tile-service",
     "tusd",
     "worker",
@@ -155,6 +156,28 @@ def test_classroom_uses_the_existing_backend_image_with_a_single_bounded_worker(
     assert "cpus: 1.00" in classroom_service
     assert "mem_limit: 512m" in api_service
     assert "cpus: 0.50" in api_service
+
+
+def test_assessment_uses_an_isolated_default_off_two_worker_service() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    assessment = compose.split("\n  assessment:\n", maxsplit=1)[1].split(
+        "\n  tile-service:\n", maxsplit=1
+    )[0]
+    caddy = compose.split("\n  caddy:\n", maxsplit=1)[1].split("\n  api:\n", maxsplit=1)[0]
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+
+    assert "dockerfile: deploy/Dockerfile.backend" in assessment
+    assert "PATHLAB_SERVICE_ROLE: assessment" in assessment
+    assert 'PATHLAB_ASSESSMENT_ENABLED: "${PATHLAB_ASSESSMENT_ENABLED:-false}"' in assessment
+    assert '"--port", "8002"' in assessment
+    assert '"--workers", "2"' in assessment
+    assert 'expose: ["8002"]' in assessment
+    assert "\n    ports:" not in assessment
+    assert "PATHLAB_ASSESSMENT_SERVICE_URL: http://assessment:8002" in caddy
+    assert "/api/v2/assessment/* /api/v2/admin/assessment/*" in caddyfile
+    assert "reverse_proxy {$PATHLAB_ASSESSMENT_SERVICE_URL}" in caddyfile
+    assert "handle_path /assessment-assets/*" in caddyfile
+    assert "/delivery/assessment:/pathlab-assessment:ro" in caddy
 
 
 def test_worker_and_tile_service_use_dedicated_database_pool_roles() -> None:

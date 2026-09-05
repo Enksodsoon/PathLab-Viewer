@@ -22,6 +22,8 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .admission import SharedAdmission
 from .annotation_routes import register_annotation_routes
+from .assessment_assets import assessment_assets_ready
+from .assessment_routes import register_assessment_routes
 from .auth import (
     CredentialConflict,
     InvalidCurrentPassword,
@@ -88,6 +90,7 @@ MAX_LIBRARY_BODY_BYTES = 64 * 1024
 MAX_INTERNAL_BODY_BYTES = 64 * 1024
 MAX_ANNOTATION_BODY_BYTES = 256 * 1024
 MAX_ANNOTATION_IMPORT_BODY_BYTES = 8 * 1024 * 1024
+MAX_ASSESSMENT_BODY_BYTES = 64 * 1024
 
 
 def _is_sqlite_busy_or_locked(error: SQLAlchemyOperationalError) -> bool:
@@ -110,6 +113,15 @@ def _is_classroom_api_path(path: str) -> bool:
         or path.startswith("/api/v1/classroom/")
         or path == "/api/v1/admin/classroom"
         or path.startswith("/api/v1/admin/classroom/")
+    )
+
+
+def _is_assessment_api_path(path: str) -> bool:
+    return (
+        path == "/api/v2/assessment"
+        or path.startswith("/api/v2/assessment/")
+        or path == "/api/v2/admin/assessment"
+        or path.startswith("/api/v2/admin/assessment/")
     )
 
 
@@ -214,6 +226,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     current = settings or Settings()
     serves_general = current.service_role in {"general", "all"}
     serves_classroom = current.service_role in {"classroom", "all"}
+    serves_assessment = current.service_role in {"assessment", "all"}
     classroom_runtime_enabled = current.classroom_enabled and serves_classroom
     current.data_root.mkdir(parents=True, exist_ok=True)
     factory = session_factory(current)
@@ -300,6 +313,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         AuthBodyLimitMiddleware,
         path_limits=(
+            ("/api/v2/assessment/", MAX_ASSESSMENT_BODY_BYTES),
             ("/api/v2/admin/annotations/", MAX_ANNOTATION_BODY_BYTES),
             ("/api/v2/admin/", MAX_LIBRARY_BODY_BYTES),
             ("/api/v1/internal/", MAX_INTERNAL_BODY_BYTES),
@@ -334,10 +348,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> Response:
         path = request.url.path
         is_classroom_path = _is_classroom_api_path(path)
+        is_assessment_path = _is_assessment_api_path(path)
         if current.service_role == "general" and is_classroom_path:
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
         if current.service_role == "classroom" and not (
             is_classroom_path or path in {"/livez", "/readyz"}
+        ):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        if current.service_role == "assessment" and not (
+            is_assessment_path or path in {"/livez", "/readyz"}
         ):
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
         if (
@@ -377,6 +396,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 },
             )
         if is_classroom_path:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+        if is_assessment_path:
             response.headers["Cache-Control"] = "no-store"
             response.headers["Referrer-Policy"] = "no-referrer"
         return response
@@ -549,6 +571,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             csrf_dependency=legacy_csrf,
             pressure_metrics=classroom_pressure,
         )
+    if serves_assessment and current.assessment_enabled:
+        register_assessment_routes(
+            app,
+            database_dependency=database,
+            admin_dependency=admin_session,
+            csrf_dependency=csrf,
+            identifier_secret=current.secret_key,
+            secure_cookies=current.secure_cookies,
+            storage=storage,
+        )
 
     @app.get("/livez")
     def livez() -> dict[str, str]:
@@ -572,6 +604,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=503,
                 detail={"code": "CLASSROOM_SINGLETON_NOT_READY"},
             )
+        if serves_assessment and current.assessment_enabled:
+            with factory() as database:
+                if not assessment_assets_ready(database, storage):
+                    raise HTTPException(
+                        status_code=503,
+                        detail={"code": "ASSESSMENT_ASSETS_NOT_READY"},
+                    )
         return {"status": "ready"}
 
     @app.post("/api/v1/auth/session", status_code=status.HTTP_201_CREATED)
@@ -1057,12 +1096,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             cache_control="private, max-age=86400, immutable",
         )
 
-    if current.service_role == "classroom":
+    if current.service_role in {"classroom", "assessment"}:
         app.router.routes[:] = [
             route
             for route in app.router.routes
             if (path := getattr(route, "path", "")) in {"/livez", "/readyz"}
-            or _is_classroom_api_path(path)
+            or (
+                _is_classroom_api_path(path)
+                if current.service_role == "classroom"
+                else _is_assessment_api_path(path)
+            )
         ]
 
     return app

@@ -35,6 +35,7 @@ interface Props {
   onScaleChange?: (microns: number, width: number) => void
   onViewerAttach?: ViewerAttachmentCallback
   networkProfile?: ViewerNetworkProfile
+  showLoadingMode?: boolean
 }
 
 interface NavigatorWithConnection extends Navigator {
@@ -60,6 +61,7 @@ export function OpenSeadragonViewer({
   onScaleChange,
   onViewerAttach,
   networkProfile,
+  showLoadingMode = true,
 }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
@@ -381,14 +383,14 @@ export function OpenSeadragonViewer({
       decoding="async"
     /> : null}
     <div ref={element} style={{ position: 'absolute', inset: 0 }} />
-    <label className="viewer-loading-mode">
+    {showLoadingMode ? <label className="viewer-loading-mode">
       <span>Loading</span>
       <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>
         <option value="auto">Auto</option>
         <option value="data-saver">Data saver</option>
         <option value="full">Full detail</option>
       </select>
-    </label>
+    </label> : null}
     <div className="viewer-rotation" ref={rotationControl}>
       <button
         className="viewer-rotation-control"
