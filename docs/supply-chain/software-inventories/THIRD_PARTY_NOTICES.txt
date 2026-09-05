@@ -4025,16 +4025,6 @@ Notice files:
   - click-8.4.2/LICENSE.txt sha256:9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d
   - click-8.4.2/docs/license.md sha256:b4aa3a8b0dfd4c8cea97ea65b3f19ef54bd280665533478f35c0a5d205a7d341
 
-ID: pypi:colorama@0.4.6
-Name: colorama
-Version: 0.4.6
-License: BSD License
-Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/colorama/0.4.6/json
-Blockers: NONE
-Notice files:
-  - colorama-0.4.6/LICENSE.txt sha256:cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318
-
 ID: pypi:crc32c@2.8
 Name: crc32c
 Version: 2.8
@@ -4047,17 +4037,17 @@ Notice files:
   - crc32c-2.8/LICENSE.google-crc32c sha256:a1f30b77c01e0995fa32a00119e00749e8731ee8a3c4c3549bce74083c72b0b6
   - crc32c-2.8/LICENSE.slice-by-8 sha256:7890b6a914d1a5164dad78d642f20b4565d128f3375f75b861133026ad016d07
 
-ID: pypi:cryptography@50.0.0
+ID: pypi:cryptography@50.0.1
 Name: cryptography
-Version: 50.0.0
+Version: 50.0.1
 License: Apache-2.0 OR BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/cryptography/50.0.0/json
+Source: https://pypi.org/pypi/cryptography/50.0.1/json
 Blockers: NONE
 Notice files:
-  - cryptography-50.0.0/LICENSE sha256:3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb
-  - cryptography-50.0.0/LICENSE.APACHE sha256:aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe
-  - cryptography-50.0.0/LICENSE.BSD sha256:602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb
+  - cryptography-50.0.1/LICENSE sha256:3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb
+  - cryptography-50.0.1/LICENSE.APACHE sha256:aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe
+  - cryptography-50.0.1/LICENSE.BSD sha256:602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb
 
 ID: pypi:fastapi@0.141.1
 Name: fastapi
