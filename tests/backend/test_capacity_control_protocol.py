@@ -595,9 +595,14 @@ def test_stable_capacity_dispatcher_is_installed_atomically_and_always_restored(
     host = Path("deploy/scripts/capacity-control-host.sh").read_text(encoding="utf-8")
 
     assert "^/run/pathlab-capacity-[a-z0-9-]{1,64}-controller$" in deploy
-    assert deploy.index("/run/pathlab-capacity-controller") < deploy.index(
-        'exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh"'
-    )
+    capacity_dispatch = deploy.split('if [[ "${REQUEST}" == capacity-arm\\ * ||', 1)[1].split(
+        'if [[ "${REQUEST}" == capacity-recover\\ * ]]', 1
+    )[0]
+    arm_bypass = capacity_dispatch.index('if [[ "${REQUEST}" == capacity-arm\\ * ]]')
+    shared_lock = capacity_dispatch.index("flock --shared --timeout 10")
+    pointer = capacity_dispatch.index("/run/pathlab-capacity-controller", shared_lock)
+    frozen_exec = capacity_dispatch.index('exec bash "${CONTROLLER_SCRIPT}"')
+    assert arm_bypass < shared_lock < pointer < frozen_exec
     backup = '"${STABLE_DISPATCHER}" "${CONTROLLER_DIR}/prior-dispatcher"'
     install = '"${LIVE_DIR}/deploy/scripts/deploy-release.sh"'
     assert backup in host and install in host

@@ -319,12 +319,40 @@ if [[ "${REQUEST}" == capacity-arm\ * || "${REQUEST}" == capacity-status\ * \
   || "${REQUEST}" == capacity-terminate-controller\ * \
   || "${REQUEST}" == capacity-abort\ * || "${REQUEST}" == capacity-ack\ * \
   || "${REQUEST}" == capacity-postflight\ * || "${REQUEST}" == capacity-runtime-preflight\ * ]]; then
-  if [[ -f /run/pathlab-capacity-controller ]]; then
-    CONTROLLER_DIR="$(cat /run/pathlab-capacity-controller)"
-    [[ "${CONTROLLER_DIR}" =~ ^/run/pathlab-capacity-[a-z0-9-]{1,64}-controller$ && \
-      -x "${CONTROLLER_DIR}/capacity-control-host.sh" ]] || \
+  # Arm owns the exclusive lock in the live host controller. Taking a shared
+  # dispatcher lock here would self-deadlock before arm can reject or publish a
+  # binding. Recovery is a separate branch below for the same reason.
+  if [[ "${REQUEST}" == capacity-arm\ * ]]; then
+    exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" "${REQUEST}"
+  fi
+  command -v flock >/dev/null || fail "flock is required for capacity dispatch"
+  exec 8<>/run/pathlab-capacity-controller.lock
+  flock --shared --timeout 10 8 || \
+    fail "capacity controller binding is changing"
+  export PATHLAB_CAPACITY_DISPATCH_LOCK_FD=8
+  if [[ -e /run/pathlab-capacity-controller || -L /run/pathlab-capacity-controller ]]; then
+    [[ -f /run/pathlab-capacity-controller && ! -L /run/pathlab-capacity-controller && \
+      -r /run/pathlab-capacity-controller && \
+      "$(stat -c '%u:%a' /run/pathlab-capacity-controller)" == "0:600" ]] || \
       fail "stable capacity controller binding is invalid"
-    exec bash "${CONTROLLER_DIR}/capacity-control-host.sh" "${REQUEST}"
+    IFS= read -r CONTROLLER_DIR < /run/pathlab-capacity-controller || \
+      fail "stable capacity controller binding is invalid"
+    [[ "${CONTROLLER_DIR}" =~ ^/run/pathlab-capacity-[a-z0-9-]{1,64}-controller$ && \
+      -d "${CONTROLLER_DIR}" && ! -L "${CONTROLLER_DIR}" && \
+      "$(stat -c '%u:%a' "${CONTROLLER_DIR}")" == "0:700" ]] || \
+      fail "stable capacity controller binding is invalid"
+    CONTROLLER_VALIDATOR="${CONTROLLER_DIR}/capacity_dispatcher_binding.py"
+    [[ -f "${CONTROLLER_VALIDATOR}" && ! -L "${CONTROLLER_VALIDATOR}" && \
+      -r "${CONTROLLER_VALIDATOR}" && \
+      "$(stat -c '%u:%a' "${CONTROLLER_VALIDATOR}")" == "0:755" ]] || \
+      fail "stable capacity controller binding is invalid"
+    CONTROLLER_SCRIPT="$(python3 "${CONTROLLER_VALIDATOR}" \
+      /run/pathlab-capacity-controller)" || \
+      fail "stable capacity controller binding is invalid"
+    CONTROLLER_DIR="$(dirname "${CONTROLLER_SCRIPT}")"
+    [[ "${CONTROLLER_DIR}" =~ ^/run/pathlab-capacity-[a-z0-9-]{1,64}-controller$ ]] || \
+      fail "stable capacity controller binding is invalid"
+    exec bash "${CONTROLLER_SCRIPT}" "${REQUEST}"
   fi
   exec bash "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" "${REQUEST}"
 fi

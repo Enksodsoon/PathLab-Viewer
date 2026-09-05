@@ -18,6 +18,7 @@ JOBS = (
     "preflight",
     "fixtures",
     "arm",
+    "failure-watchdog",
     "shard",
     "sentinels",
     "fault-recovery",

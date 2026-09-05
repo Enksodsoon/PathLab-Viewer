@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 import yaml
 
+from build_capacity_terminal_status import JOBS
 from scripts.watch_capacity_shards import (
     GitHubApi,
     ShardState,
@@ -19,7 +20,6 @@ from scripts.watch_capacity_shards import (
     monitor,
     require_mutation_gate,
 )
-from tests.load.build_capacity_terminal_status import JOBS
 
 WORKFLOW = Path(".github/workflows/capacity-certification.yml")
 RUN_ID = 33_936_129_541
