@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Loader } from '../components/Loader'
 
 describe('PathLab loader', () => {
-  it('renders the shared CSS loader with an accessible status label', () => {
+  it('renders the shared square loader with an accessible status label', () => {
     const { container } = render(
       <Loader label="Loading slides…" size="large" fullscreen />,
     )
@@ -15,8 +15,11 @@ describe('PathLab loader', () => {
       'pathlab-loader--large',
       'pathlab-loader--fullscreen',
     )
-    expect(container.querySelector('.pathlab-loader__indicator')).toBeInTheDocument()
-    expect(container.querySelector('svg')).not.toBeInTheDocument()
+    expect(container.querySelector('.pathlab-loader__container')).toHaveAttribute(
+      'viewBox',
+      '0 0 50 50',
+    )
+    expect(container.querySelector('.pathlab-loader__boxes')).toBeInTheDocument()
   })
 
   it('supports a compact inline treatment without changing the loader graphic', () => {
@@ -28,6 +31,6 @@ describe('PathLab loader', () => {
       'pathlab-loader--small',
       'pathlab-loader--inline',
     )
-    expect(container.querySelectorAll('.pathlab-loader__indicator')).toHaveLength(1)
+    expect(container.querySelectorAll('.pathlab-loader__boxes')).toHaveLength(1)
   })
 })

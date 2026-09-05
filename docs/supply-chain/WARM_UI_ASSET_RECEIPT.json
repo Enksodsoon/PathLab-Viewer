@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "restorationBaseline": "7eb949a724b3450e67b227e34ad45bb65ec75c99",
+  "imageAdmission": "OWNER_APPROVED",
+  "ownerApproval": {
+    "date": "2026-09-05",
+    "channel": "Codex conversation after local preview and image-specific addendum review",
+    "statement": "ok, looking good, do a PR merge and deploy",
+    "scope": "Use and distribution of the two exact original login images in the reviewed PathLab restoration and public repository PR. No other artwork is admitted.",
+    "recordType": "Recorded conversational approval; not a cryptographic signature"
+  },
+  "sourceOwnershipReceipt": {
+    "path": "docs/supply-chain/P0_T02_RELICENSING_DISPOSITION.md",
+    "commit": "e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f",
+    "githubAuthor": "Enksodsoon",
+    "githubSignatureVerified": true,
+    "auditSubject": "7816671b0d9e531158868d820d132ed8808c0b76",
+    "canonicalPayloadSha256": "1780f31ebb0145e31b8eadbce9a8d5b2726c887b66ff5190c3a985f3bbbfe07a"
+  },
+  "images": [
+    {
+      "locator": "apps/web/src/assets/auth-histology-solace-dark.webp",
+      "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744",
+      "sizeBytes": 184212,
+      "generationSession": "019f9e73-de22-7341-95c4-0fca54b0837e",
+      "tool": "imagegen",
+      "callId": "call_8VtZhIVFntDcQ0rZW5d9ABFX",
+      "timestamp": "2026-07-26T13:45:34.148Z",
+      "arguments": {
+        "prompt": "Use case: stylized-concept\nAsset type: PathLab administrator login visual-panel background\nPrimary request: Create a premium abstract histology-inspired artwork that evokes a whole-slide tissue cross-section without depicting identifiable patient material.\nScene/backdrop: Deep matte black and charcoal field with luminous granular cellular forms emerging organically from the lower-right and outer corners, inspired by a sophisticated shader gradient rather than a literal microscope photograph.\nSubject: Layered tissue-like membranes, fine cellular clusters, soft branching structures, and flowing grain fields; scientifically evocative but deliberately abstract.\nStyle/medium: High-end editorial scientific abstraction, refined fine grain, subtle depth, clean contemporary software-brand aesthetic.\nComposition/framing: Square, crop-safe composition for a tall responsive web panel. Preserve a broad calm dark negative-space region across the upper-left and upper-center for large white interface copy. Concentrate visual energy toward the lower-right and edge corners.\nLighting/mood: Quiet, precise, immersive, secure.\nColor palette: #050505 black, charcoal, burnt orange, coral, warm ivory, restrained amber highlights.\nMaterials/textures: Fine photographic grain and soft translucent cellular layers; crisp enough for WebP compression without noisy speckle everywhere.\nConstraints: No words, letters, typography, logos, UI controls, watermarks, people, faces, organs, blood, medical labels, borders, frames, or mockup devices. No neon cyan, blue, purple, or green. Keep the upper copy area dark and uncluttered."
+      },
+      "sourceFile": "call_8VtZhIVFntDcQ0rZW5d9ABFX.png",
+      "sourceSha256": "0bb4d471c1c13c3a45b19661237d4d71b7fb24395bb4e7dbf8aaec9566e5436b",
+      "inputImages": [],
+      "conversion": {
+        "library": "Pillow",
+        "mode": "RGB",
+        "thumbnailMaximum": [
+          1200,
+          1200
+        ],
+        "resampling": "LANCZOS",
+        "format": "WEBP",
+        "quality": 74,
+        "method": 6
+      },
+      "reproductionVerified": "BYTE_FOR_BYTE",
+      "privacyReview": "Synthetic generation; dark prompt used no input image; light input was the generated dark image. Both original outputs visually inspected; no names, labels, or patient source material."
+    },
+    {
+      "locator": "apps/web/src/assets/auth-histology-solace-light.webp",
+      "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960",
+      "sizeBytes": 151666,
+      "generationSession": "019f9e73-de22-7341-95c4-0fca54b0837e",
+      "tool": "imagegen",
+      "callId": "call_tdDaJBLLM4J0WkMqb6sxvmlJ",
+      "timestamp": "2026-07-26T13:46:47.463Z",
+      "arguments": {
+        "prompt": "Use case: style-transfer\nAsset type: PathLab administrator login visual-panel background, light-theme companion\nInput images: Image 1 is the composition reference and must be preserved.\nPrimary request: Create the light-theme companion to Image 1. Preserve the same tissue contours, cellular structures, negative-space shape, subject placement, crop safety, and overall composition as closely as possible; change only the palette, exposure, and surface treatment for a premium light interface.\nScene/backdrop: Warm ivory and parchment field instead of black, with quiet coral, burnt orange, clay, taupe, and charcoal cellular detailing.\nStyle/medium: High-end editorial scientific abstraction, refined paper-like grain, clean contemporary software-brand aesthetic.\nComposition/framing: Keep the broad calm negative-space region across the upper-left and upper-center for dark interface copy. Keep visual energy concentrated at the lower-right and edge corners exactly like the reference.\nLighting/mood: Airy, precise, calm, clinical without feeling sterile.\nColor palette: #FAF9F5 warm ivory, #F1ECE4 parchment, coral, burnt orange, clay, soft taupe, restrained charcoal linework.\nConstraints: Preserve Image 1 geometry and composition. No words, letters, typography, logos, UI controls, watermarks, people, faces, organs, blood, medical labels, borders, frames, or mockup devices. No neon cyan, blue, purple, or green. Avoid pure white glare and keep sufficient quiet contrast behind dark copy.",
+        "num_last_images_to_include": 1
+      },
+      "sourceFile": "call_tdDaJBLLM4J0WkMqb6sxvmlJ.png",
+      "sourceSha256": "d2a0789a5c8f285647101c6179d22e6a93faebebf9ef716e46223473dda7a52b",
+      "inputImages": [
+        "call_8VtZhIVFntDcQ0rZW5d9ABFX.png"
+      ],
+      "conversion": {
+        "library": "Pillow",
+        "mode": "RGB",
+        "thumbnailMaximum": [
+          1200,
+          1200
+        ],
+        "resampling": "LANCZOS",
+        "format": "WEBP",
+        "quality": 74,
+        "method": 6
+      },
+      "reproductionVerified": "BYTE_FOR_BYTE",
+      "privacyReview": "Synthetic generation; dark prompt used no input image; light input was the generated dark image. Both original outputs visually inspected; no names, labels, or patient source material."
+    }
+  ],
+  "inlineArtwork": [
+    {
+      "locator": "apps/web/src/components/Brand.tsx#inline-svg-1",
+      "contentSha256": "77691cb0be40031dede939630dc92f52de27260bf8d5a0e0d7d06e361fa1c093",
+      "auditedSourceBlob": "7bf6d2c9d45527df1c339852e49a8545b9f544e6",
+      "ownershipBasis": "Exact source blob covered by the verified signed source-ownership receipt; not an excluded binary image."
+    },
+    {
+      "locator": "apps/web/src/components/Loader.tsx#inline-svg-1",
+      "contentSha256": "1e1b9a7762e2ac81f927d69e83ddb48e0079f1f3d33835db95c2013220cd78d4",
+      "auditedSourceBlob": "2bd6c0e1948950c54da81ea2d2111675c73fc74a",
+      "ownershipBasis": "Exact source blob covered by the verified signed source-ownership receipt; not an excluded binary image."
+    }
+  ]
+}
