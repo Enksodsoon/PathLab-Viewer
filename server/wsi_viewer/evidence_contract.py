@@ -1,0 +1,654 @@
+import base64
+import hashlib
+import json
+import math
+import re
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any, NoReturn
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from .study_pack_contract import canonical_json
+
+SCHEMA = "pathlab.ai-evidence/1"
+SCHEMA_V2 = "pathlab.ai-evidence/2"
+MAX_EVIDENCE_BYTES = 2 * 1024 * 1024
+SHA256 = re.compile(r"[a-f0-9]{64}")
+IDENTIFIER = re.compile(r"[A-Za-z0-9._-]{1,160}")
+TERMINAL_STATUSES = {"completed", "partial", "abstained", "unsupported", "failed"}
+MARKERS = {"generic", "er", "pr", "ki-67", "her2", "pd-l1"}
+PROHIBITED_KEYS = {
+    "embedding",
+    "embeddings",
+    "rawPixels",
+    "diagnosis",
+    "clinicalScore",
+    "tps",
+    "cps",
+    "ascoCap",
+    "treatment",
+}
+
+
+def parse_evidence(raw: bytes) -> dict[str, Any]:
+    if not raw or len(raw) > MAX_EVIDENCE_BYTES:
+        raise ValueError("AI_EVIDENCE_SIZE_INVALID")
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("AI_EVIDENCE_DUPLICATE_FIELD")
+            result[key] = value
+        return result
+
+    def reject_constant(_: str) -> NoReturn:
+        raise ValueError("AI_EVIDENCE_NUMBER_INVALID")
+
+    value: Any = json.loads(raw, object_pairs_hook=unique_object, parse_constant=reject_constant)
+    if not isinstance(value, dict):
+        raise ValueError("AI_EVIDENCE_OBJECT_REQUIRED")
+    return value
+
+
+def load_trusted_signers(path: Path | None, allowed_use: str = "evidence") -> dict[str, bytes]:
+    if path is None or not path.is_file():
+        return {}
+    root = parse_evidence(path.read_bytes())
+    if set(root) != {"schema", "keys"} or root.get("schema") != "pathlab.trusted-signers/1":
+        raise ValueError("AI_EVIDENCE_TRUST_REGISTRY_INVALID")
+    keys = root.get("keys")
+    if not isinstance(keys, list) or len(keys) > 100:
+        raise ValueError("AI_EVIDENCE_TRUST_REGISTRY_INVALID")
+    trusted: dict[str, bytes] = {}
+    for item in keys:
+        if not isinstance(item, dict) or set(item) != {"keyId", "publicKeyDer", "allowedUse"}:
+            raise ValueError("AI_EVIDENCE_TRUST_REGISTRY_INVALID")
+        if item.get("allowedUse") != allowed_use:
+            continue
+        key_id = _sha(item.get("keyId"))
+        public = _decode_urlsafe(item.get("publicKeyDer"))
+        if hashlib.sha256(public).hexdigest() != key_id or key_id in trusted:
+            raise ValueError("AI_EVIDENCE_TRUST_REGISTRY_INVALID")
+        trusted[key_id] = public
+    return trusted
+
+
+def validate_evidence(
+    value: dict[str, Any], *, slide_sha256: str, slide_revision: str,
+    trusted_signers: Mapping[str, bytes] | None = None,
+) -> str:
+    if value.get("schema") == SCHEMA_V2:
+        return _validate_evidence_v2(
+            value, slide_sha256=slide_sha256, slide_revision=slide_revision,
+            trusted_signers=trusted_signers or {},
+        )
+    _exact_keys(
+        value,
+        {
+            "schema",
+            "bundleId",
+            "source",
+            "pack",
+            "status",
+            "researchOnly",
+            "notDiagnostic",
+            "reviewRequired",
+            "coordinates",
+            "evidence",
+            "cellAggregates",
+            "ihcDescriptors",
+            "citations",
+            "qc",
+            "provenance",
+            "manifestSha256",
+            "signature",
+        },
+    )
+    _reject_prohibited(value)
+    if value.get("schema") != SCHEMA:
+        raise ValueError("AI_EVIDENCE_SCHEMA_UNSUPPORTED")
+    _identifier(value.get("bundleId"), maximum=120)
+    source = _object(value, "source", {"slideSha256", "revision"})
+    if source.get("slideSha256") != slide_sha256 or source.get("revision") != slide_revision:
+        raise ValueError("AI_EVIDENCE_SLIDE_IDENTITY_MISMATCH")
+    pack = _object(
+        value,
+        "pack",
+        {
+            "id",
+            "version",
+            "manifestSha256",
+            "preprocessing",
+            "artifacts",
+            "allowedUse",
+            "validationStatus",
+        },
+    )
+    _identifier(pack.get("id"), maximum=120)
+    _text(pack.get("version"), maximum=64)
+    _sha(pack.get("manifestSha256"))
+    _text(pack.get("preprocessing"), maximum=120)
+    artifacts = pack.get("artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) > 16:
+        raise ValueError("AI_EVIDENCE_PACK_INVALID")
+    for artifact in artifacts:
+        _sha(artifact)
+    if pack.get("allowedUse") != "private-research":
+        raise ValueError("AI_EVIDENCE_RIGHTS_BLOCKED")
+    if pack.get("validationStatus") not in {"experimental", "qualified"}:
+        raise ValueError("AI_EVIDENCE_PACK_BLOCKED")
+    if value.get("status") not in TERMINAL_STATUSES:
+        raise ValueError("AI_EVIDENCE_STATUS_INVALID")
+    if value.get("researchOnly") is not True or value.get("notDiagnostic") is not True:
+        raise ValueError("AI_EVIDENCE_RESEARCH_BOUNDARY_REQUIRED")
+    if value.get("reviewRequired") is not True:
+        raise ValueError("AI_EVIDENCE_REVIEW_REQUIRED")
+    _coordinates(value.get("coordinates"))
+    region_ids = _regions(value.get("evidence"))
+    _cell_aggregates(value.get("cellAggregates"), region_ids)
+    _ihc_descriptors(value.get("ihcDescriptors"), region_ids)
+    _citations(value.get("citations"))
+    _qc(value.get("qc"))
+    provenance = _object(value, "provenance", {"createdAt", "codeRevision", "offlineAnalysis"})
+    _text(provenance.get("createdAt"), maximum=40)
+    _text(provenance.get("codeRevision"), maximum=160)
+    if provenance.get("offlineAnalysis") is not True:
+        raise ValueError("AI_EVIDENCE_OFFLINE_REQUIRED")
+    supplied_hash = value.get("manifestSha256")
+    _sha(supplied_hash)
+    unsigned = {
+        key: item for key, item in value.items() if key not in {"manifestSha256", "signature"}
+    }
+    calculated = hashlib.sha256(canonical_json(unsigned).encode("utf-8")).hexdigest()
+    if supplied_hash != calculated:
+        raise ValueError("AI_EVIDENCE_MANIFEST_HASH_MISMATCH")
+    _verify_signature(value.get("signature"), supplied_hash, trusted_signers or {})
+    return calculated
+
+
+def _validate_evidence_v2(
+    value: dict[str, Any], *, slide_sha256: str, slide_revision: str,
+    trusted_signers: Mapping[str, bytes],
+) -> str:
+    _exact_keys(value, {
+        "schema", "bundleId", "source", "pack", "qualificationAttestationSha256",
+        "status", "researchOnly", "notDiagnostic", "reviewRequired", "coordinates",
+        "regions", "cellInstances", "cellAggregates", "ihcDescriptors",
+        "specialStainDescriptors", "cytologyDescriptors", "citations", "qc", "provenance",
+        "manifestSha256", "signature",
+    })
+    _reject_prohibited(value)
+    _identifier(value.get("bundleId"), maximum=160)
+    source = _object(value, "source", {"slideSha256", "revision", "width", "height"})
+    if source.get("slideSha256") != slide_sha256 or source.get("revision") != slide_revision:
+        raise ValueError("AI_EVIDENCE_SLIDE_IDENTITY_MISMATCH")
+    for dimension in ("width", "height"):
+        if isinstance(source.get(dimension), bool) or not isinstance(source.get(dimension), int) \
+                or source[dimension] < 1:
+            raise ValueError("AI_EVIDENCE_SOURCE_GEOMETRY_INVALID")
+    pack = _object(value, "pack", {
+        "id", "version", "manifestSha256", "capability", "scope", "preprocessing", "artifacts"
+    })
+    _identifier(pack.get("id"), maximum=120)
+    _text(pack.get("version"), maximum=64)
+    _sha(pack.get("manifestSha256"))
+    _text(pack.get("capability"), maximum=120)
+    _text(pack.get("preprocessing"), maximum=160)
+    if pack.get("scope") not in {"deployment", "research-restricted"}:
+        raise ValueError("AI_EVIDENCE_RIGHTS_BLOCKED")
+    artifacts = pack.get("artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) > 32:
+        raise ValueError("AI_EVIDENCE_PACK_INVALID")
+    for artifact in artifacts:
+        _sha(artifact)
+    _sha(value.get("qualificationAttestationSha256"))
+    if value.get("status") not in TERMINAL_STATUSES or value.get("researchOnly") is not True \
+            or value.get("notDiagnostic") is not True or value.get("reviewRequired") is not True:
+        raise ValueError("AI_EVIDENCE_RESEARCH_BOUNDARY_REQUIRED")
+    _coordinates(value.get("coordinates"))
+    region_ids = _regions_v2(value.get("regions"), source["width"], source["height"])
+    _cell_instances_v2(value.get("cellInstances"), region_ids)
+    _cell_aggregates_v2(value.get("cellAggregates"), region_ids)
+    for field in ("ihcDescriptors", "specialStainDescriptors", "cytologyDescriptors"):
+        _stain_descriptors_v2(value.get(field), region_ids)
+    _citations(value.get("citations"))
+    _qc_v2(value.get("qc"))
+    provenance = _object(
+        value, "provenance", {"createdAt", "codeRevision", "offlineAnalysis", "campaignId"}
+    )
+    _text(provenance.get("createdAt"), maximum=40)
+    _text(provenance.get("codeRevision"), maximum=160)
+    if provenance.get("offlineAnalysis") is not True:
+        raise ValueError("AI_EVIDENCE_OFFLINE_REQUIRED")
+    supplied = _sha(value.get("manifestSha256"))
+    unsigned = {
+        key: item for key, item in value.items()
+        if key not in {"manifestSha256", "signature"}
+    }
+    calculated = hashlib.sha256(canonical_json(unsigned).encode()).hexdigest()
+    if supplied != calculated:
+        raise ValueError("AI_EVIDENCE_MANIFEST_HASH_MISMATCH")
+    _verify_signature_v2(value.get("signature"), supplied, trusted_signers)
+    return calculated
+
+
+def _regions_v2(value: Any, source_width: int, source_height: int) -> set[str]:
+    if not isinstance(value, list) or len(value) > 1000:
+        raise ValueError("AI_EVIDENCE_REGIONS_INVALID")
+    seen: set[str] = set()
+    for region in value:
+        required = {
+            "id", "stage", "kind", "reviewStatus", "x", "y", "width", "height", "score"
+        }
+        if (
+            not isinstance(region, dict)
+            or not required <= set(region)
+            or not set(region) <= required | {"thumbnail"}
+        ):
+            raise ValueError("AI_EVIDENCE_REGION_INVALID")
+        region_id = _identifier(region.get("id"), maximum=160)
+        if region_id in seen:
+            raise ValueError("AI_EVIDENCE_REGION_INVALID")
+        seen.add(region_id)
+        if region.get("stage") not in {"coarse", "refined"} or region.get("kind") not in {
+            "support", "similar", "contrast", "analysis", "tumor-compartment", "immune-compartment"
+        } or region.get("reviewStatus") not in {
+            "unreviewed", "faculty-authored", "faculty-approved"
+        }:
+            raise ValueError("AI_EVIDENCE_REGION_INVALID")
+        x = _number(region.get("x"), minimum=0)
+        y = _number(region.get("y"), minimum=0)
+        width = _number(region.get("width"), minimum=0, positive=True)
+        height = _number(region.get("height"), minimum=0, positive=True)
+        if x + width > source_width or y + height > source_height:
+            raise ValueError("AI_EVIDENCE_COORDINATE_BOUNDS_INVALID")
+        _number(region.get("score"), minimum=0, maximum=1)
+    return seen
+
+
+def _cell_instances_v2(value: Any, region_ids: set[str]) -> None:
+    if not isinstance(value, list) or len(value) > 100_000:
+        raise ValueError("AI_EVIDENCE_CELL_INSTANCES_INVALID")
+    for item in value:
+        required = {"id", "regionId", "maskEncoding", "mask", "areaPx2", "perimeterPx",
+                    "eccentricity", "solidity", "meanIntensity", "uncertainty", "category"}
+        if (
+            not isinstance(item, dict) or set(item) != required
+            or item.get("regionId") not in region_ids
+            or item.get("maskEncoding") not in {"polygon", "rle"}
+        ):
+            raise ValueError("AI_EVIDENCE_CELL_INSTANCE_INVALID")
+        mask = item.get("mask")
+        if not isinstance(mask, list) or not 3 <= len(mask) <= 4096:
+            raise ValueError("AI_EVIDENCE_CELL_INSTANCE_INVALID")
+        for field in ("eccentricity", "solidity", "meanIntensity", "uncertainty"):
+            _number(item.get(field), minimum=0, maximum=1)
+        for field in ("areaPx2", "perimeterPx"):
+            _number(item.get(field), minimum=0)
+
+
+def _cell_aggregates_v2(value: Any, region_ids: set[str]) -> None:
+    if not isinstance(value, list) or len(value) > 1000:
+        raise ValueError("AI_EVIDENCE_CELL_AGGREGATES_INVALID")
+    for item in value:
+        required = {"regionId", "algorithm", "count", "densityPerMm2", "distributions",
+                    "uncertainty", "qc"}
+        if (
+            not isinstance(item, dict) or set(item) != required
+            or item.get("regionId") not in region_ids
+            or item.get("algorithm") not in {"hovernet-fast", "pathosam", "od-watershed"}
+        ):
+            raise ValueError("AI_EVIDENCE_CELL_AGGREGATE_INVALID")
+        if isinstance(item.get("count"), bool) or not isinstance(item.get("count"), int) \
+                or item["count"] < 0:
+            raise ValueError("AI_EVIDENCE_CELL_COUNT_INVALID")
+        _number(item.get("uncertainty"), minimum=0, maximum=1)
+
+
+def _stain_descriptors_v2(value: Any, region_ids: set[str]) -> None:
+    if not isinstance(value, list) or len(value) > 1000:
+        raise ValueError("AI_EVIDENCE_STAIN_DESCRIPTORS_INVALID")
+    for item in value:
+        required = {"regionId", "stainId", "markerId", "analysisMode", "cellMaskSource",
+                    "compartmentSource", "calibrationStatus", "measurements", "qc",
+                    "uncertainty", "abstentionReason", "researchEstimate"}
+        if (
+            not isinstance(item, dict) or set(item) != required
+            or item.get("regionId") not in region_ids
+            or item.get("researchEstimate") is not True
+        ):
+            raise ValueError("AI_EVIDENCE_STAIN_DESCRIPTOR_INVALID")
+        if item.get("analysisMode") not in {
+            "marker-aware", "generic-fallback", "generic-descriptive",
+            "special-stain-descriptive", "cytology-descriptive",
+        }:
+            raise ValueError("AI_EVIDENCE_STAIN_DESCRIPTOR_INVALID")
+        _number(item.get("uncertainty"), minimum=0, maximum=1)
+        if item.get("markerId") == "pd-l1" and item.get("analysisMode") == "marker-aware" \
+                and item.get("compartmentSource") not in {"faculty-authored", "faculty-approved"}:
+            raise ValueError("AI_EVIDENCE_IHC_COMPARTMENT_REVIEW_REQUIRED")
+
+
+def _qc_v2(value: Any) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "focus", "tissueFraction", "uncertainty", "abstentionReasons", "warnings"
+    }:
+        raise ValueError("AI_EVIDENCE_QC_INVALID")
+    for field in ("focus", "tissueFraction", "uncertainty"):
+        _number(value.get(field), minimum=0, maximum=1)
+
+
+def _verify_signature_v2(
+    value: Any, manifest_hash: str, trusted_signers: Mapping[str, bytes]
+) -> None:
+    if not isinstance(value, dict) or set(value) != {"algorithm", "keyId", "value"} \
+            or value.get("algorithm") != "Ed25519":
+        raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID")
+    key_id = _sha(value.get("keyId"))
+    public_bytes = trusted_signers.get(key_id)
+    if public_bytes is None:
+        raise ValueError("AI_EVIDENCE_SIGNER_NOT_TRUSTED")
+    try:
+        key = serialization.load_der_public_key(public_bytes)
+        if not isinstance(key, Ed25519PublicKey):
+            raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID")
+        key.verify(_decode_urlsafe(value.get("value")), f"{SCHEMA_V2}\n{manifest_hash}".encode())
+    except ValueError:
+        raise
+    except Exception as error:
+        raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID") from error
+
+
+def _coordinates(value: Any) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("AI_EVIDENCE_COORDINATES_INVALID")
+    _exact_keys(value, {"space", "originX", "originY", "scaleX", "scaleY"})
+    if value.get("space") != "source-pixel":
+        raise ValueError("AI_EVIDENCE_COORDINATES_INVALID")
+    for key in ("originX", "originY"):
+        _number(value.get(key), minimum=0)
+    for key in ("scaleX", "scaleY"):
+        _number(value.get(key), minimum=0, positive=True)
+
+
+def _regions(value: Any) -> set[str]:
+    if not isinstance(value, list) or len(value) > 1000:
+        raise ValueError("AI_EVIDENCE_REGIONS_INVALID")
+    seen: set[str] = set()
+    for region in value:
+        allowed = {"id", "stage", "kind", "x", "y", "width", "height", "score", "thumbnail"}
+        if (
+            not isinstance(region, dict)
+            or not set(region).issubset(allowed)
+            or not allowed - {"thumbnail"} <= set(region)
+        ):
+            raise ValueError("AI_EVIDENCE_REGION_INVALID")
+        region_id = _identifier(region.get("id"), maximum=120)
+        if region_id in seen:
+            raise ValueError("AI_EVIDENCE_REGION_INVALID")
+        seen.add(region_id)
+        if region.get("stage") not in {"coarse", "refined"} or region.get("kind") not in {
+            "support",
+            "similar",
+            "contrast",
+        }:
+            raise ValueError("AI_EVIDENCE_REGION_INVALID")
+        for key in ("x", "y"):
+            _number(region.get(key), minimum=0)
+        for key in ("width", "height"):
+            _number(region.get(key), minimum=0, positive=True)
+        _number(region.get("score"), minimum=0, maximum=1)
+        thumbnail = region.get("thumbnail")
+        if thumbnail is not None and not re.fullmatch(
+            r"thumbnails/[A-Za-z0-9._-]+\.(png|jpg|webp)", thumbnail
+        ):
+            raise ValueError("AI_EVIDENCE_THUMBNAIL_INVALID")
+    return seen
+
+
+def _cell_aggregates(value: Any, region_ids: set[str]) -> None:
+    if not isinstance(value, list) or len(value) > 1000:
+        raise ValueError("AI_EVIDENCE_CELL_AGGREGATES_INVALID")
+    for item in value:
+        required = {"regionId", "algorithm", "count", "densityPerMm2", "meanNucleusAreaPx2"}
+        optional = {
+            "meanNucleusPerimeterPx",
+            "meanNucleusEccentricity",
+            "meanNucleusSolidity",
+            "uncertainty",
+        }
+        if (
+            not isinstance(item, dict)
+            or not required <= set(item)
+            or not set(item) <= required | optional
+        ):
+            raise ValueError("AI_EVIDENCE_CELL_AGGREGATE_INVALID")
+        if _identifier(item.get("regionId"), maximum=120) not in region_ids:
+            raise ValueError("AI_EVIDENCE_REGION_REFERENCE_INVALID")
+        if item.get("algorithm") not in {"hovernet-fast", "od-watershed"}:
+            raise ValueError("AI_EVIDENCE_CELL_ALGORITHM_INVALID")
+        if (
+            isinstance(item.get("count"), bool)
+            or not isinstance(item.get("count"), int)
+            or item["count"] < 0
+        ):
+            raise ValueError("AI_EVIDENCE_CELL_COUNT_INVALID")
+        for key in ("densityPerMm2", "meanNucleusAreaPx2"):
+            if item.get(key) is not None:
+                _number(item[key], minimum=0)
+        if item.get("meanNucleusPerimeterPx") is not None:
+            _number(item["meanNucleusPerimeterPx"], minimum=0)
+        for key in ("meanNucleusEccentricity", "meanNucleusSolidity", "uncertainty"):
+            if key in item:
+                _number(item[key], minimum=0, maximum=1)
+
+
+def _ihc_descriptors(value: Any, region_ids: set[str]) -> None:
+    if not isinstance(value, list) or len(value) > 1000:
+        raise ValueError("AI_EVIDENCE_IHC_INVALID")
+    compartments = {"nuclear", "membrane", "tumor-immune-region", "generic-region"}
+    for item in value:
+        required = {
+            "regionId",
+            "marker",
+            "compartment",
+            "dabAreaFraction",
+            "meanDabOd",
+            "researchEstimate",
+        }
+        optional = {
+            "markerId", "analysisMode", "cellMaskSource", "compartmentSource",
+            "calibrationStatus", "uncertainty", "abstentionReason",
+        }
+        if (
+            not isinstance(item, dict)
+            or not required <= set(item)
+            or not set(item) <= required | optional
+        ):
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if _identifier(item.get("regionId"), maximum=120) not in region_ids:
+            raise ValueError("AI_EVIDENCE_REGION_REFERENCE_INVALID")
+        if item.get("marker") not in MARKERS or item.get("compartment") not in compartments:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        _number(item.get("dabAreaFraction"), minimum=0, maximum=1)
+        _number(item.get("meanDabOd"), minimum=0)
+        if item.get("researchEstimate") is not True:
+            raise ValueError("AI_EVIDENCE_IHC_RESEARCH_BOUNDARY_REQUIRED")
+        if "markerId" in item and item.get("markerId") != item.get("marker"):
+            raise ValueError("AI_EVIDENCE_IHC_MARKER_IDENTITY_INVALID")
+        if "analysisMode" in item and item.get("analysisMode") not in {
+            "marker-aware",
+            "generic-fallback",
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "cellMaskSource" in item and item.get("cellMaskSource") not in {
+            "hovernet-fast",
+            "od-watershed",
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "compartmentSource" in item and item.get("compartmentSource") not in {
+            "none", "faculty-authored", "faculty-approved", "model-suggested"
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "calibrationStatus" in item and item.get("calibrationStatus") not in {
+            "calibrated", "relative_only", "not_evaluable"
+        }:
+            raise ValueError("AI_EVIDENCE_IHC_INVALID")
+        if "uncertainty" in item:
+            _number(item.get("uncertainty"), minimum=0, maximum=1)
+        if item.get("abstentionReason") is not None:
+            _text(item.get("abstentionReason"), maximum=500)
+        if item.get("marker") == "pd-l1":
+            reviewed = item.get("compartmentSource") in {"faculty-authored", "faculty-approved"}
+            if item.get("compartment") == "tumor-immune-region" and not reviewed:
+                raise ValueError("AI_EVIDENCE_IHC_COMPARTMENT_REVIEW_REQUIRED")
+            if not reviewed and (
+                item.get("compartment") != "generic-region"
+                or item.get("analysisMode") != "generic-fallback"
+                or item.get("abstentionReason") != "COMPARTMENT_REVIEW_REQUIRED"
+            ):
+                raise ValueError("AI_EVIDENCE_IHC_COMPARTMENT_REVIEW_REQUIRED")
+
+
+def _citations(value: Any) -> None:
+    if not isinstance(value, list) or len(value) > 100:
+        raise ValueError("AI_EVIDENCE_CITATIONS_INVALID")
+    for item in value:
+        if not isinstance(item, dict) or set(item) != {"claimId", "sourceUrl"}:
+            raise ValueError("AI_EVIDENCE_CITATION_INVALID")
+        _identifier(item.get("claimId"), maximum=160)
+        url = _text(item.get("sourceUrl"), maximum=1000)
+        if not url.startswith("https://"):
+            raise ValueError("AI_EVIDENCE_CITATION_INVALID")
+
+
+def _qc(value: Any) -> None:
+    required = {
+        "focus",
+        "tissueFraction",
+        "uncertainty",
+        "abstentionReasons",
+    }
+    optional = {
+        "calibrationStatus",
+        "backgroundFraction",
+        "saturationFraction",
+        "stainSeparation",
+        "warnings",
+    }
+    if (
+        not isinstance(value, dict)
+        or not required <= set(value)
+        or not set(value) <= required | optional
+    ):
+        raise ValueError("AI_EVIDENCE_QC_INVALID")
+    for key in ("focus", "tissueFraction", "uncertainty"):
+        _number(value.get(key), minimum=0, maximum=1)
+    reasons = value.get("abstentionReasons")
+    if not isinstance(reasons, list) or len(reasons) > 20:
+        raise ValueError("AI_EVIDENCE_QC_INVALID")
+    for reason in reasons:
+        _text(reason, maximum=500)
+    if "calibrationStatus" in value and value.get("calibrationStatus") not in {
+        "calibrated", "relative_only", "not_evaluable"
+    }:
+        raise ValueError("AI_EVIDENCE_QC_INVALID")
+    for key in ("backgroundFraction", "saturationFraction", "stainSeparation"):
+        if key in value:
+            _number(value.get(key), minimum=0, maximum=1)
+    if "warnings" in value:
+        warnings = value.get("warnings")
+        if not isinstance(warnings, list) or len(warnings) > 20:
+            raise ValueError("AI_EVIDENCE_QC_INVALID")
+        for warning in warnings:
+            _text(warning, maximum=500)
+
+
+def _verify_signature(
+    value: Any, manifest_hash: str, trusted_signers: Mapping[str, bytes]
+) -> None:
+    if not isinstance(value, dict) or set(value) != {"algorithm", "keyId", "publicKeyDer", "value"}:
+        raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID")
+    if value.get("algorithm") != "Ed25519":
+        raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID")
+    _sha(value.get("keyId"))
+    try:
+        embedded_public = _decode_urlsafe(value.get("publicKeyDer"))
+        signature = _decode_urlsafe(value.get("value"))
+        if hashlib.sha256(embedded_public).hexdigest() != value["keyId"]:
+            raise ValueError("AI_EVIDENCE_SIGNER_IDENTITY_MISMATCH")
+        public_bytes = trusted_signers.get(value["keyId"])
+        if public_bytes is None or public_bytes != embedded_public:
+            raise ValueError("AI_EVIDENCE_SIGNER_NOT_TRUSTED")
+        key = serialization.load_der_public_key(public_bytes)
+        if not isinstance(key, Ed25519PublicKey):
+            raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID")
+        key.verify(signature, f"{SCHEMA}\n{manifest_hash}".encode())
+    except ValueError:
+        raise
+    except Exception as error:
+        raise ValueError("AI_EVIDENCE_SIGNATURE_INVALID") from error
+
+
+def _decode_urlsafe(value: Any) -> bytes:
+    text = _text(value, maximum=1000)
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def _object(root: dict[str, Any], name: str, keys: set[str]) -> dict[str, Any]:
+    value = root.get(name)
+    if not isinstance(value, dict):
+        raise ValueError("AI_EVIDENCE_OBJECT_INVALID")
+    _exact_keys(value, keys)
+    return value
+
+
+def _exact_keys(value: dict[str, Any], expected: set[str]) -> None:
+    if set(value) != expected:
+        raise ValueError("AI_EVIDENCE_FIELDS_INVALID")
+
+
+def _identifier(value: Any, *, maximum: int) -> str:
+    text = _text(value, maximum=maximum)
+    if not IDENTIFIER.fullmatch(text):
+        raise ValueError("AI_EVIDENCE_ID_INVALID")
+    return text
+
+
+def _text(value: Any, *, maximum: int) -> str:
+    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+        raise ValueError("AI_EVIDENCE_TEXT_INVALID")
+    return value.strip()
+
+
+def _sha(value: Any) -> str:
+    if not isinstance(value, str) or not SHA256.fullmatch(value):
+        raise ValueError("AI_EVIDENCE_SHA256_INVALID")
+    return value
+
+
+def _number(
+    value: Any, *, minimum: float, maximum: float | None = None, positive: bool = False
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("AI_EVIDENCE_NUMBER_INVALID")
+    number = float(value)
+    if not math.isfinite(number) or number < minimum or (positive and number <= minimum):
+        raise ValueError("AI_EVIDENCE_NUMBER_INVALID")
+    if maximum is not None and number > maximum:
+        raise ValueError("AI_EVIDENCE_NUMBER_INVALID")
+    return number
+
+
+def _reject_prohibited(value: Any) -> None:
+    if isinstance(value, dict):
+        if PROHIBITED_KEYS.intersection(value):
+            raise ValueError("AI_EVIDENCE_PROHIBITED_CLINICAL_OR_RAW_FIELD")
+        for item in value.values():
+            _reject_prohibited(item)
+    elif isinstance(value, list):
+        for item in value:
+            _reject_prohibited(item)
