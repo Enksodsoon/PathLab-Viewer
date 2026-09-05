@@ -153,7 +153,7 @@ The future Full-Surface destination is specified separately from the current imp
 - [`docs/architecture/RECEIPT_SCHEMA_REGISTRY.md`](docs/architecture/RECEIPT_SCHEMA_REGISTRY.md) assigns every end-to-end evidence and lifecycle receipt a versioned schema, owner, source and ledger effect.
 - [`docs/architecture/ROLE_APPROVAL_MATRIX.md`](docs/architecture/ROLE_APPROVAL_MATRIX.md), [`docs/architecture/EDGE_NODE_PROFILE.md`](docs/architecture/EDGE_NODE_PROFILE.md), and [`docs/architecture/GOLDEN_INSTITUTION_JOURNEY.md`](docs/architecture/GOLDEN_INSTITUTION_JOURNEY.md) make the human authority, disconnected-node and end-to-end acceptance contracts executable.
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) defines the fourteen bounded contexts and authority relationships.
-- [`docs/adr/README.md`](docs/adr/README.md) indexes all 131 accepted decisions.
+- [`docs/adr/README.md`](docs/adr/README.md) indexes all 132 accepted decisions.
 - [Wayfinder: Ratify the zero-cash Full-Surface production endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/187) is the canonical navigable decision map; execution and evidence remain in its separately linked backlog.
 - [Tracking issue #188: Implement and qualify the ratified PathLab Full-Surface endpoint](https://github.com/Enksodsoon/PathLab-Viewer/issues/188) tracks delivery work without reopening the closed decision record in issue #187.
 

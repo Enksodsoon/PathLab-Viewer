@@ -1,6 +1,6 @@
 # Production Endpoint Decision Register
 
-These 131 accepted ADRs are the complete decision baseline for the ratified PathLab Full-Surface production endpoint. They record planning authority only: an accepted ADR does not establish implementation, merge, deployment, qualification, pilot, or activation. Later changes require a named decision and a new or superseding ADR rather than rewriting history silently.
+These 132 accepted ADRs are the complete decision baseline for the ratified PathLab Full-Surface production endpoint. They record planning authority only: an accepted ADR does not establish implementation, merge, deployment, qualification, pilot, or activation. Later changes require a named decision and a new or superseding ADR rather than rewriting history silently.
 
 The [Architecture Precedence Register](../architecture/ARCHITECTURE_PRECEDENCE.md)
 classifies every architecture document and names the accepted controllers for
@@ -137,3 +137,4 @@ legacy or conflicting material. It does not rewrite the ADRs below.
 - [0129 — Require one golden Institution journey](./0129-require-one-golden-institution-journey.md)
 - [0130 — Separate plan, build, deploy, qualification, and activation](./0130-separate-plan-build-deploy-qualification-and-activation.md)
 - [0131 — Make the Wayfinder map and versioned plan canonical](./0131-make-the-wayfinder-map-and-versioned-plan-canonical.md)
+- [0132 — Qualify 3,000-learner combined broadcast with zero-cash admission](./0132-qualify-3000-learner-combined-broadcast-with-zero-cash-admission.md)
