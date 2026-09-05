@@ -9,9 +9,9 @@ path. The remaining blocked inputs continue to block their Phase 0 admission; ne
 ratified architecture or authorizes deployment, qualification, or activation work.
 
 The authoritative machine-readable record is
-[`dependency-inventory.json`](dependency-inventory.json). It contains 497 unique records:
+[`dependency-inventory.json`](dependency-inventory.json). It contains 580 unique records:
 
-- 366 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
+- 449 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
   packages;
 - 73 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
 - 58 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
@@ -28,7 +28,7 @@ The checked-in inventory does not treat registry metadata alone as final legal a
 
 ## Fail-closed findings
 
-122 records are `BLOCKED`. The material blockers are:
+124 records are `BLOCKED`. The material blockers are:
 
 - P0-T04 removed `combine-errors@3.0.3` and its now-unused transitive path. The current lock and
   inventory reject its reintroduction; `tus-js-client@4.3.1` remains exact, MIT-licensed, and

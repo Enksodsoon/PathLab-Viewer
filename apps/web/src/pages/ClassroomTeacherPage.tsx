@@ -456,7 +456,7 @@ export function ClassroomTeacherPage() {
           setError('The previous classroom is no longer active.')
           return
         }
-        setError('The classroom connection was interrupted. Reconnectingâ€¦')
+        setError('The classroom connection was interrupted. Reconnecting…')
       })
       return
     }
@@ -1107,7 +1107,7 @@ export function ClassroomTeacherPage() {
         />
       </label>}
       <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
-        {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class foldersâ€¦</p> : null}
+        {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class folders…</p> : null}
         {!setupLoading && !setupFolders.length ? (
           <p className="classroom-folder-picker__status">{deferredSetupQuery
             ? 'No class folders match this search.'
@@ -1132,28 +1132,28 @@ export function ClassroomTeacherPage() {
             <span className="classroom-folder-picker__copy">
               <strong>{folder.name}</strong>
               <small>{folder.tooManySlides
-                ? 'More than 50 slides Â· choose a smaller folder'
+                ? 'More than 50 slides · choose a smaller folder'
                 : count === 0
                 ? 'No slides'
-                : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' Â· includes subfolders' : ''}`}</small>
+                : `${count} ${count === 1 ? 'slide' : 'slides'}${folder.hasChildren ? ' · includes subfolders' : ''}`}</small>
               {folder.folderPath.length > 1 ? <small>{folder.folderPath.slice(0, -1).join(' / ')}</small> : null}
             </span>
           </label>
         })}
         {setupCursor ? <button type="button" disabled={setupLoading || setupLoadingMore} onClick={() => void loadMoreSetupFolders()}>
-          {setupLoadingMore ? 'Loading more foldersâ€¦' : 'Load more folders'}
+          {setupLoadingMore ? 'Loading more folders…' : 'Load more folders'}
         </button> : null}
       </div>
       {readiness?.blocked.length ? <div className="classroom-readiness-error" role="alert">
         <strong>{readiness.blocked.length} slide{readiness.blocked.length === 1 ? '' : 's'} need attention</strong>
-        {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} Â· {item.reason.replaceAll('_', ' ')}</span>)}
+        {readiness.blocked.map((item) => <span key={item.id}>{item.displayName} · {item.reason.replaceAll('_', ' ')}</span>)}
       </div> : null}
       <label className="classroom-expiry">Review access expires
         <input type="datetime-local" min={localDateTimeInputValue(new Date(Date.now() + 60 * 60 * 1000))} max={localDateTimeInputValue(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))} value={reviewExpiry} onChange={(event) => setReviewExpiry(event.target.value)} />
       </label>
       <button className="primary classroom-entry__primary" type="button" disabled={startBusy || !selectedCount || Boolean(selectedBlockedCount) || selectedTooLarge} onClick={() => void start()}>
         {startBusy
-          ? 'Preparing classroomâ€¦'
+          ? 'Preparing classroom…'
           : selectedCount
           ? `Prepare classroom with ${selectedCount} ${selectedCount === 1 ? 'slide' : 'slides'}`
           : 'Choose a class folder'}
@@ -1161,9 +1161,9 @@ export function ClassroomTeacherPage() {
       {recentClassrooms.length ? <section className="classroom-recent-reviews">
         <h2>Open classrooms</h2>
         {recentClassrooms.map((item) => <div key={item.id}>
-          <span><strong>{item.joinCode}</strong><small>{item.phase} Â· expires {new Date(item.reviewExpiresAt).toLocaleString()}{cachedClassroomId === item.id ? ' Â· last opened' : ''}</small></span>
+          <span><strong>{item.joinCode}</strong><small>{item.phase} · expires {new Date(item.reviewExpiresAt).toLocaleString()}{cachedClassroomId === item.id ? ' · last opened' : ''}</small></span>
           <button type="button" disabled={Boolean(resumeBusy)} aria-label={`Resume classroom ${item.joinCode}`} onClick={() => void resumeClassroom(item.id)}>
-            {resumeBusy === item.id ? 'Resumingâ€¦' : 'Resume'}
+            {resumeBusy === item.id ? 'Resuming…' : 'Resume'}
           </button>
           <button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/classroom/invite/${item.publicId}`)}>Copy link</button>
           <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id)))}>Revoke</button>
@@ -1256,7 +1256,7 @@ export function ClassroomTeacherPage() {
           type="button"
           aria-pressed={guideMode}
           aria-label={guideMode ? 'Stop guiding students' : 'Guide students'}
-          title={guideMode ? 'Guide mode on â€” students follow this view' : 'Guide mode off â€” navigation stays local'}
+          title={guideMode ? 'Guide mode on — students follow this view' : 'Guide mode off — navigation stays local'}
           onClick={() => {
             const next = !guideMode
             setGuideMode(next)
@@ -1322,16 +1322,16 @@ export function ClassroomTeacherPage() {
         {!rosterLoading && !participants.length && <p className="classroom-empty">
           {deferredRosterQuery ? 'No students match this search.' : 'Students appear here after joining.'}
         </p>}
-        {rosterLoading && !participants.length ? <p className="classroom-empty" role="status">Loading studentsâ€¦</p> : null}
+        {rosterLoading && !participants.length ? <p className="classroom-empty" role="status">Loading students…</p> : null}
         <ul className="classroom-participant-list" aria-label="Student roster">{participants.map((participant) => {
           const isController = state?.controller.participantId === participant.id
           return <li key={participant.id}>
             <div>
               <strong>{participant.alias}</strong>
-              <small>{participant.displayName ? `${participant.displayName} Â· ` : ''}{isController
-                ? `${participant.status} Â· controller`
+              <small>{participant.displayName ? `${participant.displayName} · ` : ''}{isController
+                ? `${participant.status} · controller`
                 : participant.controlRequested
-                  ? `${participant.status} Â· requested control`
+                  ? `${participant.status} · requested control`
                   : participant.status}</small>
             </div>
             {isController || participant.controlRequested ? <button className="classroom-icon-action" type="button" aria-label={isController ? `Take back control from ${participant.alias}` : `Give control to ${participant.alias}`} title={isController ? 'Take back control' : 'Give control'} disabled={participant.status === 'disconnected'} onClick={() => void (isController
@@ -1371,7 +1371,7 @@ export function ClassroomTeacherPage() {
             setError('More control requests could not be loaded.')
           })}
         >{pendingControlLoading
-            ? 'Loading control requestsâ€¦'
+            ? 'Loading control requests…'
             : `Load more control requests (${pinnedControlRequests.length} of ${pendingControlPage.total})`}</button> : null}
         {roster.nextCursor ? <button
           className="classroom-roster-more"
@@ -1380,7 +1380,7 @@ export function ClassroomTeacherPage() {
           onClick={() => void loadMoreRoster(classroom.id).catch(() => {
             setError('More students could not be loaded.')
           })}
-        >{rosterLoading ? 'Loadingâ€¦' : `Load more (${roster.items.length} of ${roster.total})`}</button> : null}
+        >{rosterLoading ? 'Loading…' : `Load more (${roster.items.length} of ${roster.total})`}</button> : null}
       </section>
       <section className="classroom-panel__section">
         <h2><span className="classroom-panel__title"><ClassroomPanelIcon name="questions" />Questions</span><strong className="classroom-panel__count" aria-label={`${state?.pendingQuestions.length ?? 0} pending questions`}>{state?.pendingQuestions.length ?? 0}</strong></h2>

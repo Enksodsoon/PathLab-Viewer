@@ -2247,6 +2247,20 @@ def test_setup_folder_search_is_cursor_bounded_and_finds_deep_late_slides(
         assert zulu["blockedCount"] == 0
         assert zulu["hasChildren"] is True
 
+        saved_class = client.get(
+            "/api/v1/admin/classroom/setup/folders",
+            headers=headers,
+            params={"folderId": "folder-1", "limit": 1},
+        )
+        assert saved_class.status_code == 200
+        assert saved_class.json() == {"items": [zulu], "nextCursor": None}
+        missing_class = client.get(
+            "/api/v1/admin/classroom/setup/folders",
+            headers=headers,
+            params={"folderId": "missing"},
+        )
+        assert missing_class.json() == {"items": [], "nextCursor": None}
+
         deep = client.get(
             "/api/v1/admin/classroom/setup/folders",
             headers=headers,

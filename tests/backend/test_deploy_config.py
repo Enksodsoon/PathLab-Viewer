@@ -167,6 +167,10 @@ def test_assessment_uses_an_isolated_default_off_two_worker_service() -> None:
     caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
 
     assert "dockerfile: deploy/Dockerfile.backend" in assessment
+    assert 'profiles: ["assessment"]' in assessment
+    assert "      assessment:" not in caddy
+    assert 'expression `{env.PATHLAB_ASSESSMENT_ENABLED} != "true"`' in caddyfile
+    assert "handle @assessment_disabled" in caddyfile
     assert "PATHLAB_SERVICE_ROLE: assessment" in assessment
     assert 'PATHLAB_ASSESSMENT_ENABLED: "${PATHLAB_ASSESSMENT_ENABLED:-false}"' in assessment
     assert '"--port", "8002"' in assessment
