@@ -9,8 +9,8 @@ from typing import Any
 
 import pytest
 import yaml
-
 from build_capacity_terminal_status import JOBS
+
 from scripts.watch_capacity_shards import (
     GitHubApi,
     ShardState,

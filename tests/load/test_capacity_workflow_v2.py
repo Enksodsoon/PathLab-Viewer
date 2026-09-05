@@ -327,6 +327,27 @@ def test_same_release_restore_uses_runtime_manifest_and_fails_closed() -> None:
     assert "rollback" not in restore.lower()
 
 
+def test_failed_run_recovery_receipt_is_retained_without_changing_success_gates() -> None:
+    steps = workflow()["jobs"]["preflight"]["steps"]
+    names = [step.get("name", "") for step in steps]
+    recovery = names.index("Reconcile an exact terminal failed-run fixture")
+    retained = names.index("Retain the exact failed-run recovery receipt")
+    admission = names.index("Reject admission while any real or synthetic Classroom is present")
+    assert recovery < retained < admission
+    upload = steps[retained]
+    assert upload["if"] == "always() && inputs.recovery_run_id != ''"
+    assert upload["uses"].startswith("actions/upload-artifact@")
+    assert upload["with"] == {
+        "name": "capacity-recovery",
+        "path": "${{ runner.temp }}/capacity-recovery.json",
+        "if-no-files-found": "ignore",
+        "retention-days": "14",
+    }
+    assert "continue-on-error" not in steps[recovery]
+    assert "continue-on-error" not in upload
+    assert "if" not in steps[admission]
+
+
 def test_every_reconciliation_failure_precedes_finalize_and_triggers_fail_safe_rollback() -> None:
     cleanup = Path("deploy/scripts/cleanup-capacity-certification.sh").read_text(encoding="utf-8")
     trap_index = cleanup.index("trap write_result EXIT")
