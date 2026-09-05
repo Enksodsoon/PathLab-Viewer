@@ -127,30 +127,30 @@ Source: https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
-ID: github-action:docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+ID: github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
 Name: docker/setup-qemu-action
-Version: 96fe6ef7f33517b61c61be40b68a1882f3264fb8
+Version: 1f40c72289eff860ee54a304f1438e3cff362e0a
 License: Apache-2.0
 Admission: BLOCKED
-Source: https://github.com/docker/setup-qemu-action/tree/96fe6ef7f33517b61c61be40b68a1882f3264fb8
+Source: https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
-ID: github-action:github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+ID: github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938
 Name: github/codeql-action/analyze
-Version: db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Version: cdf488f595d80d6e07e03d4674febd5ab45fa938
 License: MIT
 Admission: BLOCKED
-Source: https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Source: https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
-ID: github-action:github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+ID: github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938
 Name: github/codeql-action/init
-Version: db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Version: cdf488f595d80d6e07e03d4674febd5ab45fa938
 License: MIT
 Admission: BLOCKED
-Source: https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Source: https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
