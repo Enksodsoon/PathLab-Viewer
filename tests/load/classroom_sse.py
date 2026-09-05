@@ -853,7 +853,10 @@ async def run() -> int:
     for attempt in range(5):
         try:
             login = await asyncio.wait_for(
-                admin.post("/api/v1/auth/session", json={"username": username, "password": password}),
+                admin.post(
+                    "/api/v1/auth/session",
+                    json={"username": username, "password": password},
+                ),
                 timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
             )
             if login.status_code == 503 and attempt < 4:
