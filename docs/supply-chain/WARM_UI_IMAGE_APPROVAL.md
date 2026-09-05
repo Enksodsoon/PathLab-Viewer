@@ -1,8 +1,8 @@
 # Original login artwork approval addendum
 
-Status: **PENDING OWNER APPROVAL — NOT RELEASE ADMITTED**.
+Status: **OWNER APPROVED — EXACT ASSETS ONLY** (September 5, 2026).
 
-This draft covers only the following original generated login images. It does
+This addendum covers only the following original generated login images. It does
 not amend the existing signed source-ownership receipt or approve other assets.
 
 | Original asset | SHA-256 |
@@ -16,19 +16,19 @@ WebP hashes, and successful byte-for-byte reproduction. The dark generation
 had no input image. The light generation used that generated dark image.
 Both recovered outputs were inspected as synthetic abstract artwork.
 
-## Proposed owner confirmation
+## Recorded owner approval
 
-The following is a proposal for the accountable owner to review, not a recorded
-representation by that owner:
+After reviewing the local restored preview and being presented this asset-specific
+addendum, the repository owner instructed on September 5, 2026:
 
-> I approve restoring and distributing these two exact generated images in
-> PathLab's application and public repository. I confirm that I control the
-> necessary rights, have reviewed the applicable generation-provider terms,
-> and that any required attribution or use restrictions have been supplied.
+> ok, looking good, do a PR merge and deploy
 
-Owner confirmation: **PENDING**.
+This records approval to use and distribute the two exact images above in the
+reviewed PathLab application and its public repository PR. It does not assert a
+cryptographic signature, a new license for unrelated assets, or an independent
+legal review. No additional attribution or restrictions were supplied.
 
-After confirmation, record its exact scope and date in the evidence receipt,
-complete any supplied attribution, update only these two exact asset rules,
-regenerate the ledger, and run its strict `--release` validation. The other
-retired assets and generic unknown-artwork restrictions remain unchanged.
+The evidence receipt records the exact statement, date, context, and scope.
+Only these two exact asset rules change from pending to admitted. The ledger
+must pass strict `--release` validation; the other retired assets and generic
+unknown-artwork restrictions remain unchanged.

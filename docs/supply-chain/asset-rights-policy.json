@@ -35,15 +35,13 @@
       "metadata": {
         "creator": "OpenAI image generation output requested by the repository owner",
         "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_8VtZhIVFntDcQ0rZW5d9ABFX, source-to-WebP reproduction verified byte-for-byte.",
-        "licensePermission": "PENDING_OWNER_APPROVAL",
-        "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
-        "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+        "licensePermission": "OWNER_APPROVED_PATHLAB_DISTRIBUTION",
+        "attribution": "See WARM_UI_IMAGE_APPROVAL.md for recorded owner approval; no additional attribution was supplied.",
+        "permittedUse": "PATHLAB_APPLICATION_AND_REPOSITORY",
         "privacyClass": "PUBLIC_SYNTHETIC",
         "distributionScope": "SHIPPED_RUNTIME",
-        "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": [
-          "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
-        ]
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
       }
     },
     {
@@ -53,15 +51,13 @@
       "metadata": {
         "creator": "OpenAI image generation output requested by the repository owner",
         "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_tdDaJBLLM4J0WkMqb6sxvmlJ, source-to-WebP reproduction verified byte-for-byte.",
-        "licensePermission": "PENDING_OWNER_APPROVAL",
-        "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
-        "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+        "licensePermission": "OWNER_APPROVED_PATHLAB_DISTRIBUTION",
+        "attribution": "See WARM_UI_IMAGE_APPROVAL.md for recorded owner approval; no additional attribution was supplied.",
+        "permittedUse": "PATHLAB_APPLICATION_AND_REPOSITORY",
         "privacyClass": "PUBLIC_SYNTHETIC",
         "distributionScope": "SHIPPED_RUNTIME",
-        "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": [
-          "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
-        ]
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
       }
     },
     {

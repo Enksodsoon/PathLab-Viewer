@@ -1,8 +1,14 @@
 {
   "schemaVersion": 1,
   "restorationBaseline": "7eb949a724b3450e67b227e34ad45bb65ec75c99",
-  "imageAdmission": "PENDING_OWNER_APPROVAL",
-  "ownerApproval": null,
+  "imageAdmission": "OWNER_APPROVED",
+  "ownerApproval": {
+    "date": "2026-09-05",
+    "channel": "Codex conversation after local preview and image-specific addendum review",
+    "statement": "ok, looking good, do a PR merge and deploy",
+    "scope": "Use and distribution of the two exact original login images in the reviewed PathLab restoration and public repository PR. No other artwork is admitted.",
+    "recordType": "Recorded conversational approval; not a cryptographic signature"
+  },
   "sourceOwnershipReceipt": {
     "path": "docs/supply-chain/P0_T02_RELICENSING_DISPOSITION.md",
     "commit": "e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f",

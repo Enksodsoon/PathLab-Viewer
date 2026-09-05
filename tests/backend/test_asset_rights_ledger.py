@@ -15,7 +15,6 @@ from scripts.generate_asset_rights_ledger import (
     make_record,
 )
 from scripts.validate_asset_rights_ledger import (
-    ReleaseBlocked,
     reconcile_discovered,
     record_map,
     validate,
@@ -26,18 +25,14 @@ from scripts.validate_asset_rights_ledger import (
 SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
 
 
-def test_restored_images_remain_blocked_until_owner_approval() -> None:
-    ledger = validate()
+def test_exact_restored_assets_are_admitted_after_owner_approval() -> None:
+    ledger = validate(require_release_admission=True)
     assert len(ledger["records"]) == 8
-    assert ledger["releaseAdmission"] == "BLOCKED"
-    blocked = [r for r in ledger["records"] if r["releaseDisposition"] == "BLOCKED_RELEASE"]
-    assert {r["locator"] for r in blocked} == {
-        "apps/web/src/assets/auth-histology-solace-dark.webp",
-        "apps/web/src/assets/auth-histology-solace-light.webp",
-    }
-    assert all(r["blockers"] == ["OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"] for r in blocked)
-    with pytest.raises(ReleaseBlocked):
-        validate(require_release_admission=True)
+    assert ledger["releaseAdmission"] == "ADMITTED"
+    assert all(r["releaseDisposition"] == "ADMITTED" for r in ledger["records"])
+    images = [r for r in ledger["records"] if r["locator"].endswith(".webp")]
+    assert len(images) == 2
+    assert all(r["licensePermission"] == "OWNER_APPROVED_PATHLAB_DISTRIBUTION" for r in images)
 
 
 def test_exact_receipt_rejects_changed_original_even_after_ledger_regeneration() -> None:

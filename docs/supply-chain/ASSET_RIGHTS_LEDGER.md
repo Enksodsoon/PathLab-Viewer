@@ -9,10 +9,10 @@ machine ledger additionally inventories the two original login WebPs and the
 original layered-slide mark and square loader. See
 [WARM_UI_ASSET_RECEIPT.json](./WARM_UI_ASSET_RECEIPT.json) for source hashes,
 generation prompts, transformation parameters, and the signed source receipt.
-The login images remain release-blocked pending their image-specific owner
-approval. Ordinary ledger validation checks integrity; `--release` rejects
-this candidate until that approval is completed. The eight unrelated retired
-assets retain both path and content-hash enforcement.
+The owner approved the reviewed restoration for PR, merge, and deployment on
+September 5; the exact two image rules are now admitted. Ordinary validation
+checks integrity and `--release` requires an empty blocker list. The eight
+unrelated retired assets retain both path and content-hash enforcement.
 
 Exact locator rules must contain a matching `contentSha256`; a changed original
 is rejected even if the ledger is regenerated. Generic blocked rules continue

@@ -4,7 +4,7 @@ The September 5 restoration returns PathLab's warm cream/coral and
 charcoal/coral identity from `7eb949a`. The earlier P0-T07 mineral palette,
 microscope mark, CSS specimen field, and circular loader are superseded.
 The current visual contract is [DESIGN.md](../../apps/web/DESIGN.md).
-Original-asset evidence and the pending image-specific approval are recorded
+Original-asset evidence and the recorded image-specific approval are recorded
 in [WARM_UI_ASSET_RECEIPT.json](./WARM_UI_ASSET_RECEIPT.json).
 
 ## Rights and provenance
@@ -19,8 +19,8 @@ in [WARM_UI_ASSET_RECEIPT.json](./WARM_UI_ASSET_RECEIPT.json).
 - The two original authentication images were traced to July 26 image-generation
   calls and reproduced byte-for-byte from their source PNGs. The dark image
   used no input image; the light image used only that generated dark image.
-  Source evidence does not replace the image-specific owner approval: both
-  image entries remain `BLOCKED_RELEASE` until that approval is recorded.
+  The owner reviewed the local preview and approved PR, merge, and deployment
+  on September 5; the two exact image entries are admitted by that receipt.
 - Local and teaching annotations render user-provided coordinates on Canvas.
   They are functional data rendering, not bundled artwork.
 - Eight unrelated unverified binary assets and documents remain retired by path and
