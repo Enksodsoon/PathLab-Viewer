@@ -882,28 +882,26 @@ async def run() -> int:
         await asyncio.sleep(sequence * JOIN_STAGGER_SECONDS)
         client = httpx.AsyncClient(base_url=base_url, timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS)
         attempts = 0
-        max_attempts = 10
+        max_attempts = 25
         while True:
             attempts += 1
             now_ms = int(time.time() * 1_000)
             time_until_hold = (
                 (hold_start_epoch_ms - now_ms) / 1_000 if hold_start_epoch_ms else 60.0
             )
-            can_retry = (time_until_hold > SSE_READY_RESERVE_SECONDS + 2) and (
-                attempts < max_attempts
-            )
+            can_retry = (time_until_hold > 5.0) and (attempts < max_attempts)
             try:
                 response = await asyncio.wait_for(
                     client.post("/api/v1/classroom/join", json={"joinCode": join_code}),
                     timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
                 )
-                if response.status_code == 503 and can_retry:
+                if response.status_code in {429, 502, 503, 504} and can_retry:
                     retry_header = response.headers.get("Retry-After", "0.5")
                     try:
                         base_delay = max(0.1, min(2.0, float(retry_header)))
                     except ValueError:
                         base_delay = 0.5
-                    jitter = ((sequence * 37 + attempts * 13) % 30) * 0.01
+                    jitter = ((sequence * 37 + attempts * 13) % 50) * 0.02
                     await asyncio.sleep(base_delay + jitter)
                     continue
                 response.raise_for_status()
@@ -913,7 +911,7 @@ async def run() -> int:
                 )
             except (httpx.RequestError, TimeoutError):
                 if can_retry:
-                    jitter = ((sequence * 37 + attempts * 13) % 30) * 0.01
+                    jitter = ((sequence * 37 + attempts * 13) % 50) * 0.02
                     await asyncio.sleep(0.5 + jitter)
                     continue
                 raise
