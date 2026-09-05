@@ -333,6 +333,17 @@ class OidcIdentityLink(Base):
     )
 
 
+class AdmissionAttempt(Base):
+    __tablename__ = "admission_attempts"
+    __table_args__ = (Index("ix_admission_namespace_time", "namespace", "attempted_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    namespace: Mapped[str] = mapped_column(String(20), nullable=False)
+    client_key_hash: Mapped[str | None] = mapped_column(String(64))
+    subject_key_hash: Mapped[str | None] = mapped_column(String(64))
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class DesktopPairing(Base):
     __tablename__ = "desktop_pairings"
 
@@ -345,7 +356,9 @@ class DesktopPairing(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     exchanged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

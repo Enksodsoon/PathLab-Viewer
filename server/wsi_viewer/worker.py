@@ -9,9 +9,9 @@ import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol, cast
 
-from sqlalchemy import or_, select
+from sqlalchemy import CursorResult, delete, or_, select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
@@ -20,7 +20,7 @@ from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
 from .domain import SlideState
-from .models import AuditEvent, Job, Slide
+from .models import AuditEvent, DesktopPairing, Job, Slide
 from .ome import OmeError, validate_ome_tiff
 from .runtime_protection import protection_snapshot
 from .storage import StorageLayout
@@ -30,6 +30,8 @@ JOB_POLL_INTERVAL_SECONDS = 2.0
 STALE_RECOVERY_INTERVAL_SECONDS = 60.0
 TUS_CLEANUP_INTERVAL_SECONDS = 30.0 * 60.0
 STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS = 60.0
+PAIRING_CLEANUP_INTERVAL_SECONDS = 60.0
+PAIRING_CLEANUP_BATCH_SIZE = 1000
 STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
 
@@ -104,6 +106,7 @@ class WorkerScheduler:
         recover_stale: Callable[[], object],
         cleanup_uploads: Callable[[], object],
         process_job: Callable[[], bool],
+        cleanup_pairings: Callable[[], object] = lambda: None,
         report_capacity: Callable[[], object] = lambda: None,
         background_allowed: Callable[[], bool] = lambda: True,
         shutdown_requested: Callable[[], bool] = lambda: False,
@@ -112,6 +115,7 @@ class WorkerScheduler:
         self._recover_stale = recover_stale
         self._cleanup_uploads = cleanup_uploads
         self._process_job = process_job
+        self._cleanup_pairings = cleanup_pairings
         self._report_capacity = report_capacity
         self._background_allowed = background_allowed
         self._shutdown_requested = shutdown_requested
@@ -120,6 +124,7 @@ class WorkerScheduler:
         self._next_stale_recovery = float("-inf")
         self._next_tus_cleanup = float("-inf")
         self._next_capacity_check = float("-inf")
+        self._next_pairing_cleanup = float("-inf")
 
     def run_due(self) -> float:
         now = self._monotonic()
@@ -131,6 +136,9 @@ class WorkerScheduler:
             self._next_tus_cleanup = max(
                 self._next_tus_cleanup, now + TUS_CLEANUP_INTERVAL_SECONDS
             )
+            self._next_pairing_cleanup = max(
+                self._next_pairing_cleanup, now + PAIRING_CLEANUP_INTERVAL_SECONDS
+            )
             return JOB_POLL_INTERVAL_SECONDS
         if now >= self._next_stale_recovery:
             self._recover_stale()
@@ -141,6 +149,9 @@ class WorkerScheduler:
         if now >= self._next_capacity_check:
             self._report_capacity()
             self._next_capacity_check = now + STORAGE_CAPACITY_CHECK_INTERVAL_SECONDS
+        if now >= self._next_pairing_cleanup:
+            self._cleanup_pairings()
+            self._next_pairing_cleanup = now + PAIRING_CLEANUP_INTERVAL_SECONDS
         if now >= self._next_job_poll:
             if self._shutdown_requested():
                 return 0.0
@@ -153,6 +164,7 @@ class WorkerScheduler:
                 self._next_stale_recovery,
                 self._next_tus_cleanup,
                 self._next_capacity_check,
+                self._next_pairing_cleanup,
             )
             - now,
         )
@@ -167,6 +179,33 @@ def background_work_is_allowed(
         snapshot = protection_snapshot(database)
         database.commit()
         return not snapshot.blocks_background_work
+
+
+def expire_desktop_pairings(
+    factory: sessionmaker[OrmSession], *, now: datetime | None = None
+) -> int:
+    """Remove one bounded batch of expired handshakes, never issued credentials."""
+    cutoff = now if now is not None else datetime.now(UTC)
+    candidates = (
+        select(DesktopPairing.id)
+        .where(DesktopPairing.expires_at <= cutoff)
+        .order_by(DesktopPairing.expires_at, DesktopPairing.id)
+        .limit(PAIRING_CLEANUP_BATCH_SIZE)
+    )
+    with factory() as database:
+        result = cast(
+            CursorResult[Any],
+            database.execute(
+                delete(DesktopPairing)
+                .where(
+                    DesktopPairing.id.in_(candidates),
+                    DesktopPairing.expires_at <= cutoff,
+                )
+                .execution_options(synchronize_session=False)
+            ),
+        )
+        database.commit()
+        return result.rowcount
 
 
 def recover_stale_jobs(
@@ -422,6 +461,7 @@ def main() -> None:
             shutdown_requested=shutdown.is_set,
             protection_enabled=settings.classroom_protection_enabled,
         ),
+        cleanup_pairings=lambda: expire_desktop_pairings(factory),
         report_capacity=capacity_monitor.check,
         background_allowed=lambda: background_work_is_allowed(
             factory, enabled=settings.classroom_protection_enabled

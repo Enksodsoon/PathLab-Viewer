@@ -20,6 +20,7 @@ from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
+from .admission import SharedAdmission
 from .annotation_routes import register_annotation_routes
 from .auth import (
     CredentialConflict,
@@ -67,6 +68,7 @@ from .storage import (
     StorageLayout,
 )
 from .storage_accounting import reserve_new_slide, reserve_retry
+from .study_pack_contract import MAX_PACK_BYTES
 from .study_routes import register_study_routes
 from .tile_cache import TileCache
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
@@ -146,43 +148,6 @@ class UploadCompleteRequest(BaseModel):
     length: int = Field(gt=0)
 
 
-MAX_THROTTLE_KEYS = 10_000
-
-
-class LoginThrottle:
-    def __init__(self, max_keys: int = MAX_THROTTLE_KEYS) -> None:
-        self.attempts: dict[str, deque[datetime]] = {}
-        self.max_keys = max_keys
-
-    def check(self, key: str, now: datetime) -> None:
-        cutoff = now - timedelta(minutes=5)
-        attempts = self.attempts.get(key)
-        if attempts is not None:
-            while attempts and attempts[0] < cutoff:
-                attempts.popleft()
-            if not attempts:
-                self.attempts.pop(key, None)
-                attempts = None
-        if attempts is not None and len(attempts) >= 5:
-            raise HTTPException(status_code=429, detail={"code": "AUTH_THROTTLED"})
-        if attempts is None:
-            if len(self.attempts) >= self.max_keys:
-                self.purge_expired(cutoff)
-                if len(self.attempts) >= self.max_keys:
-                    self.attempts.pop(next(iter(self.attempts)), None)
-            attempts = deque()
-            self.attempts[key] = attempts
-        attempts.append(now)
-
-    def purge_expired(self, cutoff: datetime) -> None:
-        expired = [k for k, q in self.attempts.items() if not q or q[-1] < cutoff]
-        for k in expired:
-            self.attempts.pop(k, None)
-
-    def clear(self, key: str) -> None:
-        self.attempts.pop(key, None)
-
-
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
@@ -245,7 +210,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     current.data_root.mkdir(parents=True, exist_ok=True)
     factory = session_factory(current)
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
-    throttle = LoginThrottle()
+    throttle = SharedAdmission(factory)
     services: dict[str, Any] = {}
     classroom_pressure: dict[str, int | float] = {
         "poolWaitP95Ms": 0.0,
@@ -323,6 +288,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             services["classroom_ready"] = not classroom_runtime_enabled
 
     app = FastAPI(title="PathLab Viewer API", version="0.1.0", lifespan=lifespan)
+    app.state.shared_admission = throttle
     app.add_middleware(
         AuthBodyLimitMiddleware,
         path_limits=(
@@ -330,6 +296,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ("/api/v2/admin/", MAX_LIBRARY_BODY_BYTES),
             ("/api/v1/internal/", MAX_INTERNAL_BODY_BYTES),
             ("/api/v1/auth/", MAX_AUTH_BODY_BYTES),
+            ("/api/v1/desktop/pairings", MAX_AUTH_BODY_BYTES),
+            ("/api/v1/desktop/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v2/desktop/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/admin/study/packs", MAX_PACK_BYTES),
+            ("/api/v1/admin/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/classroom/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/study/", MAX_LIBRARY_BODY_BYTES),
         ),
         suffix_limits=(
             (
@@ -337,6 +310,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "/import",
                 MAX_ANNOTATION_IMPORT_BODY_BYTES,
             ),
+            ("/api/v1/desktop/slides/", "/annotations/batch", MAX_ANNOTATION_BODY_BYTES),
+        ),
+        excluded_routes=(
+            ("PATCH", r"/api/v1/desktop/ingests/[^/]+/content"),
+            ("PATCH", r"/api/v2/desktop/slides/[^/]+/result-deliveries/[^/]+/content"),
         ),
     )
     app.state.settings = current
@@ -575,8 +553,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         key = request.client.host if request.client else "unknown"
         user_key = f"user:{payload.username.strip().casefold()}"
         now = datetime.now(UTC)
-        throttle.check(key, now)
-        throttle.check(user_key, now)
+        throttle.check("login", key, now, user_key)
         token = random_token()
         csrf_token = random_token()
         expires = now + timedelta(hours=current.session_hours)
@@ -591,8 +568,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if not authenticated:
             raise HTTPException(status_code=401, detail={"code": "INVALID_CREDENTIALS"})
-        throttle.clear(key)
-        throttle.clear(user_key)
+        throttle.clear("login", key, now, user_key)
         response.set_cookie(
             COOKIE_NAME,
             token,
@@ -640,7 +616,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if user is None:
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
         key = f"password:{user.id}:{request.client.host if request.client else 'unknown'}"
-        throttle.check(key, datetime.now(UTC))
+        now = datetime.now(UTC)
+        throttle.check("password", key, now)
         try:
             change_password(db, user, payload.current_password, payload.new_password)
         except CredentialConflict as error:
@@ -653,7 +630,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
-        throttle.clear(key)
+        throttle.clear("password", key, now)
         response.delete_cookie(COOKIE_NAME, path="/")
 
     @app.post(

@@ -11,14 +11,16 @@ import tarfile
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session as OrmSession
 
+from .admission import SharedAdmission
 from .annotations import (
     AnnotationBatchRequest,
     AnnotationError,
@@ -194,9 +196,8 @@ def register_desktop_routes(
         now = _now()
         if stored is None or stored.revoked_at is not None or as_utc(stored.expires_at) <= now:
             raise HTTPException(status_code=401, detail={"code": "DESKTOP_CREDENTIAL_INVALID"})
-        if (
-            stored.last_used_at is None
-            or as_utc(stored.last_used_at) <= now - timedelta(minutes=15)
+        if stored.last_used_at is None or as_utc(stored.last_used_at) <= now - timedelta(
+            minutes=15
         ):
             stored.last_used_at = now
             database.commit()
@@ -391,6 +392,12 @@ def register_desktop_routes(
         request: Request,
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        now = _now()
+        admission: SharedAdmission = request.app.state.shared_admission
+        admission.check("pairing", request.client.host if request.client else "unknown", now)
+        # Credentials have their own lifetime; removing expired handshakes never
+        # revokes or deletes a successfully exchanged grant.
+        database.execute(delete(DesktopPairing).where(DesktopPairing.expires_at <= now))
         device_code = _token()
         device_secret = _token()
         code = _user_code()
@@ -399,7 +406,7 @@ def register_desktop_routes(
             is not None
         ):
             code = _user_code()
-        expires = _now() + timedelta(minutes=PAIRING_MINUTES)
+        expires = now + timedelta(minutes=PAIRING_MINUTES)
         pairing = DesktopPairing(
             device_code_hash=_hash(device_code),
             device_secret_hash=_hash(device_secret),
@@ -434,15 +441,24 @@ def register_desktop_routes(
         pairing = database.scalar(
             select(DesktopPairing).where(DesktopPairing.user_code == payload.user_code.upper())
         )
-        if (
-            pairing is None
-            or as_utc(pairing.expires_at) <= _now()
-            or pairing.status != "pending"
-        ):
+        if pairing is None or as_utc(pairing.expires_at) <= _now() or pairing.status != "pending":
             raise HTTPException(status_code=404, detail={"code": "PAIRING_NOT_FOUND"})
-        pairing.user_id = authenticated.user_id
-        pairing.status = "approved"
-        pairing.approved_at = _now()
+        approved = cast(
+            CursorResult[Any],
+            database.execute(
+                update(DesktopPairing)
+                .where(
+                    DesktopPairing.id == pairing.id,
+                    DesktopPairing.status == "pending",
+                    DesktopPairing.expires_at > _now(),
+                )
+                .values(user_id=authenticated.user_id, status="approved", approved_at=_now())
+                .execution_options(synchronize_session=False)
+            ),
+        )
+        if approved.rowcount != 1:
+            database.rollback()
+            raise HTTPException(status_code=404, detail={"code": "PAIRING_NOT_FOUND"})
         database.commit()
 
     @app.post("/api/v1/desktop/pairings/exchange")
@@ -465,8 +481,25 @@ def register_desktop_routes(
             raise HTTPException(status_code=409, detail={"code": "PAIRING_PENDING"})
         if pairing.status != "approved" or pairing.user_id is None:
             raise HTTPException(status_code=409, detail={"code": "PAIRING_ALREADY_EXCHANGED"})
+        now = _now()
+        claimed = cast(
+            CursorResult[Any],
+            database.execute(
+                update(DesktopPairing)
+                .where(
+                    DesktopPairing.id == pairing.id,
+                    DesktopPairing.status == "approved",
+                    DesktopPairing.expires_at > now,
+                )
+                .values(status="exchanged", exchanged_at=now)
+                .execution_options(synchronize_session=False)
+            ),
+        )
+        if claimed.rowcount != 1:
+            database.rollback()
+            raise HTTPException(status_code=409, detail={"code": "PAIRING_ALREADY_EXCHANGED"})
         access_token = _token(48)
-        expires = _now() + timedelta(days=CREDENTIAL_DAYS)
+        expires = now + timedelta(days=CREDENTIAL_DAYS)
         database.add(
             DesktopCredential(
                 id=_hash(access_token),
@@ -476,8 +509,6 @@ def register_desktop_routes(
                 expires_at=expires,
             )
         )
-        pairing.status = "exchanged"
-        pairing.exchanged_at = _now()
         database.commit()
         return {
             "accessToken": access_token,
