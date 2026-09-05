@@ -1,5 +1,5 @@
 {
-  "policySha256": "cd385a2b03c803138ebe406d570553cd369d3ec8f1db4b843d37eca615f2fd91",
+  "policySha256": "3ecd7d1b0aef1ab4a38b912354c5d38a32f31b28fa79089e86ebabdca2d57cf8",
   "records": [
     {
       "attribution": "Preserve the repository LICENSE and NOTICE.",
@@ -552,47 +552,40 @@
       ]
     },
     {
-      "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
-      "blockers": [
-        "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
-      ],
+      "attribution": "See WARM_UI_IMAGE_APPROVAL.md for recorded owner approval; no additional attribution was supplied.",
+      "blockers": [],
       "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744",
       "creator": "OpenAI image generation output requested by the repository owner",
       "distributionScope": "SHIPPED_RUNTIME",
       "id": "asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
       "kind": "repository-file",
-      "licensePermission": "PENDING_OWNER_APPROVAL",
+      "licensePermission": "OWNER_APPROVED_PATHLAB_DISTRIBUTION",
       "locator": "apps/web/src/assets/auth-histology-solace-dark.webp",
-      "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+      "permittedUse": "PATHLAB_APPLICATION_AND_REPOSITORY",
       "privacyClass": "PUBLIC_SYNTHETIC",
       "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_8VtZhIVFntDcQ0rZW5d9ABFX, source-to-WebP reproduction verified byte-for-byte.",
-      "releaseDisposition": "BLOCKED_RELEASE",
+      "releaseDisposition": "ADMITTED",
       "sizeBytes": 184212
     },
     {
-      "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
-      "blockers": [
-        "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
-      ],
+      "attribution": "See WARM_UI_IMAGE_APPROVAL.md for recorded owner approval; no additional attribution was supplied.",
+      "blockers": [],
       "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960",
       "creator": "OpenAI image generation output requested by the repository owner",
       "distributionScope": "SHIPPED_RUNTIME",
       "id": "asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp",
       "kind": "repository-file",
-      "licensePermission": "PENDING_OWNER_APPROVAL",
+      "licensePermission": "OWNER_APPROVED_PATHLAB_DISTRIBUTION",
       "locator": "apps/web/src/assets/auth-histology-solace-light.webp",
-      "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+      "permittedUse": "PATHLAB_APPLICATION_AND_REPOSITORY",
       "privacyClass": "PUBLIC_SYNTHETIC",
       "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_tdDaJBLLM4J0WkMqb6sxvmlJ, source-to-WebP reproduction verified byte-for-byte.",
-      "releaseDisposition": "BLOCKED_RELEASE",
+      "releaseDisposition": "ADMITTED",
       "sizeBytes": 151666
     }
   ],
-  "releaseAdmission": "BLOCKED",
-  "releaseBlockers": [
-    "asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
-    "asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
-  ],
+  "releaseAdmission": "ADMITTED",
+  "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "deea3918be4ed9e88c3594308e46947ec4d104db"
+  "subjectCommit": "2e06648f38ae946a4cc1548ba5501f0a80a35380"
 }
