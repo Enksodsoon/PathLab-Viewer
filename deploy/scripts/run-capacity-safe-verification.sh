@@ -73,10 +73,8 @@ write_status() {
 owned_bastion_count() {
   local owner_run="${1:-${GITHUB_RUN_ID}}"
   local sessions="${work_dir}/bastion.json"
-  oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}"
-  if [[ ! -s "${sessions}" ]]; then
-    echo '{"data": []}' > "${sessions}"
-  fi
+  oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}" || return $?
+  [[ -s "${sessions}" ]] || return 1
   jq --arg prefix "pathlab-capacity-${owner_run}-" \
     '[.data[] | select((."display-name" // "") | startswith($prefix)) |
       select(."lifecycle-state" == "ACTIVE" or ."lifecycle-state" == "CREATING" or
@@ -85,10 +83,9 @@ owned_bastion_count() {
 
 delete_owned_bastion() {
   local owner_run="$1" sessions="${work_dir}/bastion-delete.json"
-  oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}"
-  if [[ ! -s "${sessions}" ]]; then
-    echo '{"data": []}' > "${sessions}"
-  fi
+  oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions}" || return $?
+  [[ -s "${sessions}" ]] || return 1
+  jq -e '.data | type == "array"' "${sessions}" >/dev/null || return 1
   while IFS= read -r session_id; do
     delete_requested=false
     for _ in 1 2 3; do
@@ -120,9 +117,10 @@ delete_owned_bastion() {
 }
 
 reconcile_fixture() {
+  cleanup_proved=false
   python deploy/scripts/capacity_fixtures.py reconcile \
     --run-id "${GITHUB_RUN_ID}" --base-url "${CAPACITY_BASE_URL}" \
-    --username "${LOAD_TEST_ADMIN_USERNAME}" --password "${LOAD_TEST_ADMIN_PASSWORD}"
+    --username "${LOAD_TEST_ADMIN_USERNAME}" --password "${LOAD_TEST_ADMIN_PASSWORD}" || return $?
   cleanup_proved=true
 }
 
@@ -180,17 +178,22 @@ finish() {
   if [[ "${result}" -ne 0 ]]; then
     primary_failure="${primary_failure/NONE/SAFE_VERIFICATION_FAILED}"
   fi
-  reconcile_fixture >/dev/null 2>&1 || true
+  if ! reconcile_fixture >/dev/null 2>&1; then
+    result=1
+    primary_failure="FIXTURE_CLEANUP_NOT_PROVED"
+  fi
   recover_runtime >/dev/null 2>&1 || true
   if [[ -n "${manifest_digest}" ]]; then
-    post="$(bash deploy/scripts/capacity-control-via-bastion.sh \
-      "capacity-postflight expected=${GITHUB_SHA} manifest=${manifest_digest}" 2>/dev/null)"
-    if jq -e --arg sha "${GITHUB_SHA}" --arg manifest "${manifest_digest}" \
+    if post="$(bash deploy/scripts/capacity-control-via-bastion.sh \
+        "capacity-postflight expected=${GITHUB_SHA} manifest=${manifest_digest}" 2>/dev/null)" && \
+      jq -e --arg sha "${GITHUB_SHA}" --arg manifest "${manifest_digest}" \
       '.releaseSha == $sha and .runtimeManifestDigest == $manifest and .releaseExact == true and
        .servicesExact == true and .ready == true and .classroomEnabled == true and
+       .watchdogExpected == true and .watchdogActive == true and
        .finalCapacity == 300 and .annotationsEnabled == false' <<< "${post}" >/dev/null 2>&1; then
       restored=true
     else
+      restored=false
       result=1
       primary_failure="POSTFLIGHT_NOT_PROVED"
     fi
@@ -221,7 +224,9 @@ finish() {
     "${work_dir}/check-runs.json" "${work_dir}/bastion.json"
   exit "${result}"
 }
-trap finish EXIT INT TERM
+trap finish EXIT
+trap 'primary_failure=SAFE_VERIFICATION_CANCELLED; exit 130' INT
+trap 'primary_failure=SAFE_VERIFICATION_CANCELLED; exit 143' TERM
 
 started_at="$(date --iso-8601=seconds)"
 write_status RUNNING

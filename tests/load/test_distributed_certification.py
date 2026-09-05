@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta, timezone
 
 import classroom_sse
+import distributed_shard
 import httpx
 import pytest
 from build_capacity_decision import (
@@ -829,7 +830,7 @@ def test_missing_report_emits_safe_private_failure_code() -> None:
         0,
     )
 
-    assert summary["failureCodes"] == ["report-missing", "sse-readiness-timeout"]
+    assert summary["failureCodes"] == ["report-missing", "sse-readiness-timeout", "cleanup-failed"]
 
 
 def test_process_signal_becomes_a_caught_cancellation_abort() -> None:
@@ -853,8 +854,82 @@ def test_process_sample_tolerates_zombie_without_vmrss(
 def test_failed_execution_is_not_recorded_in_completed_partial_prefix() -> None:
     assert completed_stage_marker("boundary-900", {"exitCode": 1}) is None
     assert completed_stage_marker(
-        "breakpoint-1750", {"exitCode": 1, "earlyStopCauses": ["memory"]}
+        "breakpoint-1750",
+        {
+            "exitCode": 1,
+            "earlyStopCauses": ["memory"],
+            "cleanupSucceeded": True,
+        },
     ) == {"name": "breakpoint-1750", "outcome": "protected-early-stop"}
+
+
+@pytest.mark.parametrize(
+    "execution",
+    [
+        {"exitCode": 0, "cleanupSucceeded": True, "report": {}},
+        {"exitCode": 0, "cleanupSucceeded": False, "report": {"participants": 50}},
+        {"exitCode": 0, "cleanupSucceeded": True, "stalled": True, "report": {"participants": 50}},
+    ],
+)
+def test_missing_report_timeout_and_cleanup_failure_cannot_mark_stage_passed(execution) -> None:
+    assert completed_stage_marker("boundary-300", execution) is None
+
+
+@pytest.mark.parametrize(
+    "execution,cleanup",
+    [
+        ({"exitCode": 0, "stalled": False, "report": {}}, True),
+        ({"exitCode": 0, "stalled": True, "report": {"participants": 1}}, True),
+        ({"exitCode": 0, "stalled": False, "report": {"participants": 1}}, False),
+    ],
+)
+def test_failed_execution_writes_terminal_shard_before_next_stage(
+    monkeypatch,
+    tmp_path,
+    execution,
+    cleanup,
+) -> None:
+    monkeypatch.setattr(distributed_shard, "_load_stage_manifest", lambda *_: None)
+    monkeypatch.setattr(distributed_shard.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(distributed_shard, "_run_harness", lambda *_: deepcopy(execution))
+    monkeypatch.setattr(distributed_shard, "_cleanup_synthetic_session", lambda *_: cleanup)
+    output = tmp_path / "shard-0.json"
+    result = distributed_shard.run(plan(), 0, output_path=output)
+    assert result["status"] == "aborted"
+    assert result["completedStages"] == []
+    assert result["failureSummary"]["stage"] == "smoke-2"
+    assert __import__("json").loads(output.read_text()) == result
+
+
+def test_cancelled_shard_retains_atomic_terminal_evidence(monkeypatch, tmp_path) -> None:
+    def cancel(*_):
+        raise ShardCancelled("test cancellation")
+
+    monkeypatch.setattr(distributed_shard, "_load_stage_manifest", lambda *_: None)
+    monkeypatch.setattr(distributed_shard.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(distributed_shard, "_run_harness", cancel)
+    output = tmp_path / "shard-0.json"
+    result = distributed_shard.run(plan(), 0, output_path=output)
+    assert result["abortCause"] == "cancelled"
+    assert __import__("json").loads(output.read_text()) == result
+
+
+def test_cancelled_harness_terminates_and_reaps_workload_child(monkeypatch) -> None:
+    from unittest.mock import Mock
+
+    process = Mock(pid=1234)
+    process.poll.return_value = None
+    monkeypatch.setattr(distributed_shard.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(distributed_shard, "_read_linux_process", lambda *_: None)
+
+    def cancel(*_):
+        raise ShardCancelled("test cancellation")
+
+    monkeypatch.setattr(distributed_shard.time, "sleep", cancel)
+    with pytest.raises(ShardCancelled):
+        distributed_shard._run_harness({}, 100)
+    process.terminate.assert_called_once_with()
+    process.wait.assert_called_once_with(timeout=10)
 
 
 def test_merge_rejects_a_passed_stage_that_did_not_hold_the_full_duration() -> None:

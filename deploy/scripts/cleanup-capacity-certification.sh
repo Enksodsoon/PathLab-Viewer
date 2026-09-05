@@ -37,10 +37,12 @@ fail_safe_recovery() {
   else
     abort_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
       "${abort_request}" 2>/dev/null)"
+    recovery_result="$?"
   fi
-  if jq -e '((.phase == "aborted-restored" and .finalLimit == null) or
+  if [[ "${recovery_result}" -eq 0 ]] && jq -e --arg sha "${sha}" \
+    '((.phase == "aborted-restored" and .finalLimit == null) or
       (.phase == "restored" and (.finalLimit == 300 or .finalLimit == 1200 or .finalLimit == 1500))) and
-      .releaseExact == true and .servicesExact == true and .ready == true and
+      .releaseSha == $sha and .releaseExact == true and .servicesExact == true and .ready == true and
       .classroomEnabled == true and .finalCapacity == 300 and .annotationsEnabled == false' \
     <<< "${abort_status}" >/dev/null 2>&1; then
     configuration_restored=true
@@ -127,9 +129,7 @@ fixtures_removed=true
 # release to the 300-seat safety floor before recording a failed cleanup result.
 sessions_json="${work_dir}/bastion-sessions.json"
 oci bastion session list --bastion-id "${OCI_BASTION_ID}" --all > "${sessions_json}"
-if [[ ! -s "${sessions_json}" ]]; then
-  echo '{"data": []}' > "${sessions_json}"
-fi
+[[ -s "${sessions_json}" ]] || { echo "Bastion inventory is unproved." >&2; exit 1; }
 remaining="$(jq --arg prefix "pathlab-capacity-${GITHUB_RUN_ID}-" \
   '[.data[] | select((."display-name" // "") | startswith($prefix)) |
     select(."lifecycle-state" == "ACTIVE" or ."lifecycle-state" == "CREATING" or
@@ -153,7 +153,6 @@ status="$(bash deploy/scripts/capacity-control-via-bastion.sh "${request}")"
   echo "Capacity wrapper did not report restoration." >&2
   exit 1
 }
-configuration_restored=true
 [[ "${decision_present}" == true ]] && decision_valid=true
 ack_status="$(bash deploy/scripts/capacity-control-via-bastion.sh \
   "capacity-ack run=${run_id} digest=${digest}")"
@@ -167,6 +166,7 @@ jq -e --arg sha "${sha}" \
    .ready == true and .watchdogExpected == true and .watchdogActive == true and
    .classroomEnabled == true and .finalCapacity == 300 and .annotationsEnabled == false and
    (.runtimeManifestDigest | test("^[0-9a-f]{64}$"))' <<< "${status}" >/dev/null
+configuration_restored=true
 printf '%s\n' "${status}" > "${CAPACITY_RUNTIME_RESULT}"
 containment_complete=true
 if [[ "${decision_valid}" != true ]]; then
