@@ -1,6 +1,38 @@
 {
-  "policySha256": "5ec4d32621224c220bfc05aaaa0856fd0abb3069918922bb82d4e60ab43edaa8",
+  "policySha256": "cd385a2b03c803138ebe406d570553cd369d3ec8f1db4b843d37eca615f2fd91",
   "records": [
+    {
+      "attribution": "Preserve the repository LICENSE and NOTICE.",
+      "blockers": [],
+      "contentSha256": "77691cb0be40031dede939630dc92f52de27260bf8d5a0e0d7d06e361fa1c093",
+      "creator": "Piyakawin Sodsoon, covered tool-assisted source",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "Apache-2.0",
+      "locator": "apps/web/src/components/Brand.tsx#inline-svg-1",
+      "permittedUse": "BUNDLED_APPLICATION_ARTWORK",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 7bf6d2c9d45527df1c339852e49a8545b9f544e6, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 612
+    },
+    {
+      "attribution": "Preserve the repository LICENSE and NOTICE.",
+      "blockers": [],
+      "contentSha256": "1e1b9a7762e2ac81f927d69e83ddb48e0079f1f3d33835db95c2013220cd78d4",
+      "creator": "Piyakawin Sodsoon, covered tool-assisted source",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "Apache-2.0",
+      "locator": "apps/web/src/components/Loader.tsx#inline-svg-1",
+      "permittedUse": "BUNDLED_APPLICATION_ARTWORK",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 2bd6c0e1948950c54da81ea2d2111675c73fc74a, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.",
+      "releaseDisposition": "ADMITTED",
+      "sizeBytes": 270
+    },
     {
       "attribution": "Preserve the package OFL-1.1 license notice and Cormorant Project attribution.",
       "blockers": [],
@@ -79,7 +111,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "4af0b69e6c2677ac79726edd8d13d0a807a5049976d3aac3352077799eda286d",
+      "contentSha256": "f37850c42bd91205201b91a0bf244d044b7b9f571c23ef357e6f5abddf4d7052",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -349,10 +381,6 @@
           "name": "MagnifyingGlass"
         },
         {
-          "contentSha256": "c57abaab39112e2bfdd844669793769749859836e5eb0fc776ca82a3db400ae5",
-          "name": "Microscope"
-        },
-        {
           "contentSha256": "b150d8abcef1b66eeb587945a7484309a8f6a30c54e59ef8b151d1de29e18bb7",
           "name": "Minus"
         },
@@ -489,7 +517,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 285250,
+      "sizeBytes": 282497,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -522,10 +550,49 @@
           "sha256": "f37b1c16b366d1416cb7a8a2f03a7037d45a919a722b4f3fb91cbac084af7fa6"
         }
       ]
+    },
+    {
+      "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
+      "blockers": [
+        "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
+      ],
+      "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744",
+      "creator": "OpenAI image generation output requested by the repository owner",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
+      "kind": "repository-file",
+      "licensePermission": "PENDING_OWNER_APPROVAL",
+      "locator": "apps/web/src/assets/auth-histology-solace-dark.webp",
+      "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+      "privacyClass": "PUBLIC_SYNTHETIC",
+      "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_8VtZhIVFntDcQ0rZW5d9ABFX, source-to-WebP reproduction verified byte-for-byte.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 184212
+    },
+    {
+      "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
+      "blockers": [
+        "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
+      ],
+      "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960",
+      "creator": "OpenAI image generation output requested by the repository owner",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp",
+      "kind": "repository-file",
+      "licensePermission": "PENDING_OWNER_APPROVAL",
+      "locator": "apps/web/src/assets/auth-histology-solace-light.webp",
+      "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+      "privacyClass": "PUBLIC_SYNTHETIC",
+      "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_tdDaJBLLM4J0WkMqb6sxvmlJ, source-to-WebP reproduction verified byte-for-byte.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 151666
     }
   ],
-  "releaseAdmission": "ADMITTED",
-  "releaseBlockers": [],
+  "releaseAdmission": "BLOCKED",
+  "releaseBlockers": [
+    "asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
+    "asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
+  ],
   "schemaVersion": 1,
-  "subjectCommit": "929e561db7820e48b24f26fda165ffcaabfb0049"
+  "subjectCommit": "deea3918be4ed9e88c3594308e46947ec4d104db"
 }

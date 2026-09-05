@@ -8,7 +8,8 @@
     "commit": "e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f",
     "githubAuthor": "Enksodsoon",
     "githubSignatureVerified": true,
-    "auditSubject": "7816671b0d9e531158868d820d132ed8808c0b76"
+    "auditSubject": "7816671b0d9e531158868d820d132ed8808c0b76",
+    "canonicalPayloadSha256": "1780f31ebb0145e31b8eadbce9a8d5b2726c887b66ff5190c3a985f3bbbfe07a"
   },
   "images": [
     {

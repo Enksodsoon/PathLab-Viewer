@@ -58,6 +58,7 @@ def test_exact_receipt_does_not_admit_other_inline_artwork() -> None:
 def test_duplicate_exact_receipt_is_rejected() -> None:
     policy = copy.deepcopy(load_json(DEFAULT_POLICY))
     rule = next(r for r in policy["rules"] if "contentSha256" in r)
+    rule["contentSha256"] = hashlib.sha256(b"duplicate").hexdigest()
     policy["rules"].append(copy.deepcopy(rule))
     with pytest.raises(ValueError, match="exact asset receipt does not match content"):
         make_record(policy, rule["kind"], rule["locatorGlob"], b"duplicate")
@@ -104,8 +105,8 @@ def test_changed_asset_hash_is_rejected() -> None:
 def test_imported_icon_subset_is_individually_hash_bound() -> None:
     ledger = json.loads(DEFAULT_OUTPUT.read_text())
     icon_set = next(record for record in ledger["records"] if record["kind"] == "package-icon-set")
-    assert len(icon_set["embeddedAssets"]) == 99
-    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 99
+    assert len(icon_set["embeddedAssets"]) == 98
+    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 98
     assert all(len(item["contentSha256"]) == 64 for item in icon_set["embeddedAssets"])
 
 
