@@ -127,30 +127,30 @@ Source: https://github.com/docker/setup-buildx-action/tree/37fe631027851001ddb9b
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
-ID: github-action:docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+ID: github-action:docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
 Name: docker/setup-qemu-action
-Version: 96fe6ef7f33517b61c61be40b68a1882f3264fb8
+Version: 1f40c72289eff860ee54a304f1438e3cff362e0a
 License: Apache-2.0
 Admission: BLOCKED
-Source: https://github.com/docker/setup-qemu-action/tree/96fe6ef7f33517b61c61be40b68a1882f3264fb8
+Source: https://github.com/docker/setup-qemu-action/tree/1f40c72289eff860ee54a304f1438e3cff362e0a
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
-ID: github-action:github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+ID: github-action:github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938
 Name: github/codeql-action/analyze
-Version: db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Version: cdf488f595d80d6e07e03d4674febd5ab45fa938
 License: MIT
 Admission: BLOCKED
-Source: https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Source: https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
-ID: github-action:github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+ID: github-action:github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938
 Name: github/codeql-action/init
-Version: db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Version: cdf488f595d80d6e07e03d4674febd5ab45fa938
 License: MIT
 Admission: BLOCKED
-Source: https://github.com/github/codeql-action/tree/db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28
+Source: https://github.com/github/codeql-action/tree/cdf488f595d80d6e07e03d4674febd5ab45fa938
 Blockers: ARTIFACT_CHECKSUM_AND_NOTICE_NOT_MIRRORED
 Notice files: NONE RECORDED
 
@@ -3922,16 +3922,16 @@ Blockers: NONE
 Notice files:
   - anyio-4.14.2/LICENSE sha256:5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0
 
-ID: pypi:argon2-cffi-bindings@25.1.0
+ID: pypi:argon2-cffi-bindings@26.1.0
 Name: argon2-cffi-bindings
-Version: 25.1.0
+Version: 26.1.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/argon2-cffi-bindings/25.1.0/json
+Source: https://pypi.org/pypi/argon2-cffi-bindings/26.1.0/json
 Blockers: NONE
 Notice files:
-  - argon2_cffi_bindings-25.1.0/LICENSE sha256:9c158d4f433627f48ac24b6b4d37970afe4172514673c5318014d7cca157c6df
-  - argon2_cffi_bindings-25.1.0/extras/libargon2/LICENSE sha256:ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590
+  - argon2_cffi_bindings-26.1.0/LICENSE sha256:88707653d5414f2242d597302a769565107ac139817b8ca321b3928cc1346c50
+  - argon2_cffi_bindings-26.1.0/extras/libargon2/LICENSE sha256:ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590
 
 ID: pypi:argon2-cffi@25.1.0
 Name: argon2-cffi
@@ -4024,6 +4024,17 @@ Blockers: NONE
 Notice files:
   - click-8.4.2/LICENSE.txt sha256:9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d
   - click-8.4.2/docs/license.md sha256:b4aa3a8b0dfd4c8cea97ea65b3f19ef54bd280665533478f35c0a5d205a7d341
+
+ID: pypi:click@8.5.0
+Name: click
+Version: 8.5.0
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/click/8.5.0/json
+Blockers: NONE
+Notice files:
+  - click-8.5.0/LICENSE.txt sha256:9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d
+  - click-8.5.0/docs/license.md sha256:b4aa3a8b0dfd4c8cea97ea65b3f19ef54bd280665533478f35c0a5d205a7d341
 
 ID: pypi:crc32c@2.8
 Name: crc32c
@@ -4123,16 +4134,6 @@ Blockers: NONE
 Notice files:
   - httpx-0.28.1/LICENSE.md sha256:4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d
 
-ID: pypi:idna@3.18
-Name: idna
-Version: 3.18
-License: BSD-3-Clause
-Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/idna/3.18/json
-Blockers: NONE
-Notice files:
-  - idna-3.18/LICENSE.md sha256:1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04
-
 ID: pypi:idna@3.19
 Name: idna
 Version: 3.19
@@ -4164,15 +4165,15 @@ Blockers: NONE
 Notice files:
   - jmespath-1.0.1/LICENSE.txt sha256:66b313cce80ed0623fc7db3f24863a0c80fd83eb341a46b57864158ae74faa56
 
-ID: pypi:lxml@6.1.1
+ID: pypi:lxml@6.1.2
 Name: lxml
-Version: 6.1.1
+Version: 6.1.2
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/lxml/6.1.1/json
+Source: https://pypi.org/pypi/lxml/6.1.2/json
 Blockers: NONE
 Notice files:
-  - lxml-6.1.1/LICENSE.txt sha256:8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855
+  - lxml-6.1.2/LICENSE.txt sha256:8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855
 
 ID: pypi:mako@1.4.1
 Name: mako
@@ -4284,25 +4285,25 @@ Notice files:
   - propcache-0.5.2/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
   - propcache-0.5.2/NOTICE sha256:56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838
 
-ID: pypi:psycopg-binary@3.3.4
+ID: pypi:psycopg-binary@3.3.5
 Name: psycopg-binary
-Version: 3.3.4
+Version: 3.3.5
 License: LGPL-3.0-only
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/psycopg-binary/3.3.4/json
+Source: https://pypi.org/pypi/psycopg-binary/3.3.5/json
 Blockers: NONE
 Notice files:
-  - psycopg_binary-3.3.4.dist-info/licenses/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+  - psycopg_binary-3.3.5.dist-info/licenses/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
 
-ID: pypi:psycopg@3.3.4
+ID: pypi:psycopg@3.3.5
 Name: psycopg
-Version: 3.3.4
+Version: 3.3.5
 License: LGPL-3.0-only
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/psycopg/3.3.4/json
+Source: https://pypi.org/pypi/psycopg/3.3.5/json
 Blockers: NONE
 Notice files:
-  - psycopg-3.3.4/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+  - psycopg-3.3.5/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
 
 ID: pypi:pycparser@3.0
 Name: pycparser
@@ -4314,15 +4315,15 @@ Blockers: NONE
 Notice files:
   - pycparser-3.0/LICENSE sha256:0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1
 
-ID: pypi:pydantic-core@2.46.4
+ID: pypi:pydantic-core@2.46.5
 Name: pydantic-core
-Version: 2.46.4
+Version: 2.46.5
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/pydantic-core/2.46.4/json
+Source: https://pypi.org/pypi/pydantic-core/2.46.5/json
 Blockers: NONE
 Notice files:
-  - pydantic_core-2.46.4/LICENSE sha256:2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a
+  - pydantic_core-2.46.5/LICENSE sha256:2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a
 
 ID: pypi:pydantic-extra-types@2.11.1
 Name: pydantic-extra-types
@@ -4344,15 +4345,15 @@ Blockers: NONE
 Notice files:
   - pydantic_settings-2.15.0/LICENSE sha256:eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998
 
-ID: pypi:pydantic@2.13.4
+ID: pypi:pydantic@2.13.5
 Name: pydantic
-Version: 2.13.4
+Version: 2.13.5
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/pydantic/2.13.4/json
+Source: https://pypi.org/pypi/pydantic/2.13.5/json
 Blockers: NONE
 Notice files:
-  - pydantic-2.13.4/LICENSE sha256:a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3
+  - pydantic-2.13.5/LICENSE sha256:a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3
 
 ID: pypi:pyjwt@2.13.0
 Name: pyjwt
@@ -4405,15 +4406,15 @@ Blockers: NONE
 Notice files:
   - pytz-2026.2/LICENSE.txt sha256:be8b1a37ebe26c592a90f6c0eb33103a7f383ce2f4d7498c0af9a526990a07b8
 
-ID: pypi:pyvips@3.1.1
+ID: pypi:pyvips@3.2.0
 Name: pyvips
-Version: 3.1.1
+Version: 3.2.0
 License: MIT License
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/pyvips/3.1.1/json
+Source: https://pypi.org/pypi/pyvips/3.2.0/json
 Blockers: NONE
 Notice files:
-  - pyvips-3.1.1/LICENSE.txt sha256:2237848c0c93932b1ef57fd0785ec659606acb845022240b02188134ab58866c
+  - pyvips-3.2.0/LICENSE.txt sha256:2237848c0c93932b1ef57fd0785ec659606acb845022240b02188134ab58866c
 
 ID: pypi:pyyaml@6.0.2
 Name: pyyaml
@@ -4488,15 +4489,15 @@ Blockers: NONE
 Notice files:
   - terminaltables-3.1.10/LICENSE sha256:2e1320fd337db06a3136d0f4101bd62f13249c95c5b581304f35481e979d432a
 
-ID: pypi:tifffile@2026.8.16
+ID: pypi:tifffile@2026.8.23
 Name: tifffile
-Version: 2026.8.16
+Version: 2026.8.23
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/tifffile/2026.8.16/json
+Source: https://pypi.org/pypi/tifffile/2026.8.23/json
 Blockers: NONE
 Notice files:
-  - tifffile-2026.8.16/LICENSE sha256:3cf196b1625812d2d119518294043e71017fe858355a58eb48e1e35b61213ce9
+  - tifffile-2026.8.23/LICENSE sha256:3cf196b1625812d2d119518294043e71017fe858355a58eb48e1e35b61213ce9
 
 ID: pypi:typing-extensions@4.16.0
 Name: typing-extensions
@@ -4539,15 +4540,15 @@ Blockers: NONE
 Notice files:
   - urllib3-2.7.0/LICENSE.txt sha256:130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686
 
-ID: pypi:uvicorn@0.52.3
+ID: pypi:uvicorn@0.52.4
 Name: uvicorn
-Version: 0.52.3
+Version: 0.52.4
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/uvicorn/0.52.3/json
+Source: https://pypi.org/pypi/uvicorn/0.52.4/json
 Blockers: NONE
 Notice files:
-  - uvicorn-0.52.3/LICENSE.md sha256:efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371
+  - uvicorn-0.52.4/LICENSE.md sha256:efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371
 
 ID: pypi:uvloop@0.22.1
 Name: uvloop
@@ -4583,15 +4584,15 @@ Blockers: NONE
 Notice files:
   - wcwidth-0.8.2/LICENSE sha256:70b98a95a2144eb70af8017fa8c6d95ce247e40867436e8bc649e137fe13d21a
 
-ID: pypi:websockets@17.0.1
+ID: pypi:websockets@17.1
 Name: websockets
-Version: 17.0.1
+Version: 17.1
 License: BSD-3-Clause
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/websockets/17.0.1/json
+Source: https://pypi.org/pypi/websockets/17.1/json
 Blockers: NONE
 Notice files:
-  - websockets-17.0.1/LICENSE sha256:3d6a0c050d8bec52fabad502e45fb25bd02bcadbd70dea34d447b6a0ff4e6da8
+  - websockets-17.1/LICENSE sha256:3d6a0c050d8bec52fabad502e45fb25bd02bcadbd70dea34d447b6a0ff4e6da8
 
 ID: pypi:xsdata@26.2
 Name: xsdata

@@ -540,7 +540,7 @@ def test_runtime_container_inputs_are_pinned_by_digest() -> None:
     assert "pip install --no-cache-dir --require-hashes" in backend
     lockfile = Path("deploy/backend-requirements.txt").read_text(encoding="utf-8")
     assert "fastapi==0.141.1" in lockfile
-    assert "pyvips==3.1.1" in lockfile
+    assert "pyvips==3.2.0" in lockfile
     assert "--hash=sha256:" in lockfile
     package = Path("package.json").read_text(encoding="utf-8")
     assert '"packageManager": "pnpm@11.9.0+sha512.' in package
