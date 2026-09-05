@@ -7,6 +7,7 @@ import json
 import re
 import secrets
 import threading
+import time
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 from collections.abc import Callable, Iterator, Sequence
@@ -28,6 +29,7 @@ from .classroom_presenter import PresenterRuntime, PresenterSnapshot
 from .classroom_prewarm import ClassroomPrewarmer, PrewarmSlide
 from .config import Settings
 from .domain import SlideState
+from .identity import is_default_legacy_owner
 from .models import (
     ClassroomParticipant,
     ClassroomQuestion,
@@ -606,6 +608,8 @@ def register_classroom_routes(
             user = db.get(User, stored.user_id)
             if user is None or stored.credential_generation != user.credential_generation:
                 raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
+            if not is_default_legacy_owner(db, stored.user_id):
+                raise HTTPException(status_code=403, detail={"code": "LEGACY_ADMIN_FORBIDDEN"})
             return cast(Session, stored)
 
     def participant_from_request(
@@ -2598,10 +2602,32 @@ def register_classroom_routes(
                 return None
             return int(classroom.state_version)
 
+    def teacher_stream_is_authorized(
+        classroom_session_id: str,
+        authenticated_session_id: str,
+        user_id: str,
+    ) -> bool:
+        with factory() as db:
+            stored = db.get(Session, authenticated_session_id)
+            user = db.get(User, user_id)
+            classroom = db.get(ClassroomSession, classroom_session_id)
+            return bool(
+                stored is not None
+                and stored.user_id == user_id
+                and as_utc(stored.expires_at) >= _now()
+                and user is not None
+                and stored.credential_generation == user.credential_generation
+                and is_default_legacy_owner(db, user_id)
+                and classroom is not None
+                and classroom.created_by_user_id == user_id
+            )
+
     async def event_stream(
         session_id: str,
         audience: str,
         participant_id: str | None = None,
+        teacher_session_id: str | None = None,
+        teacher_user_id: str | None = None,
     ) -> Any:
         stream_audience: Literal["teacher", "student"] = (
             "teacher" if audience == "teacher" else "student"
@@ -2609,6 +2635,17 @@ def register_classroom_routes(
         async with hub.subscribe(
             session_id, stream_audience, participant_id=participant_id
         ) as subscriber:
+            last_teacher_authorization = time.monotonic()
+            if stream_audience == "teacher":
+                if teacher_session_id is None or teacher_user_id is None:
+                    return
+                if not await run_in_threadpool(
+                    teacher_stream_is_authorized,
+                    session_id,
+                    teacher_session_id,
+                    teacher_user_id,
+                ):
+                    return
             if not hub.subscription_is_current(session_id, subscriber):
                 return
             initial_event_sequence = hub.event_sequence(session_id, stream_audience)
@@ -2623,9 +2660,25 @@ def register_classroom_routes(
             }
             yield f"event: stream-ready\ndata: {json.dumps(ready, separators=(',', ':'))}\n\n"
             while True:
+                timed_out = False
                 try:
                     event = await asyncio.wait_for(subscriber.next_event(), timeout=15)
                 except TimeoutError:
+                    event = None
+                    timed_out = True
+                if (
+                    stream_audience == "teacher"
+                    and time.monotonic() - last_teacher_authorization >= 15
+                ):
+                    if not await run_in_threadpool(
+                        teacher_stream_is_authorized,
+                        session_id,
+                        cast(str, teacher_session_id),
+                        cast(str, teacher_user_id),
+                    ):
+                        return
+                    last_teacher_authorization = time.monotonic()
+                if timed_out:
                     yield ": heartbeat\n\n"
                     continue
                 if event is None:
@@ -2637,9 +2690,17 @@ def register_classroom_routes(
         session_id: str,
         audience: str,
         participant_id: str | None = None,
+        teacher_session_id: str | None = None,
+        teacher_user_id: str | None = None,
     ) -> StreamingResponse:
         return StreamingResponse(
-            event_stream(session_id, audience, participant_id),
+            event_stream(
+                session_id,
+                audience,
+                participant_id,
+                teacher_session_id,
+                teacher_user_id,
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-store",
@@ -2653,7 +2714,12 @@ def register_classroom_routes(
         authenticated = admin_from_request(request)
         with factory() as db:
             owned_classroom(session_id, authenticated, db)
-        return stream_response(session_id, "teacher")
+        return stream_response(
+            session_id,
+            "teacher",
+            teacher_session_id=authenticated.id,
+            teacher_user_id=authenticated.user_id,
+        )
 
     @app.get("/api/v1/classroom/sessions/{session_id}/events")
     def participant_events(session_id: str, request: Request) -> StreamingResponse:

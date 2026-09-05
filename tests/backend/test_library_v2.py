@@ -14,6 +14,7 @@ from sqlalchemy import event, insert, select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
+from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AuditEvent,
@@ -50,7 +51,10 @@ def _client(tmp_path: Path, *, multi_share_enabled: bool = False) -> TestClient:
             text("INSERT INTO alembic_version (version_num) VALUES (:head)"),
             {"head": ALEMBIC_HEAD},
         )
-        database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
+        admin = User(username="admin", password_hash=hash_password("correct horse battery"))
+        database.add(admin)
+        database.flush()
+        ensure_default_owner_membership(database, admin)
         database.commit()
     return TestClient(create_app(settings))
 
@@ -1294,11 +1298,11 @@ def test_synthetic_library_contract_is_query_payload_and_filesystem_bounded(
 
         assert navigation.status_code == 200
         assert len(navigation.content) <= 256 * 1024
-        assert navigation_queries <= 10
+        assert navigation_queries <= 11
         assert items.status_code == 200
         assert len(items.json()["items"]) == 48
         assert len(items.content) <= 512 * 1024
-        assert item_queries <= 7
+        assert item_queries <= 8
         assert page_without_total.status_code == 200
         assert page_without_total.json()["total"] == 0
         assert not any("count(" in statement.lower() for statement in page_without_total_queries)

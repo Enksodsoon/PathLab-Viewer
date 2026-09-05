@@ -44,6 +44,7 @@ from .desktop_sync import (
     revision_for,
 )
 from .domain import SlideState
+from .identity import is_default_legacy_owner
 from .models import (
     AnalysisRun,
     Annotation,
@@ -185,7 +186,7 @@ def register_desktop_routes(
     finalizer = PreparedIngestFinalizer(database_dependency, storage)
     app.state.desktop_ingest_finalizer = finalizer
 
-    def credential(
+    def credential_record(
         database: OrmSession = Depends(database_dependency),
         authorization: str | None = Header(default=None),
     ) -> DesktopCredential:
@@ -196,6 +197,15 @@ def register_desktop_routes(
         now = _now()
         if stored is None or stored.revoked_at is not None or as_utc(stored.expires_at) <= now:
             raise HTTPException(status_code=401, detail={"code": "DESKTOP_CREDENTIAL_INVALID"})
+        return stored
+
+    def credential(
+        stored: DesktopCredential = Depends(credential_record),
+        database: OrmSession = Depends(database_dependency),
+    ) -> DesktopCredential:
+        if not is_default_legacy_owner(database, stored.user_id):
+            raise HTTPException(status_code=403, detail={"code": "LEGACY_ADMIN_FORBIDDEN"})
+        now = _now()
         if stored.last_used_at is None or as_utc(stored.last_used_at) <= now - timedelta(
             minutes=15
         ):
@@ -481,6 +491,8 @@ def register_desktop_routes(
             raise HTTPException(status_code=409, detail={"code": "PAIRING_PENDING"})
         if pairing.status != "approved" or pairing.user_id is None:
             raise HTTPException(status_code=409, detail={"code": "PAIRING_ALREADY_EXCHANGED"})
+        if not is_default_legacy_owner(database, pairing.user_id):
+            raise HTTPException(status_code=403, detail={"code": "LEGACY_ADMIN_FORBIDDEN"})
         now = _now()
         claimed = cast(
             CursorResult[Any],
@@ -779,7 +791,7 @@ def register_desktop_routes(
         status_code=status.HTTP_204_NO_CONTENT,
     )
     def revoke_credential(
-        authenticated: DesktopCredential = Depends(credential),
+        authenticated: DesktopCredential = Depends(credential_record),
         database: OrmSession = Depends(database_dependency),
     ) -> None:
         authenticated.revoked_at = _now()

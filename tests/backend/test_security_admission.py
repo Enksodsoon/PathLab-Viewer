@@ -17,6 +17,7 @@ from wsi_viewer import auth
 from wsi_viewer.admission import SharedAdmission
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
+from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AdmissionAttempt,
@@ -353,7 +354,10 @@ def test_pairing_normal_flow_expiry_and_concurrent_single_redemption(
     factory, tmp_path, monkeypatch
 ):
     with factory() as database:
-        database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
+        admin = User(username="admin", password_hash=hash_password("correct horse battery"))
+        database.add(admin)
+        database.flush()
+        ensure_default_owner_membership(database, admin)
         database.commit()
     with _client(factory, tmp_path, monkeypatch) as client:
         login = client.post(

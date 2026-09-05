@@ -27,12 +27,14 @@ from wsi_viewer.classroom_runtime import ClassroomSingletonLock
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
+from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     ClassroomParticipant,
     ClassroomSession,
     Folder,
     Job,
+    OrganizationMembership,
     PublicationGrant,
     RuntimeGuard,
     Slide,
@@ -69,7 +71,10 @@ def _client(
             text("INSERT INTO alembic_version (version_num) VALUES (:head)"),
             {"head": ALEMBIC_HEAD},
         )
-        database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
+        admin = User(username="admin", password_hash=hash_password("correct horse battery"))
+        database.add(admin)
+        database.flush()
+        ensure_default_owner_membership(database, admin)
         database.add(
             Folder(
                 id="folder-1",
@@ -146,6 +151,51 @@ def _classroom_event_stream(
         cast(APIRoute, route)
         for route in app.routes
         if getattr(route, "path", None) == "/api/v1/classroom/sessions/{session_id}/events"
+    )
+    cookie = "; ".join(f"{key}={value}" for key, value in client.cookies.items())
+    request = Request(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": path,
+            "raw_path": path.encode(),
+            "query_string": b"",
+            "headers": [(b"cookie", cookie.encode())],
+            "client": ("testclient", 50000),
+            "server": ("testserver", 80),
+            "root_path": "",
+        }
+    )
+    response = cast(StreamingResponse, route.endpoint(session_id, request))
+    pending = [route.endpoint]
+    hub = None
+    while pending and hub is None:
+        function = pending.pop()
+        for value in getattr(function, "__closure__", None) or ():
+            item = value.cell_contents
+            if item.__class__.__name__ == "ClassroomHub":
+                hub = item
+                break
+            if callable(item):
+                pending.append(item)
+    assert hub is not None
+    return (
+        cast(AsyncGenerator[str | bytes | memoryview, None], response.body_iterator),
+        hub,
+    )
+
+
+def _teacher_event_stream(
+    client: TestClient, session_id: str
+) -> tuple[AsyncGenerator[str | bytes | memoryview, None], Any]:
+    route_path = "/api/v1/admin/classroom/sessions/{session_id}/events"
+    path = f"/api/v1/admin/classroom/sessions/{session_id}/events"
+    app = cast(FastAPI, client.app)
+    route = next(
+        cast(APIRoute, route) for route in app.routes if getattr(route, "path", None) == route_path
     )
     cookie = "; ".join(f"{key}={value}" for key, value in client.cookies.items())
     request = Request(
@@ -947,6 +997,65 @@ def test_classroom_event_stream_runs_database_work_off_event_loop(
     assert calls == ["stream_state_version", "stream_state_version"]
     assert metrics["activeParticipants"] == 0
     assert metrics["reconnects"] == 1
+
+
+def test_teacher_event_stream_closes_after_default_owner_role_is_removed(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        created = client.post(
+            "/api/v1/admin/classroom/sessions",
+            headers=_admin_headers(client),
+            json={"slideIds": ["slide-1"]},
+        ).json()
+        joined = client.post(
+            "/api/v1/classroom/join",
+            json={"joinCode": created["joinCode"], "displayName": "Student"},
+        )
+        assert joined.status_code == 201
+        body_iterator, hub = _teacher_event_stream(client, created["id"])
+
+        class StreamClock:
+            def __init__(self) -> None:
+                self.ticks = iter((0.0, 16.0, 16.0))
+
+            def monotonic(self) -> float:
+                return next(self.ticks, 16.0)
+
+        monkeypatch.setattr("wsi_viewer.classroom_routes.time", StreamClock())
+        settings = cast(Settings, client.app.state.settings)
+
+        async def revoke_during_stream() -> str:
+            ready = cast(str, await anext(body_iterator))
+            with session_factory(settings)() as database:
+                owner = database.scalar(select(User).where(User.username == "admin"))
+                assert owner is not None
+                membership = database.scalar(
+                    select(OrganizationMembership).where(
+                        OrganizationMembership.user_id == owner.id,
+                        OrganizationMembership.role == "owner",
+                        OrganizationMembership.status == "active",
+                    )
+                )
+                assert membership is not None
+                membership.role = "admin"
+                database.commit()
+            hub._publish(
+                created["id"],
+                "control",
+                {"stateVersion": 1},
+                True,
+                "teacher",
+            )
+            with pytest.raises(StopAsyncIteration):
+                await asyncio.wait_for(anext(body_iterator), timeout=1)
+            return ready
+
+        ready = asyncio.run(revoke_during_stream())
+        assert ready.startswith("event: stream-ready")
+        blocked = client.get(f"/api/v1/admin/classroom/sessions/{created['id']}/events")
+        assert blocked.status_code == 403
+        assert blocked.json() == {"detail": {"code": "LEGACY_ADMIN_FORBIDDEN"}}
 
 
 def test_stream_bootstrap_buffers_mutation_committed_after_state_read(
@@ -2191,12 +2300,13 @@ def test_teacher_resume_state_uses_owned_immutable_snapshot_and_rejects_foreign_
             assert owner_id is not None
             slide.display_name = "Changed library title"
             folder.name = "Changed library folder"
-            database.add(
-                User(
-                    username="other-teacher",
-                    password_hash=hash_password("another correct horse battery"),
-                )
+            other_teacher = User(
+                username="other-teacher",
+                password_hash=hash_password("another correct horse battery"),
             )
+            database.add(other_teacher)
+            database.flush()
+            ensure_default_owner_membership(database, other_teacher)
             database.commit()
 
         owner_state = client.get(
