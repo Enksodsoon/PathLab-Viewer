@@ -63,6 +63,11 @@ test('keeps recovery immediate, focused, and motion-safe', async ({ page }) => {
   await expect(page.getByLabel('Recovery code')).toBeVisible()
   await expect(page.getByLabel('New password', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Confirm new password', { exact: true })).toBeVisible()
+  await expect(page.getByText('Ask your PathLab administrator for a 15-minute recovery code, then enter it below.')).toBeVisible()
+  const operatorInstructions = page.getByText('PathLab administrator instructions', { exact: true })
+  await expect(operatorInstructions).toBeVisible()
+  await expect(page.getByText('docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin', { exact: true })).toBeHidden()
+  await operatorInstructions.click()
   await expect(page.getByText('docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin', { exact: true })).toBeVisible()
 
   const layout = await page.evaluate(() => ({
