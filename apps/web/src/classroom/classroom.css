@@ -1373,7 +1373,7 @@
 .classroom-panel .primary:hover,
 .classroom-entry .primary:hover {
   border-color: var(--primary-hover);
-  color: var(--on-primary);
+  color: var(--on-primary-hover);
   background: var(--primary-hover);
 }
 

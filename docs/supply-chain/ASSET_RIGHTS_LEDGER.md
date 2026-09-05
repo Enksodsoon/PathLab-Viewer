@@ -2,6 +2,24 @@
 
 ## Result
 
+### September 5 restoration candidate
+
+The historical P0-T05A result below remains an audit record. The current
+machine ledger additionally inventories the two original login WebPs and the
+original layered-slide mark and square loader. See
+[WARM_UI_ASSET_RECEIPT.json](./WARM_UI_ASSET_RECEIPT.json) for source hashes,
+generation prompts, transformation parameters, and the signed source receipt.
+The login images remain release-blocked pending their image-specific owner
+approval. Ordinary ledger validation checks integrity; `--release` rejects
+this candidate until that approval is completed. The eight unrelated retired
+assets retain both path and content-hash enforcement.
+
+Exact locator rules must contain a matching `contentSha256`; a changed original
+is rejected even if the ledger is regenerated. Generic blocked rules continue
+to classify other artwork. Duplicate exact rules are rejected.
+
+### Historical P0-T05A result
+
 The machine-readable [`ASSET_RIGHTS_LEDGER.json`](./ASSET_RIGHTS_LEDGER.json) reconciles every
 currently governed repository visual/media file, archive member, inline image, bundled runtime
 font, and imported icon at subject commit

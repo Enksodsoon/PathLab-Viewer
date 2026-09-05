@@ -9,8 +9,6 @@
   ],
   "ignoredDirectories": [".git", ".pnpm", "dist", "node_modules", "__pycache__"],
   "retiredAssets": [
-    {"locator": "apps/web/src/assets/auth-histology-solace-dark.webp", "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744"},
-    {"locator": "apps/web/src/assets/auth-histology-solace-light.webp", "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960"},
     {"locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx", "contentSha256": "f3b57924fa000ab5bc5a4b4276eae4d7687a67509f05b389a11978321dca4e6c"},
     {"locator": "docs/design/admin-concept.png", "contentSha256": "bb3f685fd445dce3de273ccaedadcf762f793a85cb3496fac09d7e384bcb4dc1"},
     {"locator": "docs/design/viewer-concept.png", "contentSha256": "b9d8f51a4a5d183ddaad7aacd40d3451680fd0453c5eae67dfcf073a8b3e6826"},
@@ -30,6 +28,74 @@
   "inlineDataRoots": ["apps/web/src", "packages"],
   "inlineSourceExtensions": [".css", ".html", ".ts", ".tsx"],
   "rules": [
+    {
+      "kind": "repository-file",
+      "locatorGlob": "apps/web/src/assets/auth-histology-solace-dark.webp",
+      "contentSha256": "77def403831d2ae4aaf58c24b0bff75115875922694d34f628fbf61035bd9744",
+      "metadata": {
+        "creator": "OpenAI image generation output requested by the repository owner",
+        "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_8VtZhIVFntDcQ0rZW5d9ABFX, source-to-WebP reproduction verified byte-for-byte.",
+        "licensePermission": "PENDING_OWNER_APPROVAL",
+        "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
+        "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+        "privacyClass": "PUBLIC_SYNTHETIC",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": [
+          "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
+        ]
+      }
+    },
+    {
+      "kind": "repository-file",
+      "locatorGlob": "apps/web/src/assets/auth-histology-solace-light.webp",
+      "contentSha256": "319459263cc4d66e906b4a92abff4ecad0ad78d8803bd30187d16ef953c70960",
+      "metadata": {
+        "creator": "OpenAI image generation output requested by the repository owner",
+        "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; original call_tdDaJBLLM4J0WkMqb6sxvmlJ, source-to-WebP reproduction verified byte-for-byte.",
+        "licensePermission": "PENDING_OWNER_APPROVAL",
+        "attribution": "Provider-terms and attribution confirmation pending in the asset-specific owner receipt.",
+        "permittedUse": "NONE_UNTIL_OWNER_APPROVAL",
+        "privacyClass": "PUBLIC_SYNTHETIC",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "BLOCKED_RELEASE",
+        "blockers": [
+          "OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"
+        ]
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/components/Brand.tsx#inline-svg-1",
+      "contentSha256": "77691cb0be40031dede939630dc92f52de27260bf8d5a0e0d7d06e361fa1c093",
+      "metadata": {
+        "creator": "Piyakawin Sodsoon, covered tool-assisted source",
+        "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 7bf6d2c9d45527df1c339852e49a8545b9f544e6, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.",
+        "licensePermission": "Apache-2.0",
+        "attribution": "Preserve the repository LICENSE and NOTICE.",
+        "permittedUse": "BUNDLED_APPLICATION_ARTWORK",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/components/Loader.tsx#inline-svg-1",
+      "contentSha256": "1e1b9a7762e2ac81f927d69e83ddb48e0079f1f3d33835db95c2013220cd78d4",
+      "metadata": {
+        "creator": "Piyakawin Sodsoon, covered tool-assisted source",
+        "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 2bd6c0e1948950c54da81ea2d2111675c73fc74a, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.",
+        "licensePermission": "Apache-2.0",
+        "attribution": "Preserve the repository LICENSE and NOTICE.",
+        "permittedUse": "BUNDLED_APPLICATION_ARTWORK",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
     {
       "kind": "repository-file",
       "locatorGlob": "apps/web/src/assets/*.webp",

@@ -82,10 +82,10 @@ describe('library rendering performance contract', () => {
       '.pathlab-loader { --pathlab-loader-size:32px;',
     )
     expect(globalCss).toContain('color:var(--primary);')
-    expect(globalCss).toContain('border-top-color:currentColor;')
-    expect(globalCss).toContain('@keyframes pathlab-loader-turn')
+    expect(globalCss).toContain('stroke:currentColor;')
+    expect(globalCss).toContain('@keyframes pathlab-loader-boxes')
     expect(globalCss).toContain(
-      '.pathlab-loader__indicator {\n    animation:none;',
+      '.pathlab-loader__boxes {\n    animation:none;',
     )
   })
 

@@ -12,8 +12,10 @@ from scripts.generate_asset_rights_ledger import (
     DEFAULT_POLICY,
     discover_repository_records,
     load_json,
+    make_record,
 )
 from scripts.validate_asset_rights_ledger import (
+    ReleaseBlocked,
     reconcile_discovered,
     record_map,
     validate,
@@ -24,13 +26,41 @@ from scripts.validate_asset_rights_ledger import (
 SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
 
 
-def test_current_asset_set_is_release_admitted() -> None:
+def test_restored_images_remain_blocked_until_owner_approval() -> None:
     ledger = validate()
-    assert ledger["subjectCommit"] == SUBJECT
-    assert len(ledger["records"]) == 4
-    assert ledger["releaseAdmission"] == "ADMITTED"
-    assert ledger["releaseBlockers"] == []
-    validate(require_release_admission=True)
+    assert len(ledger["records"]) == 8
+    assert ledger["releaseAdmission"] == "BLOCKED"
+    blocked = [r for r in ledger["records"] if r["releaseDisposition"] == "BLOCKED_RELEASE"]
+    assert {r["locator"] for r in blocked} == {
+        "apps/web/src/assets/auth-histology-solace-dark.webp",
+        "apps/web/src/assets/auth-histology-solace-light.webp",
+    }
+    assert all(r["blockers"] == ["OWNER_IMAGE_RIGHTS_APPROVAL_PENDING"] for r in blocked)
+    with pytest.raises(ReleaseBlocked):
+        validate(require_release_admission=True)
+
+
+def test_exact_receipt_rejects_changed_original_even_after_ledger_regeneration() -> None:
+    policy = load_json(DEFAULT_POLICY)
+    locator = "apps/web/src/components/Brand.tsx#inline-svg-1"
+    with pytest.raises(ValueError, match="exact asset receipt does not match content"):
+        make_record(policy, "inline-svg", locator, b"substituted artwork")
+
+
+def test_exact_receipt_does_not_admit_other_inline_artwork() -> None:
+    record = make_record(
+        load_json(DEFAULT_POLICY), "inline-svg",
+        "apps/web/src/components/Other.tsx#inline-svg-1", b"unknown artwork",
+    )
+    assert record["releaseDisposition"] == "BLOCKED_RELEASE"
+
+
+def test_duplicate_exact_receipt_is_rejected() -> None:
+    policy = copy.deepcopy(load_json(DEFAULT_POLICY))
+    rule = next(r for r in policy["rules"] if "contentSha256" in r)
+    policy["rules"].append(copy.deepcopy(rule))
+    with pytest.raises(ValueError, match="exact asset receipt does not match content"):
+        make_record(policy, rule["kind"], rule["locatorGlob"], b"duplicate")
 
 
 def test_injected_unknown_asset_is_rejected(tmp_path: Path) -> None:

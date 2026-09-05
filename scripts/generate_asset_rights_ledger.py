@@ -51,7 +51,20 @@ def iter_files(root: Path, relative_roots: list[str], ignored: set[str]):
                 yield path
 
 
-def matching_metadata(policy: dict[str, Any], kind: str, locator: str) -> dict[str, Any]:
+def matching_metadata(
+    policy: dict[str, Any], kind: str, locator: str, content_sha256: str
+) -> dict[str, Any]:
+    # A recovered original gets a receipt for its exact bytes, not a wildcard
+    # admission for all future artwork at that path. Unknown assets still use
+    # the existing fail-closed classification rules.
+    exact = [
+        rule for rule in policy["rules"]
+        if rule["kind"] == kind and rule["locatorGlob"] == locator
+    ]
+    if exact:
+        if len(exact) != 1 or exact[0].get("contentSha256") != content_sha256:
+            raise ValueError(f"{locator}: exact asset receipt does not match content")
+        return exact[0]["metadata"]
     matches = [
         rule["metadata"]
         for rule in policy["rules"]
@@ -65,13 +78,14 @@ def matching_metadata(policy: dict[str, Any], kind: str, locator: str) -> dict[s
 def make_record(
     policy: dict[str, Any], kind: str, locator: str, content: bytes, **extra: Any
 ) -> dict[str, Any]:
+    digest = sha256(content)
     return {
         "id": f"asset:{kind}:{locator}",
         "kind": kind,
         "locator": locator,
-        "contentSha256": sha256(content),
+        "contentSha256": digest,
         "sizeBytes": len(content),
-        **matching_metadata(policy, kind, locator),
+        **matching_metadata(policy, kind, locator, digest),
         **extra,
     }
 
