@@ -422,8 +422,8 @@ def test_public_proxy_and_deployment_configuration_disclose_no_live_target() -> 
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
 
     assert "@internal_api path /api/v1/internal/*" in caddyfile
-    assert "respond @internal_api 404" in caddyfile
-    assert caddyfile.index("respond @internal_api 404") < caddyfile.index("handle @backend")
+    assert "handle @internal_api {\n\t\trespond 404\n\t}" in caddyfile
+    assert caddyfile.index("handle @internal_api") < caddyfile.index("handle @backend")
     assert 'Content-Security-Policy "' in caddyfile
     assert 'Strict-Transport-Security "' in caddyfile
     assert 'X-Robots-Tag "noindex, nofollow, noarchive"' in caddyfile

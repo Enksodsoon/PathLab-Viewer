@@ -409,7 +409,7 @@ def test_dynamic_tile_service_is_internal_bounded_and_authorized_by_api() -> Non
     assert "@dynamic_delivery header X-Accel-Redirect /_pathlab_ome/*" in caddyfile
     assert "reverse_proxy tile-service:8090" in caddyfile
     assert "@direct_dynamic path /_pathlab_ome/*" in caddyfile
-    assert "respond @direct_dynamic 404" in caddyfile
+    assert "handle @direct_dynamic {\n\t\trespond 404\n\t}" in caddyfile
 
 
 def test_caddy_flushes_classroom_sse_without_buffering() -> None:
