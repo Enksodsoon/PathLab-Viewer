@@ -21,6 +21,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { StatusMessage } from '../components/StatusMessage'
+import { safeAdminReturnPath } from '../authReturnPath'
 import {
   ApiError,
   addCollectionSlides,
@@ -148,7 +149,7 @@ function uploadFailureMessage(error: unknown) {
     /unexpected response while creating upload/i.test(raw)
     || /failed to fetch|networkerror|econnrefused/i.test(raw)
   ) {
-    return 'The upload service is unavailable. Start the local tus service, then retry.'
+    return 'The upload service is temporarily unavailable. Try again in a moment. If it continues, contact your PathLab administrator.'
   }
   return 'Upload paused. Check the connection, then retry this file.'
 }
@@ -242,6 +243,7 @@ function uploadSlide(slide: AdminSlide, folderId: string | null): LibrarySlide {
 export function AdminPage() {
   const navigate = useNavigate()
   const [url, setUrl] = useSearchParams()
+  const returnTo = safeAdminReturnPath(url.get('returnTo'))
   const location = url.get('location') || 'all'
   const storageOpen = location === 'storage'
   const sort = url.get('sort') || 'updated_desc'
@@ -1314,6 +1316,10 @@ export function AdminPage() {
         <AuthPanel
           notice={authNotice}
           onSuccess={() => {
+            if (returnTo) {
+              navigate(returnTo, { replace: true })
+              return
+            }
             setAuthNotice('')
             setAuthorized(null)
             void loadNavigation()

@@ -78,6 +78,17 @@ function renderViewerPage(route = '/s/public-1') {
   )
 }
 
+function publicSlideResponse() {
+  return new Response(JSON.stringify({
+    publicId: 'public-1',
+    displayName: 'HER2 control',
+    state: 'published',
+    tileSource: '/tiles/public-1/slide.dzi',
+    thumbnailUrl: '/tiles/public-1/thumbnail.jpg',
+    metadata: { width: 24970, height: 31087, physicalSizeX: 0.5476 },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+}
+
 beforeEach(() => {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -421,8 +432,37 @@ it('sends an expired private-preview session back to administrator sign in', asy
 
   expect(await screen.findByRole('heading', { name: 'Administrator session expired' })).toBeVisible()
   expect(screen.getByText(/reopen this private slide and its annotation tools/i)).toBeVisible()
-  expect(screen.getByRole('link', { name: 'Sign in again' })).toHaveAttribute('href', '/admin')
+  expect(screen.getByRole('link', { name: 'Sign in again' })).toHaveAttribute(
+    'href',
+    '/admin?returnTo=%2Fadmin%2Fpreview%2Fprivate-1',
+  )
   expect(screen.queryByText(/slide is unavailable/i)).not.toBeInTheDocument()
+})
+
+it.each([
+  ['network failure', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ['server failure', () => Promise.resolve(new Response(null, { status: 503 }))],
+])('retries a transient metadata %s', async (_label, firstResponse) => {
+  const fetch = vi.spyOn(globalThis, 'fetch')
+    .mockImplementationOnce(firstResponse)
+    .mockResolvedValueOnce(publicSlideResponse())
+
+  renderViewerPage()
+
+  expect(await screen.findByRole('heading', { name: 'This slide could not be opened' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+  expect(await screen.findByText('HER2 control')).toBeVisible()
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
+
+it.each([404, 410])('keeps permanent metadata status %i unavailable without retry', async (status) => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status }))
+
+  renderViewerPage()
+
+  expect(await screen.findByRole('heading', { name: 'This slide is unavailable' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
 })
 
 it('loads annotation code and APIs only for an enabled private admin slide', async () => {

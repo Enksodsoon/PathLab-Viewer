@@ -167,16 +167,17 @@ export async function uploadSyntheticSlide(
   syntheticPath: string,
   displayName: string,
 ): Promise<string> {
-  await page.getByRole('button', { name: 'Upload', exact: true }).click()
+  await page.getByLabel('Library command bar', { exact: true })
+    .getByRole('button', { name: 'Upload', exact: true }).click()
   const dialog = capacityUploadDialog(page)
   await expect(dialog).toBeVisible()
-  await dialog.getByLabel('Choose OME-TIFF', { exact: true }).setInputFiles(syntheticPath)
+  await dialog.getByLabel('Choose OME-TIFF files', { exact: true }).setInputFiles(syntheticPath)
   await dialog.getByLabel('Display name', { exact: true }).fill(displayName)
   const reservation = page.waitForResponse((response) => (
     response.request().method() === 'POST'
     && new URL(response.url()).pathname === '/api/v1/admin/slides'
   ))
-  await dialog.getByRole('button', { name: 'Upload slide', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Upload 1 file', exact: true }).click()
   const reservationResponse = await reservation
   const body = await responseBody(reservationResponse)
   if (!reservationResponse.ok()) {

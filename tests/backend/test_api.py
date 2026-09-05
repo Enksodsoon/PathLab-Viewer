@@ -21,11 +21,14 @@ from wsi_viewer.auth import issue_recovery_code
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
+from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AnalysisRun,
+    DesktopCredential,
     DesktopIngest,
     Job,
+    OrganizationMembership,
     PathObjectMeasurement,
     PathObjectMetadata,
     Slide,
@@ -52,7 +55,10 @@ def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
             text("INSERT INTO alembic_version (version_num) VALUES (:head)"),
             {"head": ALEMBIC_HEAD},
         )
-        database.add(User(username="admin", password_hash=hash_password("correct horse battery")))
+        admin = User(username="admin", password_hash=hash_password("correct horse battery"))
+        database.add(admin)
+        database.flush()
+        ensure_default_owner_membership(database, admin)
         database.commit()
     return TestClient(create_app(settings))
 
@@ -93,6 +99,21 @@ def _desktop_authorization(client: TestClient) -> dict[str, str]:
     )
     assert exchanged.status_code == 200
     return {"Authorization": f"Bearer {exchanged.json()['accessToken']}"}
+
+
+def _demote_default_owner(client: TestClient) -> None:
+    with session_factory(client.app.state.settings)() as database:
+        admin_id = database.scalar(select(User.id).where(User.username == "admin"))
+        membership = database.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.user_id == admin_id,
+                OrganizationMembership.role == "owner",
+                OrganizationMembership.status == "active",
+            )
+        )
+        assert membership is not None
+        membership.role = "admin"
+        database.commit()
 
 
 def test_capacity_desktop_cleanup_is_run_bound_idempotent_and_revokes_credentials(
@@ -338,9 +359,9 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             "annotations:sync",
             "results:sync",
             "library:read",
-                "slides:offline:read",
-                "library:sync",
-            }
+            "slides:offline:read",
+            "library:sync",
+        }
 
         replay = client.post(
             "/api/v1/desktop/pairings/exchange",
@@ -389,6 +410,53 @@ def test_desktop_pairing_is_short_lived_one_time_and_revocable(tmp_path: Path) -
             401,
             "DESKTOP_CREDENTIAL_INVALID",
         )
+
+
+def test_desktop_pairing_exchange_fails_after_owner_is_demoted(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        pairing = client.post(
+            "/api/v1/desktop/pairings",
+            json={"deviceName": "Approved before owner demotion"},
+        ).json()
+        csrf = _login(client)
+        assert (
+            client.post(
+                "/api/v1/desktop/pairings/approve",
+                headers={"X-CSRF-Token": csrf},
+                json={"userCode": pairing["userCode"]},
+            ).status_code
+            == 204
+        )
+
+        _demote_default_owner(client)
+
+        exchanged = client.post(
+            "/api/v1/desktop/pairings/exchange",
+            json={
+                "deviceCode": pairing["deviceCode"],
+                "deviceSecret": pairing["deviceSecret"],
+            },
+        )
+        assert _has_error(exchanged, 403, "LEGACY_ADMIN_FORBIDDEN")
+        with session_factory(client.app.state.settings)() as database:
+            assert database.scalar(select(DesktopCredential.id)) is None
+
+
+def test_demoted_owner_credential_is_denied_but_can_revoke_itself(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        authorization = _desktop_authorization(client)
+        _demote_default_owner(client)
+
+        denied = client.get("/api/v1/desktop/credential", headers=authorization)
+        assert _has_error(denied, 403, "LEGACY_ADMIN_FORBIDDEN")
+        assert (
+            client.post("/api/v1/desktop/credential/revoke", headers=authorization).status_code
+            == 204
+        )
+        with session_factory(client.app.state.settings)() as database:
+            stored = database.scalar(select(DesktopCredential))
+            assert stored is not None
+            assert stored.revoked_at is not None
 
 
 def test_desktop_ingest_finalizes_streaming_package_in_background(

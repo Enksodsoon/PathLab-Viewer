@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Route, Routes, useNavigate } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
+import { ApplicationErrorBoundary } from './components/ApplicationErrorBoundary'
 import { Loader } from './components/Loader'
 
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })))
@@ -23,7 +24,9 @@ function AdminRedirect() {
 }
 
 export function App() {
-  return <Routes>
+  const location = useLocation()
+  const resetKey = `${location.pathname}${location.search}${location.hash}`
+  return <ApplicationErrorBoundary resetKey={resetKey}><Routes>
     <Route path="/admin" element={<Suspense fallback={<Loader label="Opening admin…" size="large" fullscreen />}><AdminPage /></Suspense>} />
     <Route path="/admin/preview/:slideId" element={<Suspense fallback={<Loader label="Opening private preview…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
     <Route path="/admin/connect" element={<Suspense fallback={<Loader label="Opening device pairing…" size="large" fullscreen />}><DesktopConnectPage /></Suspense>} />
@@ -38,5 +41,5 @@ export function App() {
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />
     <Route path="/c/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="collection" /></Suspense>} />
     <Route path="*" element={<AdminRedirect />} />
-  </Routes>
+  </Routes></ApplicationErrorBoundary>
 }

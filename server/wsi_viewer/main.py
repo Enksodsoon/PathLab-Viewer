@@ -20,6 +20,7 @@ from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
+from .admission import SharedAdmission
 from .annotation_routes import register_annotation_routes
 from .auth import (
     CredentialConflict,
@@ -39,9 +40,17 @@ from .database import session_factory
 from .delivery import deliver_file
 from .desktop_routes import register_desktop_routes
 from .domain import InvalidTransition, SlideState, transition
+from .identity import is_default_legacy_owner
 from .identity_routes import register_identity_routes
 from .library_routes import register_library_routes
-from .models import AuditEvent, Job, PublicationGrant, Session, Slide, User
+from .models import (
+    AuditEvent,
+    Job,
+    PublicationGrant,
+    Session,
+    Slide,
+    User,
+)
 from .ome_tiles import MemoryTileCache, OmeTileRenderer
 from .publication import (
     INDIVIDUAL,
@@ -67,6 +76,7 @@ from .storage import (
     StorageLayout,
 )
 from .storage_accounting import reserve_new_slide, reserve_retry
+from .study_pack_contract import MAX_PACK_BYTES
 from .study_routes import register_study_routes
 from .tile_cache import TileCache
 from .tile_routes import TileRouteService, authorize_tile, private_static_target
@@ -146,43 +156,6 @@ class UploadCompleteRequest(BaseModel):
     length: int = Field(gt=0)
 
 
-MAX_THROTTLE_KEYS = 10_000
-
-
-class LoginThrottle:
-    def __init__(self, max_keys: int = MAX_THROTTLE_KEYS) -> None:
-        self.attempts: dict[str, deque[datetime]] = {}
-        self.max_keys = max_keys
-
-    def check(self, key: str, now: datetime) -> None:
-        cutoff = now - timedelta(minutes=5)
-        attempts = self.attempts.get(key)
-        if attempts is not None:
-            while attempts and attempts[0] < cutoff:
-                attempts.popleft()
-            if not attempts:
-                self.attempts.pop(key, None)
-                attempts = None
-        if attempts is not None and len(attempts) >= 5:
-            raise HTTPException(status_code=429, detail={"code": "AUTH_THROTTLED"})
-        if attempts is None:
-            if len(self.attempts) >= self.max_keys:
-                self.purge_expired(cutoff)
-                if len(self.attempts) >= self.max_keys:
-                    self.attempts.pop(next(iter(self.attempts)), None)
-            attempts = deque()
-            self.attempts[key] = attempts
-        attempts.append(now)
-
-    def purge_expired(self, cutoff: datetime) -> None:
-        expired = [k for k, q in self.attempts.items() if not q or q[-1] < cutoff]
-        for k in expired:
-            self.attempts.pop(k, None)
-
-    def clear(self, key: str) -> None:
-        self.attempts.pop(key, None)
-
-
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
@@ -245,7 +218,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     current.data_root.mkdir(parents=True, exist_ok=True)
     factory = session_factory(current)
     storage = StorageLayout(current.data_root, current.storage_cap_bytes)
-    throttle = LoginThrottle()
+    throttle = SharedAdmission(factory)
     services: dict[str, Any] = {}
     classroom_pressure: dict[str, int | float] = {
         "poolWaitP95Ms": 0.0,
@@ -323,6 +296,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             services["classroom_ready"] = not classroom_runtime_enabled
 
     app = FastAPI(title="PathLab Viewer API", version="0.1.0", lifespan=lifespan)
+    app.state.shared_admission = throttle
     app.add_middleware(
         AuthBodyLimitMiddleware,
         path_limits=(
@@ -330,6 +304,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ("/api/v2/admin/", MAX_LIBRARY_BODY_BYTES),
             ("/api/v1/internal/", MAX_INTERNAL_BODY_BYTES),
             ("/api/v1/auth/", MAX_AUTH_BODY_BYTES),
+            ("/api/v1/desktop/pairings", MAX_AUTH_BODY_BYTES),
+            ("/api/v1/desktop/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v2/desktop/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/admin/study/packs", MAX_PACK_BYTES),
+            ("/api/v1/admin/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/classroom/", MAX_LIBRARY_BODY_BYTES),
+            ("/api/v1/study/", MAX_LIBRARY_BODY_BYTES),
         ),
         suffix_limits=(
             (
@@ -337,6 +318,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "/import",
                 MAX_ANNOTATION_IMPORT_BODY_BYTES,
             ),
+            ("/api/v1/desktop/slides/", "/annotations/batch", MAX_ANNOTATION_BODY_BYTES),
+        ),
+        excluded_routes=(
+            ("PATCH", r"/api/v1/desktop/ingests/[^/]+/content"),
+            ("PATCH", r"/api/v2/desktop/slides/[^/]+/result-deliveries/[^/]+/content"),
         ),
     )
     app.state.settings = current
@@ -417,7 +403,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     Database = Annotated[OrmSession, Depends(database)]
 
-    def admin_session(
+    def authenticated_session(
         db: Database, pathlab_session: Annotated[str | None, Cookie()] = None
     ) -> Session:
         if not pathlab_session:
@@ -430,10 +416,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=401, detail={"code": "SESSION_EXPIRED"})
         return stored
 
-    AdminSession = Annotated[Session, Depends(admin_session)]
+    AuthenticatedSession = Annotated[Session, Depends(authenticated_session)]
 
     def csrf(
-        authenticated: AdminSession,
+        authenticated: AuthenticatedSession,
         csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> Session:
         if not csrf_token or not hmac.compare_digest(authenticated.csrf_token, csrf_token):
@@ -441,6 +427,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return authenticated
 
     CsrfSession = Annotated[Session, Depends(csrf)]
+
+    def legacy_admin_session(
+        authenticated: AuthenticatedSession,
+        db: Database,
+    ) -> Session:
+        if not is_default_legacy_owner(db, authenticated.user_id):
+            raise HTTPException(status_code=403, detail={"code": "LEGACY_ADMIN_FORBIDDEN"})
+        return authenticated
+
+    LegacyAdminSession = Annotated[Session, Depends(legacy_admin_session)]
+
+    def legacy_csrf(
+        authenticated: LegacyAdminSession,
+        csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    ) -> Session:
+        if not csrf_token or not hmac.compare_digest(authenticated.csrf_token, csrf_token):
+            raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
+        return authenticated
+
+    LegacyCsrfSession = Annotated[Session, Depends(legacy_csrf)]
 
     async def bounded_json(request: Request) -> Any:
         body = await request.body()
@@ -488,7 +494,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         register_identity_routes(
             app,
             database_dependency=database,
-            admin_dependency=admin_session,
+            admin_dependency=authenticated_session,
             csrf_dependency=csrf,
             enabled=current.identity_governance_enabled,
         )
@@ -497,20 +503,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             factory=factory,
             storage=storage,
             database_dependency=database,
-            admin_dependency=admin_session,
-            csrf_dependency=csrf,
+            admin_dependency=legacy_admin_session,
+            csrf_dependency=legacy_csrf,
             tile_routes=tile_routes,
         )
         register_annotation_routes(
             app,
             database_dependency=database,
-            admin_dependency=admin_session,
-            csrf_dependency=csrf,
+            admin_dependency=legacy_admin_session,
+            csrf_dependency=legacy_csrf,
         )
         services["desktop_finalizer"] = register_desktop_routes(
             app,
             database_dependency=database,
-            csrf_dependency=csrf,
+            csrf_dependency=legacy_csrf,
             storage=storage,
             tile_routes=tile_routes,
             ome_dynamic_enabled=current.desktop_ome_dynamic_enabled,
@@ -521,8 +527,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             factory=factory,
             storage=storage,
             database_dependency=database,
-            admin_dependency=admin_session,
-            csrf_dependency=csrf,
+            admin_dependency=legacy_admin_session,
+            csrf_dependency=legacy_csrf,
             enabled=current.study_mode_enabled,
             ai_enabled=current.study_coach_ai_enabled,
             pilot_enabled=current.study_coach_ai_pilot_enabled,
@@ -539,8 +545,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             factory=factory,
             hub=classroom_hub,
             database_dependency=classroom_database,
-            admin_dependency=admin_session,
-            csrf_dependency=csrf,
+            admin_dependency=legacy_admin_session,
+            csrf_dependency=legacy_csrf,
             pressure_metrics=classroom_pressure,
         )
 
@@ -575,8 +581,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         key = request.client.host if request.client else "unknown"
         user_key = f"user:{payload.username.strip().casefold()}"
         now = datetime.now(UTC)
-        throttle.check(key, now)
-        throttle.check(user_key, now)
+        throttle.check("login", key, now, user_key)
         token = random_token()
         csrf_token = random_token()
         expires = now + timedelta(hours=current.session_hours)
@@ -591,8 +596,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if not authenticated:
             raise HTTPException(status_code=401, detail={"code": "INVALID_CREDENTIALS"})
-        throttle.clear(key)
-        throttle.clear(user_key)
+        throttle.clear("login", key, now, user_key)
         response.set_cookie(
             COOKIE_NAME,
             token,
@@ -605,7 +609,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"csrfToken": csrf_token}
 
     @app.get("/api/v1/auth/session")
-    def refresh_session(authenticated: AdminSession, response: Response) -> dict[str, str]:
+    def refresh_session(authenticated: AuthenticatedSession, response: Response) -> dict[str, str]:
         response.headers["Cache-Control"] = "no-store"
         return {"csrfToken": authenticated.csrf_token}
 
@@ -640,7 +644,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if user is None:
             raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED"})
         key = f"password:{user.id}:{request.client.host if request.client else 'unknown'}"
-        throttle.check(key, datetime.now(UTC))
+        now = datetime.now(UTC)
+        throttle.check("password", key, now)
         try:
             change_password(db, user, payload.current_password, payload.new_password)
         except CredentialConflict as error:
@@ -653,7 +658,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_PASSWORD"}) from error
-        throttle.clear(key)
+        throttle.clear("password", key, now)
         response.delete_cookie(COOKIE_NAME, path="/")
 
     @app.post(
@@ -695,7 +700,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.delete_cookie(COOKIE_NAME, path="/")
 
     @app.get("/api/v1/admin/slides")
-    def list_slides(_: AdminSession, db: Database) -> list[dict[str, Any]]:
+    def list_slides(_: LegacyAdminSession, db: Database) -> list[dict[str, Any]]:
         slides = db.scalars(select(Slide).order_by(Slide.created_at.desc())).all()
         return [
             _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
@@ -703,7 +708,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ]
 
     @app.get("/api/v1/admin/slides/{slide_id}")
-    def get_admin_slide(slide_id: str, _: AdminSession, db: Database) -> dict[str, Any]:
+    def get_admin_slide(slide_id: str, _: LegacyAdminSession, db: Database) -> dict[str, Any]:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
@@ -718,7 +723,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return result
 
     @app.get("/api/v1/admin/slides/{slide_id}/preview/{tile_path:path}")
-    def private_tile(slide_id: str, tile_path: str, _: AdminSession, db: Database) -> Response:
+    def private_tile(
+        slide_id: str, tile_path: str, _: LegacyAdminSession, db: Database
+    ) -> Response:
         slide = db.get(Slide, slide_id)
         if (
             slide is None
@@ -746,7 +753,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.post("/api/v1/admin/slides", status_code=status.HTTP_201_CREATED)
-    def create_slide(payload: SlideRequest, authenticated: CsrfSession) -> dict[str, Any]:
+    def create_slide(payload: SlideRequest, authenticated: LegacyCsrfSession) -> dict[str, Any]:
         if payload.length > current.max_upload_bytes:
             raise HTTPException(status_code=413, detail={"code": "UPLOAD_TOO_LARGE"})
         try:
@@ -767,9 +774,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             UploadGrant(slide.id, payload.length), current.secret_key, ttl=timedelta(hours=1)
         )
         return {
-            "slide": _slide_json(
-                slide, annotations_enabled=current.admin_annotations_enabled
-            ),
+            "slide": _slide_json(slide, annotations_enabled=current.admin_annotations_enabled),
             "uploadUrl": current.tus_public_url,
             "uploadToken": token,
             "expiresIn": 3600,
@@ -907,7 +912,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return slide
 
     @app.post("/api/v1/admin/slides/{slide_id}/retry")
-    def retry(slide_id: str, authenticated: CsrfSession) -> dict[str, Any]:
+    def retry(slide_id: str, authenticated: LegacyCsrfSession) -> dict[str, Any]:
         try:
             slide = reserve_retry(
                 factory,
@@ -926,7 +931,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/v1/admin/slides/{slide_id}/publish")
     def publish(
         slide_id: str,
-        authenticated: CsrfSession,
+        authenticated: LegacyCsrfSession,
         db: Database,
         payload: PublishRequest | None = None,
     ) -> dict[str, Any]:
@@ -957,7 +962,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
 
     @app.post("/api/v1/admin/slides/{slide_id}/unpublish")
-    def unpublish(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
+    def unpublish(slide_id: str, authenticated: LegacyCsrfSession, db: Database) -> dict[str, Any]:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
@@ -978,7 +983,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)
-    def delete(slide_id: str, authenticated: CsrfSession, db: Database) -> dict[str, Any]:
+    def delete(slide_id: str, authenticated: LegacyCsrfSession, db: Database) -> dict[str, Any]:
         slide = db.get(Slide, slide_id)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})

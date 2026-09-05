@@ -92,7 +92,7 @@ test('admin remains responsive and conversion cleanup succeeds', async ({ page }
       `Synthetic certification ${runMarker}`,
     )
     privateState({ syntheticSlideId })
-    await expect(page.getByText('Upload complete. Processing is queued.', {
+    await expect(page.getByRole('dialog', { name: 'Upload OME-TIFF' }).getByText('1 file uploaded. Processing is queued.', {
       exact: true,
     })).toBeVisible({ timeout: 15 * 60_000 })
 

@@ -216,8 +216,11 @@ export function AuthPanel({ onSuccess, notice = '' }: AuthPanelProps) {
                   </>
                 ) : (
                   <>
-                    <p className="recovery-help">Generate a 15-minute code on the PathLab server, then enter it below.</p>
-                    <code className="recovery-command">docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin</code>
+                    <p className="recovery-help">Ask your PathLab administrator for a 15-minute recovery code, then enter it below.</p>
+                    <details className="recovery-operator-details">
+                      <summary>PathLab administrator instructions</summary>
+                      <code className="recovery-command">docker compose -f deploy/compose.yaml exec api pathlab-admin issue-recovery-code --username admin</code>
+                    </details>
                     <div className="auth-field">
                       <label htmlFor="recovery-code">Recovery code</label>
                       <div className="auth-input">

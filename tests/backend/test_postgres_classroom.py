@@ -18,6 +18,7 @@ from wsi_viewer.classroom_routes import PARTICIPANT_COOKIE
 from wsi_viewer.config import Settings
 from wsi_viewer.database import engine_for, session_factory
 from wsi_viewer.domain import SlideState
+from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import Folder, Job, PublicationGrant, RuntimeGuard, Slide, User
 from wsi_viewer.publication import delivery_version
@@ -50,13 +51,14 @@ def test_postgres_classroom_300_sse_streams_block_jobs_and_hold_no_connections(
     general_settings = Settings(_env_file=None, service_role="general", **shared)
     classroom_settings = Settings(_env_file=None, service_role="classroom", **shared)
     with session_factory(general_settings)() as database:
-        database.add(
-            User(
-                id="postgres-classroom-admin",
-                username="postgres-classroom-admin",
-                password_hash=hash_password("correct horse battery"),
-            )
+        admin = User(
+            id="postgres-classroom-admin",
+            username="postgres-classroom-admin",
+            password_hash=hash_password("correct horse battery"),
         )
+        database.add(admin)
+        database.flush()
+        ensure_default_owner_membership(database, admin)
         database.add(
             Folder(
                 id="postgres-classroom-folder",

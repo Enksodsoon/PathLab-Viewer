@@ -393,6 +393,8 @@
 }
 
 .auth-solace-card .recovery-command {
+  display:block;
+  margin-top:8px;
   overflow-wrap:anywhere;
   padding:12px 14px;
   border:1px solid var(--solace-border);
@@ -401,6 +403,14 @@
   background:var(--solace-canvas);
   font-size:11px;
   line-height:1.5;
+}
+
+.auth-solace-card .recovery-operator-details summary {
+  width:max-content;
+  max-width:100%;
+  color:var(--solace-muted);
+  cursor:pointer;
+  font-size:12px;
 }
 
 .auth-solace-card .auth-actions {

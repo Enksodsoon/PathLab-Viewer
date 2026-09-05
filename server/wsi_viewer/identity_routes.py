@@ -15,6 +15,7 @@ from .identity import (
     staff_organization_context,
     staff_organization_contexts,
 )
+from .identity_mutation_lock import lock_organization_mutation
 from .models import AuditEvent, Organization, OrganizationMembership, Session, User
 
 SLUG_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -166,9 +167,15 @@ def register_identity_routes(
         authenticated: CsrfSession,
         database: Database,
     ) -> dict[str, Any]:
-        context_for(authenticated, database, target_organization_id, "identity.manage")
         if payload.role not in ROLE_CAPABILITIES:
             raise HTTPException(status_code=400, detail={"code": "ROLE_INVALID"})
+        lock_organization_mutation(database, target_organization_id)
+        actor = context_for(authenticated, database, target_organization_id, "identity.manage")
+        if actor.membership.role != "owner":
+            if payload.role == "owner":
+                raise HTTPException(status_code=403, detail={"code": "OWNER_ROLE_REQUIRED"})
+            if not ROLE_CAPABILITIES[payload.role].issubset(actor.capabilities):
+                raise HTTPException(status_code=403, detail={"code": "ROLE_GRANT_FORBIDDEN"})
         user = database.scalar(select(User).where(User.username == payload.username))
         if user is None:
             raise HTTPException(status_code=404, detail={"code": "STAFF_USER_NOT_FOUND"})
@@ -213,11 +220,14 @@ def register_identity_routes(
         authenticated: CsrfSession,
         database: Database,
     ) -> None:
-        context_for(authenticated, database, target_organization_id, "identity.manage")
+        lock_organization_mutation(database, target_organization_id)
+        actor = context_for(authenticated, database, target_organization_id, "identity.manage")
         membership = database.get(OrganizationMembership, membership_id)
         if membership is None or membership.organization_id != target_organization_id:
             raise HTTPException(status_code=404, detail={"code": "MEMBERSHIP_NOT_FOUND"})
         if membership.role == "owner":
+            if actor.membership.role != "owner":
+                raise HTTPException(status_code=403, detail={"code": "OWNER_ROLE_REQUIRED"})
             owners = database.scalar(
                 select(func.count())
                 .select_from(OrganizationMembership)

@@ -13,6 +13,7 @@ from wsi_viewer.database import engine_for, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.library import _search_ids
 from wsi_viewer.models import Job, Slide
+from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.worker import _next_job_statement, expire_incomplete_uploads
 
 POSTGRES_TEST_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
@@ -48,7 +49,7 @@ def test_postgres_migrations_constraints_and_round_trip(
 
     with engine.begin() as connection:
         assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
-            "20260822_0025"
+            ALEMBIC_HEAD
         )
         assert "slide_search" not in inspect(connection).get_table_names()
         assert connection.scalar(

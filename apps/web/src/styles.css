@@ -203,6 +203,7 @@ button .pathlab-loader__label { color:currentColor; }
 .viewer-message>div { text-align:center; }
 .viewer-message h1 { color:var(--navy); font-size:28px; margin-bottom:8px; }
 .viewer-message p { color:var(--muted); }
+.application-recovery-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:20px; }
 
 @media (max-width:760px) {
   .secure-dot,.storage-summary,.viewer-help { display:none; }

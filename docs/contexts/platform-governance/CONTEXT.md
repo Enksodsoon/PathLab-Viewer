@@ -49,7 +49,7 @@ A capability statement tied to one release, deployment profile, workload, enviro
 _Avoid_: Supported, production-ready
 
 **Zero-Cash Launch Gate**:
-The complete evidence boundary that the Zero-Cash Production Profile must pass before activation, including the full 1,200-participant Live Learning Class Session campaign and the separate 300-learner, 100-item, 120-minute Assessment campaign.
+The complete evidence boundary that the Zero-Cash Production Profile must pass before activation, including the full 3,000-participant combined Live Learning and Teacher Broadcast Class Session campaign and the separate 300-learner, 100-item, 120-minute Assessment campaign.
 _Avoid_: Capacity target, headroom test
 
 **Breakpoint Stage**:
@@ -73,7 +73,7 @@ A production state that reserves the bounded host for one heavy workload while o
 _Avoid_: Disabled feature, separate edition
 
 **Media Capacity Claim**:
-A production qualification for one Teacher Broadcast to 100 simultaneous receive-only viewers for 60 minutes, measured separately from the 1,200-seat synchronized Class Session claim. Exhaustion degrades additional or affected participants to slides and text without invalidating durable Live Learning state.
+A production qualification for one Teacher Broadcast to 3,000 simultaneous receive-only viewers for 60 minutes, measured separately and then together with the same 3,000-learner synchronized Class Session under ADR 0132. Slides/text fallback proves recovery only, not successful combined media qualification. Exhaustion degrades additional or affected participants to slides and text without invalidating durable Live Learning state.
 _Avoid_: Classroom capacity, participant capacity
 
 **Connection Envelope**:

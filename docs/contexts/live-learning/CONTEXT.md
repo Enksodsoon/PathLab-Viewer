@@ -45,7 +45,7 @@ The automatic transition from Teacher Broadcast to synchronized slides and text 
 _Avoid_: Disconnect, failed class
 
 **Live Learning Launch Gate**:
-The exact-host 60-minute campaign for one teacher and 1,200 learners performing synchronized DZI viewing, high-rate ephemeral control, durable interaction, reconnect, restart, attendance, and optional qualified media work.
+The exact-host 60-minute campaign for one teacher and 3,000 learners performing synchronized DZI viewing, high-rate ephemeral control, durable interaction, reconnect, restart, attendance, and simultaneous decoded teacher audio/video for every learner under ADR 0132.
 _Avoid_: Classroom capacity, connected clients, SSE capacity
 
 ## Retention ceilings

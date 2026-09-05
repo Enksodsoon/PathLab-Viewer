@@ -6,20 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomTeacherPage } from '../pages/ClassroomTeacherPage'
 import { ThemeProvider } from '../theme/ThemeProvider'
 
-const rootApi = vi.hoisted(() => ({
-  getLibraryNavigation: vi.fn(),
-  listSlides: vi.fn(),
-}))
 const classroomApi = vi.hoisted(() => ({
+  classroomSetupFolders: vi.fn(),
   listClassrooms: vi.fn(),
   teacherParticipants: vi.fn(),
   teacherState: vi.fn(),
 }))
 
-vi.mock('../api', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api')>(),
-  ...rootApi,
-}))
 vi.mock('../classroom/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../classroom/api')>(),
   ...classroomApi,
@@ -70,6 +63,11 @@ function normalRosterCallCount() {
   return classroomApi.teacherParticipants.mock.calls.filter(([, query]) => !query.requested).length
 }
 
+async function renderResumedTeacher() {
+  render(<MemoryRouter><ThemeProvider><ClassroomTeacherPage /></ThemeProvider></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Resume classroom ABC234DEFG' }))
+}
+
 describe('teacher paginated roster', () => {
   beforeEach(() => {
     EventSourceStub.current = null
@@ -82,12 +80,15 @@ describe('teacher paginated roster', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({
       matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(),
     })))
-    rootApi.listSlides.mockResolvedValue([])
-    rootApi.getLibraryNavigation.mockResolvedValue({ folders: [] })
-    classroomApi.listClassrooms.mockResolvedValue({ sessions: [] })
+    classroomApi.classroomSetupFolders.mockResolvedValue({ items: [], nextCursor: null })
+    classroomApi.listClassrooms.mockResolvedValue({ sessions: [{
+      id: 'session-1', publicId: 'public-1', joinCode: 'ABC234DEFG', phase: 'live',
+      reviewExpiresAt: '2026-08-20T00:00:00Z',
+    }] })
     classroomApi.teacherState.mockResolvedValue({
       session: { id: 'session-1', status: 'active', phase: 'live', publicId: 'public-1', joinCode: 'ABC234DEFG', reviewExpiresAt: '2026-08-20T00:00:00Z' },
       presenter: { sequence: 0, slideId: 'slide-1', viewport: null }, stateVersion: 4,
+      slides: [slide],
       participantCount: 150, rosterVersion: 7,
       controller: { participantId: null, leaseId: null, controlEpoch: 0, expiresAt: null },
       participants: [], pendingQuestions: [], activePins: [], teacherPointer: null,
@@ -126,7 +127,7 @@ describe('teacher paginated roster', () => {
   })
 
   it('renders one bounded page, loads the next page, and searches server-side', async () => {
-    render(<MemoryRouter><ThemeProvider><ClassroomTeacherPage /></ThemeProvider></MemoryRouter>)
+    await renderResumedTeacher()
 
     const roster = await screen.findByRole('list', { name: 'Student roster' })
     await waitFor(() => expect(within(roster).getAllByRole('listitem')).toHaveLength(100))
@@ -147,7 +148,7 @@ describe('teacher paginated roster', () => {
   })
 
   it('reconciles the roster after reconnect and after a gapped roster signal', async () => {
-    render(<MemoryRouter><ThemeProvider><ClassroomTeacherPage /></ThemeProvider></MemoryRouter>)
+    await renderResumedTeacher()
 
     await screen.findByRole('list', { name: 'Student roster' })
     await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
@@ -169,7 +170,7 @@ describe('teacher paginated roster', () => {
   })
 
   it('keeps multiple off-page control requesters distinctly visible and actionable', async () => {
-    render(<MemoryRouter><ThemeProvider><ClassroomTeacherPage /></ThemeProvider></MemoryRouter>)
+    await renderResumedTeacher()
 
     await screen.findByRole('list', { name: 'Student roster' })
     await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
@@ -179,6 +180,7 @@ describe('teacher paginated roster', () => {
     classroomApi.teacherState.mockResolvedValue({
       session: { id: 'session-1', status: 'active', phase: 'live', publicId: 'public-1', joinCode: 'ABC234DEFG', reviewExpiresAt: '2026-08-20T00:00:00Z' },
       presenter: { sequence: 0, slideId: 'slide-1', viewport: null }, stateVersion: 5,
+      slides: [slide],
       participantCount: 151, rosterVersion: 8,
       controller: { participantId: null, leaseId: null, controlEpoch: 0, expiresAt: null },
       participants: [], pendingQuestions: [], activePins: [], teacherPointer: null,
@@ -225,7 +227,7 @@ describe('teacher paginated roster', () => {
       total: 150, nextCursor: 'AMBER-00000099', rosterVersion: 7,
     })
 
-    render(<MemoryRouter><ThemeProvider><ClassroomTeacherPage /></ThemeProvider></MemoryRouter>)
+    await renderResumedTeacher()
 
     expect(await screen.findByRole('button', { name: 'Give control to AMBER-00001000' })).toBeVisible()
     expect(classroomApi.teacherParticipants).toHaveBeenCalledWith('session-1', {

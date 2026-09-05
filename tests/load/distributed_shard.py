@@ -128,6 +128,8 @@ def safe_harness_failure_summary(
             codes.append(private_failure_code)
     if execution.get("stalled") is True:
         codes.append("harness-stalled")
+    if execution.get("cleanupSucceeded") is not True:
+        codes.append("cleanup-failed")
     if participant_error_count:
         codes.append("participant-errors")
     if task_error_count:
@@ -171,11 +173,18 @@ def safe_harness_failure_summary(
 
 def completed_stage_marker(stage_name: str, execution: dict[str, Any]) -> dict[str, str] | None:
     """Return only truthful completed/protected/skipped stage progress."""
+    if execution.get("cleanupSucceeded") is not True:
+        return None
     if execution.get("skipped") is True:
         outcome = "skipped"
     elif execution.get("earlyStopCauses"):
         outcome = "protected-early-stop"
-    elif execution.get("exitCode") == 0 and execution.get("stalled") is not True:
+    elif (
+        execution.get("exitCode") == 0
+        and execution.get("stalled") is not True
+        and isinstance(execution.get("report"), dict)
+        and execution["report"]
+    ):
         outcome = "passed"
     else:
         return None
@@ -194,9 +203,7 @@ def _read_linux_process(pid: int) -> tuple[float, int] | None:
         stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()
         status = Path(f"/proc/{pid}/status").read_text(encoding="utf-8").splitlines()
         ticks = int(stat[13]) + int(stat[14])
-        rss_kib = next(
-            int(line.split()[1]) for line in status if line.startswith("VmRSS:")
-        )
+        rss_kib = next(int(line.split()[1]) for line in status if line.startswith("VmRSS:"))
         ticks_per_second = int(cast(Any, os).sysconf("SC_CLK_TCK"))
         return ticks / ticks_per_second, rss_kib * 1024
     except (IndexError, OSError, StopIteration, ValueError):
@@ -231,23 +238,34 @@ def _run_harness(environment: dict[str, str], timeout_seconds: int) -> dict[str,
     max_cpu = 0.0
     max_memory = 0.0
     stalled = False
-    while process.poll() is None:
-        if time.monotonic() - started > timeout_seconds:
-            stalled = True
+    try:
+        while process.poll() is None:
+            if time.monotonic() - started > timeout_seconds:
+                stalled = True
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                break
+            time.sleep(1)
+            current = _read_linux_process(process.pid)
+            now = time.monotonic()
+            if current is not None and previous is not None and now > previous_at:
+                max_cpu = max(max_cpu, (current[0] - previous[0]) / (now - previous_at) * 100)
+                max_memory = max(max_memory, current[1] / _total_memory() * 100)
+            previous, previous_at = current, now
+        stdout, stderr = process.communicate()
+    finally:
+        # Signal cancellation must stop the workload child before the caller
+        # persists terminal shard evidence or starts remote reconciliation.
+        if process.poll() is None:
             process.terminate()
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 process.kill()
-            break
-        time.sleep(1)
-        current = _read_linux_process(process.pid)
-        now = time.monotonic()
-        if current is not None and previous is not None and now > previous_at:
-            max_cpu = max(max_cpu, (current[0] - previous[0]) / (now - previous_at) * 100)
-            max_memory = max(max_memory, current[1] / _total_memory() * 100)
-        previous, previous_at = current, now
-    stdout, stderr = process.communicate()
+                process.wait(timeout=10)
     report: dict[str, Any] = {}
     if stdout.strip():
         try:
@@ -616,9 +634,14 @@ def run(
             if remaining > 0:
                 time.sleep(remaining)
             ordinary_failure = (
-                execution["exitCode"] != 0
-                and not execution.get("earlyStopCauses")
-                and not execution.get("skipped")
+                execution.get("cleanupSucceeded") is not True
+                or not execution.get("report")
+                or execution.get("stalled") is True
+                or (
+                    execution["exitCode"] != 0
+                    and not execution.get("earlyStopCauses")
+                    and not execution.get("skipped")
+                )
             )
             if ordinary_failure:
                 failure_summary = safe_harness_failure_summary(stage, execution, shard_index)

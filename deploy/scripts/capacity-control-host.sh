@@ -6,6 +6,77 @@ LIVE_DIR="/opt/pathlab-viewer"
 STATE_DIR="/run"
 
 fail() { echo "Capacity control failed: $*" >&2; exit 1; }
+lock_controller_mutation() {
+  # Adopt the dispatcher's same open description before upgrading its read
+  # lock. Opening a second descriptor would conflict with our inherited lock.
+  # The detached unit restore path never locks: recover waits for it to stop.
+  if [[ -n "${PATHLAB_CAPACITY_DISPATCH_LOCK_FD:-}" ]]; then
+    [[ "${PATHLAB_CAPACITY_DISPATCH_LOCK_FD}" == 8 ]] || fail "dispatcher lock is invalid"
+    python3 - "${STATE_DIR}/pathlab-capacity-controller.lock" "/proc/$$/fd/8" <<'PY' || \
+      fail "dispatcher lock binding is invalid"
+import os, pathlib, stat, sys
+path = pathlib.Path(sys.argv[1])
+try:
+    expected, inherited = path.stat(), os.stat(sys.argv[2])
+    valid = (not path.is_symlink() and stat.S_ISREG(expected.st_mode)
+             and expected.st_uid == 0 and expected.st_mode & 0o022 == 0
+             and (expected.st_dev, expected.st_ino) == (inherited.st_dev, inherited.st_ino))
+except OSError:
+    valid = False
+raise SystemExit(0 if valid else 1)
+PY
+    CONTROLLER_LOCK_FD=8
+  else
+    exec {CONTROLLER_LOCK_FD}>"${STATE_DIR}/pathlab-capacity-controller.lock"
+  fi
+  flock --exclusive --nonblock "${CONTROLLER_LOCK_FD}" || \
+    fail "another capacity controller mutation is in progress"
+}
+verify_controller_ownership() {
+  python3 - "${STATE_DIR}" "$1" "${2:-}" "${3:-false}" <<'PY' || \
+    fail "capacity controller ownership is unproved"
+import json
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+run_id, sha, allow_missing_pointer = sys.argv[2:]
+state_path = root / f"pathlab-capacity-{run_id}-control.json"
+controller = root / f"pathlab-capacity-{run_id}-controller"
+pointer = root / "pathlab-capacity-controller"
+active_path = root / "pathlab-capacity-active.json"
+try:
+    if state_path.is_symlink() or controller.is_symlink():
+        raise ValueError
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    if not isinstance(state, dict) or state.get("runId") != run_id:
+        raise ValueError
+    if not re.fullmatch("[0-9a-f]{40}", str(state.get("workflowSha", ""))):
+        raise ValueError
+    if sha and state.get("workflowSha") != sha:
+        raise ValueError
+    if pointer.is_symlink():
+        raise ValueError
+    if pointer.exists():
+        if not pointer.is_file() or pointer.read_text(encoding="utf-8").rstrip("\n") != controller.as_posix():
+            raise ValueError
+    elif allow_missing_pointer != "true":
+        raise ValueError
+    if active_path.is_symlink():
+        raise ValueError
+    if active_path.exists():
+        active = json.loads(active_path.read_text(encoding="utf-8"))
+        if not isinstance(active, dict) or active.get("runId") != run_id:
+            raise ValueError
+except (OSError, ValueError, TypeError):
+    raise SystemExit("capacity controller ownership precondition failed") from None
+PY
+}
+begin_owned_mutation() {
+  lock_controller_mutation
+  verify_controller_ownership "$1" "${2:-}"
+}
 atomic_install() {
   local source="${1}" target="${2}" temporary
   temporary="$(mktemp "${target}.tmp.XXXXXX")"
@@ -58,6 +129,14 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
   FAULT_START="${BASH_REMATCH[10]}"; FAULT_END="${BASH_REMATCH[11]}"
   EVIDENCE_B64="${BASH_REMATCH[12]}"; SIGNATURE="${BASH_REMATCH[13]}"; NONCE="${BASH_REMATCH[14]}"
   (( $(date +%s) <= ARM_NOT_AFTER )) || fail "arm authorization expired before host mutation"
+  lock_controller_mutation
+  [[ ! -e "${STATE_DIR}/pathlab-capacity-controller" && \
+     ! -L "${STATE_DIR}/pathlab-capacity-controller" ]] || \
+    fail "existing capacity controller binding requires retirement before arm"
+  [[ ! -e "${STATE_DIR}/pathlab-capacity-active.json" && \
+     ! -L "${STATE_DIR}/pathlab-capacity-active.json" ]] || \
+    fail "existing capacity active binding requires recovery before arm"
+  (( $(date +%s) <= ARM_NOT_AFTER )) || fail "arm authorization expired before host mutation"
   (( DEADLINE < RESTORE_NOT_AFTER )) || fail "restore deadline must follow the control deadline"
   [[ "$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)" == "${SHA}" ]] || \
     fail "deployed release does not match the workflow SHA"
@@ -72,26 +151,47 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
   STABLE_DISPATCHER="/usr/local/sbin/pathlab-viewer-deploy"
   ARMED=false
   CONTROLLER_INSTALLED=false
+  CONTROLLER_POINTER_INSTALLED=false
   CONTROLLER_STARTED=false
+  CONTROLLER_LAUNCH_ATTEMPTED=false
   UNIT="pathlab-capacity-${RUN_ID}"
   arm_failed() {
     local result=$?
+    local stopped=true restoration_proved=false unit_state
     trap - EXIT
-    if [[ "${CONTROLLER_STARTED}" == true ]]; then
-      timeout --signal=TERM --kill-after=10s "${RESTORE_GRACE_SECONDS:-300}s" \
-        systemctl stop "${UNIT}.service" >/dev/null 2>&1 || true
+    if [[ "${CONTROLLER_STARTED}" == true || "${CONTROLLER_LAUNCH_ATTEMPTED}" == true ]]; then
+      stopped=false
+      if timeout --signal=TERM --kill-after=10s "${RESTORE_GRACE_SECONDS:-300}s" \
+          systemctl stop "${UNIT}.service" >/dev/null 2>&1 && \
+          unit_state="$(systemctl show "${UNIT}.service" --property=ActiveState --value)" && \
+          [[ "${unit_state}" == inactive ]]; then
+        stopped=true
+      fi
     fi
     if [[ "${ARMED}" == true ]]; then
-      python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" finish \
-        --run-id "${RUN_ID}" --restoration-verified >/dev/null 2>&1 || true
+      if [[ "${stopped}" == true ]] && runtime_status "${SHA}" "${MANIFEST_DIGEST}" >/dev/null; then
+        restoration_proved=true
+        python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" finish \
+          --run-id "${RUN_ID}" --restoration-verified >/dev/null 2>&1 || true
+      else
+        python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" finish \
+          --run-id "${RUN_ID}" >/dev/null 2>&1 || true
+      fi
     fi
+    if [[ "${stopped}" == true && ( "${ARMED}" != true || "${restoration_proved}" == true ) ]]; then
     if [[ "${CONTROLLER_INSTALLED}" == true && -f "${CONTROLLER_DIR}/prior-dispatcher" ]]; then
       systemctl stop "pathlab-capacity-${RUN_ID}-controller-cleanup.timer" >/dev/null 2>&1 || true
-      atomic_install "${CONTROLLER_DIR}/prior-dispatcher" "${STABLE_DISPATCHER}" || true
-      rm -f -- "${CONTROLLER_POINTER}"
+      # Before pointer publication this arm does not own an earlier run's
+      # retired pointer or dispatcher. Never remove that prior binding.
+      if [[ "${CONTROLLER_POINTER_INSTALLED}" == true && -f "${CONTROLLER_POINTER}" && \
+          ! -L "${CONTROLLER_POINTER}" && "$(cat "${CONTROLLER_POINTER}")" == "${CONTROLLER_DIR}" ]]; then
+        atomic_install "${CONTROLLER_DIR}/prior-dispatcher" "${STABLE_DISPATCHER}" || true
+        rm -f -- "${CONTROLLER_POINTER}"
+      fi
       rm -rf -- "${CONTROLLER_DIR}"
     fi
     rm -f -- "${PREFLIGHT}" "${PREFLIGHT_SIG}" "${NONCE_FILE}" "${READY_FILE}"
+    fi
     exit "${result}"
   }
   trap arm_failed EXIT
@@ -115,10 +215,25 @@ if [[ "${REQUEST}" =~ ^capacity-arm[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z
   CONTROLLER_INSTALLED=true
   atomic_install "${LIVE_DIR}/deploy/scripts/capacity-control-host.sh" \
     "${CONTROLLER_DIR}/capacity-control-host.sh"
+  atomic_install "${LIVE_DIR}/deploy/scripts/capacity_dispatcher_binding.py" \
+    "${CONTROLLER_DIR}/capacity_dispatcher_binding.py"
   restore_script="${CONTROLLER_DIR}/restore-dispatcher.sh"
   cat > "${restore_script}" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
+exec 9>"${STATE_DIR}/pathlab-capacity-controller.lock"
+lock_seconds=\$(( ${RESTORE_NOT_AFTER} - \$(date +%s) ))
+(( lock_seconds > 0 )) || exit 1
+(( lock_seconds <= 60 )) || lock_seconds=60
+flock --exclusive --timeout "\${lock_seconds}" 9 || exit 1
+(( \$(date +%s) < ${RESTORE_NOT_AFTER} )) || exit 1
+# A retired run must never replace another run's dispatcher or pointer.
+[[ -f "${CONTROLLER_POINTER}" && ! -L "${CONTROLLER_POINTER}" ]] || exit 1
+[[ "\$(cat "${CONTROLLER_POINTER}")" == "${CONTROLLER_DIR}" ]] || exit 1
+if [[ -e "${STATE_DIR}/pathlab-capacity-active.json" ]]; then
+  jq -e --arg run "${RUN_ID}" '.runId == \$run' \
+    "${STATE_DIR}/pathlab-capacity-active.json" >/dev/null || exit 1
+fi
 temporary="\$(mktemp "${STABLE_DISPATCHER}.tmp.XXXXXX")"
 install -o root -g root -m 755 "${CONTROLLER_DIR}/prior-dispatcher" "\${temporary}"
 python3 - "\${temporary}" "\$(dirname "${STABLE_DISPATCHER}")" <<'PY'
@@ -194,12 +309,14 @@ for path in sys.argv[1:]:
     finally: os.close(descriptor)
 PY
   mv -f -- "${pointer_tmp}" "${CONTROLLER_POINTER}"
+  CONTROLLER_POINTER_INSTALLED=true
   python3 - "${STATE_DIR}" <<'PY'
 import os, sys
 descriptor = os.open(sys.argv[1], os.O_RDONLY)
 try: os.fsync(descriptor)
 finally: os.close(descriptor)
 PY
+  CONTROLLER_LAUNCH_ATTEMPTED=true
   systemd-run --unit "${UNIT}" --collect --property="RuntimeMaxSec=${RUNTIME_SECONDS}" \
     --property="TimeoutStopSec=${RESTORE_GRACE_SECONDS}" \
     bash "${LIVE_DIR}/deploy/scripts/capacity-control-unit.sh" \
@@ -253,6 +370,7 @@ fi
 if [[ "${REQUEST}" =~ ^capacity-finalize[[:space:]]([0-9a-f]{40})[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})[[:space:]]evidence=([A-Za-z0-9_-]+)[[:space:]]signature=([0-9a-f]{64})[[:space:]]nonce=([A-Za-z0-9._-]{8,128})$ ]]; then
   SHA="${BASH_REMATCH[1]}"; RUN_ID="${BASH_REMATCH[2]}"; DIGEST="${BASH_REMATCH[3]}"
   EVIDENCE_B64="${BASH_REMATCH[4]}"; SIGNATURE="${BASH_REMATCH[5]}"; NONCE="${BASH_REMATCH[6]}"
+  begin_owned_mutation "${RUN_ID}" "${SHA}"
   EVIDENCE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-decision.json"
   SIGNATURE_FILE="${EVIDENCE}.sig"
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
@@ -299,6 +417,7 @@ fi
 
 if [[ "${REQUEST}" =~ ^capacity-fault[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})$ ]]; then
   RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
+  begin_owned_mutation "${RUN_ID}"
   python3 "${LIVE_DIR}/deploy/scripts/capacity_control.py" fault \
     --run-id "${RUN_ID}" --plan-digest "${DIGEST}" || fail "fault request was rejected"
   cd "${LIVE_DIR}/deploy"
@@ -310,6 +429,7 @@ fi
 
 if [[ "${REQUEST}" =~ ^capacity-terminate-controller[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})$ ]]; then
   RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
+  begin_owned_mutation "${RUN_ID}"
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
   jq -e --arg run "${RUN_ID}" --arg digest "${DIGEST}" \
     '.runId == $run and .planDigest == $digest and .phase == "armed"' \
@@ -328,6 +448,7 @@ fi
 
 if [[ "${REQUEST}" =~ ^capacity-ack[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})$ ]]; then
   RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
+  begin_owned_mutation "${RUN_ID}"
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
   FINAL_RESULT="${STATE_DIR}/pathlab-capacity-${RUN_ID}-final.json"
   jq -e --arg run "${RUN_ID}" --arg digest "${DIGEST}" \
@@ -346,23 +467,40 @@ fi
 if [[ "${REQUEST}" =~ ^capacity-recover[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]sha=([0-9a-f]{40})$ ]]; then
   RUN_ID="${BASH_REMATCH[1]}"
   FAILED_SHA="${BASH_REMATCH[2]}"
+  lock_controller_mutation
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
   CONTROLLER_DIR="${STATE_DIR}/pathlab-capacity-${RUN_ID}-controller"
   CONTROLLER_POINTER="${STATE_DIR}/pathlab-capacity-controller"
+  verify_controller_ownership "${RUN_ID}" "${FAILED_SHA}" true
   CURRENT_SHA="$(cat "${LIVE_DIR}/.pathlab-release" 2>/dev/null || true)"
   MANIFEST_DIGEST="$(jq -er .manifestDigest "${LIVE_DIR}/.pathlab-runtime-safety.json")"
   CONTROLLER_FOUND=false
   if [[ -f "${CONTROL_STATE}" || -d "${CONTROLLER_DIR}" ]]; then
     CONTROLLER_FOUND=true
   fi
-  if [[ -f "${CONTROL_STATE}" ]]; then
-    jq -e --arg run "${RUN_ID}" --arg sha "${FAILED_SHA}" \
-      '.runId == $run and .workflowSha == $sha' "${CONTROL_STATE}" >/dev/null || \
-      fail "failed-run recovery binding does not match"
+  recovery_units=("pathlab-capacity-${RUN_ID}.service"
+    "pathlab-capacity-${RUN_ID}-abort-reconcile.service"
+    "pathlab-capacity-${RUN_ID}-controller-cleanup.timer"
+    "pathlab-capacity-${RUN_ID}-controller-cleanup.service")
+  loaded_units=()
+  for unit in "${recovery_units[@]}"; do
+    load_state="$(systemctl show --property=LoadState --value "${unit}")" || \
+      fail "recovery unit state is unavailable"
+    case "${load_state}" in
+      not-found) ;;
+      loaded|masked) loaded_units+=("${unit}") ;;
+      *) fail "recovery unit state is unproved" ;;
+    esac
+  done
+  if (( ${#loaded_units[@]} > 0 )); then
+    timeout --signal=TERM --kill-after=10s 60s systemctl stop "${loaded_units[@]}" \
+      >/dev/null 2>&1 || fail "recovery unit stop failed"
   fi
-  systemctl stop "pathlab-capacity-${RUN_ID}.service" \
-    "pathlab-capacity-${RUN_ID}-abort-reconcile.service" \
-    "pathlab-capacity-${RUN_ID}-controller-cleanup.timer" >/dev/null 2>&1 || true
+  for unit in "${loaded_units[@]}"; do
+    unit_state="$(systemctl show --property=ActiveState --value "${unit}")" || \
+      fail "recovery unit stop is unproved"
+    [[ "${unit_state}" == inactive ]] || fail "recovery unit remains active"
+  done
   RESTORE_NOT_AFTER="$(( $(date +%s) + 300 ))"
   status="$(bash "${LIVE_DIR}/deploy/scripts/restore-capacity-runtime.sh" \
     "${CURRENT_SHA}" "${MANIFEST_DIGEST}" "${RESTORE_NOT_AFTER}")" || \
@@ -400,6 +538,7 @@ fi
 
 if [[ "${REQUEST}" =~ ^capacity-abort[[:space:]]run=([a-z0-9-]{1,64})[[:space:]]digest=([0-9a-f]{64})$ ]]; then
   RUN_ID="${BASH_REMATCH[1]}"; DIGEST="${BASH_REMATCH[2]}"
+  begin_owned_mutation "${RUN_ID}"
   CONTROL_STATE="${STATE_DIR}/pathlab-capacity-${RUN_ID}-control.json"
   CONTROL="$(cat "${CONTROL_STATE}")"
   mapfile -t restore_binding < <(jq -er --arg digest "${DIGEST}" \
