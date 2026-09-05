@@ -75,6 +75,18 @@ jobs:
         run: |
           python scripts/validate_runtime_toolchain_admission.py
           ruff check scripts/validate_runtime_toolchain_admission.py scripts/verify_runtime_toolchain_sources.py tests/backend/test_runtime_toolchain_admission.py
+      - name: Validate deterministic software inventories
+        run: |
+          TOOLCHAIN_DIR="${RUNNER_TEMP}/pathlab-p0-t06-python-toolchain"
+          python -m pip install --target "${TOOLCHAIN_DIR}" --require-hashes \
+            -r docs/supply-chain/runtime-toolchain-requirements.txt
+          python scripts/validate_software_inventories.py
+          PYTHONPATH="${TOOLCHAIN_DIR}" python -m spdx_tools.spdx.clitools.pyspdxtools \
+            -i docs/supply-chain/software-inventories/source.spdx.json
+          PYTHONPATH="${TOOLCHAIN_DIR}" python -m spdx_tools.spdx.clitools.pyspdxtools \
+            -i docs/supply-chain/software-inventories/build.spdx.json
+          ruff check scripts/generate_software_inventories.py scripts/validate_software_inventories.py tests/backend/test_software_inventories.py
+          pytest -q tests/backend/test_software_inventories.py
       - name: Verify Python distribution license files
         run: |
           set -euo pipefail
