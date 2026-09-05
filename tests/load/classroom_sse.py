@@ -849,11 +849,25 @@ async def run() -> int:
     recorder = Recorder()
     admission_started_epoch_ms = int(time.time() * 1_000)
     admin = httpx.AsyncClient(base_url=base_url, timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS)
-    login = await asyncio.wait_for(
-        admin.post("/api/v1/auth/session", json={"username": username, "password": password}),
-        timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
-    )
-    login.raise_for_status()
+    login: httpx.Response | None = None
+    for attempt in range(5):
+        try:
+            login = await asyncio.wait_for(
+                admin.post("/api/v1/auth/session", json={"username": username, "password": password}),
+                timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
+            )
+            if login.status_code == 503 and attempt < 4:
+                await asyncio.sleep(0.5 * (attempt + 1))
+                continue
+            login.raise_for_status()
+            break
+        except (httpx.RequestError, TimeoutError):
+            if attempt < 4:
+                await asyncio.sleep(0.5 * (attempt + 1))
+                continue
+            raise
+    if login is None:
+        raise RuntimeError("failed to authenticate admin session")
     admin_csrf = login.json()["csrfToken"]
     initial_metrics_response = await asyncio.wait_for(
         get_with_retry(admin, "/api/v1/admin/classroom/metrics"),
@@ -864,13 +878,42 @@ async def run() -> int:
     async def join(sequence: int) -> Participant:
         await asyncio.sleep(sequence * JOIN_STAGGER_SECONDS)
         client = httpx.AsyncClient(base_url=base_url, timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS)
-        response = await asyncio.wait_for(
-            client.post("/api/v1/classroom/join", json={"joinCode": join_code}),
-            timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return Participant(sequence, client, payload["participant"]["id"], payload["csrfToken"])
+        attempts = 0
+        max_attempts = 10
+        while True:
+            attempts += 1
+            now_ms = int(time.time() * 1_000)
+            time_until_hold = (
+                (hold_start_epoch_ms - now_ms) / 1_000 if hold_start_epoch_ms else 60.0
+            )
+            can_retry = (time_until_hold > SSE_READY_RESERVE_SECONDS + 2) and (
+                attempts < max_attempts
+            )
+            try:
+                response = await asyncio.wait_for(
+                    client.post("/api/v1/classroom/join", json={"joinCode": join_code}),
+                    timeout=ADMISSION_REQUEST_TIMEOUT_SECONDS,
+                )
+                if response.status_code == 503 and can_retry:
+                    retry_header = response.headers.get("Retry-After", "0.5")
+                    try:
+                        base_delay = max(0.1, min(2.0, float(retry_header)))
+                    except ValueError:
+                        base_delay = 0.5
+                    jitter = ((sequence * 37 + attempts * 13) % 30) * 0.01
+                    await asyncio.sleep(base_delay + jitter)
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                return Participant(
+                    sequence, client, payload["participant"]["id"], payload["csrfToken"]
+                )
+            except (httpx.RequestError, TimeoutError):
+                if can_retry:
+                    jitter = ((sequence * 37 + attempts * 13) % 30) * 0.01
+                    await asyncio.sleep(0.5 + jitter)
+                    continue
+                raise
 
     participants = list(await asyncio.gather(*(join(index) for index in range(count))))
     remaining = (

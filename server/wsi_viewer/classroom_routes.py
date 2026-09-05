@@ -982,7 +982,10 @@ def register_classroom_routes(
         response: Response,
     ) -> Any:
         try:
-            await asyncio.wait_for(join_queue_lock.acquire(), timeout=mutation_gate.timeout_seconds)
+            await asyncio.wait_for(
+                join_queue_lock.acquire(),
+                timeout=max(2.0, mutation_gate.timeout_seconds),
+            )
         except TimeoutError as error:
             raise HTTPException(
                 status_code=503,
