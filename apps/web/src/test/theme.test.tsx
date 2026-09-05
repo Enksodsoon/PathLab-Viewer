@@ -182,6 +182,11 @@ it('keeps primary action text at WCAG AA normal-text contrast in both themes', (
     expect(primary).toBeDefined()
     expect(onPrimary).toBeDefined()
     expect(contrastRatio(onPrimary!, primary!)).toBeGreaterThanOrEqual(4.5)
+    const hover = block?.match(/--primary-hover:\s*(#[\da-f]{6})/i)?.[1]
+    const onHover = block?.match(/--on-primary-hover:\s*(#[\da-f]{6})/i)?.[1]
+    expect(hover).toBeDefined()
+    expect(onHover).toBeDefined()
+    expect(contrastRatio(onHover!, hover!)).toBeGreaterThanOrEqual(4.5)
   }
 })
 
@@ -190,7 +195,7 @@ it('uses a dedicated near-black navigator surface in dark mode', () => {
   const libraryCss = readFileSync('src/library.css', 'utf8')
   const darkBlock = themeCss.match(/\[data-theme='dark'\]\s*\{([\s\S]*?)\}/)?.[1]
 
-  expect(darkBlock).toContain('--navigator-surface: #06141d')
+  expect(darkBlock).toContain('--navigator-surface: #141310')
   expect(libraryCss).toContain('background: var(--navigator-surface)')
 })
 

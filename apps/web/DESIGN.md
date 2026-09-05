@@ -1,4 +1,4 @@
-# Independent PathLab identity design record
+# PathLab Viewer Canvas Focus design record
 
 > **Precedence status: `BASELINE_ONLY`.** This document controls the current UI
 > implementation only. The [Architecture Precedence
@@ -7,16 +7,18 @@
 > applicable accessibility, rights, and release contracts control destination
 > changes.
 
-PathLab Viewer uses an independently specified clinical-imaging identity based
-on instrument clarity, specimen mapping, and cool mineral colors. It does not
-use another product, brand, screenshot, or supplied reference as a design source.
+PathLab Viewer restores its warm cream/coral and charcoal/coral design from
+`7eb949a724b3450e67b227e34ad45bb65ec75c99`. The exact original login artwork,
+layered-slide mark, and square loader are governed by the
+[restoration receipt](../../docs/supply-chain/WARM_UI_ASSET_RECEIPT.json).
+No new visual concept or third-party design source is introduced.
 
 ## Foundations
 
 - Display type: Cormorant Garamond.
 - UI type: Source Sans 3.
-- Primary light canvas: `#f5f8fa`; primary dark canvas: `#081923`.
-- Teal identifies primary actions; violet is reserved for keyboard focus.
+- Primary light canvas: `#faf9f5`; primary dark canvas: `#181715`.
+- Coral is reserved for primary actions and high-value emphasis.
 - Light and dark modes preserve the same component geometry, spacing, radii,
   focus visibility, and semantic status meaning.
 
@@ -30,26 +32,30 @@ theme.
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| `--canvas` | `#f5f8fa` | `#081923` |
-| `--surface` | `#eaf1f4` | `#102936` |
-| `--surface-card` | `#e1ebef` | `#173644` |
-| `--surface-elevated` | `#ffffff` | `#1d4252` |
-| `--ink` | `#102a43` | `#f0f7fa` |
-| `--body` | `#334e68` | `#c7dce5` |
-| `--muted` | `#627d98` | `#91afbc` |
-| `--border` | `#bcccdc` | `#355765` |
-| `--border-soft` | `#d9e2ec` | `#274653` |
-| `--primary` | `#006d77` | `#45c4c9` |
-| `--primary-hover` | `#00545c` | `#74d8dc` |
-| `--on-primary` | `#ffffff` | `#061a22` |
-| `--focus` | `#7b2cbf` | `#c77dff` |
-| `--success` | `#24735a` | `#70d6a8` |
-| `--warning` | `#8a5d00` | `#f1c75b` |
-| `--danger` | `#a33a46` | `#ff8892` |
+| `--canvas` | `#faf9f5` | `#181715` |
+| `--surface` | `#f5f0e8` | `#1f1e1b` |
+| `--surface-card` | `#efe9de` | `#252320` |
+| `--surface-elevated` | `#ffffff` | `#2d2b27` |
+| `--ink` | `#141413` | `#faf9f5` |
+| `--body` | `#3d3d3a` | `#dedad2` |
+| `--muted` | `#6c6a64` | `#a09d96` |
+| `--border` | `#e6dfd8` | `#403d37` |
+| `--border-soft` | `#ebe6df` | `#34322e` |
+| `--primary` | `#cc785c` | `#e18a6d` |
+| `--primary-hover` | `#a9583e` | `#ef9b7e` |
+| `--on-primary` | `#141413` | `#181715` |
+| `--on-primary-hover` | `#ffffff` | `#181715` |
+| `--focus` | `#8f432e` | `#f0aa90` |
+| `--success` | `#3f7d4d` | `#72c486` |
+| `--warning` | `#936b00` | `#e8bb59` |
+| `--danger` | `#a33f35` | `#ef8175` |
 
 `--font-display` resolves to Cormorant Garamond with a Georgia fallback;
 `--font-ui` resolves to Source Sans 3 with a Segoe UI fallback.
 `--radius-control` is `8px` and `--radius-card` is `12px` in both modes.
+
+The original palette is preserved. Primary buttons use the dedicated hover
+foreground to retain 4.5:1 normal-text contrast on the darker coral hover fill.
 
 Viewer imagery uses the separate, mode-invariant `--viewer-stage: #090807` and
 `--viewer-on-stage: #f2eadc` values. The viewer stage, OpenSeadragon surface,
@@ -60,18 +66,18 @@ inversion, or blend mode.
 
 ### Authentication
 
-- Above `820px`, the entry surface uses two balanced functional columns; the form
-  column has a `460px` minimum and a CSS-only specimen field occupies the visual panel.
-- At `820px` and below, the surface becomes one scrolling column with the
-  specimen story above the form. Inputs remain at least `50px` high, the submit
+- Above `940px`, the entry surface uses `.94fr / 1.06fr` columns with the
+  form on the left and original theme-specific artwork on the right.
+- At `940px` and below, the surface becomes one scrolling column with the
+  form above the artwork. Inputs remain at least `50px` high, the submit
   action at least `54px`, and the secondary authentication action at least
   `44px`.
-- At `420px` and below, the story header stacks, the compact theme control moves
-  below the brand, and both story and form use `18px` inline padding.
+- At `520px` and below, the authentication header and content use compact
+  padding; theme controls retain 44px targets.
 
-### Library workspace
+### Canvas Focus library
 
-- Above `600px`, a sticky `72px` product rail anchors a centered content canvas
+- Above `600px`, a sticky collapsible `46px` product rail (`156px` expanded) anchors a centered content canvas
   capped at `1560px`. The library navigator is a fixed overlay up to `360px`
   wide, and slide details use a fixed right overlay up to `390px`; neither
   consumes a permanent content-grid column.
@@ -104,6 +110,6 @@ inversion, or blend mode.
 Text and controls require WCAG AA contrast in each theme. Keyboard focus uses
 the semantic `--focus` token with a `3px` outline. Theme selection is an
 accessible three-choice radio group; its compact controls are `44px`.
-Reduced-motion users bypass the GSAP authentication entrance, navigator and
+Reduced-motion users bypass the CSS authentication entrance, navigator and
 shared-rail transitions are removed, the indeterminate processing animation is
 disabled, and remaining CSS transitions are reduced to `0.01ms`.
