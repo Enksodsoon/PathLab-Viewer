@@ -1369,6 +1369,12 @@ def export_geojson(
     return {"type": "FeatureCollection", "features": features}
 
 
+def _csv_text_cell(value: str) -> str:
+    if value.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
+
+
 def export_csv(
     database: OrmSession,
     slide: Slide,
@@ -1403,8 +1409,8 @@ def export_csv(
         writer.writerow(
             {
                 "id": annotation.id,
-                "layer": layers[annotation.layer_id],
-                "title": metadata.title,
+                "layer": _csv_text_cell(layers[annotation.layer_id]),
+                "title": _csv_text_cell(metadata.title),
                 "type": geometry.type,
                 **measured,
             }

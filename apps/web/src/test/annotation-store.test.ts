@@ -135,6 +135,29 @@ describe('framework-neutral annotation editing store', () => {
     expect(store.exportPathLab().schema).toBe('pathlab-annotations/v1')
   })
 
+  it('carries formula-safe text through the store measurement CSV caller', () => {
+    const store = createAnnotationStore({ slideId: 'slide-1' })
+    store.load({
+      version: 1,
+      layers: [{ ...layer, name: ' \t=unsafe layer' }],
+      annotations: [{
+        ...annotation,
+        metadata: {
+          ...annotation.metadata,
+          title: '@unsafe title, with comma',
+          classification: '-unsafe classification',
+        },
+      }],
+    })
+
+    const csv = store.exportCsv()
+
+    expect(csv).toContain("' \t=unsafe layer")
+    expect(csv).toContain('"\'@unsafe title, with comma"')
+    expect(csv).toContain("'-unsafe classification")
+    expect(csv).toContain(',1200,px²,140,px,')
+  })
+
   it('attaches and always detaches overlay handlers after failure or disposal', () => {
     const store = createAnnotationStore({ slideId: 'slide-1' })
     const detach = vi.fn()

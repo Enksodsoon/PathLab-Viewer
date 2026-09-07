@@ -973,9 +973,24 @@ const CSV_FIELDS = [
   'count',
 ] as const
 
-function csvCell(value: unknown): string {
+const CSV_TEXT_FIELDS = new Set<(typeof CSV_FIELDS)[number]>([
+  'id',
+  'layer',
+  'title',
+  'classification',
+  'geometryType',
+  'areaUnit',
+  'perimeterUnit',
+  'lengthUnit',
+  'angleUnit',
+  'xUnit',
+  'yUnit',
+])
+
+function csvCell(value: unknown, textual: boolean): string {
   if (value === undefined || value === null) return ''
-  const text = String(value)
+  const raw = String(value)
+  const text = textual && /^[=+\-@]/.test(raw.trimStart()) ? `'${raw}` : raw
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 
@@ -1001,7 +1016,7 @@ export function exportMeasurementsCsv(rows: readonly CsvMeasurementRow[]): strin
       yUnit: row.values.yUnit,
       count: row.values.count,
     }
-    return CSV_FIELDS.map((field) => csvCell(values[field])).join(',')
+    return CSV_FIELDS.map((field) => csvCell(values[field], CSV_TEXT_FIELDS.has(field))).join(',')
   })
   return `\uFEFF${CSV_FIELDS.join(',')}\r\n${body.map((row) => `${row}\r\n`).join('')}`
 }
