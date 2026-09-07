@@ -28,9 +28,9 @@ Source: docker.io/library/caddy
 Blockers: IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED
 Notice files: NONE RECORDED
 
-ID: container:node@sha256:ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63
+ID: container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d
 Name: node
-Version: 26.7.0-alpine3.23
+Version: 26.8.1-alpine3.23
 License: UNKNOWN
 Admission: BLOCKED
 Source: docker.io/library/node
@@ -948,6 +948,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
+ID: npm:@isaacs/cliui@8.0.2
+Name: @isaacs/cliui
+Version: 8.0.2
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@isaacs%2Fcliui/8.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:2dc0465729366c3a7890dfa9e972a1ba7048a26c02116fb8b419a6a1ac110149
+
 ID: npm:@jridgewell/gen-mapping@0.3.13
 Name: @jridgewell/gen-mapping
 Version: 0.3.13
@@ -1022,6 +1032,16 @@ Notice files:
   - package/dist/defs/Copyright.es.js sha256:41b85edab0ce43c343109ae70d7397297497959a05ac20d8844c2b435e62b14f
   - package/dist/ssr/Copyright.d.ts sha256:d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483
   - package/dist/ssr/Copyright.es.js sha256:f37b1c16b366d1416cb7a8a2f03a7037d45a919a722b4f3fb91cbac084af7fa6
+
+ID: npm:@pkgjs/parseargs@0.11.0
+Name: @pkgjs/parseargs
+Version: 0.11.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@pkgjs%2Fparseargs/0.11.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
 ID: npm:@playwright/test@1.62.1
 Name: @playwright/test
@@ -1389,22 +1409,22 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:bf8fd38056b7606deccfcadb4d8ca1c210082d8ef5513426d2650daedc30bed3
 
-ID: npm:@testing-library/react@16.3.2
+ID: npm:@testing-library/react@16.3.3
 Name: @testing-library/react
-Version: 16.3.2
+Version: 16.3.3
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@testing-library%2Freact/16.3.2
+Source: https://registry.npmjs.org/@testing-library%2Freact/16.3.3
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:9680978280d509520d2a7b51e93ffbf7d9ec2b9de4411a6989daba5b659048e0
 
-ID: npm:@testing-library/user-event@14.6.3
+ID: npm:@testing-library/user-event@14.6.7
 Name: @testing-library/user-event
-Version: 14.6.3
+Version: 14.6.7
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@testing-library%2Fuser-event/14.6.3
+Source: https://registry.npmjs.org/@testing-library%2Fuser-event/14.6.7
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:b5a4028c49c48f820831421de69c8ea83d621a062914bf16739fd0703c7c9fba
@@ -1499,22 +1519,22 @@ Blockers: NONE
 Notice files:
   - json-schema/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
 
-ID: npm:@types/node@26.2.0
+ID: npm:@types/node@26.4.1
 Name: @types/node
-Version: 26.2.0
+Version: 26.4.1
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@types%2Fnode/26.2.0
+Source: https://registry.npmjs.org/@types%2Fnode/26.4.1
 Blockers: NONE
 Notice files:
   - node/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
 
-ID: npm:@types/react-dom@19.2.4
+ID: npm:@types/react-dom@19.2.7
 Name: @types/react-dom
-Version: 19.2.4
+Version: 19.2.7
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@types%2Freact-dom/19.2.4
+Source: https://registry.npmjs.org/@types%2Freact-dom/19.2.7
 Blockers: NONE
 Notice files:
   - react-dom/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
@@ -1529,102 +1549,102 @@ Blockers: NONE
 Notice files:
   - react/LICENSE sha256:c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383
 
-ID: npm:@typescript-eslint/eslint-plugin@8.67.0
+ID: npm:@typescript-eslint/eslint-plugin@8.69.0
 Name: @typescript-eslint/eslint-plugin
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Feslint-plugin/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Feslint-plugin/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
 
-ID: npm:@typescript-eslint/parser@8.67.0
+ID: npm:@typescript-eslint/parser@8.69.0
 Name: @typescript-eslint/parser
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Fparser/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Fparser/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
 
-ID: npm:@typescript-eslint/project-service@8.67.0
+ID: npm:@typescript-eslint/project-service@8.69.0
 Name: @typescript-eslint/project-service
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Fproject-service/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Fproject-service/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:053a75a14b7508a897466b65e12797201a06b0e9b5066d1223da72cac99601b5
 
-ID: npm:@typescript-eslint/scope-manager@8.67.0
+ID: npm:@typescript-eslint/scope-manager@8.69.0
 Name: @typescript-eslint/scope-manager
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Fscope-manager/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Fscope-manager/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
 
-ID: npm:@typescript-eslint/tsconfig-utils@8.67.0
+ID: npm:@typescript-eslint/tsconfig-utils@8.69.0
 Name: @typescript-eslint/tsconfig-utils
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Ftsconfig-utils/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftsconfig-utils/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:053a75a14b7508a897466b65e12797201a06b0e9b5066d1223da72cac99601b5
 
-ID: npm:@typescript-eslint/type-utils@8.67.0
+ID: npm:@typescript-eslint/type-utils@8.69.0
 Name: @typescript-eslint/type-utils
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Ftype-utils/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftype-utils/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:f3c51ace7f159b21566d72535e84ff354505ae7ffdca835dac81fcdafbf9e879
 
-ID: npm:@typescript-eslint/types@8.67.0
+ID: npm:@typescript-eslint/types@8.69.0
 Name: @typescript-eslint/types
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Ftypes/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftypes/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
 
-ID: npm:@typescript-eslint/typescript-estree@8.67.0
+ID: npm:@typescript-eslint/typescript-estree@8.69.0
 Name: @typescript-eslint/typescript-estree
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Ftypescript-estree/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Ftypescript-estree/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
 
-ID: npm:@typescript-eslint/utils@8.67.0
+ID: npm:@typescript-eslint/utils@8.69.0
 Name: @typescript-eslint/utils
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Futils/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Futils/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
 
-ID: npm:@typescript-eslint/visitor-keys@8.67.0
+ID: npm:@typescript-eslint/visitor-keys@8.69.0
 Name: @typescript-eslint/visitor-keys
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@typescript-eslint%2Fvisitor-keys/8.67.0
+Source: https://registry.npmjs.org/@typescript-eslint%2Fvisitor-keys/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
@@ -1639,75 +1659,95 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:29b68325fe026047d13e187b44c33b2acacf7dc647dec4583702e59f235e13b5
 
-ID: npm:@vitest/expect@4.1.10
+ID: npm:@vitest/expect@4.1.11
 Name: @vitest/expect
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Fexpect/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Fexpect/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
 
-ID: npm:@vitest/mocker@4.1.10
+ID: npm:@vitest/mocker@4.1.11
 Name: @vitest/mocker
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Fmocker/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Fmocker/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
 
-ID: npm:@vitest/pretty-format@4.1.10
+ID: npm:@vitest/pretty-format@4.1.11
 Name: @vitest/pretty-format
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Fpretty-format/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Fpretty-format/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
 
-ID: npm:@vitest/runner@4.1.10
+ID: npm:@vitest/runner@4.1.11
 Name: @vitest/runner
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Frunner/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Frunner/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
 
-ID: npm:@vitest/snapshot@4.1.10
+ID: npm:@vitest/snapshot@4.1.11
 Name: @vitest/snapshot
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Fsnapshot/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Fsnapshot/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
 
-ID: npm:@vitest/spy@4.1.10
+ID: npm:@vitest/spy@4.1.11
 Name: @vitest/spy
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Fspy/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Fspy/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
 
-ID: npm:@vitest/utils@4.1.10
+ID: npm:@vitest/utils@4.1.11
 Name: @vitest/utils
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/@vitest%2Futils/4.1.10
+Source: https://registry.npmjs.org/@vitest%2Futils/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:04575fc5bfae19a9b63100f8691f901a2e15a399011ac02db435a9ef27295551
+
+ID: npm:@xmldom/xmldom@0.8.15
+Name: @xmldom/xmldom
+Version: 0.8.15
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@xmldom%2Fxmldom/0.8.15
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:4da724fc305d81606b245b324d4d2586916b9d248b23d82183df753ace0fdf71
+
+ID: npm:abort-controller@3.0.0
+Name: abort-controller
+Version: 3.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/abort-controller/3.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:dbbf03317f0101fed5643cd87ca80fb769e358fa4f428445bf2315deeb23a154
 
 ID: npm:acorn-jsx@5.3.2
 Name: acorn-jsx
@@ -1749,6 +1789,16 @@ Blockers: NONE
 Notice files:
   - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
 
+ID: npm:ansi-regex@6.3.0
+Name: ansi-regex
+Version: 6.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ansi-regex/6.3.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
 ID: npm:ansi-styles@4.3.0
 Name: ansi-styles
 Version: 4.3.0
@@ -1768,6 +1818,36 @@ Source: https://registry.npmjs.org/ansi-styles/5.2.0
 Blockers: NONE
 Notice files:
   - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:ansi-styles@6.2.3
+Name: ansi-styles
+Version: 6.2.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ansi-styles/6.2.3
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:archiver-utils@5.0.2
+Name: archiver-utils
+Version: 5.0.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/archiver-utils/5.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9fe335fb097fbff0b7f709ee14a77b1d1cf739d3400cd0b0e19118946772ea56
+
+ID: npm:archiver@7.0.1
+Name: archiver
+Version: 7.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/archiver/7.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:9e23899170d96e708b24a2afce11e96d169c8cebf1bd24ac60b675a400cb1cf1
 
 ID: npm:argparse@2.0.1
 Name: argparse
@@ -1809,6 +1889,26 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2130216d5ab4c02134f8247f32999feda0abe1eaf028218baeac445c19ce4cea
 
+ID: npm:async@3.2.6
+Name: async
+Version: 3.2.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/async/3.2.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d9fed24f132985934fca621c4dc1dfb53e03377a24d0568d424383d7eaa9c0ac
+
+ID: npm:b4a@1.8.1
+Name: b4a
+Version: 1.8.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/b4a/1.8.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
 ID: npm:balanced-match@4.0.4
 Name: balanced-match
 Version: 4.0.4
@@ -1818,6 +1918,67 @@ Source: https://registry.npmjs.org/balanced-match/4.0.4
 Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:d408f38ffa3355c5faec517153295338892eb0f1ea43f57874bb23c6075979b5
+
+ID: npm:bare-events@2.9.2
+Name: bare-events
+Version: 2.9.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bare-events/2.9.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:bare-fs@4.8.1
+Name: bare-fs
+Version: 4.8.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bare-fs/4.8.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:bare-path@3.1.2
+Name: bare-path
+Version: 3.1.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bare-path/3.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+  - package/NOTICE sha256:fd4098360de4b9fb2e003ac7c852e8c86f264a1d6e27c47128e8c8075c81249b
+
+ID: npm:bare-stream@2.13.4
+Name: bare-stream
+Version: 2.13.4
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bare-stream/2.13.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:bare-url@2.5.4
+Name: bare-url
+Version: 2.5.4
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bare-url/2.5.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:base64-js@1.5.1
+Name: base64-js
+Version: 1.5.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/base64-js/1.5.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5b37224c080cdcc97c871ada971c224e9926370fe74f11b539aa1cf9f3b1aca1
 
 ID: npm:baseline-browser-mapping@2.11.14
 Name: baseline-browser-mapping
@@ -1839,6 +2000,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.txt sha256:49d4d143fed599deb502a0fe6e02f49832f87e9a3a4cd0502e469596d50faa6d
 
+ID: npm:bluebird@3.7.2
+Name: bluebird
+Version: 3.7.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/bluebird/3.7.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:87092fe7ffd1e92eba5d1dd39b73a73fdb4fdd4df3474beacc3d9f6b08ece82c
+
 ID: npm:brace-expansion@5.0.9
 Name: brace-expansion
 Version: 5.0.9
@@ -1859,6 +2030,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:21c2679a63d7699c0e644409e2f17d0adbc7a965003feb06b3ff4b833d21f722
 
+ID: npm:buffer-crc32@1.0.0
+Name: buffer-crc32
+Version: 1.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/buffer-crc32/1.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:ddc9158fa20e427bc12fa8e1e6d07c642ed4d2c618607df768b30ae2986b3b7c
+
 ID: npm:buffer-from@1.1.2
 Name: buffer-from
 Version: 1.1.2
@@ -1868,6 +2049,16 @@ Source: https://registry.npmjs.org/buffer-from/1.1.2
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:14275f5c8139d02054c5259d52a88ccbba662a86af18c30f071c8d082dc6004c
+
+ID: npm:buffer@6.0.3
+Name: buffer
+Version: 6.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/buffer/6.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:06bafa45fdad2579ba0e43b0c9b2c6290287c99c4203c300254a462b38a307f6
 
 ID: npm:callsites@3.1.0
 Name: callsites
@@ -1929,6 +2120,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:c064f7a3e353bc1bc977f3c897941c75ef763f44f41677e0a15370ca0853d6e2
 
+ID: npm:compress-commons@6.0.2
+Name: compress-commons
+Version: 6.0.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/compress-commons/6.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231
+
 ID: npm:convert-source-map@2.0.0
 Name: convert-source-map
 Version: 2.0.0
@@ -1948,6 +2149,36 @@ Source: https://registry.npmjs.org/cookie/1.1.1
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858
+
+ID: npm:core-util-is@1.0.3
+Name: core-util-is
+Version: 1.0.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/core-util-is/1.0.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:33b734d60042d0fe0c92dd1fc1e874193a1c899ec3e276a2eb935d2d0bf5b710
+
+ID: npm:crc-32@1.2.2
+Name: crc-32
+Version: 1.2.2
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/crc-32/1.2.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c542ba7851b5d39a5face477e47a27cb7c00a9759e321b66824e79718bffe1ac
+
+ID: npm:crc32-stream@6.0.0
+Name: crc32-stream
+Version: 6.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/crc32-stream/6.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231
 
 ID: npm:cross-spawn@7.0.6
 Name: cross-spawn
@@ -2069,6 +2300,25 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:0ffe67fe630169de46df2d29dc18f5857b4c98f0f95b0cd9e3c21fef51f9a9b8
 
+ID: npm:duplexer2@0.1.4
+Name: duplexer2
+Version: 0.1.4
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/duplexer2/0.1.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:252a200ba7a38686f7954ec4cb09b3ad7788fa099eb724de167d7ab16b1244b9
+
+ID: npm:eastasianwidth@0.2.0
+Name: eastasianwidth
+Version: 0.2.0
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/eastasianwidth/0.2.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
 ID: npm:electron-to-chromium@1.5.406
 Name: electron-to-chromium
 Version: 1.5.406
@@ -2078,6 +2328,26 @@ Source: https://registry.npmjs.org/electron-to-chromium/1.5.406
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:25ba5c59dad3e0dd8f9540beaa0f0a86a10e3aec35af5fdc8e88c5f6a5c0d8c6
+
+ID: npm:emoji-regex@8.0.0
+Name: emoji-regex
+Version: 8.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/emoji-regex/8.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT.txt sha256:483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a
+
+ID: npm:emoji-regex@9.2.2
+Name: emoji-regex
+Version: 9.2.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/emoji-regex/9.2.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE-MIT.txt sha256:483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a
 
 ID: npm:entities@8.0.0
 Name: entities
@@ -2139,12 +2409,12 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
 
-ID: npm:eslint-plugin-react-refresh@0.5.4
+ID: npm:eslint-plugin-react-refresh@0.5.6
 Name: eslint-plugin-react-refresh
-Version: 0.5.4
+Version: 0.5.6
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/eslint-plugin-react-refresh/0.5.4
+Source: https://registry.npmjs.org/eslint-plugin-react-refresh/0.5.6
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:fba570176c68f716676e04cad6c39fb56b763e44fc11be22fe6863ff19092a9b
@@ -2258,6 +2528,36 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.BSD sha256:0e74697a68cebdcd61502c30fe80ab7f9e341d995dcd452023654d57133534b1
 
+ID: npm:event-target-shim@5.0.1
+Name: event-target-shim
+Version: 5.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/event-target-shim/5.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:97d87142793695cd73243de7258694abe85b3b6060fca7f247b0a2afa8219678
+
+ID: npm:events-universal@1.0.1
+Name: events-universal
+Version: 1.0.1
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/events-universal/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
+ID: npm:events@3.3.0
+Name: events
+Version: 3.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/events/3.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:631987b7616a325a5b97566c232418481ddf7dbb5ecadefb991e791876cc2599
+
 ID: npm:expect-type@1.4.0
 Name: expect-type
 Version: 1.4.0
@@ -2277,6 +2577,16 @@ Source: https://registry.npmjs.org/fast-deep-equal/3.1.3
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a
+
+ID: npm:fast-fifo@1.3.2
+Name: fast-fifo
+Version: 1.3.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fast-fifo/1.3.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:41a2aa55a9ebad3df900cf37fded512714a127f4300ef54b978f834a11ec4d48
 
 ID: npm:fast-json-stable-stringify@2.1.0
 Name: fast-json-stable-stringify
@@ -2308,6 +2618,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:9a39f2aadab11a3697edd668ff2d8ad885b649737b7ab4d3bf12b34e5ada0c86
 
+ID: npm:fflate@0.8.3
+Name: fflate
+Version: 0.8.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fflate/0.8.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551
+
 ID: npm:file-entry-cache@8.0.0
 Name: file-entry-cache
 Version: 8.0.0
@@ -2317,6 +2637,16 @@ Source: https://registry.npmjs.org/file-entry-cache/8.0.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:a0e2f73971f663b49d3c66cc6749fc88de0f475680ccf5b980a9cbcc0c52490f
+
+ID: npm:file-saver@2.0.5
+Name: file-saver
+Version: 2.0.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/file-saver/2.0.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:2d1d7a93b46e4274355ac2904428707c4ee47ee8c6029fa394ebf405648d3f63
 
 ID: npm:find-up@5.0.0
 Name: find-up
@@ -2358,6 +2688,26 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:148718606d34f467fd08a2176bb4c1ab275f999576f779368503d8d3e3642861
 
+ID: npm:foreground-child@3.3.1
+Name: foreground-child
+Version: 3.3.1
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/foreground-child/3.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:93f5d82a8d59442fe3275383453a255fef761647fb28265644010ba799806148
+
+ID: npm:fs-extra@11.3.1
+Name: fs-extra
+Version: 11.3.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/fs-extra/11.3.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c6a7de1428955aa5a692f4d3a3d3ede658d959616944713337cda296736442e1
+
 ID: npm:fsevents@2.3.2
 Name: fsevents
 Version: 2.3.2
@@ -2398,6 +2748,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:fc68eb8f1c8e1d6b8be50f3c177927e24791cae7dc251e6253a012f37926a30c
 
+ID: npm:glob@10.5.0
+Name: glob
+Version: 10.5.0
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/glob/10.5.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:cdbc258d13806538e727964c2436a8806e6e2496ccd616224aace6f7bf98dbc1
+
 ID: npm:globals@14.0.0
 Name: globals
 Version: 14.0.0
@@ -2408,12 +2768,12 @@ Blockers: NONE
 Notice files:
   - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
 
-ID: npm:globals@17.9.0
+ID: npm:globals@17.12.0
 Name: globals
-Version: 17.9.0
+Version: 17.12.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/globals/17.9.0
+Source: https://registry.npmjs.org/globals/17.12.0
 Blockers: NONE
 Notice files:
   - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
@@ -2457,6 +2817,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.txt sha256:528eec83cb836a0adda9f8fc3d6a2a70a710d6cc0be9a155f92212c8df28acfa
 
+ID: npm:ieee754@1.2.1
+Name: ieee754
+Version: 1.2.1
+License: BSD-3-Clause
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/ieee754/1.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:18d45466ba3253deae04667e267a91ea8de8548f18c1125264d1c9db28194cc1
+
 ID: npm:ignore@5.3.2
 Name: ignore
 Version: 5.3.2
@@ -2476,6 +2846,16 @@ Source: https://registry.npmjs.org/ignore/7.0.6
 Blockers: NONE
 Notice files:
   - package/LICENSE-MIT sha256:9c94db23dc4b1e9aaee5d195668b916afc71efed54af226b66cf0ccc4389c1c0
+
+ID: npm:immediate@3.0.6
+Name: immediate
+Version: 3.0.6
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/immediate/3.0.6
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:809e66de579fb7d92503848bbe6d1f348f4f6521a71e5d294fe7cc0c87a3b4ff
 
 ID: npm:import-fresh@3.3.1
 Name: import-fresh
@@ -2506,6 +2886,16 @@ Blockers: NONE
 Notice files:
   - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
 
+ID: npm:inherits@2.0.4
+Name: inherits
+Version: 2.0.4
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/inherits/2.0.4
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b
+
 ID: npm:is-extglob@2.1.1
 Name: is-extglob
 Version: 2.1.1
@@ -2515,6 +2905,16 @@ Source: https://registry.npmjs.org/is-extglob/2.1.1
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:73b5283588baa142c5baaef5f56d3e8fdea7a30b214e8c5737e87640f882453a
+
+ID: npm:is-fullwidth-code-point@3.0.0
+Name: is-fullwidth-code-point
+Version: 3.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/is-fullwidth-code-point/3.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
 
 ID: npm:is-glob@4.0.3
 Name: is-glob
@@ -2546,6 +2946,15 @@ Blockers: NONE
 Notice files:
   - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
 
+ID: npm:isarray@1.0.0
+Name: isarray
+Version: 1.0.0
+License: MIT
+Admission: BLOCKED
+Source: https://registry.npmjs.org/isarray/1.0.0
+Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
+Notice files: NONE RECORDED
+
 ID: npm:isexe@2.0.0
 Name: isexe
 Version: 2.0.0
@@ -2555,6 +2964,16 @@ Source: https://registry.npmjs.org/isexe/2.0.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b
+
+ID: npm:jackspeak@3.4.3
+Name: jackspeak
+Version: 3.4.3
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/jackspeak/3.4.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:2c7c5d22ed5a8ee968c64757710979afcd77438c48b4a265b94e615babd8a901
 
 ID: npm:js-base64@3.9.1
 Name: js-base64
@@ -2646,6 +3065,27 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:53e59feb13058722d977c699eb0407c7bce2f93c949b681bbd2ff31698535927
 
+ID: npm:jsonfile@6.2.1
+Name: jsonfile
+Version: 6.2.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/jsonfile/6.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a9801fb52ba22ef808682a094da8a7a480584b7ed0dfd0d888ab543616335031
+
+ID: npm:jszip@3.10.1
+Name: jszip
+Version: 3.10.1
+License: (MIT OR GPL-3.0-or-later)
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/jszip/3.10.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.markdown sha256:566c953c6090b1218ca6217dd7359d45dde46581968586dc607d59a78af6a9c4
+  - package/lib/license_header.js sha256:27873abeec2df3693480a8d1b8fe17dd61bee843d1b39c1c9cfab57ffe93099e
+
 ID: npm:keyv@4.5.4
 Name: keyv
 Version: 4.5.4
@@ -2654,6 +3094,16 @@ Admission: BLOCKED
 Source: https://registry.npmjs.org/keyv/4.5.4
 Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
 Notice files: NONE RECORDED
+
+ID: npm:lazystream@1.0.1
+Name: lazystream
+Version: 1.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lazystream/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:e7f5d28405c9fe6580db684634bace66953055b436d7fbb6f860d0c800c44a9f
 
 ID: npm:levn@0.4.1
 Name: levn
@@ -2664,6 +3114,16 @@ Source: https://registry.npmjs.org/levn/0.4.1
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:b9eb082c39fe245e38793699074c394c43a722c51fce031c3c165cb92a31035c
+
+ID: npm:lie@3.3.0
+Name: lie
+Version: 3.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lie/3.3.0
+Blockers: NONE
+Notice files:
+  - package/license.md sha256:5c81b0caa98593408b03125efa25efe622341ed87ae55561968828cd887d64a4
 
 ID: npm:lightningcss-android-arm64@1.33.0
 Name: lightningcss-android-arm64
@@ -2815,6 +3275,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272
 
+ID: npm:lodash@4.18.1
+Name: lodash
+Version: 4.18.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lodash/4.18.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc
+
 ID: npm:long@5.3.2
 Name: long
 Version: 5.3.2
@@ -2824,6 +3294,16 @@ Source: https://registry.npmjs.org/long/5.3.2
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+ID: npm:lru-cache@10.4.3
+Name: lru-cache
+Version: 10.4.3
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/lru-cache/10.4.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:451ec07eeb9c4e1b86de9abdaa426462a8be48f887ec7421cf0bbb9c769555ab
 
 ID: npm:lru-cache@11.5.2
 Name: lru-cache
@@ -2905,6 +3385,36 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:2c7c5d22ed5a8ee968c64757710979afcd77438c48b4a265b94e615babd8a901
 
+ID: npm:minimatch@5.1.9
+Name: minimatch
+Version: 5.1.9
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/minimatch/5.1.9
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d11323827fa4edeaafc437cc5b91b6971b335f0127efeeb42bf5122fe8657e8f
+
+ID: npm:minimatch@9.0.9
+Name: minimatch
+Version: 9.0.9
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/minimatch/9.0.9
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:d11323827fa4edeaafc437cc5b91b6971b335f0127efeeb42bf5122fe8657e8f
+
+ID: npm:minipass@7.1.3
+Name: minipass
+Version: 7.1.3
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/minipass/7.1.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004
+
 ID: npm:ms@2.1.3
 Name: ms
 Version: 2.1.3
@@ -2934,6 +3444,16 @@ Source: https://registry.npmjs.org/natural-compare/1.4.0
 Blockers: NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE
 Notice files: NONE RECORDED
 
+ID: npm:node-int64@0.4.0
+Name: node-int64
+Version: 0.4.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/node-int64/0.4.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8f85aab053e268546014761da47630a09886626afbd0d8d440cb2c69611bb8d3
+
 ID: npm:node-releases@2.0.53
 Name: node-releases
 Version: 2.0.53
@@ -2943,6 +3463,16 @@ Source: https://registry.npmjs.org/node-releases/2.0.53
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:3706296ed611888111ceccc1dff4712844dea4bde0b185c82d718c3b69895abe
+
+ID: npm:normalize-path@3.0.0
+Name: normalize-path
+Version: 3.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/normalize-path/3.0.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:e70ff771504ba41f2be55de812a017ff46433d7a250c862e38fc419159e44500
 
 ID: npm:obug@2.1.4
 Name: obug
@@ -3012,6 +3542,26 @@ Blockers: NONE
 Notice files:
   - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
 
+ID: npm:package-json-from-dist@1.0.1
+Name: package-json-from-dist
+Version: 1.0.1
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/package-json-from-dist/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09
+
+ID: npm:pako@1.0.11
+Name: pako
+Version: 1.0.11
+License: (MIT AND Zlib)
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/pako/1.0.11
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539
+
 ID: npm:parent-module@1.0.1
 Name: parent-module
 Version: 1.0.1
@@ -3051,6 +3601,16 @@ Source: https://registry.npmjs.org/path-key/3.1.1
 Blockers: NONE
 Notice files:
   - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:path-scurry@1.11.1
+Name: path-scurry
+Version: 1.11.1
+License: BlueOak-1.0.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/path-scurry/1.11.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE.md sha256:8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004
 
 ID: npm:pathe@2.0.3
 Name: pathe
@@ -3154,6 +3714,26 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85
 
+ID: npm:process-nextick-args@2.0.1
+Name: process-nextick-args
+Version: 2.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/process-nextick-args/2.0.1
+Blockers: NONE
+Notice files:
+  - package/license.md sha256:ecdccbcf39024f624ded480c01c0b25458e1eca8f26ecf040933865ce56d9a4f
+
+ID: npm:process@0.11.10
+Name: process
+Version: 0.11.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/process/0.11.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:59a400d04c5078579acc27ddd6452c1bdf763f9506e01364700935fbb1a7c91b
+
 ID: npm:proper-lockfile@4.1.2
 Name: proper-lockfile
 Version: 4.1.2
@@ -3255,22 +3835,22 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
 
-ID: npm:react-router-dom@7.18.2
+ID: npm:react-router-dom@7.18.3
 Name: react-router-dom
-Version: 7.18.2
+Version: 7.18.3
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/react-router-dom/7.18.2
+Source: https://registry.npmjs.org/react-router-dom/7.18.3
 Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49
 
-ID: npm:react-router@7.18.2
+ID: npm:react-router@7.18.3
 Name: react-router
-Version: 7.18.2
+Version: 7.18.3
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/react-router/7.18.2
+Source: https://registry.npmjs.org/react-router/7.18.3
 Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49
@@ -3284,6 +3864,46 @@ Source: https://registry.npmjs.org/react/19.2.8
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93
+
+ID: npm:read-excel-file@6.0.1
+Name: read-excel-file
+Version: 6.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/read-excel-file/6.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8cf9b31947daf7adb4a7a00a037459e58241af050cd0a603bfcf1756e533f75e
+
+ID: npm:readable-stream@2.3.8
+Name: readable-stream
+Version: 2.3.8
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/readable-stream/2.3.8
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:ec62dc96da0099b87f4511736c87309335527fb7031639493e06c95728dc8c54
+
+ID: npm:readable-stream@4.7.0
+Name: readable-stream
+Version: 4.7.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/readable-stream/4.7.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:ec62dc96da0099b87f4511736c87309335527fb7031639493e06c95728dc8c54
+
+ID: npm:readdir-glob@1.1.3
+Name: readdir-glob
+Version: 1.1.3
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/readdir-glob/1.1.3
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8cd23e2d76d2791765f7dd1025a9df99d81db91da9e2701f283987a1c0435aa3
 
 ID: npm:redent@3.0.0
 Name: redent
@@ -3355,6 +3975,26 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:fa1bd040c5bdeefe65b3821cebf474f2733ce65df13089bd151dda1778e62fe8
 
+ID: npm:safe-buffer@5.1.2
+Name: safe-buffer
+Version: 5.1.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/safe-buffer/5.1.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c7cc929b57080f4b9d0c6cf57669f0463fc5b39906344dfc8d3bc43426b30eac
+
+ID: npm:safe-buffer@5.2.1
+Name: safe-buffer
+Version: 5.2.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/safe-buffer/5.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c7cc929b57080f4b9d0c6cf57669f0463fc5b39906344dfc8d3bc43426b30eac
+
 ID: npm:saxes@6.0.0
 Name: saxes
 Version: 6.0.0
@@ -3404,6 +4044,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:c5c6c5183a789d122f267c405f685037efb87e27fcde28ab1dd7378a2d2f5962
 
+ID: npm:setimmediate@1.0.5
+Name: setimmediate
+Version: 1.0.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/setimmediate/1.0.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:c4b4ad3a5746f1f5249a6dd90396ec519264e1bb02e01e48a6522c48a3a97cb4
+
 ID: npm:shebang-command@2.0.0
 Name: shebang-command
 Version: 2.0.0
@@ -3444,6 +4094,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.txt sha256:e05b1eaf5b5f99b7ad75cd1f38858ff9a311780b97715ead67936d60bf96aa7e
 
+ID: npm:signal-exit@4.1.0
+Name: signal-exit
+Version: 4.1.0
+License: ISC
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/signal-exit/4.1.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE.txt sha256:b173e19b9a78df305577ace0e52ef45a4bcc915ea28b47b256dc3b68dcb1f7e7
+
 ID: npm:source-map-js@1.2.1
 Name: source-map-js
 Version: 1.2.1
@@ -3481,6 +4141,76 @@ Source: https://registry.npmjs.org/std-env/4.2.0
 Blockers: NONE
 Notice files:
   - package/LICENCE sha256:a6f36438e46fb911859f3b9c4cad045ba64e1af3d8f4512c60258fa2d7552d28
+
+ID: npm:streamx@2.28.1
+Name: streamx
+Version: 2.28.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/streamx/2.28.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:41a2aa55a9ebad3df900cf37fded512714a127f4300ef54b978f834a11ec4d48
+
+ID: npm:string-width@4.2.3
+Name: string-width
+Version: 4.2.3
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/string-width/4.2.3
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:string-width@5.1.2
+Name: string-width
+Version: 5.1.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/string-width/5.1.2
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:string_decoder@1.1.1
+Name: string_decoder
+Version: 1.1.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/string_decoder/1.1.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b
+
+ID: npm:string_decoder@1.3.0
+Name: string_decoder
+Version: 1.3.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/string_decoder/1.3.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b
+
+ID: npm:strip-ansi@6.0.1
+Name: strip-ansi
+Version: 6.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/strip-ansi/6.0.1
+Blockers: NONE
+Notice files:
+  - package/license sha256:48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0
+
+ID: npm:strip-ansi@7.2.0
+Name: strip-ansi
+Version: 7.2.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/strip-ansi/7.2.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
 
 ID: npm:strip-indent@3.0.0
 Name: strip-indent
@@ -3521,6 +4251,36 @@ Source: https://registry.npmjs.org/symbol-tree/3.2.4
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:9ea1eccdabe469767a9edb9249a840b2461cf91b2434bf8a3e2fc1f414311cb1
+
+ID: npm:tar-stream@3.2.1
+Name: tar-stream
+Version: 3.2.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/tar-stream/3.2.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6
+
+ID: npm:teex@1.0.1
+Name: teex
+Version: 1.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/teex/1.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:69b1ce578ad0aa97ce5302c7cb8d507c2fbe5a670712b02f0b4a2b95cae3184a
+
+ID: npm:text-decoder@1.2.7
+Name: text-decoder
+Version: 1.2.7
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/text-decoder/1.2.7
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
 ID: npm:tinybench@2.9.0
 Name: tinybench
@@ -3632,12 +4392,12 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:b9eb082c39fe245e38793699074c394c43a722c51fce031c3c165cb92a31035c
 
-ID: npm:typescript-eslint@8.67.0
+ID: npm:typescript-eslint@8.69.0
 Name: typescript-eslint
-Version: 8.67.0
+Version: 8.69.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/typescript-eslint/8.67.0
+Source: https://registry.npmjs.org/typescript-eslint/8.69.0
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2eb5c7a0bba9deb77a98c81bf6b9d3fb1c67118eebf968b6b1a787b3f8928ee0
@@ -3672,6 +4432,26 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27
 
+ID: npm:universalify@2.0.1
+Name: universalify
+Version: 2.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/universalify/2.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:3fda5977c0904e226190b4e21d64340c1731e2142d6fe5f3dee0090a216b8b63
+
+ID: npm:unzipper@0.12.5
+Name: unzipper
+Version: 0.12.5
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/unzipper/0.12.5
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:b9e9abeaf8b92573dc28915d4948dbce30d55b30c688d109898b35e6105c4215
+
 ID: npm:update-browserslist-db@1.3.1
 Name: update-browserslist-db
 Version: 1.3.1
@@ -3702,6 +4482,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:3b2a6a268aa815dec121d614245e03b5c68db1f044d5b525e36db7d5dc7fb9c3
 
+ID: npm:util-deprecate@1.0.2
+Name: util-deprecate
+Version: 1.0.2
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/util-deprecate/1.0.2
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:0154425673db15cdfa80ecba2c9b1f1a867f7197a006764712849bfc3a93cbb7
+
 ID: npm:vite@6.4.3
 Name: vite
 Version: 6.4.3
@@ -3712,12 +4502,12 @@ Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:008938a3441801ca3960f8e3ccb4c0738e7996442a53063141d57d3769a7344d
 
-ID: npm:vitest@4.1.10
+ID: npm:vitest@4.1.11
 Name: vitest
-Version: 4.1.10
+Version: 4.1.11
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/vitest/4.1.10
+Source: https://registry.npmjs.org/vitest/4.1.11
 Blockers: NONE
 Notice files:
   - package/LICENSE.md sha256:881d660c26831481b697e39724d4a35c9f86e07b67156d4aeb693a0b39910435
@@ -3802,6 +4592,36 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:73b5283588baa142c5baaef5f56d3e8fdea7a30b214e8c5737e87640f882453a
 
+ID: npm:wrap-ansi@7.0.0
+Name: wrap-ansi
+Version: 7.0.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/wrap-ansi/7.0.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:wrap-ansi@8.1.0
+Name: wrap-ansi
+Version: 8.1.0
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/wrap-ansi/8.1.0
+Blockers: NONE
+Notice files:
+  - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:write-excel-file@2.3.10
+Name: write-excel-file
+Version: 2.3.10
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/write-excel-file/2.3.10
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:8cf9b31947daf7adb4a7a00a037459e58241af050cd0a603bfcf1756e533f75e
+
 ID: npm:xml-name-validator@5.0.0
 Name: xml-name-validator
 Version: 5.0.0
@@ -3841,6 +4661,16 @@ Source: https://registry.npmjs.org/yocto-queue/0.1.0
 Blockers: NONE
 Notice files:
   - package/license sha256:5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3
+
+ID: npm:zip-stream@6.0.1
+Name: zip-stream
+Version: 6.0.1
+License: MIT
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/zip-stream/6.0.1
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231
 
 ID: platform:oracle-linux@9
 Name: Oracle Linux
@@ -5052,6 +5882,24 @@ Blockers: NONE
 Notice files:
   - https://raw.githubusercontent.com/anchore/syft/v1.51.1/LICENSE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
+ID: asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1
+Name: apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1
+Version: 4c4b6a3be1314ab8
+License: FORMAT_SIGNATURE_TEST_DATA
+Admission: EXCLUDED_NON_RELEASE
+Source: Synthetic test fixture containing only the eight-byte PNG format signature, no image pixels. apps/web/src/test/assessment-v2-authoring.test.tsx.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2
+Name: apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2
+Version: 4c4b6a3be1314ab8
+License: FORMAT_SIGNATURE_TEST_DATA
+Admission: EXCLUDED_NON_RELEASE
+Source: Synthetic test fixture containing only the eight-byte PNG format signature, no image pixels. apps/web/src/test/assessment-v2-authoring.test.tsx.
+Blockers: NONE
+Notice files: NONE RECORDED
+
 ID: asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1
 Name: apps/web/src/components/Brand.tsx#inline-svg-1
 Version: 77691cb0be40031d
@@ -5067,6 +5915,60 @@ Version: 1e1b9a7762e2ac81
 License: Apache-2.0
 Admission: ADMITTED
 Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 2bd6c0e1948950c54da81ea2d2111675c73fc74a, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
+Name: apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
+Version: ca3e900abec497cc
+License: Apache-2.0 repository source; procedural primitives
+Admission: ADMITTED
+Source: Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1
+Name: apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1
+Version: ca3e900abec497cc
+License: Apache-2.0 repository source; procedural primitives
+Admission: ADMITTED
+Source: Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1
+Name: apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1
+Version: 24f23b8868286d1c
+License: Apache-2.0 repository source; procedural primitives
+Admission: ADMITTED
+Source: Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1
+Name: apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1
+Version: 9027c70065ff9094
+License: Apache-2.0 repository source; procedural primitives
+Admission: ADMITTED
+Source: Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1
+Name: apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1
+Version: 33229cd99df47f5e
+License: Apache-2.0 repository source; procedural primitives
+Admission: ADMITTED
+Source: Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.
+Blockers: NONE
+Notice files: NONE RECORDED
+
+ID: asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2
+Name: apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2
+Version: 61808230429e9267
+License: Apache-2.0 repository source; procedural primitives
+Admission: ADMITTED
+Source: Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.
 Blockers: NONE
 Notice files: NONE RECORDED
 
@@ -5099,7 +6001,7 @@ Notice files: NONE RECORDED
 
 ID: asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons
 Name: npm:@phosphor-icons/react@2.1.10#imported-svg-icons
-Version: f37850c42bd91205
+Version: aad76bf66a9b8262
 License: MIT
 Admission: ADMITTED
 Source: Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.
