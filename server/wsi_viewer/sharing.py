@@ -77,7 +77,7 @@ def share_delivery_public_id(
         if raw.get("targetType") != target_type:
             raise ValueError
         expires_at = raw.get("expiresAt")
-        if expires_at is not None and datetime.fromisoformat(expires_at) <= utcnow():
+        if expires_at is not None and as_utc(datetime.fromisoformat(expires_at)) <= utcnow():
             raise ValueError
         slides = raw["slides"]
         selected = slides[position]
@@ -426,7 +426,7 @@ def public_manifest(database: OrmSession, share: LibraryShare) -> dict[str, Any]
 
 def rotate_share(share: LibraryShare) -> None:
     share.public_id = secrets.token_urlsafe(32)
-    share.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    share.updated_at = datetime.now(UTC)
 
 
 def revoke_share(

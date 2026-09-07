@@ -4,7 +4,7 @@ import hashlib
 import re
 import shutil
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +67,7 @@ from .storage_accounting import (
     storage_contribution_expression,
 )
 from .tile_routes import TileRouteService, authorize_tile
+from .time_support import as_utc
 
 
 class FolderCreate(BaseModel):
@@ -1404,8 +1405,7 @@ def register_library_routes(
             )
         expires_at = payload.expires_at
         if expires_at is not None:
-            if expires_at.tzinfo is not None:
-                expires_at = expires_at.astimezone(UTC).replace(tzinfo=None)
+            expires_at = as_utc(expires_at)
             if expires_at <= utcnow():
                 raise HTTPException(
                     status_code=422,

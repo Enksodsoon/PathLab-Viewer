@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session as OrmSession
 
 from .models import DesktopSyncEvent, Folder, Slide
+from .time_support import as_utc
 
 SCHEMA = "desktop-sync/v1"
 
@@ -28,7 +29,7 @@ def decode_library_cursor(value: str) -> tuple[datetime, str]:
         decoded = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
         if not isinstance(decoded, list) or len(decoded) != 2:
             raise ValueError
-        return datetime.fromisoformat(str(decoded[0])), str(decoded[1])
+        return as_utc(datetime.fromisoformat(str(decoded[0]))), str(decoded[1])
     except (ValueError, TypeError, json.JSONDecodeError) as error:
         raise ValueError("DESKTOP_SYNC_CURSOR_INVALID") from error
 

@@ -448,7 +448,7 @@ def register_classroom_routes(
             return "metadata_invalid", None
         if slide.derivative_file_count <= 0:
             return "delivery_missing", None
-        version = delivery_version(slide)
+        version = delivery_version(slide, storage)
         try:
             descriptor = static_descriptor(slide, version)
         except HTTPException:
@@ -1007,7 +1007,7 @@ def register_classroom_routes(
             reason, descriptor = slide_readiness(slide, db)
             if reason or descriptor is None:
                 raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
-            version = delivery_version(slide)
+            version = delivery_version(slide, storage)
             width, height, tile_size, tile_format = descriptor
             item = ClassroomSessionSlide(
                 session_id=classroom.id,

@@ -17,6 +17,7 @@ from .models import (
     SavedView,
     Slide,
 )
+from .time_support import as_utc
 
 MAX_FOLDER_DEPTH = 8
 PROCESSING_STATES = {
@@ -369,7 +370,7 @@ def apply_sort_and_cursor(
         raw_value, slide_id = decode_cursor(cursor)
         value: Any = raw_value
         if column in {Slide.updated_at, Slide.created_at}:
-            value = datetime.fromisoformat(raw_value)
+            value = as_utc(datetime.fromisoformat(raw_value))
         if descending:
             statement = statement.where(
                 or_(column < value, and_(column == value, Slide.id < slide_id))
@@ -469,4 +470,4 @@ def saved_view_json(view: SavedView) -> dict[str, Any]:
 
 
 def utcnow() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)

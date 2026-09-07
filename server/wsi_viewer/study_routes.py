@@ -10,7 +10,7 @@ import secrets
 import time
 from collections.abc import Callable, Iterator
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -312,13 +312,13 @@ def register_study_routes(
             "learnerLimit": course.learner_limit,
             "invitations": issued,
             "redeemed": redeemed,
-            "endsAt": course.ends_at.replace(tzinfo=UTC).isoformat() if course.ends_at else None,
-            "purgeAfter": course.purge_after.replace(tzinfo=UTC).isoformat()
+            "endsAt": as_utc(course.ends_at).isoformat() if course.ends_at else None,
+            "purgeAfter": as_utc(course.purge_after).isoformat()
             if course.purge_after
             else None,
             "aiMode": course.ai_mode,
             "modelManifestId": course.model_manifest_id,
-            "pilotAcknowledgedAt": course.pilot_acknowledged_at.replace(tzinfo=UTC).isoformat()
+            "pilotAcknowledgedAt": as_utc(course.pilot_acknowledged_at).isoformat()
             if course.pilot_acknowledged_at
             else None,
             "readiness": {
@@ -356,7 +356,7 @@ def register_study_routes(
                 "title": course.title,
                 "status": course.status,
                 "retentionDays": course.retention_days,
-                "endsAt": course.ends_at.replace(tzinfo=UTC).isoformat()
+                "endsAt": as_utc(course.ends_at).isoformat()
                 if course.ends_at
                 else None,
             },
@@ -368,8 +368,8 @@ def register_study_routes(
                     "latestCorrectness": item.latest_correctness,
                     "attemptCount": item.attempt_count,
                     "modelManifestId": item.model_manifest_id,
-                    "createdAt": item.created_at.replace(tzinfo=UTC).isoformat(),
-                    "updatedAt": item.updated_at.replace(tzinfo=UTC).isoformat(),
+                    "createdAt": as_utc(item.created_at).isoformat(),
+                    "updatedAt": as_utc(item.updated_at).isoformat(),
                 }
                 for item in progress
             ],
@@ -397,7 +397,7 @@ def register_study_routes(
                 "version": pack.version,
                 "title": pack.title,
                 "checksum": pack.checksum,
-                "createdAt": pack.created_at.replace(tzinfo=UTC).isoformat(),
+                "createdAt": as_utc(pack.created_at).isoformat(),
             }
             for pack in database.scalars(select(StudyPack).order_by(StudyPack.created_at.desc()))
         ]
@@ -508,10 +508,10 @@ def register_study_routes(
                 "packVersion": item.pack_version,
                 "status": item.status,
                 "validationStatus": item.validation_status,
-                "reviewedAt": item.reviewed_at.replace(tzinfo=UTC).isoformat()
+                "reviewedAt": as_utc(item.reviewed_at).isoformat()
                 if item.reviewed_at
                 else None,
-                "createdAt": item.created_at.replace(tzinfo=UTC).isoformat(),
+                "createdAt": as_utc(item.created_at).isoformat(),
             }
             for item in database.scalars(
                 select(EvidenceBundle).order_by(EvidenceBundle.created_at.desc())
@@ -537,7 +537,7 @@ def register_study_routes(
         return {
             "id": evidence.id,
             "manifestSha256": evidence.manifest_sha256,
-            "reviewedAt": evidence.reviewed_at.replace(tzinfo=UTC).isoformat(),
+            "reviewedAt": as_utc(evidence.reviewed_at).isoformat(),
         }
 
     @app.get("/api/v1/admin/study/knowledge-packs")
@@ -554,7 +554,7 @@ def register_study_routes(
                 "language": item.language,
                 "checksum": item.checksum,
                 "claimCount": len(item.definition["claims"]),
-                "createdAt": item.created_at.replace(tzinfo=UTC).isoformat(),
+                "createdAt": as_utc(item.created_at).isoformat(),
             }
             for item in database.scalars(
                 select(KnowledgePack).order_by(KnowledgePack.created_at.desc())
@@ -604,7 +604,7 @@ def register_study_routes(
             "language": stored.language,
             "checksum": stored.checksum,
             "claimCount": len(stored.definition["claims"]),
-            "createdAt": stored.created_at.replace(tzinfo=UTC).isoformat(),
+            "createdAt": as_utc(stored.created_at).isoformat(),
         }
 
     @app.get("/api/v1/admin/study/authoring/slides")
@@ -683,7 +683,7 @@ def register_study_routes(
             "version": stored.version,
             "title": stored.title,
             "checksum": stored.checksum,
-            "createdAt": stored.created_at.replace(tzinfo=UTC).isoformat(),
+            "createdAt": as_utc(stored.created_at).isoformat(),
         }
 
     @app.get("/api/v1/admin/study/courses")
@@ -1130,7 +1130,7 @@ def register_study_routes(
         return {
             "id": evidence.id, "slideId": evidence.slide_id,
             "manifestSha256": evidence.manifest_sha256, "manifest": evidence.manifest,
-            "reviewedAt": evidence.reviewed_at.replace(tzinfo=UTC).isoformat()
+            "reviewedAt": as_utc(evidence.reviewed_at).isoformat()
             if evidence.reviewed_at else None,
         }
 
@@ -1144,7 +1144,7 @@ def register_study_routes(
             "id": item.id, "slideId": item.slide_id, "setId": item.set_id,
             "manifestSha256": item.manifest_sha256, "status": item.status,
             "bundleCount": len(item.manifest["bundles"]),
-            "reviewedAt": item.reviewed_at.replace(tzinfo=UTC).isoformat()
+            "reviewedAt": as_utc(item.reviewed_at).isoformat()
             if item.reviewed_at else None,
         } for item in database.scalars(select(EvidenceSet).order_by(EvidenceSet.created_at.desc()))]
 
@@ -1165,7 +1165,7 @@ def register_study_routes(
         evidence_set.reviewed_at = _now()
         database.commit()
         return {"id": evidence_set.id, "manifestSha256": evidence_set.manifest_sha256,
-                "reviewedAt": evidence_set.reviewed_at.replace(tzinfo=UTC).isoformat()}
+                "reviewedAt": as_utc(evidence_set.reviewed_at).isoformat()}
 
     @app.get("/api/v1/study/slides/{slide_id}/evidence/{manifest_sha256}")
     def study_evidence(

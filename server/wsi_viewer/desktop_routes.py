@@ -9,7 +9,7 @@ import secrets
 import shutil
 import tarfile
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -511,7 +511,7 @@ def register_desktop_routes(
             "verificationUrl": verification_url,
             "verificationUrlComplete": verification_url,
             "pollIntervalSeconds": 5,
-            "expiresAt": expires.replace(tzinfo=UTC).isoformat(),
+            "expiresAt": as_utc(expires).isoformat(),
         }
 
     @app.post(
@@ -601,7 +601,7 @@ def register_desktop_routes(
             "accessToken": access_token,
             "tokenType": "Bearer",
             "scopes": list(DESKTOP_SCOPES),
-            "expiresAt": expires.replace(tzinfo=UTC).isoformat(),
+            "expiresAt": as_utc(expires).isoformat(),
         }
 
     @app.get("/api/v1/desktop/credential")
@@ -611,7 +611,7 @@ def register_desktop_routes(
         return {
             "deviceName": authenticated.device_name,
             "scopes": authenticated.scopes,
-            "expiresAt": authenticated.expires_at.replace(tzinfo=UTC).isoformat(),
+            "expiresAt": as_utc(authenticated.expires_at).isoformat(),
             "revoked": authenticated.revoked_at is not None,
         }
 

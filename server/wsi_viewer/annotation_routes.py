@@ -170,7 +170,7 @@ def register_annotation_routes(
                 status_code=422,
                 detail={"code": "ANNOTATION_LAYER_LIMIT"},
             )
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         purged = purge_expired_tombstones(database, now)
         layer = AnnotationLayer(
             slide_id=slide_id,
@@ -265,7 +265,7 @@ def register_annotation_routes(
             layer.locked = payload.locked
         if payload.opacity is not None:
             layer.opacity = payload.opacity
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         purged = purge_expired_tombstones(database, now)
         layer.updated_at = now
         slide.annotation_version += 1
@@ -331,7 +331,7 @@ def register_annotation_routes(
             )
         purged = purge_expired_tombstones(
             database,
-            datetime.now(UTC).replace(tzinfo=None),
+            datetime.now(UTC),
         )
         database.delete(layer)
         slide.annotation_version += 1

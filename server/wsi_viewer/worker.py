@@ -319,7 +319,7 @@ def process_next(
     with factory() as database:
         if shutdown_requested():
             return False
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         if protection_enabled:
             snapshot = protection_snapshot(database, now=now)
             if snapshot.blocks_background_work:
