@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
@@ -533,6 +533,7 @@ it('loads annotation code and APIs only for an enabled private admin slide', asy
   renderViewerPage('/admin/preview/private-1')
 
   expect(await screen.findByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'More annotation tools' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'More annotation tools' }))
   expect(await screen.findByRole(
     'button',

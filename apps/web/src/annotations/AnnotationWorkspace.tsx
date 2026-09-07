@@ -1086,6 +1086,7 @@ export function AnnotationWorkspace({
   }, [filterSignature])
 
   const setTool = useCallback((tool: AnnotationTool) => {
+    if (!storeRef.current) return
     if (tool === 'brush-subtract') {
       const localStore = storeRef.current
       const target = editableClosedTarget(localStore?.getState() ?? null)
@@ -1571,6 +1572,7 @@ export function AnnotationWorkspace({
                 key={item.tool}
                 aria-label={item.label}
                 aria-pressed={active}
+                disabled={!attachmentReady || initializing}
                 title={`${item.label} (${item.shortcut})`}
                 onClick={() => setTool(item.tool)}
               >
@@ -1587,6 +1589,7 @@ export function AnnotationWorkspace({
             aria-pressed={MORE_TOOLS.some((item) => item.tool === currentTool)}
             aria-expanded={moreToolsOpen}
             aria-controls="annotation-more-tools"
+            disabled={!attachmentReady || initializing}
             onClick={() => setMoreToolsOpen((open) => !open)}
           >
             <span aria-hidden="true"><DotsThree size={19} weight="bold" /></span>
@@ -1609,6 +1612,7 @@ export function AnnotationWorkspace({
                     aria-label={item.label}
                     aria-pressed={active}
                     aria-disabled={unavailable}
+                    disabled={!attachmentReady || initializing}
                     title={unavailable
                       ? 'Select an unlocked polygon, rectangle, or ellipse before erasing'
                       : `${item.label} (${item.shortcut})`}

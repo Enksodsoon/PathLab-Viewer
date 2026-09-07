@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 
 def _write(path: Path, payload: object) -> None:
@@ -34,6 +35,7 @@ def _fixture(tmp_path: Path, release_sha: str) -> Path:
     _write(
         artifacts / "observer.json",
         {
+            "releaseSha": release_sha,
             "sampleCount": 240,
             "errorCount": 0,
             "tileP95Ms": 120,
@@ -120,3 +122,39 @@ def test_capacity_evidence_closes_success_only_when_every_gate_passes(tmp_path: 
     negative = json.loads(output.read_text(encoding="utf-8"))
     jsonschema.validate(negative, schema, format_checker=jsonschema.FormatChecker())
     assert negative["status"] == "NEGATIVE"
+
+
+@pytest.mark.parametrize(
+    ("section", "field"),
+    [("host", "swapBytes"), ("database", "poolTimeouts"), ("services", "oomKills")],
+)
+def test_capacity_evidence_rejects_missing_zero_valued_telemetry(tmp_path, section, field):
+    release_sha = "a" * 40
+    artifacts = _fixture(tmp_path, release_sha)
+    observer_path = artifacts / "observer.json"
+    observer = json.loads(observer_path.read_text(encoding="utf-8"))
+    del observer[section][field]
+    _write(observer_path, observer)
+    output = tmp_path / "evidence.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/assessment_capacity_evidence.py",
+            "--artifacts",
+            str(artifacts),
+            "--release-sha",
+            release_sha,
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    evidence = json.loads(output.read_text(encoding="utf-8"))
+    assert evidence["status"] == "NEGATIVE"
+    assert any(
+        gate["name"] == "complete_host_telemetry" and not gate["passed"]
+        for gate in evidence["gates"]
+    )
