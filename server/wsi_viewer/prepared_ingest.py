@@ -10,7 +10,7 @@ import uuid
 import xml.etree.ElementTree as et
 from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, BinaryIO
 
 from PIL import Image
@@ -46,13 +46,14 @@ class _DziTracker:
     width: int
     height: int
     tile_size: int
+    format_name: str
     maximum_level: int
     expected_per_level: dict[int, int]
     seen_per_level: dict[int, int]
 
     @classmethod
     def from_descriptor(cls, path: Path, slide: dict[str, Any]) -> "_DziTracker":
-        width, height, tile_size = _validate_dzi(path, slide)
+        width, height, tile_size, format_name = _validate_dzi(path, slide)
         maximum_level = math.ceil(math.log2(max(width, height)))
         expected: dict[int, int] = {}
         for level in range(maximum_level + 1):
@@ -62,10 +63,15 @@ class _DziTracker:
             expected[level] = math.ceil(level_width / tile_size) * math.ceil(
                 level_height / tile_size
             )
-        return cls(width, height, tile_size, maximum_level, expected, {})
+        return cls(
+            width, height, tile_size, format_name, maximum_level, expected, {}
+        )
 
     def observe(self, relative: Path) -> None:
-        matched = re.fullmatch(r"slide_files/(\d+)/(\d+)_(\d+)\.jpg", relative.as_posix())
+        matched = re.fullmatch(
+            rf"slide_files/(\d+)/(\d+)_(\d+)\.{re.escape(self.format_name)}",
+            relative.as_posix(),
+        )
         if matched is None:
             raise PreparedIngestError("UNSAFE_DERIVATIVE")
         level, column, row = (int(value) for value in matched.groups())
@@ -129,9 +135,11 @@ def install_prepared_package(
     total_bytes = 0
     file_count = 0
     descriptor_count = 0
+    thumbnail_count = 0
     dzi: _DziTracker | None = None
     try:
         staging.mkdir()
+        staging_resolved = staging.resolve(strict=True)
         with package.open("rb") as source:
             hashing = _HashingReader(source)
             with tarfile.open(fileobj=hashing, mode="r|") as archive:
@@ -167,7 +175,7 @@ def install_prepared_package(
                         raise PreparedIngestError("PACKAGE_INVENTORY_MISMATCH")
                     _validate_payload_member(member, expected)
                     relative = _derivative_relative(member.name)
-                    target = staging / relative
+                    target = _contained_target(staging_resolved, relative)
                     target.parent.mkdir(parents=True, exist_ok=True)
                     digest, first_bytes, last_bytes = _extract_payload(
                         archive, member, target
@@ -190,6 +198,8 @@ def install_prepared_package(
                     if relative == Path("slide.dzi"):
                         descriptor_count += 1
                         dzi = _DziTracker.from_descriptor(target, manifest["slide"])
+                    elif relative == Path("thumbnail.jpg"):
+                        thumbnail_count += 1
                     elif relative.parts and relative.parts[0] == "slide_files":
                         if dzi is None:
                             raise PreparedIngestError("NON_CANONICAL_PACKAGE_ORDER")
@@ -202,6 +212,8 @@ def install_prepared_package(
 
         if descriptor_count != 1 or manifest is None:
             raise PreparedIngestError("UNSAFE_DERIVATIVE")
+        if thumbnail_count != 1:
+            raise PreparedIngestError("MISSING_THUMBNAIL")
         if dzi is None:
             raise PreparedIngestError("UNSAFE_DERIVATIVE")
         dzi.require_complete()
@@ -419,7 +431,7 @@ def _validate_manifest(manifest: Any, expected_revision: str) -> dict[str, Any]:
         or int(slide.get("height", 0)) <= 0
         or slide.get("tileSize") != 512
         or slide.get("overlap") != 1
-        or slide.get("format") != "jpg"
+        or slide.get("format") not in {"jpg", "jpeg"}
         or not isinstance(transform, dict)
         or not isinstance(calibration, dict)
     ):
@@ -429,7 +441,7 @@ def _validate_manifest(manifest: Any, expected_revision: str) -> dict[str, Any]:
     return manifest
 
 
-def _validate_dzi(path: Path, slide: dict[str, Any]) -> tuple[int, int, int]:
+def _validate_dzi(path: Path, slide: dict[str, Any]) -> tuple[int, int, int, str]:
     try:
         root = et.parse(path).getroot()
         size = next(child for child in root if child.tag.rsplit("}", 1)[-1] == "Size")
@@ -444,11 +456,12 @@ def _validate_dzi(path: Path, slide: dict[str, Any]) -> tuple[int, int, int]:
         tile_size != 512
         or overlap != 1
         or format_name.lower() not in {"jpg", "jpeg"}
+        or format_name.lower() != slide["format"]
         or width != int(slide["width"])
         or height != int(slide["height"])
     ):
         raise PreparedIngestError("UNSAFE_DERIVATIVE")
-    return width, height, tile_size
+    return width, height, tile_size, format_name.lower()
 
 
 def _decode_jpeg(path: Path) -> None:
@@ -462,19 +475,36 @@ def _decode_jpeg(path: Path) -> None:
 
 
 def _derivative_relative(name: str) -> Path:
-    pure = PurePosixPath(name)
+    if "\\" in name:
+        raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
+    raw_parts = name.split("/")
     if (
-        pure.is_absolute()
-        or len(pure.parts) < 2
-        or pure.parts[0] != "derivative"
-        or any(part in {"", ".", ".."} for part in pure.parts)
+        len(raw_parts) < 2
+        or raw_parts[0] != "derivative"
+        or any(part in {"", ".", ".."} for part in raw_parts)
     ):
+        raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
+    pure = PurePosixPath(*raw_parts)
+    if pure.is_absolute() or pure.as_posix() != name:
         raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
     relative = PurePosixPath(*pure.parts[1:])
     suffix = relative.suffix.lower()
     if suffix not in {".dzi", ".jpg", ".jpeg"}:
         raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
-    return Path(*relative.parts)
+    windows_relative = PureWindowsPath(*relative.parts)
+    native = Path(*relative.parts)
+    if windows_relative.is_absolute() or windows_relative.drive or native.is_absolute():
+        raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
+    return native
+
+
+def _contained_target(staging_resolved: Path, relative: Path) -> Path:
+    target = (staging_resolved / relative).resolve(strict=False)
+    try:
+        target.relative_to(staging_resolved)
+    except ValueError as error:
+        raise PreparedIngestError("UNSAFE_PACKAGE_PATH") from error
+    return target
 
 
 def _is_sha256(value: str) -> bool:
