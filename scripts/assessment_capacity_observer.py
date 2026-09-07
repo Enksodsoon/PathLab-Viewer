@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import statistics
 import time
@@ -9,6 +10,30 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+
+def validate_host_sample(host: dict[str, Any], release_sha: str) -> None:
+    if host.get("releaseSha") != release_sha or host.get("databaseEngine") != "postgresql":
+        raise ValueError("observer target release or database engine does not match")
+    for name in (
+        "databaseMaxConnections",
+        "databaseConnections",
+        "poolTimeouts",
+        "lockTimeouts",
+        "assessmentWorkers",
+        "restarts",
+        "oomKills",
+        "cpuPercent",
+        "memoryPercent",
+        "swapBytes",
+    ):
+        value = host.get(name)
+        if type(value) not in {int, float} or not math.isfinite(value) or value < 0:
+            raise ValueError(f"missing or invalid host telemetry: {name}")
+        if name not in {"cpuPercent", "memoryPercent"} and value != int(value):
+            raise ValueError(f"non-integral host counter: {name}")
+    if host["cpuPercent"] > 100 or host["memoryPercent"] > 100:
+        raise ValueError("host resource percentage exceeds 100")
 
 
 def fetch(url: str, headers: dict[str, str]) -> tuple[bytes, float]:
@@ -39,15 +64,16 @@ def main() -> int:
     parser.add_argument("--administration-id", required=True)
     parser.add_argument("--tile-url", required=True)
     parser.add_argument("--host-observer-url", required=True)
+    parser.add_argument("--release-sha", required=True)
     parser.add_argument("--start-epoch", required=True, type=int)
     parser.add_argument("--duration-seconds", type=int, default=3700)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     headers = {
-        "Authorization": f"Bearer {os.environ['ASSESSMENT_OBSERVER_TOKEN']}",
         "Cookie": os.environ["ASSESSMENT_ADMIN_COOKIE"],
         "X-CSRF-Token": os.environ["ASSESSMENT_ADMIN_CSRF"],
     }
+    observer_headers = {"Authorization": f"Bearer {os.environ['ASSESSMENT_OBSERVER_TOKEN']}"}
     wait_seconds = args.start_epoch - int(time.time())
     if wait_seconds < -30:
         raise RuntimeError("observer missed the synchronized campaign barrier")
@@ -65,7 +91,8 @@ def main() -> int:
                 headers,
             )
             _, tile_ms = fetch(args.tile_url, headers)
-            host, _ = fetch_json(args.host_observer_url, headers)
+            host, _ = fetch_json(args.host_observer_url, observer_headers)
+            validate_host_sample(host, args.release_sha)
             if ready.get("status") not in {"ok", "ready"}:
                 raise RuntimeError("readiness failed during campaign")
             samples.append(
@@ -89,6 +116,7 @@ def main() -> int:
         time.sleep(15)
     host_samples = [item["host"] for item in samples if "host" in item]
     output = {
+        "releaseSha": args.release_sha,
         "sampleCount": len(samples),
         "errorCount": sum("error" in item for item in samples),
         "tileP95Ms": percentile([item["tileMs"] for item in samples if "tileMs" in item], 0.95),
