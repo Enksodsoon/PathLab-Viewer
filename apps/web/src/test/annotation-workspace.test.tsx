@@ -16,6 +16,24 @@ import type {
 } from '../annotations/types'
 
 const layerId = '11111111-1111-4111-8111-111111111111'
+
+it('keeps tools disabled until the annotation workspace can accept a selection', async () => {
+  let finishLoad!: (value: AnnotationManifest) => void
+  const pendingManifest = new Promise<AnnotationManifest>((resolve) => { finishLoad = resolve })
+  render(<AnnotationWorkspace slideId="slide-1" slideName="Loading slide"
+    services={services({ getManifest: vi.fn(() => pendingManifest) })}
+    onAttachmentChange={vi.fn()} />)
+  const select = screen.getByRole('button', { name: 'Select', exact: true })
+  expect(select).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'More annotation tools' })).toBeDisabled()
+  fireEvent.click(select)
+  expect(select).toHaveAttribute('aria-pressed', 'false')
+  finishLoad(manifest)
+  await waitFor(() => expect(select).toBeEnabled())
+  fireEvent.click(select)
+  expect(select).toHaveAttribute('aria-pressed', 'true')
+})
+
 const manifest: AnnotationManifest = {
   slideId: 'slide-1',
   version: 0,
