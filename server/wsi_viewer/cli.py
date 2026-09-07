@@ -20,7 +20,7 @@ from .postgres_migration import (
     verify_cutover_source,
 )
 from .runtime_protection import CLASSROOM_GUARD_ID, IDLE, protection_snapshot
-from .security import hash_password
+from .security import hash_password, normalize_username, validate_password
 from .storage import StorageLayout
 from .storage_accounting import reconcile_storage
 from .time_support import utc_now
@@ -237,7 +237,10 @@ def main() -> None:
                         "Deployment blocked: Classroom protection schema is unavailable"
                     )
             return
-        user = database.scalar(select(User).where(User.username == args.username))
+        username = normalize_username(args.username)
+        if not username:
+            raise SystemExit("Username must not be empty")
+        user = database.scalar(select(User).where(User.username == username))
         if args.command == "issue-recovery-code":
             if user is None:
                 raise SystemExit("Administrator does not exist")
@@ -250,10 +253,14 @@ def main() -> None:
             )
             return
         password = _read_password(args.password_stdin)
+        try:
+            validate_password(password)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
         if args.command == "create-admin":
             if user is not None:
                 raise SystemExit("Administrator already exists")
-            created = User(username=args.username, password_hash=hash_password(password))
+            created = User(username=username, password_hash=hash_password(password))
             database.add(created)
             database.flush()
             ensure_default_owner_membership(database, created)

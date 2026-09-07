@@ -23,6 +23,7 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.models import (
     AuditEvent,
+    DesktopCredential,
     PasswordRecoveryAttempt,
     PasswordRecoveryCode,
     Session,
@@ -260,6 +261,7 @@ def test_password_changes_validate_current_password_and_revoke_access(tmp_path: 
     now = datetime(2026, 7, 19, 8, 0, tzinfo=UTC)
     with session_factory(settings)() as database:
         user = _create_user(database)
+        other_user = _create_user(database, "other-admin")
         database.add(
             Session(
                 id="s" * 64,
@@ -268,6 +270,24 @@ def test_password_changes_validate_current_password_and_revoke_access(tmp_path: 
                 expires_at=now + timedelta(hours=1),
             )
         )
+        database.add_all(
+            [
+                DesktopCredential(
+                    id="d" * 64,
+                    user_id=user.id,
+                    device_name="Current administrator device",
+                    scopes=["desktop:ingest"],
+                    expires_at=now + timedelta(days=1),
+                ),
+                DesktopCredential(
+                    id="o" * 64,
+                    user_id=other_user.id,
+                    device_name="Other administrator device",
+                    scopes=["desktop:ingest"],
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
         issue_recovery_code(database, user, now)
         database.commit()
 
@@ -275,11 +295,15 @@ def test_password_changes_validate_current_password_and_revoke_access(tmp_path: 
             change_password(database, user, "incorrect password", "new secure password", now)
         with pytest.raises(PasswordReuse):
             change_password(database, user, "correct horse battery", "correct horse battery", now)
+        assert database.get(DesktopCredential, "d" * 64).revoked_at is None
+        assert database.get(DesktopCredential, "o" * 64).revoked_at is None
         change_password(database, user, "correct horse battery", "new secure password", now)
 
         if not verify_password(user.password_hash, "new secure password"):
             pytest.fail("Changed password did not verify")
         assert database.get(Session, "s" * 64) is None
+        assert database.get(DesktopCredential, "d" * 64).revoked_at == now.replace(tzinfo=None)
+        assert database.get(DesktopCredential, "o" * 64).revoked_at is None
         codes = list(database.scalars(select(PasswordRecoveryCode)))
         assert all(item.invalidated_at == now.replace(tzinfo=None) for item in codes)
 

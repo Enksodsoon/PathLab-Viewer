@@ -21,6 +21,7 @@ from httpx import Response
 from PIL import Image
 from sqlalchemy import select, text
 from wsi_viewer.auth import issue_recovery_code
+from wsi_viewer.cli import main as cli_main
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -84,10 +85,10 @@ def _client(tmp_path: Path, *, ome_dynamic_enabled: bool = True) -> TestClient:
     return TestClient(create_app(settings))
 
 
-def _login(client: TestClient) -> str:
+def _login(client: TestClient, password: str = "correct horse battery") -> str:
     response = client.post(
         "/api/v1/auth/session",
-        json={"username": "admin", "password": "correct horse battery"},
+        json={"username": "admin", "password": password},
     )
     assert response.status_code == 201
     return str(response.json()["csrfToken"])
@@ -153,8 +154,10 @@ def _signed_evidence(slide_sha: str, revision: str) -> dict[str, object]:
     return value
 
 
-def _desktop_authorization(client: TestClient) -> dict[str, str]:
-    csrf = _login(client)
+def _desktop_authorization(
+    client: TestClient, password: str = "correct horse battery"
+) -> dict[str, str]:
+    csrf = _login(client, password)
     pairing = client.post(
         "/api/v1/desktop/pairings",
         json={"deviceName": "PathLab Forge ingest test"},
@@ -376,6 +379,22 @@ def test_admin_session_requires_valid_password(tmp_path: Path) -> None:
             "/api/v1/auth/session", json={"username": "admin", "password": "incorrect"}
         )
         assert response.status_code == 401
+
+
+def test_malformed_stored_password_hash_returns_invalid_credentials(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        with session_factory(client.app.state.settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            user.password_hash = "$argon2id$malformed-private-hash"
+            database.commit()
+
+        response = client.post(
+            "/api/v1/auth/session",
+            json={"username": "admin", "password": "private submitted password"},
+        )
+
+        assert _has_error(response, 401, "INVALID_CREDENTIALS")
 
 
 def test_authenticated_session_can_refresh_its_csrf_token(tmp_path: Path) -> None:
@@ -1053,6 +1072,35 @@ def test_password_change_requires_csrf_and_revokes_sessions(tmp_path: Path) -> N
         assert new_login.status_code == 201
 
 
+def test_password_change_revokes_old_desktop_bearer_and_allows_new_pairing(
+    tmp_path: Path,
+) -> None:
+    replacement = "new correct horse battery"
+    with _client(tmp_path) as client:
+        old_authorization = _desktop_authorization(client)
+        csrf = _login(client)
+
+        changed = client.post(
+            "/api/v1/auth/password",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "currentPassword": "correct horse battery",
+                "newPassword": replacement,
+            },
+        )
+
+        assert changed.status_code == 204
+        assert _has_error(
+            client.get("/api/v1/desktop/credential", headers=old_authorization),
+            401,
+            "DESKTOP_CREDENTIAL_INVALID",
+        )
+        new_authorization = _desktop_authorization(client, replacement)
+        assert client.get(
+            "/api/v1/desktop/credential", headers=new_authorization
+        ).status_code == 200
+
+
 def test_password_change_returns_exact_errors_for_invalid_inputs(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         csrf = _login(client)
@@ -1250,6 +1298,67 @@ def test_forgot_password_uses_generic_single_use_error_and_expires_cookie(
             pytest.fail("Reused recovery code did not use the generic recovery error")
         if not _has_error(unknown, 400, "INVALID_RECOVERY_CODE"):
             pytest.fail("Unknown recovery user did not use the generic recovery error")
+
+
+def test_password_recovery_revokes_old_desktop_bearer_and_allows_new_pairing(
+    tmp_path: Path,
+) -> None:
+    replacement = "recovered correct horse battery"
+    with _client(tmp_path) as client:
+        old_authorization = _desktop_authorization(client)
+        with session_factory(client.app.state.settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            code = issue_recovery_code(database, user)
+            database.commit()
+
+        recovered = client.post(
+            "/api/v1/auth/password/recover",
+            json={
+                "username": "admin",
+                "recoveryCode": code,
+                "newPassword": replacement,
+            },
+        )
+
+        assert recovered.status_code == 204
+        assert _has_error(
+            client.get("/api/v1/desktop/credential", headers=old_authorization),
+            401,
+            "DESKTOP_CREDENTIAL_INVALID",
+        )
+        new_authorization = _desktop_authorization(client, replacement)
+        assert client.get(
+            "/api/v1/desktop/credential", headers=new_authorization
+        ).status_code == 200
+
+
+def test_cli_password_reset_revokes_old_desktop_bearer_and_allows_new_pairing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    replacement = "CLI replacement password"
+    with _client(tmp_path) as client:
+        old_authorization = _desktop_authorization(client)
+        settings = client.app.state.settings
+        monkeypatch.setenv("PATHLAB_DATABASE_URL", settings.database_url)
+        monkeypatch.setenv("PATHLAB_DATA_ROOT", str(settings.data_root))
+        monkeypatch.setattr("sys.stdin", io.StringIO(f"{replacement}\n"))
+        monkeypatch.setattr(
+            "sys.argv",
+            ["pathlab-admin", "reset-password", "--username", "admin", "--password-stdin"],
+        )
+        cli_main()
+
+        assert _has_error(
+            client.get("/api/v1/desktop/credential", headers=old_authorization),
+            401,
+            "DESKTOP_CREDENTIAL_INVALID",
+        )
+        new_authorization = _desktop_authorization(client, replacement)
+        assert client.get(
+            "/api/v1/desktop/credential", headers=new_authorization
+        ).status_code == 200
 
 
 def test_recovery_rejects_invalid_password_without_consuming_code(tmp_path: Path) -> None:

@@ -24,7 +24,7 @@ from wsi_viewer.models import (
     Slide,
     User,
 )
-from wsi_viewer.security import hash_password, recovery_code_hash
+from wsi_viewer.security import hash_password, recovery_code_hash, verify_password
 
 
 def test_read_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -40,6 +40,103 @@ def test_reject_empty_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> No
 
     with pytest.raises(SystemExit, match="Password must not be empty"):
         _read_password(True)
+
+
+def _configure_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    database_path = tmp_path / "cli-credentials.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    return settings
+
+
+def test_create_admin_rejects_blank_normalized_username_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin", StringIO("valid admin passphrase\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", "   ", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Username must not be empty"):
+        main()
+
+    with session_factory(settings)() as database:
+        assert database.scalar(select(User)) is None
+
+
+def test_create_admin_reports_invalid_password_without_writing_user(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin", StringIO("short\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", "admin", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Admin password must contain at least 12 characters"):
+        main()
+
+    with session_factory(settings)() as database:
+        assert database.scalar(select(User)) is None
+
+
+def test_create_and_reset_admin_use_normalized_username_and_valid_stdin_password(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin", StringIO("initial admin passphrase\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", "  AdMiN  ", "--password-stdin"],
+    )
+    main()
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User))
+        assert user is not None
+        assert user.username == "admin"
+        assert verify_password(user.password_hash, "initial admin passphrase")
+
+    monkeypatch.setattr("sys.stdin", StringIO("replacement admin passphrase\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "reset-password", "--username", " ADMIN ", "--password-stdin"],
+    )
+    main()
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User))
+        assert user is not None
+        assert user.username == "admin"
+        assert verify_password(user.password_hash, "replacement admin passphrase")
+
+
+def test_reset_admin_reports_invalid_password_without_changing_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    with session_factory(settings)() as database:
+        database.add(User(username="admin", password_hash=hash_password("existing password")))
+        database.commit()
+
+    monkeypatch.setattr("sys.stdin", StringIO("short\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "reset-password", "--username", "admin", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Admin password must contain at least 12 characters"):
+        main()
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User))
+        assert user is not None
+        assert verify_password(user.password_hash, "existing password")
 
 
 def test_issue_recovery_code_does_not_read_password() -> None:

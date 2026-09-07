@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -18,6 +19,28 @@ def test_passwords_are_argon2id_hashed() -> None:
     assert encoded.startswith("$argon2id$")
     assert verify_password(encoded, "a very long admin password")
     assert not verify_password(encoded, "wrong password")
+
+
+@pytest.mark.parametrize(
+    ("malformed_hash", "error_name"),
+    [
+        ("not-an-argon2-hash", "InvalidHashError"),
+        ("$argon2id$malformed-private-hash", "VerificationError"),
+    ],
+)
+def test_malformed_argon2_hash_is_a_logged_authentication_failure(
+    caplog: pytest.LogCaptureFixture,
+    malformed_hash: str,
+    error_name: str,
+) -> None:
+    submitted_password = "private submitted password"
+
+    with caplog.at_level(logging.WARNING, logger="wsi_viewer.security"):
+        assert not verify_password(malformed_hash, submitted_password)
+
+    assert error_name in caplog.text
+    assert malformed_hash not in caplog.text
+    assert submitted_password not in caplog.text
 
 
 def test_upload_token_is_scoped_and_expires() -> None:
