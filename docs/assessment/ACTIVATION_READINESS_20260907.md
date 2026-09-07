@@ -21,9 +21,12 @@ activation.
   production reviewer and protected-branch restriction. Its six required
   qualification secrets are not configured. No certification runs exist.
 - No protected qualification target or host telemetry endpoint has been
-  established by this work. The live host has roughly 11 GB available and
-  15 GB of application data, so a full independent data copy does not fit in
-  its current free space. These measurements are time-specific.
+  established by this work. The boot filesystem has roughly 11 GB available;
+  the separate application data volume has roughly 125 GB available and 15 GB
+  used. Initial inspection of the parent directory understated available data
+  storage. Same-host staging is feasible within the existing volume, subject
+  to the [zero-cost staging plan](ZERO_COST_STAGING_PLAN.md). These measurements
+  are time-specific.
 - The PostgreSQL cutover rehearsal, exact-release restore evidence, 500-seat
   campaign, and staged 30/100/300-user pilots remain outstanding.
 
