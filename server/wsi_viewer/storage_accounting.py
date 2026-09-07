@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
+from .admission import lock_admission
 from .domain import InvalidTransition, SlideState, transition
 from .library import utcnow
 from .models import (
@@ -122,7 +123,8 @@ def reserve_new_slide(
     required = admission_required(source_bytes, render_mode=render_mode)
     _require_physical_space(layout.root, required)
     with factory() as database:
-        _begin_immediate(database)
+        # All slide reservations share the application cap, across users and workers.
+        lock_admission(database, "storage")
         _require_application_capacity(database, layout, required)
         if folder_id is not None:
             folder = database.get(Folder, folder_id)
@@ -158,7 +160,7 @@ def reserve_retry(
     actor_user_id: str | None,
 ) -> Slide:
     with factory() as database:
-        _begin_immediate(database)
+        lock_admission(database, "storage")
         slide = database.get(Slide, slide_id)
         if slide is None:
             raise LookupError("Slide not found")

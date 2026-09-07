@@ -3,14 +3,14 @@ import time
 from collections.abc import Callable
 
 import httpx
-from sqlalchemy import inspect, text
+from sqlalchemy import BigInteger, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .models import Base
 
-ALEMBIC_HEAD = "20260905_0036"
+ALEMBIC_HEAD = "20260907_0037"
 AUDIT_RETENTION_INDEX = "ix_audit_events_action_created_at"
 ANNOTATION_ACTIVE_INDEX = "ix_annotations_slide_active"
 READINESS_CACHE_SECONDS = 1.0
@@ -95,9 +95,18 @@ def schema_is_current(database: OrmSession) -> bool:
         if versions != {ALEMBIC_HEAD}:
             return False
         for table_name, table in Base.metadata.tables.items():
-            actual_columns = {column["name"] for column in inspector.get_columns(table_name)}
+            columns = inspector.get_columns(table_name)
+            actual_columns = {column["name"] for column in columns}
             if not {column.name for column in table.columns} <= actual_columns:
                 return False
+            if connection.dialect.name == "postgresql":
+                # A stamped but unwidened schema must not admit multi-GiB uploads.
+                actual_types = {column["name"]: column["type"] for column in columns}
+                for column in table.columns:
+                    if isinstance(column.type, BigInteger) and not isinstance(
+                        actual_types[column.name], BigInteger
+                    ):
+                        return False
         audit_indexes = {index["name"] for index in inspector.get_indexes("audit_events")}
         annotation_indexes = {index["name"] for index in inspector.get_indexes("annotations")}
         return (
