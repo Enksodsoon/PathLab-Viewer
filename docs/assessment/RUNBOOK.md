@@ -4,6 +4,8 @@ Assessment remains disabled in production. Activation requires PostgreSQL and id
 
 Current evidence state: `NOT_EVALUABLE`. The protected workflow and evidence schema are implementation artifacts only; no 500-seat campaign or production activation is claimed.
 
+The dedicated service uses the optional Compose profile `assessment`. Ordinary production releases keep that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false`; Caddy rejects both Assessment API and asset paths in that state. A qualified Assessment staging deployment must explicitly select the profile, use the PostgreSQL overlay, and set the Assessment and identity-governance flags. The current guarded production release topology does not admit this extra service, so staging qualification does not activate it in production.
+
 ## Prepare and open
 
 Confirm one Alembic head and `/readyz`, verify every selected slide is privacy-passed `static_dzi`, create administration-scoped hardlink grants, prewarm the declared DZI levels, drain upload/conversion/background work, and confirm Classroom is idle. Only one Formative or Quiz/Test administration may be preparing or open.
