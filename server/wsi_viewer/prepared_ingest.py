@@ -477,13 +477,15 @@ def _decode_jpeg(path: Path) -> None:
 def _derivative_relative(name: str) -> Path:
     if "\\" in name:
         raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
-    pure = PurePosixPath(name)
+    raw_parts = name.split("/")
     if (
-        pure.is_absolute()
-        or len(pure.parts) < 2
-        or pure.parts[0] != "derivative"
-        or any(part in {"", ".", ".."} for part in pure.parts)
+        len(raw_parts) < 2
+        or raw_parts[0] != "derivative"
+        or any(part in {"", ".", ".."} for part in raw_parts)
     ):
+        raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
+    pure = PurePosixPath(*raw_parts)
+    if pure.is_absolute() or pure.as_posix() != name:
         raise PreparedIngestError("UNSAFE_PACKAGE_PATH")
     relative = PurePosixPath(*pure.parts[1:])
     suffix = relative.suffix.lower()

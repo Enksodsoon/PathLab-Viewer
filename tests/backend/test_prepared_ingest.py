@@ -318,6 +318,72 @@ def test_rejects_windows_ambiguous_derivative_paths(member_name: str) -> None:
         _derivative_relative(member_name)
 
 
+@pytest.mark.parametrize(
+    "member_name",
+    [
+        "derivative//thumbnail.jpg",
+        "derivative/./thumbnail.jpg",
+        "derivative/slide_files//0/0_0.jpg",
+    ],
+)
+def test_rejects_noncanonical_posix_aliases(member_name: str) -> None:
+    with pytest.raises(PreparedIngestError, match="UNSAFE_PACKAGE_PATH"):
+        _derivative_relative(member_name)
+
+
+@pytest.mark.parametrize("ndjson_inventory", [False, True])
+@pytest.mark.parametrize(
+    "thumbnail_alias", ["derivative//thumbnail.jpg", "derivative/./thumbnail.jpg"]
+)
+def test_rejects_raw_thumbnail_alias_in_package(
+    tmp_path: Path, ndjson_inventory: bool, thumbnail_alias: str
+) -> None:
+    jpeg = io.BytesIO()
+    Image.new("RGB", (1, 1), "white").save(jpeg, format="JPEG", quality=85)
+    package = tmp_path / "slide.plslide"
+    package_sha, manifest_sha = _package(
+        package,
+        include_thumbnail=False,
+        ndjson_inventory=ndjson_inventory,
+        extra_files={thumbnail_alias: jpeg.getvalue()},
+    )
+
+    with pytest.raises(PreparedIngestError, match="UNSAFE_PACKAGE_PATH"):
+        install_prepared_package(
+            package,
+            tmp_path / "private" / "slide-1",
+            expected_package_sha256=package_sha,
+            expected_artifact_revision_id="artifact-1",
+            expected_manifest_sha256=manifest_sha,
+        )
+
+
+@pytest.mark.parametrize("ndjson_inventory", [False, True])
+def test_rejects_distinct_raw_paths_aliasing_same_target(
+    tmp_path: Path, ndjson_inventory: bool
+) -> None:
+    jpeg = io.BytesIO()
+    Image.new("RGB", (1, 1), "white").save(jpeg, format="JPEG", quality=85)
+    package = tmp_path / "slide.plslide"
+    package_sha, manifest_sha = _package(
+        package,
+        ndjson_inventory=ndjson_inventory,
+        extra_files={
+            "derivative/extras/alias.jpg": jpeg.getvalue(),
+            "derivative/extras//alias.jpg": jpeg.getvalue(),
+        },
+    )
+
+    with pytest.raises(PreparedIngestError, match="UNSAFE_PACKAGE_PATH"):
+        install_prepared_package(
+            package,
+            tmp_path / "private" / "slide-1",
+            expected_package_sha256=package_sha,
+            expected_artifact_revision_id="artifact-1",
+            expected_manifest_sha256=manifest_sha,
+        )
+
+
 @pytest.mark.skipif(os.name != "nt", reason="requires Windows path semantics")
 @pytest.mark.parametrize("path_kind", ["traversal", "drive-absolute"])
 def test_windows_paths_cannot_escape_disposable_staging(
