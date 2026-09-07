@@ -12,6 +12,18 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# These removed synthetic fixtures predate the reserved-domain policy. Bind
+# exceptions to the historical commit, file and exact line, never to a domain.
+HISTORICAL_SYNTHETIC_EMAIL_LINES = {
+    ("c03414eff62c", "tests/backend/test_public_repository_history.py"): {
+        "24471e8bbe555f09e9c78ca50297bbdcc802e7ea4b1ac405b6ec509e43373c86",
+    },
+    ("f174a0973bba", "tests/backend/test_assessment_admin.py"): {
+        "34cc5c427ef7ea1b84aaeb1a2f8bf743a4d9b91c7a7773e5990a147d22f5e87a",
+        "805bbb10e1a2e42d084bb80e015aec0e2cc5d1e3bc7147efeca8e88791a9d582",
+        "6b92465d2374633ca5ed410acad4790ae2048fcd96e5f853232f93b84fc189fb",
+    },
+}
 SELF_RELATIVE = Path(__file__).resolve().relative_to(ROOT).as_posix()
 TEXT_SUFFIXES = {
     "",
@@ -338,7 +350,14 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             public_registry_notice = relative == "pnpm-lock.yaml" and hashlib.sha256(
                 line.strip().encode("utf-8")
             ).hexdigest() == "aafd0901253a2ae949eca4fded10be77251c4d25c26bf14269afa2662af1adbc"
-            if not is_allowed_email(email) and not public_registry_notice:
+            historical_fixture = hashlib.sha256(line.strip().encode("utf-8")).hexdigest() in (
+                HISTORICAL_SYNTHETIC_EMAIL_LINES.get((label, relative), set())
+            )
+            if (
+                not is_allowed_email(email)
+                and not public_registry_notice
+                and not historical_fixture
+            ):
                 findings.append((display, line_number, "non-example email address"))
         for match in IPV4_PATTERN.finditer(line):
             if is_embedded_numeric_identifier(line, match.start(), match.end()):

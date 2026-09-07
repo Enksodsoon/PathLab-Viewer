@@ -356,3 +356,22 @@ def test_only_exact_public_registry_notice_is_exempted(tmp_path: Path) -> None:
     assert run_scan(repo).returncode == 0
     lock.write_text(notice + " changed\n", encoding="utf-8")
     assert run_scan(repo).returncode == 1
+
+
+def test_historical_fixture_receipts_never_exempt_current_or_changed_content() -> None:
+    from scripts.check_public_repository import HISTORICAL_SYNTHETIC_EMAIL_LINES, scan_text
+
+    for (commit, relative), hashes in HISTORICAL_SYNTHETIC_EMAIL_LINES.items():
+        import hashlib
+        historical = subprocess.check_output(
+            ["git", "show", f"{commit}:{relative}"], cwd=SCANNER.parent.parent,
+        ).decode("utf-8")
+        lines = [line for line in historical.splitlines()
+                 if hashlib.sha256(line.strip().encode()).hexdigest() in hashes]
+        assert len(lines) == len(hashes)
+        for line in lines:
+            assert scan_text(relative, line, label=commit) == []
+            assert any("email" in finding[2] for finding in scan_text(relative, line))
+            assert any("email" in finding[2] for finding in scan_text(
+                relative, line + " changed", label=commit,
+            ))
