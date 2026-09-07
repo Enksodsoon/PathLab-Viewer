@@ -23,7 +23,7 @@ it('keeps tools disabled until the annotation workspace can accept a selection',
   render(<AnnotationWorkspace slideId="slide-1" slideName="Loading slide"
     services={services({ getManifest: vi.fn(() => pendingManifest) })}
     onAttachmentChange={vi.fn()} />)
-  const select = screen.getByRole('button', { name: 'Select', exact: true })
+  const select = screen.getByRole('button', { name: /^Select$/ })
   expect(select).toBeDisabled()
   expect(screen.getByRole('button', { name: 'More annotation tools' })).toBeDisabled()
   fireEvent.click(select)

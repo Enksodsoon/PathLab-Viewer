@@ -27,8 +27,22 @@ activation.
   storage. Same-host staging is feasible within the existing volume, subject
   to the [zero-cost staging plan](ZERO_COST_STAGING_PLAN.md). These measurements
   are time-specific.
-- The PostgreSQL cutover rehearsal, exact-release restore evidence, 500-seat
-  campaign, and staged 30/100/300-user pilots remain outstanding.
+- Two isolated PostgreSQL migration rehearsals from one immutable SQLite
+  snapshot matched across 68 tables on release `37e35f14383b04111e2b8dbb4a453754169ca12a`.
+  Both manifest signatures verified. A disposable PostgreSQL dump restore
+  matched all 68 tables and foreign-key evidence using a read-only verification
+  transaction. This does not qualify object restoration or production cutover.
+- An isolated OCI browser smoke verified administrator login, Teaching Studio
+  navigation, draft persistence after reload, publication, opening responses,
+  anonymous learner submission (1/1), and closing responses. The teacher report
+  incorrectly showed zero scores when anonymous individual rows were absent;
+  the candidate now displays retained aggregate points without inventing
+  unavailable percentages or learner distributions. This correction still
+  requires verification in the candidate OCI release.
+- The staging services have been stopped after the smoke; their private
+  database and rehearsal evidence are retained on the existing data volume.
+  Production remains unchanged. Static-DZI delivery, complete object restore,
+  protected 500-seat campaign, and staged 30/100/300-user pilots are outstanding.
 
 ## Qualification harness repairs
 
