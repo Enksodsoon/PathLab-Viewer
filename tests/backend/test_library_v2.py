@@ -33,6 +33,7 @@ from wsi_viewer.publication import INDIVIDUAL, SHARE, ensure_grant, remove_grant
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 from wsi_viewer.storage import StorageLayout
+from wsi_viewer.time_support import as_utc
 
 
 def _client(tmp_path: Path, *, multi_share_enabled: bool = False) -> TestClient:
@@ -1175,6 +1176,37 @@ def test_publication_alias_and_thumbnail_remain_until_final_grant_is_removed(
         database.commit()
         assert not public.exists()
         assert slide.state is SlideState.READY_PRIVATE
+
+
+def test_public_slide_retains_bound_legacy_delivery_and_requires_grant(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        _seed_slide(client, slide_id="legacy-time", display_name="Legacy time")
+        settings = client.app.state.settings
+        storage = StorageLayout(settings.data_root)
+        derivative = storage.for_slide("legacy-time").private_derivative
+        derivative.mkdir(parents=True)
+        (derivative / "slide.dzi").write_text("<Image />", encoding="utf-8")
+        with session_factory(settings)() as database:
+            slide = database.get(Slide, "legacy-time")
+            assert slide is not None
+            ensure_grant(database, storage, slide, INDIVIDUAL, slide.id)
+            assert slide.published_at is not None
+            canonical = as_utc(slide.published_at).strftime("%Y%m%d%H%M%S%f")
+            legacy = (as_utc(slide.published_at) + timedelta(hours=7)).strftime(
+                "%Y%m%d%H%M%S%f"
+            )
+            storage.individual_delivery_for(slide.public_id, canonical).rename(
+                storage.individual_delivery_for(slide.public_id, legacy)
+            )
+            database.commit()
+        response = client.get("/api/v1/public/slides/public-legacy-time")
+        assert response.status_code == 200
+        assert response.json()["tileSource"] == f"/tiles/public-legacy-time/{legacy}/slide.dzi"
+        assert storage.individual_delivery_for("public-legacy-time", legacy).is_dir()
+        with session_factory(settings)() as database:
+            database.query(PublicationGrant).filter_by(slide_id="legacy-time").delete()
+            database.commit()
+        assert client.get("/api/v1/public/slides/public-legacy-time").status_code == 404
 
 
 def test_authenticated_thumbnail_uses_private_cache_and_etag(tmp_path: Path) -> None:

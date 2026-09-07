@@ -520,7 +520,7 @@ class GeoJsonFeatureCollection(AnnotationModel):
 
 
 def utcnow() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 def slide_bounds(slide: Slide) -> tuple[float, float]:
