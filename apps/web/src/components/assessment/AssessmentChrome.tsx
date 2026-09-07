@@ -14,7 +14,7 @@ export function AssessmentToolbar({
   children?: ReactNode
 }) {
   const navigate = useNavigate()
-  return <header className="assessment-toolbar" aria-label="Teacher Studio command bar" data-canvas-region="command-bar">
+  return <header className="assessment-toolbar" aria-label="Teaching Studio command bar" data-canvas-region="command-bar">
     <div className="assessment-breadcrumb-row">
       <div className="assessment-history-controls" aria-label="Page history">
         <button type="button" aria-label="Back" onClick={() => navigate(-1)}><ArrowLeft /></button>
