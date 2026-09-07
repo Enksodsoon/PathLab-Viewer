@@ -733,6 +733,7 @@ def register_desktop_routes(
         slide = database.get(Slide, slide_id)
         if (
             slide is None
+            or slide.trashed_at is not None
             or slide.state not in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}
             or slide.render_mode != "ome_dynamic"
             or slide.sha256 is None

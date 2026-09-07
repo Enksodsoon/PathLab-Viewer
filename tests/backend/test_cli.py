@@ -18,13 +18,15 @@ from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import (
     ClassroomSession,
+    DesktopCredential,
     Job,
     PasswordRecoveryCode,
     RuntimeGuard,
+    Session,
     Slide,
     User,
 )
-from wsi_viewer.security import hash_password, recovery_code_hash
+from wsi_viewer.security import hash_password, recovery_code_hash, verify_password
 
 
 def test_read_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -40,6 +42,277 @@ def test_reject_empty_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> No
 
     with pytest.raises(SystemExit, match="Password must not be empty"):
         _read_password(True)
+
+
+def _configure_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    database_path = tmp_path / "cli-credentials.sqlite3"
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", f"sqlite:///{database_path}")
+    monkeypatch.setenv("PATHLAB_DATA_ROOT", str(tmp_path))
+    settings = Settings()
+    create_schema(settings)
+    return settings
+
+
+def test_create_admin_rejects_blank_normalized_username_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin", StringIO("valid admin passphrase\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", "   ", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Username must not be empty"):
+        main()
+
+    with session_factory(settings)() as database:
+        assert database.scalar(select(User)) is None
+
+
+def test_create_admin_reports_invalid_password_without_writing_user(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin", StringIO("short\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", "admin", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Admin password must contain at least 12 characters"):
+        main()
+
+    with session_factory(settings)() as database:
+        assert database.scalar(select(User)) is None
+
+
+def test_create_and_reset_admin_use_normalized_username_and_valid_stdin_password(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin", StringIO("initial admin passphrase\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", "  AdMiN  ", "--password-stdin"],
+    )
+    main()
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User))
+        assert user is not None
+        assert user.username == "admin"
+        assert verify_password(user.password_hash, "initial admin passphrase")
+
+    monkeypatch.setattr("sys.stdin", StringIO("replacement admin passphrase\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "reset-password", "--username", " ADMIN ", "--password-stdin"],
+    )
+    main()
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User))
+        assert user is not None
+        assert user.username == "admin"
+        assert verify_password(user.password_hash, "replacement admin passphrase")
+
+
+def test_reset_admin_reports_invalid_password_without_changing_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    with session_factory(settings)() as database:
+        database.add(User(username="admin", password_hash=hash_password("existing password")))
+        database.commit()
+
+    monkeypatch.setattr("sys.stdin", StringIO("short\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "reset-password", "--username", "admin", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Admin password must contain at least 12 characters"):
+        main()
+
+    with session_factory(settings)() as database:
+        user = database.scalar(select(User))
+        assert user is not None
+        assert verify_password(user.password_hash, "existing password")
+
+
+def test_reset_admin_preserves_lone_legacy_mixed_case_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    with session_factory(settings)() as database:
+        database.add(User(username="AdMiN", password_hash=hash_password("legacy password one")))
+        database.commit()
+
+    for supplied_username, replacement in [
+        ("AdMiN", "replacement password one"),
+        (" admin ", "replacement password two"),
+    ]:
+        monkeypatch.setattr("sys.stdin", StringIO(f"{replacement}\n"))
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "pathlab-admin",
+                "reset-password",
+                "--username",
+                supplied_username,
+                "--password-stdin",
+            ],
+        )
+        main()
+
+        with session_factory(settings)() as database:
+            user = database.scalar(select(User).where(User.username == "AdMiN"))
+            assert user is not None
+            assert verify_password(user.password_hash, replacement)
+
+
+def test_reset_admin_exact_match_wins_between_legacy_collisions_and_revokes_only_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    now = datetime(2026, 9, 7, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        mixed = User(username="AdMiN", password_hash=hash_password("mixed original password"))
+        lower = User(username="admin", password_hash=hash_password("lower original password"))
+        database.add_all([mixed, lower])
+        database.flush()
+        database.add_all(
+            [
+                Session(
+                    id="m" * 64,
+                    user_id=mixed.id,
+                    csrf_token="mixed-csrf",
+                    expires_at=now + timedelta(hours=1),
+                ),
+                Session(
+                    id="l" * 64,
+                    user_id=lower.id,
+                    csrf_token="lower-csrf",
+                    expires_at=now + timedelta(hours=1),
+                ),
+                DesktopCredential(
+                    id="M" * 64,
+                    user_id=mixed.id,
+                    device_name="Mixed case device",
+                    scopes=["desktop:ingest"],
+                    expires_at=now + timedelta(days=1),
+                ),
+                DesktopCredential(
+                    id="L" * 64,
+                    user_id=lower.id,
+                    device_name="Lower case device",
+                    scopes=["desktop:ingest"],
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
+        database.commit()
+
+    monkeypatch.setattr("sys.stdin", StringIO("mixed replacement password\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "reset-password", "--username", "AdMiN", "--password-stdin"],
+    )
+    main()
+
+    with session_factory(settings)() as database:
+        mixed = database.scalar(select(User).where(User.username == "AdMiN"))
+        lower = database.scalar(select(User).where(User.username == "admin"))
+        assert mixed is not None and lower is not None
+        assert verify_password(mixed.password_hash, "mixed replacement password")
+        assert verify_password(lower.password_hash, "lower original password")
+        assert database.get(Session, "m" * 64) is None
+        assert database.get(Session, "l" * 64) is not None
+        assert database.get(DesktopCredential, "M" * 64).revoked_at is not None
+        assert database.get(DesktopCredential, "L" * 64).revoked_at is None
+
+
+def test_reset_admin_rejects_ambiguous_normalized_fallback_without_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    with session_factory(settings)() as database:
+        database.add_all(
+            [
+                User(username="AdMiN", password_hash=hash_password("mixed original password")),
+                User(username="admin", password_hash=hash_password("lower original password")),
+            ]
+        )
+        database.commit()
+
+    monkeypatch.setattr("sys.stdin", StringIO("ambiguous replacement password\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "reset-password", "--username", " ADMIN ", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Administrator username is ambiguous"):
+        main()
+
+    with session_factory(settings)() as database:
+        mixed = database.scalar(select(User).where(User.username == "AdMiN"))
+        lower = database.scalar(select(User).where(User.username == "admin"))
+        assert mixed is not None and lower is not None
+        assert verify_password(mixed.password_hash, "mixed original password")
+        assert verify_password(lower.password_hash, "lower original password")
+
+
+def test_create_admin_rejects_normalized_duplicate_of_legacy_account(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    with session_factory(settings)() as database:
+        database.add(User(username="AdMiN", password_hash=hash_password("legacy password")))
+        database.commit()
+
+    monkeypatch.setattr("sys.stdin", StringIO("new administrator password\n"))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["pathlab-admin", "create-admin", "--username", " admin ", "--password-stdin"],
+    )
+
+    with pytest.raises(SystemExit, match="Administrator already exists"):
+        main()
+
+    with session_factory(settings)() as database:
+        assert list(database.scalars(select(User.username))) == ["AdMiN"]
+
+
+def test_issue_recovery_code_preserves_exact_legacy_whitespace_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    settings = _configure_cli_database(tmp_path, monkeypatch)
+    with session_factory(settings)() as database:
+        spaced = User(
+            username="  Admin  ", password_hash=hash_password("legacy spaced password")
+        )
+        canonical = User(
+            username="admin", password_hash=hash_password("canonical account password")
+        )
+        database.add_all([spaced, canonical])
+        database.commit()
+        spaced_id = spaced.id
+        canonical_id = canonical.id
+
+    monkeypatch.setattr(
+        "sys.argv", ["pathlab-admin", "issue-recovery-code", "--username", "  Admin  "]
+    )
+    main()
+    capsys.readouterr()
+
+    with session_factory(settings)() as database:
+        stored = database.scalar(select(PasswordRecoveryCode))
+        assert stored is not None
+        assert stored.user_id == spaced_id
+        assert stored.user_id != canonical_id
 
 
 def test_issue_recovery_code_does_not_read_password() -> None:

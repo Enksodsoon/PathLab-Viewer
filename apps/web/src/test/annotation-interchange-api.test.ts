@@ -108,6 +108,38 @@ describe('annotation interchange fixtures', () => {
     )
   })
 
+  it('neutralizes formula-prefixed text cells without changing negative measurements', () => {
+    const csv = exportMeasurementsCsv([{
+      id: '=unsafe-id',
+      layer: ' \t+unsafe layer',
+      title: '\r\n-unsafe, "quoted" and naïve',
+      classification: '@unsafe classification',
+      geometryType: 'point',
+      values: {
+        x: -7.5,
+        xUnit: '=unsafe unit',
+        y: 12,
+        yUnit: 'px',
+        count: 1,
+      },
+    }])
+
+    const expectedRow = [
+      "'=unsafe-id",
+      "' \t+unsafe layer",
+      '"\'\r\n-unsafe, ""quoted"" and naïve"',
+      "'@unsafe classification",
+      'point',
+      '', '', '', '', '', '', '', '',
+      -7.5,
+      "'=unsafe unit",
+      12,
+      'px',
+      1,
+    ].join(',')
+    expect(csv.slice(csv.indexOf('\r\n') + 2)).toBe(`${expectedRow}\r\n`)
+  })
+
   it('previews import size, vertices, format, and default new layer without mutating input', () => {
     const before = structuredClone(pathlabFixture)
     expect(previewImport(pathlabFixture, { maxBytes: 8 * 1024 * 1024, maxVertices: 250_000 }))

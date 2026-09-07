@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -134,11 +136,17 @@ def _item_payload(layer_id: str, *, item_id: str | None = None) -> dict[str, Any
     }
 
 
-def _create_layer(client: TestClient, slide_id: str, headers: dict[str, str]) -> dict[str, Any]:
+def _create_layer(
+    client: TestClient,
+    slide_id: str,
+    headers: dict[str, str],
+    *,
+    name: str = "Tumor",
+) -> dict[str, Any]:
     response = client.post(
         f"/api/v2/admin/annotations/slides/{slide_id}/layers",
         headers=headers,
-        json=_layer_payload(),
+        json=_layer_payload(name=name),
     )
     assert response.status_code == 201
     return response.json()
@@ -1261,6 +1269,49 @@ def test_layer_writes_run_the_same_bounded_tombstone_purge(tmp_path: Path) -> No
                 )
                 == 1
             )
+
+
+def test_annotation_csv_route_neutralizes_formula_text_and_preserves_csv_values(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _login(client)
+        slide = _slide(client, slide_id="csv-formula-prefixes")
+        layer = _create_layer(client, slide.id, headers, name="@SUM(1,1)")
+        item = _item_payload(layer["id"])
+        item["metadata"] = {
+            **item["metadata"],
+            "title": ' \t=HYPERLINK("https://example.invalid","click"), naïve\nsecond line',
+        }
+        created = _batch(
+            client,
+            slide.id,
+            headers,
+            base_version=1,
+            operations=[{"type": "create", "item": item}],
+        )
+        assert created.status_code == 200
+
+        response = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/export",
+            params={"format": "csv"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"] == (
+        f'attachment; filename="{slide.id}-annotation-measurements.csv"'
+    )
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+    assert len(rows) == 1
+    assert rows[0]["layer"] == "'@SUM(1,1)"
+    assert rows[0]["title"] == (
+        "' \t=HYPERLINK(\"https://example.invalid\",\"click\"), naïve\nsecond line"
+    )
+    assert rows[0]["area"] == "200.0"
+    assert rows[0]["perimeter"] == "60.0"
+    assert rows[0]["unit"] == "µm"
+    assert rows[0]["areaUnit"] == "µm²"
 
 
 def test_pathlab_geojson_and_csv_interchange_is_bounded_and_lossless(

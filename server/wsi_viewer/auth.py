@@ -8,7 +8,14 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session as OrmSession
 
 from .admission import lock_admission
-from .models import AuditEvent, PasswordRecoveryAttempt, PasswordRecoveryCode, Session, User
+from .models import (
+    AuditEvent,
+    DesktopCredential,
+    PasswordRecoveryAttempt,
+    PasswordRecoveryCode,
+    Session,
+    User,
+)
 from .security import (
     hash_password,
     normalize_username,
@@ -48,6 +55,10 @@ class CredentialConflict(ValueError):
     pass
 
 
+class AmbiguousUsername(ValueError):
+    pass
+
+
 def _now(value: datetime | None) -> datetime:
     return as_utc(value) if value is not None else utc_now()
 
@@ -59,6 +70,21 @@ def _client_key(username: str, client_address: str) -> str:
 
 def _scope_key(scope: str, value: str = "") -> str:
     return hashlib.sha256(f"{scope}\0{value}".encode()).hexdigest()
+
+
+def resolve_user_by_username(database: OrmSession, username: str) -> User | None:
+    exact = database.scalar(select(User).where(User.username == username))
+    if exact is not None:
+        return exact
+    normalized = normalize_username(username)
+    matches = [
+        user
+        for user in database.scalars(select(User))
+        if normalize_username(user.username) == normalized
+    ]
+    if len(matches) > 1:
+        raise AmbiguousUsername
+    return matches[0] if matches else None
 
 
 def _recent_client_failures(
@@ -197,8 +223,16 @@ def invalidate_recovery_codes(database: OrmSession, user_id: str, now: datetime)
     )
 
 
-def revoke_sessions(database: OrmSession, user_id: str) -> None:
+def revoke_sessions(database: OrmSession, user_id: str, revoked_at: datetime) -> None:
     database.execute(delete(Session).where(Session.user_id == user_id))
+    database.execute(
+        update(DesktopCredential)
+        .where(
+            DesktopCredential.user_id == user_id,
+            DesktopCredential.revoked_at.is_(None),
+        )
+        .values(revoked_at=revoked_at)
+    )
 
 
 def issue_recovery_code(
@@ -237,7 +271,7 @@ def change_password(
     if verify_password(user.password_hash, new_password):
         raise PasswordReuse
     _replace_credential(database, user, hash_password(new_password))
-    revoke_sessions(database, user.id)
+    revoke_sessions(database, user.id, changed_at)
     invalidate_recovery_codes(database, user.id, changed_at)
     database.add(
         AuditEvent(
@@ -257,7 +291,7 @@ def reset_password_by_cli(
 ) -> None:
     reset_at = _now(now)
     _replace_credential(database, user, hash_password(password))
-    revoke_sessions(database, user.id)
+    revoke_sessions(database, user.id, reset_at)
     invalidate_recovery_codes(database, user.id, reset_at)
     database.add(AuditEvent(action="auth.password_reset_by_cli", target_id=user.id))
     database.commit()
@@ -309,15 +343,10 @@ def recover_password(
         )
     )
 
-    normalized_username = normalize_username(username)
-    user = next(
-        (
-            item
-            for item in database.scalars(select(User))
-            if normalize_username(item.username) == normalized_username
-        ),
-        None,
-    )
+    try:
+        user = resolve_user_by_username(database, username)
+    except AmbiguousUsername:
+        user = None
     submitted_hash = recovery_code_hash(code)
     stored = (
         None
@@ -378,7 +407,7 @@ def recover_password(
         raise InvalidRecoveryCode
     _replace_credential(database, user, hash_password(new_password))
     invalidate_recovery_codes(database, user.id, attempted_at)
-    revoke_sessions(database, user.id)
+    revoke_sessions(database, user.id, attempted_at)
     database.execute(
         delete(PasswordRecoveryAttempt).where(PasswordRecoveryAttempt.client_key_hash == key)
     )

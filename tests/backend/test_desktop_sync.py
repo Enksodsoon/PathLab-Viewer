@@ -278,6 +278,73 @@ def test_offline_download_resumes_exact_range_with_persisted_digest(tmp_path: Pa
     assert response.headers["x-pathlab-sha256"] == hashlib.sha256(payload).hexdigest()
 
 
+def test_offline_content_follows_slide_trash_and_restore_without_weakening_auth(
+    tmp_path: Path,
+) -> None:
+    payload = b"verified-trash-boundary"
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        authorization = _authorization(exchanged)
+        slide = _ready_slide_with_content(client, payload)
+        content_url = f"/api/v2/desktop/slides/{slide.id}/content"
+        requests = [
+            ("GET", {}),
+            ("HEAD", {}),
+            ("GET", {"Range": "bytes=9-"}),
+        ]
+
+        for method, extra_headers in requests:
+            assert client.request(method, content_url, headers=extra_headers).status_code == 401
+        assert [
+            client.request(
+                method,
+                content_url,
+                headers={**authorization, **extra_headers},
+            ).status_code
+            for method, extra_headers in requests
+        ] == [200, 200, 206]
+
+        login = client.post(
+            "/api/v1/auth/session",
+            json={"username": "admin", "password": "correct horse battery"},
+        )
+        csrf_headers = {"X-CSRF-Token": login.json()["csrfToken"]}
+        trashed = client.post(
+            f"/api/v2/admin/slides/{slide.id}/trash",
+            headers=csrf_headers,
+        )
+        assert trashed.status_code == 200
+        assert trashed.json()["trashedAt"] is not None
+
+        for method, extra_headers in requests:
+            denied = client.request(
+                method,
+                content_url,
+                headers={**authorization, **extra_headers},
+            )
+            assert denied.status_code == 404
+            if method != "HEAD":
+                assert denied.json()["detail"]["code"] == "OFFLINE_SLIDE_NOT_FOUND"
+            assert client.request(method, content_url, headers=extra_headers).status_code == 401
+
+        restored = client.post(
+            f"/api/v2/admin/slides/{slide.id}/restore",
+            headers=csrf_headers,
+        )
+        assert restored.status_code == 200
+        assert restored.json()["trashedAt"] is None
+        assert [
+            client.request(
+                method,
+                content_url,
+                headers={**authorization, **extra_headers},
+            ).status_code
+            for method, extra_headers in requests
+        ] == [200, 200, 206]
+        for method, extra_headers in requests:
+            assert client.request(method, content_url, headers=extra_headers).status_code == 401
+
+
 def test_desktop_patch_rejects_stale_revision_without_mutating_slide(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         exchanged = _pair(client)
