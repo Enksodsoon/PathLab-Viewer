@@ -1,14 +1,16 @@
 import hashlib
+import logging
 import secrets
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from argon2.low_level import Type
 from itsdangerous import BadSignature, URLSafeSerializer
 
 _PASSWORD_HASHER = PasswordHasher(type=Type.ID)
+LOGGER = logging.getLogger(__name__)
 MIN_PASSWORD_LENGTH = 12
 MAX_PASSWORD_LENGTH = 128
 MAX_VERIFICATION_PASSWORD_LENGTH = 1024
@@ -50,6 +52,9 @@ def verify_password(encoded: str, password: str) -> bool:
     try:
         return _PASSWORD_HASHER.verify(encoded, password)
     except VerifyMismatchError:
+        return False
+    except (InvalidHashError, VerificationError) as error:
+        LOGGER.warning("Stored password hash verification failed: %s", type(error).__name__)
         return False
 
 
