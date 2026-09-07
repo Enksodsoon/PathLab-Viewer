@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import stat
@@ -21,7 +22,7 @@ from .models import (
     Slide,
 )
 from .publication import INDIVIDUAL, delivery_version
-from .sharing import write_share_delivery_manifest
+from .sharing import ShareConflict, write_share_delivery_manifest
 from .storage import (
     InsufficientStorage,
     PublicationError,
@@ -326,7 +327,17 @@ def reconcile_storage(
                 if candidate.stem not in expected_share_ids:
                     candidate.unlink(missing_ok=True)
         for share, share_slides in share_deliveries:
-            write_share_delivery_manifest(layout, share, share_slides)
+            try:
+                write_share_delivery_manifest(layout, share, share_slides)
+            except ShareConflict as error:
+                if error.code != "SHARE_NOT_FOUND":
+                    raise
+                # Unknown positions remain untouched and fail closed. Keep
+                # unrelated shares and owner rotation available after startup.
+                logging.getLogger(__name__).warning(
+                    "Share manifest reconciliation skipped for share %s: invalid stored positions",
+                    share.id,
+                )
     return ReconciliationSummary(
         slide_count=len(slides),
         derivative_count=derivative_count,

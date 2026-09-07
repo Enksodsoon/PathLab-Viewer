@@ -24,7 +24,7 @@ from .models import (
     Slide,
 )
 from .publication import SHARE, ensure_grant, remove_grant
-from .storage import StorageLayout, publish_derivative, unpublish_derivative
+from .storage import StorageLayout, publish_derivative
 from .time_support import as_utc, utc_now
 
 
@@ -122,7 +122,7 @@ def _read_share_delivery_manifest(
             storage.public_for(item)
             seen.add(item)
         return raw
-    except (OSError, KeyError, TypeError, ValueError):
+    except (FileNotFoundError, KeyError, TypeError, ValueError):
         raise ShareConflict("SHARE_NOT_FOUND") from None
 
 
@@ -465,13 +465,6 @@ def activate_share(
         slide.id: slide
         for slide in database.scalars(select(Slide).where(Slide.id.in_(selected_ids)))
     }
-    unpublished_ids = [
-        slide.public_id
-        for slide in slides.values()
-        if not database.scalar(
-            select(PublicationGrant.id).where(PublicationGrant.slide_id == slide.id).limit(1)
-        )
-    ]
     previous_deliveries = list(
         database.execute(
             select(Slide.id, Slide.public_id)
@@ -520,11 +513,12 @@ def activate_share(
         database.commit()
     except Exception:
         try:
-            # Compensate while still holding the target lock, so a retry cannot
-            # publish between rollback and cleanup of this attempt's aliases.
+            # Only the new manifest belongs exclusively to this attempt. A
+            # different target can commit a grant for the same shared alias.
+            # Retain that alias: without a committed grant it cannot authorize
+            # delivery. Later publication reuses it; slide lifecycle cleanup
+            # removes it.
             retire_share_delivery_manifest(storage, new_public_id)
-            for public_id in unpublished_ids:
-                unpublish_derivative(storage, public_id)
             for slide_id, public_id in previous_deliveries:
                 if not storage.public_for(public_id).exists():
                     publish_derivative(storage, slide_id, public_id)

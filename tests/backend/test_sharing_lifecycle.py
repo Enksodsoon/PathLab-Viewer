@@ -194,7 +194,7 @@ def test_manifest_write_failure_is_retryable_and_preserves_old_delivery(
                 assert database.get(Slide, "slide").state == SlideState.READY_PRIVATE
             assert (
                 not StorageLayout(client.app.state.settings.data_root)
-                .public_for("public-slide")
+                .individual_delivery_for("public-slide")
                 .exists()
             )
             assert _share(client, headers, folder["id"]).status_code == 201
@@ -246,7 +246,7 @@ def test_commit_failure_restores_database_and_old_manifest(
                 assert client.get(url).status_code == 200
             else:
                 assert database.scalars(select(LibraryShare)).all() == []
-                assert storage.public_for("public-slide").exists() == already_published
+                assert storage.individual_delivery_for("public-slide").exists() == already_published
         assert len(list((storage.root / "delivery" / "shares").glob("*.json"))) == int(
             operation == "rotate"
         )
@@ -352,7 +352,7 @@ def test_expired_replacement_commit_failure_restores_previous_derivatives(tmp_pa
             assert database.get(LibraryShare, first["id"]).is_active
             assert [g.slide_id for g in database.scalars(select(PublicationGrant))] == ["old"]
         assert storage.public_for("public-old").is_dir()
-        assert not storage.public_for("public-new").exists()
+        assert not storage.individual_delivery_for("public-new").exists()
         assert _share(client, headers, folder["id"], slideIds=["new"]).status_code == 201
 
 
@@ -378,3 +378,184 @@ def test_rotation_cleanup_failure_leaves_old_file_unauthorized(tmp_path, monkeyp
         new_url = f"/api/v2/public/folders/{response.json()['publicId']}"
         assert client.get(new_url).status_code == 200
         assert client.get(f"{new_url}/slides/0/tiles/slide.dzi").status_code == 200
+
+
+@pytest.mark.parametrize("internal_redirects", [False, True])
+def test_retained_failed_share_alias_has_no_authority_and_retry_is_safe(
+    tmp_path,
+    monkeypatch,
+    internal_redirects,
+):
+    from wsi_viewer.models import ShareSlide
+    from wsi_viewer.storage_accounting import reconcile_storage
+
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        client.app.state.settings.internal_file_redirects = internal_redirects
+        headers = _headers(client)
+        folder = _create_folder(client, headers, "Failed activation")
+        _seed_share_ready_slide(client, slide_id="slide", folder_id=folder["id"])
+        storage = StorageLayout(client.app.state.settings.data_root)
+        factory = session_factory(client.app.state.settings)
+        failed_id = None
+        original = sharing.write_share_delivery_manifest
+
+        def fail(layout, share, slides):
+            nonlocal failed_id
+            failed_id = share.public_id
+            original(layout, share, slides)
+            raise OSError("injected manifest completion failure")
+
+        monkeypatch.setattr(sharing, "write_share_delivery_manifest", fail)
+        with pytest.raises(OSError, match="injected manifest"):
+            _share(client, headers, folder["id"])
+        monkeypatch.setattr(sharing, "write_share_delivery_manifest", original)
+        assert storage.public_for("public-slide").is_dir()
+        assert not storage.individual_delivery_for("public-slide").exists()
+        assert not (storage.root / "delivery" / "shares" / f"{failed_id}.json").exists()
+        with factory() as database:
+            assert database.get(Slide, "slide").state == SlideState.READY_PRIVATE
+            for model in [LibraryShare, ShareSlide, PublicationGrant]:
+                assert database.scalars(select(model)).all() == []
+        client.cookies.clear()
+        failed_root = f"/api/v2/public/folders/{failed_id}"
+        urls = [failed_root, f"{failed_root}/slides/0/thumbnail"]
+        urls.extend(
+            f"{failed_root}/slides/0/tiles/{name}"
+            for name in [
+                "slide.dzi",
+                "slide_files/0/0_0.jpeg",
+                "thumbnail.jpg",
+            ]
+        )
+        urls.append("/api/v1/public/slides/public-slide")
+        urls.extend(
+            f"/api/v1/public/slides/public-slide/tiles/{name}"
+            for name in [
+                "slide.dzi",
+                "slide_files/0/0_0.jpeg",
+                "thumbnail.jpg",
+            ]
+        )
+        for _ in range(2):
+            for url in urls:
+                response = client.get(url)
+                assert response.status_code == 404
+                assert "x-accel-redirect" not in response.headers
+            reconcile_storage(factory, storage)
+        assert storage.public_for("public-slide").is_dir()  # Reconciliation does not prune it.
+        retry = _share(client, _headers(client), folder["id"])
+        assert retry.status_code == 201
+        client.cookies.clear()
+        root = f"/api/v2/public/folders/{retry.json()['publicId']}"
+        assert client.get(root).status_code == 200
+        for suffix in ["tiles/slide.dzi", "tiles/slide_files/0/0_0.jpeg", "thumbnail"]:
+            response = client.get(f"{root}/slides/0/{suffix}")
+            assert response.status_code == 200
+            assert ("x-accel-redirect" in response.headers) == internal_redirects
+        for url in urls:
+            assert client.get(url).status_code == 404
+
+
+@pytest.mark.parametrize("corruption", ["duplicate", "syntax"])
+def test_reconcile_cli_allows_startup_and_owner_recovery_with_one_bad_share(tmp_path, corruption):
+    import json
+    import os
+    import subprocess
+    import sys
+
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        shares = []
+        for name in ["bad", "good"]:
+            folder = _create_folder(client, headers, name)
+            _seed_share_ready_slide(client, slide_id=name, folder_id=folder["id"])
+            shares.append(_share(client, headers, folder["id"]).json())
+        settings = client.app.state.settings
+    bad, good = shares
+    root = settings.data_root / "delivery" / "shares"
+    bad_path = root / f"{bad['publicId']}.json"
+    bad_bytes = (
+        json.dumps({"targetType": "folder", "slides": ["public-bad", "public-bad"]})
+        if corruption == "duplicate"
+        else "{broken"
+    ).encode()
+    bad_path.write_bytes(bad_bytes)
+    good_bytes = (root / f"{good['publicId']}.json").read_bytes()
+    # Run the actual CLI first, then start a fresh application only if it succeeds,
+    # matching Compose's reconcile-storage && exec uvicorn startup boundary.
+    script = """
+import json, sys
+from pathlib import Path
+from fastapi.testclient import TestClient
+from wsi_viewer.cli import main
+from wsi_viewer.config import Settings
+from wsi_viewer.main import create_app
+bad, good = json.loads(sys.argv[1])
+settings = Settings()
+path = settings.data_root / "delivery" / "shares" / f"{bad['publicId']}.json"
+before = path.read_bytes()
+sys.argv = ["pathlab-admin", "reconcile-storage"]
+main()
+assert path.read_bytes() == before
+with TestClient(create_app(settings)) as client:
+    assert client.get("/readyz").status_code == 200
+    bad_url = f"/api/v2/public/folders/{bad['publicId']}"
+    good_url = f"/api/v2/public/folders/{good['publicId']}"
+    for suffix in ["", "/slides/0/thumbnail", "/slides/0/tiles/slide.dzi"]:
+        assert client.get(bad_url + suffix).status_code == 404
+        assert client.get(good_url + suffix).status_code == 200
+    response = client.post("/api/v1/auth/session", json={
+        "username": "admin", "password": "correct horse battery"})
+    assert response.status_code == 201
+    rotated = client.post(f"/api/v2/admin/shares/{bad['id']}/rotate",
+        headers={"X-CSRF-Token": response.json()["csrfToken"]})
+    assert rotated.status_code == 200
+    assert client.get(f"/api/v2/public/folders/{rotated.json()['publicId']}").status_code == 200
+print("API started; valid share served; owner rotation recovered isolated share")
+"""
+    environment = {
+        **os.environ,
+        "PYTHONPATH": str(Path.cwd() / "server"),
+        "PATHLAB_DATABASE_URL": settings.database_url,
+        "PATHLAB_DATA_ROOT": str(settings.data_root),
+        "PATHLAB_SECRET_KEY": settings.secret_key,
+        "PATHLAB_SECURE_COOKIES": "false",
+        "PATHLAB_MULTI_SHARE_ENABLED": "true",
+        "PATHLAB_INTERNAL_FILE_REDIRECTS": "false",
+        "PATHLAB_TUS_INTERNAL_UPLOAD_DIR": str(settings.tus_internal_upload_dir),
+    }
+    result = subprocess.run(
+        [sys.executable, "-c", script, json.dumps(shares)],
+        capture_output=True,
+        text=True,
+        env=environment,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (
+        "API started; valid share served; owner rotation recovered isolated share" in result.stdout
+    )
+    assert "manifest" in result.stderr.lower()  # A diagnostic, without slide metadata.
+    assert (root / f"{good['publicId']}.json").read_bytes() == good_bytes
+
+
+def test_reconciliation_does_not_hide_manifest_io_failure(tmp_path, monkeypatch):
+    from wsi_viewer.storage_accounting import reconcile_storage
+
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        folder = _create_folder(client, headers, "Shared")
+        _seed_share_ready_slide(client, slide_id="slide", folder_id=folder["id"])
+        created = _share(client, headers, folder["id"]).json()
+        storage = StorageLayout(client.app.state.settings.data_root)
+        path = storage.root / "delivery" / "shares" / f"{created['publicId']}.json"
+        original = Path.read_text
+
+        def fail(target, *args, **kwargs):
+            if target == path:
+                raise PermissionError("injected manifest read access denied")
+            return original(target, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", fail)
+        with pytest.raises(PermissionError, match="injected manifest"):
+            reconcile_storage(session_factory(client.app.state.settings), storage)

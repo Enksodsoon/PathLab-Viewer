@@ -6,11 +6,25 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 import wsi_viewer.sharing as sharing
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
+from wsi_viewer.config import Settings
 from wsi_viewer.domain import SlideState
-from wsi_viewer.models import Base, Folder, LibraryShare, PublicationGrant, Slide
+from wsi_viewer.library_routes import register_library_routes
+from wsi_viewer.models import (
+    Base,
+    Collection,
+    CollectionSlide,
+    Folder,
+    LibraryShare,
+    PublicationGrant,
+    ShareSlide,
+    Slide,
+)
 from wsi_viewer.storage import StorageLayout
+from wsi_viewer.tile_routes import TileRouteService
 
 
 @pytest.fixture(params=["sqlite", "postgresql"])
@@ -61,14 +75,14 @@ def sharing_database(request, tmp_path):
             admin.dispose()
 
 
-def _activate(factory, storage, expires_at=None):
+def _activate(factory, storage, expires_at=None, *, target_type="folder", target_id="folder"):
     with factory() as database:
         try:
             share = sharing.activate_share(
                 database,
                 storage,
-                target_type="folder",
-                target_id="folder",
+                target_type=target_type,
+                target_id=target_id,
                 include_descendants=False,
                 auto_include_new=False,
                 expires_at=expires_at,
@@ -149,3 +163,102 @@ def test_expiry_roundtrip_and_reactivation(sharing_database, offset):
     with factory() as database:
         assert database.scalar(sharing.shared_slide_statement(public_id, "folder")) is None
         assert database.scalar(sharing.shared_slide_statement(replacement, "folder")) is not None
+
+
+@pytest.mark.parametrize("sharing_database", ["postgresql"], indirect=True)
+def test_failed_activation_preserves_different_target_committed_delivery(
+    sharing_database,
+    monkeypatch,
+):
+    factory, storage = sharing_database
+    with factory() as database:
+        database.add(Collection(id="collection", name="Collection", normalized_name="collection"))
+        database.flush()
+        database.add(CollectionSlide(collection_id="collection", slide_id="slide"))
+        database.commit()
+    (storage.for_slide("slide").private_derivative / "thumbnail.jpg").write_bytes(b"thumbnail")
+    a_ready = threading.Event()
+    release_a = threading.Event()
+    original_grant = sharing.ensure_grant
+    original_write = sharing.write_share_delivery_manifest
+    a_thread_id = None
+    a_public_id = None
+
+    def grant(*args, **kwargs):
+        if threading.get_ident() == a_thread_id:
+            a_ready.set()
+            assert release_a.wait(10)
+        return original_grant(*args, **kwargs)
+
+    def write(layout, share, slides):
+        nonlocal a_public_id
+        if threading.get_ident() == a_thread_id:
+            a_public_id = share.public_id
+            raise OSError("injected A manifest failure")
+        return original_write(layout, share, slides)
+
+    def activate_a():
+        nonlocal a_thread_id
+        a_thread_id = threading.get_ident()
+        return _activate(factory, storage)
+
+    monkeypatch.setattr(sharing, "ensure_grant", grant)
+    monkeypatch.setattr(sharing, "write_share_delivery_manifest", write)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        pending_a = executor.submit(activate_a)
+        assert a_ready.wait(10)
+        try:
+            b_public_id = _activate(
+                factory, storage, target_type="collection", target_id="collection"
+            )
+            root = storage.public_for("public-slide")
+            names = ["slide.dzi", "slide_files/0/0_0.jpeg", "thumbnail.jpg"]
+            before = {
+                name: ((root / name).stat().st_ino, (root / name).read_bytes()) for name in names
+            }
+        finally:
+            release_a.set()
+        with pytest.raises(OSError, match="injected A"):
+            pending_a.result(timeout=10)
+    # No reconciliation or retry may intervene before these assertions.
+    assert all((root / name).is_file() for name in names), "A removed B's shared alias"
+    assert {
+        name: ((root / name).stat().st_ino, (root / name).read_bytes()) for name in names
+    } == before
+    with factory() as database:
+        shares = database.scalars(select(LibraryShare)).all()
+        assert len(shares) == 1 and shares[0].public_id == b_public_id
+        grants = database.scalars(select(PublicationGrant)).all()
+        assert len(grants) == 1 and grants[0].source_id == shares[0].id
+        assert len(database.scalars(select(ShareSlide)).all()) == 1
+    assert not (storage.root / "delivery" / "shares" / f"{a_public_id}.json").exists()
+
+    def database_dependency():
+        with factory() as database:
+            yield database
+
+    app = FastAPI()
+    app.state.settings = Settings(data_root=storage.root, internal_file_redirects=False)
+    register_library_routes(
+        app,
+        factory=factory,
+        storage=storage,
+        database_dependency=database_dependency,
+        admin_dependency=lambda: None,
+        csrf_dependency=lambda: None,
+        tile_routes=lambda: TileRouteService(storage, None, internal_redirects=True),
+    )
+    with TestClient(app) as client:
+        b_url = f"/api/v2/public/collections/{b_public_id}"
+        assert client.get(b_url).status_code == 200
+        for suffix, expected in [
+            ("tiles/slide.dzi", b"<Image />"),
+            ("tiles/slide_files/0/0_0.jpeg", b"tile"),
+            ("thumbnail", b"thumbnail"),
+        ]:
+            response = client.get(f"{b_url}/slides/0/{suffix}")
+            assert response.status_code == 200 and response.content == expected
+            assert (
+                client.get(f"/api/v2/public/folders/{a_public_id}/slides/0/{suffix}").status_code
+                == 404
+            )
