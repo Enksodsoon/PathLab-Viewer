@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -56,6 +58,23 @@ def main() -> int:
         )
     }
 
+    required_telemetry = {
+        "database": ("maxConnections", "peakConnections", "poolTimeouts", "lockTimeouts"),
+        "services": ("assessmentWorkers", "restarts", "oomKills"),
+        "host": ("sustainedCpuPercent", "peakMemoryPercent", "swapBytes"),
+    }
+    telemetry_complete = all(
+        isinstance(observer.get(section), dict)
+        and all(
+            type(observer[section].get(name)) in {int, float}
+            and math.isfinite(observer[section][name])
+            and observer[section][name] >= 0
+            for name in names
+        )
+        for section, names in required_telemetry.items()
+    )
+    gate("complete_host_telemetry", telemetry_complete, telemetry_complete)
+
     gate(
         "five_unique_shards",
         len(shards) == 5 and {item.get("shard") for item in shards} == set(range(1, 6)),
@@ -63,7 +82,8 @@ def main() -> int:
     )
     gate(
         "exact_release",
-        len(args.release_sha) == 40
+        re.fullmatch(r"[0-9a-f]{40}", args.release_sha) is not None
+        and observer.get("releaseSha") == args.release_sha
         and all(item.get("exactRelease") == args.release_sha for item in shards),
         args.release_sha,
     )

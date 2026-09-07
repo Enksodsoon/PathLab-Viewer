@@ -147,6 +147,23 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.getByText('70% score')).toBeVisible()
 })
 
+it('shows retained aggregate points when anonymous responses have no individual records', async () => {
+  api.listAssessmentAdministrations.mockResolvedValue({ items: [{
+    id: 'administration-1', draftId: 'draft-1', publicId: 'public-1', title: 'Lung pathology',
+    version: 1, mode: 'formative', status: 'closed', responses: 1, expectedParticipants: 1, completedParticipants: 1, createdAt: '2026-08-24T00:00:00Z',
+  }], total: 1 })
+  api.getAssessmentResults.mockResolvedValue({
+    administration: { id: 'administration-1', mode: 'formative', status: 'closed' },
+    summary: { responses: 1, averagePoints: '1.000', completionRate: '1', needsGrading: 0, questions: {} },
+    individuals: { total: 0, items: [] },
+  })
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1/report']}><Routes><Route path="/admin/assessments/:draftId/report" element={<AssessmentReportPage />} /></Routes></MemoryRouter>)
+  const summary = await screen.findByRole('region', { name: 'Aggregate response summary' })
+  expect(within(summary).getByText('Average points').nextElementSibling).toHaveTextContent('1')
+  expect(screen.queryByRole('img', { name: '0% average score' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Visual/ })).toBeDisabled()
+})
+
 it('renders the shared report inside the builder Responses tab', async () => {
   api.listAssessmentAdministrations.mockResolvedValue({ items: [{
     id: 'administration-1', draftId: 'draft-1', publicId: 'public-1', title: 'Lung pathology',

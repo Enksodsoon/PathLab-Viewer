@@ -28,6 +28,19 @@ jobs:
       tile_url: ${{ steps.fixture.outputs.tile_url }}
       start_epoch: ${{ steps.fixture.outputs.start_epoch }}
     steps:
+      - name: Require configured protected qualification target
+        env:
+          ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
+          ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
+          OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
+          ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
+        run: |
+          for name in CAPACITY_BASE_URL HOST_OBSERVER_URL ADMIN_COOKIE ADMIN_CSRF OBSERVER_TOKEN ACCESS_CODE; do
+            [[ -n "${!name}" ]] || { echo "Missing qualification configuration: ${name}" >&2; exit 1; }
+          done
+          [[ "$CAPACITY_BASE_URL" == https://* && "$HOST_OBSERVER_URL" == https://* ]] || {
+            echo "Qualification endpoints must use HTTPS" >&2; exit 1;
+          }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
       - name: Verify and provision exact-release 500-seat fixture
@@ -74,6 +87,7 @@ jobs:
           --administration-id "${{ needs.provision-campaign.outputs.administration_id }}"
           --tile-url "${{ needs.provision-campaign.outputs.tile_url }}"
           --host-observer-url "$HOST_OBSERVER_URL"
+          --release-sha "${{ inputs.release_sha }}"
           --start-epoch "${{ needs.provision-campaign.outputs.start_epoch }}"
           --output artifacts/assessment-capacity/observer.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
