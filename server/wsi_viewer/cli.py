@@ -9,7 +9,12 @@ from pathlib import Path
 
 from sqlalchemy import inspect, select, text, update
 
-from .auth import issue_recovery_code, reset_password_by_cli
+from .auth import (
+    AmbiguousUsername,
+    issue_recovery_code,
+    reset_password_by_cli,
+    resolve_user_by_username,
+)
 from .config import Settings
 from .database import session_factory
 from .identity import ensure_default_owner_membership
@@ -240,7 +245,16 @@ def main() -> None:
         username = normalize_username(args.username)
         if not username:
             raise SystemExit("Username must not be empty")
-        user = database.scalar(select(User).where(User.username == username))
+        if args.command == "create-admin":
+            try:
+                user = resolve_user_by_username(database, username)
+            except AmbiguousUsername as error:
+                raise SystemExit("Administrator already exists") from error
+        else:
+            try:
+                user = resolve_user_by_username(database, args.username)
+            except AmbiguousUsername as error:
+                raise SystemExit("Administrator username is ambiguous") from error
         if args.command == "issue-recovery-code":
             if user is None:
                 raise SystemExit("Administrator does not exist")

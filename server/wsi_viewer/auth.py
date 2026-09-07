@@ -55,6 +55,10 @@ class CredentialConflict(ValueError):
     pass
 
 
+class AmbiguousUsername(ValueError):
+    pass
+
+
 def _now(value: datetime | None) -> datetime:
     return as_utc(value) if value is not None else utc_now()
 
@@ -66,6 +70,21 @@ def _client_key(username: str, client_address: str) -> str:
 
 def _scope_key(scope: str, value: str = "") -> str:
     return hashlib.sha256(f"{scope}\0{value}".encode()).hexdigest()
+
+
+def resolve_user_by_username(database: OrmSession, username: str) -> User | None:
+    exact = database.scalar(select(User).where(User.username == username))
+    if exact is not None:
+        return exact
+    normalized = normalize_username(username)
+    matches = [
+        user
+        for user in database.scalars(select(User))
+        if normalize_username(user.username) == normalized
+    ]
+    if len(matches) > 1:
+        raise AmbiguousUsername
+    return matches[0] if matches else None
 
 
 def _recent_client_failures(
@@ -324,15 +343,10 @@ def recover_password(
         )
     )
 
-    normalized_username = normalize_username(username)
-    user = next(
-        (
-            item
-            for item in database.scalars(select(User))
-            if normalize_username(item.username) == normalized_username
-        ),
-        None,
-    )
+    try:
+        user = resolve_user_by_username(database, username)
+    except AmbiguousUsername:
+        user = None
     submitted_hash = recovery_code_hash(code)
     stored = (
         None

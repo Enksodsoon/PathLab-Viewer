@@ -308,6 +308,131 @@ def test_password_changes_validate_current_password_and_revoke_access(tmp_path: 
         assert all(item.invalidated_at == now.replace(tzinfo=None) for item in codes)
 
 
+def test_recovery_exact_username_wins_and_code_cannot_cross_legacy_collision(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path, "recovery-exact-legacy.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 9, 7, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        mixed = _create_user(database, "AdMiN")
+        lower = _create_user(database, "admin")
+        mixed_code = issue_recovery_code(database, mixed, now)
+        lower_code = issue_recovery_code(database, lower, now)
+        database.add_all(
+            [
+                Session(
+                    id="m" * 64,
+                    user_id=mixed.id,
+                    csrf_token="mixed-csrf",
+                    expires_at=now + timedelta(hours=1),
+                ),
+                Session(
+                    id="l" * 64,
+                    user_id=lower.id,
+                    csrf_token="lower-csrf",
+                    expires_at=now + timedelta(hours=1),
+                ),
+                DesktopCredential(
+                    id="M" * 64,
+                    user_id=mixed.id,
+                    device_name="Mixed case device",
+                    scopes=["desktop:ingest"],
+                    expires_at=now + timedelta(days=1),
+                ),
+                DesktopCredential(
+                    id="L" * 64,
+                    user_id=lower.id,
+                    device_name="Lower case device",
+                    scopes=["desktop:ingest"],
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
+        database.commit()
+
+        with pytest.raises(InvalidRecoveryCode):
+            recover_password(
+                database,
+                "admin",
+                mixed_code,
+                "must not cross accounts",
+                "10.0.0.10",
+                now,
+            )
+
+        recover_password(
+            database,
+            "admin",
+            lower_code,
+            "lower replacement password",
+            "10.0.0.11",
+            now,
+        )
+
+        assert verify_password(mixed.password_hash, "correct horse battery")
+        assert verify_password(lower.password_hash, "lower replacement password")
+        assert database.get(Session, "m" * 64) is not None
+        assert database.get(Session, "l" * 64) is None
+        assert database.get(DesktopCredential, "M" * 64).revoked_at is None
+        assert database.get(DesktopCredential, "L" * 64).revoked_at is not None
+
+
+def test_recovery_rejects_ambiguous_normalized_legacy_username_without_changes(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path, "recovery-ambiguous-legacy.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 9, 7, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        mixed = _create_user(database, "AdMiN")
+        lower = _create_user(database, "admin")
+        mixed_code = issue_recovery_code(database, mixed, now)
+        database.commit()
+
+        with pytest.raises(InvalidRecoveryCode):
+            recover_password(
+                database,
+                " ADMIN ",
+                mixed_code,
+                "ambiguous replacement password",
+                "10.0.0.12",
+                now,
+            )
+
+        assert verify_password(mixed.password_hash, "correct horse battery")
+        assert verify_password(lower.password_hash, "correct horse battery")
+        stored = database.scalar(
+            select(PasswordRecoveryCode).where(
+                PasswordRecoveryCode.user_id == mixed.id,
+                PasswordRecoveryCode.code_hash == recovery_code_hash(mixed_code),
+            )
+        )
+        assert stored is not None
+        assert stored.consumed_at is None
+
+
+def test_recovery_allows_unambiguous_normalized_legacy_username(tmp_path: Path) -> None:
+    settings = _settings(tmp_path, "recovery-unambiguous-legacy.sqlite3")
+    create_schema(settings)
+    now = datetime(2026, 9, 7, 8, 0, tzinfo=UTC)
+    with session_factory(settings)() as database:
+        mixed = _create_user(database, "AdMiN")
+        code = issue_recovery_code(database, mixed, now)
+        database.commit()
+
+        recover_password(
+            database,
+            " admin ",
+            code,
+            "mixed replacement password",
+            "10.0.0.13",
+            now,
+        )
+
+        assert verify_password(mixed.password_hash, "mixed replacement password")
+
+
 def test_cli_password_reset_revokes_sessions_and_codes(tmp_path: Path) -> None:
     settings = _settings(tmp_path)
     create_schema(settings)
