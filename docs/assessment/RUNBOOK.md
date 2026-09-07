@@ -39,6 +39,17 @@ The five k6 jobs wait at one shared barrier and each execute exactly 100 single-
 
 Before any pilot, capture a PostgreSQL backup and the exact release/configuration manifest. Restore into an isolated target, run Alembic to the recorded single head, verify `/readyz`, reconcile every closed Assessment aggregate, and compare administration counts, aggregate versions, gradebook latest-score pointers, retention/hold settings, and grant manifests. Open administrations with missing or malformed grants must keep readiness failed. A restore test is evidence only for the exact backup, release, and target recorded in the artifact.
 
+PostgreSQL backups include the `delivery` tree when present, preserving hardlinks
+between source derivatives and assessment grants. The disposable restore drill
+extracts authenticated file archives into an empty directory on the data volume,
+checks file bytes and hardlink identity, and reports `filesIntegrity=restored`
+alongside the database result. Older three-root backups remain readable, but do
+not prove restoration of assessment grants. The `restore-files` manifest command
+accepts only an empty isolated destination; it never replaces live directories.
+Database/asset reconciliation and production cutover remain separate from this
+file-level restore check. PostgreSQL rollback stops the optional Assessment
+service before replacing the database.
+
 ## Staged rollout
 
 After a successful protected 500-seat synthetic campaign and separately approved restore evidence, run distinct 30-, 100-, and 300-user pilots. Record release SHA, PostgreSQL target, static-DZI assets, latency/resource gates, recovery, aggregate/export checks, cleanup, user/accessibility findings, and an explicit decision at each stage. Do not infer the next state from local checks, workflow presence, or an earlier release. Production activation still requires a separate approval that changes the production flag; this runbook never changes it.

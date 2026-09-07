@@ -9,15 +9,17 @@ import hmac
 import json
 import os
 import re
+import shutil
 import sys
 import tarfile
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 SCHEMA = "pathlab-postgres-backup-manifest-v1"
 EXPECTED_FILES = (Path("database/pathlab.dump"), Path("files.tar.gz"))
 EXPECTED_ARCHIVE_ROOTS = ["originals", "private", "public"]
+ALLOWED_ARCHIVE_ROOTS = {*EXPECTED_ARCHIVE_ROOTS, "delivery"}
 SHA_PATTERN = re.compile(r"[0-9a-f]{64}")
 RELEASE_PATTERN = re.compile(r"[0-9a-f]{40}")
 REVISION_PATTERN = re.compile(r"[0-9A-Za-z_]{1,128}")
@@ -41,9 +43,9 @@ def _sha256_file(path: Path) -> str:
 
 
 def _canonical_json(value: Any) -> bytes:
-    return json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
 
 
 def _sign(payload: dict[str, Any], signing_key: str) -> str:
@@ -60,16 +62,68 @@ def _archive_roots(path: Path) -> list[str]:
         with tarfile.open(path, "r:gz") as archive:
             for member in archive:
                 tarfile.data_filter(member, "/restore-validation")
-                root = member.name.removeprefix("./").split("/", 1)[0]
-                if root not in EXPECTED_ARCHIVE_ROOTS:
+                name = PurePosixPath(member.name)
+                if name.is_absolute() or ".." in name.parts or not name.parts:
+                    raise BackupManifestError("private-file archive has an invalid path")
+                root = name.parts[0]
+                if root not in ALLOWED_ARCHIVE_ROOTS:
                     raise BackupManifestError("private-file archive has an invalid root")
+                if not (member.isdir() or member.isfile() or member.islnk()):
+                    raise BackupManifestError("private-file archive has an unsupported file type")
+                if member.islnk():
+                    target = PurePosixPath(member.linkname)
+                    if (
+                        target.is_absolute()
+                        or ".." in target.parts
+                        or not target.parts
+                        or target.parts[0] not in ALLOWED_ARCHIVE_ROOTS
+                    ):
+                        raise BackupManifestError("private-file archive has an invalid hardlink")
                 roots.add(root)
     except (OSError, tarfile.TarError) as error:
         raise BackupManifestError("private-file archive is invalid") from error
     result = sorted(roots)
-    if result != EXPECTED_ARCHIVE_ROOTS:
+    if not set(EXPECTED_ARCHIVE_ROOTS).issubset(roots):
         raise BackupManifestError("private-file archive roots are incomplete")
     return result
+
+
+def restore_files(backup: Path, destination: Path, *, signing_key: str) -> dict[str, Any]:
+    """Restore authenticated files into an empty isolated directory and verify bytes/links."""
+    manifest = verify_manifest(backup, signing_key=signing_key)
+    if destination.is_symlink() or not destination.is_dir() or any(destination.iterdir()):
+        raise BackupManifestError("file restore destination must be an empty real directory")
+    count = 0
+    total_bytes = 0
+    with tarfile.open(backup / EXPECTED_FILES[1], "r:gz") as archive:
+        required_bytes = sum(member.size for member in archive if member.isfile())
+        if shutil.disk_usage(destination).free < required_bytes + 1024**3:
+            raise BackupManifestError("insufficient space for isolated file restore")
+        archive.extractall(destination, filter="data")
+        for member in archive:
+            target = destination / member.name
+            if member.isfile() or member.islnk():
+                if not target.is_file() or target.is_symlink():
+                    raise BackupManifestError("restored file is missing or unsafe")
+                if member.islnk():
+                    if not target.samefile(destination / member.linkname):
+                        raise BackupManifestError("restored hardlink identity differs")
+                else:
+                    archived = archive.extractfile(member)
+                    if archived is None:
+                        raise BackupManifestError("archived file cannot be read")
+                    with archived:
+                        digest = hashlib.file_digest(archived, "sha256").hexdigest()
+                    if target.stat().st_size != member.size or _sha256_file(target) != digest:
+                        raise BackupManifestError("restored file checksum differs")
+                    total_bytes += member.size
+                count += 1
+    return {
+        "archiveRoots": manifest["privateFiles"]["roots"],
+        "filesIntegrity": "restored",
+        "fileCount": count,
+        "fileBytes": total_bytes,
+    }
 
 
 def create_manifest(
@@ -140,13 +194,15 @@ def verify_manifest(backup: Path, *, signing_key: str) -> dict[str, Any]:
         raise BackupManifestError("backup creation timestamp is invalid") from error
     if created_at.tzinfo is None:
         raise BackupManifestError("backup creation timestamp must include a timezone")
-    if not isinstance(manifest.get("releaseSha"), str) or RELEASE_PATTERN.fullmatch(
-        manifest["releaseSha"]
-    ) is None:
+    if (
+        not isinstance(manifest.get("releaseSha"), str)
+        or RELEASE_PATTERN.fullmatch(manifest["releaseSha"]) is None
+    ):
         raise BackupManifestError("backup release SHA is invalid")
-    if not isinstance(manifest.get("schemaRevision"), str) or REVISION_PATTERN.fullmatch(
-        manifest["schemaRevision"]
-    ) is None:
+    if (
+        not isinstance(manifest.get("schemaRevision"), str)
+        or REVISION_PATTERN.fullmatch(manifest["schemaRevision"]) is None
+    ):
         raise BackupManifestError("backup schema revision is invalid")
     signature = manifest.pop("signature", None)
     if not isinstance(signature, dict) or signature.get("algorithm") != "hmac-sha256":
@@ -203,6 +259,9 @@ def main() -> int:
     create.add_argument("--database-name", required=True)
     verify = subparsers.add_parser("verify")
     verify.add_argument("backup", type=Path)
+    restore = subparsers.add_parser("restore-files")
+    restore.add_argument("backup", type=Path)
+    restore.add_argument("destination", type=Path)
     args = parser.parse_args()
     try:
         if args.command == "create":
@@ -216,6 +275,8 @@ def main() -> int:
             destination = args.backup / "manifest.json"
             destination.write_bytes(_canonical_json(manifest) + b"\n")
             os.chmod(destination, 0o600)
+        elif args.command == "restore-files":
+            manifest = restore_files(args.backup, args.destination, signing_key=_signing_key())
         else:
             manifest = verify_manifest(args.backup, signing_key=_signing_key())
     except (OSError, BackupManifestError) as error:
