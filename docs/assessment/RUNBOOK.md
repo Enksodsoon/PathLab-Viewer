@@ -4,7 +4,7 @@ Assessment remains disabled in production. Activation requires PostgreSQL and id
 
 Current evidence state: `NOT_EVALUABLE`. The protected workflow and evidence schema are implementation artifacts only; no 500-seat campaign or production activation is claimed.
 
-The dedicated service uses the optional Compose profile `assessment`. Ordinary production releases keep that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false`; Caddy rejects both Assessment API and asset paths in that state. A qualified Assessment staging deployment must explicitly select the profile, use the PostgreSQL overlay, and set the Assessment and identity-governance flags. The current guarded production release topology does not admit this extra service, so staging qualification does not activate it in production.
+The dedicated service uses the optional Compose profile `assessment`. Ordinary production releases keep that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false`; Caddy rejects both Assessment API and asset paths in that state. For an isolated qualification target, set `PATHLAB_DATABASE_ENGINE=postgres`, `PATHLAB_ASSESSMENT_ENABLED=true`, and `PATHLAB_IDENTITY_GOVERNANCE_ENABLED=true` in its private Compose environment. `deploy/scripts/compose-pathlab.sh` selects the Assessment profile and PostgreSQL overlay together, including the 32-connection Assessment configuration. It rejects enabled Assessment without both prerequisites. These settings prepare a qualification target; they do not establish capacity. The current guarded production release topology does not admit this extra service, so staging qualification does not activate it in production.
 
 ## Prepare and open
 
