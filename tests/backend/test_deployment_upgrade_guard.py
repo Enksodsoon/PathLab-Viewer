@@ -4,11 +4,10 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect
+from sqlalchemy import MetaData, Table, inspect
 from wsi_viewer.cli import main
 from wsi_viewer.config import Settings
 from wsi_viewer.database import engine_for, session_factory
-from wsi_viewer.models import RuntimeGuard
 
 
 @pytest.mark.parametrize("mode", ["idle", "classroom_live", "classroom_cooldown"])
@@ -24,8 +23,10 @@ def test_deployment_check_before_classroom_owner_migration(
         for column in inspect(engine_for(settings)).get_columns("classroom_sessions")
     }
     with session_factory(settings)() as database:
-        database.add(RuntimeGuard(
+        legacy_guard = Table("runtime_guards", MetaData(), autoload_with=database.get_bind())
+        database.execute(legacy_guard.insert().values(
             id="classroom-protection", mode=mode,
+            version=1, updated_at=datetime.now(UTC),
             cooldown_until=datetime.now(UTC) + timedelta(minutes=2)
             if mode == "classroom_cooldown" else None,
         ))
@@ -34,5 +35,5 @@ def test_deployment_check_before_classroom_owner_migration(
     if mode == "idle":
         main()
     else:
-        with pytest.raises(SystemExit, match="Classroom protection is classroom_cooldown"):
+        with pytest.raises(SystemExit, match=f"Classroom protection is {mode}"):
             main()

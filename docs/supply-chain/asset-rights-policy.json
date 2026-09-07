@@ -1,33 +1,255 @@
 {
   "schemaVersion": 1,
-  "governedRoots": ["apps/web", "packages", "docs", "tests"],
+  "governedRoots": [
+    "apps/web",
+    "packages",
+    "docs",
+    "tests"
+  ],
   "governedFileExtensions": [
-    ".ai", ".avif", ".bmp", ".docx", ".eot", ".fig", ".flac", ".gif",
-    ".ico", ".jpeg", ".jpg", ".m4a", ".mkv", ".mov", ".mp3", ".mp4",
-    ".ogg", ".otf", ".pdf", ".png", ".psd", ".sketch", ".svg", ".tif",
-    ".tiff", ".ttf", ".wav", ".webm", ".webp", ".woff", ".woff2", ".xd"
+    ".ai",
+    ".avif",
+    ".bmp",
+    ".docx",
+    ".eot",
+    ".fig",
+    ".flac",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".m4a",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".otf",
+    ".pdf",
+    ".png",
+    ".psd",
+    ".sketch",
+    ".svg",
+    ".tif",
+    ".tiff",
+    ".ttf",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".xd"
   ],
-  "ignoredDirectories": [".git", ".pnpm", "dist", "node_modules", "__pycache__"],
+  "ignoredDirectories": [
+    ".git",
+    ".pnpm",
+    "dist",
+    "node_modules",
+    "__pycache__"
+  ],
   "retiredAssets": [
-    {"locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx", "contentSha256": "f3b57924fa000ab5bc5a4b4276eae4d7687a67509f05b389a11978321dca4e6c"},
-    {"locator": "docs/design/admin-concept.png", "contentSha256": "bb3f685fd445dce3de273ccaedadcf762f793a85cb3496fac09d7e384bcb4dc1"},
-    {"locator": "docs/design/viewer-concept.png", "contentSha256": "b9d8f51a4a5d183ddaad7aacd40d3451680fd0453c5eae67dfcf073a8b3e6826"},
-    {"locator": "docs/evidence/admin-desktop.png", "contentSha256": "3451f71366702107fd1bf3436742c1ee44fefce523be510069cc6a9afec3157c"},
-    {"locator": "docs/evidence/admin-mobile.png", "contentSha256": "e28c3826747cdfaf8cb53ee5e33f17987223f263d00cc60a0c6a5db662c45c81"},
-    {"locator": "docs/evidence/viewer-desktop.png", "contentSha256": "5c8684a8cebf22e98cdeddd2f5630a34c36925802dc379c1395b1ebafb370f03"},
-    {"locator": "docs/evidence/viewer-mobile.png", "contentSha256": "6a4e307820cca8669e1932f3d1a748ae25fa6004a33423faa490f62281ca684b"},
-    {"locator": "docs/evidence/viewer-tablet.png", "contentSha256": "22c958f422741a1320c7fccf455d5828cddc081783658eac82c3c8d5873bb15e"}
+    {
+      "locator": "docs/architecture/PATHLAB_FREE_CLASSROOM_SYSTEM_DESIGN.docx",
+      "contentSha256": "f3b57924fa000ab5bc5a4b4276eae4d7687a67509f05b389a11978321dca4e6c"
+    },
+    {
+      "locator": "docs/design/admin-concept.png",
+      "contentSha256": "bb3f685fd445dce3de273ccaedadcf762f793a85cb3496fac09d7e384bcb4dc1"
+    },
+    {
+      "locator": "docs/design/viewer-concept.png",
+      "contentSha256": "b9d8f51a4a5d183ddaad7aacd40d3451680fd0453c5eae67dfcf073a8b3e6826"
+    },
+    {
+      "locator": "docs/evidence/admin-desktop.png",
+      "contentSha256": "3451f71366702107fd1bf3436742c1ee44fefce523be510069cc6a9afec3157c"
+    },
+    {
+      "locator": "docs/evidence/admin-mobile.png",
+      "contentSha256": "e28c3826747cdfaf8cb53ee5e33f17987223f263d00cc60a0c6a5db662c45c81"
+    },
+    {
+      "locator": "docs/evidence/viewer-desktop.png",
+      "contentSha256": "5c8684a8cebf22e98cdeddd2f5630a34c36925802dc379c1395b1ebafb370f03"
+    },
+    {
+      "locator": "docs/evidence/viewer-mobile.png",
+      "contentSha256": "6a4e307820cca8669e1932f3d1a748ae25fa6004a33423faa490f62281ca684b"
+    },
+    {
+      "locator": "docs/evidence/viewer-tablet.png",
+      "contentSha256": "22c958f422741a1320c7fccf455d5828cddc081783658eac82c3c8d5873bb15e"
+    }
   ],
-  "archiveExtensions": [".docx"],
+  "archiveExtensions": [
+    ".docx"
+  ],
   "archiveMemberExtensions": [
-    ".avif", ".bmp", ".eot", ".gif", ".ico", ".jpeg", ".jpg", ".mp3",
-    ".mp4", ".ogg", ".otf", ".png", ".svg", ".tif", ".tiff", ".ttf",
-    ".wav", ".webm", ".webp", ".woff", ".woff2"
+    ".avif",
+    ".bmp",
+    ".eot",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".mp3",
+    ".mp4",
+    ".ogg",
+    ".otf",
+    ".png",
+    ".svg",
+    ".tif",
+    ".tiff",
+    ".ttf",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".woff",
+    ".woff2"
   ],
-  "inlineSvgRoots": ["apps/web/src", "packages"],
-  "inlineDataRoots": ["apps/web/src", "packages"],
-  "inlineSourceExtensions": [".css", ".html", ".ts", ".tsx"],
+  "inlineSvgRoots": [
+    "apps/web/src",
+    "packages"
+  ],
+  "inlineDataRoots": [
+    "apps/web/src",
+    "packages"
+  ],
+  "inlineSourceExtensions": [
+    ".css",
+    ".html",
+    ".ts",
+    ".tsx"
+  ],
   "rules": [
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
+      "contentSha256": "61808230429e92674b1fae24ec7e441150b2f1c47eb6905557b6c476d56b7909",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.",
+        "licensePermission": "Apache-2.0 repository source; procedural primitives",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_DATA_VISUALIZATION",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+      "contentSha256": "33229cd99df47f5e27f44d2f240e5ac76f39e92ce5806cc24a76fa4472099ec4",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.",
+        "licensePermission": "Apache-2.0 repository source; procedural primitives",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_DATA_VISUALIZATION",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+      "contentSha256": "9027c70065ff9094dde524cca7d507f4efdf295593c23a8f7998be02aec6256b",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.",
+        "licensePermission": "Apache-2.0 repository source; procedural primitives",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_DATA_VISUALIZATION",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+      "contentSha256": "24f23b8868286d1c2f8ba4a713c3da77e8890860fc85fe418b8432bf6a84e4b8",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.",
+        "licensePermission": "Apache-2.0 repository source; procedural primitives",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_DATA_VISUALIZATION",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+      "contentSha256": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.",
+        "licensePermission": "Apache-2.0 repository source; procedural primitives",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_DATA_VISUALIZATION",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+      "contentSha256": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Assessment source integrated at 991c5ee; audited exact procedural geometry (circles, polylines and escaped report text), with no imported illustration.",
+        "licensePermission": "Apache-2.0 repository source; procedural primitives",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_DATA_VISUALIZATION",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-data",
+      "locatorGlob": "apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
+      "contentSha256": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Synthetic test fixture containing only the eight-byte PNG format signature, no image pixels. apps/web/src/test/assessment-v2-authoring.test.tsx.",
+        "licensePermission": "FORMAT_SIGNATURE_TEST_DATA",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "UNIT_TEST_ONLY",
+        "privacyClass": "PUBLIC_SYNTHETIC",
+        "distributionScope": "TEST_ONLY",
+        "releaseDisposition": "EXCLUDED_NON_RELEASE",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-data",
+      "locatorGlob": "apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+      "contentSha256": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+      "metadata": {
+        "creator": "PathLab Assessment source contributors",
+        "provenance": "Synthetic test fixture containing only the eight-byte PNG format signature, no image pixels. apps/web/src/test/assessment-v2-authoring.test.tsx.",
+        "licensePermission": "FORMAT_SIGNATURE_TEST_DATA",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "UNIT_TEST_ONLY",
+        "privacyClass": "PUBLIC_SYNTHETIC",
+        "distributionScope": "TEST_ONLY",
+        "releaseDisposition": "EXCLUDED_NON_RELEASE",
+        "blockers": []
+      }
+    },
     {
       "kind": "repository-file",
       "locatorGlob": "apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -104,7 +326,12 @@
         "privacyClass": "PUBLIC_SYNTHETIC_UNVERIFIED",
         "distributionScope": "SHIPPED_RUNTIME",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["CREATOR_UNVERIFIED", "SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+        "blockers": [
+          "CREATOR_UNVERIFIED",
+          "SOURCE_UNVERIFIED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -119,7 +346,13 @@
         "privacyClass": "PHI_RISK_UNVERIFIED",
         "distributionScope": "PUBLISHED_SOURCE",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["CREATOR_UNVERIFIED", "SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE", "PHI_REVIEW_UNAVAILABLE"]
+        "blockers": [
+          "CREATOR_UNVERIFIED",
+          "SOURCE_UNVERIFIED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE",
+          "PHI_REVIEW_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -134,7 +367,12 @@
         "privacyClass": "PHI_RISK_UNVERIFIED",
         "distributionScope": "PUBLISHED_SOURCE",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["DISPLAYED_CONTENT_SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE", "PHI_REVIEW_UNAVAILABLE"]
+        "blockers": [
+          "DISPLAYED_CONTENT_SOURCE_UNVERIFIED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE",
+          "PHI_REVIEW_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -149,7 +387,12 @@
         "privacyClass": "PUBLIC_NON_PERSONAL",
         "distributionScope": "PUBLISHED_SOURCE",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["CREATOR_UNVERIFIED", "EMBEDDED_RIGHTS_UNRESOLVED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+        "blockers": [
+          "CREATOR_UNVERIFIED",
+          "EMBEDDED_RIGHTS_UNRESOLVED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -164,7 +407,12 @@
         "privacyClass": "PUBLIC_NON_PERSONAL",
         "distributionScope": "PUBLISHED_SOURCE",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["CREATOR_UNVERIFIED", "SOURCE_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+        "blockers": [
+          "CREATOR_UNVERIFIED",
+          "SOURCE_UNVERIFIED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -179,7 +427,10 @@
         "privacyClass": "PUBLIC_NON_PERSONAL",
         "distributionScope": "PUBLISHED_SOURCE",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["REDISTRIBUTION_RIGHTS_UNAVAILABLE", "ATTRIBUTION_UNAVAILABLE"]
+        "blockers": [
+          "REDISTRIBUTION_RIGHTS_UNAVAILABLE",
+          "ATTRIBUTION_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -194,7 +445,11 @@
         "privacyClass": "PUBLIC_NON_PERSONAL",
         "distributionScope": "SHIPPED_RUNTIME",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["CREATOR_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+        "blockers": [
+          "CREATOR_UNVERIFIED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE"
+        ]
       }
     },
     {
@@ -209,7 +464,11 @@
         "privacyClass": "PUBLIC_NON_PERSONAL",
         "distributionScope": "SHIPPED_RUNTIME",
         "releaseDisposition": "BLOCKED_RELEASE",
-        "blockers": ["CREATOR_UNVERIFIED", "PERMISSION_UNVERIFIED", "ATTRIBUTION_UNAVAILABLE"]
+        "blockers": [
+          "CREATOR_UNVERIFIED",
+          "PERMISSION_UNVERIFIED",
+          "ATTRIBUTION_UNAVAILABLE"
+        ]
       }
     }
   ],
@@ -265,7 +524,9 @@
     "locator": "npm:@phosphor-icons/react@2.1.10#imported-svg-icons",
     "dependencyId": "npm:@phosphor-icons/react@2.1.10",
     "importSpecifier": "@phosphor-icons/react",
-    "scanRoots": ["apps/web/src"],
+    "scanRoots": [
+      "apps/web/src"
+    ],
     "installedDefinitions": "apps/web/node_modules/@phosphor-icons/react/dist/defs/{name}.es.js",
     "creator": "Phosphor Icons",
     "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",

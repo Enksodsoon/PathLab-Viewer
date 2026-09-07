@@ -207,14 +207,14 @@ def test_postgres_staging_overlay_is_pinned_bounded_and_fail_closed() -> None:
         "d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"
     ) in overlay
     assert "POSTGRES_PASSWORD_FILE: /run/secrets/pathlab-postgres-password" in overlay
-    assert overlay.count("PATHLAB_DATABASE_PASSWORD_FILE: /run/secrets/") == 3
+    assert overlay.count("PATHLAB_DATABASE_PASSWORD_FILE: /run/secrets/") == 4
     assert "PATHLAB_POSTGRES_PASSWORD_FILE:?Set PATHLAB_POSTGRES_PASSWORD_FILE" in overlay
     assert "max_connections=20" in overlay
     assert "shared_buffers=128MB" in overlay
     assert "mem_limit: 768m" in overlay
     assert "cpus: 0.75" in overlay
     assert "condition: service_healthy" in overlay
-    assert overlay.count("postgresql+psycopg://") == 3
+    assert overlay.count("postgresql+psycopg://") == 4
     assert "PATHLAB_POSTGRES_PASSWORD_FILE=/srv/pathlab/secrets/postgres-password" in example
     assert "PATHLAB_DATABASE_ENGINE=sqlite" in example
     assert "PATHLAB_POSTGRES_BACKUP_SIGNING_KEY_FILE=" in example

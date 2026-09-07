@@ -1,34 +1,210 @@
 {
   "schemaVersion": 1,
-  "backendRouteCount": 168,
-  "backendRouteSetSha256": "7789bb645f40da654826a4718e2173f11e79c20e86cc780dbb55c0b6f278cd98",
-  "frontendRouteCount": 14,
-  "frontendRouteSetSha256": "2d1d42ddb405b337982716959313b26f34c748b23450dafa5c284e15e86c17c9",
+  "backendRouteCount": 238,
+  "backendRouteSetSha256": "3ad889d80abc7fcc4673763463223f0c4b3d2706ccb8c62b2a533379def24412",
+  "frontendRouteCount": 27,
+  "frontendRouteSetSha256": "a087fe8c271f1360fb9dd4d8bc6358635e8755900c84fa3d2ffe799f815d0398",
   "routeRules": [
-    {"kind":"prefix","value":"/_pathlab_ome/","class":"PRIVATE_TILE_SERVICE","ownerTasks":["P1-T10","P1-T20"]},
-    {"kind":"exact","value":"/livez","class":"PUBLIC_OPERATIONAL","ownerTasks":["P1-T21"]},
-    {"kind":"exact","value":"/readyz","class":"PUBLIC_OPERATIONAL","ownerTasks":["P1-T21"]},
-    {"kind":"exact","value":"/api/v1/auth/password/recover","class":"PUBLIC_RECOVERY","ownerTasks":["P2-T08"]},
-    {"kind":"prefix","value":"/api/v1/auth/","class":"AUTHENTICATION_SESSION","ownerTasks":["P2-T06","P2-T07"]},
-    {"kind":"prefix","value":"/api/v1/internal/","class":"NETWORK_RESTRICTED_INTERNAL","ownerTasks":["P1-T10","P3-T03"]},
-    {"kind":"prefix","value":"/api/v1/public/","class":"ANONYMOUS_PUBLIC_DELIVERY","ownerTasks":["P3-T10"]},
-    {"kind":"prefix","value":"/api/v2/public/","class":"ANONYMOUS_PUBLIC_DELIVERY","ownerTasks":["P3-T10"]},
-    {"kind":"prefix","value":"/api/v1/admin/","class":"PRIVILEGED_ADMIN","ownerTasks":["P2-T04","P2-T07"]},
-    {"kind":"prefix","value":"/api/v2/admin/","class":"PRIVILEGED_ADMIN","ownerTasks":["P2-T04","P2-T07"]},
-    {"kind":"prefix","value":"/api/v1/classroom/invites/","class":"PUBLIC_INVITATION_CAPABILITY","ownerTasks":["P4-T19"]},
-    {"kind":"exact","value":"/api/v1/classroom/join","class":"PUBLIC_PARTICIPANT_ADMISSION","ownerTasks":["P4-T19"]},
-    {"kind":"prefix","value":"/api/v1/classroom/sessions/","class":"PARTICIPANT_SESSION","ownerTasks":["P4-T20"]},
-    {"kind":"prefix","value":"/api/v1/desktop/","class":"DESKTOP_DEVICE_CAPABILITY","ownerTasks":["P3-T15"]},
-    {"kind":"prefix","value":"/api/v2/desktop/","class":"DESKTOP_DEVICE_CAPABILITY","ownerTasks":["P3-T15"]},
-    {"kind":"prefix","value":"/api/v1/study/","class":"LEARNER_INVITATION_SESSION","ownerTasks":["P4-T10"]}
+    {
+      "kind": "prefix",
+      "value": "/_pathlab_ome/",
+      "class": "PRIVATE_TILE_SERVICE",
+      "ownerTasks": [
+        "P1-T10",
+        "P1-T20"
+      ]
+    },
+    {
+      "kind": "exact",
+      "value": "/livez",
+      "class": "PUBLIC_OPERATIONAL",
+      "ownerTasks": [
+        "P1-T21"
+      ]
+    },
+    {
+      "kind": "exact",
+      "value": "/readyz",
+      "class": "PUBLIC_OPERATIONAL",
+      "ownerTasks": [
+        "P1-T21"
+      ]
+    },
+    {
+      "kind": "exact",
+      "value": "/api/v1/auth/password/recover",
+      "class": "PUBLIC_RECOVERY",
+      "ownerTasks": [
+        "P2-T08"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/auth/",
+      "class": "AUTHENTICATION_SESSION",
+      "ownerTasks": [
+        "P2-T06",
+        "P2-T07"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/internal/",
+      "class": "NETWORK_RESTRICTED_INTERNAL",
+      "ownerTasks": [
+        "P1-T10",
+        "P3-T03"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/public/",
+      "class": "ANONYMOUS_PUBLIC_DELIVERY",
+      "ownerTasks": [
+        "P3-T10"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v2/public/",
+      "class": "ANONYMOUS_PUBLIC_DELIVERY",
+      "ownerTasks": [
+        "P3-T10"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/admin/",
+      "class": "PRIVILEGED_ADMIN",
+      "ownerTasks": [
+        "P2-T04",
+        "P2-T07"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v2/admin/",
+      "class": "PRIVILEGED_ADMIN",
+      "ownerTasks": [
+        "P2-T04",
+        "P2-T07"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/classroom/invites/",
+      "class": "PUBLIC_INVITATION_CAPABILITY",
+      "ownerTasks": [
+        "P4-T19"
+      ]
+    },
+    {
+      "kind": "exact",
+      "value": "/api/v1/classroom/join",
+      "class": "PUBLIC_PARTICIPANT_ADMISSION",
+      "ownerTasks": [
+        "P4-T19"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/classroom/sessions/",
+      "class": "PARTICIPANT_SESSION",
+      "ownerTasks": [
+        "P4-T20"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/desktop/",
+      "class": "DESKTOP_DEVICE_CAPABILITY",
+      "ownerTasks": [
+        "P3-T15"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v2/desktop/",
+      "class": "DESKTOP_DEVICE_CAPABILITY",
+      "ownerTasks": [
+        "P3-T15"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v1/study/",
+      "class": "LEARNER_INVITATION_SESSION",
+      "ownerTasks": [
+        "P4-T10"
+      ]
+    },
+    {
+      "kind": "prefix",
+      "value": "/api/v2/assessment/",
+      "class": "LEARNER_INVITATION_SESSION",
+      "ownerTasks": [
+        "P4-T10"
+      ]
+    }
   ],
   "frontendClasses": [
-    {"pathPrefix":"/admin","class":"PRIVILEGED_ADMIN","ownerTasks":["P2-T04","P2-T07"]},
-    {"pathPrefix":"/classroom","class":"PARTICIPANT_OR_PUBLIC_INVITATION","ownerTasks":["P4-T19","P4-T20"]},
-    {"pathPrefix":"/study","class":"LEARNER_INVITATION_SESSION","ownerTasks":["P4-T10"]},
-    {"pathPrefix":"/s/","class":"ANONYMOUS_PUBLIC_DELIVERY","ownerTasks":["P3-T10"]},
-    {"pathPrefix":"/f/","class":"ANONYMOUS_PUBLIC_DELIVERY","ownerTasks":["P3-T10"]},
-    {"pathPrefix":"/c/","class":"ANONYMOUS_PUBLIC_DELIVERY","ownerTasks":["P3-T10"]},
-    {"pathPrefix":"*","class":"ADMIN_REDIRECT","ownerTasks":["P3-T18"]}
+    {
+      "pathPrefix": "/admin",
+      "class": "PRIVILEGED_ADMIN",
+      "ownerTasks": [
+        "P2-T04",
+        "P2-T07"
+      ]
+    },
+    {
+      "pathPrefix": "/classroom",
+      "class": "PARTICIPANT_OR_PUBLIC_INVITATION",
+      "ownerTasks": [
+        "P4-T19",
+        "P4-T20"
+      ]
+    },
+    {
+      "pathPrefix": "/study",
+      "class": "LEARNER_INVITATION_SESSION",
+      "ownerTasks": [
+        "P4-T10"
+      ]
+    },
+    {
+      "pathPrefix": "/s/",
+      "class": "ANONYMOUS_PUBLIC_DELIVERY",
+      "ownerTasks": [
+        "P3-T10"
+      ]
+    },
+    {
+      "pathPrefix": "/f/",
+      "class": "ANONYMOUS_PUBLIC_DELIVERY",
+      "ownerTasks": [
+        "P3-T10"
+      ]
+    },
+    {
+      "pathPrefix": "/c/",
+      "class": "ANONYMOUS_PUBLIC_DELIVERY",
+      "ownerTasks": [
+        "P3-T10"
+      ]
+    },
+    {
+      "pathPrefix": "/assessment/",
+      "class": "LEARNER_INVITATION_SESSION",
+      "ownerTasks": [
+        "P4-T10"
+      ]
+    },
+    {
+      "pathPrefix": "*",
+      "class": "ADMIN_REDIRECT",
+      "ownerTasks": [
+        "P3-T18"
+      ]
+    }
   ]
 }

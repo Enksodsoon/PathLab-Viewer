@@ -2,6 +2,48 @@
   "policySha256": "3ecd7d1b0aef1ab4a38b912354c5d38a32f31b28fa79089e86ebabdca2d57cf8",
   "records": [
     {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+      "kind": "inline-data",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+      "mediaType": "image/png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline cursor artwork is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 8
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
+      "kind": "inline-data",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
+      "mediaType": "image/png",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline cursor artwork is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 8
+    },
+    {
       "attribution": "Preserve the repository LICENSE and NOTICE.",
       "blockers": [],
       "contentSha256": "77691cb0be40031dede939630dc92f52de27260bf8d5a0e0d7d06e361fa1c093",
@@ -32,6 +74,126 @@
       "provenance": "docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 2bd6c0e1948950c54da81ea2d2111675c73fc74a, signed ownership receipt e5677dc6d5ea6eccc3a88ebd82ce0fc43684dc6f.",
       "releaseDisposition": "ADMITTED",
       "sizeBytes": 270
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 215
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 215
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "24f23b8868286d1c2f8ba4a713c3da77e8890860fc85fe418b8432bf6a84e4b8",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 313
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "9027c70065ff9094dde524cca7d507f4efdf295593c23a8f7998be02aec6256b",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 258
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "33229cd99df47f5e27f44d2f240e5ac76f39e92ce5806cc24a76fa4472099ec4",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 1381
+    },
+    {
+      "attribution": "REQUIRED_UNAVAILABLE",
+      "blockers": [
+        "CREATOR_UNVERIFIED",
+        "PERMISSION_UNVERIFIED",
+        "ATTRIBUTION_UNAVAILABLE"
+      ],
+      "contentSha256": "61808230429e92674b1fae24ec7e441150b2f1c47eb6905557b6c476d56b7909",
+      "creator": "UNVERIFIED",
+      "distributionScope": "SHIPPED_RUNTIME",
+      "id": "asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
+      "kind": "inline-svg",
+      "licensePermission": "UNVERIFIED",
+      "locator": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
+      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
+      "privacyClass": "PUBLIC_NON_PERSONAL",
+      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
+      "releaseDisposition": "BLOCKED_RELEASE",
+      "sizeBytes": 236
     },
     {
       "attribution": "Preserve the package OFL-1.1 license notice and Cormorant Project attribution.",
@@ -111,7 +273,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "f37850c42bd91205201b91a0bf244d044b7b9f571c23ef357e6f5abddf4d7052",
+      "contentSha256": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -131,6 +293,10 @@
         {
           "contentSha256": "2c9bafbf5e351e74cb4610bb5a02755593dc93b7e5e0bfc934f3231e7cdf7ca1",
           "name": "ArrowCounterClockwise"
+        },
+        {
+          "contentSha256": "de8f12b17ab29768049bfe55d5954a42d4e0e16b5ce5c9498aab4e249473d949",
+          "name": "ArrowDown"
         },
         {
           "contentSha256": "363082a249ed70e5b40267808be3295b43c6e804b5ae59046ef20e8389b19623",
@@ -157,8 +323,28 @@
           "name": "ArrowUpRight"
         },
         {
+          "contentSha256": "2caf453f4a204a8c963b38415a8903e6cb7b29c90974f8a3629c289ae56e21dc",
+          "name": "ArrowsInLineVertical"
+        },
+        {
           "contentSha256": "b7212d2c9286595ad14e09735c0717643d8e8fead4ee0d7dd59f5f17ca3173b9",
           "name": "ArrowsOut"
+        },
+        {
+          "contentSha256": "2ccb754b2e4974a9a28cf5d276ce87ea9f8d94f42461a9e09b222853c4f38549",
+          "name": "ArrowsOutLineVertical"
+        },
+        {
+          "contentSha256": "9ddae0cf4aff255ee95ebb3e8a528fcc7975be248e280de3e78f23107f9635e2",
+          "name": "Atom"
+        },
+        {
+          "contentSha256": "69d42b1810d34c8613d5ec1bed4d7894ee1bd0c5afd9cdb5d2fde02c082efe1e",
+          "name": "Barbell"
+        },
+        {
+          "contentSha256": "7113083abce0099a1663069725a9d68ff05464ec92b2c68f3d70e88977b1e565",
+          "name": "Bone"
         },
         {
           "contentSha256": "91da4244c4e790f86151d4ba8873dc18f951b694ba566ad7d48a6b352a5e0fab",
@@ -167,6 +353,10 @@
         {
           "contentSha256": "d5aa7cc3056849746c3be1f2707278bc0e853c19d9b0bbb31a97efb745c118d6",
           "name": "BookmarkSimple"
+        },
+        {
+          "contentSha256": "d9b74acb6bc4f18870c8d1c9661913234696d835c92943a987a97e8608177f2a",
+          "name": "Books"
         },
         {
           "contentSha256": "05300cf8415197b34c271c884d49261f005551855796ce53d5fcbef9dac1f981",
@@ -179,6 +369,18 @@
         {
           "contentSha256": "32c50c242387aaed6a2d3bdb1d5ad629f8238a6315ee6c4d1b01de0facb92d04",
           "name": "Broom"
+        },
+        {
+          "contentSha256": "db5d948e3ea0d7890ad954ddc0052f31b8f3b1238774f31c9854869da47e78a0",
+          "name": "Calculator"
+        },
+        {
+          "contentSha256": "c24313e262af7a9778bb9d176d9017c3863662583e76a8064ea7193e5d376f9b",
+          "name": "CalendarBlank"
+        },
+        {
+          "contentSha256": "0a3b0d71e050a54457b98f7c6ab98e3079d19cc8114f6f1345d698888110fc2a",
+          "name": "Camera"
         },
         {
           "contentSha256": "0c82ae8a86f9608d6d6b92361990b015b0ae6b0807f59f84fc1576dd0512ebbc",
@@ -205,8 +407,20 @@
           "name": "CaretUp"
         },
         {
+          "contentSha256": "a4c177490ac148d0630d6844f80cacbe3fafaf968593ed36d992a536e7357fab",
+          "name": "CaretUpDown"
+        },
+        {
           "contentSha256": "2860057fe58ac449bb81f324ce9835300f6c21dc001aec53c7791a75e4ca7c61",
           "name": "ChalkboardTeacher"
+        },
+        {
+          "contentSha256": "db7a6ca88ba2ebafa53b685d0e4e91c72e6d05153a6c916f58044ab709c20e1d",
+          "name": "ChartBar"
+        },
+        {
+          "contentSha256": "494897e65e1d07728ee18d375f3d9cb1d2cb2b90627578267b3bde4bf84ec97c",
+          "name": "ChatCircleDots"
         },
         {
           "contentSha256": "accb02e028769f92c6922547f7a76f25a752d74f6b7e2963c904d8eb396a3d7e",
@@ -225,6 +439,10 @@
           "name": "CircleDashed"
         },
         {
+          "contentSha256": "185c2dbd5dbc5794dff40a54f2f3df18bd82357a50ef025954868f8f76e9ac5e",
+          "name": "CirclesThreePlus"
+        },
+        {
           "contentSha256": "3b230f4701a5fae4c13e1c69ef854c092b0b878b454288638298c61766236dbc",
           "name": "Clipboard"
         },
@@ -239,6 +457,10 @@
         {
           "contentSha256": "9a34caffb9a7ae44e286f42bb8178ca25064fd0a8b6a79a194e79e473aae1eab",
           "name": "ClockCounterClockwise"
+        },
+        {
+          "contentSha256": "eda85a4aebc60c4a8b97e85dce96c4843f5fa3bfafd4d0704d2abd6011030404",
+          "name": "CloudArrowUp"
         },
         {
           "contentSha256": "873646b9af69d8ed97314caaa993d09fc07675d9d88a729a481df07d20ce14b1",
@@ -257,6 +479,18 @@
           "name": "Desktop"
         },
         {
+          "contentSha256": "652ff4215768fb8e040bc6c160b28159b6302b1cfdf8135dbda87a54544a8b21",
+          "name": "DeviceMobile"
+        },
+        {
+          "contentSha256": "8bd2bad039dee53cff99cef15dfef0e8e6ca3dadb43498cd704843063892c22b",
+          "name": "DeviceTablet"
+        },
+        {
+          "contentSha256": "1528b6a369dde832c151f8fb5fa085715c92e1e8cdeff0463e2d92f4025fc209",
+          "name": "Dna"
+        },
+        {
           "contentSha256": "74a92667447fc568d11a20e236aae55165df3ab5c70812a590bdf14354120f49",
           "name": "DotsSixVertical"
         },
@@ -273,8 +507,20 @@
           "name": "DownloadSimple"
         },
         {
+          "contentSha256": "ccde4d941f83e554d4a559e6c369649139ed757702326756e70bfcc724ff9da8",
+          "name": "Drop"
+        },
+        {
+          "contentSha256": "b825399fdf4bc41a990c97b306056b85e1d7e6777983f046734fe8acbd54852a",
+          "name": "Ear"
+        },
+        {
           "contentSha256": "7b6e4425276925bca247948aaf2cbb25ccc1163d7db1c895865f5d80945b51ab",
           "name": "Eraser"
+        },
+        {
+          "contentSha256": "2dc0352d82bbee3ba8b94c5c3fa357f7a81ee7eedf2ed99d4675615fbc35a5aa",
+          "name": "Exam"
         },
         {
           "contentSha256": "5594c12a58e687dfe8916a688c41c76e072f7a514b5d78fe0dc04eb2cff75ec0",
@@ -293,8 +539,20 @@
           "name": "FileArrowUp"
         },
         {
+          "contentSha256": "704021f9c725497207ebe9b55f1464e275f30a8bed98f5553b944c294fdf4023",
+          "name": "FileCsv"
+        },
+        {
           "contentSha256": "d10a4a785cf8d1d9f39b7ea3ef99efeeeb6ab6648c0b28d2efea16703da2ec6b",
           "name": "FileImage"
+        },
+        {
+          "contentSha256": "55540f09e9e879b692eda9d134a3b4d85762f26d9d7cba27f6a796f76b8c2602",
+          "name": "FileXls"
+        },
+        {
+          "contentSha256": "187e1cca152a3ffb3a31a08f5b434ec7355eb3d26c23907294a60fd37e3ce753",
+          "name": "FirstAid"
         },
         {
           "contentSha256": "15dfc9cbee598d105f3df4bd5dc373721a235c4bd2bb76f66e028e02afcd3a07",
@@ -317,8 +575,20 @@
           "name": "FolderSimple"
         },
         {
+          "contentSha256": "9e93db6e9103841b4f89147abaab07f8465c990f48ef2d4fb38d9c3dbcf3eb80",
+          "name": "ForkKnife"
+        },
+        {
           "contentSha256": "280f6e1e9bd8570cedc24c24fb18c37a13f05f4d4796324c2ea419f79f1e954a",
           "name": "Funnel"
+        },
+        {
+          "contentSha256": "07065eed6e81e0ca7a8710c218baf58fd54c25b047d8de29940d6adea9906b28",
+          "name": "FunnelSimple"
+        },
+        {
+          "contentSha256": "47d30129a2c7dd0368b7867b23d25806fd059dfe0137c8ad562f64b65bb9492c",
+          "name": "GenderIntersex"
         },
         {
           "contentSha256": "7144d289e52803b8aee7b49c394def76fd80d08b1f3d557ccd6d578aa7a928da",
@@ -333,8 +603,16 @@
           "name": "Hand"
         },
         {
+          "contentSha256": "5c20bf267f63d9f8a5a504f679c15c4fe420f97ed73e549b6a67b587ea97ce66",
+          "name": "HandPalm"
+        },
+        {
           "contentSha256": "44be92497e0119af993778b5e2e76efe4f86980ff733d3556bdd39428e45154d",
           "name": "HardDrives"
+        },
+        {
+          "contentSha256": "cdc44086700d2da442bc7c52275da62decb945ad3d6945c07502a30670a71dce",
+          "name": "Heartbeat"
         },
         {
           "contentSha256": "4091ff90720cf9b275c31021c5c62eb2e73acf05e233e424b75ee3a2bb460064",
@@ -343,6 +621,14 @@
         {
           "contentSha256": "c07afcc420763edbc30b87a5a7717c88d79131a877141824f6315c3b7d9ea3b8",
           "name": "House"
+        },
+        {
+          "contentSha256": "0ab156a88e1f5005c1a5e2e315dbec49e7b56442df6b708dae2eb73c84767ee0",
+          "name": "Image"
+        },
+        {
+          "contentSha256": "c4dfb3cc2a4c0801766f3c58c051a2f631c1dfd96ed9afaf22ca2d415c37c599",
+          "name": "ImageSquare"
         },
         {
           "contentSha256": "5c40b462c889d4870cea63a11839236e3a91f391b17fc30166295268d48f7592",
@@ -381,6 +667,22 @@
           "name": "MagnifyingGlass"
         },
         {
+          "contentSha256": "985de6d2ecda98753dd894ce99e35cf4deb8161fe21c4a028d6a015991ff5cb8",
+          "name": "MagnifyingGlassMinus"
+        },
+        {
+          "contentSha256": "9eeb2f4ce8beeec4e8d26e2604c17164156b8dd702a557023aa49fce31fdf67c",
+          "name": "MagnifyingGlassPlus"
+        },
+        {
+          "contentSha256": "833a2977a7eed482938fca7aeb17239177b07500f6d087e12a79e6199c7ffd6e",
+          "name": "MapPin"
+        },
+        {
+          "contentSha256": "c57abaab39112e2bfdd844669793769749859836e5eb0fc776ca82a3db400ae5",
+          "name": "Microscope"
+        },
+        {
           "contentSha256": "b150d8abcef1b66eeb587945a7484309a8f6a30c54e59ef8b151d1de29e18bb7",
           "name": "Minus"
         },
@@ -401,12 +703,32 @@
           "name": "Palette"
         },
         {
+          "contentSha256": "4ada3ddb20d91261510364ca4cc8037e9a06fa674a3d0eff2d4f4ade447e5ce0",
+          "name": "PaperPlaneTilt"
+        },
+        {
           "contentSha256": "fdf254898e206fcedb7fd9439867514816d97568a8beb40c0578f2a3aad95882",
           "name": "PenNib"
         },
         {
           "contentSha256": "776b248b23ac358c333d188200f6ceca910712b7f49f8bb23ccb2383edd3b683",
           "name": "PencilSimple"
+        },
+        {
+          "contentSha256": "25b011ecd69cc881b2f52a913dfc7b8d25491ab0b9489ca3581b04a2b067c453",
+          "name": "PencilSimpleLine"
+        },
+        {
+          "contentSha256": "5447935c61a86ab11714bd734c81175beee621d538da99d1b1b531cde823b8eb",
+          "name": "PersonSimple"
+        },
+        {
+          "contentSha256": "3825972e54af5b2397d72cf80126af7fe01b51b4aecbab543eddb3ca09719ecb",
+          "name": "Pill"
+        },
+        {
+          "contentSha256": "28301016defdcd3663edff5bc161141f333c96b04e771b6f72bd8442c905869b",
+          "name": "Plant"
         },
         {
           "contentSha256": "74e819b4c4685e45fa64b0ea7e771b511cfd77ab3b63d4b5e22b7bdbe7f677b0",
@@ -461,8 +783,16 @@
           "name": "SignOut"
         },
         {
+          "contentSha256": "a6c3587b74d773f6fd585826995857ab0d2fac6f667ec57239fb902215c61256",
+          "name": "SpinnerGap"
+        },
+        {
           "contentSha256": "1c0e08a91a7982ad66d134763a487255e865d095ce7e3f6f1580ec3caa193978",
           "name": "SquaresFour"
+        },
+        {
+          "contentSha256": "d039e9a0c3405f862ff3102c9b14115076ee7625a934502545f27577b18146d1",
+          "name": "Stethoscope"
         },
         {
           "contentSha256": "117a0c75d24b7346d0f9732a63c76a8957a8ae8a5542fd27e671c62782c29334",
@@ -481,8 +811,16 @@
           "name": "Tag"
         },
         {
+          "contentSha256": "2be6bfb38f4b7d849e61bb43adea17ed75fdcabaa369f74369db9b5a96a63bf4",
+          "name": "TestTube"
+        },
+        {
           "contentSha256": "8bc15a9fc5cf9b8aed06889dbc1a0dd391de6942395623b76d19fe349d6b8217",
           "name": "TextT"
+        },
+        {
+          "contentSha256": "2f499c125c3111440af49b48a3a00795ea4ce9ca1eae4f30a193a305340d05db",
+          "name": "Tooth"
         },
         {
           "contentSha256": "d2e05b9eac142bec8c870a46a8a38515298126aaf2733841d7a2375f45fd2169",
@@ -493,12 +831,44 @@
           "name": "UploadSimple"
         },
         {
+          "contentSha256": "f00789ed726121d3e8996802125a6fd4dffdc05022e76f8d2ed73154c8cb9bf4",
+          "name": "UserCircle"
+        },
+        {
+          "contentSha256": "5f2bb3f26836c120d7fb3e7a5c31caba0db7ff4e80949407ceb757f055b7bf96",
+          "name": "UserList"
+        },
+        {
+          "contentSha256": "75ac808c9eddc7e24a9d1de9f7ae5e1f46bfae9496a78d39b5a9e19cc40105a8",
+          "name": "UserMinus"
+        },
+        {
+          "contentSha256": "5e7fb5686245bdefb0cf2081dbd881cd8be4846170cd326795711831bcc96f37",
+          "name": "UserPlus"
+        },
+        {
           "contentSha256": "25158f6d34431ba97734c99349c1eb33be5de35d4a6c21bd6d136dfd2956e95a",
           "name": "Users"
         },
         {
+          "contentSha256": "fc8f54a2d888d1afc6f2fa394f1f8d04640ab3899d2ac5b1e866aeef65030c38",
+          "name": "UsersThree"
+        },
+        {
+          "contentSha256": "d6775735cfa267ab0649a91cef707f662e5a253ebc201474fc7edf626dc62be6",
+          "name": "Virus"
+        },
+        {
           "contentSha256": "2203a4403e3e0cdd97d2388492225cdd96acdf400caa66788dc205a4afd8e393",
           "name": "WarningCircle"
+        },
+        {
+          "contentSha256": "d707b997f043f07f69f1258da7309dcea090c2fc6b03f0b782e123d2d27c644f",
+          "name": "WifiSlash"
+        },
+        {
+          "contentSha256": "2c163408bd32c1d62b1ca6585828488212ba91668494c8ff9629ac54e6cbb222",
+          "name": "Wind"
         },
         {
           "contentSha256": "4cb8b69830ae8d98860064d57ee28def14bab4e291b95a8df0c0745fc0932009",
@@ -517,7 +887,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 282497,
+      "sizeBytes": 470995,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -584,8 +954,17 @@
       "sizeBytes": 151666
     }
   ],
-  "releaseAdmission": "ADMITTED",
-  "releaseBlockers": [],
+  "releaseAdmission": "BLOCKED",
+  "releaseBlockers": [
+    "asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+    "asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
+    "asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+    "asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2"
+  ],
   "schemaVersion": 1,
-  "subjectCommit": "2e06648f38ae946a4cc1548ba5501f0a80a35380"
+  "subjectCommit": "40463e224bfdfc80e541b1ec5e4462a841464382"
 }
