@@ -51,13 +51,16 @@ from .sharing import (
     ShareConflict,
     activate_share,
     active_public_share,
+    lock_share_target,
     preview_share,
     public_manifest,
     remove_share_delivery_manifest,
+    retire_share_delivery_manifest,
     revoke_share,
     rotate_share,
     share_delivery_public_id,
     share_json,
+    shared_slide_statement,
     write_share_delivery_manifest,
 )
 from .storage import StorageLayout
@@ -905,7 +908,10 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
+        lock_share_target(database, "collection", collection_id)
         collection = _get_collection(database, collection_id)
+        if _has_active_share(database, target_type="collection", target_id=collection_id):
+            raise HTTPException(status_code=409, detail={"code": "SHARE_ACTIVE"})
         database.delete(collection)
         database.commit()
         return Response(status_code=204)
@@ -1498,13 +1504,14 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
-        share = database.get(LibraryShare, share_id)
+        database.execute(update(LibraryShare).where(LibraryShare.id == share_id).values(
+            id=LibraryShare.id, updated_at=LibraryShare.updated_at,
+        ))
+        share = database.get(LibraryShare, share_id, populate_existing=True)
         if share is None or not share.is_active:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
         old_public_id = share.public_id
-        remove_share_delivery_manifest(storage, old_public_id)
         rotate_share(share)
-        database.commit()
         slides = list(
             database.scalars(
                 select(Slide)
@@ -1513,7 +1520,17 @@ def register_library_routes(
                 .order_by(ShareSlide.sort_order, Slide.id)
             )
         )
-        write_share_delivery_manifest(storage, share, slides)
+        new_public_id = share.public_id
+        try:
+            write_share_delivery_manifest(storage, share, slides)
+            database.commit()
+        except Exception:
+            database.rollback()
+            remove_share_delivery_manifest(storage, new_public_id)
+            raise
+        # The old file remains valid until replacement and commit succeed. Even
+        # if unlink fails, authorization binds delivery to the current public ID.
+        retire_share_delivery_manifest(storage, old_public_id)
         return share_json(database, share)
 
     app.add_api_route(
@@ -1527,7 +1544,10 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
-        share = database.get(LibraryShare, share_id)
+        database.execute(update(LibraryShare).where(LibraryShare.id == share_id).values(
+            id=LibraryShare.id, updated_at=LibraryShare.updated_at,
+        ))
+        share = database.get(LibraryShare, share_id, populate_existing=True)
         if share is None or not share.is_active:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
         remove_share_delivery_manifest(storage, share.public_id)
@@ -1552,7 +1572,7 @@ def register_library_routes(
                 target_type=target_type,
                 public_id=public_id,
             )
-            return public_manifest(database, share)
+            return public_manifest(database, share, storage)
         except ShareConflict as error:
             raise _share_error(error) from error
 
@@ -1595,11 +1615,8 @@ def register_library_routes(
         except ShareConflict as error:
             raise _share_error(error) from error
         slide = database.scalar(
-            select(Slide).where(
+            shared_slide_statement(public_id, target_type).where(
                 Slide.public_id == slide_public_id,
-                Slide.state == SlideState.PUBLISHED,
-                Slide.privacy_status == "passed",
-                Slide.trashed_at.is_(None),
             )
         )
         if slide is None:
@@ -1642,11 +1659,8 @@ def register_library_routes(
         except ShareConflict as error:
             raise _share_error(error) from error
         slide = database.scalar(
-            select(Slide).where(
+            shared_slide_statement(public_id, target_type).where(
                 Slide.public_id == slide_public_id,
-                Slide.state == SlideState.PUBLISHED,
-                Slide.privacy_status == "passed",
-                Slide.trashed_at.is_(None),
             )
         )
         if slide is None:
