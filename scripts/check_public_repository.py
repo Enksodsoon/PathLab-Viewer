@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import ipaddress
 import json
 import re
@@ -332,7 +333,12 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             findings.append((display, line_number, "local workstation path"))
         for local_part, domain in EMAIL_PATTERN.findall(line):
             email = f"{local_part}@{domain}"
-            if not is_allowed_email(email):
+            # Exact public npm glob/10.5.0 deprecation notice, verified against
+            # registry.npmjs.org. Do not exempt other lockfile email content.
+            public_registry_notice = relative == "pnpm-lock.yaml" and hashlib.sha256(
+                line.strip().encode("utf-8")
+            ).hexdigest() == "aafd0901253a2ae949eca4fded10be77251c4d25c26bf14269afa2662af1adbc"
+            if not is_allowed_email(email) and not public_registry_notice:
                 findings.append((display, line_number, "non-example email address"))
         for match in IPV4_PATTERN.finditer(line):
             if is_embedded_numeric_identifier(line, match.start(), match.end()):

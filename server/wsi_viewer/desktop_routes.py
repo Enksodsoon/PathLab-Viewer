@@ -44,9 +44,9 @@ from .desktop_sync import (
     revision_for,
 )
 from .domain import SlideState
-from .identity import is_default_legacy_owner
 from .evidence_contract import load_trusted_signers, parse_evidence, validate_evidence
 from .evidence_set_contract import validate_evidence_set
+from .identity import is_default_legacy_owner
 from .models import (
     AnalysisRun,
     Annotation,

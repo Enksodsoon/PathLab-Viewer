@@ -341,3 +341,18 @@ def test_history_scan_allows_dependabot_noreply_commit_metadata(tmp_path: Path) 
 
     scanned = run_scan(repo, "--history-base", base)
     assert scanned.returncode == 0
+
+
+def test_only_exact_public_registry_notice_is_exempted(tmp_path: Path) -> None:
+    repo, _ = make_repo(tmp_path)
+    source_lock = SCANNER.parent.parent / "pnpm-lock.yaml"
+    notice = next(
+        line for line in source_lock.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("deprecated: Old versions of glob")
+    )
+    lock = repo / "pnpm-lock.yaml"
+    lock.write_text(notice + "\n", encoding="utf-8")
+    git(repo, "add", "pnpm-lock.yaml")
+    assert run_scan(repo).returncode == 0
+    lock.write_text(notice + " changed\n", encoding="utf-8")
+    assert run_scan(repo).returncode == 1

@@ -29,7 +29,10 @@ def test_exact_restored_assets_are_admitted_after_owner_approval() -> None:
     ledger = validate(require_release_admission=True)
     assert len(ledger["records"]) == 16
     assert ledger["releaseAdmission"] == "ADMITTED"
-    assert all(r["releaseDisposition"] in {"ADMITTED", "EXCLUDED_NON_RELEASE"} for r in ledger["records"])
+    assert all(
+        r["releaseDisposition"] in {"ADMITTED", "EXCLUDED_NON_RELEASE"}
+        for r in ledger["records"]
+    )
     images = [r for r in ledger["records"] if r["locator"].endswith(".webp")]
     assert len(images) == 2
     assert all(r["licensePermission"] == "OWNER_APPROVED_PATHLAB_DISTRIBUTION" for r in images)
