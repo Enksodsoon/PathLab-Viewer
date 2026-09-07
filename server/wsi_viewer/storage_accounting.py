@@ -266,7 +266,7 @@ def reconcile_storage(
                         (
                             granted_slide.id,
                             granted_slide.public_id,
-                            delivery_version(granted_slide),
+                            delivery_version(granted_slide, layout),
                         )
                     )
 
