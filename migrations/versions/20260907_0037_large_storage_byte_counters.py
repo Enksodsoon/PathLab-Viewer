@@ -26,12 +26,14 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     connection = op.get_bind()
+    # SQLite had the same signed 64-bit INTEGER columns before this revision.
+    # Rollback changes only the revision marker; do not impose PostgreSQL limits.
+    if connection.dialect.name == "sqlite":
+        return
     # Freeze writers before checking every column. No column changes if any value
-    # cannot fit the prior PostgreSQL schema, including on a SQLite rollback.
+    # cannot fit the prior PostgreSQL schema.
     if connection.dialect.name == "postgresql":
         connection.execute(sa.text("LOCK TABLE slides, desktop_ingests IN ACCESS EXCLUSIVE MODE"))
-    elif connection.dialect.name == "sqlite":
-        connection.execute(sa.text("UPDATE slides SET source_bytes=source_bytes WHERE 0"))
     for table, columns in BYTE_COLUMNS.items():
         for column in columns:
             outside = connection.scalar(
@@ -42,8 +44,6 @@ def downgrade() -> None:
             )
             if outside is not None:
                 raise RuntimeError(f"Cannot downgrade: {table}.{column} exceeds int32 range")
-    if connection.dialect.name == "sqlite":
-        return
     for table, columns in BYTE_COLUMNS.items():
         for column in columns:
             op.alter_column(table, column, existing_type=sa.BigInteger(), type_=sa.Integer())

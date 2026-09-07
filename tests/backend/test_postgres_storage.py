@@ -127,7 +127,46 @@ def test_large_byte_round_trip(storage_engine, table, column):
         assert connection.scalar(text(f"SELECT {column} FROM {table}")) == LARGE
 
 
-def test_byte_migration_preserves_data_and_refuses_lossy_rollback(storage_engine):
+def test_sqlite_noop_rollback_preserves_large_bytes_dependents_and_schema(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'rollback.sqlite3'}")
+    try:
+        migrate(engine, OLD_HEAD)
+        seed(engine)
+        with engine.begin() as connection:
+            for table, columns in BYTE_COLUMNS.items():
+                assignments = ", ".join(f"{column}=:v" for column in columns)
+                connection.execute(text(f"UPDATE {table} SET {assignments}"), {"v": LARGE})
+
+        def snapshot():
+            with engine.connect() as connection:
+                assert connection.scalar(text("PRAGMA foreign_keys")) == 1
+                assert connection.execute(text("PRAGMA foreign_key_check")).all() == []
+                rows = {
+                    table: connection.execute(text(f"SELECT * FROM {table}")).all()
+                    for table in (*BYTE_COLUMNS, "users", "desktop_credentials")
+                }
+                schema = connection.execute(
+                    text(
+                        "SELECT type, name, tbl_name, rootpage, sql FROM sqlite_schema "
+                        "ORDER BY type, name"
+                    )
+                ).all()
+                return rows, schema
+
+        before = snapshot()
+        migrate(engine, "head")
+        assert snapshot() == before
+        migrate(engine, OLD_HEAD, downgrade=True)
+        assert snapshot() == before
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == OLD_HEAD
+        migrate(engine, "head")
+        assert snapshot() == before
+    finally:
+        engine.dispose()
+
+
+def test_byte_migration_preserves_data_and_guards_postgres_narrowing(storage_engine):
     migrate(storage_engine, OLD_HEAD)
     seed(storage_engine)
     with storage_engine.connect() as connection:
@@ -145,32 +184,35 @@ def test_byte_migration_preserves_data_and_refuses_lossy_rollback(storage_engine
             for column in columns:
                 expected = Base.metadata.tables[table].c[column].type
                 assert str(actual[column]["type"]) == str(expected.compile(storage_engine.dialect))
-    for table, columns in BYTE_COLUMNS.items():
-        for column in columns:
-            with storage_engine.begin() as connection:
-                if column == "received_bytes":
-                    connection.execute(
-                        text("UPDATE desktop_ingests SET package_length=:v"), {"v": LARGE}
+    if storage_engine.dialect.name == "postgresql":
+        for table, columns in BYTE_COLUMNS.items():
+            for column in columns:
+                with storage_engine.begin() as connection:
+                    if column == "received_bytes":
+                        connection.execute(
+                            text("UPDATE desktop_ingests SET package_length=:v"), {"v": LARGE}
+                        )
+                    connection.execute(text(f"UPDATE {table} SET {column}=:v"), {"v": LARGE})
+                with pytest.raises(RuntimeError, match="int32"):
+                    migrate(storage_engine, OLD_HEAD, downgrade=True)
+                with storage_engine.begin() as connection:
+                    assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
+                        ALEMBIC_HEAD
                     )
-                connection.execute(text(f"UPDATE {table} SET {column}=:v"), {"v": LARGE})
-            with pytest.raises(RuntimeError, match="int32"):
-                migrate(storage_engine, OLD_HEAD, downgrade=True)
-            with storage_engine.begin() as connection:
-                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
-                    ALEMBIC_HEAD
-                )
-                assert connection.scalar(text(f"SELECT {column} FROM {table}")) == LARGE
-                connection.execute(text(f"UPDATE {table} SET {column}=123456"))
-                if column == "received_bytes":
-                    connection.execute(text("UPDATE desktop_ingests SET package_length=7654321"))
-    with storage_engine.begin() as connection:
-        connection.execute(text("UPDATE slides SET source_bytes=:v"), {"v": -LARGE})
-    with pytest.raises(RuntimeError, match="int32"):
-        migrate(storage_engine, OLD_HEAD, downgrade=True)
-    with storage_engine.begin() as connection:
-        assert connection.scalar(text("SELECT source_bytes FROM slides")) == -LARGE
-        connection.execute(text("UPDATE slides SET source_bytes=123456"))
-        connection.execute(text("UPDATE desktop_ingests SET derivative_bytes=NULL"))
+                    assert connection.scalar(text(f"SELECT {column} FROM {table}")) == LARGE
+                    connection.execute(text(f"UPDATE {table} SET {column}=123456"))
+                    if column == "received_bytes":
+                        connection.execute(
+                            text("UPDATE desktop_ingests SET package_length=7654321")
+                        )
+        with storage_engine.begin() as connection:
+            connection.execute(text("UPDATE slides SET source_bytes=:v"), {"v": -LARGE})
+        with pytest.raises(RuntimeError, match="int32"):
+            migrate(storage_engine, OLD_HEAD, downgrade=True)
+        with storage_engine.begin() as connection:
+            assert connection.scalar(text("SELECT source_bytes FROM slides")) == -LARGE
+            connection.execute(text("UPDATE slides SET source_bytes=123456"))
+            connection.execute(text("UPDATE desktop_ingests SET derivative_bytes=NULL"))
     with storage_engine.connect() as connection:
         before_rollback = {
             table: connection.execute(text(f"SELECT * FROM {table}")).all()

@@ -23,13 +23,18 @@ contract requires revision 0037 and actual PostgreSQL bigint column types.
 
 For rollback, stop writers before running `alembic downgrade 20260905_0036`.
 The migration locks both PostgreSQL tables before checking all six columns.
-SQLite acquires its write lock before the same checks. If any value is below
-`-2147483648` or above `2147483647`, rollback fails before narrowing any column.
+If any PostgreSQL value is below `-2147483648` or above `2147483647`, rollback
+fails before narrowing any column.
 The migration does not clamp, truncate, or delete data. Keep the upgraded schema
 and application while deciding how to handle those rows, or restore the verified
 pre-upgrade backup using the normal restore procedure. Never force-stamp an older
 revision over out-of-range data. A successful downgrade preserves fitting values
 and dependent rows.
+
+SQLite downgrade is a no-op apart from Alembic's revision marker: revision 0036
+already uses the same signed 64-bit INTEGER columns. Multi-GiB values, dependent
+rows, indexes, and foreign keys remain intact through upgrade and downgrade.
+No PostgreSQL int32 range restriction applies to SQLite rollback.
 
 ## Admission scope
 
