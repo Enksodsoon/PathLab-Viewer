@@ -815,8 +815,12 @@ class DesktopIngest(Base):
     slide_id: Mapped[str | None] = mapped_column(ForeignKey("slides.id", ondelete="SET NULL"))
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     artifact_revision_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    package_length: Mapped[int] = mapped_column(Integer, nullable=False)
-    received_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    package_length: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), nullable=False
+    )
+    received_bytes: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), nullable=False, default=0
+    )
     package_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     ingest_mode: Mapped[str] = mapped_column(
@@ -830,7 +834,9 @@ class DesktopIngest(Base):
     ome_height: Mapped[int | None] = mapped_column(Integer)
     ome_downsample: Mapped[float | None] = mapped_column(Float)
     ome_jpeg_quality: Mapped[int | None] = mapped_column(Integer)
-    derivative_bytes: Mapped[int | None] = mapped_column(Integer)
+    derivative_bytes: Mapped[int | None] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite")
+    )
     derivative_file_count: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="uploading")
     error_code: Mapped[str | None] = mapped_column(String(80))
@@ -1083,9 +1089,15 @@ class Slide(Base):
     public_id: Mapped[str] = mapped_column(String(64), unique=True, default=_public_id, index=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(500), nullable=False)
-    source_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    reserved_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    derivative_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source_bytes: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), nullable=False
+    )
+    reserved_bytes: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), nullable=False, default=0
+    )
+    derivative_bytes: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), nullable=False, default=0
+    )
     derivative_file_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     render_mode: Mapped[str] = mapped_column(
         String(20),
