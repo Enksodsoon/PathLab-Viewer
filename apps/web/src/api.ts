@@ -228,6 +228,7 @@ export async function getLibraryNavigation(folderId?: string): Promise<LibraryNa
     capabilities: {
       classroom: response.headers.get('X-PathLab-Classroom-Enabled') === 'true',
       study: response.headers.get('X-PathLab-Study-Enabled') === 'true',
+      assessment: response.headers.get('X-PathLab-Assessment-Enabled') === 'true',
     },
   }
 }

@@ -53,6 +53,13 @@ services:
     secrets:
       - pathlab-postgres-password
 
+  assessment:
+    environment:
+      PATHLAB_DATABASE_URL: postgresql+psycopg://${PATHLAB_POSTGRES_USER:?Set PATHLAB_POSTGRES_USER}@postgres:5432/${PATHLAB_POSTGRES_DB:?Set PATHLAB_POSTGRES_DB}
+      PATHLAB_DATABASE_PASSWORD_FILE: /run/secrets/pathlab-postgres-password
+    secrets:
+      - pathlab-postgres-password
+
   worker:
     environment:
       PATHLAB_DATABASE_URL: postgresql+psycopg://${PATHLAB_POSTGRES_USER:?Set PATHLAB_POSTGRES_USER}@postgres:5432/${PATHLAB_POSTGRES_DB:?Set PATHLAB_POSTGRES_DB}

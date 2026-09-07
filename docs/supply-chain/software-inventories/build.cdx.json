@@ -44,11 +44,11 @@
       "version": "2.11.4-alpine"
     },
     {
-      "bom-ref": "dependency:container:node@sha256:ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63",
+      "bom-ref": "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63"
+          "content": "871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
         }
       ],
       "licenses": [
@@ -62,7 +62,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "container:node@sha256:ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63"
+          "value": "container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
         },
         {
           "name": "pathlab:role",
@@ -81,9 +81,9 @@
           "value": "[\"IMAGE_SBOM_LICENSE_AND_NOTICE_SET_NOT_CAPTURED\"]"
         }
       ],
-      "purl": "pkg:oci/node@26.7.0-alpine3.23",
+      "purl": "pkg:oci/node@26.8.1-alpine3.23",
       "type": "container",
-      "version": "26.7.0-alpine3.23"
+      "version": "26.8.1-alpine3.23"
     },
     {
       "bom-ref": "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
@@ -4040,6 +4040,50 @@
       "version": "0.4.3"
     },
     {
+      "bom-ref": "dependency:npm:@isaacs/cliui@8.0.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@isaacs/cliui/-/cliui-8.0.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/@isaacs%2Fcliui/8.0.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "@isaacs/cliui",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:@isaacs/cliui@8.0.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/%40isaacs%2Fcliui@8.0.2",
+      "type": "library",
+      "version": "8.0.2"
+    },
+    {
       "bom-ref": "dependency:npm:@jridgewell/gen-mapping@0.3.13",
       "externalReferences": [
         {
@@ -4346,6 +4390,50 @@
       "purl": "pkg:npm/%40phosphor-icons%2Freact@2.1.10",
       "type": "library",
       "version": "2.1.10"
+    },
+    {
+      "bom-ref": "dependency:npm:@pkgjs/parseargs@0.11.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@pkgjs/parseargs/-/parseargs-0.11.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/@pkgjs%2Fparseargs/0.11.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "@pkgjs/parseargs",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:@pkgjs/parseargs@0.11.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-optional"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/%40pkgjs%2Fparseargs@0.11.0",
+      "type": "library",
+      "version": "0.11.0"
     },
     {
       "bom-ref": "dependency:npm:@playwright/test@1.62.1",
@@ -6064,15 +6152,15 @@
       "version": "7.0.1"
     },
     {
-      "bom-ref": "dependency:npm:@testing-library/react@16.3.2",
+      "bom-ref": "dependency:npm:@testing-library/react@16.3.3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@testing-library/react/-/react-16.3.2.tgz"
+          "url": "https://registry.npmjs.org/@testing-library/react/-/react-16.3.3.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@testing-library%2Freact/16.3.2"
+          "url": "https://registry.npmjs.org/@testing-library%2Freact/16.3.3"
         }
       ],
       "licenses": [
@@ -6084,7 +6172,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@testing-library/react@16.3.2"
+          "value": "npm:@testing-library/react@16.3.3"
         },
         {
           "name": "pathlab:role",
@@ -6103,20 +6191,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40testing-library%2Freact@16.3.2",
+      "purl": "pkg:npm/%40testing-library%2Freact@16.3.3",
       "type": "library",
-      "version": "16.3.2"
+      "version": "16.3.3"
     },
     {
-      "bom-ref": "dependency:npm:@testing-library/user-event@14.6.3",
+      "bom-ref": "dependency:npm:@testing-library/user-event@14.6.7",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@testing-library/user-event/-/user-event-14.6.3.tgz"
+          "url": "https://registry.npmjs.org/@testing-library/user-event/-/user-event-14.6.7.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@testing-library%2Fuser-event/14.6.3"
+          "url": "https://registry.npmjs.org/@testing-library%2Fuser-event/14.6.7"
         }
       ],
       "licenses": [
@@ -6128,7 +6216,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@testing-library/user-event@14.6.3"
+          "value": "npm:@testing-library/user-event@14.6.7"
         },
         {
           "name": "pathlab:role",
@@ -6147,9 +6235,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40testing-library%2Fuser-event@14.6.3",
+      "purl": "pkg:npm/%40testing-library%2Fuser-event@14.6.7",
       "type": "library",
-      "version": "14.6.3"
+      "version": "14.6.7"
     },
     {
       "bom-ref": "dependency:npm:@types/aria-query@5.0.4",
@@ -6548,15 +6636,15 @@
       "version": "7.0.15"
     },
     {
-      "bom-ref": "dependency:npm:@types/node@26.2.0",
+      "bom-ref": "dependency:npm:@types/node@26.4.1",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@types/node/-/node-26.2.0.tgz"
+          "url": "https://registry.npmjs.org/@types/node/-/node-26.4.1.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@types%2Fnode/26.2.0"
+          "url": "https://registry.npmjs.org/@types%2Fnode/26.4.1"
         }
       ],
       "licenses": [
@@ -6568,7 +6656,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@types/node@26.2.0"
+          "value": "npm:@types/node@26.4.1"
         },
         {
           "name": "pathlab:role",
@@ -6587,20 +6675,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40types%2Fnode@26.2.0",
+      "purl": "pkg:npm/%40types%2Fnode@26.4.1",
       "type": "library",
-      "version": "26.2.0"
+      "version": "26.4.1"
     },
     {
-      "bom-ref": "dependency:npm:@types/react-dom@19.2.4",
+      "bom-ref": "dependency:npm:@types/react-dom@19.2.7",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.2.4.tgz"
+          "url": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.2.7.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@types%2Freact-dom/19.2.4"
+          "url": "https://registry.npmjs.org/@types%2Freact-dom/19.2.7"
         }
       ],
       "licenses": [
@@ -6612,7 +6700,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@types/react-dom@19.2.4"
+          "value": "npm:@types/react-dom@19.2.7"
         },
         {
           "name": "pathlab:role",
@@ -6631,9 +6719,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40types%2Freact-dom@19.2.4",
+      "purl": "pkg:npm/%40types%2Freact-dom@19.2.7",
       "type": "library",
-      "version": "19.2.4"
+      "version": "19.2.7"
     },
     {
       "bom-ref": "dependency:npm:@types/react@19.2.18",
@@ -6680,15 +6768,15 @@
       "version": "19.2.18"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/eslint-plugin@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/eslint-plugin@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Feslint-plugin/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Feslint-plugin/8.69.0"
         }
       ],
       "licenses": [
@@ -6700,7 +6788,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/eslint-plugin@8.67.0"
+          "value": "npm:@typescript-eslint/eslint-plugin@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6719,20 +6807,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Feslint-plugin@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Feslint-plugin@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/parser@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/parser@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Fparser/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Fparser/8.69.0"
         }
       ],
       "licenses": [
@@ -6744,7 +6832,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/parser@8.67.0"
+          "value": "npm:@typescript-eslint/parser@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6763,20 +6851,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Fparser@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Fparser@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/project-service@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/project-service@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Fproject-service/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Fproject-service/8.69.0"
         }
       ],
       "licenses": [
@@ -6788,7 +6876,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/project-service@8.67.0"
+          "value": "npm:@typescript-eslint/project-service@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6807,20 +6895,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Fproject-service@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Fproject-service@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/scope-manager@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/scope-manager@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Fscope-manager/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Fscope-manager/8.69.0"
         }
       ],
       "licenses": [
@@ -6832,7 +6920,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/scope-manager@8.67.0"
+          "value": "npm:@typescript-eslint/scope-manager@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6851,20 +6939,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Fscope-manager@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Fscope-manager@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/tsconfig-utils@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/tsconfig-utils@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftsconfig-utils/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftsconfig-utils/8.69.0"
         }
       ],
       "licenses": [
@@ -6876,7 +6964,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/tsconfig-utils@8.67.0"
+          "value": "npm:@typescript-eslint/tsconfig-utils@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6895,20 +6983,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Ftsconfig-utils@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Ftsconfig-utils@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/type-utils@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/type-utils@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftype-utils/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftype-utils/8.69.0"
         }
       ],
       "licenses": [
@@ -6920,7 +7008,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/type-utils@8.67.0"
+          "value": "npm:@typescript-eslint/type-utils@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6939,20 +7027,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Ftype-utils@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Ftype-utils@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/types@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/types@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftypes/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftypes/8.69.0"
         }
       ],
       "licenses": [
@@ -6964,7 +7052,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/types@8.67.0"
+          "value": "npm:@typescript-eslint/types@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -6983,20 +7071,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Ftypes@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Ftypes@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/typescript-estree@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/typescript-estree@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftypescript-estree/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Ftypescript-estree/8.69.0"
         }
       ],
       "licenses": [
@@ -7008,7 +7096,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/typescript-estree@8.67.0"
+          "value": "npm:@typescript-eslint/typescript-estree@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -7027,20 +7115,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Ftypescript-estree@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Ftypescript-estree@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/utils@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/utils@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Futils/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Futils/8.69.0"
         }
       ],
       "licenses": [
@@ -7052,7 +7140,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/utils@8.67.0"
+          "value": "npm:@typescript-eslint/utils@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -7071,20 +7159,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Futils@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Futils@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
-      "bom-ref": "dependency:npm:@typescript-eslint/visitor-keys@8.67.0",
+      "bom-ref": "dependency:npm:@typescript-eslint/visitor-keys@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@typescript-eslint%2Fvisitor-keys/8.67.0"
+          "url": "https://registry.npmjs.org/@typescript-eslint%2Fvisitor-keys/8.69.0"
         }
       ],
       "licenses": [
@@ -7096,7 +7184,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@typescript-eslint/visitor-keys@8.67.0"
+          "value": "npm:@typescript-eslint/visitor-keys@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -7115,9 +7203,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40typescript-eslint%2Fvisitor-keys@8.67.0",
+      "purl": "pkg:npm/%40typescript-eslint%2Fvisitor-keys@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
       "bom-ref": "dependency:npm:@vitejs/plugin-react@4.7.0",
@@ -7164,15 +7252,15 @@
       "version": "4.7.0"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/expect@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/expect@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/expect/-/expect-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/expect/-/expect-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Fexpect/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Fexpect/4.1.11"
         }
       ],
       "licenses": [
@@ -7184,7 +7272,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/expect@4.1.10"
+          "value": "npm:@vitest/expect@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7203,20 +7291,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Fexpect@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Fexpect@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/mocker@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/mocker@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/mocker/-/mocker-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/mocker/-/mocker-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Fmocker/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Fmocker/4.1.11"
         }
       ],
       "licenses": [
@@ -7228,7 +7316,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/mocker@4.1.10"
+          "value": "npm:@vitest/mocker@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7247,20 +7335,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Fmocker@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Fmocker@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/pretty-format@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/pretty-format@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/pretty-format/-/pretty-format-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/pretty-format/-/pretty-format-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Fpretty-format/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Fpretty-format/4.1.11"
         }
       ],
       "licenses": [
@@ -7272,7 +7360,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/pretty-format@4.1.10"
+          "value": "npm:@vitest/pretty-format@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7291,20 +7379,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Fpretty-format@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Fpretty-format@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/runner@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/runner@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/runner/-/runner-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/runner/-/runner-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Frunner/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Frunner/4.1.11"
         }
       ],
       "licenses": [
@@ -7316,7 +7404,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/runner@4.1.10"
+          "value": "npm:@vitest/runner@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7335,20 +7423,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Frunner@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Frunner@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/snapshot@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/snapshot@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/snapshot/-/snapshot-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/snapshot/-/snapshot-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Fsnapshot/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Fsnapshot/4.1.11"
         }
       ],
       "licenses": [
@@ -7360,7 +7448,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/snapshot@4.1.10"
+          "value": "npm:@vitest/snapshot@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7379,20 +7467,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Fsnapshot@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Fsnapshot@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/spy@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/spy@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/spy/-/spy-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/spy/-/spy-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Fspy/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Fspy/4.1.11"
         }
       ],
       "licenses": [
@@ -7404,7 +7492,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/spy@4.1.10"
+          "value": "npm:@vitest/spy@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7423,20 +7511,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Fspy@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Fspy@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
-      "bom-ref": "dependency:npm:@vitest/utils@4.1.10",
+      "bom-ref": "dependency:npm:@vitest/utils@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@vitest/utils/-/utils-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/@vitest/utils/-/utils-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/@vitest%2Futils/4.1.10"
+          "url": "https://registry.npmjs.org/@vitest%2Futils/4.1.11"
         }
       ],
       "licenses": [
@@ -7448,7 +7536,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:@vitest/utils@4.1.10"
+          "value": "npm:@vitest/utils@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -7467,9 +7555,97 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/%40vitest%2Futils@4.1.10",
+      "purl": "pkg:npm/%40vitest%2Futils@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
+    },
+    {
+      "bom-ref": "dependency:npm:@xmldom/xmldom@0.8.15",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@xmldom/xmldom/-/xmldom-0.8.15.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/@xmldom%2Fxmldom/0.8.15"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "@xmldom/xmldom",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:@xmldom/xmldom@0.8.15"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/%40xmldom%2Fxmldom@0.8.15",
+      "type": "library",
+      "version": "0.8.15"
+    },
+    {
+      "bom-ref": "dependency:npm:abort-controller@3.0.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/abort-controller/-/abort-controller-3.0.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/abort-controller/3.0.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "abort-controller",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:abort-controller@3.0.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/abort-controller@3.0.0",
+      "type": "library",
+      "version": "3.0.0"
     },
     {
       "bom-ref": "dependency:npm:acorn-jsx@5.3.2",
@@ -7648,6 +7824,50 @@
       "version": "5.0.1"
     },
     {
+      "bom-ref": "dependency:npm:ansi-regex@6.3.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-6.3.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/ansi-regex/6.3.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "ansi-regex",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:ansi-regex@6.3.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/ansi-regex@6.3.0",
+      "type": "library",
+      "version": "6.3.0"
+    },
+    {
       "bom-ref": "dependency:npm:ansi-styles@4.3.0",
       "externalReferences": [
         {
@@ -7734,6 +7954,138 @@
       "purl": "pkg:npm/ansi-styles@5.2.0",
       "type": "library",
       "version": "5.2.0"
+    },
+    {
+      "bom-ref": "dependency:npm:ansi-styles@6.2.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ansi-styles/-/ansi-styles-6.2.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/ansi-styles/6.2.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "ansi-styles",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:ansi-styles@6.2.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/ansi-styles@6.2.3",
+      "type": "library",
+      "version": "6.2.3"
+    },
+    {
+      "bom-ref": "dependency:npm:archiver-utils@5.0.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/archiver-utils/-/archiver-utils-5.0.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/archiver-utils/5.0.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "archiver-utils",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:archiver-utils@5.0.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/archiver-utils@5.0.2",
+      "type": "library",
+      "version": "5.0.2"
+    },
+    {
+      "bom-ref": "dependency:npm:archiver@7.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/archiver/-/archiver-7.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/archiver/7.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "archiver",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:archiver@7.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/archiver@7.0.1",
+      "type": "library",
+      "version": "7.0.1"
     },
     {
       "bom-ref": "dependency:npm:argparse@2.0.1",
@@ -7912,6 +8264,94 @@
       "version": "2.0.1"
     },
     {
+      "bom-ref": "dependency:npm:async@3.2.6",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/async/-/async-3.2.6.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/async/3.2.6"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "async",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:async@3.2.6"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/async@3.2.6",
+      "type": "library",
+      "version": "3.2.6"
+    },
+    {
+      "bom-ref": "dependency:npm:b4a@1.8.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/b4a/-/b4a-1.8.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/b4a/1.8.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "b4a",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:b4a@1.8.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/b4a@1.8.1",
+      "type": "library",
+      "version": "1.8.1"
+    },
+    {
       "bom-ref": "dependency:npm:balanced-match@4.0.4",
       "externalReferences": [
         {
@@ -7936,11 +8376,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -7954,6 +8394,270 @@
       "purl": "pkg:npm/balanced-match@4.0.4",
       "type": "library",
       "version": "4.0.4"
+    },
+    {
+      "bom-ref": "dependency:npm:bare-events@2.9.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/bare-events/-/bare-events-2.9.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/bare-events/2.9.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "bare-events",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:bare-events@2.9.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/bare-events@2.9.2",
+      "type": "library",
+      "version": "2.9.2"
+    },
+    {
+      "bom-ref": "dependency:npm:bare-fs@4.8.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/bare-fs/-/bare-fs-4.8.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/bare-fs/4.8.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "bare-fs",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:bare-fs@4.8.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/bare-fs@4.8.1",
+      "type": "library",
+      "version": "4.8.1"
+    },
+    {
+      "bom-ref": "dependency:npm:bare-path@3.1.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/bare-path/-/bare-path-3.1.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/bare-path/3.1.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "bare-path",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:bare-path@3.1.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/bare-path@3.1.2",
+      "type": "library",
+      "version": "3.1.2"
+    },
+    {
+      "bom-ref": "dependency:npm:bare-stream@2.13.4",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/bare-stream/-/bare-stream-2.13.4.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/bare-stream/2.13.4"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "bare-stream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:bare-stream@2.13.4"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/bare-stream@2.13.4",
+      "type": "library",
+      "version": "2.13.4"
+    },
+    {
+      "bom-ref": "dependency:npm:bare-url@2.5.4",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/bare-url/-/bare-url-2.5.4.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/bare-url/2.5.4"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "bare-url",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:bare-url@2.5.4"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/bare-url@2.5.4",
+      "type": "library",
+      "version": "2.5.4"
+    },
+    {
+      "bom-ref": "dependency:npm:base64-js@1.5.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/base64-js/1.5.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "base64-js",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:base64-js@1.5.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/base64-js@1.5.1",
+      "type": "library",
+      "version": "1.5.1"
     },
     {
       "bom-ref": "dependency:npm:baseline-browser-mapping@2.11.14",
@@ -8044,6 +8748,50 @@
       "version": "1.0.3"
     },
     {
+      "bom-ref": "dependency:npm:bluebird@3.7.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/bluebird/-/bluebird-3.7.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/bluebird/3.7.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "bluebird",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:bluebird@3.7.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/bluebird@3.7.2",
+      "type": "library",
+      "version": "3.7.2"
+    },
+    {
       "bom-ref": "dependency:npm:brace-expansion@5.0.9",
       "externalReferences": [
         {
@@ -8068,11 +8816,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -8132,6 +8880,50 @@
       "version": "4.28.8"
     },
     {
+      "bom-ref": "dependency:npm:buffer-crc32@1.0.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/buffer-crc32/-/buffer-crc32-1.0.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/buffer-crc32/1.0.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "buffer-crc32",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:buffer-crc32@1.0.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/buffer-crc32@1.0.0",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
       "bom-ref": "dependency:npm:buffer-from@1.1.2",
       "externalReferences": [
         {
@@ -8174,6 +8966,50 @@
       "purl": "pkg:npm/buffer-from@1.1.2",
       "type": "library",
       "version": "1.1.2"
+    },
+    {
+      "bom-ref": "dependency:npm:buffer@6.0.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/buffer/-/buffer-6.0.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/buffer/6.0.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "buffer",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:buffer@6.0.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/buffer@6.0.3",
+      "type": "library",
+      "version": "6.0.3"
     },
     {
       "bom-ref": "dependency:npm:callsites@3.1.0",
@@ -8440,6 +9276,50 @@
       "version": "1.1.4"
     },
     {
+      "bom-ref": "dependency:npm:compress-commons@6.0.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/compress-commons/-/compress-commons-6.0.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/compress-commons/6.0.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "compress-commons",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:compress-commons@6.0.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/compress-commons@6.0.2",
+      "type": "library",
+      "version": "6.0.2"
+    },
+    {
       "bom-ref": "dependency:npm:convert-source-map@2.0.0",
       "externalReferences": [
         {
@@ -8528,6 +9408,138 @@
       "version": "1.1.1"
     },
     {
+      "bom-ref": "dependency:npm:core-util-is@1.0.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/core-util-is/1.0.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "core-util-is",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:core-util-is@1.0.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/core-util-is@1.0.3",
+      "type": "library",
+      "version": "1.0.3"
+    },
+    {
+      "bom-ref": "dependency:npm:crc-32@1.2.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/crc-32/-/crc-32-1.2.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/crc-32/1.2.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "crc-32",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:crc-32@1.2.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/crc-32@1.2.2",
+      "type": "library",
+      "version": "1.2.2"
+    },
+    {
+      "bom-ref": "dependency:npm:crc32-stream@6.0.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/crc32-stream/-/crc32-stream-6.0.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/crc32-stream/6.0.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "crc32-stream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:crc32-stream@6.0.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/crc32-stream@6.0.0",
+      "type": "library",
+      "version": "6.0.0"
+    },
+    {
       "bom-ref": "dependency:npm:cross-spawn@7.0.6",
       "externalReferences": [
         {
@@ -8552,11 +9564,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -9056,6 +10068,94 @@
       "version": "0.6.3"
     },
     {
+      "bom-ref": "dependency:npm:duplexer2@0.1.4",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/duplexer2/-/duplexer2-0.1.4.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/duplexer2/0.1.4"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "duplexer2",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:duplexer2@0.1.4"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/duplexer2@0.1.4",
+      "type": "library",
+      "version": "0.1.4"
+    },
+    {
+      "bom-ref": "dependency:npm:eastasianwidth@0.2.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/eastasianwidth/-/eastasianwidth-0.2.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/eastasianwidth/0.2.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "eastasianwidth",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:eastasianwidth@0.2.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "BLOCKED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[\"NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE\"]"
+        }
+      ],
+      "purl": "pkg:npm/eastasianwidth@0.2.0",
+      "type": "library",
+      "version": "0.2.0"
+    },
+    {
       "bom-ref": "dependency:npm:electron-to-chromium@1.5.406",
       "externalReferences": [
         {
@@ -9098,6 +10198,50 @@
       "purl": "pkg:npm/electron-to-chromium@1.5.406",
       "type": "library",
       "version": "1.5.406"
+    },
+    {
+      "bom-ref": "dependency:npm:emoji-regex@9.2.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-9.2.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/emoji-regex/9.2.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "emoji-regex",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:emoji-regex@9.2.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/emoji-regex@9.2.2",
+      "type": "library",
+      "version": "9.2.2"
     },
     {
       "bom-ref": "dependency:npm:entities@8.0.0",
@@ -9364,15 +10508,15 @@
       "version": "5.2.0"
     },
     {
-      "bom-ref": "dependency:npm:eslint-plugin-react-refresh@0.5.4",
+      "bom-ref": "dependency:npm:eslint-plugin-react-refresh@0.5.6",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/eslint-plugin-react-refresh/-/eslint-plugin-react-refresh-0.5.4.tgz"
+          "url": "https://registry.npmjs.org/eslint-plugin-react-refresh/-/eslint-plugin-react-refresh-0.5.6.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/eslint-plugin-react-refresh/0.5.4"
+          "url": "https://registry.npmjs.org/eslint-plugin-react-refresh/0.5.6"
         }
       ],
       "licenses": [
@@ -9384,7 +10528,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:eslint-plugin-react-refresh@0.5.4"
+          "value": "npm:eslint-plugin-react-refresh@0.5.6"
         },
         {
           "name": "pathlab:role",
@@ -9403,9 +10547,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/eslint-plugin-react-refresh@0.5.4",
+      "purl": "pkg:npm/eslint-plugin-react-refresh@0.5.6",
       "type": "library",
-      "version": "0.5.4"
+      "version": "0.5.6"
     },
     {
       "bom-ref": "dependency:npm:eslint-scope@8.4.0",
@@ -9892,6 +11036,138 @@
       "version": "2.0.3"
     },
     {
+      "bom-ref": "dependency:npm:event-target-shim@5.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/event-target-shim/-/event-target-shim-5.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/event-target-shim/5.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "event-target-shim",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:event-target-shim@5.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/event-target-shim@5.0.1",
+      "type": "library",
+      "version": "5.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:events-universal@1.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/events-universal/-/events-universal-1.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/events-universal/1.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "events-universal",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:events-universal@1.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/events-universal@1.0.1",
+      "type": "library",
+      "version": "1.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:events@3.3.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/events/-/events-3.3.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/events/3.3.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "events",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:events@3.3.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/events@3.3.0",
+      "type": "library",
+      "version": "3.3.0"
+    },
+    {
       "bom-ref": "dependency:npm:expect-type@1.4.0",
       "externalReferences": [
         {
@@ -9978,6 +11254,50 @@
       "purl": "pkg:npm/fast-deep-equal@3.1.3",
       "type": "library",
       "version": "3.1.3"
+    },
+    {
+      "bom-ref": "dependency:npm:fast-fifo@1.3.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/fast-fifo/-/fast-fifo-1.3.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/fast-fifo/1.3.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "fast-fifo",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:fast-fifo@1.3.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/fast-fifo@1.3.2",
+      "type": "library",
+      "version": "1.3.2"
     },
     {
       "bom-ref": "dependency:npm:fast-json-stable-stringify@2.1.0",
@@ -10112,6 +11432,50 @@
       "version": "6.5.0"
     },
     {
+      "bom-ref": "dependency:npm:fflate@0.8.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/fflate/0.8.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "fflate",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:fflate@0.8.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/fflate@0.8.3",
+      "type": "library",
+      "version": "0.8.3"
+    },
+    {
       "bom-ref": "dependency:npm:file-entry-cache@8.0.0",
       "externalReferences": [
         {
@@ -10154,6 +11518,50 @@
       "purl": "pkg:npm/file-entry-cache@8.0.0",
       "type": "library",
       "version": "8.0.0"
+    },
+    {
+      "bom-ref": "dependency:npm:file-saver@2.0.5",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/file-saver/-/file-saver-2.0.5.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/file-saver/2.0.5"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "file-saver",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:file-saver@2.0.5"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/file-saver@2.0.5",
+      "type": "library",
+      "version": "2.0.5"
     },
     {
       "bom-ref": "dependency:npm:find-up@5.0.0",
@@ -10332,6 +11740,94 @@
       "version": "3.4.4"
     },
     {
+      "bom-ref": "dependency:npm:foreground-child@3.3.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/foreground-child/-/foreground-child-3.3.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/foreground-child/3.3.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "foreground-child",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:foreground-child@3.3.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/foreground-child@3.3.1",
+      "type": "library",
+      "version": "3.3.1"
+    },
+    {
+      "bom-ref": "dependency:npm:fs-extra@11.3.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/fs-extra/-/fs-extra-11.3.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/fs-extra/11.3.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "fs-extra",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:fs-extra@11.3.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/fs-extra@11.3.1",
+      "type": "library",
+      "version": "11.3.1"
+    },
+    {
       "bom-ref": "dependency:npm:fsevents@2.3.2",
       "externalReferences": [
         {
@@ -10508,6 +12004,50 @@
       "version": "6.0.2"
     },
     {
+      "bom-ref": "dependency:npm:glob@10.5.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/glob/-/glob-10.5.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/glob/10.5.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "glob",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:glob@10.5.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/glob@10.5.0",
+      "type": "library",
+      "version": "10.5.0"
+    },
+    {
       "bom-ref": "dependency:npm:globals@14.0.0",
       "externalReferences": [
         {
@@ -10552,15 +12092,15 @@
       "version": "14.0.0"
     },
     {
-      "bom-ref": "dependency:npm:globals@17.9.0",
+      "bom-ref": "dependency:npm:globals@17.12.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/globals/-/globals-17.9.0.tgz"
+          "url": "https://registry.npmjs.org/globals/-/globals-17.12.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/globals/17.9.0"
+          "url": "https://registry.npmjs.org/globals/17.12.0"
         }
       ],
       "licenses": [
@@ -10572,7 +12112,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:globals@17.9.0"
+          "value": "npm:globals@17.12.0"
         },
         {
           "name": "pathlab:role",
@@ -10591,9 +12131,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/globals@17.9.0",
+      "purl": "pkg:npm/globals@17.12.0",
       "type": "library",
-      "version": "17.9.0"
+      "version": "17.12.0"
     },
     {
       "bom-ref": "dependency:npm:graceful-fs@4.2.11",
@@ -10772,6 +12312,50 @@
       "version": "6.0.0"
     },
     {
+      "bom-ref": "dependency:npm:ieee754@1.2.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ieee754/-/ieee754-1.2.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/ieee754/1.2.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "name": "ieee754",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:ieee754@1.2.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/ieee754@1.2.1",
+      "type": "library",
+      "version": "1.2.1"
+    },
+    {
       "bom-ref": "dependency:npm:ignore@5.3.2",
       "externalReferences": [
         {
@@ -10858,6 +12442,50 @@
       "purl": "pkg:npm/ignore@7.0.6",
       "type": "library",
       "version": "7.0.6"
+    },
+    {
+      "bom-ref": "dependency:npm:immediate@3.0.6",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/immediate/3.0.6"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "immediate",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:immediate@3.0.6"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/immediate@3.0.6",
+      "type": "library",
+      "version": "3.0.6"
     },
     {
       "bom-ref": "dependency:npm:import-fresh@3.3.1",
@@ -10990,6 +12618,50 @@
       "purl": "pkg:npm/indent-string@4.0.0",
       "type": "library",
       "version": "4.0.0"
+    },
+    {
+      "bom-ref": "dependency:npm:inherits@2.0.4",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/inherits/2.0.4"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "inherits",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:inherits@2.0.4"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/inherits@2.0.4",
+      "type": "library",
+      "version": "2.0.4"
     },
     {
       "bom-ref": "dependency:npm:is-extglob@2.1.1",
@@ -11168,6 +12840,50 @@
       "version": "2.0.1"
     },
     {
+      "bom-ref": "dependency:npm:isarray@1.0.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/isarray/1.0.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "isarray",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:isarray@1.0.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "BLOCKED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[\"NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE\"]"
+        }
+      ],
+      "purl": "pkg:npm/isarray@1.0.0",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
       "bom-ref": "dependency:npm:isexe@2.0.0",
       "externalReferences": [
         {
@@ -11192,11 +12908,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -11210,6 +12926,50 @@
       "purl": "pkg:npm/isexe@2.0.0",
       "type": "library",
       "version": "2.0.0"
+    },
+    {
+      "bom-ref": "dependency:npm:jackspeak@3.4.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/jackspeak/-/jackspeak-3.4.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/jackspeak/3.4.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BlueOak-1.0.0"
+        }
+      ],
+      "name": "jackspeak",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:jackspeak@3.4.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/jackspeak@3.4.3",
+      "type": "library",
+      "version": "3.4.3"
     },
     {
       "bom-ref": "dependency:npm:js-base64@3.9.1",
@@ -11608,6 +13368,96 @@
       "version": "2.2.3"
     },
     {
+      "bom-ref": "dependency:npm:jsonfile@6.2.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/jsonfile/-/jsonfile-6.2.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/jsonfile/6.2.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "jsonfile",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:jsonfile@6.2.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/jsonfile@6.2.1",
+      "type": "library",
+      "version": "6.2.1"
+    },
+    {
+      "bom-ref": "dependency:npm:jszip@3.10.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/jszip/-/jszip-3.10.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/jszip/3.10.1"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "(MIT OR GPL-3.0-or-later)"
+          }
+        }
+      ],
+      "name": "jszip",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:jszip@3.10.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/jszip@3.10.1",
+      "type": "library",
+      "version": "3.10.1"
+    },
+    {
       "bom-ref": "dependency:npm:keyv@4.5.4",
       "externalReferences": [
         {
@@ -11652,6 +13502,50 @@
       "version": "4.5.4"
     },
     {
+      "bom-ref": "dependency:npm:lazystream@1.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lazystream/-/lazystream-1.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/lazystream/1.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "lazystream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:lazystream@1.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/lazystream@1.0.1",
+      "type": "library",
+      "version": "1.0.1"
+    },
+    {
       "bom-ref": "dependency:npm:levn@0.4.1",
       "externalReferences": [
         {
@@ -11694,6 +13588,50 @@
       "purl": "pkg:npm/levn@0.4.1",
       "type": "library",
       "version": "0.4.1"
+    },
+    {
+      "bom-ref": "dependency:npm:lie@3.3.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lie/-/lie-3.3.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/lie/3.3.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "lie",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:lie@3.3.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/lie@3.3.0",
+      "type": "library",
+      "version": "3.3.0"
     },
     {
       "bom-ref": "dependency:npm:lightningcss-android-arm64@1.33.0",
@@ -12356,6 +14294,50 @@
       "version": "4.1.1"
     },
     {
+      "bom-ref": "dependency:npm:lodash@4.18.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lodash/-/lodash-4.18.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/lodash/4.18.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "lodash",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:lodash@4.18.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/lodash@4.18.1",
+      "type": "library",
+      "version": "4.18.1"
+    },
+    {
       "bom-ref": "dependency:npm:long@5.3.2",
       "externalReferences": [
         {
@@ -12398,6 +14380,50 @@
       "purl": "pkg:npm/long@5.3.2",
       "type": "library",
       "version": "5.3.2"
+    },
+    {
+      "bom-ref": "dependency:npm:lru-cache@10.4.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lru-cache/-/lru-cache-10.4.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/lru-cache/10.4.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "lru-cache",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:lru-cache@10.4.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/lru-cache@10.4.3",
+      "type": "library",
+      "version": "10.4.3"
     },
     {
       "bom-ref": "dependency:npm:lru-cache@11.5.2",
@@ -12752,6 +14778,138 @@
       "version": "10.2.6"
     },
     {
+      "bom-ref": "dependency:npm:minimatch@5.1.9",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/minimatch/-/minimatch-5.1.9.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/minimatch/5.1.9"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "minimatch",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:minimatch@5.1.9"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/minimatch@5.1.9",
+      "type": "library",
+      "version": "5.1.9"
+    },
+    {
+      "bom-ref": "dependency:npm:minimatch@9.0.9",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/minimatch/-/minimatch-9.0.9.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/minimatch/9.0.9"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "minimatch",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:minimatch@9.0.9"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/minimatch@9.0.9",
+      "type": "library",
+      "version": "9.0.9"
+    },
+    {
+      "bom-ref": "dependency:npm:minipass@7.1.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/minipass/-/minipass-7.1.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/minipass/7.1.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BlueOak-1.0.0"
+        }
+      ],
+      "name": "minipass",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:minipass@7.1.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/minipass@7.1.3",
+      "type": "library",
+      "version": "7.1.3"
+    },
+    {
       "bom-ref": "dependency:npm:ms@2.1.3",
       "externalReferences": [
         {
@@ -12884,6 +15042,50 @@
       "version": "1.4.0"
     },
     {
+      "bom-ref": "dependency:npm:node-int64@0.4.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/node-int64/-/node-int64-0.4.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/node-int64/0.4.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "node-int64",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:node-int64@0.4.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/node-int64@0.4.0",
+      "type": "library",
+      "version": "0.4.0"
+    },
+    {
       "bom-ref": "dependency:npm:node-releases@2.0.53",
       "externalReferences": [
         {
@@ -12926,6 +15128,50 @@
       "purl": "pkg:npm/node-releases@2.0.53",
       "type": "library",
       "version": "2.0.53"
+    },
+    {
+      "bom-ref": "dependency:npm:normalize-path@3.0.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/normalize-path/3.0.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "normalize-path",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:normalize-path@3.0.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/normalize-path@3.0.0",
+      "type": "library",
+      "version": "3.0.0"
     },
     {
       "bom-ref": "dependency:npm:obug@2.1.4",
@@ -13236,6 +15482,96 @@
       "version": "5.0.0"
     },
     {
+      "bom-ref": "dependency:npm:package-json-from-dist@1.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/package-json-from-dist/-/package-json-from-dist-1.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/package-json-from-dist/1.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BlueOak-1.0.0"
+        }
+      ],
+      "name": "package-json-from-dist",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:package-json-from-dist@1.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/package-json-from-dist@1.0.1",
+      "type": "library",
+      "version": "1.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:pako@1.0.11",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pako/-/pako-1.0.11.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/pako/1.0.11"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "(MIT AND Zlib)"
+          }
+        }
+      ],
+      "name": "pako",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:pako@1.0.11"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/pako@1.0.11",
+      "type": "library",
+      "version": "1.0.11"
+    },
+    {
       "bom-ref": "dependency:npm:parent-module@1.0.1",
       "externalReferences": [
         {
@@ -13392,11 +15728,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -13410,6 +15746,50 @@
       "purl": "pkg:npm/path-key@3.1.1",
       "type": "library",
       "version": "3.1.1"
+    },
+    {
+      "bom-ref": "dependency:npm:path-scurry@1.11.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/path-scurry/-/path-scurry-1.11.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/path-scurry/1.11.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BlueOak-1.0.0"
+        }
+      ],
+      "name": "path-scurry",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:path-scurry@1.11.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/path-scurry@1.11.1",
+      "type": "library",
+      "version": "1.11.1"
     },
     {
       "bom-ref": "dependency:npm:pathe@2.0.3",
@@ -13852,6 +16232,94 @@
       "version": "27.5.1"
     },
     {
+      "bom-ref": "dependency:npm:process-nextick-args@2.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/process-nextick-args/2.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "process-nextick-args",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:process-nextick-args@2.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/process-nextick-args@2.0.1",
+      "type": "library",
+      "version": "2.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:process@0.11.10",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/process/-/process-0.11.10.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/process/0.11.10"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "process",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:process@0.11.10"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/process@0.11.10",
+      "type": "library",
+      "version": "0.11.10"
+    },
+    {
       "bom-ref": "dependency:npm:proper-lockfile@4.1.2",
       "externalReferences": [
         {
@@ -14292,15 +16760,15 @@
       "version": "0.17.0"
     },
     {
-      "bom-ref": "dependency:npm:react-router-dom@7.18.2",
+      "bom-ref": "dependency:npm:react-router-dom@7.18.3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.18.2.tgz"
+          "url": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.18.3.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/react-router-dom/7.18.2"
+          "url": "https://registry.npmjs.org/react-router-dom/7.18.3"
         }
       ],
       "licenses": [
@@ -14312,7 +16780,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:react-router-dom@7.18.2"
+          "value": "npm:react-router-dom@7.18.3"
         },
         {
           "name": "pathlab:role",
@@ -14331,20 +16799,20 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/react-router-dom@7.18.2",
+      "purl": "pkg:npm/react-router-dom@7.18.3",
       "type": "library",
-      "version": "7.18.2"
+      "version": "7.18.3"
     },
     {
-      "bom-ref": "dependency:npm:react-router@7.18.2",
+      "bom-ref": "dependency:npm:react-router@7.18.3",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/react-router/-/react-router-7.18.2.tgz"
+          "url": "https://registry.npmjs.org/react-router/-/react-router-7.18.3.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/react-router/7.18.2"
+          "url": "https://registry.npmjs.org/react-router/7.18.3"
         }
       ],
       "licenses": [
@@ -14356,7 +16824,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:react-router@7.18.2"
+          "value": "npm:react-router@7.18.3"
         },
         {
           "name": "pathlab:role",
@@ -14375,9 +16843,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/react-router@7.18.2",
+      "purl": "pkg:npm/react-router@7.18.3",
       "type": "library",
-      "version": "7.18.2"
+      "version": "7.18.3"
     },
     {
       "bom-ref": "dependency:npm:react@19.2.8",
@@ -14422,6 +16890,182 @@
       "purl": "pkg:npm/react@19.2.8",
       "type": "library",
       "version": "19.2.8"
+    },
+    {
+      "bom-ref": "dependency:npm:read-excel-file@6.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/read-excel-file/-/read-excel-file-6.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/read-excel-file/6.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "read-excel-file",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:read-excel-file@6.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/read-excel-file@6.0.1",
+      "type": "library",
+      "version": "6.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:readable-stream@2.3.8",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/readable-stream/2.3.8"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "readable-stream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:readable-stream@2.3.8"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/readable-stream@2.3.8",
+      "type": "library",
+      "version": "2.3.8"
+    },
+    {
+      "bom-ref": "dependency:npm:readable-stream@4.7.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/readable-stream/-/readable-stream-4.7.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/readable-stream/4.7.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "readable-stream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:readable-stream@4.7.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/readable-stream@4.7.0",
+      "type": "library",
+      "version": "4.7.0"
+    },
+    {
+      "bom-ref": "dependency:npm:readdir-glob@1.1.3",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/readdir-glob/-/readdir-glob-1.1.3.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/readdir-glob/1.1.3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "readdir-glob",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:readdir-glob@1.1.3"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/readdir-glob@1.1.3",
+      "type": "library",
+      "version": "1.1.3"
     },
     {
       "bom-ref": "dependency:npm:redent@3.0.0",
@@ -14732,6 +17376,94 @@
       "version": "4.62.4"
     },
     {
+      "bom-ref": "dependency:npm:safe-buffer@5.1.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/safe-buffer/5.1.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "safe-buffer",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:safe-buffer@5.1.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/safe-buffer@5.1.2",
+      "type": "library",
+      "version": "5.1.2"
+    },
+    {
+      "bom-ref": "dependency:npm:safe-buffer@5.2.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.2.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/safe-buffer/5.2.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "safe-buffer",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:safe-buffer@5.2.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/safe-buffer@5.2.1",
+      "type": "library",
+      "version": "5.2.1"
+    },
+    {
       "bom-ref": "dependency:npm:saxes@6.0.0",
       "externalReferences": [
         {
@@ -14952,6 +17684,50 @@
       "version": "2.7.2"
     },
     {
+      "bom-ref": "dependency:npm:setimmediate@1.0.5",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/setimmediate/-/setimmediate-1.0.5.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/setimmediate/1.0.5"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "setimmediate",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:setimmediate@1.0.5"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/setimmediate@1.0.5",
+      "type": "library",
+      "version": "1.0.5"
+    },
+    {
       "bom-ref": "dependency:npm:shebang-command@2.0.0",
       "externalReferences": [
         {
@@ -14976,11 +17752,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -15020,11 +17796,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -15126,6 +17902,50 @@
       "purl": "pkg:npm/signal-exit@3.0.7",
       "type": "library",
       "version": "3.0.7"
+    },
+    {
+      "bom-ref": "dependency:npm:signal-exit@4.1.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/signal-exit/-/signal-exit-4.1.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/signal-exit/4.1.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ],
+      "name": "signal-exit",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:signal-exit@4.1.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/signal-exit@4.1.0",
+      "type": "library",
+      "version": "4.1.0"
     },
     {
       "bom-ref": "dependency:npm:source-map-js@1.2.1",
@@ -15304,6 +18124,226 @@
       "version": "4.2.0"
     },
     {
+      "bom-ref": "dependency:npm:streamx@2.28.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/streamx/-/streamx-2.28.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/streamx/2.28.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "streamx",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:streamx@2.28.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/streamx@2.28.1",
+      "type": "library",
+      "version": "2.28.1"
+    },
+    {
+      "bom-ref": "dependency:npm:string-width@5.1.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/string-width/-/string-width-5.1.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/string-width/5.1.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "string-width",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:string-width@5.1.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/string-width@5.1.2",
+      "type": "library",
+      "version": "5.1.2"
+    },
+    {
+      "bom-ref": "dependency:npm:string_decoder@1.1.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/string_decoder/1.1.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "string_decoder",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:string_decoder@1.1.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/string_decoder@1.1.1",
+      "type": "library",
+      "version": "1.1.1"
+    },
+    {
+      "bom-ref": "dependency:npm:string_decoder@1.3.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/string_decoder/1.3.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "string_decoder",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:string_decoder@1.3.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/string_decoder@1.3.0",
+      "type": "library",
+      "version": "1.3.0"
+    },
+    {
+      "bom-ref": "dependency:npm:strip-ansi@7.2.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-7.2.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/strip-ansi/7.2.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "strip-ansi",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:strip-ansi@7.2.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/strip-ansi@7.2.0",
+      "type": "library",
+      "version": "7.2.0"
+    },
+    {
       "bom-ref": "dependency:npm:strip-indent@3.0.0",
       "externalReferences": [
         {
@@ -15478,6 +18518,138 @@
       "purl": "pkg:npm/symbol-tree@3.2.4",
       "type": "library",
       "version": "3.2.4"
+    },
+    {
+      "bom-ref": "dependency:npm:tar-stream@3.2.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/tar-stream/-/tar-stream-3.2.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/tar-stream/3.2.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "tar-stream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:tar-stream@3.2.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/tar-stream@3.2.1",
+      "type": "library",
+      "version": "3.2.1"
+    },
+    {
+      "bom-ref": "dependency:npm:teex@1.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/teex/-/teex-1.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/teex/1.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "teex",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:teex@1.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/teex@1.0.1",
+      "type": "library",
+      "version": "1.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:text-decoder@1.2.7",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/text-decoder/-/text-decoder-1.2.7.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/text-decoder/1.2.7"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "text-decoder",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:text-decoder@1.2.7"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/text-decoder@1.2.7",
+      "type": "library",
+      "version": "1.2.7"
     },
     {
       "bom-ref": "dependency:npm:tinybench@2.9.0",
@@ -15964,15 +19136,15 @@
       "version": "0.4.0"
     },
     {
-      "bom-ref": "dependency:npm:typescript-eslint@8.67.0",
+      "bom-ref": "dependency:npm:typescript-eslint@8.69.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.67.0.tgz"
+          "url": "https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.69.0.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/typescript-eslint/8.67.0"
+          "url": "https://registry.npmjs.org/typescript-eslint/8.69.0"
         }
       ],
       "licenses": [
@@ -15984,7 +19156,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:typescript-eslint@8.67.0"
+          "value": "npm:typescript-eslint@8.69.0"
         },
         {
           "name": "pathlab:role",
@@ -16003,9 +19175,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/typescript-eslint@8.67.0",
+      "purl": "pkg:npm/typescript-eslint@8.69.0",
       "type": "library",
-      "version": "8.67.0"
+      "version": "8.69.0"
     },
     {
       "bom-ref": "dependency:npm:typescript@5.9.3",
@@ -16140,6 +19312,94 @@
       "version": "8.10.0"
     },
     {
+      "bom-ref": "dependency:npm:universalify@2.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/universalify/-/universalify-2.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/universalify/2.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "universalify",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:universalify@2.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/universalify@2.0.1",
+      "type": "library",
+      "version": "2.0.1"
+    },
+    {
+      "bom-ref": "dependency:npm:unzipper@0.12.5",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/unzipper/-/unzipper-0.12.5.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/unzipper/0.12.5"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "unzipper",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:unzipper@0.12.5"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/unzipper@0.12.5",
+      "type": "library",
+      "version": "0.12.5"
+    },
+    {
       "bom-ref": "dependency:npm:update-browserslist-db@1.3.1",
       "externalReferences": [
         {
@@ -16272,6 +19532,50 @@
       "version": "1.5.10"
     },
     {
+      "bom-ref": "dependency:npm:util-deprecate@1.0.2",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/util-deprecate/1.0.2"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "util-deprecate",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:util-deprecate@1.0.2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/util-deprecate@1.0.2",
+      "type": "library",
+      "version": "1.0.2"
+    },
+    {
       "bom-ref": "dependency:npm:vite@6.4.3",
       "externalReferences": [
         {
@@ -16316,15 +19620,15 @@
       "version": "6.4.3"
     },
     {
-      "bom-ref": "dependency:npm:vitest@4.1.10",
+      "bom-ref": "dependency:npm:vitest@4.1.11",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/vitest/-/vitest-4.1.10.tgz"
+          "url": "https://registry.npmjs.org/vitest/-/vitest-4.1.11.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/vitest/4.1.10"
+          "url": "https://registry.npmjs.org/vitest/4.1.11"
         }
       ],
       "licenses": [
@@ -16336,7 +19640,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:vitest@4.1.10"
+          "value": "npm:vitest@4.1.11"
         },
         {
           "name": "pathlab:role",
@@ -16355,9 +19659,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/vitest@4.1.10",
+      "purl": "pkg:npm/vitest@4.1.11",
       "type": "library",
-      "version": "4.1.10"
+      "version": "4.1.11"
     },
     {
       "bom-ref": "dependency:npm:w3c-xmlserializer@5.0.0",
@@ -16604,11 +19908,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "build-only"
+          "value": "runtime-mandatory"
         },
         {
           "name": "pathlab:distribution",
-          "value": "not-bundled-tooling"
+          "value": "bundled"
         },
         {
           "name": "pathlab:admission",
@@ -16710,6 +20014,94 @@
       "purl": "pkg:npm/word-wrap@1.2.5",
       "type": "library",
       "version": "1.2.5"
+    },
+    {
+      "bom-ref": "dependency:npm:wrap-ansi@8.1.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-8.1.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/wrap-ansi/8.1.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "wrap-ansi",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:wrap-ansi@8.1.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/wrap-ansi@8.1.0",
+      "type": "library",
+      "version": "8.1.0"
+    },
+    {
+      "bom-ref": "dependency:npm:write-excel-file@2.3.10",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/write-excel-file/-/write-excel-file-2.3.10.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/write-excel-file/2.3.10"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "write-excel-file",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:write-excel-file@2.3.10"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/write-excel-file@2.3.10",
+      "type": "library",
+      "version": "2.3.10"
     },
     {
       "bom-ref": "dependency:npm:xml-name-validator@5.0.0",
@@ -16886,6 +20278,50 @@
       "purl": "pkg:npm/yocto-queue@0.1.0",
       "type": "library",
       "version": "0.1.0"
+    },
+    {
+      "bom-ref": "dependency:npm:zip-stream@6.0.1",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/zip-stream/-/zip-stream-6.0.1.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/zip-stream/6.0.1"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "name": "zip-stream",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:zip-stream@6.0.1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/zip-stream@6.0.1",
+      "type": "library",
+      "version": "6.0.1"
     },
     {
       "bom-ref": "dependency:pypi:aiohappyeyeballs@2.7.1",
@@ -17868,11 +21304,11 @@
         },
         {
           "name": "pathlab:role",
-          "value": "deployment-only"
+          "value": "runtime-and-deployment"
         },
         {
           "name": "pathlab:distribution",
-          "value": "operator-tooling"
+          "value": "bundled-runtime-and-operator-tooling"
         },
         {
           "name": "pathlab:admission",
@@ -21569,6 +25005,88 @@
       "version": "1.51.1"
     },
     {
+      "bom-ref": "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "FORMAT_SIGNATURE_TEST_DATA"
+          }
+        }
+      ],
+      "name": "apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "TEST_ONLY"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "EXCLUDED_NON_RELEASE"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "4c4b6a3be1314ab8"
+    },
+    {
+      "bom-ref": "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "FORMAT_SIGNATURE_TEST_DATA"
+          }
+        }
+      ],
+      "name": "apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "TEST_ONLY"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "EXCLUDED_NON_RELEASE"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "4c4b6a3be1314ab8"
+    },
+    {
       "bom-ref": "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
       "hashes": [
         {
@@ -21645,6 +25163,252 @@
       ],
       "type": "file",
       "version": "1e1b9a7762e2ac81"
+    },
+    {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural primitives"
+          }
+        }
+      ],
+      "name": "apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "ca3e900abec497cc"
+    },
+    {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural primitives"
+          }
+        }
+      ],
+      "name": "apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "ca3e900abec497cc"
+    },
+    {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "24f23b8868286d1c2f8ba4a713c3da77e8890860fc85fe418b8432bf6a84e4b8"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural primitives"
+          }
+        }
+      ],
+      "name": "apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "24f23b8868286d1c"
+    },
+    {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9027c70065ff9094dde524cca7d507f4efdf295593c23a8f7998be02aec6256b"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural primitives"
+          }
+        }
+      ],
+      "name": "apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "9027c70065ff9094"
+    },
+    {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "33229cd99df47f5e27f44d2f240e5ac76f39e92ce5806cc24a76fa4472099ec4"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural primitives"
+          }
+        }
+      ],
+      "name": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "33229cd99df47f5e"
+    },
+    {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "61808230429e92674b1fae24ec7e441150b2f1c47eb6905557b6c476d56b7909"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural primitives"
+          }
+        }
+      ],
+      "name": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "61808230429e9267"
     },
     {
       "bom-ref": "asset:asset:package-font:npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2",
@@ -21768,7 +25532,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "f37850c42bd91205201b91a0bf244d044b7b9f571c23ef357e6f5abddf4d7052"
+          "content": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63"
         }
       ],
       "licenses": [
@@ -21800,7 +25564,7 @@
         }
       ],
       "type": "file",
-      "version": "f37850c42bd91205"
+      "version": "aad76bf66a9b8262"
     },
     {
       "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -21889,7 +25653,7 @@
     {
       "dependsOn": [
         "dependency:container:caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
-        "dependency:container:node@sha256:ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63",
+        "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d",
         "dependency:container:postgres@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2",
         "dependency:container:python@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b",
         "dependency:container:tusproject/tusd@sha256:9c61565fccd2689b052aa78e52d9558f309e98f6320960746f225d2fd73a35e3",
@@ -21980,6 +25744,7 @@
         "dependency:npm:@humanfs/types@0.15.0",
         "dependency:npm:@humanwhocodes/module-importer@1.0.1",
         "dependency:npm:@humanwhocodes/retry@0.4.3",
+        "dependency:npm:@isaacs/cliui@8.0.2",
         "dependency:npm:@jridgewell/gen-mapping@0.3.13",
         "dependency:npm:@jridgewell/remapping@2.3.5",
         "dependency:npm:@jridgewell/resolve-uri@3.1.2",
@@ -21987,6 +25752,7 @@
         "dependency:npm:@jridgewell/trace-mapping@0.3.31",
         "dependency:npm:@napi-rs/lzma-linux-x64-gnu@1.5.1",
         "dependency:npm:@phosphor-icons/react@2.1.10",
+        "dependency:npm:@pkgjs/parseargs@0.11.0",
         "dependency:npm:@playwright/test@1.62.1",
         "dependency:npm:@protobufjs/aspromise@1.1.2",
         "dependency:npm:@protobufjs/base64@1.1.2",
@@ -22026,8 +25792,8 @@
         "dependency:npm:@standard-schema/spec@1.1.0",
         "dependency:npm:@testing-library/dom@10.4.1",
         "dependency:npm:@testing-library/jest-dom@7.0.1",
-        "dependency:npm:@testing-library/react@16.3.2",
-        "dependency:npm:@testing-library/user-event@14.6.3",
+        "dependency:npm:@testing-library/react@16.3.3",
+        "dependency:npm:@testing-library/user-event@14.6.7",
         "dependency:npm:@types/aria-query@5.0.4",
         "dependency:npm:@types/babel__core@7.20.5",
         "dependency:npm:@types/babel__generator@7.27.0",
@@ -22037,51 +25803,72 @@
         "dependency:npm:@types/deep-eql@4.0.2",
         "dependency:npm:@types/estree@1.0.9",
         "dependency:npm:@types/json-schema@7.0.15",
-        "dependency:npm:@types/node@26.2.0",
-        "dependency:npm:@types/react-dom@19.2.4",
+        "dependency:npm:@types/node@26.4.1",
+        "dependency:npm:@types/react-dom@19.2.7",
         "dependency:npm:@types/react@19.2.18",
-        "dependency:npm:@typescript-eslint/eslint-plugin@8.67.0",
-        "dependency:npm:@typescript-eslint/parser@8.67.0",
-        "dependency:npm:@typescript-eslint/project-service@8.67.0",
-        "dependency:npm:@typescript-eslint/scope-manager@8.67.0",
-        "dependency:npm:@typescript-eslint/tsconfig-utils@8.67.0",
-        "dependency:npm:@typescript-eslint/type-utils@8.67.0",
-        "dependency:npm:@typescript-eslint/types@8.67.0",
-        "dependency:npm:@typescript-eslint/typescript-estree@8.67.0",
-        "dependency:npm:@typescript-eslint/utils@8.67.0",
-        "dependency:npm:@typescript-eslint/visitor-keys@8.67.0",
+        "dependency:npm:@typescript-eslint/eslint-plugin@8.69.0",
+        "dependency:npm:@typescript-eslint/parser@8.69.0",
+        "dependency:npm:@typescript-eslint/project-service@8.69.0",
+        "dependency:npm:@typescript-eslint/scope-manager@8.69.0",
+        "dependency:npm:@typescript-eslint/tsconfig-utils@8.69.0",
+        "dependency:npm:@typescript-eslint/type-utils@8.69.0",
+        "dependency:npm:@typescript-eslint/types@8.69.0",
+        "dependency:npm:@typescript-eslint/typescript-estree@8.69.0",
+        "dependency:npm:@typescript-eslint/utils@8.69.0",
+        "dependency:npm:@typescript-eslint/visitor-keys@8.69.0",
         "dependency:npm:@vitejs/plugin-react@4.7.0",
-        "dependency:npm:@vitest/expect@4.1.10",
-        "dependency:npm:@vitest/mocker@4.1.10",
-        "dependency:npm:@vitest/pretty-format@4.1.10",
-        "dependency:npm:@vitest/runner@4.1.10",
-        "dependency:npm:@vitest/snapshot@4.1.10",
-        "dependency:npm:@vitest/spy@4.1.10",
-        "dependency:npm:@vitest/utils@4.1.10",
+        "dependency:npm:@vitest/expect@4.1.11",
+        "dependency:npm:@vitest/mocker@4.1.11",
+        "dependency:npm:@vitest/pretty-format@4.1.11",
+        "dependency:npm:@vitest/runner@4.1.11",
+        "dependency:npm:@vitest/snapshot@4.1.11",
+        "dependency:npm:@vitest/spy@4.1.11",
+        "dependency:npm:@vitest/utils@4.1.11",
+        "dependency:npm:@xmldom/xmldom@0.8.15",
+        "dependency:npm:abort-controller@3.0.0",
         "dependency:npm:acorn-jsx@5.3.2",
         "dependency:npm:acorn@8.18.0",
         "dependency:npm:ajv@6.15.0",
         "dependency:npm:ansi-regex@5.0.1",
+        "dependency:npm:ansi-regex@6.3.0",
         "dependency:npm:ansi-styles@4.3.0",
         "dependency:npm:ansi-styles@5.2.0",
+        "dependency:npm:ansi-styles@6.2.3",
+        "dependency:npm:archiver-utils@5.0.2",
+        "dependency:npm:archiver@7.0.1",
         "dependency:npm:argparse@2.0.1",
         "dependency:npm:aria-query@5.3.0",
         "dependency:npm:aria-query@5.3.2",
         "dependency:npm:assertion-error@2.0.1",
+        "dependency:npm:async@3.2.6",
+        "dependency:npm:b4a@1.8.1",
         "dependency:npm:balanced-match@4.0.4",
+        "dependency:npm:bare-events@2.9.2",
+        "dependency:npm:bare-fs@4.8.1",
+        "dependency:npm:bare-path@3.1.2",
+        "dependency:npm:bare-stream@2.13.4",
+        "dependency:npm:bare-url@2.5.4",
+        "dependency:npm:base64-js@1.5.1",
         "dependency:npm:baseline-browser-mapping@2.11.14",
         "dependency:npm:bidi-js@1.0.3",
+        "dependency:npm:bluebird@3.7.2",
         "dependency:npm:brace-expansion@5.0.9",
         "dependency:npm:browserslist@4.28.8",
+        "dependency:npm:buffer-crc32@1.0.0",
         "dependency:npm:buffer-from@1.1.2",
+        "dependency:npm:buffer@6.0.3",
         "dependency:npm:callsites@3.1.0",
         "dependency:npm:caniuse-lite@1.0.30001809",
         "dependency:npm:chai@6.2.2",
         "dependency:npm:chalk@4.1.2",
         "dependency:npm:color-convert@2.0.1",
         "dependency:npm:color-name@1.1.4",
+        "dependency:npm:compress-commons@6.0.2",
         "dependency:npm:convert-source-map@2.0.0",
         "dependency:npm:cookie@1.1.1",
+        "dependency:npm:core-util-is@1.0.3",
+        "dependency:npm:crc-32@1.2.2",
+        "dependency:npm:crc32-stream@6.0.0",
         "dependency:npm:cross-spawn@7.0.6",
         "dependency:npm:css-tree@3.2.1",
         "dependency:npm:css.escape@1.5.1",
@@ -22094,14 +25881,17 @@
         "dependency:npm:detect-libc@2.1.2",
         "dependency:npm:dom-accessibility-api@0.5.16",
         "dependency:npm:dom-accessibility-api@0.6.3",
+        "dependency:npm:duplexer2@0.1.4",
+        "dependency:npm:eastasianwidth@0.2.0",
         "dependency:npm:electron-to-chromium@1.5.406",
+        "dependency:npm:emoji-regex@9.2.2",
         "dependency:npm:entities@8.0.0",
         "dependency:npm:es-module-lexer@2.3.1",
         "dependency:npm:esbuild@0.25.12",
         "dependency:npm:escalade@3.2.0",
         "dependency:npm:escape-string-regexp@4.0.0",
         "dependency:npm:eslint-plugin-react-hooks@5.2.0",
-        "dependency:npm:eslint-plugin-react-refresh@0.5.4",
+        "dependency:npm:eslint-plugin-react-refresh@0.5.6",
         "dependency:npm:eslint-scope@8.4.0",
         "dependency:npm:eslint-visitor-keys@3.4.3",
         "dependency:npm:eslint-visitor-keys@4.2.1",
@@ -22113,36 +25903,50 @@
         "dependency:npm:estraverse@5.3.0",
         "dependency:npm:estree-walker@3.0.3",
         "dependency:npm:esutils@2.0.3",
+        "dependency:npm:event-target-shim@5.0.1",
+        "dependency:npm:events-universal@1.0.1",
+        "dependency:npm:events@3.3.0",
         "dependency:npm:expect-type@1.4.0",
         "dependency:npm:fast-deep-equal@3.1.3",
+        "dependency:npm:fast-fifo@1.3.2",
         "dependency:npm:fast-json-stable-stringify@2.1.0",
         "dependency:npm:fast-levenshtein@2.0.6",
         "dependency:npm:fdir@6.5.0",
+        "dependency:npm:fflate@0.8.3",
         "dependency:npm:file-entry-cache@8.0.0",
+        "dependency:npm:file-saver@2.0.5",
         "dependency:npm:find-up@5.0.0",
         "dependency:npm:flat-cache@4.0.1",
         "dependency:npm:flatbuffers@25.9.23",
         "dependency:npm:flatted@3.4.4",
+        "dependency:npm:foreground-child@3.3.1",
+        "dependency:npm:fs-extra@11.3.1",
         "dependency:npm:fsevents@2.3.2",
         "dependency:npm:fsevents@2.3.3",
         "dependency:npm:gensync@1.0.0-beta.2",
         "dependency:npm:glob-parent@6.0.2",
+        "dependency:npm:glob@10.5.0",
         "dependency:npm:globals@14.0.0",
-        "dependency:npm:globals@17.9.0",
+        "dependency:npm:globals@17.12.0",
         "dependency:npm:graceful-fs@4.2.11",
         "dependency:npm:guid-typescript@1.0.9",
         "dependency:npm:has-flag@4.0.0",
         "dependency:npm:html-encoding-sniffer@6.0.0",
+        "dependency:npm:ieee754@1.2.1",
         "dependency:npm:ignore@5.3.2",
         "dependency:npm:ignore@7.0.6",
+        "dependency:npm:immediate@3.0.6",
         "dependency:npm:import-fresh@3.3.1",
         "dependency:npm:imurmurhash@0.1.4",
         "dependency:npm:indent-string@4.0.0",
+        "dependency:npm:inherits@2.0.4",
         "dependency:npm:is-extglob@2.1.1",
         "dependency:npm:is-glob@4.0.3",
         "dependency:npm:is-potential-custom-element-name@1.0.1",
         "dependency:npm:is-stream@2.0.1",
+        "dependency:npm:isarray@1.0.0",
         "dependency:npm:isexe@2.0.0",
+        "dependency:npm:jackspeak@3.4.3",
         "dependency:npm:js-base64@3.9.1",
         "dependency:npm:js-tokens@4.0.0",
         "dependency:npm:js-yaml@4.3.1",
@@ -22152,8 +25956,12 @@
         "dependency:npm:json-schema-traverse@0.4.1",
         "dependency:npm:json-stable-stringify-without-jsonify@1.0.1",
         "dependency:npm:json5@2.2.3",
+        "dependency:npm:jsonfile@6.2.1",
+        "dependency:npm:jszip@3.10.1",
         "dependency:npm:keyv@4.5.4",
+        "dependency:npm:lazystream@1.0.1",
         "dependency:npm:levn@0.4.1",
+        "dependency:npm:lie@3.3.0",
         "dependency:npm:lightningcss-android-arm64@1.33.0",
         "dependency:npm:lightningcss-darwin-arm64@1.33.0",
         "dependency:npm:lightningcss-darwin-x64@1.33.0",
@@ -22169,7 +25977,9 @@
         "dependency:npm:locate-path@6.0.0",
         "dependency:npm:lodash.merge@4.6.2",
         "dependency:npm:lodash.throttle@4.1.1",
+        "dependency:npm:lodash@4.18.1",
         "dependency:npm:long@5.3.2",
+        "dependency:npm:lru-cache@10.4.3",
         "dependency:npm:lru-cache@11.5.2",
         "dependency:npm:lru-cache@5.1.1",
         "dependency:npm:lz-string@1.5.0",
@@ -22178,10 +25988,15 @@
         "dependency:npm:min-indent@1.0.1",
         "dependency:npm:minimatch@10.2.5",
         "dependency:npm:minimatch@10.2.6",
+        "dependency:npm:minimatch@5.1.9",
+        "dependency:npm:minimatch@9.0.9",
+        "dependency:npm:minipass@7.1.3",
         "dependency:npm:ms@2.1.3",
         "dependency:npm:nanoid@3.3.18",
         "dependency:npm:natural-compare@1.4.0",
+        "dependency:npm:node-int64@0.4.0",
         "dependency:npm:node-releases@2.0.53",
+        "dependency:npm:normalize-path@3.0.0",
         "dependency:npm:obug@2.1.4",
         "dependency:npm:onnxruntime-common@1.27.0",
         "dependency:npm:onnxruntime-web@1.27.0",
@@ -22189,10 +26004,13 @@
         "dependency:npm:optionator@0.9.4",
         "dependency:npm:p-limit@3.1.0",
         "dependency:npm:p-locate@5.0.0",
+        "dependency:npm:package-json-from-dist@1.0.1",
+        "dependency:npm:pako@1.0.11",
         "dependency:npm:parent-module@1.0.1",
         "dependency:npm:parse5@8.0.1",
         "dependency:npm:path-exists@4.0.0",
         "dependency:npm:path-key@3.1.1",
+        "dependency:npm:path-scurry@1.11.1",
         "dependency:npm:pathe@2.0.3",
         "dependency:npm:picocolors@1.1.1",
         "dependency:npm:picomatch@4.0.5",
@@ -22203,6 +26021,8 @@
         "dependency:npm:postcss@8.5.26",
         "dependency:npm:prelude-ls@1.2.1",
         "dependency:npm:pretty-format@27.5.1",
+        "dependency:npm:process-nextick-args@2.0.1",
+        "dependency:npm:process@0.11.10",
         "dependency:npm:proper-lockfile@4.1.2",
         "dependency:npm:protobufjs@7.6.5",
         "dependency:npm:punycode@2.3.1",
@@ -22213,9 +26033,13 @@
         "dependency:npm:react-dom@19.2.8",
         "dependency:npm:react-is@17.0.2",
         "dependency:npm:react-refresh@0.17.0",
-        "dependency:npm:react-router-dom@7.18.2",
-        "dependency:npm:react-router@7.18.2",
+        "dependency:npm:react-router-dom@7.18.3",
+        "dependency:npm:react-router@7.18.3",
         "dependency:npm:react@19.2.8",
+        "dependency:npm:read-excel-file@6.0.1",
+        "dependency:npm:readable-stream@2.3.8",
+        "dependency:npm:readable-stream@4.7.0",
+        "dependency:npm:readdir-glob@1.1.3",
         "dependency:npm:redent@3.0.0",
         "dependency:npm:require-from-string@2.0.2",
         "dependency:npm:requires-port@1.0.0",
@@ -22223,23 +26047,35 @@
         "dependency:npm:retry@0.12.0",
         "dependency:npm:robust-predicates@3.0.3",
         "dependency:npm:rollup@4.62.4",
+        "dependency:npm:safe-buffer@5.1.2",
+        "dependency:npm:safe-buffer@5.2.1",
         "dependency:npm:saxes@6.0.0",
         "dependency:npm:scheduler@0.27.0",
         "dependency:npm:semver@6.3.1",
         "dependency:npm:semver@7.8.5",
         "dependency:npm:set-cookie-parser@2.7.2",
+        "dependency:npm:setimmediate@1.0.5",
         "dependency:npm:shebang-command@2.0.0",
         "dependency:npm:shebang-regex@3.0.0",
         "dependency:npm:siginfo@2.0.0",
         "dependency:npm:signal-exit@3.0.7",
+        "dependency:npm:signal-exit@4.1.0",
         "dependency:npm:source-map-js@1.2.1",
         "dependency:npm:splaytree@3.2.3",
         "dependency:npm:stackback@0.0.2",
         "dependency:npm:std-env@4.2.0",
+        "dependency:npm:streamx@2.28.1",
+        "dependency:npm:string-width@5.1.2",
+        "dependency:npm:string_decoder@1.1.1",
+        "dependency:npm:string_decoder@1.3.0",
+        "dependency:npm:strip-ansi@7.2.0",
         "dependency:npm:strip-indent@3.0.0",
         "dependency:npm:strip-json-comments@3.1.1",
         "dependency:npm:supports-color@7.2.0",
         "dependency:npm:symbol-tree@3.2.4",
+        "dependency:npm:tar-stream@3.2.1",
+        "dependency:npm:teex@1.0.1",
+        "dependency:npm:text-decoder@1.2.7",
         "dependency:npm:tinybench@2.9.0",
         "dependency:npm:tinyexec@1.3.0",
         "dependency:npm:tinyglobby@0.2.17",
@@ -22251,15 +26087,18 @@
         "dependency:npm:ts-api-utils@2.5.0",
         "dependency:npm:tus-js-client@4.3.1",
         "dependency:npm:type-check@0.4.0",
-        "dependency:npm:typescript-eslint@8.67.0",
+        "dependency:npm:typescript-eslint@8.69.0",
         "dependency:npm:typescript@5.9.3",
         "dependency:npm:undici-types@8.3.0",
         "dependency:npm:undici@8.10.0",
+        "dependency:npm:universalify@2.0.1",
+        "dependency:npm:unzipper@0.12.5",
         "dependency:npm:update-browserslist-db@1.3.1",
         "dependency:npm:uri-js@4.4.1",
         "dependency:npm:url-parse@1.5.10",
+        "dependency:npm:util-deprecate@1.0.2",
         "dependency:npm:vite@6.4.3",
-        "dependency:npm:vitest@4.1.10",
+        "dependency:npm:vitest@4.1.11",
         "dependency:npm:w3c-xmlserializer@5.0.0",
         "dependency:npm:webidl-conversions@8.0.1",
         "dependency:npm:whatwg-mimetype@5.0.0",
@@ -22268,10 +26107,13 @@
         "dependency:npm:which@2.0.2",
         "dependency:npm:why-is-node-running@2.3.0",
         "dependency:npm:word-wrap@1.2.5",
+        "dependency:npm:wrap-ansi@8.1.0",
+        "dependency:npm:write-excel-file@2.3.10",
         "dependency:npm:xml-name-validator@5.0.0",
         "dependency:npm:xmlchars@2.2.0",
         "dependency:npm:yallist@3.1.1",
         "dependency:npm:yocto-queue@0.1.0",
+        "dependency:npm:zip-stream@6.0.1",
         "dependency:pypi:aiohappyeyeballs@2.7.1",
         "dependency:pypi:aiohttp@3.14.3",
         "dependency:pypi:aiosignal@1.4.0",
@@ -22368,8 +26210,16 @@
         "toolchain:pypi:webauthn@3.0.0",
         "toolchain:slsa-verifier@2.7.1-linux-arm64",
         "toolchain:syft@1.51.1-linux-arm64",
+        "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1",
+        "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
         "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
         "asset:asset:package-font:npm:@fontsource-variable/cormorant-garamond@5.3.0#files/cormorant-garamond-latin-wght-normal.woff2",
         "asset:asset:package-font:npm:@fontsource-variable/sofia-sans@5.3.0#files/sofia-sans-latin-wght-normal.woff2",
         "asset:asset:package-font:npm:@fontsource-variable/source-sans-3@5.3.0#files/source-sans-3-latin-wght-normal.woff2",
@@ -22377,7 +26227,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:b97f2123f767617250bf473be7f5f9ec6d8f4ab0"
+      "ref": "pathlab:build:3a706e06b8a25ed7e56bb99533a947c49d07264f"
     },
     {
       "dependsOn": [],
@@ -22385,7 +26235,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:container:node@sha256:ce3cc39fe3b8b2602d3b1c4d63d301e46b48c550ecb627869853ddcdda418b63"
+      "ref": "dependency:container:node@sha256:871eb674ad6e692c91330a8959f1ce2f80ba3f445cdc54e306869d2ea265e42d"
     },
     {
       "dependsOn": [],
@@ -22749,6 +26599,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:@isaacs/cliui@8.0.2"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:@jridgewell/gen-mapping@0.3.13"
     },
     {
@@ -22774,6 +26628,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:@phosphor-icons/react@2.1.10"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:@pkgjs/parseargs@0.11.0"
     },
     {
       "dependsOn": [],
@@ -22933,11 +26791,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@testing-library/react@16.3.2"
+      "ref": "dependency:npm:@testing-library/react@16.3.3"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@testing-library/user-event@14.6.3"
+      "ref": "dependency:npm:@testing-library/user-event@14.6.7"
     },
     {
       "dependsOn": [],
@@ -22977,11 +26835,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@types/node@26.2.0"
+      "ref": "dependency:npm:@types/node@26.4.1"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@types/react-dom@19.2.4"
+      "ref": "dependency:npm:@types/react-dom@19.2.7"
     },
     {
       "dependsOn": [],
@@ -22989,43 +26847,43 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/eslint-plugin@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/eslint-plugin@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/parser@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/parser@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/project-service@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/project-service@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/scope-manager@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/scope-manager@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/tsconfig-utils@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/tsconfig-utils@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/type-utils@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/type-utils@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/types@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/types@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/typescript-estree@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/typescript-estree@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/utils@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/utils@8.69.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@typescript-eslint/visitor-keys@8.67.0"
+      "ref": "dependency:npm:@typescript-eslint/visitor-keys@8.69.0"
     },
     {
       "dependsOn": [],
@@ -23033,31 +26891,39 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/expect@4.1.10"
+      "ref": "dependency:npm:@vitest/expect@4.1.11"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/mocker@4.1.10"
+      "ref": "dependency:npm:@vitest/mocker@4.1.11"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/pretty-format@4.1.10"
+      "ref": "dependency:npm:@vitest/pretty-format@4.1.11"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/runner@4.1.10"
+      "ref": "dependency:npm:@vitest/runner@4.1.11"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/snapshot@4.1.10"
+      "ref": "dependency:npm:@vitest/snapshot@4.1.11"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/spy@4.1.10"
+      "ref": "dependency:npm:@vitest/spy@4.1.11"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:@vitest/utils@4.1.10"
+      "ref": "dependency:npm:@vitest/utils@4.1.11"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:@xmldom/xmldom@0.8.15"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:abort-controller@3.0.0"
     },
     {
       "dependsOn": [],
@@ -23077,11 +26943,27 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:ansi-regex@6.3.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:ansi-styles@4.3.0"
     },
     {
       "dependsOn": [],
       "ref": "dependency:npm:ansi-styles@5.2.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:ansi-styles@6.2.3"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:archiver-utils@5.0.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:archiver@7.0.1"
     },
     {
       "dependsOn": [],
@@ -23101,7 +26983,39 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:async@3.2.6"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:b4a@1.8.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:balanced-match@4.0.4"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:bare-events@2.9.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:bare-fs@4.8.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:bare-path@3.1.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:bare-stream@2.13.4"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:bare-url@2.5.4"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:base64-js@1.5.1"
     },
     {
       "dependsOn": [],
@@ -23113,6 +27027,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:bluebird@3.7.2"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:brace-expansion@5.0.9"
     },
     {
@@ -23121,7 +27039,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:buffer-crc32@1.0.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:buffer-from@1.1.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:buffer@6.0.3"
     },
     {
       "dependsOn": [],
@@ -23149,11 +27075,27 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:compress-commons@6.0.2"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:convert-source-map@2.0.0"
     },
     {
       "dependsOn": [],
       "ref": "dependency:npm:cookie@1.1.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:core-util-is@1.0.3"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:crc-32@1.2.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:crc32-stream@6.0.0"
     },
     {
       "dependsOn": [],
@@ -23205,7 +27147,19 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:duplexer2@0.1.4"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:eastasianwidth@0.2.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:electron-to-chromium@1.5.406"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:emoji-regex@9.2.2"
     },
     {
       "dependsOn": [],
@@ -23233,7 +27187,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:eslint-plugin-react-refresh@0.5.4"
+      "ref": "dependency:npm:eslint-plugin-react-refresh@0.5.6"
     },
     {
       "dependsOn": [],
@@ -23281,11 +27235,27 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:event-target-shim@5.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:events-universal@1.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:events@3.3.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:expect-type@1.4.0"
     },
     {
       "dependsOn": [],
       "ref": "dependency:npm:fast-deep-equal@3.1.3"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:fast-fifo@1.3.2"
     },
     {
       "dependsOn": [],
@@ -23301,7 +27271,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:fflate@0.8.3"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:file-entry-cache@8.0.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:file-saver@2.0.5"
     },
     {
       "dependsOn": [],
@@ -23321,6 +27299,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:foreground-child@3.3.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:fs-extra@11.3.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:fsevents@2.3.2"
     },
     {
@@ -23337,11 +27323,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:glob@10.5.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:globals@14.0.0"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:globals@17.9.0"
+      "ref": "dependency:npm:globals@17.12.0"
     },
     {
       "dependsOn": [],
@@ -23361,11 +27351,19 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:ieee754@1.2.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:ignore@5.3.2"
     },
     {
       "dependsOn": [],
       "ref": "dependency:npm:ignore@7.0.6"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:immediate@3.0.6"
     },
     {
       "dependsOn": [],
@@ -23378,6 +27376,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:indent-string@4.0.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:inherits@2.0.4"
     },
     {
       "dependsOn": [],
@@ -23397,7 +27399,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:isarray@1.0.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:isexe@2.0.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:jackspeak@3.4.3"
     },
     {
       "dependsOn": [],
@@ -23437,11 +27447,27 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:jsonfile@6.2.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:jszip@3.10.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:keyv@4.5.4"
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:lazystream@1.0.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:levn@0.4.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:lie@3.3.0"
     },
     {
       "dependsOn": [],
@@ -23505,7 +27531,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:lodash@4.18.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:long@5.3.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:lru-cache@10.4.3"
     },
     {
       "dependsOn": [],
@@ -23541,6 +27575,18 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:minimatch@5.1.9"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:minimatch@9.0.9"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:minipass@7.1.3"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:ms@2.1.3"
     },
     {
@@ -23553,7 +27599,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:node-int64@0.4.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:node-releases@2.0.53"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:normalize-path@3.0.0"
     },
     {
       "dependsOn": [],
@@ -23585,6 +27639,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:package-json-from-dist@1.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:pako@1.0.11"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:parent-module@1.0.1"
     },
     {
@@ -23598,6 +27660,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:path-key@3.1.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:path-scurry@1.11.1"
     },
     {
       "dependsOn": [],
@@ -23641,6 +27707,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:process-nextick-args@2.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:process@0.11.10"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:proper-lockfile@4.1.2"
     },
     {
@@ -23681,15 +27755,31 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:react-router-dom@7.18.2"
+      "ref": "dependency:npm:react-router-dom@7.18.3"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:react-router@7.18.2"
+      "ref": "dependency:npm:react-router@7.18.3"
     },
     {
       "dependsOn": [],
       "ref": "dependency:npm:react@19.2.8"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:read-excel-file@6.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:readable-stream@2.3.8"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:readable-stream@4.7.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:readdir-glob@1.1.3"
     },
     {
       "dependsOn": [],
@@ -23721,6 +27811,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:safe-buffer@5.1.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:safe-buffer@5.2.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:saxes@6.0.0"
     },
     {
@@ -23741,6 +27839,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:setimmediate@1.0.5"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:shebang-command@2.0.0"
     },
     {
@@ -23754,6 +27856,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:signal-exit@3.0.7"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:signal-exit@4.1.0"
     },
     {
       "dependsOn": [],
@@ -23773,6 +27879,26 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:streamx@2.28.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:string-width@5.1.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:string_decoder@1.1.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:string_decoder@1.3.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:strip-ansi@7.2.0"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:strip-indent@3.0.0"
     },
     {
@@ -23786,6 +27912,18 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:symbol-tree@3.2.4"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:tar-stream@3.2.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:teex@1.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:text-decoder@1.2.7"
     },
     {
       "dependsOn": [],
@@ -23833,7 +27971,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:typescript-eslint@8.67.0"
+      "ref": "dependency:npm:typescript-eslint@8.69.0"
     },
     {
       "dependsOn": [],
@@ -23849,6 +27987,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:universalify@2.0.1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:unzipper@0.12.5"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:update-browserslist-db@1.3.1"
     },
     {
@@ -23861,11 +28007,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:util-deprecate@1.0.2"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:vite@6.4.3"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:vitest@4.1.10"
+      "ref": "dependency:npm:vitest@4.1.11"
     },
     {
       "dependsOn": [],
@@ -23901,6 +28051,14 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:npm:wrap-ansi@8.1.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:write-excel-file@2.3.10"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:npm:xml-name-validator@5.0.0"
     },
     {
@@ -23914,6 +28072,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:yocto-queue@0.1.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:zip-stream@6.0.1"
     },
     {
       "dependsOn": [],
@@ -24301,11 +28463,43 @@
     },
     {
       "dependsOn": [],
+      "ref": "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2"
+    },
+    {
+      "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1"
     },
     {
       "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentClassDetailPage.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2"
     },
     {
       "dependsOn": [],
@@ -24334,15 +28528,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:b97f2123f767617250bf473be7f5f9ec6d8f4ab0",
+      "bom-ref": "pathlab:build:3a706e06b8a25ed7e56bb99533a947c49d07264f",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/b97f2123f767617250bf473be7f5f9ec6d8f4ab0"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/3a706e06b8a25ed7e56bb99533a947c49d07264f"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/b97f2123f767617250bf473be7f5f9ec6d8f4ab0"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/3a706e06b8a25ed7e56bb99533a947c49d07264f"
         }
       ],
       "licenses": [
@@ -24373,13 +28567,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@b97f2123f767617250bf473be7f5f9ec6d8f4ab0",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@3a706e06b8a25ed7e56bb99533a947c49d07264f",
       "type": "application",
-      "version": "b97f2123f767617250bf473be7f5f9ec6d8f4ab0"
+      "version": "3a706e06b8a25ed7e56bb99533a947c49d07264f"
     },
-    "timestamp": "2026-09-05T08:12:46Z"
+    "timestamp": "2026-09-07T02:54:43Z"
   },
-  "serialNumber": "urn:uuid:b97f2123-f767-4172-a0bf-473be7f5f9ec",
+  "serialNumber": "urn:uuid:3a706e06-b8a2-4ed7-a56b-b99533a947c4",
   "specVersion": "1.6",
   "version": 1
 }

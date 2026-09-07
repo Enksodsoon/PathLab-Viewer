@@ -208,6 +208,22 @@ def main() -> None:
                 if active_classroom is not None:
                     raise SystemExit("Deployment blocked: a Classroom session is active")
             if inspect(database.get_bind()).has_table(RuntimeGuard.__tablename__):
+                guard_columns = {
+                    column["name"] for column in inspect(database.get_bind()).get_columns(
+                        RuntimeGuard.__tablename__
+                    )
+                }
+                if "assessment_administration_id" not in guard_columns:
+                    # Admission runs before migration: the current ORM cannot read
+                    # the previous release's narrower guard table.
+                    legacy_mode = database.scalar(text(
+                        "SELECT mode FROM runtime_guards WHERE id = :guard_id"
+                    ), {"guard_id": CLASSROOM_GUARD_ID})
+                    if legacy_mode is not None and legacy_mode != IDLE:
+                        raise SystemExit(
+                            f"Deployment blocked: Classroom protection is {legacy_mode}"
+                        )
+                    return
                 protection_snapshot(database)
                 runtime_guard = database.get(RuntimeGuard, CLASSROOM_GUARD_ID)
                 if runtime_guard is not None and runtime_guard.mode != IDLE:

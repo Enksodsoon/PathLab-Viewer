@@ -3,6 +3,7 @@ import {
   CaretDoubleLeft,
   CaretDoubleRight,
   ChalkboardTeacher,
+  Exam,
   HardDrives,
   Key,
   List,
@@ -25,8 +26,10 @@ interface AppRailProps {
   onUpload: () => void
   onClassroom?: () => void
   onStudy?: () => void
+  onAssessment?: () => void
   onStorage: () => void
   storageActive: boolean
+  activeDestination?: 'library' | 'upload' | 'classroom' | 'study' | 'assessment' | 'storage'
   onSecurity: () => void
   onSignOut: () => void
 }
@@ -42,8 +45,10 @@ export function AppRail({
   onUpload,
   onClassroom,
   onStudy,
+  onAssessment,
   onStorage,
   storageActive,
+  activeDestination,
   onSecurity,
   onSignOut,
 }: AppRailProps) {
@@ -97,6 +102,12 @@ export function AppRail({
           <button type="button" aria-label="Classroom" onClick={onClassroom}>
             <ChalkboardTeacher aria-hidden="true" />
             <span>Classroom</span>
+          </button>
+        )}
+        {onAssessment && (
+          <button type="button" aria-label="Assessment" aria-current={activeDestination === 'assessment' ? 'page' : undefined} onClick={onAssessment}>
+            <Exam aria-hidden="true" />
+            <span>Assessment</span>
           </button>
         )}
         {onStudy && (

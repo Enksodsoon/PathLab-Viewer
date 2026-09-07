@@ -2,38 +2,38 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "7954940b849cfddbf69b3dd8b9609181faf6d1be4c7c8563b09be797596c7fbb",
-      "sizeBytes": 157248
+      "sha256": "863984cb5f818c782207626d51e68d750c8eb04cb799b61ea7733f0337c0eab8",
+      "sizeBytes": 184263
     },
     {
       "path": "build.cdx.json",
-      "sha256": "d9956c38abe2c404dc587ec31ed7906285f54a408a2b05f0022643b1f8f31194",
-      "sizeBytes": 625235
+      "sha256": "c3ec76687439dab231eddd446dc16d927c917e1876dc72b2bf297e73fbaa5f43",
+      "sizeBytes": 727826
     },
     {
       "path": "build.spdx.json",
-      "sha256": "ed796b731bdfab23ea910e53b40d60e9e430d55c63aa3c82aa13ad52f55f6096",
-      "sizeBytes": 504906
+      "sha256": "2eae6da5725fb53e8d3daef8ee14f2d2bd7948bec6657dc5683256b6993e77f3",
+      "sizeBytes": 587936
     },
     {
       "path": "source.cdx.json",
-      "sha256": "7c35f9075636750f8bc7eecb8132f27a56676b6f0a5f7ba74fad5134565f23d5",
-      "sizeBytes": 659295
+      "sha256": "29eea6983e4527af6ae18c4a092bc2dab45a7519d0a533eb655b44ecab599c4b",
+      "sizeBytes": 767926
     },
     {
       "path": "source.spdx.json",
-      "sha256": "c06dfaced8762aca1e3c6132b382cf3fd97944cebc544197163e78c9077bbf27",
-      "sizeBytes": 531675
+      "sha256": "b94616c431774f994120ebcb16c67e7a58edee1e00c91dc8f3075f63671779ae",
+      "sizeBytes": 619600
     }
   ],
   "coverage": {
-    "assetRecordIdsSha256": "9c6ac23b55d11d57e9427d92948e3673f4c95b108599a94d242e38c94d56cc85",
-    "assetRecords": 8,
-    "buildComponents": 488,
-    "currentShippedInputs": 91,
-    "dependencyRecordIdsSha256": "b0ec7cae45c64aae61edf1aada5cb6b9ff239179608b02bec9c230ebe673aa78",
-    "dependencyRecords": 497,
-    "sourceComponents": 519,
+    "assetRecordIdsSha256": "7f883f9fd96259e5f10c472db1b3e885dc8935d193a294c35e3b4379678a6923",
+    "assetRecords": 16,
+    "buildComponents": 574,
+    "currentShippedInputs": 178,
+    "dependencyRecordIdsSha256": "45f7d1d93e28be409c3421aaee0dac3cad9e518928e60bdc2747be117afe68e7",
+    "dependencyRecords": 580,
+    "sourceComponents": 610,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
     "toolchainRecords": 14
   },
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-05T08:12:46Z",
+  "generatedAt": "2026-09-07T02:54:43Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -63,28 +63,28 @@
       "sizeBytes": 485
     },
     {
-      "gitBlob": "a272bef792b6db2f4bbe151b14cc54a7a04bc00d",
+      "gitBlob": "d9af2cad0f05ea04af213aa07b5d659b52b80650",
       "path": "pnpm-lock.yaml",
-      "sha256": "7fa7553aaea7634d9a1ea39968ddbd27f1bcc7276754db0a2097c13f431fc59f",
-      "sizeBytes": 112878
+      "sha256": "21b5a1daa0b4e8638550f3697eb6fd0c1c74ea8d305304094ec6b78a8d903e3d",
+      "sizeBytes": 133228
     },
     {
-      "gitBlob": "8d11730d1f95b3554459a0d313717bd9a6f050d8",
+      "gitBlob": "ca274771ae0deb0e7e7c5211da15afd2e31f159d",
       "path": "pyproject.toml",
-      "sha256": "74c9f448ff9a78166be4910b71474af230b31e6796e86b86e82abeccd6026fe3",
-      "sizeBytes": 1514
+      "sha256": "5fb7090673f9e831e9beac756d800dc3893d70476beef77febaefce000de4a6c",
+      "sizeBytes": 1540
     },
     {
-      "gitBlob": "4274e53c31b86cd54063459983af260dfe9ed807",
+      "gitBlob": "e0fea267db680410d773f5c918642bbad8c1ebaa",
       "path": "apps/web/package.json",
-      "sha256": "c86c37b962ac3eebcd3145981f94fb621f8ca4c528d551f47fbc9d534a140184",
-      "sizeBytes": 1616
+      "sha256": "a074d71e0fb50dbc2f72fc12a062b2f9ba3c52261626c19d7dd1bd5f9cc80e7d",
+      "sizeBytes": 1765
     },
     {
-      "gitBlob": "18ebbbdb2a154bdebf1992d2108ff212046aa33f",
+      "gitBlob": "0467e61da46d6fa98b94edf7234630e8851d062f",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "660c24c6e46a90bd1b62cd9c8d5317f565fd64c3f7d070ffd5c8629f269f2f3f",
-      "sizeBytes": 109902
+      "sha256": "a7ffa0db664ba783105e140c9a7459526369867a2a6481653e8f83c8f73faba6",
+      "sizeBytes": 113931
     },
     {
       "gitBlob": "3c21421766a6526f8b82bd519c23a70050fc64e4",
@@ -99,28 +99,28 @@
       "sizeBytes": 1278
     },
     {
-      "gitBlob": "341f4c1c5982652dd40979369166dbef2bba370a",
+      "gitBlob": "aec1e0deb5c2d567acc2eaf6d52feaf2604aeb7a",
       "path": "deploy/Dockerfile.web",
-      "sha256": "a4336ce8d01404c086c82ae6cfcc1d4c6846c3d629a71406e741fe7ec400e6bf",
+      "sha256": "3de550b5417176955cefdb5e9b498181ddc4d966db955a00d8271aa70f73b6e7",
       "sizeBytes": 671
     },
     {
-      "gitBlob": "a2f6397751ba06fd70ecc237935463478ba20cf1",
+      "gitBlob": "d7fdde054333aad7ded7cc50be93b2afacfad2f6",
       "path": "deploy/compose.yaml",
-      "sha256": "3169941a8cfdf31e552f05ce68b8db30bc9b7d597cecc9aac5a1a97d8a90a6fa",
-      "sizeBytes": 8175
+      "sha256": "0bd00197a78f345c90a5dd0285870a93f8d8e2183b77d5d6bb9e80de96c1691e",
+      "sizeBytes": 9498
     },
     {
-      "gitBlob": "0890245c3e3d46e701563bbc95d69532fedc0242",
+      "gitBlob": "cbec5c761cd48458bc2574c74a4b96d9cc588888",
       "path": "deploy/compose.postgres.yaml",
-      "sha256": "7c91f82f56d59550135100b7a2bc9c124bada07ffeb02257ce626f966f344a60",
-      "sizeBytes": 2179
+      "sha256": "750b0b02b340da6cababf20120b002db81dffd27446a2c66d71862fdc220e1da",
+      "sizeBytes": 2498
     },
     {
-      "gitBlob": "7fefeed2bbb3628e74c2571e21aa9bd6762e1be6",
+      "gitBlob": "118c8d5fd4f8945303a08c666aad50841cb1a1e5",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "6885559ed2ec8846bdf4c1543b60016160db62fd65b9b6d0e9c2300abc72f930",
-      "sizeBytes": 675888
+      "sha256": "6847270050eafaee29f7ce0cea62772712b7f662f3a4bed8955a51b2597faa54",
+      "sizeBytes": 759005
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -141,16 +141,16 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "8374deecac00aeb3a085f12c959b2897b2a5246d",
+      "gitBlob": "da47b43caa46cc301b4a6bf12f9d2c364a30f6a0",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "394a395f36abfb2c7f1253c0ce3a587efb2e4d0ca067d9bffc1947b4fa184b22",
-      "sizeBytes": 24767
+      "sha256": "fc5b7fd607da8b8fbf7b6a8786fb40a21e9255ed0084de4eaa0deacc3f90ed1c",
+      "sizeBytes": 39755
     },
     {
-      "gitBlob": "5d3ecd5271ea7b62f8eb613ef0ce64bf6dfb4ad8",
+      "gitBlob": "15db60aa4b9cc31865d5f3f41c7e9778356fddfe",
       "path": "docs/supply-chain/asset-rights-policy.json",
-      "sha256": "694523730462c736cfd9327c14f9433f1e2f48073c881070b8948bb666f8f5f4",
-      "sizeBytes": 14627
+      "sha256": "8ceb3d5bcd367e82f7d548249c2603aae642724c6e8b7f53299744bd019763a1",
+      "sizeBytes": 22180
     },
     {
       "gitBlob": "d5dd1e6b2b9a342a87facaa5f43e0c195ca10633",
@@ -175,7 +175,9 @@
   },
   "releaseAdmission": "BLOCKED",
   "releaseBlockers": [
+    "BLOCKED:npm:eastasianwidth@0.2.0",
     "BLOCKED:npm:guid-typescript@1.0.9",
+    "BLOCKED:npm:isarray@1.0.0",
     "BLOCKED:npm:onnxruntime-common@1.27.0",
     "BLOCKED:npm:onnxruntime-web@1.27.0",
     "BLOCKED:npm:splaytree@3.2.3",
@@ -183,7 +185,9 @@
     "RECORDED_UNREVIEWED:npm:@fontsource-variable/cormorant-garamond@5.3.0",
     "RECORDED_UNREVIEWED:npm:@fontsource-variable/sofia-sans@5.3.0",
     "RECORDED_UNREVIEWED:npm:@fontsource-variable/source-sans-3@5.3.0",
+    "RECORDED_UNREVIEWED:npm:@isaacs/cliui@8.0.2",
     "RECORDED_UNREVIEWED:npm:@phosphor-icons/react@2.1.10",
+    "RECORDED_UNREVIEWED:npm:@pkgjs/parseargs@0.11.0",
     "RECORDED_UNREVIEWED:npm:@protobufjs/aspromise@1.1.2",
     "RECORDED_UNREVIEWED:npm:@protobufjs/base64@1.1.2",
     "RECORDED_UNREVIEWED:npm:@protobufjs/codegen@2.0.5",
@@ -193,18 +197,75 @@
     "RECORDED_UNREVIEWED:npm:@protobufjs/path@1.1.2",
     "RECORDED_UNREVIEWED:npm:@protobufjs/pool@1.1.0",
     "RECORDED_UNREVIEWED:npm:@protobufjs/utf8@1.1.2",
-    "RECORDED_UNREVIEWED:npm:@types/node@26.2.0",
+    "RECORDED_UNREVIEWED:npm:@types/node@26.4.1",
+    "RECORDED_UNREVIEWED:npm:@xmldom/xmldom@0.8.15",
+    "RECORDED_UNREVIEWED:npm:abort-controller@3.0.0",
+    "RECORDED_UNREVIEWED:npm:ansi-regex@6.3.0",
+    "RECORDED_UNREVIEWED:npm:ansi-styles@6.2.3",
+    "RECORDED_UNREVIEWED:npm:archiver-utils@5.0.2",
+    "RECORDED_UNREVIEWED:npm:archiver@7.0.1",
+    "RECORDED_UNREVIEWED:npm:async@3.2.6",
+    "RECORDED_UNREVIEWED:npm:b4a@1.8.1",
+    "RECORDED_UNREVIEWED:npm:balanced-match@4.0.4",
+    "RECORDED_UNREVIEWED:npm:bare-events@2.9.2",
+    "RECORDED_UNREVIEWED:npm:bare-fs@4.8.1",
+    "RECORDED_UNREVIEWED:npm:bare-path@3.1.2",
+    "RECORDED_UNREVIEWED:npm:bare-stream@2.13.4",
+    "RECORDED_UNREVIEWED:npm:bare-url@2.5.4",
+    "RECORDED_UNREVIEWED:npm:base64-js@1.5.1",
+    "RECORDED_UNREVIEWED:npm:bluebird@3.7.2",
+    "RECORDED_UNREVIEWED:npm:brace-expansion@5.0.9",
+    "RECORDED_UNREVIEWED:npm:buffer-crc32@1.0.0",
     "RECORDED_UNREVIEWED:npm:buffer-from@1.1.2",
+    "RECORDED_UNREVIEWED:npm:buffer@6.0.3",
+    "RECORDED_UNREVIEWED:npm:compress-commons@6.0.2",
     "RECORDED_UNREVIEWED:npm:cookie@1.1.1",
+    "RECORDED_UNREVIEWED:npm:core-util-is@1.0.3",
+    "RECORDED_UNREVIEWED:npm:crc-32@1.2.2",
+    "RECORDED_UNREVIEWED:npm:crc32-stream@6.0.0",
+    "RECORDED_UNREVIEWED:npm:cross-spawn@7.0.6",
+    "RECORDED_UNREVIEWED:npm:duplexer2@0.1.4",
+    "RECORDED_UNREVIEWED:npm:emoji-regex@9.2.2",
+    "RECORDED_UNREVIEWED:npm:event-target-shim@5.0.1",
+    "RECORDED_UNREVIEWED:npm:events-universal@1.0.1",
+    "RECORDED_UNREVIEWED:npm:events@3.3.0",
+    "RECORDED_UNREVIEWED:npm:fast-fifo@1.3.2",
+    "RECORDED_UNREVIEWED:npm:fflate@0.8.3",
+    "RECORDED_UNREVIEWED:npm:file-saver@2.0.5",
     "RECORDED_UNREVIEWED:npm:flatbuffers@25.9.23",
+    "RECORDED_UNREVIEWED:npm:foreground-child@3.3.1",
+    "RECORDED_UNREVIEWED:npm:fs-extra@11.3.1",
+    "RECORDED_UNREVIEWED:npm:glob@10.5.0",
     "RECORDED_UNREVIEWED:npm:graceful-fs@4.2.11",
+    "RECORDED_UNREVIEWED:npm:ieee754@1.2.1",
+    "RECORDED_UNREVIEWED:npm:immediate@3.0.6",
+    "RECORDED_UNREVIEWED:npm:inherits@2.0.4",
     "RECORDED_UNREVIEWED:npm:is-stream@2.0.1",
+    "RECORDED_UNREVIEWED:npm:isexe@2.0.0",
+    "RECORDED_UNREVIEWED:npm:jackspeak@3.4.3",
     "RECORDED_UNREVIEWED:npm:js-base64@3.9.1",
+    "RECORDED_UNREVIEWED:npm:jsonfile@6.2.1",
+    "RECORDED_UNREVIEWED:npm:jszip@3.10.1",
+    "RECORDED_UNREVIEWED:npm:lazystream@1.0.1",
+    "RECORDED_UNREVIEWED:npm:lie@3.3.0",
     "RECORDED_UNREVIEWED:npm:lodash.throttle@4.1.1",
+    "RECORDED_UNREVIEWED:npm:lodash@4.18.1",
     "RECORDED_UNREVIEWED:npm:long@5.3.2",
+    "RECORDED_UNREVIEWED:npm:lru-cache@10.4.3",
+    "RECORDED_UNREVIEWED:npm:minimatch@5.1.9",
+    "RECORDED_UNREVIEWED:npm:minimatch@9.0.9",
+    "RECORDED_UNREVIEWED:npm:minipass@7.1.3",
+    "RECORDED_UNREVIEWED:npm:node-int64@0.4.0",
+    "RECORDED_UNREVIEWED:npm:normalize-path@3.0.0",
     "RECORDED_UNREVIEWED:npm:openseadragon@6.1.0",
+    "RECORDED_UNREVIEWED:npm:package-json-from-dist@1.0.1",
+    "RECORDED_UNREVIEWED:npm:pako@1.0.11",
+    "RECORDED_UNREVIEWED:npm:path-key@3.1.1",
+    "RECORDED_UNREVIEWED:npm:path-scurry@1.11.1",
     "RECORDED_UNREVIEWED:npm:platform@1.3.6",
     "RECORDED_UNREVIEWED:npm:polygon-clipping@0.15.7",
+    "RECORDED_UNREVIEWED:npm:process-nextick-args@2.0.1",
+    "RECORDED_UNREVIEWED:npm:process@0.11.10",
     "RECORDED_UNREVIEWED:npm:proper-lockfile@4.1.2",
     "RECORDED_UNREVIEWED:npm:protobufjs@7.6.5",
     "RECORDED_UNREVIEWED:npm:qrcode.react@4.2.0",
@@ -212,18 +273,43 @@
     "RECORDED_UNREVIEWED:npm:quickselect@3.0.0",
     "RECORDED_UNREVIEWED:npm:rbush@4.0.1",
     "RECORDED_UNREVIEWED:npm:react-dom@19.2.8",
-    "RECORDED_UNREVIEWED:npm:react-router-dom@7.18.2",
-    "RECORDED_UNREVIEWED:npm:react-router@7.18.2",
+    "RECORDED_UNREVIEWED:npm:react-router-dom@7.18.3",
+    "RECORDED_UNREVIEWED:npm:react-router@7.18.3",
     "RECORDED_UNREVIEWED:npm:react@19.2.8",
+    "RECORDED_UNREVIEWED:npm:read-excel-file@6.0.1",
+    "RECORDED_UNREVIEWED:npm:readable-stream@2.3.8",
+    "RECORDED_UNREVIEWED:npm:readable-stream@4.7.0",
+    "RECORDED_UNREVIEWED:npm:readdir-glob@1.1.3",
     "RECORDED_UNREVIEWED:npm:requires-port@1.0.0",
     "RECORDED_UNREVIEWED:npm:retry@0.12.0",
     "RECORDED_UNREVIEWED:npm:robust-predicates@3.0.3",
+    "RECORDED_UNREVIEWED:npm:safe-buffer@5.1.2",
+    "RECORDED_UNREVIEWED:npm:safe-buffer@5.2.1",
     "RECORDED_UNREVIEWED:npm:scheduler@0.27.0",
     "RECORDED_UNREVIEWED:npm:set-cookie-parser@2.7.2",
+    "RECORDED_UNREVIEWED:npm:setimmediate@1.0.5",
+    "RECORDED_UNREVIEWED:npm:shebang-command@2.0.0",
+    "RECORDED_UNREVIEWED:npm:shebang-regex@3.0.0",
     "RECORDED_UNREVIEWED:npm:signal-exit@3.0.7",
+    "RECORDED_UNREVIEWED:npm:signal-exit@4.1.0",
+    "RECORDED_UNREVIEWED:npm:streamx@2.28.1",
+    "RECORDED_UNREVIEWED:npm:string-width@5.1.2",
+    "RECORDED_UNREVIEWED:npm:string_decoder@1.1.1",
+    "RECORDED_UNREVIEWED:npm:string_decoder@1.3.0",
+    "RECORDED_UNREVIEWED:npm:strip-ansi@7.2.0",
+    "RECORDED_UNREVIEWED:npm:tar-stream@3.2.1",
+    "RECORDED_UNREVIEWED:npm:teex@1.0.1",
+    "RECORDED_UNREVIEWED:npm:text-decoder@1.2.7",
     "RECORDED_UNREVIEWED:npm:tus-js-client@4.3.1",
     "RECORDED_UNREVIEWED:npm:undici-types@8.3.0",
+    "RECORDED_UNREVIEWED:npm:universalify@2.0.1",
+    "RECORDED_UNREVIEWED:npm:unzipper@0.12.5",
     "RECORDED_UNREVIEWED:npm:url-parse@1.5.10",
+    "RECORDED_UNREVIEWED:npm:util-deprecate@1.0.2",
+    "RECORDED_UNREVIEWED:npm:which@2.0.2",
+    "RECORDED_UNREVIEWED:npm:wrap-ansi@8.1.0",
+    "RECORDED_UNREVIEWED:npm:write-excel-file@2.3.10",
+    "RECORDED_UNREVIEWED:npm:zip-stream@6.0.1",
     "RECORDED_UNREVIEWED:pypi:alembic@1.19.1",
     "RECORDED_UNREVIEWED:pypi:annotated-doc@0.0.5",
     "RECORDED_UNREVIEWED:pypi:annotated-types@0.8.0",
@@ -233,6 +319,7 @@
     "RECORDED_UNREVIEWED:pypi:certifi@2026.7.22",
     "RECORDED_UNREVIEWED:pypi:cffi@2.1.1",
     "RECORDED_UNREVIEWED:pypi:click@8.5.0",
+    "RECORDED_UNREVIEWED:pypi:cryptography@50.0.1",
     "RECORDED_UNREVIEWED:pypi:fastapi@0.141.1",
     "RECORDED_UNREVIEWED:pypi:greenlet@3.5.5",
     "RECORDED_UNREVIEWED:pypi:h11@0.16.0",
@@ -268,6 +355,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "b97f2123f767617250bf473be7f5f9ec6d8f4ab0",
-  "subjectTree": "4c2ce4f63e0c317169e3e08c9a7971df8799c2bc"
+  "subjectCommit": "3a706e06b8a25ed7e56bb99533a947c49d07264f",
+  "subjectTree": "e43f406ef25a8c68c82b316b28448ba0ecfa5fd5"
 }

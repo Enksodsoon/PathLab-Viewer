@@ -1,0 +1,11 @@
+{
+  "schema": "pathlab.tutor-model/1",
+  "modelId": "qwen3-0.6b-int4",
+  "artifactSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "artifactBytes": 0,
+  "runtime": "webgpu-worker",
+  "output": "claim-ids-only",
+  "status": "not_evaluable",
+  "reason": "PINNED_ONNX_ASSET_NOT_ACQUIRED_OR_QUALIFIED",
+  "fallback": "deterministic-reviewed-claim-retrieval"
+}

@@ -24,7 +24,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '../api'
 import {
@@ -151,11 +151,18 @@ function savedClassroomId(): string {
 
 export function ClassroomTeacherPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const lockedFolderId = searchParams.get('folderId') ?? ''
+  const classId = searchParams.get('classId') ?? ''
+  const courseId = searchParams.get('courseId') ?? ''
+  const classReturnPath = classId && courseId
+    ? `/admin/assessments/courses/${encodeURIComponent(courseId)}/classes/${encodeURIComponent(classId)}`
+    : '/admin'
   const [setupFolders, setSetupFolders] = useState<ClassroomSetupFolder[]>([])
   const [setupCursor, setSetupCursor] = useState<string | null>(null)
   const [setupQuery, setSetupQuery] = useState('')
   const deferredSetupQuery = useDeferredValue(setupQuery.trim())
-  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [selectedFolderId, setSelectedFolderId] = useState(lockedFolderId)
   const [reviewExpiry, setReviewExpiry] = useState(defaultReviewExpiry)
   const [readiness, setReadiness] = useState<ClassroomReadiness | null>(null)
   const [recentClassrooms, setRecentClassrooms] = useState<Array<{
@@ -247,7 +254,7 @@ export function ClassroomTeacherPage() {
     setSetupLoading(true)
     setSetupLoadingMore(false)
     setSetupError('')
-    void classroomSetupFolders({ q: deferredSetupQuery })
+    void classroomSetupFolders({ q: lockedFolderId ? undefined : deferredSetupQuery, folderId: lockedFolderId })
       .then((page) => {
         if (cancelled || request !== setupRequest.current) return
         setSetupFolders(page.items)
@@ -269,7 +276,7 @@ export function ClassroomTeacherPage() {
         if (!cancelled && request === setupRequest.current) setSetupLoading(false)
       })
     return () => { cancelled = true }
-  }, [deferredSetupQuery, navigate])
+  }, [deferredSetupQuery, lockedFolderId, navigate])
 
   useEffect(() => {
     if (classroom) return
@@ -1059,12 +1066,12 @@ export function ClassroomTeacherPage() {
       <Brand variant="library" />
       <div className="classroom-entry__actions">
         <ThemeControl compact />
-        <Link className="classroom-back-link" to="/admin">Back to library</Link>
+        <Link className="classroom-back-link" to={classReturnPath}>{classId ? 'Back to class' : 'Back to library'}</Link>
       </div>
     </header>
     <section className="classroom-entry__card">
       <p className="classroom-kicker">Prepare classroom</p>
-      <h1>Choose a class folder</h1>
+      <h1>{lockedFolderId ? 'Prepare this classroom' : 'Choose a class folder'}</h1>
       <p className="classroom-entry__intro">Create one protected link for review before, during, and after class.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
@@ -1082,7 +1089,7 @@ export function ClassroomTeacherPage() {
         End existing classroom
       </button>}
       {setupError && <p role="alert" className="classroom-error">{setupError}</p>}
-      <label className="classroom-expiry">Search class folders
+      {!lockedFolderId && <label className="classroom-expiry">Search class folders
         <input
           type="search"
           value={setupQuery}
@@ -1098,7 +1105,7 @@ export function ClassroomTeacherPage() {
           placeholder="Folder name"
           autoComplete="off"
         />
-      </label>
+      </label>}
       <div className="classroom-folder-picker" role="radiogroup" aria-label="Class folder">
         {setupLoading ? <p className="classroom-folder-picker__status" role="status">Loading class folders…</p> : null}
         {!setupLoading && !setupFolders.length ? (
@@ -1168,7 +1175,7 @@ export function ClassroomTeacherPage() {
   if (classroom.phase !== 'live') return <main className="classroom-entry classroom-setup">
     <header className="classroom-entry__header">
       <Brand variant="library" />
-      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to="/admin">Back to library</Link></div>
+      <div className="classroom-entry__actions"><ThemeControl compact /><Link className="classroom-back-link" to={classReturnPath}>{classId ? 'Back to class' : 'Back to library'}</Link></div>
     </header>
     <section className="classroom-entry__card classroom-prepared-card">
       <p className="classroom-kicker">{classroom.phase === 'preview' ? 'Classroom prepared' : 'Post-class review'}</p>

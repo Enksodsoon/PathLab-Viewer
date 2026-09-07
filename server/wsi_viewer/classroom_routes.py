@@ -720,8 +720,11 @@ def register_classroom_routes(
             int, Query(ge=1, le=CLASSROOM_SETUP_MAX_PAGE_SIZE)
         ] = CLASSROOM_SETUP_PAGE_SIZE,
         q: Annotated[str | None, Query(max_length=120)] = None,
+        folder_id: Annotated[str | None, Query(alias="folderId", max_length=100)] = None,
     ) -> dict[str, Any]:
         statement = select(Folder).where(Folder.trashed_at.is_(None))
+        if folder_id:
+            statement = statement.where(Folder.id == folder_id)
         normalized_query = unicodedata.normalize("NFKC", q or "").strip().casefold()
         if normalized_query:
             escaped_query = (
@@ -955,7 +958,16 @@ def register_classroom_routes(
         if len(slides_by_id) != len(set(slide_ids)):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_SLIDE_NOT_READY"})
         if settings.classroom_protection_enabled and not is_smart_invite:
-            protection = request_classroom_protection(db, classroom_session_id=None, now=now)
+            protection = request_classroom_protection(
+                db, classroom_session_id=None, now=now
+            )
+            if protection.conflicting_runtime:
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "CLASSROOM_RUNTIME_BUSY"},
+                    headers={"Retry-After": "120"},
+                )
             if protection.running_jobs:
                 db.commit()
                 raise HTTPException(
@@ -1044,7 +1056,16 @@ def register_classroom_routes(
         ):
             raise HTTPException(status_code=409, detail={"code": "CLASSROOM_TRANSITION_INVALID"})
         if settings.classroom_protection_enabled:
-            protection = request_classroom_protection(db, classroom_session_id=classroom.id)
+            protection = request_classroom_protection(
+                db, classroom_session_id=classroom.id
+            )
+            if protection.conflicting_runtime:
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "CLASSROOM_RUNTIME_BUSY"},
+                    headers={"Retry-After": "120"},
+                )
             if protection.running_jobs:
                 db.commit()
                 raise HTTPException(

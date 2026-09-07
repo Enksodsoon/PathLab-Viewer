@@ -27,9 +27,12 @@ SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
 
 def test_exact_restored_assets_are_admitted_after_owner_approval() -> None:
     ledger = validate(require_release_admission=True)
-    assert len(ledger["records"]) == 8
+    assert len(ledger["records"]) == 16
     assert ledger["releaseAdmission"] == "ADMITTED"
-    assert all(r["releaseDisposition"] == "ADMITTED" for r in ledger["records"])
+    assert all(
+        r["releaseDisposition"] in {"ADMITTED", "EXCLUDED_NON_RELEASE"}
+        for r in ledger["records"]
+    )
     images = [r for r in ledger["records"] if r["locator"].endswith(".webp")]
     assert len(images) == 2
     assert all(r["licensePermission"] == "OWNER_APPROVED_PATHLAB_DISTRIBUTION" for r in images)
@@ -100,8 +103,8 @@ def test_changed_asset_hash_is_rejected() -> None:
 def test_imported_icon_subset_is_individually_hash_bound() -> None:
     ledger = json.loads(DEFAULT_OUTPUT.read_text())
     icon_set = next(record for record in ledger["records"] if record["kind"] == "package-icon-set")
-    assert len(icon_set["embeddedAssets"]) == 98
-    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 98
+    assert len(icon_set["embeddedAssets"]) == 150
+    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 150
     assert all(len(item["contentSha256"]) == 64 for item in icon_set["embeddedAssets"])
 
 

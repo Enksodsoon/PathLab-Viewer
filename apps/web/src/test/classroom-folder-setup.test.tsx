@@ -101,6 +101,22 @@ describe('Classroom folder setup', () => {
     vi.unstubAllGlobals()
   })
 
+  it('loads a saved class folder directly and preserves the return link', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/classroom?folderId=folder-course&courseId=course-1&classId=class-1']}>
+        <ThemeProvider><ClassroomTeacherPage /></ThemeProvider>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(classroomApi.classroomSetupFolders).toHaveBeenCalledWith({
+      q: undefined, folderId: 'folder-course',
+    }))
+    expect(screen.queryByRole('searchbox', { name: 'Search class folders' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to class' })).toHaveAttribute(
+      'href', '/admin/assessments/courses/course-1/classes/class-1',
+    )
+    expect(await screen.findByRole('button', { name: 'Prepare classroom with 2 slides' })).toBeEnabled()
+  })
+
   it('selects one folder and starts the classroom with every eligible descendant slide', async () => {
     renderSetup()
 

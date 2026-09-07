@@ -79,6 +79,17 @@ def test_classroom_is_disabled_by_default_and_accepts_an_explicit_override(
     assert Settings(_env_file=None).classroom_enabled is True
 
 
+def test_assessment_is_disabled_by_default_and_accepts_an_explicit_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PATHLAB_ASSESSMENT_ENABLED", raising=False)
+
+    assert Settings(_env_file=None).assessment_enabled is False
+
+    monkeypatch.setenv("PATHLAB_ASSESSMENT_ENABLED", "true")
+    assert Settings(_env_file=None).assessment_enabled is True
+
+
 @pytest.mark.parametrize("value", (1, 1500, 2000))
 def test_classroom_participant_limit_accepts_declared_range(value: int) -> None:
     settings = Settings(_env_file=None, classroom_max_participants=value)
@@ -100,7 +111,7 @@ def test_classroom_participant_limit_accepts_environment_override(
     assert Settings(_env_file=None).classroom_max_participants == 1500
 
 
-@pytest.mark.parametrize("role", ("general", "classroom", "worker", "tile", "all"))
+@pytest.mark.parametrize("role", ("general", "classroom", "assessment", "worker", "tile", "all"))
 def test_service_role_accepts_the_declared_process_topologies(
     monkeypatch: pytest.MonkeyPatch, role: str
 ) -> None:
@@ -136,6 +147,26 @@ def test_production_general_role_does_not_require_the_classroom_singleton() -> N
     assert settings.service_role == "general"
 
 
+def test_production_assessment_requires_postgres_and_identity_governance() -> None:
+    common = {
+        "_env_file": None,
+        "environment": "production",
+        "service_role": "assessment",
+        "secret_key": "unique-production-secret-that-is-long-enough",
+        "assessment_enabled": True,
+    }
+
+    with pytest.raises(ValidationError, match="Assessment requires PostgreSQL"):
+        Settings(**common, identity_governance_enabled=True)
+
+    with pytest.raises(ValidationError, match="identity governance"):
+        Settings(
+            **common,
+            database_url="postgresql+psycopg://pathlab@postgres/pathlab",
+            identity_governance_enabled=False,
+        )
+
+
 @pytest.mark.parametrize(
     ("role", "path", "classroom_enabled", "expected_status"),
     (
@@ -143,6 +174,8 @@ def test_production_general_role_does_not_require_the_classroom_singleton() -> N
         ("general", "/api/v1/classroom/join", True, 404),
         ("classroom", "/api/v1/auth/session", True, 404),
         ("classroom", "/api/v1/classroom/join", True, 422),
+        ("assessment", "/api/v1/auth/session", True, 404),
+        ("assessment", "/api/v2/assessment/administrations/example", True, 404),
         ("all", "/api/v1/auth/session", True, 422),
         ("all", "/api/v1/classroom/join", True, 422),
     ),
@@ -186,6 +219,27 @@ def test_classroom_role_exposes_only_classroom_and_health_routes(tmp_path: Path)
     assert "/api/v1/classroom/join" in paths
     assert "/api/v1/auth/session" not in paths
     assert "/api/v1/admin/slides" not in paths
+    assert "/openapi.json" not in paths
+
+
+def test_assessment_role_exposes_only_assessment_and_health_routes(tmp_path: Path) -> None:
+    app = create_app(
+        Settings(
+            _env_file=None,
+            service_role="assessment",
+            assessment_enabled=True,
+            database_url=f"sqlite:///{tmp_path / 'assessment-only.sqlite3'}",
+            data_root=tmp_path / "assessment-only",
+        )
+    )
+    paths = {getattr(route, "path", "") for route in app.routes}
+
+    assert "/livez" in paths
+    assert "/readyz" in paths
+    assert "/api/v2/assessment/administrations/{public_id}" in paths
+    assert "/api/v1/auth/session" not in paths
+    assert "/api/v1/admin/slides" not in paths
+    assert "/api/v1/classroom/join" not in paths
     assert "/openapi.json" not in paths
 
 
