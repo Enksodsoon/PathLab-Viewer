@@ -31,11 +31,21 @@ schema_revision="$("$python_command" -c 'import json,sys; print(json.load(sys.st
 
 drill_database="pathlab_restore_drill_$(date -u +%Y%m%d%H%M%S)_$$"
 [[ "$drill_database" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]] || exit 2
+files_drill=""
+drill_root="${PATHLAB_RESTORE_DRILL_DIR:-$(dirname "$backup")/.postgres-restore-drill}"
+[[ "$drill_root" == /* && ! -L "$drill_root" ]] || exit 2
 cleanup() {
   postgres_exec \
     dropdb --if-exists --force --username "$database_user" "$drill_database" >/dev/null 2>&1 || true
+  if [[ -n "$files_drill" && "$files_drill" == "$drill_root"/files-* ]]; then
+    rm -rf -- "$files_drill"
+  fi
 }
 trap cleanup EXIT
+install -d -m 700 "$drill_root"
+files_drill="$(mktemp -d "$drill_root/files-XXXXXXXX")"
+files_result="$("$python_command" "$(dirname "$0")/postgres_backup_manifest.py" \
+  restore-files "$backup" "$files_drill")"
 postgres_exec \
   createdb --username "$database_user" "$drill_database"
 postgres_exec \
@@ -75,5 +85,6 @@ table_count="${table_count//$'\n'/}"
   echo "Restored database has no application tables" >&2
   exit 1
 }
-printf '{"archiveRoots":["originals","private","public"],"databaseIntegrity":"restored","schemaRevision":"%s","tableCount":%s}\n' \
-  "$restored_revision" "$table_count"
+"$python_command" -c \
+  'import json,sys; print(json.dumps({**json.load(sys.stdin), "databaseIntegrity":"restored", "schemaRevision":sys.argv[1], "tableCount":int(sys.argv[2])}))' \
+  "$restored_revision" "$table_count" <<<"$files_result"

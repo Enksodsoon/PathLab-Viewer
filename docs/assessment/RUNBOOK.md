@@ -4,7 +4,7 @@ Assessment remains disabled in production. Activation requires PostgreSQL and id
 
 Current evidence state: `NOT_EVALUABLE`. The protected workflow and evidence schema are implementation artifacts only; no 500-seat campaign or production activation is claimed.
 
-The dedicated service uses the optional Compose profile `assessment`. Ordinary production releases keep that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false`; Caddy rejects both Assessment API and asset paths in that state. A qualified Assessment staging deployment must explicitly select the profile, use the PostgreSQL overlay, and set the Assessment and identity-governance flags. The current guarded production release topology does not admit this extra service, so staging qualification does not activate it in production.
+The dedicated service uses the optional Compose profile `assessment`. Ordinary production releases keep that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false`; Caddy rejects both Assessment API and asset paths in that state. For an isolated qualification target, set `PATHLAB_DATABASE_ENGINE=postgres`, `PATHLAB_ASSESSMENT_ENABLED=true`, and `PATHLAB_IDENTITY_GOVERNANCE_ENABLED=true` in its private Compose environment. `deploy/scripts/compose-pathlab.sh` selects the Assessment profile and PostgreSQL overlay together, including the 32-connection Assessment configuration. It rejects enabled Assessment without both prerequisites. These settings prepare a qualification target; they do not establish capacity. The current guarded production release topology does not admit this extra service, so staging qualification does not activate it in production.
 
 ## Prepare and open
 
@@ -38,6 +38,17 @@ The five k6 jobs wait at one shared barrier and each execute exactly 100 single-
 ## Backup and restore reconciliation
 
 Before any pilot, capture a PostgreSQL backup and the exact release/configuration manifest. Restore into an isolated target, run Alembic to the recorded single head, verify `/readyz`, reconcile every closed Assessment aggregate, and compare administration counts, aggregate versions, gradebook latest-score pointers, retention/hold settings, and grant manifests. Open administrations with missing or malformed grants must keep readiness failed. A restore test is evidence only for the exact backup, release, and target recorded in the artifact.
+
+PostgreSQL backups include the `delivery` tree when present, preserving hardlinks
+between source derivatives and assessment grants. The disposable restore drill
+extracts authenticated file archives into an empty directory on the data volume,
+checks file bytes and hardlink identity, and reports `filesIntegrity=restored`
+alongside the database result. Older three-root backups remain readable, but do
+not prove restoration of assessment grants. The `restore-files` manifest command
+accepts only an empty isolated destination; it never replaces live directories.
+Database/asset reconciliation and production cutover remain separate from this
+file-level restore check. PostgreSQL rollback stops the optional Assessment
+service before replacing the database.
 
 ## Staged rollout
 

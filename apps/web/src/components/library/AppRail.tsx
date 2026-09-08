@@ -105,9 +105,9 @@ export function AppRail({
           </button>
         )}
         {onAssessment && (
-          <button type="button" aria-label="Assessment" aria-current={activeDestination === 'assessment' ? 'page' : undefined} onClick={onAssessment}>
+          <button type="button" aria-label="Teaching Studio" aria-current={activeDestination === 'assessment' ? 'page' : undefined} onClick={onAssessment}>
             <Exam aria-hidden="true" />
-            <span>Assessment</span>
+            <span>Teaching Studio</span>
           </button>
         )}
         {onStudy && (

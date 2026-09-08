@@ -67,7 +67,16 @@ IFS='|' read -r server_version schema_revision database_bytes <<<"$database_fact
   exit 1
 }
 [[ "$database_bytes" =~ ^[0-9]+$ ]] || exit 1
-source_bytes="$(du -sb "${data_dir}/originals" "${data_dir}/private" "${data_dir}/public" | awk '{total += $1} END {print total}')"
+archive_roots=(originals private public)
+source_paths=("${data_dir}/originals" "${data_dir}/private" "${data_dir}/public")
+if [[ -d "${data_dir}/delivery" && ! -L "${data_dir}/delivery" ]]; then
+  archive_roots+=(delivery)
+  source_paths+=("${data_dir}/delivery")
+elif [[ -e "${data_dir}/delivery" || -L "${data_dir}/delivery" ]]; then
+  echo "Backup refused: delivery must be a real directory" >&2
+  exit 1
+fi
+source_bytes="$(du -sb "${source_paths[@]}" | awk '{total += $1} END {print total}')"
 available_bytes="$(df --output=avail -B1 "$backup_dir" | tail -n 1 | tr -d ' ')"
 required_bytes="$((source_bytes + source_bytes / 100 + database_bytes + 1073741824))"
 [[ "$available_bytes" -ge "$required_bytes" ]] || {
@@ -83,7 +92,7 @@ test -s "$partial"
 mv "$partial" "${destination}/database/pathlab.dump"
 
 tar --create --gzip --file "${destination}/files.tar.gz" \
-  --directory "$data_dir" originals private public
+  --directory "$data_dir" "${archive_roots[@]}"
 "$python_command" "$(dirname "$0")/postgres_backup_manifest.py" create "$destination" \
   --release-sha "$release_sha" \
   --schema-revision "$schema_revision" \
