@@ -8,14 +8,27 @@ const identifier = process.env.ASSESSMENT_CANARY_IDENTIFIER
 if (!publicId || !accessCode || !identifier) throw new Error('canary fixture inputs required')
 
 test('restores an offline queued answer after a simulated response-service outage', async ({ page, context }) => {
+  let releaseStart!: () => void
+  const startGate = new Promise<void>((resolve) => { releaseStart = resolve })
+  await page.route('**/api/v2/assessment/attempts', async (route) => {
+    await startGate
+    await route.continue()
+  })
   await page.goto(`/assessment/${publicId}`)
   await page.getByLabel('Access code').fill(accessCode)
   await page.getByRole('combobox', { name: 'Find your roster record' }).fill(identifier)
   await page.getByRole('listbox', { name: 'Matching roster records' })
     .getByRole('button', { name: new RegExp(identifier) }).click()
-  await page.getByRole('button', { name: 'Begin assessment' }).click()
+  const startRequest = page.waitForRequest((request) => request.url().endsWith('/api/v2/assessment/attempts') && request.method() === 'POST')
+  const begin = page.getByRole('button', { name: 'Begin assessment' })
+  await begin.click()
+  await startRequest
+  await expect(begin).toBeDisabled()
+  await expect(page.locator('input[type="radio"]')).toHaveCount(0)
+  releaseStart()
   const answer = page.locator('input[type="radio"]').first()
   await expect(answer).toBeVisible()
+  await page.unroute('**/api/v2/assessment/attempts')
 
   await context.setOffline(true)
   await answer.check()
