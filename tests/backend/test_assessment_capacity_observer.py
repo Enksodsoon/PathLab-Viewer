@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,11 @@ def _sample():
     return {
         "releaseSha": "a" * 40,
         "databaseEngine": "postgresql",
+        "sampledAt": int(time.time()),
+        "pressureRoles": ["api", "assessment", "classroom"],
+        "workerGenerations": {
+            "api": ["a" * 32], "assessment": ["b" * 32, "c" * 32], "classroom": ["d" * 32]
+        },
         "databaseMaxConnections": 32,
         "databaseConnections": 20,
         "poolTimeouts": 0,
@@ -54,6 +60,15 @@ def test_observer_rejects_invalid_counter(value):
 def test_observer_rejects_release_change_during_campaign():
     with pytest.raises(ValueError):
         _observer().validate_host_sample(_sample(), "b" * 40)
+
+
+def test_observer_rejects_stale_or_single_worker_samples():
+    for sample in (
+        {**_sample(), "sampledAt": int(time.time()) - 60},
+        {**_sample(), "workerGenerations": {"assessment": ["a" * 32]}},
+    ):
+        with pytest.raises(ValueError):
+            _observer().validate_host_sample(sample, "a" * 40)
 
 
 def test_observer_keeps_credentials_scoped_to_their_target(monkeypatch, tmp_path):
