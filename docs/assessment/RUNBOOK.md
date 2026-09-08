@@ -47,6 +47,11 @@ Dispatch `.github/workflows/assessment-capacity.yml` with the exact deployed 40-
 
 The five k6 jobs wait at one shared barrier and each execute exactly 100 single-iteration seats. The observer samples every 15 seconds and stops after three consecutive failures. Cleanup runs with `if: always()`, closes the administration, verifies exactly 500 aggregate/CSV rows, purges in batches of 100, removes grants/sessions/participants and the isolated class/draft/learner fixtures, then repeats cleanup for the browser canary. Any missing artifact closes as `NOT_EVALUABLE`; any observed gate failure closes as `NEGATIVE`.
 
+The fixture resolves the DZI descriptor into a full-resolution center JPEG tile
+and verifies image bytes before admitting the campaign. The shards and observer
+measure that image URL, not `slide.dzi` metadata. An HTML success response or
+descriptor response must not count as successful image delivery.
+
 ## Backup and restore reconciliation
 
 Before any pilot, capture a PostgreSQL backup and the exact release/configuration manifest. Restore into an isolated target, run Alembic to the recorded single head, verify `/readyz`, reconcile every closed Assessment aggregate, and compare administration counts, aggregate versions, gradebook latest-score pointers, retention/hold settings, and grant manifests. Open administrations with missing or malformed grants must keep readiness failed. A restore test is evidence only for the exact backup, release, and target recorded in the artifact.

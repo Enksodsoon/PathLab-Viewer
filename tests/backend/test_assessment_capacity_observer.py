@@ -1,10 +1,32 @@
 import importlib.util
+import io
 import json
 import sys
 import time
+from email.message import Message
 from pathlib import Path
 
 import pytest
+
+
+@pytest.mark.parametrize("payload,content_type,accepted", [
+    (b"\xff\xd8\xffjpeg", "image/jpeg", True),
+    (b"<Image/>", "application/xml", False),
+    (b"<html/>", "text/html", False),
+    (b"not an image", "image/jpeg", False),
+])
+def test_tile_observer_rejects_metadata_and_html(monkeypatch, payload, content_type, accepted):
+    module = _observer()
+    response = io.BytesIO(payload)
+    response.status = 200
+    response.headers = Message()
+    response.headers["Content-Type"] = content_type
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_args, **_kwargs: response)
+    if accepted:
+        assert module.fetch("https://app.example.test/tile.jpeg", {}, jpeg=True)[0] == payload
+    else:
+        with pytest.raises(RuntimeError, match="JPEG"):
+            module.fetch("https://app.example.test/tile.jpeg", {}, jpeg=True)
 
 
 def _observer():
@@ -110,7 +132,8 @@ def test_observer_keeps_credentials_scoped_to_their_target(monkeypatch, tmp_path
         seen.append((url, headers))
         return (_sample() if "host.example" in url else {"status": "ready"}), 1
 
-    def fetch_tile(url, headers):
+    def fetch_tile(url, headers, *, jpeg):
+        assert jpeg is True
         seen.append((url, headers))
         return b"synthetic", 1
 

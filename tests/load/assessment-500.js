@@ -86,7 +86,10 @@ export default function () {
     check(saved, { 'autosave accepted': (response) => response.status === 200 })
     if (saved.status === 200) autosaveCount.add(1)
     const tile = http.get(TILE_URL, { tags: { name: 'tile' } })
-    check(tile, { 'tile accepted': (response) => response.status === 200 })
+    check(tile, {
+      'tile accepted': (response) => response.status === 200
+        && String(response.headers['Content-Type']).toLowerCase().startsWith('image/jpeg'),
+    })
     if (index === 10 && __VU % 10 === 0) {
       http.cookieJar().clear(BASE_URL)
       session = access(identifier, true)

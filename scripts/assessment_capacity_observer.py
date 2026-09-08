@@ -57,13 +57,19 @@ def validate_host_sample(host: dict[str, Any], release_sha: str) -> None:
         raise ValueError("distinct worker measurements are incomplete")
 
 
-def fetch(url: str, headers: dict[str, str]) -> tuple[bytes, float]:
+def fetch(url: str, headers: dict[str, str], *, jpeg: bool = False) -> tuple[bytes, float]:
     started = time.perf_counter()
     request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310 - protected input
         if response.status != 200:
             raise RuntimeError(f"unexpected HTTP {response.status}")
-        payload = response.read()
+        payload = response.read(2 * 1024 * 1024 + 1) if jpeg else response.read()
+        if jpeg and (
+            response.headers.get_content_type() != "image/jpeg"
+            or not payload.startswith(b"\xff\xd8\xff")
+            or len(payload) > 2 * 1024 * 1024
+        ):
+            raise RuntimeError("tile observer did not receive bounded JPEG image data")
     return payload, (time.perf_counter() - started) * 1000
 
 
@@ -112,7 +118,7 @@ def main() -> int:
                 f"{args.administration_id}/monitor",
                 headers,
             )
-            _, tile_ms = fetch(args.tile_url, headers)
+            _, tile_ms = fetch(args.tile_url, headers, jpeg=True)
             host, _ = fetch_json(args.host_observer_url, observer_headers)
             validate_host_sample(host, args.release_sha)
             if worker_generations is None:
