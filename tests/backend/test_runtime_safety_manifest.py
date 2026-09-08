@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import stat
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -18,6 +19,36 @@ def load_runtime_safety_manifest() -> ModuleType:
 
 
 runtime_safety_manifest = load_runtime_safety_manifest()
+
+
+def test_runtime_digest_binds_operator_owned_qualification_routes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plain = runtime_safety_manifest.compose_digest("compose")
+    directory = tmp_path / "routes"
+    directory.mkdir()
+    fragment = directory / "qualification.caddy"
+    original_stat, original_lstat = Path.stat, Path.lstat
+
+    def protected_stat(path: Path, *args: object, **kwargs: object) -> object:
+        if path == directory:
+            return SimpleNamespace(st_uid=0, st_mode=stat.S_IFDIR | 0o700)
+        return original_stat(path, *args, **kwargs)
+
+    def protected_lstat(path: Path) -> object:
+        if path == fragment:
+            info = original_lstat(path)
+            return SimpleNamespace(st_uid=0, st_mode=stat.S_IFREG | 0o600, st_size=info.st_size)
+        return original_lstat(path)
+
+    monkeypatch.setattr(Path, "stat", protected_stat)
+    monkeypatch.setattr(Path, "lstat", protected_lstat)
+    assert runtime_safety_manifest.compose_digest("compose", directory) == plain
+    fragment.write_text("qualify.example.test { respond 200 }")
+    first = runtime_safety_manifest.compose_digest("compose", directory)
+    assert first != plain
+    fragment.write_text("qualify.example.test { respond 503 }")
+    assert runtime_safety_manifest.compose_digest("compose", directory) != first
 
 
 def runtime(*, postgres: bool = False) -> dict[str, object]:

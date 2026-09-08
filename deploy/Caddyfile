@@ -3,6 +3,9 @@
 	metrics
 }
 
+# Optional operator-owned qualification hosts; an empty glob adds no routes.
+import /etc/caddy/qualification/*.caddy
+
 {$DOMAIN} {
 	encode zstd gzip
 
