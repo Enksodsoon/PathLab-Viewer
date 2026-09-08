@@ -36,9 +36,34 @@ vi.mock('../assessment/api', async (importOriginal) => ({
     },
   }),
   searchAssessmentRoster: vi.fn(),
+  restoreAssessmentSession: vi.fn(),
+  getAssessmentResult: vi.fn(),
 }))
 
 afterEach(cleanup)
+
+it('restores a submitted attempt as awaiting release instead of reopening the answer form', async () => {
+  sessionStorage.setItem('pathlab-assessment-session:closed-1', 'synthetic-csrf')
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({
+    publicId: 'closed-1', mode: 'formative', status: 'closed', durationSeconds: 3600,
+    closesAt: null, assets: {}, manifest: { title: 'Closed assessment', items: [], settings: {} },
+  })
+  vi.mocked(assessmentApi.restoreAssessmentSession).mockResolvedValueOnce({
+    kind: 'roster', publicId: 'closed-1', status: 'closed', deviceGeneration: 1,
+    manifest: { title: 'Closed assessment', items: [], settings: {} },
+    attempt: { id: 'attempt-1', ordinal: 1, status: 'submitted', startedAt: new Date().toISOString(), responses: [] },
+  })
+  vi.mocked(assessmentApi.getAssessmentResult).mockRejectedValueOnce(
+    new assessmentApi.AssessmentHttpError(404, { code: 'ASSESSMENT_RESULT_NOT_RELEASED' }),
+  )
+  render(<MemoryRouter initialEntries={['/assessment/closed-1']}><Routes>
+    <Route path="/assessment/:publicId" element={<AssessmentStudentPage />} />
+  </Routes></MemoryRouter>)
+  expect(await screen.findByRole('heading', { name: 'Assessment submitted' })).toBeVisible()
+  expect(screen.getByText('Results will appear after your teacher releases them.')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Submit assessment' })).not.toBeInTheDocument()
+  sessionStorage.removeItem('pathlab-assessment-session:closed-1')
+})
 
 it('uses a one-question learner workspace with review and explicit submission', async () => {
   render(
