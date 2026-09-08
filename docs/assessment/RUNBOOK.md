@@ -14,6 +14,18 @@ Confirm one Alembic head and `/readyz`, verify every selected slide is privacy-p
 
 Poll count-only monitoring at 15 seconds. Do not expose live answers. Watch API p95, database connections, pool/lock timeouts, tile p95, CPU, memory, swap, restarts, and OOM events. Closing begins a 120-second cooldown before background work or another recorded administration resumes.
 
+PostgreSQL pools now count actual connection checkout timeouts and PostgreSQL
+`55P03` lock pressure, including unavailable NOWAIT locks. The internal
+`/api/v1/internal/capacity/pressure` endpoint requires a dedicated
+`PATHLAB_CAPACITY_OBSERVER_TOKEN` of at least 32 characters in
+`X-PathLab-Observer-Token`; it is disabled without that token and denied by the
+public Caddy internal-route rule. It returns no SQL, parameters, answers, or user
+identifiers. Its counters belong to one pool generation in one process. An
+observer must collect both Assessment worker generations and reject replacement
+or missing generations during a campaign; a single response is not a two-worker
+measurement. SQLite returns `PRESSURE_NOT_MEASURED`, rather than invented zeros.
+This endpoint alone is not the host observer or capacity certification.
+
 ## Retention and recovery
 
 Legal or academic hold blocks purge. Purge runs in bounded batches, removes participant/session/attempt/response/score/gradebook data and static grants, preserves approved aggregate snapshots, and reconciles after restore. Missing grants, schema mismatch, SQLite production configuration, or disabled identity governance must fail readiness closed.

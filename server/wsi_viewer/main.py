@@ -38,7 +38,8 @@ from .classroom_hub import ClassroomHub
 from .classroom_routes import CLASSROOM_RETRY_AFTER_SECONDS, register_classroom_routes
 from .classroom_runtime import ClassroomSingletonLock
 from .config import Settings
-from .database import session_factory
+from .database import engine_for, session_factory
+from .database_pressure import PressureQueuePool
 from .delivery import deliver_file
 from .desktop_routes import register_desktop_routes
 from .domain import InvalidTransition, SlideState, transition
@@ -353,11 +354,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if current.service_role == "general" and is_classroom_path:
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
         if current.service_role == "classroom" and not (
-            is_classroom_path or path in {"/livez", "/readyz"}
+            is_classroom_path or path in {
+                "/livez", "/readyz", "/api/v1/internal/capacity/pressure"
+            }
         ):
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
         if current.service_role == "assessment" and not (
-            is_assessment_path or path in {"/livez", "/readyz"}
+            is_assessment_path or path in {
+                "/livez", "/readyz", "/api/v1/internal/capacity/pressure"
+            }
         ):
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
         if (
@@ -587,6 +592,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/livez")
     def livez() -> dict[str, str]:
         return {"status": "live"}
+
+    @app.get("/api/v1/internal/capacity/pressure", include_in_schema=False)
+    def capacity_pressure(
+        response: Response,
+        observer_token: Annotated[str | None, Header(alias="X-PathLab-Observer-Token")] = None,
+    ) -> dict[str, str | int]:
+        expected = current.capacity_observer_token
+        if len(expected) < 32 or not hmac.compare_digest(
+            (observer_token or "").encode(), expected.encode()
+        ):
+            raise HTTPException(status_code=404, detail="Not Found")
+        pool = engine_for(current).pool
+        if not isinstance(pool, PressureQueuePool):
+            raise HTTPException(status_code=503, detail={"code": "PRESSURE_NOT_MEASURED"})
+        response.headers["Cache-Control"] = "no-store"
+        return {"serviceRole": current.service_role, **pool.pressure_snapshot()}
 
     @app.get("/readyz")
     def readyz() -> dict[str, str]:
@@ -1102,7 +1123,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.router.routes[:] = [
             route
             for route in app.router.routes
-            if (path := getattr(route, "path", "")) in {"/livez", "/readyz"}
+            if (path := getattr(route, "path", "")) in {
+                "/livez", "/readyz", "/api/v1/internal/capacity/pressure"
+            }
             or (
                 _is_classroom_api_path(path)
                 if current.service_role == "classroom"
