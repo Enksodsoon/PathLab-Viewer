@@ -4,11 +4,15 @@ import time
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.exc import TimeoutError as PoolTimeout
-from wsi_viewer.assessment_admission import AssessmentAdmissionMiddleware
+from wsi_viewer.assessment_admission import (
+    AnswerAdmissionSlots,
+    AssessmentAdmissionMiddleware,
+    is_answer_write,
+)
 from wsi_viewer.database_pressure import PressureQueuePool
 
 
-async def request(app, path="/api/v2/assessment/access"):
+async def request(app, path="/api/v2/assessment/access", method="POST"):
     messages = []
 
     async def receive():
@@ -17,7 +21,7 @@ async def request(app, path="/api/v2/assessment/access"):
     async def send(message):
         messages.append(message)
 
-    await app({"type": "http", "path": path}, receive, send)
+    await app({"type": "http", "path": path, "method": method}, receive, send)
     return messages
 
 
@@ -43,7 +47,11 @@ def test_burst_queues_before_pool_checkout_instead_of_timing_out():
 
         target = AssessmentAdmissionMiddleware(app, concurrency=2) if gated else app
         try:
-            responses = await asyncio.gather(*(request(target) for _ in range(40)))
+            responses = await asyncio.gather(*(
+                request(target, "/api/v2/assessment/attempts/example/responses", "PATCH")
+                if index % 2 else request(target)
+                for index in range(40)
+            ))
             return [messages[0]["status"] for messages in responses]
         finally:
             engine.dispose()
@@ -112,3 +120,65 @@ def test_slot_is_held_through_response_teardown_and_released_on_error():
         assert not gate.slots.locked()
 
     asyncio.run(scenario())
+
+
+def test_answer_saves_pass_entry_backlog_without_starving_new_learners():
+    async def scenario():
+        slots = AnswerAdmissionSlots(1)
+        await slots.acquire(False)
+        order = []
+
+        async def work(name, answer):
+            await slots.acquire(answer)
+            try:
+                order.append(name)
+            finally:
+                slots.release()
+
+        tasks = [asyncio.create_task(work(f"entry-{i}", False)) for i in range(5)]
+        await asyncio.sleep(0)
+        tasks += [asyncio.create_task(work(f"save-{i}", True)) for i in range(10)]
+        await asyncio.sleep(0)
+        slots.release()
+        await asyncio.gather(*tasks)
+        assert order[:8] == [
+            "save-0", "save-1", "save-2", "entry-0",
+            "save-3", "save-4", "save-5", "entry-1",
+        ]
+        assert [name for name in order if name.startswith("entry")] == [
+            f"entry-{i}" for i in range(5)
+        ]
+        assert slots.available == 1
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("answer", [True, False])
+def test_cancellation_after_slot_assignment_does_not_leak_capacity(answer):
+    async def scenario():
+        slots = AnswerAdmissionSlots(1)
+        await slots.acquire(False)
+        queued = asyncio.create_task(slots.acquire(answer))
+        await asyncio.sleep(0)
+        slots.release()
+        queued.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await queued
+        await asyncio.wait_for(slots.acquire(False), 0.1)
+        assert slots.locked()
+        slots.release()
+        assert slots.available == 1
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(("method", "path", "expected"), [
+    ("PATCH", "/api/v2/assessment/attempts/example/responses", True),
+    ("POST", "/api/v2/assessment/attempts/example/submit", True),
+    ("GET", "/api/v2/assessment/attempts/example/responses", False),
+    ("POST", "/api/v2/assessment/attempts", False),
+    ("POST", "/api/v2/assessment/access", False),
+    ("PATCH", "/api/v2/assessment/attempts//responses", False),
+])
+def test_only_answer_mutations_receive_priority(method, path, expected):
+    assert is_answer_write({"method": method, "path": path}) is expected
