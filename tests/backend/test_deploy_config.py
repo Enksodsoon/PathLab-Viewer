@@ -752,6 +752,10 @@ def test_release_script_has_atomic_swap_health_check_and_rollback() -> None:
         "EXPECTED_SERVICES=$'api\\ncaddy\\nclassroom\\npostgres\\ntile-service\\ntusd\\nworker'"
     ) in script
     assert "HEALTH_SERVICES+=(postgres)" in script
+    assert 'ASSESSMENT_ENABLED="${ASSESSMENT_ENABLED:-false}"' in script
+    assert 'fail "Assessment requires PostgreSQL"' in script
+    assert "HEALTH_SERVICES+=(assessment)" in script
+    assert "printf '%s\\nassessment\\n'" in script
 
 
 def test_candidate_builds_are_release_tagged_and_backup_paths_share_one_data_root() -> None:

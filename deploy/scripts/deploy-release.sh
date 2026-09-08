@@ -23,6 +23,7 @@ BACKUP_PATH=""
 DATA_DIR=""
 BACKUP_DIR=""
 DATABASE_ENGINE=""
+ASSESSMENT_ENABLED=false
 
 exclude_capacity_for_deployment() {
   # The deployment lock is already held. Nonblocking acquisition prevents a
@@ -544,6 +545,14 @@ DATABASE_ENGINE="$(bash "${STAGE_DIR}/deploy/scripts/compose-pathlab.sh" engine)
 LIVE_DATABASE_ENGINE="$(bash "${LIVE_DIR}/deploy/scripts/compose-pathlab.sh" engine)"
 [[ "${DATABASE_ENGINE}" == "${LIVE_DATABASE_ENGINE}" ]] || \
   fail "database engine changes require the separate cutover workflow"
+ASSESSMENT_ENABLED="$(sed -n 's/^PATHLAB_ASSESSMENT_ENABLED=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
+ASSESSMENT_ENABLED="${ASSESSMENT_ENABLED:-false}"
+[[ "${ASSESSMENT_ENABLED}" =~ ^(true|false)$ ]] || fail "Assessment feature state is invalid"
+# Activation is a separate qualified operation. A routine release preserves
+# its existing state and must health-check the resulting optional service.
+if [[ "${ASSESSMENT_ENABLED}" == true ]]; then
+  [[ "${DATABASE_ENGINE}" == postgres ]] || fail "Assessment requires PostgreSQL"
+fi
 
 # Create the writable grant directory before Docker creates Caddy's read-only
 # bind mount as root. Never follow a substituted data/delivery path.
@@ -609,11 +618,17 @@ if [[ "${DATABASE_ENGINE}" == "postgres" ]]; then
 else
   EXPECTED_SERVICES=$'api\ncaddy\nclassroom\ntile-service\ntusd\nworker'
 fi
+if [[ "${ASSESSMENT_ENABLED}" == true ]]; then
+  EXPECTED_SERVICES="$(printf '%s\nassessment\n' "${EXPECTED_SERVICES}" | sort)"
+fi
 [[ "${RUNNING_SERVICES}" == "${EXPECTED_SERVICES}" ]] || \
   fail "not all production services are running"
 HEALTH_SERVICES=(api classroom tile-service worker)
 if [[ "${DATABASE_ENGINE}" == "postgres" ]]; then
   HEALTH_SERVICES+=(postgres)
+fi
+if [[ "${ASSESSMENT_ENABLED}" == true ]]; then
+  HEALTH_SERVICES+=(assessment)
 fi
 for service in "${HEALTH_SERVICES[@]}"; do
   container_id="$(compose_release "${LIVE_DIR}" ps -q "${service}")"
