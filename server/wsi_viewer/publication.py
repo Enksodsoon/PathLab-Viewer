@@ -165,3 +165,5 @@ def delete_all_slide_grants(
         unpublish_individual_derivative(storage, slide.public_id)
         unpublish_derivative(storage, slide.public_id)
     slide.published_at = None
+    if slide.state == SlideState.PUBLISHED:
+        slide.state = SlideState.READY_PRIVATE
