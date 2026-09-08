@@ -1941,7 +1941,10 @@ def register_assessment_routes(
             collection = payload.collection.model_dump(mode="json", by_alias=True)
             for target_cohort_id in targets:
                 raw_code = payload.access_code
-                if payload.mode == "quiz" and raw_code is None:
+                if raw_code is None and (
+                    payload.mode == "quiz"
+                    or (payload.mode == "formative" and target_cohort_id is not None)
+                ):
                     raw_code = secrets.token_urlsafe(6)
                 administration = AssessmentAdministration(
                     organization_id=draft.organization_id,

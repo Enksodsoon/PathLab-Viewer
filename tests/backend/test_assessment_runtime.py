@@ -1,6 +1,7 @@
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from test_assessment_admin import _client, _document
 from wsi_viewer.database import session_factory
@@ -382,8 +383,9 @@ def test_rostered_access_requires_explicit_device_takeover(tmp_path: Path) -> No
     )
 
 
+@pytest.mark.parametrize("mode", ["quiz", "formative"])
 def test_roster_search_requires_the_access_code_and_returns_canonical_records(
-    tmp_path: Path,
+    tmp_path: Path, mode: str,
 ) -> None:
     client, _ = _client(tmp_path)
     cohort_id = client.post(
@@ -410,9 +412,9 @@ def test_roster_search_requires_the_access_code_and_returns_canonical_records(
     published = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
         json={
-            "mode": "quiz",
+            "mode": mode,
             "cohortId": cohort_id,
-            "accessCode": "quiz-code",
+            **({"accessCode": "quiz-code"} if mode == "quiz" else {}),
             "durationSeconds": 3600,
             "maxAttempts": 1,
         },
@@ -420,11 +422,13 @@ def test_roster_search_requires_the_access_code_and_returns_canonical_records(
     client.post(
         f"/api/v2/admin/assessment/administrations/{published['administrationId']}/open"
     )
+    code = published["accessCode"]
+    assert isinstance(code, str) and len(code) >= 8
     path = f"/api/v2/assessment/administrations/{published['publicId']}/roster-search"
 
     rejected = client.post(path, json={"query": "Som", "accessCode": "wrong"})
     assert rejected.status_code == 404
-    matched = client.post(path, json={"query": "Blue", "accessCode": "quiz-code"})
+    matched = client.post(path, json={"query": "Blue", "accessCode": code})
     assert matched.status_code == 200, matched.text
     assert matched.headers["cache-control"] == "no-store"
     assert matched.json() == {
@@ -438,6 +442,11 @@ def test_roster_search_requires_the_access_code_and_returns_canonical_records(
             }
         ]
     }
+    access = client.post("/api/v2/assessment/access", json={
+        "kind": "roster", "publicId": published["publicId"],
+        "studentIdentifier": "s001", "accessCode": code,
+    })
+    assert access.status_code == 201, access.text
 
 
 def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) -> None:

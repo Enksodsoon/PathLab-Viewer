@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from test_assessment_admin import _client
 from test_assessment_contract_v2 import v2_document
 
@@ -12,8 +13,9 @@ def _draft(client):
     ).json()
 
 
+@pytest.mark.parametrize("mode", ["quiz", "formative"])
 def test_v2_publish_creates_atomic_class_administrations_and_one_time_codes(
-    tmp_path: Path,
+    tmp_path: Path, mode: str,
 ) -> None:
     client, _ = _client(tmp_path)
     first = client.post("/api/v2/admin/assessment/classes", json={"name": "Class A"}).json()
@@ -22,7 +24,7 @@ def test_v2_publish_creates_atomic_class_administrations_and_one_time_codes(
 
     published = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
-        json={"mode": "quiz", "classIds": [first["id"], second["id"]]},
+        json={"mode": mode, "classIds": [first["id"], second["id"]]},
     )
 
     assert published.status_code == 201, published.text
