@@ -109,7 +109,8 @@ def main() -> int:
     samples: list[dict[str, Any]] = []
     failures = 0
     worker_generations = None
-    deadline = time.monotonic() + args.duration_seconds
+    next_sample_at = time.monotonic()
+    deadline = next_sample_at + args.duration_seconds
     while time.monotonic() < deadline:
         try:
             ready, ready_ms = fetch_json(f"{args.base_url}/readyz", headers)
@@ -145,7 +146,9 @@ def main() -> int:
                 raise RuntimeError(
                     "observer watchdog recorded three consecutive failures"
                 ) from error
-        time.sleep(15)
+        # Network work belongs inside the cadence, rather than extending it.
+        next_sample_at += 15
+        time.sleep(max(0, min(next_sample_at, deadline) - time.monotonic()))
     host_samples = [item["host"] for item in samples if "host" in item]
     output = {
         "releaseSha": args.release_sha,

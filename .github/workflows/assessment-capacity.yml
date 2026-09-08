@@ -162,6 +162,7 @@ jobs:
         with: { name: assessment-campaign-cleanup, path: artifacts/assessment-capacity/, if-no-files-found: error }
 
   provision-canary:
+    if: ${{ !cancelled() && needs.cleanup-campaign.result == 'success' }}
     needs: cleanup-campaign
     environment: assessment-capacity
     runs-on: ubuntu-24.04
@@ -189,6 +190,7 @@ jobs:
           echo "identifier=$(jq -r .identifier artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
 
   browser-canary:
+    if: ${{ !cancelled() && needs.provision-canary.result == 'success' }}
     needs: provision-canary
     environment: assessment-capacity
     runs-on: ubuntu-24.04
