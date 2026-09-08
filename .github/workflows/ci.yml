@@ -138,6 +138,7 @@ jobs:
           pytest
           tests/backend/test_postgres_foundation.py
           tests/backend/test_postgres_migration.py
+          tests/backend/test_postgres_restore_comparison.py
           tests/backend/test_postgres_classroom.py
           tests/backend/test_postgres_time_support.py
           tests/backend/test_postgres_sharing_lifecycle.py
