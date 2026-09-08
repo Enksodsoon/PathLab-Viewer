@@ -121,14 +121,14 @@ describe('Classroom folder setup', () => {
     renderSetup()
 
     const group = await screen.findByRole('radiogroup', { name: 'Class folder' })
-    const root = within(group).getByRole('radio', { name: /Pathology 101.*2 slides.*includes subfolders/i })
+    const root = await within(group).findByRole('radio', { name: /Pathology 101.*2 slides.*includes subfolders/i })
     const empty = within(group).getByRole('radio', { name: /Empty class.*No slides/i })
 
     expect(root.closest('label')?.querySelector('.classroom-folder-picker__icon svg')).toBeInTheDocument()
     expect(empty).toBeDisabled()
 
     await userEvent.click(screen.getByRole('button', { name: 'Load more folders' }))
-    const child = within(group).getByRole('radio', { name: /Week 1.*2 slides.*Pathology 101.*Year 1.*Block A/i })
+    const child = await within(group).findByRole('radio', { name: /Week 1.*2 slides.*Pathology 101.*Year 1.*Block A/i })
     expect(child).toBeEnabled()
 
     await userEvent.click(root)
@@ -201,7 +201,7 @@ describe('Classroom folder setup', () => {
     renderSetup()
 
     const group = await screen.findByRole('radiogroup', { name: 'Class folder' })
-    await userEvent.click(within(group).getByRole('radio', { name: /Pathology 101/i }))
+    await userEvent.click(await within(group).findByRole('radio', { name: /Pathology 101/i }))
     const prepare = screen.getByRole('button', { name: 'Prepare classroom with 2 slides' })
     await userEvent.dblClick(prepare)
 
@@ -258,7 +258,7 @@ describe('Classroom folder setup', () => {
     renderSetup()
 
     const group = await screen.findByRole('radiogroup', { name: 'Class folder' })
-    await userEvent.click(within(group).getByRole('radio', { name: /Pathology 101/i }))
+    await userEvent.click(await within(group).findByRole('radio', { name: /Pathology 101/i }))
     await userEvent.click(screen.getByRole('button', { name: 'Prepare classroom with 2 slides' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Start live class' }))
 
