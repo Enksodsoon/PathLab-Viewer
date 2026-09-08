@@ -516,6 +516,8 @@ python3 "${STAGE_DIR}/deploy/scripts/production_safety.py" \
   preflight "${DEPLOY_EVIDENCE}" "${TARGET_SHA}" \
   --signature "${EVIDENCE_SIGNATURE}" --nonce "${EVIDENCE_NONCE}" || \
   fail "production preflight guards failed"
+python3 "${STAGE_DIR}/deploy/scripts/runtime_safety_manifest.py" verify-service-manager || \
+  fail "production service manager must use the reviewed Compose selector before maintenance"
 DEPLOYED_ANNOTATIONS_ENABLED="$(sed -n 's/^PATHLAB_ANNOTATIONS_ENABLED=//p' "${STAGE_DIR}/deploy/.env" | tail -n 1)"
 if [[ "${DEPLOYED_ANNOTATIONS_ENABLED:-false}" == "true" ]]; then
   ACTIVATION="/var/lib/pathlab-viewer/annotation-activation.json"

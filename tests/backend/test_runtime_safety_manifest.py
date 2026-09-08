@@ -21,6 +21,42 @@ def load_runtime_safety_manifest() -> ModuleType:
 runtime_safety_manifest = load_runtime_safety_manifest()
 
 
+def service_commands() -> dict[str, str]:
+    wrapper = "/bin/bash /opt/pathlab-viewer/deploy/scripts/compose-pathlab.sh "
+    return {
+        "ExecStart": wrapper + "up -d --build --remove-orphans",
+        "ExecReload": wrapper + "up -d --build --remove-orphans",
+        "ExecStop": wrapper + "down",
+    }
+
+
+def test_service_manager_preserves_postgres_and_optional_profiles(monkeypatch):
+    raw = "\n".join(
+        f"{key}={{ path=/bin/bash ; argv[]={value} ; }}"
+        for key, value in service_commands().items()
+    )
+    monkeypatch.setattr(runtime_safety_manifest, "_run", lambda *_args: raw)
+    assert runtime_safety_manifest.verify_service_manager() == {"engineAwareServiceManager": True}
+
+
+@pytest.mark.parametrize("name", ["ExecStart", "ExecReload", "ExecStop"])
+@pytest.mark.parametrize(
+    "replacement",
+    ["/usr/bin/docker compose up -d --remove-orphans", "", "/bin/bash -c unsafe-wrapper"],
+)
+def test_service_manager_rejects_base_compose_and_overridden_commands(
+    monkeypatch, name, replacement
+):
+    commands = service_commands()
+    commands[name] = replacement
+    raw = "\n".join(
+        f"{key}={{ path=/bin/bash ; argv[]={value} ; }}" for key, value in commands.items()
+    )
+    monkeypatch.setattr(runtime_safety_manifest, "_run", lambda *_args: raw)
+    with pytest.raises(runtime_safety_manifest.RuntimeSafetyError, match="service manager"):
+        runtime_safety_manifest.verify_service_manager()
+
+
 def test_runtime_digest_binds_operator_owned_qualification_routes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

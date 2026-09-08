@@ -8,6 +8,15 @@ The dedicated service uses the optional Compose profile `assessment`. Ordinary p
 
 ## Prepare and open
 
+Before database cutover or release maintenance, verify that systemd's effective
+`ExecStart`, `ExecReload`, and `ExecStop` use `compose-pathlab.sh`. The preflight
+command `python3 deploy/scripts/runtime_safety_manifest.py verify-service-manager`
+rejects an older unit that invokes base `docker compose` directly: that unit
+omits the PostgreSQL overlay and can remove its container as an orphan. Install
+the reviewed `deploy/pathlab-viewer.service` into `/etc/systemd/system/` and run
+`systemctl daemon-reload` before retrying. Preserve the PostgreSQL volume and
+authority receipt during recovery; do not switch back to SQLite.
+
 Confirm one Alembic head and `/readyz`, verify every selected slide is privacy-passed `static_dzi`, create administration-scoped hardlink grants, prewarm the declared DZI levels, drain upload/conversion/background work, and confirm Classroom is idle. Only one Formative or Quiz/Test administration may be preparing or open.
 
 ## Monitor and close

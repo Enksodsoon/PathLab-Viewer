@@ -158,6 +158,10 @@ class Cutover:
             raise CutoverError("Invalid production domain")
         self.locks.append(lock(Path("/var/lock/pathlab-viewer-deploy.lock")))
         self.locks.append(lock(Path("/run/pathlab-capacity-controller.lock")))
+        self.run(
+            "python3", str(self.scripts / "runtime_safety_manifest.py"),
+            "verify-service-manager",
+        )
         for name in ("pathlab-capacity-active.json", "pathlab-capacity-controller"):
             path = Path("/run") / name
             if path.exists() or path.is_symlink():
