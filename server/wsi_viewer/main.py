@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .admission import SharedAdmission
 from .annotation_routes import register_annotation_routes
+from .assessment_admission import AssessmentAdmissionMiddleware
 from .assessment_assets import assessment_assets_ready
 from .assessment_routes import register_assessment_routes
 from .auth import (
@@ -38,7 +39,7 @@ from .classroom_hub import ClassroomHub
 from .classroom_routes import CLASSROOM_RETRY_AFTER_SECONDS, register_classroom_routes
 from .classroom_runtime import ClassroomSingletonLock
 from .config import Settings
-from .database import engine_for, session_factory
+from .database import engine_for, pool_options_for, session_factory
 from .database_pressure import PressureQueuePool
 from .delivery import deliver_file
 from .desktop_routes import register_desktop_routes
@@ -1132,6 +1133,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 else _is_assessment_api_path(path)
             )
         ]
+
+    if current.service_role == "assessment":
+        app.add_middleware(
+            AssessmentAdmissionMiddleware,
+            concurrency=pool_options_for(current).get("pool_size", 1),
+        )
 
     return app
 

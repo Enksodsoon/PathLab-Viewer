@@ -35,6 +35,16 @@ or missing generations during a campaign; a single response is not a two-worker
 measurement. SQLite returns `PRESSURE_NOT_MEASURED`, rather than invented zeros.
 This endpoint alone is not the host observer or capacity certification.
 
+The dedicated Assessment service admits at most one HTTP request per configured
+pool connection in each worker, retaining admission until dependency teardown
+finishes. Up to 512 additional requests per worker wait asynchronously for at
+most 30 seconds; overflow and expiry return `503 ASSESSMENT_BUSY`. Liveness and
+the connection-free pressure endpoint remain observable during saturation.
+This keeps synchronous request bursts from occupying threads while waiting for
+the four-connection pool. Database pool limits and checkout deadlines remain
+unchanged. Queue time remains part of the measured HTTP latency, and a busy
+response still fails certification; admission control is not capacity evidence.
+
 ## Retention and recovery
 
 Legal or academic hold blocks purge. Purge runs in bounded batches, removes participant/session/attempt/response/score/gradebook data and static grants, preserves approved aggregate snapshots, and reconciles after restore. Missing grants, schema mismatch, SQLite production configuration, or disabled identity governance must fail readiness closed.
