@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "247ee20d711d7bd79d773447333650fc7d33ae0e387831cb2b5bba3eaa7e15ab",
+      "sha256": "115ec09cce7f3a8505aca5f5e99f5a90bbef392ee21eaddc6d0e6169952e91c0",
       "sizeBytes": 727826
     },
     {
       "path": "build.spdx.json",
-      "sha256": "0ccfe66aed5ad8d68c61f132a703a5681cfb31eb5c7f179a1f1e886ca97b1cf7",
+      "sha256": "ea2a01c6b706cd415a6531c961188eddb8114f02dd3afada32e404fbb98eccce",
       "sizeBytes": 587936
     },
     {
       "path": "source.cdx.json",
-      "sha256": "8fde716188318acf82100916df5115ccf2c4e919f28613a33afb50aaa9007698",
+      "sha256": "ab995ad6686f0828917dafa63b18dbb54b9a6b20f7d460407083375d3bd9e449",
       "sizeBytes": 767926
     },
     {
       "path": "source.spdx.json",
-      "sha256": "20a50fe15caccec2031ef7d3c42b7b4888a8a7c3e7e47db5e1f973e2eac75556",
+      "sha256": "358d82c7d1829c9c7170d219bbe359f22d78c2c0f668c54eb3ddaf9b1b406ad6",
       "sizeBytes": 619600
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-08T02:25:56Z",
+  "generatedAt": "2026-09-08T08:48:26Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -105,10 +105,10 @@
       "sizeBytes": 671
     },
     {
-      "gitBlob": "d7fdde054333aad7ded7cc50be93b2afacfad2f6",
+      "gitBlob": "51a20bdfd2b03e12b14ce43aac34c2e38e78ea16",
       "path": "deploy/compose.yaml",
-      "sha256": "0bd00197a78f345c90a5dd0285870a93f8d8e2183b77d5d6bb9e80de96c1691e",
-      "sizeBytes": 9498
+      "sha256": "2d28328aea9dbe2941770aa49dd4c885f94a75d8adad0bd7707e8666723a861b",
+      "sizeBytes": 9574
     },
     {
       "gitBlob": "cbec5c761cd48458bc2574c74a4b96d9cc588888",
@@ -355,6 +355,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "9aa732be9f65ff33ca8db343e3c73a1a80454c10",
-  "subjectTree": "bd080dd855322c31a42791d7c4c8c0a4be24e5fa"
+  "subjectCommit": "d6d968f8ff81ab00546ebafb7137b1e6e40eeb3f",
+  "subjectTree": "23b5c90b207769944b02d27973a3c41647fcb3f7"
 }
