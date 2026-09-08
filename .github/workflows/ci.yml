@@ -139,6 +139,9 @@ jobs:
           tests/backend/test_postgres_foundation.py
           tests/backend/test_postgres_migration.py
           tests/backend/test_postgres_classroom.py
+          tests/backend/test_postgres_time_support.py
+          tests/backend/test_postgres_sharing_lifecycle.py
+          tests/backend/test_postgres_storage.py
           tests/backend/test_security_admission.py
           tests/backend/test_identity_mutation_lock.py
       - name: Verify PostgreSQL backup and disposable restore

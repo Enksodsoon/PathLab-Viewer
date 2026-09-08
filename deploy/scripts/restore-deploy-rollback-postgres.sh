@@ -54,7 +54,12 @@ postgres_exec() {
   docker exec -i "${postgres_container}" "$@"
 }
 
-bash "${script_dir}/compose-pathlab.sh" stop caddy api classroom tile-service tusd worker
+application_services=(caddy api classroom tile-service tusd worker)
+configured_services="$(bash "${script_dir}/compose-pathlab.sh" config --services)"
+if grep -Fxq assessment <<<"${configured_services}"; then
+  application_services+=(assessment)
+fi
+bash "${script_dir}/compose-pathlab.sh" stop "${application_services[@]}"
 postgres_exec psql --no-psqlrc --username "${database_user}" --dbname postgres \
   --set ON_ERROR_STOP=1 \
   --command "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${database_name}' AND pid <> pg_backend_pid();"

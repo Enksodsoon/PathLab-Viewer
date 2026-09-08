@@ -43,7 +43,7 @@ export function AssessmentShell() {
       if (cancelled) return
       if (caught instanceof ApiError && caught.status === 401) setAuthorized(false)
       else {
-        setError('PathLab navigation could not load. Teacher Studio remains available with limited navigation.')
+        setError('PathLab navigation could not load. Teaching Studio remains available with limited navigation.')
         setAuthorized(true)
       }
     })
@@ -71,7 +71,7 @@ export function AssessmentShell() {
 
   if (signingOut) return <Loader label="Signing out…" size="large" fullscreen />
   if (authorized === false) return <Suspense fallback={<Loader label="Opening secure sign in…" size="large" fullscreen />}><AuthPanel notice="" onSuccess={() => { setAuthorized(null); setAuthRevision((current) => current + 1) }} /></Suspense>
-  if (authorized === null) return <Loader label="Loading Teacher Studio…" size="large" fullscreen />
+  if (authorized === null) return <Loader label="Loading Teaching Studio…" size="large" fullscreen />
 
   return <div className={`library-shell assessment-app-shell ${railExpanded ? 'rail-expanded' : ''}`} data-layout="canvas-focus">
     <AppRail
@@ -93,7 +93,7 @@ export function AssessmentShell() {
     />
     <main className="library-main assessment-workspace" data-canvas-region="content">
       {error ? <div className="assessment-shell-error" role="alert">
-        <span>PathLab navigation could not load. Teacher Studio remains available with limited navigation.</span>
+        <span>PathLab navigation could not load. Teaching Studio remains available with limited navigation.</span>
         <button type="button" onClick={retryNavigation}>Retry</button>
       </div> : null}
       <Outlet />

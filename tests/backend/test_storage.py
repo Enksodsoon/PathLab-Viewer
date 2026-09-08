@@ -1,6 +1,6 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -11,18 +11,22 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import (
+    ClassroomSession,
+    ClassroomSessionSlide,
     Job,
     LibraryShare,
     PublicationGrant,
     ShareSlide,
     Slide,
 )
+from wsi_viewer.publication import delivery_version
 from wsi_viewer.storage import (
     InsufficientStorage,
     PublicationError,
     StorageLayout,
     admission_required,
     publish_derivative,
+    publish_individual_derivative,
     unpublish_derivative,
 )
 from wsi_viewer.storage_accounting import (
@@ -484,6 +488,70 @@ def test_reconciliation_rejects_unsafe_derivative_symlink(tmp_path: Path) -> Non
 
     with pytest.raises(PublicationError, match="UNSAFE_DERIVATIVE"):
         reconcile_storage(factory, layout)
+
+
+@pytest.mark.parametrize("offset_hours", [0, 7])
+def test_reconciliation_preserves_bound_delivery_and_classroom_snapshot(
+    tmp_path: Path, offset_hours: int,
+) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'snapshot-reconcile.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    published_at = datetime(2026, 9, 7, 3, 12, 45, 123456, tzinfo=UTC)
+    canonical = published_at.strftime("%Y%m%d%H%M%S%f")
+    version = (published_at + timedelta(hours=offset_hours)).strftime("%Y%m%d%H%M%S%f")
+    snapshot_url = f"/tiles/snapshot-public/{version}/slide.dzi"
+    with factory() as database:
+        slide = Slide(
+            id="snapshot-slide", public_id="snapshot-public", display_name="Published",
+            original_filename="published.ome.tif", source_bytes=8,
+            state=SlideState.PUBLISHED, published_at=published_at, privacy_status="passed",
+        )
+        classroom = ClassroomSession(
+            id="snapshot-classroom", join_code_hash="synthetic-snapshot-hash",
+            expires_at=published_at + timedelta(hours=1),
+        )
+        database.add_all([slide, classroom])
+        database.flush()
+        database.add(PublicationGrant(
+            slide_id=slide.id, source_type="individual", source_id=slide.id,
+        ))
+        database.add(ClassroomSessionSlide(
+            id="snapshot-entry", session_id=classroom.id, slide_id=slide.id,
+            slide_position=0, published_asset_id="synthetic-snapshot-asset",
+            asset_version=version, dzi_descriptor_path=snapshot_url,
+            width=1, height=1, tile_size=256, tile_format="jpeg", display_name=slide.display_name,
+        ))
+        database.commit()
+    derivative = layout.for_slide("snapshot-slide").private_derivative
+    (derivative / "slide_files" / "0").mkdir(parents=True)
+    (derivative / "slide.dzi").write_bytes(b"descriptor")
+    (derivative / "slide_files" / "0" / "0_0.jpeg").write_bytes(b"jpeg")
+    publish_derivative(layout, "snapshot-slide", "snapshot-public")
+    publish_individual_derivative(layout, "snapshot-slide", "snapshot-public", version)
+    with factory() as database:
+        stored = database.get(Slide, "snapshot-slide")
+        assert stored is not None
+        assert delivery_version(stored, layout) == version
+
+    for _ in range(2):
+        reconcile_storage(factory, layout)
+        with factory() as database:
+            snapshot = database.get(ClassroomSessionSlide, "snapshot-entry")
+            assert snapshot is not None
+            assert snapshot.asset_version == version
+            assert snapshot.dzi_descriptor_path == snapshot_url
+            relative_path = snapshot.dzi_descriptor_path.removeprefix("/tiles/")
+        snapshot_file = layout.root / "delivery" / "individual" / relative_path
+        assert snapshot_file.is_file()
+        assert snapshot_file.samefile(derivative / "slide.dzi")
+        assert (snapshot_file.parent / "slide_files" / "0" / "0_0.jpeg").read_bytes() == b"jpeg"
+        if offset_hours:
+            assert not layout.individual_delivery_for("snapshot-public", canonical).exists()
 
 
 def test_reconciliation_rebuilds_public_delivery_state(tmp_path: Path) -> None:

@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import stat
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
+from .admission import lock_admission
 from .domain import InvalidTransition, SlideState, transition
 from .library import utcnow
 from .models import (
@@ -21,7 +23,7 @@ from .models import (
     Slide,
 )
 from .publication import INDIVIDUAL, delivery_version
-from .sharing import write_share_delivery_manifest
+from .sharing import ShareConflict, write_share_delivery_manifest
 from .storage import (
     InsufficientStorage,
     PublicationError,
@@ -122,7 +124,8 @@ def reserve_new_slide(
     required = admission_required(source_bytes, render_mode=render_mode)
     _require_physical_space(layout.root, required)
     with factory() as database:
-        _begin_immediate(database)
+        # All slide reservations share the application cap, across users and workers.
+        lock_admission(database, "storage")
         _require_application_capacity(database, layout, required)
         if folder_id is not None:
             folder = database.get(Folder, folder_id)
@@ -158,7 +161,7 @@ def reserve_retry(
     actor_user_id: str | None,
 ) -> Slide:
     with factory() as database:
-        _begin_immediate(database)
+        lock_admission(database, "storage")
         slide = database.get(Slide, slide_id)
         if slide is None:
             raise LookupError("Slide not found")
@@ -266,7 +269,7 @@ def reconcile_storage(
                         (
                             granted_slide.id,
                             granted_slide.public_id,
-                            delivery_version(granted_slide),
+                            delivery_version(granted_slide, layout),
                         )
                     )
 
@@ -326,7 +329,17 @@ def reconcile_storage(
                 if candidate.stem not in expected_share_ids:
                     candidate.unlink(missing_ok=True)
         for share, share_slides in share_deliveries:
-            write_share_delivery_manifest(layout, share, share_slides)
+            try:
+                write_share_delivery_manifest(layout, share, share_slides)
+            except ShareConflict as error:
+                if error.code != "SHARE_NOT_FOUND":
+                    raise
+                # Unknown positions remain untouched and fail closed. Keep
+                # unrelated shares and owner rotation available after startup.
+                logging.getLogger(__name__).warning(
+                    "Share manifest reconciliation skipped for share %s: invalid stored positions",
+                    share.id,
+                )
     return ReconciliationSummary(
         slide_count=len(slides),
         derivative_count=derivative_count,

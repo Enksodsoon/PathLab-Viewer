@@ -2,8 +2,10 @@ import hashlib
 import hmac
 import importlib.util
 import json
+import os
 import tarfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -54,10 +56,81 @@ def test_signed_manifest_binds_dump_files_release_and_revision(tmp_path: Path) -
     assert verified["privateFiles"]["roots"] == ["originals", "private", "public"]
     unsigned = dict(manifest)
     signature = unsigned.pop("signature")
-    expected = hmac.new(
-        key.encode(), module._canonical_json(unsigned), hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(key.encode(), module._canonical_json(unsigned), hashlib.sha256).hexdigest()
     assert signature == {"algorithm": "hmac-sha256", "value": expected}
+
+
+def test_isolated_restore_preserves_assessment_grant_bytes_and_hardlinks(tmp_path: Path) -> None:
+    module = _load_manifest_module()
+    backup = _backup(tmp_path)
+    source = tmp_path / "files"
+    grant = source / "delivery/assessment/synthetic-administration/slide/version/slide.dzi"
+    grant.parent.mkdir(parents=True)
+    os.link(source / "private/proof.txt", grant)
+    with tarfile.open(backup / "files.tar.gz", "w:gz") as archive:
+        for root in ("originals", "private", "public", "delivery"):
+            archive.add(source / root, arcname=root)
+    key = "synthetic-postgres-backup-signing-key"
+    manifest = module.create_manifest(
+        backup,
+        release_sha="a" * 40,
+        schema_revision="test_revision",
+        database_name="pathlab",
+        signing_key=key,
+    )
+    (backup / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    destination = tmp_path / "restored"
+    destination.mkdir()
+
+    result = module.restore_files(backup, destination, signing_key=key)
+
+    restored_grant = destination / grant.relative_to(source)
+    assert restored_grant.read_bytes() == b"private"
+    assert restored_grant.samefile(destination / "private/proof.txt")
+    assert result["archiveRoots"] == ["delivery", "originals", "private", "public"]
+    assert result["filesIntegrity"] == "restored"
+    assert result["fileCount"] == 4
+    assert not (backup / "delivery").exists()
+
+
+@pytest.mark.parametrize("unsafe", ["../outside", "/outside", "delivery/../outside"])
+def test_archive_rejects_unsafe_grant_paths(tmp_path: Path, unsafe: str) -> None:
+    module = _load_manifest_module()
+    backup = _backup(tmp_path)
+    with tarfile.open(backup / "files.tar.gz", "w:gz") as archive:
+        entry = tarfile.TarInfo(unsafe)
+        entry.type = tarfile.DIRTYPE
+        archive.addfile(entry)
+    with pytest.raises(module.BackupManifestError):
+        module._archive_roots(backup / "files.tar.gz")
+
+
+def test_file_restore_refuses_nonempty_destination_and_low_space(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_manifest_module()
+    backup = _backup(tmp_path)
+    key = "synthetic-postgres-backup-signing-key"
+    manifest = module.create_manifest(
+        backup,
+        release_sha="a" * 40,
+        schema_revision="test_revision",
+        database_name="pathlab",
+        signing_key=key,
+    )
+    (backup / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    destination = tmp_path / "restored"
+    destination.mkdir()
+    sentinel = destination / "keep.txt"
+    sentinel.write_text("retain")
+    with pytest.raises(module.BackupManifestError, match="empty real directory"):
+        module.restore_files(backup, destination, signing_key=key)
+    assert sentinel.read_text() == "retain"
+    sentinel.unlink()
+    monkeypatch.setattr(module.shutil, "disk_usage", lambda _: SimpleNamespace(free=10))
+    with pytest.raises(module.BackupManifestError, match="insufficient space"):
+        module.restore_files(backup, destination, signing_key=key)
+    assert not list(destination.iterdir())
 
 
 def test_manifest_verification_rejects_mutated_payload(tmp_path: Path) -> None:
@@ -119,9 +192,7 @@ def test_manifest_rejects_archive_with_unapproved_root(tmp_path: Path) -> None:
 
 def test_postgres_scripts_are_fail_closed_and_disposable() -> None:
     backup = Path("deploy/scripts/backup-postgres.sh").read_text(encoding="utf-8")
-    drill = Path("deploy/scripts/verify-postgres-restore-drill.sh").read_text(
-        encoding="utf-8"
-    )
+    drill = Path("deploy/scripts/verify-postgres-restore-drill.sh").read_text(encoding="utf-8")
 
     assert "pg_dump --format=custom" in backup
     assert "PATHLAB_BACKUP_SIGNING_KEY is required" in backup
@@ -130,7 +201,9 @@ def test_postgres_scripts_are_fail_closed_and_disposable() -> None:
     assert "pg_database_size(current_database())" in backup
     assert "Backup refused: insufficient space" in backup
     assert "PATHLAB_POSTGRES_CONTAINER is invalid" in backup
-    assert '--directory "$data_dir" originals private public' in backup
+    assert "archive_roots=(originals private public)" in backup
+    assert "archive_roots+=(delivery)" in backup
+    assert '--directory "$data_dir" "${archive_roots[@]}"' in backup
     assert "cache/ome-tiles" not in backup
     assert "pg_restore --exit-on-error" in drill
     assert "createdb" in drill
@@ -139,13 +212,12 @@ def test_postgres_scripts_are_fail_closed_and_disposable() -> None:
     assert "SELECT version_num FROM alembic_version" in drill
     assert 'server_version" == "180006"' in drill
     assert "PATHLAB_POSTGRES_CONTAINER" in drill
+    assert 'restore-files "$backup" "$files_drill"' in drill
 
 
 def test_database_aware_backup_and_postgres_rollback_preserve_failed_database() -> None:
     backup = Path("deploy/scripts/backup-current-database.sh").read_text(encoding="utf-8")
-    verify = Path("deploy/scripts/verify-current-restore-drill.sh").read_text(
-        encoding="utf-8"
-    )
+    verify = Path("deploy/scripts/verify-current-restore-drill.sh").read_text(encoding="utf-8")
     rollback = Path("deploy/scripts/restore-deploy-rollback-postgres.sh").read_text(
         encoding="utf-8"
     )
@@ -165,14 +237,14 @@ def test_database_aware_backup_and_postgres_rollback_preserve_failed_database() 
     assert "RENAME TO" in rollback
     assert "pg_restore --exit-on-error" in rollback
     assert "restore_failed_database" in rollback
+    assert "application_services+=(assessment)" in rollback
+    assert 'stop "${application_services[@]}"' in rollback
     assert "failed database preserved" in rollback
     assert "restore-deploy-rollback-postgres.sh" in selector
 
 
 def test_cutover_evidence_script_is_staging_only_and_composes_existing_proofs() -> None:
-    cutover = Path("deploy/scripts/verify-postgres-cutover.sh").read_text(
-        encoding="utf-8"
-    )
+    cutover = Path("deploy/scripts/verify-postgres-cutover.sh").read_text(encoding="utf-8")
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
     assert 'PATHLAB_CUTOVER_ENVIRONMENT:-}" != "staging"' in cutover

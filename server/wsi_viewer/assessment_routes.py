@@ -2134,7 +2134,7 @@ def register_assessment_routes(
             if not target.is_relative_to(root) or not target.is_file():
                 return None
             return (
-                f"/tiles/{slide.public_id}/{delivery_version(slide)}/"
+                f"/tiles/{slide.public_id}/{delivery_version(slide, storage)}/"
                 f"{Path(slide.thumbnail_filename).name}"
             )
 
@@ -2145,7 +2145,9 @@ def register_assessment_routes(
                     "id": slide.id,
                     "publicId": slide.public_id,
                     "displayName": slide.display_name,
-                    "tileSource": (f"/tiles/{slide.public_id}/{delivery_version(slide)}/slide.dzi"),
+                    "tileSource": (
+                        f"/tiles/{slide.public_id}/{delivery_version(slide, storage)}/slide.dzi"
+                    ),
                     "thumbnail": thumbnail_url(slide),
                 }
                 for slide in slides

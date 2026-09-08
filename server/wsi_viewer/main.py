@@ -184,6 +184,7 @@ def _slide_json(
     *,
     public: bool = False,
     annotations_enabled: bool = False,
+    storage: StorageLayout | None = None,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "id": slide.id,
@@ -206,7 +207,7 @@ def _slide_json(
         delivery_root = (
             f"/api/v1/public/slides/{slide.public_id}/tiles"
             if slide.render_mode == "ome_dynamic"
-            else f"/tiles/{slide.public_id}/{delivery_version(slide)}"
+            else f"/tiles/{slide.public_id}/{delivery_version(slide, storage)}"
         )
         result["tileSource"] = f"{delivery_root}/slide.dzi"
         if slide.thumbnail_filename or slide.render_mode == "ome_dynamic":
@@ -1054,7 +1055,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        return _slide_json(slide, public=True)
+        return _slide_json(slide, public=True, storage=storage)
 
     @app.get("/api/v1/public/slides/{public_id}/tiles/{tile_path:path}")
     def public_slide_tile(public_id: str, tile_path: str, db: Database) -> Response:

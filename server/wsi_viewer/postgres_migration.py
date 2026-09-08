@@ -15,13 +15,14 @@ from typing import Any
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import MetaData, Table, create_engine, inspect, select, text, tuple_
+from sqlalchemy import DateTime, MetaData, Table, create_engine, func, inspect, select, text, tuple_
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.engine import URL, Connection, Engine, make_url
 
 from .config import Settings
 from .database import database_target_for
 from .readiness import ALEMBIC_HEAD
+from .time_support import as_utc
 
 MIGRATION_SCHEMA_VERSION = 1
 EXCLUDED_SQLITE_TABLE_PREFIXES = ("sqlite_", "slide_search")
@@ -254,11 +255,23 @@ def _copy_table(
             f"Schema mismatch for {source_table.name}: source and target columns differ"
         )
     primary_keys = [column.name for column in source_table.primary_key.columns]
+    timestamp_columns = {
+        column.name for column in target_table.columns
+        if isinstance(column.type, DateTime) and column.type.timezone
+    }
     for offset in range(0, len(source_rows), batch_size):
         batch = source_rows[offset : offset + batch_size]
         target.execute(
             postgresql_insert(target_table)
-            .values([dict(row) for row in batch])
+            .values([
+                {
+                    name: as_utc(value)
+                    if name in timestamp_columns and isinstance(value, datetime)
+                    else value
+                    for name, value in row.items()
+                }
+                for row in batch
+            ])
             .on_conflict_do_nothing(
                 index_elements=[target_table.c[name] for name in primary_keys]
             )
@@ -277,6 +290,39 @@ def _copy_table(
                 f"Conflicting or missing rows detected in target table {source_table.name}"
             )
         target.commit()
+    _synchronize_owned_sequences(target, target_table)
+    target.commit()
+
+
+def _synchronize_owned_sequences(connection: Connection, table: Table) -> None:
+    """Advance copied serial/identity columns without rewinding resumed targets.
+
+    Cutover requires stopped writers. Also lock each table against concurrent
+    INSERTs while reading and advancing its sequence; sequence values consumed
+    by rolled-back inserts must remain consumed.
+    """
+    preparer = connection.dialect.identifier_preparer
+    table_name = preparer.format_table(table)
+    connection.execute(text(f"LOCK TABLE {table_name} IN SHARE ROW EXCLUSIVE MODE"))
+    for column in table.columns:
+        sequence = connection.execute(text(
+            "SELECT n.nspname, c.relname FROM pg_class c "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE c.oid = pg_get_serial_sequence(:table_name, :column_name)::regclass"
+        ), {"table_name": table_name, "column_name": column.name}).first()
+        if sequence is None:
+            continue
+        maximum = connection.scalar(select(func.max(column)))
+        if maximum is None:
+            continue
+        sequence_name = ".".join(preparer.quote_identifier(part) for part in sequence)
+        last_value, is_called = connection.execute(
+            text(f"SELECT last_value, is_called FROM {sequence_name}")
+        ).one()
+        if maximum > last_value or (maximum == last_value and not is_called):
+            connection.execute(text("SELECT setval(:sequence, :maximum, true)"), {
+                "sequence": sequence_name, "maximum": maximum,
+            })
 
 
 def _foreign_key_results(connection: Connection, metadata: MetaData) -> list[dict[str, Any]]:

@@ -9,6 +9,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
+from wsi_viewer.models import DesktopSyncEvent
 from wsi_viewer.postgres_migration import (
     MIGRATION_ADVISORY_LOCK,
     PostgresMigrationError,
@@ -19,6 +21,61 @@ from wsi_viewer.postgres_migration import (
 
 POSTGRES_TEST_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
 SIGNING_KEY = "synthetic-migration-manifest-key-32-bytes"
+
+
+@pytest.mark.skipif(POSTGRES_TEST_URL is None, reason="isolated PostgreSQL URL required")
+@pytest.mark.parametrize("zone", ["UTC", "Asia/Bangkok"])
+@pytest.mark.parametrize("sequences", [[], [1, 41]])
+def test_migration_preserves_utc_and_sequence_progress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, zone: str, sequences: list[int],
+) -> None:
+    assert POSTGRES_TEST_URL is not None
+    target_url = make_url(POSTGRES_TEST_URL).update_query_dict(
+        {"options": f"-c timezone={zone}"}
+    ).render_as_string(hide_password=False)
+    source = tmp_path / "source.sqlite3"
+    _seed_source(source, monkeypatch)
+    source_engine = create_engine(f"sqlite:///{source}")
+    with source_engine.begin() as connection:
+        # Preserve explicitly offset source values as well as legacy naive UTC.
+        connection.execute(text(
+            "UPDATE audit_events SET created_at = '2026-08-21 17:00:00+07:00'"
+        ))
+        for sequence in sequences:
+            connection.execute(text(
+                "INSERT INTO desktop_sync_events "
+                "(sequence, entity_type, entity_id, operation, revision, created_at) "
+                "VALUES (:sequence, 'slide', 'migration-slide', 'upsert', 1, "
+                "'2026-08-21 10:00:00')"
+            ), {"sequence": sequence})
+    source_engine.dispose()
+    _downgrade(target_url, "base", monkeypatch)
+    for attempt in range(2):
+        manifest = migrate_sqlite_to_postgres(
+            source_path=source, target_url=target_url,
+            manifest_path=tmp_path / f"manifest-{attempt}.json",
+            signing_key=SIGNING_KEY, verify=True,
+        )
+        assert all(table["passed"] for table in manifest["tables"])
+        engine = create_engine(target_url)
+        try:
+            with Session(engine) as database:
+                event = DesktopSyncEvent(
+                    entity_type="slide", entity_id="migration-slide",
+                    operation="upsert", revision=2,
+                )
+                database.add(event)
+                database.flush()
+                assert event.sequence == (101 if attempt else max(sequences, default=0) + 1)
+                database.rollback()
+            if attempt == 0:
+                with engine.begin() as connection:
+                    connection.execute(text(
+                        "SELECT setval(pg_get_serial_sequence("
+                        "'desktop_sync_events', 'sequence'), 100, true)"
+                    ))
+        finally:
+            engine.dispose()
 
 
 def _upgrade(url: str, revision: str, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -100,7 +157,7 @@ def test_verified_migration_is_signed_read_only_and_resumable(
 
     assert hashlib.sha256(source.read_bytes()).hexdigest() == source_hash
     assert manifest["verified"] is True
-    assert manifest["schemaRevision"] == "20260905_0036"
+    assert manifest["schemaRevision"] == "20260907_0037"
     assert all(table["passed"] for table in manifest["tables"])
     assert all(item["passed"] for item in manifest["foreignKeys"])
     evidence = {item["table"]: item for item in manifest["tables"]}
@@ -182,7 +239,7 @@ def test_cutover_source_check_is_read_only_and_blocks_classroom_guard(
     result = verify_cutover_source(source)
 
     assert result == {
-        "schemaRevision": "20260905_0036",
+        "schemaRevision": "20260907_0037",
         "sourceSha256": before,
         "activeJobs": 0,
         "activeClassrooms": 0,
