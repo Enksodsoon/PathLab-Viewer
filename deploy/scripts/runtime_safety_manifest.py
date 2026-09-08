@@ -84,6 +84,36 @@ def _compose(live_dir: Path, *arguments: str) -> str:
     return _run("bash", str(script), *arguments, cwd=live_dir / "deploy")
 
 
+def compose_digest(compose_config: str, qualification_dir: Path | None = None) -> str:
+    digest = hashlib.sha256(compose_config.encode()).hexdigest()
+    if qualification_dir is None:
+        return digest
+    directory_info = qualification_dir.stat()
+    if (
+        qualification_dir.resolve(strict=True) != qualification_dir
+        or not stat.S_ISDIR(directory_info.st_mode) or directory_info.st_uid != 0
+        or directory_info.st_mode & 0o022
+    ):
+        raise RuntimeSafetyError("qualification configuration path is not canonical")
+    fragments = []
+    for fragment in sorted(qualification_dir.glob("*.caddy")):
+        info = fragment.lstat()
+        if (
+            not stat.S_ISREG(info.st_mode) or info.st_uid != 0
+            or info.st_mode & 0o022 or info.st_size > 262144
+        ):
+            raise RuntimeSafetyError("qualification configuration file is unsafe")
+        fragments.append({
+            "name": fragment.name,
+            "sha256": hashlib.sha256(fragment.read_bytes()).hexdigest(),
+        })
+    if not fragments:
+        return digest
+    return hashlib.sha256(json.dumps({
+        "compose": digest, "qualificationCaddy": fragments,
+    }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def inspect_runtime(live_dir: Path) -> dict[str, Any]:
     release_path = live_dir / ".pathlab-release"
     try:
@@ -111,6 +141,10 @@ def inspect_runtime(live_dir: Path) -> dict[str, Any]:
     if database_engine not in {"sqlite", "postgres"}:
         raise RuntimeSafetyError("runtime database engine is invalid")
     compose_config = _compose(live_dir, "config")
+    qualification_path = environment.get("PATHLAB_QUALIFICATION_CADDY_DIR")
+    configuration_digest = compose_digest(
+        compose_config, Path(qualification_path) if qualification_path else None
+    )
     configured_services = _services(_compose(live_dir, "config", "--services"))
     running_services = _services(_compose(live_dir, "ps", "--status", "running", "--services"))
     schema_revision = _compose(
@@ -140,7 +174,7 @@ def inspect_runtime(live_dir: Path) -> dict[str, Any]:
         "databaseEngine": database_engine,
         "services": configured_services,
         "runningServices": running_services,
-        "composeConfigDigest": hashlib.sha256(compose_config.encode()).hexdigest(),
+        "composeConfigDigest": configuration_digest,
         "classroomEnabled": classroom_enabled,
         "safeCapacity": capacity,
         "annotationsEnabled": annotations_enabled,

@@ -565,6 +565,28 @@ fi
 [[ -d "${DATA_DIR}/delivery" ]] || fail "delivery path is not a directory"
 install -d -o 10001 -g 10001 -m 755 "${DATA_DIR}/delivery/assessment"
 
+# Optional qualification hosts use operator-owned configuration, never writable
+# application data. Preserve these paths independently of release directory swaps.
+for entry in \
+  PATHLAB_QUALIFICATION_CADDY_DIR=/etc/pathlab-viewer/qualification-caddy \
+  PATHLAB_QUALIFICATION_OBSERVER_DIR=/run/pathlab-assessment-observer; do
+  name="${entry%%=*}"
+  directory="${entry#*=}"
+  [[ ! -L "${directory}" ]] || fail "qualification directory is a symbolic link"
+  if [[ -e "${directory}" ]]; then
+    [[ -d "${directory}" && "$(stat -c '%U' "${directory}")" == root ]] || \
+      fail "qualification directory must be root-owned"
+  fi
+  [[ "$(realpath -e "$(dirname "${directory}")")" == "$(dirname "${directory}")" ]] || \
+    fail "qualification directory parent is not canonical"
+  install -d -o root -g root -m 700 "${directory}"
+  if grep -q "^${name}=" "${STAGE_DIR}/deploy/.env"; then
+    sed -i "s|^${name}=.*|${entry}|" "${STAGE_DIR}/deploy/.env"
+  else
+    printf '%s\n' "${entry}" >> "${STAGE_DIR}/deploy/.env"
+  fi
+done
+
 compose_release "${STAGE_DIR}" config --quiet
 compose_release "${STAGE_DIR}" build
 

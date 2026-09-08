@@ -25,6 +25,8 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - ${PATHLAB_QUALIFICATION_CADDY_DIR:-./qualification-caddy}:/etc/caddy/qualification:ro
+      - ${PATHLAB_QUALIFICATION_OBSERVER_DIR:-./qualification-observer}:/run/pathlab-assessment-observer:ro
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/delivery/individual:/pathlab-individual:ro
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/public:/pathlab-public:ro
       - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}/private:/pathlab-private:ro
@@ -41,6 +43,7 @@ services:
     networks:
       - default
       - pathlab-internal
+      - pathlab-qualification
     mem_limit: 256m
     cpus: 1.25
     cpu_shares: 1024
@@ -278,5 +281,7 @@ volumes:
   pathlab-tile-cache:
 
 networks:
+  pathlab-qualification:
+    internal: true
   pathlab-internal:
     internal: true

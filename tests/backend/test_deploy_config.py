@@ -184,6 +184,17 @@ def test_assessment_uses_an_isolated_default_off_two_worker_service() -> None:
     assert "/delivery/assessment:/pathlab-assessment:ro" in caddy
 
 
+def test_optional_qualification_routes_are_separate_from_application_data() -> None:
+    compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+    release = Path("deploy/scripts/deploy-release.sh").read_text(encoding="utf-8")
+    assert "import /etc/caddy/qualification/*.caddy" in caddyfile
+    assert "/etc/caddy/qualification:ro" in compose
+    assert "/run/pathlab-assessment-observer:ro" in compose
+    assert "PATHLAB_QUALIFICATION_CADDY_DIR=/etc/pathlab-viewer/qualification-caddy" in release
+    assert "PATHLAB_QUALIFICATION_OBSERVER_DIR=/run/pathlab-assessment-observer" in release
+
+
 def test_worker_and_tile_service_use_dedicated_database_pool_roles() -> None:
     compose = Path("deploy/compose.yaml").read_text(encoding="utf-8")
     tile_service = compose.split("\n  tile-service:\n", maxsplit=1)[1].split(
