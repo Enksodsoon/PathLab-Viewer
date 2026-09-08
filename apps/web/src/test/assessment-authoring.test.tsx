@@ -133,7 +133,7 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.queryByRole('complementary', { name: 'Learners needing support' })).not.toBeInTheDocument()
   expect(screen.getByText('Closed')).toBeVisible()
   api.releaseAssessmentResults.mockResolvedValueOnce({ id: 'release-1' })
-  await userEvent.click(screen.getByRole('button', { name: 'Release scores', exact: true }))
+  await userEvent.click(screen.getByRole('button', { name: 'Release scores' }))
   expect(api.releaseAssessmentResults).toHaveBeenCalledWith('administration-1')
   expect(await screen.findByText('Scores released. Learners can refresh their result page.')).toBeVisible()
   await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
