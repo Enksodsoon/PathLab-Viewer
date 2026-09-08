@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     database_password_file: Path | None = None
     data_root: Path = Path("./var/data")
     secret_key: str = "change-this-before-deployment"
+    capacity_observer_token: str = Field(default="", repr=False)
     secure_cookies: bool = True
     session_hours: int = 12
     max_upload_bytes: int = 5 * 1024**3

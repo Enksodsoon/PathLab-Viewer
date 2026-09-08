@@ -10,6 +10,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from wsi_viewer.config import Settings
 from wsi_viewer.database import engine_for, session_factory
+from wsi_viewer.database_pressure import PressureQueuePool
 from wsi_viewer.domain import SlideState
 from wsi_viewer.library import _search_ids
 from wsi_viewer.models import Job, Slide
@@ -17,6 +18,27 @@ from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.worker import _next_job_statement, expire_incomplete_uploads
 
 POSTGRES_TEST_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
+
+
+@pytest.mark.skipif(POSTGRES_TEST_URL is None, reason="isolated PostgreSQL required")
+def test_postgres_lock_pressure_is_measured_after_pool_recreation() -> None:
+    from sqlalchemy.exc import OperationalError
+
+    assert POSTGRES_TEST_URL is not None
+    settings = Settings(database_url=POSTGRES_TEST_URL, service_role="assessment")
+    measured = engine_for(settings)
+    assert isinstance(measured.pool, PressureQueuePool)
+    generation = measured.pool.pressure_snapshot()["counterGeneration"]
+    measured.dispose()
+    assert isinstance(measured.pool, PressureQueuePool)
+    assert measured.pool.pressure_snapshot()["counterGeneration"] != generation
+    before = measured.pool.pressure_snapshot()["lockTimeouts"]
+    with measured.connect() as holder, measured.connect() as contender:
+        holder.execute(text("SELECT pg_advisory_xact_lock(794633012)"))
+        with pytest.raises(OperationalError) as failure:
+            contender.execute(text("SELECT pg_advisory_xact_lock(794633012)"))
+        assert getattr(failure.value.orig, "sqlstate", None) == "55P03"
+        assert measured.pool.pressure_snapshot()["lockTimeouts"] == before + 1
 
 
 @pytest.mark.skipif(

@@ -2,11 +2,12 @@ from collections.abc import Iterator
 from typing import TypedDict
 
 from sqlalchemy import Engine, create_engine, event
-from sqlalchemy.engine import URL, make_url
+from sqlalchemy.engine import URL, ExceptionContext, make_url
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .config import Settings
+from .database_pressure import PressureQueuePool
 from .models import Base
 
 
@@ -97,8 +98,23 @@ def engine_for(settings: Settings) -> Engine:
         engine = create_engine(
             database_target_for(settings),
             connect_args=connect_args,
+            **(
+                {"poolclass": PressureQueuePool}
+                if settings.database_url.startswith("postgresql") else {}
+            ),
             **pool_options_for(settings),
         )
+        if isinstance(engine.pool, PressureQueuePool):
+            @event.listens_for(engine, "handle_error")
+            def _record_postgres_pressure(context: ExceptionContext) -> None:
+                # PostgreSQL uses 55P03 for lock timeouts and unavailable NOWAIT
+                # locks. Both are pressure; never discard either during a campaign.
+                if (
+                    getattr(context.original_exception, "sqlstate", None) == "55P03"
+                    and isinstance(engine.pool, PressureQueuePool)
+                ):
+                    engine.pool.record_lock_pressure()
+
         if engine.dialect.name == "sqlite":
             busy_timeout_ms = 1000 if settings.service_role == "classroom" else 5000
 
