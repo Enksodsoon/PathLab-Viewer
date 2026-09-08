@@ -9,8 +9,10 @@ if (!publicId || !accessCode || !identifier) throw new Error('canary fixture inp
 
 test('restores an offline queued answer after a simulated response-service outage', async ({ page, context }) => {
   await page.goto(`/assessment/${publicId}`)
-  await page.getByLabel('Student identifier').fill(identifier)
   await page.getByLabel('Access code').fill(accessCode)
+  await page.getByRole('combobox', { name: 'Find your roster record' }).fill(identifier)
+  await page.getByRole('listbox', { name: 'Matching roster records' })
+    .getByRole('button', { name: new RegExp(identifier) }).click()
   await page.getByRole('button', { name: 'Begin assessment' }).click()
   const answer = page.locator('input[type="radio"]').first()
   await expect(answer).toBeVisible()

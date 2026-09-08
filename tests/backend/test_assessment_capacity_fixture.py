@@ -1,8 +1,55 @@
 import importlib.util
+import sys
 from email.message import Message
 from pathlib import Path
 
 import pytest
+from wsi_viewer.assessment_routes import _parse_rows
+
+
+def test_capacity_import_creates_searchable_structured_student_ids(monkeypatch, tmp_path):
+    module = fixture_module()
+    sha = "a" * 40
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "fixture",
+            "--base-url",
+            "https://qualify.example.test",
+            "--host-observer-url",
+            "https://qualify.example.test/sample",
+            "--release-sha",
+            sha,
+            "--slide-id",
+            "slide",
+            "--seats",
+            "500",
+            "--output",
+            str(tmp_path / "fixture.json"),
+        ],
+    )
+    for name in ("ASSESSMENT_ADMIN_COOKIE", "ASSESSMENT_ADMIN_CSRF", "ASSESSMENT_OBSERVER_TOKEN"):
+        monkeypatch.setenv(name, "test-only")
+
+    class ImportVerified(Exception):
+        pass
+
+    def call(method, url, headers, payload=None):
+        if url.endswith("/sample"):
+            return 200, {"releaseSha": sha}
+        if url.endswith("/classes"):
+            return 201, {"id": "cohort"}
+        assert url.endswith("/import/preview")
+        rows = _parse_rows(payload["rows"], require_structured=True)
+        assert len(rows) == 500
+        assert len({row.student_id for row in rows}) == 500
+        assert all(row.student_id == row.identifier and row.first_name for row in rows)
+        raise ImportVerified
+
+    monkeypatch.setattr(module, "call", call)
+    with pytest.raises(ImportVerified):
+        module.main()
 
 
 def fixture_module():

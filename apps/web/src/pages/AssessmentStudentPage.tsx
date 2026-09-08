@@ -80,6 +80,7 @@ export function AssessmentStudentPage() {
 
   useEffect(() => {
     let cancelled = false
+    const storedToken = sessionStorage.getItem(sessionKey(publicId))
     void getAssessmentMetadata(publicId).then(async (metadata) => {
       if (cancelled) return
       setMode(metadata.mode)
@@ -100,11 +101,16 @@ export function AssessmentStudentPage() {
           if (parsed.expiresAt > Date.now()) setResponses(parsed.responses)
         }
         setStatus('Stored only in this browser')
-      } else if (csrf) {
-        await restore(csrf).catch(() => {
-          sessionStorage.removeItem(sessionKey(publicId))
-          setCsrf('')
-          setDocument(metadata.manifest)
+      } else if (storedToken) {
+        await restore(storedToken).catch((error: unknown) => {
+          if (cancelled) return
+          if (error instanceof AssessmentHttpError && (error.status === 401 || error.status === 403)) {
+            sessionStorage.removeItem(sessionKey(publicId))
+            setCsrf('')
+            setDocument(metadata.manifest)
+          } else {
+            setStatus('Connection interrupted. Reconnect and reload to resume.')
+          }
         })
       } else {
         setDocument(metadata.manifest)
@@ -112,7 +118,7 @@ export function AssessmentStudentPage() {
       }
     }).catch(() => setStatus('Assessment unavailable'))
     return () => { cancelled = true }
-  }, [csrf, publicId, restore])
+  }, [publicId, restore])
 
   useEffect(() => {
     if (!startedAt || mode === 'practice') return

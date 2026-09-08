@@ -4,7 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import * as assessmentApi from '../assessment/api'
+import type { AssessmentDocument } from '../assessment/types'
 import { AssessmentStudentPage } from '../pages/AssessmentStudentPage'
+
+vi.mock('../assessment/outbox', () => ({
+  listAssessmentOutbox: vi.fn().mockResolvedValue([]),
+  removeAssessmentOutbox: vi.fn().mockResolvedValue(undefined),
+  enqueueAssessmentResponse: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('../assessment/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../assessment/api')>(),
@@ -36,11 +43,57 @@ vi.mock('../assessment/api', async (importOriginal) => ({
     },
   }),
   searchAssessmentRoster: vi.fn(),
+  accessAssessment: vi.fn(),
+  startAssessmentAttempt: vi.fn(),
   restoreAssessmentSession: vi.fn(),
   getAssessmentResult: vi.fn(),
 }))
 
 afterEach(cleanup)
+
+it('retains the learner session when restoration fails because of connectivity', async () => {
+  const key = 'pathlab-assessment-session:interrupted-1'
+  sessionStorage.setItem(key, 'synthetic-csrf')
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({
+    publicId: 'interrupted-1', mode: 'formative', status: 'open', durationSeconds: 3600,
+    closesAt: null, assets: {}, manifest: { title: 'Interrupted assessment', items: [], settings: {} },
+  })
+  vi.mocked(assessmentApi.restoreAssessmentSession).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  render(<MemoryRouter initialEntries={['/assessment/interrupted-1']}><Routes>
+    <Route path="/assessment/:publicId" element={<AssessmentStudentPage />} />
+  </Routes></MemoryRouter>)
+  expect(await screen.findByText('Connection interrupted. Reconnect and reload to resume.')).toBeVisible()
+  expect(sessionStorage.getItem(key)).toBe('synthetic-csrf')
+  sessionStorage.removeItem(key)
+})
+
+it('does not launch a second restoration after admitting a learner', async () => {
+  const manifest: AssessmentDocument = {
+    title: 'Admission assessment', settings: {},
+    items: [{ id: 'admission-question', type: 'multiple-choice', prompt: 'Choose an answer', points: '1', options: [{ id: 'a', label: 'Answer A' }] }],
+  }
+  const metadata = vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValue({
+    publicId: 'admission-1', mode: 'formative', status: 'open', durationSeconds: 3600,
+    closesAt: null, assets: {}, manifest,
+  })
+  const previousCalls = metadata.mock.calls.length
+  vi.mocked(assessmentApi.accessAssessment).mockResolvedValueOnce({ csrfToken: 'admission-csrf', kind: 'anonymous', publicId: 'admission-1' })
+  vi.mocked(assessmentApi.startAssessmentAttempt).mockResolvedValueOnce({ id: 'admission-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString() })
+  const restored = vi.mocked(assessmentApi.restoreAssessmentSession).mockResolvedValue({
+    kind: 'anonymous', publicId: 'admission-1', status: 'open', deviceGeneration: 1, manifest,
+    attempt: { id: 'admission-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString(), responses: [] },
+  })
+  const previousRestores = restored.mock.calls.length
+  render(<MemoryRouter initialEntries={['/assessment/admission-1']}><Routes>
+    <Route path="/assessment/:publicId" element={<AssessmentStudentPage />} />
+  </Routes></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue anonymously' }))
+  expect(await screen.findByLabelText('Answer A')).toBeVisible()
+  expect(metadata.mock.calls.length - previousCalls).toBe(1)
+  expect(restored.mock.calls.length - previousRestores).toBe(1)
+  sessionStorage.removeItem('pathlab-assessment-session:admission-1')
+  metadata.mockReset().mockResolvedValue({ publicId: 'practice-1', mode: 'practice', status: 'open', durationSeconds: 3600, closesAt: null, assets: {}, manifest })
+})
 
 it('restores a submitted attempt as awaiting release instead of reopening the answer form', async () => {
   sessionStorage.setItem('pathlab-assessment-session:closed-1', 'synthetic-csrf')
