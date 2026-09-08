@@ -49,6 +49,7 @@ export function AssessmentStudentPage() {
   const [rosterSearchCompleted, setRosterSearchCompleted] = useState('')
   const [accessCode, setAccessCode] = useState('')
   const [accessError, setAccessError] = useState(false)
+  const [entering, setEntering] = useState(false)
   const [takeover, setTakeover] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
   const [mobilePanel, setMobilePanel] = useState<'slide' | 'answer'>('slide')
@@ -57,6 +58,8 @@ export function AssessmentStudentPage() {
   const [remaining, setRemaining] = useState(0)
   const [practiceExpiry, setPracticeExpiry] = useState(() => Date.now() + 30 * 24 * 60 * 60 * 1000)
   const syncTimer = useRef<number | null>(null)
+  const responseGeneration = useRef(0)
+  const pendingLocalWrites = useRef(0)
 
   const restore = useCallback(async (token: string) => {
     const session = await restoreAssessmentSession(token)
@@ -130,6 +133,7 @@ export function AssessmentStudentPage() {
 
   const syncOutbox = useCallback(async () => {
     if (!attemptId || !csrf || !navigator.onLine) return
+    const generation = responseGeneration.current
     const pending = await listAssessmentOutbox(attemptId)
     const latestPending = new Map<string, typeof pending[number]>()
     pending.forEach((entry) => {
@@ -155,11 +159,12 @@ export function AssessmentStudentPage() {
         return
       }
     }
-    setStatus('Saved')
+    const remaining = await listAssessmentOutbox(attemptId)
+    if (navigator.onLine && generation === responseGeneration.current && pendingLocalWrites.current === 0 && remaining.length === 0) setStatus('Saved')
   }, [attemptId, csrf])
 
   useEffect(() => {
-    const connected = () => { setOnline(true); void syncOutbox() }
+    const connected = () => { setOnline(true); void syncOutbox().catch(() => setStatus('Saved locally — retrying')) }
     const disconnected = () => setOnline(false)
     window.addEventListener('online', connected)
     window.addEventListener('offline', disconnected)
@@ -203,18 +208,18 @@ export function AssessmentStudentPage() {
   }, [accessCode, identifier, mode, publicId, selectedLearner])
 
   async function enter(kind: 'anonymous' | 'roster') {
+    if (entering || (kind === 'roster' && !selectedLearner)) return
+    setEntering(true)
     try {
-      if (kind === 'roster' && !selectedLearner) return
       const access = await accessAssessment({ kind, publicId, studentIdentifier: selectedLearner?.identifier, accessCode, takeover })
       sessionStorage.setItem(sessionKey(publicId), access.csrfToken)
-      setCsrf(access.csrfToken)
       setAccessError(false)
-      const attempt = await startAssessmentAttempt(access.csrfToken, mutationKey())
-      setAttemptId(attempt.id)
-      setStartedAt(attempt.startedAt)
-      setStatus('Saved')
+      await startAssessmentAttempt(access.csrfToken, mutationKey())
       await restore(access.csrfToken)
+      // Reveal answer controls only after the attempt and its restored state exist.
+      setCsrf(access.csrfToken)
     } catch { setAccessError(true) }
+    finally { setEntering(false) }
   }
 
   function update(item: AssessmentItem, response: Record<string, unknown>) {
@@ -225,13 +230,16 @@ export function AssessmentStudentPage() {
       return next
     })
     if (mode !== 'practice' && attemptId) {
+      responseGeneration.current += 1
+      pendingLocalWrites.current += 1
       const revision = (revisions[item.id] ?? 0) + 1
       setRevisions((currentRevisions) => ({ ...currentRevisions, [item.id]: revision }))
       setStatus(navigator.onLine ? 'Saving…' : 'Offline — queued')
       void enqueueAssessmentResponse({ id: `${attemptId}:${item.id}:${revision}`, publicId, attemptId, itemId: item.id, revision, response, createdAt: Date.now() }).then(() => {
+        pendingLocalWrites.current -= 1
         if (syncTimer.current !== null) window.clearTimeout(syncTimer.current)
-        syncTimer.current = window.setTimeout(() => { void syncOutbox() }, 750)
-      })
+        syncTimer.current = window.setTimeout(() => { void syncOutbox().catch(() => setStatus('Saved locally — retrying')) }, 750)
+      }, () => { pendingLocalWrites.current -= 1; setStatus('Could not save on this device. Keep this page open and retry.') })
     }
   }
 
@@ -262,11 +270,12 @@ export function AssessmentStudentPage() {
   if (!document) return <main className="assessment-loading"><p role="status">{status}</p></main>
   if (mode !== 'practice' && !csrf) return <main className="assessment-entry">
     <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1><p className="assessment-entry-intro">Choose your roster record before beginning. Typed text is never accepted as an identity.</p>
-    {mode === 'formative' ? <button type="button" onClick={() => void enter('anonymous')}>Continue anonymously</button> : null}
+    {mode === 'formative' ? <button type="button" disabled={entering} onClick={() => void enter('anonymous')}>Continue anonymously</button> : null}
     <label>Access code<input autoComplete="one-time-code" value={accessCode} onChange={(event) => { setAccessCode(event.target.value); setSelectedLearner(null); setRosterSearchCompleted('') }} /></label>
     <div className="assessment-roster-identity"><label htmlFor="assessment-roster-search">Find your roster record</label><div className="assessment-roster-search"><MagnifyingGlass aria-hidden="true" /><input id="assessment-roster-search" role="combobox" aria-autocomplete="list" aria-expanded={rosterMatches.length > 0} aria-controls="assessment-roster-matches" autoComplete="off" placeholder="Search name, student ID, group, or subgroup" value={identifier} onChange={(event) => { setIdentifier(event.target.value); setSelectedLearner(null); setAccessError(false); setRosterSearchCompleted('') }} />{rosterSearching ? <span>Searching…</span> : null}</div>{rosterMatches.length ? <ul id="assessment-roster-matches" role="listbox" aria-label="Matching roster records">{rosterMatches.map((learner) => <li role="option" aria-selected={selectedLearner?.identifier === learner.identifier} key={learner.identifier}><button type="button" onClick={() => { setSelectedLearner(learner); setIdentifier(learner.displayName ?? learner.studentId); setRosterMatches([]); setRosterSearchError(''); setRosterSearchCompleted('') }}><UserCircle aria-hidden="true" /><span><strong>{learner.displayName ?? 'Unnamed learner'}</strong><small>{[learner.studentId, learner.group, learner.subgroup].filter(Boolean).join(' · ')}</small></span></button></li>)}</ul> : null}{selectedLearner ? <div className="assessment-roster-selected"><Check aria-hidden="true" /><span><strong>{selectedLearner.displayName}</strong><small>{[selectedLearner.studentId, selectedLearner.group, selectedLearner.subgroup].filter(Boolean).join(' · ')}</small></span><button type="button" onClick={() => { setSelectedLearner(null); setIdentifier(''); setRosterSearchCompleted('') }}>Change</button></div> : null}{rosterSearchError ? <p role="alert">{rosterSearchError}</p> : rosterSearchCompleted === identifier.trim() && !rosterMatches.length && !selectedLearner ? <p>No roster record matches that search.</p> : null}</div>
     {accessError ? <div role="alert"><p>Unable to access this assessment.</p><label><input type="checkbox" checked={takeover} onChange={(event) => setTakeover(event.target.checked)} /> Take over my active session on this device</label></div> : null}
-    <button className="assessment-primary" type="button" disabled={!selectedLearner} onClick={() => void enter('roster')}>Begin assessment</button>
+    <button className="assessment-primary" type="button" disabled={entering || !selectedLearner} aria-busy={entering} onClick={() => void enter('roster')}>Begin assessment</button>
+    {entering ? <p role="status">Starting assessment…</p> : null}
   </main>
   if (result) return <main className="assessment-result"><CheckCircle aria-hidden="true" /><h1>Assessment submitted</h1>{result.score ? <p className="assessment-result-score">{result.score.points} / {result.score.maximumPoints}</p> : <p>Results will appear after your teacher releases them.</p>}{result.needsGrading ? <p>Some answers are awaiting manual grading.</p> : null}</main>
   if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{items.filter((item) => item.type !== 'information' && item.type !== 'section-information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>

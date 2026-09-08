@@ -1,10 +1,11 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import * as assessmentApi from '../assessment/api'
 import type { AssessmentDocument } from '../assessment/types'
+import * as assessmentOutbox from '../assessment/outbox'
 import { AssessmentStudentPage } from '../pages/AssessmentStudentPage'
 
 vi.mock('../assessment/outbox', () => ({
@@ -78,21 +79,54 @@ it('does not launch a second restoration after admitting a learner', async () =>
   })
   const previousCalls = metadata.mock.calls.length
   vi.mocked(assessmentApi.accessAssessment).mockResolvedValueOnce({ csrfToken: 'admission-csrf', kind: 'anonymous', publicId: 'admission-1' })
-  vi.mocked(assessmentApi.startAssessmentAttempt).mockResolvedValueOnce({ id: 'admission-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString() })
-  const restored = vi.mocked(assessmentApi.restoreAssessmentSession).mockResolvedValue({
+  let finishStart!: (value: Awaited<ReturnType<typeof assessmentApi.startAssessmentAttempt>>) => void
+  let finishRestore!: (value: Awaited<ReturnType<typeof assessmentApi.restoreAssessmentSession>>) => void
+  vi.mocked(assessmentApi.startAssessmentAttempt).mockReturnValueOnce(new Promise((resolve) => { finishStart = resolve }))
+  const session: Awaited<ReturnType<typeof assessmentApi.restoreAssessmentSession>> = {
     kind: 'anonymous', publicId: 'admission-1', status: 'open', deviceGeneration: 1, manifest,
     attempt: { id: 'admission-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString(), responses: [] },
-  })
+  }
+  const restored = vi.mocked(assessmentApi.restoreAssessmentSession).mockReturnValueOnce(new Promise((resolve) => { finishRestore = resolve }))
   const previousRestores = restored.mock.calls.length
   render(<MemoryRouter initialEntries={['/assessment/admission-1']}><Routes>
     <Route path="/assessment/:publicId" element={<AssessmentStudentPage />} />
   </Routes></MemoryRouter>)
   await userEvent.click(await screen.findByRole('button', { name: 'Continue anonymously' }))
+  expect(screen.getByRole('button', { name: 'Continue anonymously' })).toBeDisabled()
+  expect(screen.queryByLabelText('Answer A')).not.toBeInTheDocument()
+  await act(async () => { finishStart({ id: 'admission-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString() }) })
+  await waitFor(() => expect(restored.mock.calls.length - previousRestores).toBe(1))
+  expect(screen.queryByLabelText('Answer A')).not.toBeInTheDocument()
+  await act(async () => { finishRestore(session) })
   expect(await screen.findByLabelText('Answer A')).toBeVisible()
   expect(metadata.mock.calls.length - previousCalls).toBe(1)
   expect(restored.mock.calls.length - previousRestores).toBe(1)
   sessionStorage.removeItem('pathlab-assessment-session:admission-1')
   metadata.mockReset().mockResolvedValue({ publicId: 'practice-1', mode: 'practice', status: 'open', durationSeconds: 3600, closesAt: null, assets: {}, manifest })
+})
+
+it.each([true, false])('does not acknowledge a new answer from an older empty sync (offline=%s)', async (offline) => {
+  const key = 'pathlab-assessment-session:sync-race'
+  sessionStorage.setItem(key, 'sync-csrf')
+  const manifest: AssessmentDocument = { title: 'Sync race', settings: {}, items: [{ id: 'sync-question', type: 'multiple-choice', prompt: 'Choose', points: '1', options: [{ id: 'a', label: 'Queued answer' }] }] }
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({ publicId: 'sync-race', mode: 'formative', status: 'open', durationSeconds: 3600, closesAt: null, assets: {}, manifest })
+  vi.mocked(assessmentApi.restoreAssessmentSession).mockResolvedValueOnce({ kind: 'roster', publicId: 'sync-race', status: 'open', deviceGeneration: 1, manifest, attempt: { id: 'sync-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString(), responses: [] } })
+  let finishRead!: (entries: assessmentOutbox.AssessmentOutboxEntry[]) => void
+  let finishWrite!: () => void
+  vi.mocked(assessmentOutbox.listAssessmentOutbox).mockReset().mockResolvedValue([]).mockReturnValueOnce(new Promise((resolve) => { finishRead = resolve }))
+  vi.mocked(assessmentOutbox.enqueueAssessmentResponse).mockReturnValueOnce(new Promise((resolve) => { finishWrite = resolve }))
+  render(<MemoryRouter initialEntries={['/assessment/sync-race']}><Routes><Route path="/assessment/:publicId" element={<AssessmentStudentPage />} /></Routes></MemoryRouter>)
+  const answer = await screen.findByLabelText('Queued answer')
+  const connection = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(!offline)
+  try {
+    await userEvent.click(answer)
+    await act(async () => { finishRead([]) })
+    expect(screen.getByText(offline ? /Offline — queued/ : /Saving…/)).toBeVisible()
+    await act(async () => { finishWrite() })
+  } finally {
+    connection.mockRestore()
+    sessionStorage.removeItem(key)
+  }
 })
 
 it('restores a submitted attempt as awaiting release instead of reopening the answer form', async () => {
