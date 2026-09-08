@@ -40,6 +40,10 @@ fi
   exit 2
 }
 
+# A durable marker also blocks service-manager startup after a host reboot.
+# Only the cutover owner supplies its private, invocation-scoped token.
+python3 "${deploy_dir}/scripts/postgres_cutover_state.py" "$1"
+
 assessment="$(sed -n 's/^PATHLAB_ASSESSMENT_ENABLED=//p' "${env_file}" | tail -n 1)"
 assessment="${assessment:-false}"
 compose_profiles=()

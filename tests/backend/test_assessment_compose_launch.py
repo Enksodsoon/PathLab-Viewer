@@ -19,6 +19,10 @@ def launch(tmp_path: Path, configuration: str) -> subprocess.CompletedProcess[st
     scripts.mkdir()
     script = scripts / "compose-pathlab.sh"
     script.write_text(Path("deploy/scripts/compose-pathlab.sh").read_text(), newline="\n")
+    (scripts / "postgres_cutover_state.py").write_text(
+        Path("deploy/scripts/postgres_cutover_state.py").read_text(),
+        newline="\n",
+    )
     (tmp_path / ".env").write_text(configuration, newline="\n")
     binaries = tmp_path / "bin"
     binaries.mkdir()
