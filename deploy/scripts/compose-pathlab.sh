@@ -40,7 +40,33 @@ fi
   exit 2
 }
 
+assessment="$(sed -n 's/^PATHLAB_ASSESSMENT_ENABLED=//p' "${env_file}" | tail -n 1)"
+assessment="${assessment:-false}"
+compose_profiles=()
+case "${assessment}" in
+  true)
+    governance="$(sed -n 's/^PATHLAB_IDENTITY_GOVERNANCE_ENABLED=//p' "${env_file}" | tail -n 1)"
+    [[ "${engine}" == postgres && "${governance}" == true ]] || {
+      echo "Teaching Studio requires PostgreSQL and identity governance" >&2
+      exit 2
+    }
+    compose_profiles=(--profile assessment)
+    compose_files+=(-f "${deploy_dir}/compose.assessment.yaml")
+    export PATHLAB_IDENTITY_GOVERNANCE_ENABLED="${governance}"
+    ;;
+  false) ;;
+  *)
+    echo "PATHLAB_ASSESSMENT_ENABLED must be true or false" >&2
+    exit 2
+    ;;
+esac
+
+# Compose gives inherited variables precedence over --env-file. Keep the
+# advertised capability consistent with the profile selected from that file.
+export PATHLAB_ASSESSMENT_ENABLED="${assessment}"
+unset COMPOSE_PROFILES
+
 exec docker compose \
   --project-directory "${deploy_dir}" \
   --env-file "${env_file}" \
-  "${compose_files[@]}" "$@"
+  "${compose_files[@]}" "${compose_profiles[@]}" "$@"
