@@ -152,6 +152,8 @@ def main() -> int:
     host_samples = [item["host"] for item in samples if "host" in item]
     output = {
         "releaseSha": args.release_sha,
+        "administrationId": args.administration_id,
+        "startEpoch": args.start_epoch,
         "sampleCount": len(samples),
         "errorCount": sum("error" in item for item in samples),
         "tileP95Ms": percentile([item["tileMs"] for item in samples if "tileMs" in item], 0.95),

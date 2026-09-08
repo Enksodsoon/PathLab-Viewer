@@ -27,7 +27,7 @@ def job_script(job: str, marker: str) -> str:
 def test_output_transfers_only_same_origin_path_without_the_protected_secret(tmp_path, foreign):
     source = WORKFLOW.read_text()
     script = source.split('          [[ "$tile_url"', 1)[1]
-    script = '[[ "$tile_url"' + script.split('          echo "start_epoch=', 1)[0]
+    script = '[[ "$tile_url"' + script.split('          delay=300', 1)[0]
     output = tmp_path / "outputs"
     result = subprocess.run(
         ["bash", "-eu", "-c", script],

@@ -41,11 +41,27 @@ def main() -> int:
     parser.add_argument("--artifacts", required=True, type=Path)
     parser.add_argument("--release-sha", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--client-region", choices=["github-hosted", "southeast-asia"], default="github-hosted",
+    )
+    parser.add_argument("--run-id")
     args = parser.parse_args()
     gates: list[dict[str, Any]] = []
 
     def gate(name: str, passed: bool, observed: object) -> None:
         gates.append({"name": name, "passed": bool(passed), "observed": observed})
+
+    regional_present = True
+    if args.client_region == "southeast-asia":
+        paths = list(args.artifacts.rglob("regional-provenance.json"))
+        regional_present = len(paths) == 1
+        provenance = read(paths[0]) if regional_present else {}
+        gate("regional_campaign_identity", bool(args.run_id) and all(
+            provenance.get(key) == expected for key, expected in {
+                "runId": args.run_id, "releaseSha": args.release_sha,
+                "clientRegion": args.client_region,
+            }.items()
+        ), provenance)
 
     shard_paths = sorted(args.artifacts.rglob("shard-*.json"))
     observer_paths = list(args.artifacts.rglob("observer.json"))
@@ -197,6 +213,7 @@ def main() -> int:
     prerequisites_present = (
         len(shard_paths) == 5
         and len(observer_paths) == len(canary_paths) == len(cleanup_paths) == 1
+        and regional_present
     )
     passed = all(item["passed"] for item in gates)
     status = (
@@ -209,6 +226,7 @@ def main() -> int:
         "releaseSha": args.release_sha,
         "generatedAt": datetime.now(UTC).isoformat(),
         "campaign": {
+            "clientRegion": args.client_region,
             "shards": len(shards),
             "seats": seats,
             "holdSeconds": hold,

@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,45 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC is not None and SPEC.loader is not None
 observer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(observer)
+
+
+def test_regional_endpoint_rejects_unauthorized_and_non_run_paths(tmp_path):
+    token = b"regional-test-token"
+    for path, auth in [
+        ("/regional/123", ""), ("/regional/../123", "Bearer regional-test-token"),
+        ("/regional/123/other", "Bearer regional-test-token"),
+        ("/regional/0123", "Bearer regional-test-token"),
+    ]:
+        assert observer.regional_response(path, auth, token, tmp_path, "a" * 40)[0] == 404
+    assert observer.regional_response(
+        "/regional/123", "Bearer regional-test-token", token, None, "a" * 40,
+    )[0] == 404
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Root ownership and O_NOFOLLOW are Linux controls")
+def test_regional_file_requires_root_ownership_private_permissions_and_matching_release(tmp_path):
+    if os.geteuid() != 0:
+        pytest.skip("Exercise root-owned evidence with the root-operated observer")
+    tmp_path.chmod(0o700)
+    path = tmp_path / "123.json"
+    value = {"runId": "123", "releaseSha": "a" * 40, "artifacts": {}}
+    path.write_text(json.dumps(value))
+    path.chmod(0o600)
+
+    def read():
+        return observer.regional_response(
+            "/regional/123", "Bearer test", b"test", tmp_path, "a" * 40,
+        )
+
+    assert read() == (200, value)
+    path.chmod(0o644)
+    assert read()[0] == 503
+    path.chmod(0o600)
+    path.write_text(json.dumps({**value, "releaseSha": "b" * 40}))
+    assert read()[0] == 503
+    path.unlink()
+    path.symlink_to(tmp_path / "missing")
+    assert read()[0] == 503
 
 
 def test_pressure_requires_every_distinct_worker_and_real_counters() -> None:
