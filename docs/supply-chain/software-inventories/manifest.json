@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "115ec09cce7f3a8505aca5f5e99f5a90bbef392ee21eaddc6d0e6169952e91c0",
+      "sha256": "d1db82a3ee015fdf20ab29f64cdc9764ce4c3170b18d4c06c72681c7590ddd3b",
       "sizeBytes": 727826
     },
     {
       "path": "build.spdx.json",
-      "sha256": "ea2a01c6b706cd415a6531c961188eddb8114f02dd3afada32e404fbb98eccce",
+      "sha256": "90ab10dabe35f1099b09be9b803e88a572b5058763b51e166920cf20603ba93c",
       "sizeBytes": 587936
     },
     {
       "path": "source.cdx.json",
-      "sha256": "ab995ad6686f0828917dafa63b18dbb54b9a6b20f7d460407083375d3bd9e449",
+      "sha256": "2a0f7f054902d1ef9202ca869d069bf99d05daf04a5929d01e453b781304d2da",
       "sizeBytes": 767926
     },
     {
       "path": "source.spdx.json",
-      "sha256": "358d82c7d1829c9c7170d219bbe359f22d78c2c0f668c54eb3ddaf9b1b406ad6",
+      "sha256": "95ba944b303a13777e98203d7bf1f343b65f13ebb336d098799125741ebd3565",
       "sizeBytes": 619600
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-08T08:48:26Z",
+  "generatedAt": "2026-09-08T09:26:16Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -105,10 +105,10 @@
       "sizeBytes": 671
     },
     {
-      "gitBlob": "51a20bdfd2b03e12b14ce43aac34c2e38e78ea16",
+      "gitBlob": "03f671a9b82ae0949f941515011c5d578fb596a7",
       "path": "deploy/compose.yaml",
-      "sha256": "2d28328aea9dbe2941770aa49dd4c885f94a75d8adad0bd7707e8666723a861b",
-      "sizeBytes": 9574
+      "sha256": "a117fef4e5980275ea3bd89cf967ed34e231cdbbad2acbbb528f4576dac03bb9",
+      "sizeBytes": 9850
     },
     {
       "gitBlob": "cbec5c761cd48458bc2574c74a4b96d9cc588888",
@@ -355,6 +355,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "d6d968f8ff81ab00546ebafb7137b1e6e40eeb3f",
-  "subjectTree": "23b5c90b207769944b02d27973a3c41647fcb3f7"
+  "subjectCommit": "96f06a3f4e61befc76ecef51a7f2af0e5308dd8f",
+  "subjectTree": "782d1e1c8287264cdcd11443649e03b42c45b286"
 }
