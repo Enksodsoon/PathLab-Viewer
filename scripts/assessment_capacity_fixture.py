@@ -8,8 +8,54 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 from typing import Any
+
+
+def measured_tile_url(base_url: str, descriptor_path: str) -> str:
+    """Preflight a full-resolution JPEG, rather than timing the DZI metadata."""
+    origin = urllib.parse.urlsplit(base_url)
+    descriptor = urllib.parse.urlsplit(urllib.parse.urljoin(base_url + "/", descriptor_path))
+    if (
+        origin.scheme != "https"
+        or (descriptor.scheme, descriptor.netloc) != (origin.scheme, origin.netloc)
+        or not descriptor.path.startswith("/assessment-assets/")
+        or not descriptor.path.endswith("/slide.dzi")
+        or descriptor.query
+        or descriptor.fragment
+    ):
+        raise ValueError("same-origin Assessment DZI descriptor required")
+
+    def read_asset(url: str, limit: int) -> tuple[bytes, str]:
+        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 - validated origin
+            if response.status != 200 or response.geturl() != url:
+                raise ValueError("asset preflight redirected or failed")
+            payload = response.read(limit + 1)
+            if not payload or len(payload) > limit:
+                raise ValueError("asset preflight size is invalid")
+            return payload, response.headers.get_content_type()
+
+    payload, _ = read_asset(descriptor.geturl(), 64 * 1024)
+    if b"<!DOCTYPE" in payload.upper() or b"<!ENTITY" in payload.upper():
+        raise ValueError("DZI declarations are not permitted")
+    try:
+        image = ElementTree.fromstring(payload)
+        size = next(child for child in image if child.tag.rsplit("}", 1)[-1] == "Size")
+        width, height = int(size.attrib["Width"]), int(size.attrib["Height"])
+        tile_size, extension = int(image.attrib["TileSize"]), image.attrib["Format"]
+        if min(width, height, tile_size) <= 0 or extension not in {"jpg", "jpeg"}:
+            raise ValueError("invalid DZI dimensions or format")
+    except (ElementTree.ParseError, KeyError, StopIteration) as error:
+        raise ValueError("invalid DZI descriptor") from error
+    level = (max(width, height) - 1).bit_length()
+    column, row = (width - 1) // (2 * tile_size), (height - 1) // (2 * tile_size)
+    tile_path = descriptor.path.removesuffix(".dzi") + f"_files/{level}/{column}_{row}.{extension}"
+    tile_url = descriptor._replace(path=tile_path).geturl()
+    tile, content_type = read_asset(tile_url, 2 * 1024 * 1024)
+    if content_type != "image/jpeg" or not tile.startswith(b"\xff\xd8\xff"):
+        raise ValueError("Assessment tile preflight did not return JPEG image data")
+    return tile_url
 
 
 def call(
@@ -155,7 +201,7 @@ def main() -> int:
     output = {
         "administrationId": administration_id,
         "publicId": public_id,
-        "tileUrl": urllib.parse.urljoin(f"{args.base_url}/", tile_path.lstrip("/")),
+        "tileUrl": measured_tile_url(args.base_url, tile_path),
         "identifier": identifiers[0],
         "releaseSha": args.release_sha,
         "seats": args.seats,

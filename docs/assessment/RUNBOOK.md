@@ -8,6 +8,15 @@ The dedicated service uses the optional Compose profile `assessment`. Ordinary p
 
 ## Prepare and open
 
+Before database cutover or release maintenance, verify that systemd's effective
+`ExecStart`, `ExecReload`, and `ExecStop` use `compose-pathlab.sh`. The preflight
+command `python3 deploy/scripts/runtime_safety_manifest.py verify-service-manager`
+rejects an older unit that invokes base `docker compose` directly: that unit
+omits the PostgreSQL overlay and can remove its container as an orphan. Install
+the reviewed `deploy/pathlab-viewer.service` into `/etc/systemd/system/` and run
+`systemctl daemon-reload` before retrying. Preserve the PostgreSQL volume and
+authority receipt during recovery; do not switch back to SQLite.
+
 Confirm one Alembic head and `/readyz`, verify every selected slide is privacy-passed `static_dzi`, create administration-scoped hardlink grants, prewarm the declared DZI levels, drain upload/conversion/background work, and confirm Classroom is idle. Only one Formative or Quiz/Test administration may be preparing or open.
 
 ## Monitor and close
@@ -46,6 +55,11 @@ The `assessment-capacity` GitHub environment requires explicit reviewer approval
 Dispatch `.github/workflows/assessment-capacity.yml` with the exact deployed 40-character SHA and a privacy-passed real `static_dzi` slide ID. The workflow verifies the deployed SHA through the protected observer before it creates data. It provisions a 500-entry class, immutable Formative publication, roster snapshot, and administration-scoped real-DZI hardlinks; a second isolated one-seat administration is created only after the capacity fixture is closed and removed for the browser recovery canary.
 
 The five k6 jobs wait at one shared barrier and each execute exactly 100 single-iteration seats. The observer samples every 15 seconds and stops after three consecutive failures. Cleanup runs with `if: always()`, closes the administration, verifies exactly 500 aggregate/CSV rows, purges in batches of 100, removes grants/sessions/participants and the isolated class/draft/learner fixtures, then repeats cleanup for the browser canary. Any missing artifact closes as `NOT_EVALUABLE`; any observed gate failure closes as `NEGATIVE`.
+
+The fixture resolves the DZI descriptor into a full-resolution center JPEG tile
+and verifies image bytes before admitting the campaign. The shards and observer
+measure that image URL, not `slide.dzi` metadata. An HTML success response or
+descriptor response must not count as successful image delivery.
 
 ## Backup and restore reconciliation
 

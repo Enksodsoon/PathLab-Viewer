@@ -48,6 +48,31 @@ def _canonical(value: dict[str, Any]) -> bytes:
     return json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
 
 
+def verify_service_manager() -> dict[str, bool]:
+    """Inspect effective commands, including systemd drop-in overrides."""
+    raw = _run(
+        "systemctl", "show", "pathlab-viewer.service",
+        "--property=ExecStart", "--property=ExecReload", "--property=ExecStop",
+    )
+    properties = dict(line.split("=", 1) for line in raw.splitlines() if "=" in line)
+    expected = {
+        "ExecStart": "up -d --build --remove-orphans",
+        "ExecReload": "up -d --build --remove-orphans",
+        "ExecStop": "down",
+    }
+    wrapper = "/bin/bash /opt/pathlab-viewer/deploy/scripts/compose-pathlab.sh "
+    if set(properties) != set(expected):
+        raise RuntimeSafetyError("production service-manager commands are unavailable")
+    for name, arguments in expected.items():
+        commands = re.findall(r"argv\[\]=([^;]+);", properties[name])
+        if [command.strip() for command in commands] != [wrapper + arguments]:
+            raise RuntimeSafetyError(
+                "production service manager bypasses engine/profile selection; "
+                "install deploy/pathlab-viewer.service and reload systemd before maintenance"
+            )
+    return {"engineAwareServiceManager": True}
+
+
 def _digest(value: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical(value)).hexdigest()
 
@@ -376,6 +401,7 @@ def verify_live(
 def main() -> int:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("verify-service-manager")
     create = commands.add_parser("create")
     create.add_argument("--live-dir", type=Path, required=True)
     create.add_argument("--output", type=Path)
@@ -385,7 +411,9 @@ def main() -> int:
     verify.add_argument("--manifest-digest")
     verify.add_argument("--require-safe", action="store_true")
     args = parser.parse_args()
-    if args.command == "create":
+    if args.command == "verify-service-manager":
+        print(json.dumps(verify_service_manager(), sort_keys=True))
+    elif args.command == "create":
         output = args.output or args.live_dir / MANIFEST_NAME
         manifest = build_manifest(inspect_runtime(args.live_dir))
         _write(output, manifest)
