@@ -66,6 +66,24 @@ def migrate(engine, revision, *, downgrade=False):
         connection.commit()
 
 
+@pytest.mark.parametrize("repair", [False, True])
+def test_reconciliation_preserves_json_tags(storage_engine, tmp_path, repair):
+    Base.metadata.create_all(storage_engine)
+    factory = sessionmaker(storage_engine, expire_on_commit=False)
+    with factory() as database:
+        slide = Slide(display_name="JSON tags", original_filename="test.svs",
+                      source_bytes=10, state=SlideState.QUEUED, tags=["Keep tag"])
+        database.add(slide)
+        database.commit()
+        slide_id = slide.id
+    layout = StorageLayout(tmp_path / "data")
+    layout.root.mkdir()
+    summary = accounting.reconcile_storage(factory, layout, repair_missing_thumbnails=repair)
+    assert summary.slide_count == 1
+    with factory() as database:
+        assert database.get(Slide, slide_id).tags == ["Keep tag"]
+
+
 def seed(engine):
     with Session(engine) as database:
         user = User(id="storage-user", username="storage", password_hash="synthetic")

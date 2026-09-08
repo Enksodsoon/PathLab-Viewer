@@ -226,16 +226,19 @@ def reconcile_storage(
                 raise PublicationError("THUMBNAIL_REPAIR_REQUIRES_IDLE_CLASSROOM")
         else:
             _begin_immediate(database)
-        database.execute(
-            text(
-                """
-                UPDATE slides
-                SET tags = :valid_tags
-                WHERE tags = :legacy_tags
-                """
-            ),
-            {"valid_tags": "[]", "legacy_tags": "'[]'"},
-        )
+        # This invalid raw JSON default existed only in legacy SQLite stores.
+        # PostgreSQL JSON columns cannot contain it and do not support JSON = text.
+        if database.get_bind().dialect.name == "sqlite":
+            database.execute(
+                text(
+                    """
+                    UPDATE slides
+                    SET tags = :valid_tags
+                    WHERE tags = :legacy_tags
+                    """
+                ),
+                {"valid_tags": "[]", "legacy_tags": "'[]'"},
+            )
         slides = database.scalars(select(Slide).order_by(Slide.id)).all()
         for slide in slides:
             paths = layout.for_slide(slide.id)
