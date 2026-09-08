@@ -42,7 +42,10 @@ fi
 
 # A durable marker also blocks service-manager startup after a host reboot.
 # Only the cutover owner supplies its private, invocation-scoped token.
-python3 "${deploy_dir}/scripts/postgres_cutover_state.py" "$1"
+if [[ -e /var/lib/pathlab-viewer/postgres-cutover-in-progress.json || \
+  -L /var/lib/pathlab-viewer/postgres-cutover-in-progress.json ]]; then
+  python3 "${deploy_dir}/scripts/postgres_cutover_state.py" "$1"
+fi
 
 assessment="$(sed -n 's/^PATHLAB_ASSESSMENT_ENABLED=//p' "${env_file}" | tail -n 1)"
 assessment="${assessment:-false}"

@@ -38,6 +38,9 @@ A root-only durable maintenance marker blocks Compose `up`, `start`, `restart`,
 and `run` from normal service-manager invocations, including after reboot. Only
 the current cutover invocation has the private owner token. Never publish the
 marker, environment copies, migration row identifiers, keys, or operation log.
+Production credentials live separately in `/etc/pathlab-viewer/postgres`, under
+a root-only directory; they must remain available for service startup and
+backup verification after recovery evidence ages out.
 
 Before any PostgreSQL application starts, the command writes
 `/var/lib/pathlab-viewer/postgres-authority.json`. This permanently closes the

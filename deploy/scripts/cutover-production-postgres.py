@@ -180,8 +180,14 @@ class Cutover:
             directory = self.journal / name
             directory.mkdir(mode=0o700)
             os.chown(directory, 10001, 10001)
-        password = self.journal / "postgres-password"
-        signing = self.journal / "backup-signing-key"
+        credentials = Path("/etc/pathlab-viewer/postgres")
+        if credentials.exists() or credentials.is_symlink():
+            raise CutoverError("Existing PostgreSQL credentials require explicit recovery")
+        if credentials.parent.resolve(strict=True) != credentials.parent:
+            raise CutoverError("Unsafe PostgreSQL credential directory")
+        credentials.mkdir(mode=0o700)
+        password = credentials / "password"
+        signing = credentials / "backup-signing-key"
         durable_write(password, secrets.token_urlsafe(48).encode())
         # Host parent stays root-only. Docker binds this individual read-only
         # secret into containers with different unprivileged numeric users.
