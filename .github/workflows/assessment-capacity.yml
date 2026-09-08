@@ -25,7 +25,7 @@ jobs:
     outputs:
       administration_id: ${{ steps.fixture.outputs.administration_id }}
       public_id: ${{ steps.fixture.outputs.public_id }}
-      tile_url: ${{ steps.fixture.outputs.tile_url }}
+      tile_path: ${{ steps.fixture.outputs.tile_path }}
       start_epoch: ${{ steps.fixture.outputs.start_epoch }}
     steps:
       - name: Require configured protected qualification target
@@ -62,7 +62,13 @@ jobs:
             --output artifacts/assessment-capacity/fixture.json
           echo "administration_id=$(jq -r .administrationId artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
           echo "public_id=$(jq -r .publicId artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
-          echo "tile_url=$(jq -r .tileUrl artifacts/assessment-capacity/fixture.json)" >> "$GITHUB_OUTPUT"
+          tile_url="$(jq -r .tileUrl artifacts/assessment-capacity/fixture.json)"
+          [[ "$tile_url" == "$CAPACITY_BASE_URL"/assessment-assets/* ]] || {
+            echo "Fixture tile does not belong to the qualification origin" >&2; exit 1;
+          }
+          # GitHub suppresses job outputs containing an environment secret.
+          # Transfer only the path; reconstruct the protected origin in each job.
+          echo "tile_path=${tile_url#"$CAPACITY_BASE_URL"}" >> "$GITHUB_OUTPUT"
           echo "start_epoch=$(($(date +%s) + 300))" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -81,15 +87,17 @@ jobs:
           ASSESSMENT_ADMIN_COOKIE: ${{ secrets.ASSESSMENT_ADMIN_COOKIE }}
           ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
           ASSESSMENT_OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
-        run: >-
-          python scripts/assessment_capacity_observer.py
-          --base-url "$CAPACITY_BASE_URL"
-          --administration-id "${{ needs.provision-campaign.outputs.administration_id }}"
-          --tile-url "${{ needs.provision-campaign.outputs.tile_url }}"
-          --host-observer-url "$HOST_OBSERVER_URL"
-          --release-sha "${{ inputs.release_sha }}"
-          --start-epoch "${{ needs.provision-campaign.outputs.start_epoch }}"
-          --output artifacts/assessment-capacity/observer.json
+          TILE_PATH: ${{ needs.provision-campaign.outputs.tile_path }}
+        run: |
+          [[ "$TILE_PATH" == /assessment-assets/* ]] || { echo "Missing fixture tile path" >&2; exit 1; }
+          python scripts/assessment_capacity_observer.py \
+            --base-url "$CAPACITY_BASE_URL" \
+            --administration-id "${{ needs.provision-campaign.outputs.administration_id }}" \
+            --tile-url "${CAPACITY_BASE_URL}${TILE_PATH}" \
+            --host-observer-url "$HOST_OBSERVER_URL" \
+            --release-sha "${{ inputs.release_sha }}" \
+            --start-epoch "${{ needs.provision-campaign.outputs.start_epoch }}" \
+            --output artifacts/assessment-capacity/observer.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with: { name: assessment-observer, path: artifacts/assessment-capacity/, if-no-files-found: error }
@@ -110,12 +118,19 @@ jobs:
         env:
           BASE_URL: ${{ env.CAPACITY_BASE_URL }}
           PUBLIC_ID: ${{ needs.provision-campaign.outputs.public_id }}
-          TILE_URL: ${{ needs.provision-campaign.outputs.tile_url }}
+          TILE_PATH: ${{ needs.provision-campaign.outputs.tile_path }}
           ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
           SHARD: ${{ matrix.shard }}
           START_EPOCH: ${{ needs.provision-campaign.outputs.start_epoch }}
           RELEASE_SHA: ${{ inputs.release_sha }}
-        run: mkdir -p artifacts/assessment-capacity && k6 run tests/load/assessment-500.js
+        run: |
+          for name in BASE_URL PUBLIC_ID TILE_PATH ACCESS_CODE START_EPOCH RELEASE_SHA; do
+            [[ -n "${!name}" ]] || { echo "Missing campaign input: ${name}" >&2; exit 1; }
+          done
+          [[ "$TILE_PATH" == /assessment-assets/* ]] || { echo "Invalid fixture tile path" >&2; exit 1; }
+          export TILE_URL="${BASE_URL}${TILE_PATH}"
+          mkdir -p artifacts/assessment-capacity
+          k6 run tests/load/assessment-500.js
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
