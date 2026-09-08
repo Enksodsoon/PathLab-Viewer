@@ -99,6 +99,7 @@ def test_collection_controls_block_only_new_attempts_and_expiry_auto_submits(
     )
     assert expired.status_code == 409
     assert expired.json()["detail"]["code"] == "ASSESSMENT_COLLECTION_EXPIRED"
+    assert "score" not in expired.json()["detail"]["result"]
     monitor = client.get(
         f"/api/v2/admin/assessment/administrations/{administration_id}/monitor"
     ).json()

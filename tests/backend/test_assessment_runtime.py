@@ -3,9 +3,15 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from test_assessment_admin import _client, _document
 from wsi_viewer.database import session_factory
-from wsi_viewer.models import AssessmentAdministration, AssessmentAttempt, AssessmentParticipant
+from wsi_viewer.models import (
+    AssessmentAdministration,
+    AssessmentAttempt,
+    AssessmentMutationReceipt,
+    AssessmentParticipant,
+)
 from wsi_viewer.time_support import utc_now
 
 
@@ -108,8 +114,11 @@ def test_practice_administration_can_toggle_draft_open_and_closed(tmp_path: Path
     assert closed.json()["status"] == "closed"
 
 
+@pytest.mark.parametrize(
+    "timing,show_score", [("manual", True), ("immediate", True), ("immediate", False)]
+)
 def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
-    tmp_path: Path,
+    tmp_path: Path, timing: str, show_score: bool,
 ) -> None:
     client, _ = _client(tmp_path)
     draft = client.post(
@@ -118,7 +127,8 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
     ).json()
     published = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
-        json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2},
+        json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2,
+              "releasePolicy": {"timing": timing, "showScore": show_score}},
     ).json()
     client.post(f"/api/v2/admin/assessment/administrations/{published['administrationId']}/open")
     access = client.post(
@@ -167,8 +177,31 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
         headers={"X-CSRF-Token": csrf, "Idempotency-Key": "submit-1"},
     )
     assert submitted.status_code == 200
-    assert submitted.json()["score"]["points"] == "1.000"
+    assert "score" not in submitted.json()
+    learner_result = client.get(
+        f"/api/v2/assessment/attempts/{attempt_id}/result",
+        headers={"X-CSRF-Token": csrf},
+    )
+    if timing == "manual":
+        assert learner_result.status_code == 404
+        assert learner_result.json()["detail"]["code"] == "ASSESSMENT_RESULT_NOT_RELEASED"
+    else:
+        assert learner_result.status_code == 200
+        assert learner_result.json()["released"] is True
+        if show_score:
+            assert learner_result.json()["score"]["points"] == "1.000"
+        else:
+            assert "score" not in learner_result.json()
     assert submitted.json()["anonymousAggregateOnly"] is True
+    # Pre-upgrade receipts may still contain a score; replay must reapply
+    # the current response boundary rather than expose those stored bytes.
+    with session_factory(client.app.state.settings)() as database:
+        receipt = database.scalar(select(AssessmentMutationReceipt).where(
+            AssessmentMutationReceipt.operation == f"attempt:{attempt_id}:submit"
+        ))
+        assert receipt is not None
+        receipt.response = {**receipt.response, "score": {"points": "1.000"}}
+        database.commit()
     replayed_submit = client.post(
         f"/api/v2/assessment/attempts/{attempt_id}/submit",
         headers={"X-CSRF-Token": csrf, "Idempotency-Key": "submit-1"},
@@ -650,6 +683,5 @@ def test_deadline_sweeper_auto_submits_incomplete_attempts(tmp_path: Path) -> No
     assert swept.status_code == 200
     assert swept.json() == {"scanned": 1, "autoSubmitted": 1}
     result = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
-    assert result.status_code == 200
-    assert result.json()["status"] == "auto_submitted"
-    assert result.json()["score"]["points"] == "0.000"
+    assert result.status_code == 404
+    assert result.json()["detail"]["code"] == "ASSESSMENT_RESULT_NOT_RELEASED"

@@ -1261,6 +1261,7 @@ def register_assessment_routes(
                 final_status="auto_submitted",
             )
             database.commit()
+            result.pop("score", None)
             raise HTTPException(
                 status_code=409,
                 detail={"code": "ASSESSMENT_COLLECTION_EXPIRED", "result": result},
@@ -1277,6 +1278,7 @@ def register_assessment_routes(
                 final_status="auto_submitted",
             )
             database.commit()
+            result.pop("score", None)
             raise HTTPException(
                 status_code=409,
                 detail={"code": "ASSESSMENT_DEADLINE_SUBMITTED", "result": result},
@@ -1462,7 +1464,9 @@ def register_assessment_routes(
             {},
         )
         if receipt is not None:
-            return receipt.response
+            public_receipt = dict(receipt.response)
+            public_receipt.pop("score", None)
+            return public_receipt
         attempt = owned_attempt(database, attempt_id, stored_session)
         if attempt.status != "active":
             raise HTTPException(status_code=409, detail={"code": "ASSESSMENT_ATTEMPT_CLOSED"})
@@ -1481,9 +1485,9 @@ def register_assessment_routes(
             final_status="auto_submitted" if expired else "submitted",
         )
         public_result = dict(result)
-        if administration.mode == "quiz":
-            # Quiz answers and scores remain unavailable until a deliberate release.
-            public_result.pop("score", None)
+        # All learner scores go through the policy-aware result endpoint,
+        # including Formative and idempotent submission replays.
+        public_result.pop("score", None)
         persist_receipt(
             database,
             stored_session,
@@ -1515,13 +1519,6 @@ def register_assessment_routes(
             .where(AssessmentRelease.administration_id == administration.id)
             .order_by(AssessmentRelease.released_at.desc(), AssessmentRelease.id.desc())
         )
-        if administration.mode == "quiz" and release is None:
-            raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_RELEASED"})
-        policy = (
-            release.policy
-            if release is not None
-            else {"showScore": True, "showAnswers": False, "showFeedback": True}
-        )
         score = database.scalar(
             select(AssessmentScoreVersion)
             .where(AssessmentScoreVersion.attempt_id == attempt.id)
@@ -1529,12 +1526,22 @@ def register_assessment_routes(
         )
         if score is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_FOUND"})
+        if release is not None:
+            policy = release.policy
+        else:
+            policy = (administration.settings or {}).get("releasePolicy", {})
+            if policy.get("timing") != "immediate" or any(
+                value is None for value in (score.breakdown or {}).values()
+            ):
+                raise HTTPException(
+                    status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_RELEASED"}
+                )
         version = database.get(AssessmentVersion, administration.version_id)
         if version is None:
             raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_RESULT_NOT_FOUND"})
         result: dict[str, Any] = {
             "status": attempt.status,
-            "released": release is not None,
+            "released": True,
             "policy": policy,
             "scoreVersion": score.version,
         }
