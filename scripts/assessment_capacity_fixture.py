@@ -115,7 +115,9 @@ def main() -> int:
         if args.seats == 500
         else [f"{args.prefix}-student-1"]
     )
-    rows = "\n".join(f"{identifier},{identifier}" for identifier in identifiers)
+    rows = "student_id,first_name\n" + "\n".join(
+        f"{identifier},{identifier}" for identifier in identifiers
+    )
     import_url = f"{args.base_url}/api/v2/admin/assessment/classes/{cohort['id']}/import"
     status, preview = call("POST", f"{import_url}/preview", headers, {"rows": rows})
     require(status, preview, {200})
