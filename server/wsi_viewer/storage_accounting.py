@@ -266,6 +266,9 @@ def reconcile_storage(
                                 exclude_slide_id=slide.id,
                             )
                             install_thumbnail(derivative, payload)
+                            database.add(AuditEvent(
+                                action="slide.thumbnail_repaired", target_id=slide.id,
+                            ))
                             repaired_thumbnail_count += 1
                             measurement = measure_derivative(derivative)
                         slide.thumbnail_filename = "thumbnail.jpg"

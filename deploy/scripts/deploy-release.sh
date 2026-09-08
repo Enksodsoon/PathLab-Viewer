@@ -545,6 +545,17 @@ LIVE_DATABASE_ENGINE="$(bash "${LIVE_DIR}/deploy/scripts/compose-pathlab.sh" eng
 [[ "${DATABASE_ENGINE}" == "${LIVE_DATABASE_ENGINE}" ]] || \
   fail "database engine changes require the separate cutover workflow"
 
+# Create the writable grant directory before Docker creates Caddy's read-only
+# bind mount as root. Never follow a substituted data/delivery path.
+[[ "$(realpath -e "${DATA_DIR}")" == "${DATA_DIR}" ]] || fail "data path is not canonical"
+[[ ! -L "${DATA_DIR}/delivery" && ! -L "${DATA_DIR}/delivery/assessment" ]] || \
+  fail "assessment delivery path must not be a symbolic link"
+if [[ ! -e "${DATA_DIR}/delivery" ]]; then
+  install -d -o 10001 -g 10001 -m 755 "${DATA_DIR}/delivery"
+fi
+[[ -d "${DATA_DIR}/delivery" ]] || fail "delivery path is not a directory"
+install -d -o 10001 -g 10001 -m 755 "${DATA_DIR}/delivery/assessment"
+
 compose_release "${STAGE_DIR}" config --quiet
 compose_release "${STAGE_DIR}" build
 
