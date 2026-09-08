@@ -45,6 +45,13 @@ the four-connection pool. Database pool limits and checkout deadlines remain
 unchanged. Queue time remains part of the measured HTTP latency, and a busy
 response still fails certification; admission control is not capacity evidence.
 
+Within the same admission bounds, pending answer saves and submissions receive
+up to three turns before one ordinary request. This prevents an entry backlog
+from delaying already-entered learners' answer writes, while preserving progress
+for new learners. Each queue remains FIFO. Cancelled or expired waiters release
+any assigned slot; the slot still covers response teardown. No database pool,
+queue timeout, load count, or latency threshold changes with this scheduling.
+
 ## Retention and recovery
 
 Legal or academic hold blocks purge. Purge runs in bounded batches, removes participant/session/attempt/response/score/gradebook data and static grants, preserves approved aggregate snapshots, and reconciles after restore. Missing grants, schema mismatch, SQLite production configuration, or disabled identity governance must fail readiness closed.
