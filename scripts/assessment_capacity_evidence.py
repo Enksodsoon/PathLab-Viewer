@@ -20,6 +20,22 @@ def metric(summary: dict[str, Any], name: str, value: str) -> float:
     return float(summary.get("metrics", {}).get(name, {}).get("values", {}).get(value, 0))
 
 
+def valid_worker_generations(value: object) -> bool:
+    roles = {"api": 1, "classroom": 1, "assessment": 2}
+    if not isinstance(value, dict) or set(value) != set(roles):
+        return False
+    identities = []
+    for role, count in roles.items():
+        entries = value[role]
+        if not isinstance(entries, list) or len(entries) != count or any(
+            not isinstance(item, str) or not re.fullmatch(r"[0-9a-f]{32}", item)
+            for item in entries
+        ):
+            return False
+        identities.extend(entries)
+    return len(set(identities)) == 4
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Close protected Assessment capacity evidence")
     parser.add_argument("--artifacts", required=True, type=Path)
@@ -73,7 +89,20 @@ def main() -> int:
         )
         for section, names in required_telemetry.items()
     )
+    services = observer.get("services", {})
+    generations_valid = isinstance(services, dict) and valid_worker_generations(
+        services.get("workerGenerations")
+    )
+    telemetry_complete = (
+        telemetry_complete and generations_valid
+        and type(services.get("generationStable")) is bool
+    )
     gate("complete_host_telemetry", telemetry_complete, telemetry_complete)
+    gate(
+        "stable_worker_generations",
+        generations_valid and services.get("generationStable") is True,
+        services.get("generationStable") if isinstance(services, dict) else None,
+    )
 
     gate(
         "five_unique_shards",

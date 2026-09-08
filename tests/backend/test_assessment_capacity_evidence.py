@@ -46,7 +46,14 @@ def _fixture(tmp_path: Path, release_sha: str) -> Path:
                 "poolTimeouts": 0,
                 "lockTimeouts": 0,
             },
-            "services": {"assessmentWorkers": 2, "restarts": 0, "oomKills": 0},
+            "services": {
+                "assessmentWorkers": 2, "restarts": 0, "oomKills": 0,
+                "generationStable": True,
+                "workerGenerations": {
+                    "api": ["a" * 32], "assessment": ["b" * 32, "c" * 32],
+                    "classroom": ["d" * 32],
+                },
+            },
             "host": {"sustainedCpuPercent": 70, "peakMemoryPercent": 80, "swapBytes": 0},
         },
     )
@@ -126,7 +133,10 @@ def test_capacity_evidence_closes_success_only_when_every_gate_passes(tmp_path: 
 
 @pytest.mark.parametrize(
     ("section", "field"),
-    [("host", "swapBytes"), ("database", "poolTimeouts"), ("services", "oomKills")],
+    [
+        ("host", "swapBytes"), ("database", "poolTimeouts"), ("services", "oomKills"),
+        ("services", "workerGenerations"), ("services", "generationStable"),
+    ],
 )
 def test_capacity_evidence_rejects_missing_zero_valued_telemetry(tmp_path, section, field):
     release_sha = "a" * 40

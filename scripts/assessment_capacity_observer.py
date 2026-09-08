@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import os
+import re
 import statistics
 import time
 import urllib.error
@@ -34,6 +35,26 @@ def validate_host_sample(host: dict[str, Any], release_sha: str) -> None:
             raise ValueError(f"non-integral host counter: {name}")
     if host["cpuPercent"] > 100 or host["memoryPercent"] > 100:
         raise ValueError("host resource percentage exceeds 100")
+    sampled_at = host.get("sampledAt")
+    if type(sampled_at) is not int or not 0 <= time.time() - sampled_at <= 30:
+        raise ValueError("host telemetry is stale or undated")
+    roles = {"api": 1, "classroom": 1, "assessment": 2}
+    if host.get("pressureRoles") != sorted(roles):
+        raise ValueError("pressure measurement scope is incomplete")
+    generations = host.get("workerGenerations")
+    if not isinstance(generations, dict) or set(generations) != set(roles):
+        raise ValueError("worker generations are missing")
+    all_generations = []
+    for role, count in roles.items():
+        values = generations[role]
+        if not isinstance(values, list) or len(values) != count or any(
+            not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{32}", value)
+            for value in values
+        ):
+            raise ValueError("worker generation inventory is invalid")
+        all_generations.extend(values)
+    if len(set(all_generations)) != 4 or host["assessmentWorkers"] != 2:
+        raise ValueError("distinct worker measurements are incomplete")
 
 
 def fetch(url: str, headers: dict[str, str]) -> tuple[bytes, float]:
@@ -81,6 +102,7 @@ def main() -> int:
         time.sleep(wait_seconds)
     samples: list[dict[str, Any]] = []
     failures = 0
+    worker_generations = None
     deadline = time.monotonic() + args.duration_seconds
     while time.monotonic() < deadline:
         try:
@@ -93,6 +115,10 @@ def main() -> int:
             _, tile_ms = fetch(args.tile_url, headers)
             host, _ = fetch_json(args.host_observer_url, observer_headers)
             validate_host_sample(host, args.release_sha)
+            if worker_generations is None:
+                worker_generations = host["workerGenerations"]
+            elif worker_generations != host["workerGenerations"]:
+                raise RuntimeError("worker generations changed during campaign")
             if ready.get("status") not in {"ok", "ready"}:
                 raise RuntimeError("readiness failed during campaign")
             samples.append(
@@ -135,6 +161,10 @@ def main() -> int:
             "lockTimeouts": max((item.get("lockTimeouts", 0) for item in host_samples), default=0),
         },
         "services": {
+            "workerGenerations": worker_generations,
+            "generationStable": bool(host_samples) and all(
+                item["workerGenerations"] == worker_generations for item in host_samples
+            ),
             "assessmentWorkers": min(
                 (item.get("assessmentWorkers", 0) for item in host_samples), default=0
             ),
