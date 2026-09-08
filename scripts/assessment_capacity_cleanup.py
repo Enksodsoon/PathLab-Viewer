@@ -1,12 +1,29 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import os
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+
+def verify_fixture_export(raw: bytes, identifiers: set[str]) -> bool:
+    """Each synthetic learner has one export row for each of the two items."""
+    try:
+        rows = list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig")), strict=True))
+        expected = {
+            (identifier, item)
+            for identifier in identifiers
+            for item in ("capacity-item-1", "capacity-static-dzi")
+        }
+        actual = [(row["student_id"], row["item_id"]) for row in rows]
+        return bool(expected) and len(actual) == len(expected) and set(actual) == expected
+    except (UnicodeError, csv.Error, KeyError, TypeError):
+        return False
 
 
 def request(
@@ -49,7 +66,12 @@ def main() -> int:
         and results.get("individuals", {}).get("total") == expected_responses
     )
     export_status, export_raw = request("GET", f"{prefix}/export.csv", headers)
-    export_verified = export_status == 200 and export_raw.count(b"\n") == expected_responses + 1
+    identifiers = (
+        {f"shard-{shard}-student-{seat}" for shard in range(1, 6) for seat in range(1, 101)}
+        if args.phase == "campaign"
+        else {"canary-student-1"}
+    )
+    export_verified = export_status == 200 and verify_fixture_export(export_raw, identifiers)
     purge: dict[str, Any] = {"status": "closed", "remaining": 1}
     while purge.get("status") != "purged":
         purge_status, purge_raw = request("POST", f"{prefix}/purge?batchSize=100", headers)
