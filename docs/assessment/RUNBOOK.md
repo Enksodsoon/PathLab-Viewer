@@ -4,7 +4,7 @@ Assessment remains disabled in production. Activation requires PostgreSQL and id
 
 Current evidence state: `NOT_EVALUABLE`. The protected workflow and evidence schema are implementation artifacts only; no 500-seat campaign or production activation is claimed.
 
-The dedicated service uses the optional Compose profile `assessment`. Ordinary production releases keep that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false`; Caddy rejects both Assessment API and asset paths in that state. For an isolated qualification target, set `PATHLAB_DATABASE_ENGINE=postgres`, `PATHLAB_ASSESSMENT_ENABLED=true`, and `PATHLAB_IDENTITY_GOVERNANCE_ENABLED=true` in its private Compose environment. `deploy/scripts/compose-pathlab.sh` selects the Assessment profile and PostgreSQL overlay together, including the 32-connection Assessment configuration. It rejects enabled Assessment without both prerequisites. These settings prepare a qualification target; they do not establish capacity. The current guarded production release topology does not admit this extra service, so staging qualification does not activate it in production.
+The dedicated service uses the optional Compose profile `assessment`. Production keeps that profile absent and `PATHLAB_ASSESSMENT_ENABLED=false` until activation; Caddy rejects both Assessment API and asset paths in that state. For an isolated qualification target, set `PATHLAB_DATABASE_ENGINE=postgres`, `PATHLAB_ASSESSMENT_ENABLED=true`, and `PATHLAB_IDENTITY_GOVERNANCE_ENABLED=true` in its private Compose environment. `deploy/scripts/compose-pathlab.sh` selects the Assessment profile and PostgreSQL overlay together, including the 32-connection Assessment configuration. It rejects enabled Assessment without both prerequisites. Guarded releases can preserve and verify the eighth service in an already activated deployment. These settings prepare a qualification target; they do not establish capacity or activate production.
 
 ## Prepare and open
 
@@ -54,7 +54,13 @@ The `assessment-capacity` GitHub environment requires explicit reviewer approval
 
 Dispatch `.github/workflows/assessment-capacity.yml` with the exact deployed 40-character SHA and a privacy-passed real `static_dzi` slide ID. The workflow verifies the deployed SHA through the protected observer before it creates data. It provisions a 500-entry class, immutable Formative publication, roster snapshot, and administration-scoped real-DZI hardlinks; a second isolated one-seat administration is created only after the capacity fixture is closed and removed for the browser recovery canary.
 
-The five k6 jobs wait at one shared barrier and each execute exactly 100 single-iteration seats. The observer samples every 15 seconds and stops after three consecutive failures. Cleanup runs with `if: always()`, closes the administration, verifies exactly 500 aggregate/CSV rows, purges in batches of 100, removes grants/sessions/participants and the isolated class/draft/learner fixtures, then repeats cleanup for the browser canary. Any missing artifact closes as `NOT_EVALUABLE`; any observed gate failure closes as `NEGATIVE`.
+The five k6 jobs wait at one shared barrier and each execute exactly 100 single-iteration seats. The observer samples every 15 seconds and stops after three consecutive failures. Cleanup runs with `if: always()`, closes the administration, verifies exactly 500 responses and every learner/question pair in the CSV export (two question rows per learner), purges in batches of 100, removes grants/sessions/participants and the isolated class/draft/learner fixtures, then repeats cleanup for the browser canary. Any missing artifact closes as `NOT_EVALUABLE`; any observed gate failure closes as `NEGATIVE`.
+
+The provisioning job transfers only the validated tile path between jobs. Each
+protected consumer reconstructs the URL from its origin secret. Passing the full
+URL as a job output causes GitHub to suppress it because it contains that secret;
+the load clients must reject missing paths before starting. Do not weaken secret
+masking or expose the protected origin to work around this boundary.
 
 The fixture resolves the DZI descriptor into a full-resolution center JPEG tile
 and verifies image bytes before admitting the campaign. The shards and observer
