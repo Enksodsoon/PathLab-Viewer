@@ -153,13 +153,14 @@ class Collector:
         self.config = config
         self.generations: dict[str, set[str]] = {}
         self.previous: dict[str, tuple[int, int]] = {}
+        self.cpu_previous = cpu_ticks(Path("/proc/stat").read_text())
 
     def collect(self) -> dict[str, Any]:
         config = self.config
         release = (Path(config["liveDir"]) / ".pathlab-release").read_text().strip()
         if release != config["releaseSha"]:
             raise ValueError("deployed release changed")
-        before = cpu_ticks(Path("/proc/stat").read_text())
+        before = self.cpu_previous
         ids = config["containers"]
         inspected = json.loads(run("docker", "inspect", *ids.values()))
         by_id = {item["Id"]: item for item in inspected}
@@ -243,6 +244,7 @@ class Collector:
         elapsed, idle = after[0] - before[0], after[1] - before[1]
         if elapsed <= 0 or not 0 <= idle <= elapsed:
             raise ValueError("CPU interval unavailable")
+        self.cpu_previous = after
         memory, swap = memory_sample(Path("/proc/meminfo").read_text())
         return {
             "releaseSha": config["releaseSha"],
@@ -278,6 +280,8 @@ def serve(collector: Collector, token: bytes, port: int, unix_socket: Path | Non
     mutex = threading.Lock()
 
     def update() -> None:
+        # Include the monitoring cadence, not only our own collection burst.
+        time.sleep(5)
         while True:
             try:
                 result = collector.collect()
@@ -348,6 +352,7 @@ def main() -> int:
     if args.once:
         if args.cohost_production:
             raise ValueError("cohost exclusion applies to the supervised campaign listener")
+        time.sleep(5)
         print(json.dumps(collector.collect(), sort_keys=True))
         return 0
     if args.token_file is None:

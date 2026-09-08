@@ -69,3 +69,8 @@ than discarding those failures. OOM counts come from each pinned container's
 host cgroup, including containers without a shell. Restart counts come from
 Docker, connection counts from PostgreSQL, and CPU/memory/swap from host kernel
 counters. No SQL text, query parameters, answers, or user identifiers are retained.
+
+CPU utilization spans successive collection endpoints, including the five-second
+pause between polls and the cost of collecting measurements. The first sample
+(also in `--once` mode) waits five seconds to establish an interval. Measuring only
+the collection burst would overstate CPU pressure on an otherwise idle host.

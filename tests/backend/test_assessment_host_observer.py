@@ -103,7 +103,7 @@ def test_collector_reports_measured_pressure_and_rejects_worker_replacement(
         [
             "cpu 10 0 10 80 0 0 0 0",
             "cpu 20 0 20 90 0 0 0 0",
-            "cpu 30 0 30 100 0 0 0 0",
+            "cpu 25 0 25 280 0 0 0 0",
         ]
     )
 
@@ -128,6 +128,8 @@ def test_collector_reports_measured_pressure_and_rejects_worker_replacement(
     assert sample["restarts"] == 2
     assert sample["databaseConnections"] == 9
     assert sample["cpuPercent"] == pytest.approx(200 / 3)
+    # The next interval includes idle time between collection calls.
+    assert collector.collect()["cpuPercent"] == pytest.approx(5)
     rotated = True
     with pytest.raises(ValueError, match="generation changed"):
         collector.collect()
