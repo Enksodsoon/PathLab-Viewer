@@ -66,6 +66,12 @@ Dispatch `.github/workflows/assessment-capacity.yml` with the exact deployed 40-
 
 The five k6 jobs wait at one shared barrier and each execute exactly 100 single-iteration seats. The observer samples every 15 seconds and stops after three consecutive failures. Cleanup runs with `if: always()`, closes the administration, verifies exactly 500 responses and every learner/question pair in the CSV export (two question rows per learner), purges in batches of 100, removes grants/sessions/participants and the isolated class/draft/learner fixtures, then repeats cleanup for the browser canary. Any missing artifact closes as `NOT_EVALUABLE`; any observed gate failure closes as `NEGATIVE`.
 
+Polling time is included in the observer's 15-second cadence. Adding a full
+15-second sleep after network requests leaves too few samples over the required
+hold. Successful campaign cleanup permits the post-load browser canary even
+when a client latency threshold failed; those failures still reject final
+certification. Cancellation does not start another fixture.
+
 The provisioning job transfers only the validated tile path between jobs. Each
 protected consumer reconstructs the URL from its origin secret. Passing the full
 URL as a job output causes GitHub to suppress it because it contains that secret;
