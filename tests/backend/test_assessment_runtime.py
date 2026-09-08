@@ -193,6 +193,10 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
         else:
             assert "score" not in learner_result.json()
     assert submitted.json()["anonymousAggregateOnly"] is True
+    restored = client.get("/api/v2/assessment/session", headers={"X-CSRF-Token": csrf})
+    assert restored.status_code == 200
+    assert restored.json()["attempt"]["id"] == attempt_id
+    assert restored.json()["attempt"]["status"] == "submitted"
     # Pre-upgrade receipts may still contain a score; replay must reapply
     # the current response boundary rather than expose those stored bytes.
     with session_factory(client.app.state.settings)() as database:

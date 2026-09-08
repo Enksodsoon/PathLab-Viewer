@@ -1075,7 +1075,6 @@ def register_assessment_routes(
             select(AssessmentAttempt)
             .where(
                 AssessmentAttempt.participant_id == participant.id,
-                AssessmentAttempt.status == "active",
             )
             .order_by(AssessmentAttempt.ordinal.desc())
         )
