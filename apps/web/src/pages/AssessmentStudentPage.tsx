@@ -62,6 +62,14 @@ export function AssessmentStudentPage() {
     const session = await restoreAssessmentSession(token)
     setDocument(session.manifest)
     if (session.attempt) {
+      if (session.attempt.status !== 'active') {
+        setResult({ status: session.attempt.status, released: false })
+        const restoredResult = await getAssessmentResult(session.attempt.id, token)
+          .catch(() => ({ status: session.attempt!.status, released: false }))
+        setResult(restoredResult)
+        setStatus('Submitted')
+        return
+      }
       setAttemptId(session.attempt.id)
       setResponses(Object.fromEntries(session.attempt.responses.map((entry) => [entry.itemId, entry.response])))
       setRevisions(Object.fromEntries(session.attempt.responses.map((entry) => [entry.itemId, entry.revision])))

@@ -23,6 +23,7 @@ const api = vi.hoisted(() => ({
   listAssessmentCourses: vi.fn(),
   previewAssessmentDraft: vi.fn(),
   publishAssessmentDraft: vi.fn(),
+  releaseAssessmentResults: vi.fn(),
   restoreAssessmentDraft: vi.fn(),
   saveAssessmentDraft: vi.fn(),
   setAssessmentAdministrationStatus: vi.fn(),
@@ -131,6 +132,10 @@ it('presents a dedicated visual report with question and student views', async (
   expect(screen.getByText('8.17 / 11.67')).toBeVisible()
   expect(screen.queryByRole('complementary', { name: 'Learners needing support' })).not.toBeInTheDocument()
   expect(screen.getByText('Closed')).toBeVisible()
+  api.releaseAssessmentResults.mockResolvedValueOnce({ id: 'release-1' })
+  await userEvent.click(screen.getByRole('button', { name: 'Release scores' }))
+  expect(api.releaseAssessmentResults).toHaveBeenCalledWith('administration-1')
+  expect(await screen.findByText('Scores released. Learners can refresh their result page.')).toBeVisible()
   await userEvent.click(within(screen.getByRole('navigation', { name: 'Response views' })).getByRole('button', { name: 'Questions' }))
   expect(screen.getByRole('heading', { name: 'Which diagnosis is most likely?' })).toBeVisible()
   expect(screen.getByText('7 points')).toBeVisible()

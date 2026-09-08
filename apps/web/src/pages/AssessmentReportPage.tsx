@@ -8,6 +8,7 @@ import {
   getAssessmentResults,
   gradeAssessmentResponse,
   listAssessmentAdministrations,
+  releaseAssessmentResults,
   setAssessmentAdministrationStatus,
   type AssessmentAdministrationSummary,
   type AssessmentResults,
@@ -128,6 +129,22 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
   const [gradePoints, setGradePoints] = useState<Record<string, string>>({})
   const [gradeFeedback, setGradeFeedback] = useState<Record<string, string>>({})
   const [gradingBusy, setGradingBusy] = useState(false)
+  const [releaseBusy, setReleaseBusy] = useState(false)
+  const [releaseMessage, setReleaseMessage] = useState<{ id: string; text: string } | null>(null)
+
+  async function releaseScores() {
+    if (!administration || releaseBusy) return
+    setReleaseBusy(true)
+    setReleaseMessage(null)
+    try {
+      await releaseAssessmentResults(administration.id)
+      setReleaseMessage({ id: administration.id, text: 'Scores released. Learners can refresh their result page.' })
+    } catch {
+      setReleaseMessage({ id: administration.id, text: 'Scores could not be released. Finish grading and try again.' })
+    } finally {
+      setReleaseBusy(false)
+    }
+  }
 
   const selectView = (nextView: ReportView) => {
     setSearchParams((current) => {
@@ -409,6 +426,13 @@ export function AssessmentReportPage({ embedded = false }: { embedded?: boolean 
         <div><h1>{draft.title.replace(/[—–]/g, '-')}</h1><p>{administration ? `${administration.mode.replaceAll('_', ' ')} / ${reportQuestions.length} questions / version ${administration.version}` : `${reportQuestions.length} questions / unpublished`}</p></div>
         <div className="assessment-responses-header-actions">{learnersNeedingSupport.length ? <aside className="assessment-response-support" aria-label="Learners needing support"><UsersThree aria-hidden="true" /><strong>{learnersNeedingSupport.length}</strong><span>below 50%</span><button type="button" onClick={() => selectView('students')}>Review</button></aside> : null}<aside className={`assessment-response-status is-${administration?.status ?? 'draft'}`}><span aria-hidden="true" /><div><strong>{administration?.status === 'open' ? 'Active' : administration?.status === 'closed' ? 'Closed' : 'Draft'}</strong><small>{administration ? `${administration.completedParticipants} of ${administration.expectedParticipants ?? administration.completedParticipants} learners completed` : 'Not accepting responses'}</small></div>{administration && administration.status !== 'draft' ? <button type="button" role="switch" aria-checked={administration.status === 'open'} aria-label="Accepting responses" disabled={statusBusy} onClick={() => void toggleResponses()}><i /></button> : null}</aside></div>
       </header>
+      {administration?.status === 'closed' ? <div className="assessment-report-release">
+        <button type="button" disabled={releaseBusy || !results?.summary.responses || Boolean(results?.summary.needsGrading)} onClick={() => void releaseScores()}>
+          {releaseBusy ? 'Releasing scores…' : 'Release scores'}
+        </button>
+        <p>Make scores visible to learners. Answers and feedback remain hidden.</p>
+        {releaseMessage?.id === administration.id ? <p role="status">{releaseMessage.text}</p> : null}
+      </div> : null}
       {publishedVersionDiffers ? <p className="assessment-report-version-note">Showing published version {administration?.version} with {reportQuestions.length} questions. The editable draft currently has {editableQuestions.length} questions.</p> : null}
 
       <div className="assessment-responses-navigation">

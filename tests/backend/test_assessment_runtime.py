@@ -1,10 +1,17 @@
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from test_assessment_admin import _client, _document
 from wsi_viewer.database import session_factory
-from wsi_viewer.models import AssessmentAdministration, AssessmentAttempt, AssessmentParticipant
+from wsi_viewer.models import (
+    AssessmentAdministration,
+    AssessmentAttempt,
+    AssessmentMutationReceipt,
+    AssessmentParticipant,
+)
 from wsi_viewer.time_support import utc_now
 
 
@@ -107,8 +114,11 @@ def test_practice_administration_can_toggle_draft_open_and_closed(tmp_path: Path
     assert closed.json()["status"] == "closed"
 
 
+@pytest.mark.parametrize(
+    "timing,show_score", [("manual", True), ("immediate", True), ("immediate", False)]
+)
 def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
-    tmp_path: Path,
+    tmp_path: Path, timing: str, show_score: bool,
 ) -> None:
     client, _ = _client(tmp_path)
     draft = client.post(
@@ -117,7 +127,8 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
     ).json()
     published = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
-        json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2},
+        json={"mode": "formative", "durationSeconds": 3600, "maxAttempts": 2,
+              "releasePolicy": {"timing": timing, "showScore": show_score}},
     ).json()
     client.post(f"/api/v2/admin/assessment/administrations/{published['administrationId']}/open")
     access = client.post(
@@ -166,8 +177,35 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
         headers={"X-CSRF-Token": csrf, "Idempotency-Key": "submit-1"},
     )
     assert submitted.status_code == 200
-    assert submitted.json()["score"]["points"] == "1.000"
+    assert "score" not in submitted.json()
+    learner_result = client.get(
+        f"/api/v2/assessment/attempts/{attempt_id}/result",
+        headers={"X-CSRF-Token": csrf},
+    )
+    if timing == "manual":
+        assert learner_result.status_code == 404
+        assert learner_result.json()["detail"]["code"] == "ASSESSMENT_RESULT_NOT_RELEASED"
+    else:
+        assert learner_result.status_code == 200
+        assert learner_result.json()["released"] is True
+        if show_score:
+            assert learner_result.json()["score"]["points"] == "1.000"
+        else:
+            assert "score" not in learner_result.json()
     assert submitted.json()["anonymousAggregateOnly"] is True
+    restored = client.get("/api/v2/assessment/session", headers={"X-CSRF-Token": csrf})
+    assert restored.status_code == 200
+    assert restored.json()["attempt"]["id"] == attempt_id
+    assert restored.json()["attempt"]["status"] == "submitted"
+    # Pre-upgrade receipts may still contain a score; replay must reapply
+    # the current response boundary rather than expose those stored bytes.
+    with session_factory(client.app.state.settings)() as database:
+        receipt = database.scalar(select(AssessmentMutationReceipt).where(
+            AssessmentMutationReceipt.operation == f"attempt:{attempt_id}:submit"
+        ))
+        assert receipt is not None
+        receipt.response = {**receipt.response, "score": {"points": "1.000"}}
+        database.commit()
     replayed_submit = client.post(
         f"/api/v2/assessment/attempts/{attempt_id}/submit",
         headers={"X-CSRF-Token": csrf, "Idempotency-Key": "submit-1"},
@@ -382,8 +420,9 @@ def test_rostered_access_requires_explicit_device_takeover(tmp_path: Path) -> No
     )
 
 
+@pytest.mark.parametrize("mode", ["quiz", "formative"])
 def test_roster_search_requires_the_access_code_and_returns_canonical_records(
-    tmp_path: Path,
+    tmp_path: Path, mode: str,
 ) -> None:
     client, _ = _client(tmp_path)
     cohort_id = client.post(
@@ -410,9 +449,9 @@ def test_roster_search_requires_the_access_code_and_returns_canonical_records(
     published = client.post(
         f"/api/v2/admin/assessment/drafts/{draft['id']}/publish",
         json={
-            "mode": "quiz",
+            "mode": mode,
             "cohortId": cohort_id,
-            "accessCode": "quiz-code",
+            **({"accessCode": "quiz-code"} if mode == "quiz" else {}),
             "durationSeconds": 3600,
             "maxAttempts": 1,
         },
@@ -420,11 +459,13 @@ def test_roster_search_requires_the_access_code_and_returns_canonical_records(
     client.post(
         f"/api/v2/admin/assessment/administrations/{published['administrationId']}/open"
     )
+    code = published["accessCode"]
+    assert isinstance(code, str) and len(code) >= 8
     path = f"/api/v2/assessment/administrations/{published['publicId']}/roster-search"
 
     rejected = client.post(path, json={"query": "Som", "accessCode": "wrong"})
     assert rejected.status_code == 404
-    matched = client.post(path, json={"query": "Blue", "accessCode": "quiz-code"})
+    matched = client.post(path, json={"query": "Blue", "accessCode": code})
     assert matched.status_code == 200, matched.text
     assert matched.headers["cache-control"] == "no-store"
     assert matched.json() == {
@@ -438,6 +479,11 @@ def test_roster_search_requires_the_access_code_and_returns_canonical_records(
             }
         ]
     }
+    access = client.post("/api/v2/assessment/access", json={
+        "kind": "roster", "publicId": published["publicId"],
+        "studentIdentifier": "s001", "accessCode": code,
+    })
+    assert access.status_code == 201, access.text
 
 
 def test_manual_grading_release_monitor_and_formula_safe_export(tmp_path: Path) -> None:
@@ -641,6 +687,5 @@ def test_deadline_sweeper_auto_submits_incomplete_attempts(tmp_path: Path) -> No
     assert swept.status_code == 200
     assert swept.json() == {"scanned": 1, "autoSubmitted": 1}
     result = client.get(f"/api/v2/assessment/attempts/{attempt_id}/result", headers=headers)
-    assert result.status_code == 200
-    assert result.json()["status"] == "auto_submitted"
-    assert result.json()["score"]["points"] == "0.000"
+    assert result.status_code == 404
+    assert result.json()["detail"]["code"] == "ASSESSMENT_RESULT_NOT_RELEASED"

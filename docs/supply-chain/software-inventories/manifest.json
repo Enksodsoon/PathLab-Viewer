@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "7b1fbafbf85b8098b908631ff77e831523e88e4ae8ff1a6f7b1b2145a8ef2eb3",
+      "sha256": "247ee20d711d7bd79d773447333650fc7d33ae0e387831cb2b5bba3eaa7e15ab",
       "sizeBytes": 727826
     },
     {
       "path": "build.spdx.json",
-      "sha256": "53cc1694515260144c65617bcb67eb31c9fca35ce7ff431b9bf980acd9943701",
+      "sha256": "0ccfe66aed5ad8d68c61f132a703a5681cfb31eb5c7f179a1f1e886ca97b1cf7",
       "sizeBytes": 587936
     },
     {
       "path": "source.cdx.json",
-      "sha256": "e9c859a833558b6d633ca58c1772a05066361f0dfcb61989563545ab371490d4",
+      "sha256": "8fde716188318acf82100916df5115ccf2c4e919f28613a33afb50aaa9007698",
       "sizeBytes": 767926
     },
     {
       "path": "source.spdx.json",
-      "sha256": "d8780e4f51d1d8c3a2e1a376b0075dec85a2840c3a2a4675e1a97f1e46fcdf83",
+      "sha256": "20a50fe15caccec2031ef7d3c42b7b4888a8a7c3e7e47db5e1f973e2eac75556",
       "sizeBytes": 619600
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-07T04:43:30Z",
+  "generatedAt": "2026-09-08T02:25:56Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "5189363bcd2c0f88a2c9fe85f46605162fbcc492",
+      "gitBlob": "988f737ea1286383f8b9e2d5882e28bf0236aaad",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "5cc17915a5dd832547930e5c2538cf81de6cb4b82a7b53112d59a63a26556e5c",
+      "sha256": "b19285342b420a0b2793a96051ca88b3a840db012d881c4dfa021874731ebe7b",
       "sizeBytes": 39755
     },
     {
@@ -355,6 +355,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "0fca9797aa0931b90752a74e22c67826963bbe7a",
-  "subjectTree": "ee9ee610435210af0ff4fb126c094dc5ec81f54a"
+  "subjectCommit": "9aa732be9f65ff33ca8db343e3c73a1a80454c10",
+  "subjectTree": "bd080dd855322c31a42791d7c4c8c0a4be24e5fa"
 }
