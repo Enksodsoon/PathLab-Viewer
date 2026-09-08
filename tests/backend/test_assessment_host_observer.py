@@ -52,19 +52,33 @@ def test_collector_reports_measured_pressure_and_rejects_worker_replacement(
     (tmp_path / ".pathlab-release").write_text(sha)
     ids = {role: f"{index:064x}" for index, role in enumerate(sorted(observer.ROLES), 1)}
     roles = {value: key for key, value in ids.items()}
-    config = {"releaseSha": sha, "liveDir": str(tmp_path), "containers": ids,
-              "databaseUser": "pathlab", "databaseName": "pathlab"}
+    config = {
+        "releaseSha": sha,
+        "liveDir": str(tmp_path),
+        "containers": ids,
+        "databaseUser": "pathlab",
+        "databaseName": "pathlab",
+    }
     rotated = False
 
     def command(*args: str) -> str:
         if args[:2] == ("docker", "inspect"):
-            return json.dumps([
-                {"Id": identity, "RestartCount": 2 if role == "worker" else 0,
-                 "Config": {"Image": f"pathlab-{role}:{sha}"},
-                 "State": {"Running": True, "Paused": False, "Restarting": False,
-                           "Pid": int(identity, 16)}}
-                for role, identity in ids.items()
-            ])
+            return json.dumps(
+                [
+                    {
+                        "Id": identity,
+                        "RestartCount": 2 if role == "worker" else 0,
+                        "Config": {"Image": f"pathlab-{role}:{sha}"},
+                        "State": {
+                            "Running": True,
+                            "Paused": False,
+                            "Restarting": False,
+                            "Pid": int(identity, 16),
+                        },
+                    }
+                    for role, identity in ids.items()
+                ]
+            )
         role = roles[args[2]]
         if args[3] == "psql":
             return json.dumps({"version": 180006, "maximum": 32, "current": 9})
@@ -72,18 +86,26 @@ def test_collector_reports_measured_pressure_and_rejects_worker_replacement(
             return "low 0\noom 1\noom_kill " + ("1" if role == "assessment" else "0")
         assert args[3] == "python"
         count = observer.PRESSURE_ROLES[role][1]
-        return json.dumps([
-            {"counterGeneration": f"{int(ids[role], 16) * 10 + index + int(rotated):032x}",
-             "serviceRole": "general" if role == "api" else role,
-             "poolTimeouts": 1, "lockTimeouts": 2}
-            for index in range(count)
-        ])
+        return json.dumps(
+            [
+                {
+                    "counterGeneration": f"{int(ids[role], 16) * 10 + index + int(rotated):032x}",
+                    "serviceRole": "general" if role == "api" else role,
+                    "poolTimeouts": 1,
+                    "lockTimeouts": 2,
+                }
+                for index in range(count)
+            ]
+        )
 
     original = Path.read_text
-    ticks = iter([
-        "cpu 10 0 10 80 0 0 0 0", "cpu 20 0 20 90 0 0 0 0",
-        "cpu 30 0 30 100 0 0 0 0",
-    ])
+    ticks = iter(
+        [
+            "cpu 10 0 10 80 0 0 0 0",
+            "cpu 20 0 20 90 0 0 0 0",
+            "cpu 30 0 30 100 0 0 0 0",
+        ]
+    )
 
     def read(path: Path, *args: object, **kwargs: object) -> str:
         if path.as_posix() == "/proc/stat":
@@ -93,9 +115,9 @@ def test_collector_reports_measured_pressure_and_rejects_worker_replacement(
         return original(path, *args, **kwargs)
 
     monkeypatch.setattr(observer, "run", command)
-    monkeypatch.setattr(observer, "oom_kills", lambda pid, identity: int(
-        identity == ids["assessment"]
-    ))
+    monkeypatch.setattr(
+        observer, "oom_kills", lambda pid, identity: int(identity == ids["assessment"])
+    )
     monkeypatch.setattr(Path, "read_text", read)
     collector = observer.Collector(config)
     sample = collector.collect()

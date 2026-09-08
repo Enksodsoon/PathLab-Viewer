@@ -45,6 +45,17 @@ Bearer token. A protected HTTPS route to that loopback endpoint must be
 established separately before configuring the GitHub campaign. Do not publish a
 plaintext host port or expose inherited staging identities to establish access.
 
+For a proxy on the same host, `--unix-socket` selects a new socket in an existing
+root-owned mode-0700 directory instead of a TCP listener. Mount only that socket
+directory into the HTTPS proxy. An existing socket is refused; after stopping
+the old observer, inspect and remove its stale socket before restarting.
+
+Use `--cohost-production` for a campaign sharing the production machine. It holds
+the existing protected capacity-controller lock for the observer lifetime, so
+normal production deployments and other capacity operations cannot overlap.
+Keep the observer alive through campaign cleanup, then stop it to release the
+lock. This option does not stop production services or authorize a campaign.
+
 The collector samples every five seconds after completing its previous sample.
 An empty, failed, future-dated, or more-than-20-second-old cache returns HTTP 503.
 The campaign client also rejects stale samples and requires all four distinct

@@ -19,7 +19,7 @@ from typing import Any
 
 ROLES = {"api", "classroom", "assessment", "postgres", "tile-service", "worker", "caddy", "tusd"}
 PRESSURE_ROLES = {"api": (8000, 1), "classroom": (8001, 1), "assessment": (8002, 2)}
-WORKER_SAMPLE = r'''
+WORKER_SAMPLE = r"""
 import json,os,sys,time,urllib.request
 port,expected=map(int,sys.argv[1:])
 token=os.environ.get("PATHLAB_CAPACITY_OBSERVER_TOKEN","")
@@ -36,7 +36,7 @@ while time.monotonic()<deadline:
         print(json.dumps(list(seen.values()))); break
     if len(seen)>expected: raise RuntimeError("worker replacement during sample")
 else: raise RuntimeError("not all workers sampled")
-'''
+"""
 
 
 def protected_bytes(path: Path) -> bytes:
@@ -46,6 +46,21 @@ def protected_bytes(path: Path) -> bytes:
     if info.st_size > 65536:
         raise ValueError("observer configuration is too large")
     return path.read_bytes()
+
+
+def capacity_lock() -> int:
+    import fcntl
+
+    descriptor = os.open("/run/pathlab-capacity-controller.lock", os.O_RDWR | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            raise ValueError("unsafe capacity lock")
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
 
 
 def validate_config(value: dict[str, Any]) -> None:
@@ -168,18 +183,39 @@ class Collector:
         )
         with ThreadPoolExecutor(max_workers=12) as executor:
             database = executor.submit(
-                run, "docker", "exec", ids["postgres"], "psql", "-XAt", "-v", "ON_ERROR_STOP=1",
-                "-U", config["databaseUser"], "-d", config["databaseName"], "-c", query,
+                run,
+                "docker",
+                "exec",
+                ids["postgres"],
+                "psql",
+                "-XAt",
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-U",
+                config["databaseUser"],
+                "-d",
+                config["databaseName"],
+                "-c",
+                query,
             )
             pressures = {
                 role: executor.submit(
-                    run, "docker", "exec", ids[role], "python", "-c", WORKER_SAMPLE,
-                    str(port), str(workers),
-                ) for role, (port, workers) in PRESSURE_ROLES.items()
+                    run,
+                    "docker",
+                    "exec",
+                    ids[role],
+                    "python",
+                    "-c",
+                    WORKER_SAMPLE,
+                    str(port),
+                    str(workers),
+                )
+                for role, (port, workers) in PRESSURE_ROLES.items()
             }
-            oom_samples = [executor.submit(
-                oom_kills, by_id[identity]["State"]["Pid"], identity
-            ) for identity in ids.values()]
+            oom_samples = [
+                executor.submit(oom_kills, by_id[identity]["State"]["Pid"], identity)
+                for identity in ids.values()
+            ]
             facts = json.loads(database.result())
             if facts["version"] != 180006:
                 raise ValueError("PostgreSQL 18.6 required")
@@ -209,17 +245,21 @@ class Collector:
             raise ValueError("CPU interval unavailable")
         memory, swap = memory_sample(Path("/proc/meminfo").read_text())
         return {
-            "releaseSha": config["releaseSha"], "databaseEngine": "postgresql",
+            "releaseSha": config["releaseSha"],
+            "databaseEngine": "postgresql",
             "sampledAt": int(time.time()),
             "databaseMaxConnections": nonnegative_integer(facts["maximum"]),
             "databaseConnections": nonnegative_integer(facts["current"]),
-            "poolTimeouts": pool, "lockTimeouts": locks,
+            "poolTimeouts": pool,
+            "lockTimeouts": locks,
             "pressureRoles": sorted(PRESSURE_ROLES),
             "workerGenerations": {key: sorted(value) for key, value in self.generations.items()},
             "assessmentWorkers": len(self.generations["assessment"]),
-            "restarts": restarts, "oomKills": oom,
+            "restarts": restarts,
+            "oomKills": oom,
             "cpuPercent": 100 * (elapsed - idle) / elapsed,
-            "memoryPercent": memory, "swapBytes": swap,
+            "memoryPercent": memory,
+            "swapBytes": swap,
         }
 
 
@@ -233,7 +273,7 @@ def sample_response(
     return 200, value
 
 
-def serve(collector: Collector, token: bytes, port: int) -> None:
+def serve(collector: Collector, token: bytes, port: int, unix_socket: Path | None = None) -> None:
     state: dict[str, Any] = {}
     mutex = threading.Lock()
 
@@ -266,8 +306,31 @@ def serve(collector: Collector, token: bytes, port: int) -> None:
         def log_message(self, format: str, *args: Any) -> None:
             pass
 
+    if unix_socket is not None:
+        from socketserver import ThreadingUnixStreamServer
+
+        parent = unix_socket.parent
+        info = parent.stat()
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or parent.resolve(strict=True) != parent
+            or info.st_uid != 0
+            or info.st_mode & 0o077
+            or unix_socket.exists()
+            or unix_socket.is_symlink()
+        ):
+            raise ValueError("observer socket requires an empty path in a root-only directory")
+        os.umask(0o077)
+        server = ThreadingUnixStreamServer(str(unix_socket), Handler)
+    else:
+        server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     threading.Thread(target=update, daemon=True).start()
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+        if unix_socket is not None:
+            unix_socket.unlink(missing_ok=True)
 
 
 def main() -> int:
@@ -276,11 +339,15 @@ def main() -> int:
     parser.add_argument("--token-file", type=Path)
     parser.add_argument("--port", type=int, default=5331)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--unix-socket", type=Path)
+    parser.add_argument("--cohost-production", action="store_true")
     args = parser.parse_args()
     if os.geteuid() != 0 or not 1024 <= args.port <= 65535:
         raise ValueError("root and an unprivileged loopback port required")
     collector = Collector(json.loads(protected_bytes(args.config)))
     if args.once:
+        if args.cohost_production:
+            raise ValueError("cohost exclusion applies to the supervised campaign listener")
         print(json.dumps(collector.collect(), sort_keys=True))
         return 0
     if args.token_file is None:
@@ -288,7 +355,12 @@ def main() -> int:
     token = protected_bytes(args.token_file).strip()
     if not 32 <= len(token) <= 256 or not token.isascii():
         raise ValueError("invalid host observer token")
-    serve(collector, token, args.port)
+    descriptor = capacity_lock() if args.cohost_production else None
+    try:
+        serve(collector, token, args.port, args.unix_socket)
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     return 0
 
 
