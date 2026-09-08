@@ -275,7 +275,47 @@ def sample_response(
     return 200, value
 
 
-def serve(collector: Collector, token: bytes, port: int, unix_socket: Path | None = None) -> None:
+def regional_response(
+    path: str, authorization: str, token: bytes, directory: Path | None, release_sha: str,
+) -> tuple[int, dict[str, Any]]:
+    match = re.fullmatch(r"/regional/([1-9][0-9]{0,19})", path)
+    if (
+        not match or directory is None
+        or not hmac.compare_digest(authorization.encode(), b"Bearer " + token)
+    ):
+        return 404, {"error": "NOT_FOUND"}
+    try:
+        info = directory.lstat()
+        if (
+            not stat.S_ISDIR(info.st_mode) or directory.resolve(strict=True) != directory
+            or info.st_uid != 0 or info.st_mode & 0o077
+        ):
+            raise ValueError("regional evidence requires a root-only directory")
+        descriptor = os.open(directory / (match[1] + ".json"), os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(descriptor, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode) or info.st_uid != 0
+                or info.st_mode & 0o077 or info.st_size > 2 * 1024 * 1024
+            ):
+                raise ValueError("invalid regional evidence file")
+            payload = stream.read(2 * 1024 * 1024 + 1)
+        if len(payload) > 2 * 1024 * 1024:
+            raise ValueError("regional evidence too large")
+        value = json.loads(payload)
+        if value.get("runId") != match[1] or value.get("releaseSha") != release_sha:
+            raise ValueError("regional evidence target mismatch")
+        return 200, value
+    except FileNotFoundError:
+        return 404, {"error": "NOT_FOUND"}
+    except (OSError, ValueError, AttributeError):
+        return 503, {"error": "REGIONAL_EVIDENCE_UNAVAILABLE"}
+
+
+def serve(
+    collector: Collector, token: bytes, port: int, unix_socket: Path | None = None,
+    regional_results_dir: Path | None = None,
+) -> None:
     state: dict[str, Any] = {}
     mutex = threading.Lock()
 
@@ -296,9 +336,15 @@ def serve(collector: Collector, token: bytes, port: int, unix_socket: Path | Non
         def do_GET(self) -> None:
             with mutex:
                 value = dict(state)
-            code, body = sample_response(
-                self.path, self.headers.get("Authorization", ""), token, value, time.time()
-            )
+            if self.path.startswith("/regional/"):
+                code, body = regional_response(
+                    self.path, self.headers.get("Authorization", ""), token,
+                    regional_results_dir, collector.config["releaseSha"],
+                )
+            else:
+                code, body = sample_response(
+                    self.path, self.headers.get("Authorization", ""), token, value, time.time()
+                )
             payload = json.dumps(body).encode()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
@@ -345,6 +391,7 @@ def main() -> int:
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--unix-socket", type=Path)
     parser.add_argument("--cohost-production", action="store_true")
+    parser.add_argument("--regional-results-dir", type=Path)
     args = parser.parse_args()
     if os.geteuid() != 0 or not 1024 <= args.port <= 65535:
         raise ValueError("root and an unprivileged loopback port required")
@@ -362,7 +409,7 @@ def main() -> int:
         raise ValueError("invalid host observer token")
     descriptor = capacity_lock() if args.cohost_production else None
     try:
-        serve(collector, token, args.port, args.unix_socket)
+        serve(collector, token, args.port, args.unix_socket, args.regional_results_dir)
     finally:
         if descriptor is not None:
             os.close(descriptor)

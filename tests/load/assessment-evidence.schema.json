@@ -10,6 +10,7 @@
       "type": "object",
       "required": ["shards", "seats", "holdSeconds", "autosaves", "reconnects", "submits", "submitStormSeconds", "monitorSampleCount", "offlineResume", "browserOutageRecovery", "aggregateVerified", "exportVerified"],
       "properties": {
+        "clientRegion": {"enum": ["github-hosted", "southeast-asia"]},
         "shards": {"type": "integer", "minimum": 0}, "seats": {"type": "integer", "minimum": 0}, "holdSeconds": {"type": "integer", "minimum": 0},
         "autosaves": {"type": "integer", "minimum": 0}, "reconnects": {"type": "integer", "minimum": 0}, "submits": {"type": "integer", "minimum": 0},
         "submitStormSeconds": {"type": "number", "minimum": 0}, "monitorSampleCount": {"type": "integer", "minimum": 0},

@@ -9,6 +9,11 @@ on:
       slide_id:
         description: Privacy-passed real static-DZI slide ID
         required: true
+      client_region:
+        description: Protected measurement client path
+        type: choice
+        default: github-hosted
+        options: [github-hosted, southeast-asia]
 
 permissions:
   contents: read
@@ -50,6 +55,7 @@ jobs:
           ASSESSMENT_ADMIN_CSRF: ${{ secrets.ASSESSMENT_ADMIN_CSRF }}
           ASSESSMENT_OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
           ASSESSMENT_CAPACITY_ACCESS_CODE: ${{ secrets.ASSESSMENT_CAPACITY_ACCESS_CODE }}
+          CLIENT_REGION: ${{ inputs.client_region }}
         run: |
           test "$(git rev-parse HEAD)" = "${{ inputs.release_sha }}"
           test "${#GITHUB_SHA}" -eq 40
@@ -69,12 +75,20 @@ jobs:
           # GitHub suppresses job outputs containing an environment secret.
           # Transfer only the path; reconstruct the protected origin in each job.
           echo "tile_path=${tile_url#"$CAPACITY_BASE_URL"}" >> "$GITHUB_OUTPUT"
-          echo "start_epoch=$(($(date +%s) + 300))" >> "$GITHUB_OUTPUT"
+          delay=300
+          if [[ "$CLIENT_REGION" == southeast-asia ]]; then delay=600; fi
+          start_epoch=$(($(date +%s) + delay))
+          echo "start_epoch=$start_epoch" >> "$GITHUB_OUTPUT"
+          jq --arg run "$GITHUB_RUN_ID" --arg sha "${{ inputs.release_sha }}" \
+            --arg region "$CLIENT_REGION" --argjson start "$start_epoch" \
+            '{runId:$run,releaseSha:$sha,clientRegion:$region,startEpoch:$start,administrationId:.administrationId,publicId:.publicId,tileUrl:.tileUrl}' \
+            artifacts/assessment-capacity/fixture.json > artifacts/assessment-capacity/client-handoff.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with: { name: assessment-fixture, path: artifacts/assessment-capacity/, if-no-files-found: error }
 
   observer:
+    if: inputs.client_region != 'southeast-asia'
     needs: provision-campaign
     environment: assessment-capacity
     runs-on: ubuntu-24.04
@@ -103,6 +117,7 @@ jobs:
         with: { name: assessment-observer, path: artifacts/assessment-capacity/, if-no-files-found: error }
 
   shard:
+    if: inputs.client_region != 'southeast-asia'
     needs: provision-campaign
     environment: assessment-capacity
     strategy:
@@ -138,9 +153,33 @@ jobs:
           path: artifacts/assessment-capacity/
           if-no-files-found: error
 
+  regional-clients:
+    if: inputs.client_region == 'southeast-asia'
+    needs: provision-campaign
+    environment: assessment-capacity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ inputs.release_sha }}", persist-credentials: false }
+      - name: Collect bounded regional results for this exact protected campaign
+        env:
+          ASSESSMENT_OBSERVER_TOKEN: ${{ secrets.ASSESSMENT_OBSERVER_TOKEN }}
+        run: >-
+          python scripts/assessment_regional_results.py
+          --observer-url "$HOST_OBSERVER_URL" --run-id "$GITHUB_RUN_ID"
+          --release-sha "${{ inputs.release_sha }}"
+          --administration-id "${{ needs.provision-campaign.outputs.administration_id }}"
+          --public-id "${{ needs.provision-campaign.outputs.public_id }}"
+          --start-epoch "${{ needs.provision-campaign.outputs.start_epoch }}"
+          --output-dir artifacts/assessment-capacity
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with: { name: assessment-regional-measurements, path: artifacts/assessment-capacity/, if-no-files-found: error }
+
   cleanup-campaign:
     if: always()
-    needs: [provision-campaign, observer, shard]
+    needs: [provision-campaign, observer, shard, regional-clients]
     environment: assessment-capacity
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -251,7 +290,7 @@ jobs:
 
   certify:
     if: always()
-    needs: [cleanup-canary, observer, shard]
+    needs: [cleanup-canary, observer, shard, regional-clients]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -265,6 +304,9 @@ jobs:
         with: { name: assessment-observer, path: artifacts/all }
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         continue-on-error: true
+        with: { name: assessment-regional-measurements, path: artifacts/all }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
         with: { name: assessment-final-cleanup, path: artifacts/all }
       - name: Close evidence fail-closed
         id: close
@@ -272,6 +314,7 @@ jobs:
         run: >-
           python scripts/assessment_capacity_evidence.py
           --artifacts artifacts/all --release-sha "${{ inputs.release_sha }}"
+          --client-region "${{ inputs.client_region || 'github-hosted' }}" --run-id "$GITHUB_RUN_ID"
           --output artifacts/final/assessment-500-evidence.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()

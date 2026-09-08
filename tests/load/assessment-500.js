@@ -126,6 +126,8 @@ export function handleSummary(data) {
       holdSeconds: HOLD_SECONDS,
       metrics: data.metrics,
       exactRelease: __ENV.RELEASE_SHA,
+      publicId: PUBLIC_ID,
+      startEpoch: START_EPOCH,
     }, null, 2),
     stdout: `assessment shard ${SHARD} completed\n`,
   }

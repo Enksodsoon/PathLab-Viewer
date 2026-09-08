@@ -90,6 +90,41 @@ and verifies image bytes before admitting the campaign. The shards and observer
 measure that image URL, not `slide.dzi` metadata. An HTML success response or
 descriptor response must not count as successful image delivery.
 
+## Regional clients
+
+The protected workflow accepts `client_region=southeast-asia` when the operator
+has confirmed the regional client's location. It provisions the same 500-seat
+fixture and records an exact run/release/administration/start-time handoff in the
+protected fixture artifact. A ten-minute barrier allows the regional operator
+to retrieve it and launch five unchanged `tests/load/assessment-500.js` shards
+and `scripts/assessment_capacity_observer.py` from that regional network. The
+observer client clock must be synchronized; do not relax sample freshness.
+
+The operator uses existing SSH access to atomically place one count-only JSON
+bundle in a root-owned mode-0700 directory, as a mode-0600 regular file named
+`<workflow-run-id>.json`. The root observer must explicitly enable that directory
+with `--regional-results-dir`; it exposes only authenticated read access at
+`/regional/<workflow-run-id>`. There is no upload or execution endpoint. Proxy
+the path through the qualification origin without changing the production API.
+
+The bundle contains only `runId`, `releaseSha`, `administrationId`, `publicId`, `startEpoch`,
+`clientRegion` and `artifacts`. Its artifact map contains exactly `shard-1.json`
+through `shard-5.json` and `observer.json`. Transfer is limited to 2 MiB, rejects
+redirects, and binds all identities to the protected workflow. Each shard must
+declare 100 seats, 20 saves, 10% reconnects and a 3600-second hold. Shortened
+diagnostics are rejected. Keep the source scripts pinned to the exact release
+and record the regional client location without participant IP addresses.
+
+The regional collection job retains failed measurements and supplies them to
+the unchanged latency/resource/recovery/export/cleanup evaluator. Normal
+protected cleanup and browser canaries still run on GitHub; those functional
+checks do not substitute for regional latency observations. The final evidence
+records the client region and requires matching regional provenance. Missing
+results, a missed barrier, failed gates or incomplete cleanup cannot certify.
+Remove the temporary root bundle after the protected artifact is retained and
+the campaign is closed. Never describe one regional client as worldwide coverage
+or a synthetic campaign as a real-learner pilot.
+
 ## Backup and restore reconciliation
 
 Before any pilot, capture a PostgreSQL backup and the exact release/configuration manifest. Restore into an isolated target, run Alembic to the recorded single head, verify `/readyz`, reconcile every closed Assessment aggregate, and compare administration counts, aggregate versions, gradebook latest-score pointers, retention/hold settings, and grant manifests. Open administrations with missing or malformed grants must keep readiness failed. A restore test is evidence only for the exact backup, release, and target recorded in the artifact.

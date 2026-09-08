@@ -78,6 +78,30 @@ def _fixture(tmp_path: Path, release_sha: str) -> Path:
     return artifacts
 
 
+@pytest.mark.parametrize("provenance_state", ["missing", "wrong-run", "matching"])
+def test_regional_evidence_requires_same_protected_run(tmp_path, provenance_state):
+    sha = "a" * 40
+    artifacts = _fixture(tmp_path, sha)
+    if provenance_state != "missing":
+        _write(artifacts / "regional-provenance.json", {
+            "runId": "123" if provenance_state == "matching" else "456",
+            "releaseSha": sha, "clientRegion": "southeast-asia",
+        })
+    output = tmp_path / "regional-evidence.json"
+    result = subprocess.run([
+        sys.executable, "scripts/assessment_capacity_evidence.py", "--artifacts", str(artifacts),
+        "--release-sha", sha, "--output", str(output), "--client-region", "southeast-asia",
+        "--run-id", "123",
+    ], capture_output=True, text=True, timeout=30)
+    value = json.loads(output.read_text())
+    assert value["campaign"]["clientRegion"] == "southeast-asia"
+    assert (result.returncode == 0) is (provenance_state == "matching")
+    if provenance_state == "missing":
+        assert value["status"] == "NOT_EVALUABLE"
+    elif provenance_state == "wrong-run":
+        assert value["status"] == "NEGATIVE"
+
+
 def test_capacity_evidence_closes_success_only_when_every_gate_passes(tmp_path: Path) -> None:
     release_sha = "a" * 40
     artifacts = _fixture(tmp_path, release_sha)
