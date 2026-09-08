@@ -14,7 +14,10 @@ from .admission import lock_admission
 from .domain import InvalidTransition, SlideState, transition
 from .library import utcnow
 from .models import (
+    AssessmentAdministration,
+    AssessmentAssetGrant,
     AuditEvent,
+    ClassroomSession,
     Folder,
     Job,
     LibraryShare,
@@ -34,6 +37,7 @@ from .storage import (
     publish_individual_derivative,
     unpublish_individual_derivative,
 )
+from .thumbnail_repair import install_thumbnail, link_repaired_thumbnail, recovered_thumbnail
 from .time_support import as_utc, utc_now
 
 ACTIVE_STATES = (
@@ -49,6 +53,7 @@ class ReconciliationSummary:
     slide_count: int
     derivative_count: int
     active_reservation_count: int
+    repaired_thumbnail_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -194,24 +199,46 @@ def reserve_retry(
 def reconcile_storage(
     factory: sessionmaker[OrmSession],
     layout: StorageLayout,
+    *,
+    repair_missing_thumbnails: bool = False,
 ) -> ReconciliationSummary:
     derivative_count = 0
     active_reservation_count = 0
+    repaired_thumbnail_count = 0
     public_deliveries: list[tuple[str, str]] = []
     individual_deliveries: list[tuple[str, str, str]] = []
     share_deliveries: list[tuple[LibraryShare, list[Slide]]] = []
     with factory() as database:
-        _begin_immediate(database)
-        database.execute(
-            text(
-                """
-                UPDATE slides
-                SET tags = :valid_tags
-                WHERE tags = :legacy_tags
-                """
-            ),
-            {"valid_tags": "[]", "legacy_tags": "'[]'"},
-        )
+        if repair_missing_thumbnails:
+            # Explicit offline maintenance only; the wrapper also checks containers.
+            lock_admission(database, "storage")
+            if database.scalar(
+                select(Job.id).where(Job.status.in_({"running", "checkpointing"})).limit(1)
+            ):
+                raise PublicationError("THUMBNAIL_REPAIR_REQUIRES_IDLE_WORKERS")
+            if database.scalar(select(AssessmentAdministration.id).where(
+                AssessmentAdministration.status.in_({"preparing", "open"}),
+            ).limit(1)):
+                raise PublicationError("THUMBNAIL_REPAIR_REQUIRES_CLOSED_ASSESSMENTS")
+            if database.scalar(select(ClassroomSession.id).where(
+                ClassroomSession.status == "active", ClassroomSession.expires_at > utc_now(),
+            ).limit(1)):
+                raise PublicationError("THUMBNAIL_REPAIR_REQUIRES_IDLE_CLASSROOM")
+        else:
+            _begin_immediate(database)
+        # This invalid raw JSON default existed only in legacy SQLite stores.
+        # PostgreSQL JSON columns cannot contain it and do not support JSON = text.
+        if database.get_bind().dialect.name == "sqlite":
+            database.execute(
+                text(
+                    """
+                    UPDATE slides
+                    SET tags = :valid_tags
+                    WHERE tags = :legacy_tags
+                    """
+                ),
+                {"valid_tags": "[]", "legacy_tags": "'[]'"},
+            )
         slides = database.scalars(select(Slide).order_by(Slide.id)).all()
         for slide in slides:
             paths = layout.for_slide(slide.id)
@@ -227,6 +254,24 @@ def reconcile_storage(
                 derivative = paths.private_derivative
                 if os.path.lexists(derivative):
                     measurement = measure_derivative(derivative)
+                    if repair_missing_thumbnails and slide.state in {
+                        SlideState.READY_PRIVATE, SlideState.PUBLISHED,
+                    }:
+                        payload = recovered_thumbnail(derivative)
+                        if payload is not None:
+                            _require_physical_space(layout.root, len(payload))
+                            _require_application_capacity(
+                                database, layout,
+                                slide.source_bytes + measurement.derivative_bytes + len(payload),
+                                exclude_slide_id=slide.id,
+                            )
+                            install_thumbnail(derivative, payload)
+                            database.add(AuditEvent(
+                                action="slide.thumbnail_repaired", target_id=slide.id,
+                            ))
+                            repaired_thumbnail_count += 1
+                            measurement = measure_derivative(derivative)
+                        slide.thumbnail_filename = "thumbnail.jpg"
                     slide.derivative_bytes = measurement.derivative_bytes
                     slide.derivative_file_count = measurement.file_count
                     derivative_count += 1
@@ -299,6 +344,8 @@ def reconcile_storage(
             target = layout.public_for(public_id)
             if os.path.lexists(target):
                 measure_derivative(target)
+                if repair_missing_thumbnails:
+                    link_repaired_thumbnail(layout.for_slide(slide_id).private_derivative, target)
             else:
                 publish_derivative(layout, slide_id, public_id)
 
@@ -318,9 +365,23 @@ def reconcile_storage(
             target = layout.individual_delivery_for(public_id, version)
             if os.path.lexists(target):
                 measure_derivative(target)
+                if repair_missing_thumbnails:
+                    link_repaired_thumbnail(layout.for_slide(slide_id).private_derivative, target)
                 continue
             unpublish_individual_derivative(layout, public_id)
             publish_individual_derivative(layout, slide_id, public_id, version)
+
+        if repair_missing_thumbnails:
+            for grant in database.scalars(select(AssessmentAssetGrant)):
+                parts = grant.grant_path.split("/")
+                if len(parts) != 3:
+                    raise PublicationError("THUMBNAIL_DELIVERY_MISMATCH")
+                target = layout.assessment_delivery_for(*parts)
+                if os.path.lexists(target):
+                    measure_derivative(target)
+                    link_repaired_thumbnail(
+                        layout.for_slide(grant.slide_id).private_derivative, target,
+                    )
 
         expected_share_ids = {share.public_id for share, _ in share_deliveries}
         share_root = layout.root / "delivery" / "shares"
@@ -344,6 +405,7 @@ def reconcile_storage(
         slide_count=len(slides),
         derivative_count=derivative_count,
         active_reservation_count=active_reservation_count,
+        repaired_thumbnail_count=repaired_thumbnail_count,
     )
 
 

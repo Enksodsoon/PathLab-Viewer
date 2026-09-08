@@ -73,6 +73,10 @@ def _build_parser() -> argparse.ArgumentParser:
         ],
     )
     parser.add_argument("--username", default="admin")
+    parser.add_argument(
+        "--repair-missing-thumbnails", action="store_true",
+        help="Offline reconcile-storage only: recover missing overviews from DZI tiles",
+    )
     parser.add_argument("--artifact", type=Path)
     parser.add_argument(
         "--password-stdin",
@@ -153,12 +157,15 @@ def main() -> None:
         summary = reconcile_storage(
             factory,
             StorageLayout(settings.data_root, settings.storage_cap_bytes),
+            repair_missing_thumbnails=args.repair_missing_thumbnails,
         )
         print(
             "Storage reconciled: "
             f"slides={summary.slide_count} "
             f"derivatives={summary.derivative_count} "
             f"active={summary.active_reservation_count}"
+            + (f" thumbnails_repaired={summary.repaired_thumbnail_count}"
+               if args.repair_missing_thumbnails else "")
         )
         return
     with factory() as database:
