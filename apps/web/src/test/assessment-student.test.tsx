@@ -206,3 +206,22 @@ it('requires a canonical roster selection found by name, ID, group, or subgroup'
   expect(screen.getByText('s001 · Year 3 · Blue')).toBeVisible()
   expect(begin).toBeEnabled()
 })
+
+it('uses server time for a restored countdown when the client clock is behind', async () => {
+  const key = 'pathlab-assessment-session:clock-test'
+  sessionStorage.setItem(key, 'clock-csrf')
+  const manifest: AssessmentDocument = { title: 'Clock assessment', items: [{ id: 'clock-question', type: 'multiple-choice', prompt: 'Choose', points: '1', options: [{ id: 'a', label: 'A' }] }], settings: {} }
+  const server = Date.now() + 120000
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({ publicId: 'clock-test', mode: 'formative', status: 'open', durationSeconds: 3600, closesAt: null, assets: {}, manifest })
+  vi.mocked(assessmentApi.restoreAssessmentSession).mockResolvedValueOnce({ kind: 'roster', publicId: 'clock-test', status: 'open', deviceGeneration: 1, manifest, serverTime: new Date(server).toISOString(), attempt: { id: 'clock-attempt', ordinal: 1, status: 'active', startedAt: new Date(server - 30000).toISOString(), responses: [] } })
+  render(<MemoryRouter initialEntries={['/assessment/clock-test']}><Routes><Route path="/assessment/:publicId" element={<AssessmentStudentPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText(/59:30/)).toBeVisible()
+  sessionStorage.removeItem(key)
+})
+
+it('explains that an unpublished learner session is not accepting responses instead of blaming the code', async () => {
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({ publicId: 'pending-test', mode: 'formative', status: 'preparing', durationSeconds: 3600, closesAt: null, assets: {}, manifest: { title: 'Pending assignment', items: [], settings: {} } })
+  render(<MemoryRouter initialEntries={['/assessment/pending-test']}><Routes><Route path="/assessment/:publicId" element={<AssessmentStudentPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText(/Your teacher must open responses/)).toBeVisible()
+  expect(screen.queryByLabelText('Access code')).not.toBeInTheDocument()
+})

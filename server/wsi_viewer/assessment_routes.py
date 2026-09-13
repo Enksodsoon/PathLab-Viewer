@@ -1106,6 +1106,7 @@ def register_assessment_routes(
             "status": administration.status,
             "manifest": manifest,
             "deviceGeneration": stored_session.device_generation,
+            "serverTime": utc_now().isoformat(),
             "attempt": (
                 {
                     "id": attempt.id,

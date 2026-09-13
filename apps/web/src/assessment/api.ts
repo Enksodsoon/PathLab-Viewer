@@ -675,6 +675,7 @@ function studentMutation(path: string, csrfToken: string, idempotencyKey: string
 
 export async function restoreAssessmentSession(csrfToken: string) {
   return body<{
+    serverTime?: string
     kind: 'anonymous' | 'roster'
     publicId: string
     status: string

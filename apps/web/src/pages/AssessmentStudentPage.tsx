@@ -48,6 +48,7 @@ export function AssessmentStudentPage() {
   const [rosterSearchError, setRosterSearchError] = useState('')
   const [rosterSearchCompleted, setRosterSearchCompleted] = useState('')
   const [accessCode, setAccessCode] = useState('')
+  const [administrationStatus, setAdministrationStatus] = useState('open')
   const [accessError, setAccessError] = useState(false)
   const [entering, setEntering] = useState(false)
   const [takeover, setTakeover] = useState(false)
@@ -60,9 +61,12 @@ export function AssessmentStudentPage() {
   const syncTimer = useRef<number | null>(null)
   const responseGeneration = useRef(0)
   const pendingLocalWrites = useRef(0)
+  const clockAnchor = useRef({ server: Date.now(), monotonic: performance.now() })
 
   const restore = useCallback(async (token: string) => {
     const session = await restoreAssessmentSession(token)
+    const serverTime = Date.parse(session.serverTime ?? '')
+    clockAnchor.current = { server: Number.isFinite(serverTime) ? serverTime : Date.now(), monotonic: performance.now() }
     setDocument(session.manifest)
     if (session.attempt) {
       if (session.attempt.status !== 'active') {
@@ -87,6 +91,7 @@ export function AssessmentStudentPage() {
     void getAssessmentMetadata(publicId).then(async (metadata) => {
       if (cancelled) return
       setMode(metadata.mode)
+      setAdministrationStatus(metadata.status)
       setDuration(metadata.durationSeconds)
       setPracticeExpiry(Math.min(
         Date.now() + 30 * 24 * 60 * 60 * 1000,
@@ -125,7 +130,10 @@ export function AssessmentStudentPage() {
 
   useEffect(() => {
     if (!startedAt || mode === 'practice') return
-    const updateClock = () => setRemaining(Math.max(0, duration - Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)))
+    const updateClock = () => {
+      const now = clockAnchor.current.server + performance.now() - clockAnchor.current.monotonic
+      setRemaining(Math.max(0, Math.min(duration, duration - Math.floor((now - new Date(startedAt).getTime()) / 1000))))
+    }
     updateClock()
     const timer = window.setInterval(updateClock, 1000)
     return () => window.clearInterval(timer)
@@ -268,6 +276,7 @@ export function AssessmentStudentPage() {
   }, [attemptId, items])
   useEffect(() => setCurrent((index) => Math.min(index, Math.max(items.length - 1, 0))), [items.length])
   if (!document) return <main className="assessment-loading"><p role="status">{status}</p></main>
+  if (mode !== 'practice' && !csrf && administrationStatus !== 'open') return <main className="assessment-entry"><h1>{document.title}</h1><p role="status">This assignment is not accepting responses. Your teacher must open responses before you can begin.</p><button type="button" onClick={() => window.location.reload()}>Check again</button></main>
   if (mode !== 'practice' && !csrf) return <main className="assessment-entry">
     <p className="assessment-kicker">{mode === 'quiz' ? 'Roster access' : 'Assessment access'}</p><h1>{document.title}</h1><p className="assessment-entry-intro">Choose your roster record before beginning. Typed text is never accepted as an identity.</p>
     {mode === 'formative' ? <button type="button" disabled={entering} onClick={() => void enter('anonymous')}>Continue anonymously</button> : null}
