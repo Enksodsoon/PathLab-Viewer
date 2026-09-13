@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T08:43:08.722896Z",
+  "generatedAt": "2026-09-13T02:22:57.105775Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -8026,18 +8026,18 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.1.tgz",
+      "artifact": "https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.2.tgz",
       "blockers": [],
-      "checksum": "sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==",
+      "checksum": "sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==",
       "checksumVerified": true,
       "distribution": "not-bundled-tooling",
       "ecosystem": "npm",
-      "id": "npm:js-yaml@4.3.1",
+      "id": "npm:js-yaml@4.3.2",
       "license": "MIT",
       "manifestRefs": [
         "pnpm-lock.yaml"
       ],
-      "metadataSha256": "90c5f2f58c3a4870b3d01f6e6cdc1465afeaf40e22ce2299e1dbcae25e5e8af1",
+      "metadataSha256": "970a78cb315f1ce5f66885117f37a28e90e43ad7150fe172e826e87a11aca06e",
       "name": "js-yaml",
       "noticeFiles": [
         {
@@ -8048,8 +8048,8 @@
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "build-only",
-      "source": "https://registry.npmjs.org/js-yaml/4.3.1",
-      "version": "4.3.1"
+      "source": "https://registry.npmjs.org/js-yaml/4.3.2",
+      "version": "4.3.2"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -12810,7 +12810,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "f0290edc489910fe1abea5187e8a71d654f78a2ac1eb34bead5feede04ebe33d",
+      "metadataSha256": "59a67ac27d185e13ca5a9dda660e90d5abbe4f23001bae0751007a3787c74202",
       "name": "alembic",
       "noticeFiles": [
         {
@@ -12903,7 +12903,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "38652e110a88a90e1febff836e0b4ead4ae8fb88e59eb77c7955a53840b9596e",
+      "metadataSha256": "db8486b090bcf9977cd53888ffcd558fdf646d47887f656ab2eeeb0e9bb4cd06",
       "name": "anyio",
       "noticeFiles": [
         {
@@ -13611,7 +13611,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "7634902ee9dae988383220d7ad19c3db6d9f2ad865699dc4426c5e413108f25d",
+      "metadataSha256": "af16afe8a97db5d7b4a17df682ccb30d810e01e94acee0726865f6df21844a51",
       "name": "crc32c",
       "noticeFiles": [
         {
@@ -14820,7 +14820,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "e499b0fa138975b2633e47a19a8d65d8f0da013594dedf1ab947bedb0d0ed1cf",
+      "metadataSha256": "ba02a1199eb87b5f3dd0ba6902f0abb489d342aa1dfd49d60fe656b142d52945",
       "name": "multidict",
       "noticeFiles": [
         {
@@ -14915,7 +14915,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "7cb1c39162d4052adff94b576284ba38ee04c84b6faeab0a8d1d69802e3c8308",
+      "metadataSha256": "e0c2397586ef70cb96ba74e306dd896d70c409daff74a7263ce2c833a71eab91",
       "name": "numpy",
       "noticeFiles": [
         {
@@ -14966,7 +14966,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "a109fef415f6dc326d022d19ac960852ea1eeb96fa80f25b2441c9f85b3049ca",
+      "metadataSha256": "bea54320a5e6040161c453d6e8f187752a567f404cba98e69e36641a60edfc54",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -14997,7 +14997,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "c4b37e61055d71700b7348ef8216b664914882fc3bdb5ff1db2dc2f34bb4b901",
+      "metadataSha256": "83014d06e14aff961f15ec20de230d25f288500ea79a03d9c751c8479cea0934",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15554,7 +15554,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "8913cf70854e0dec9fbaee3ac3ed0420d27e674f56714b2d9aeff44fec1d82c3",
+      "metadataSha256": "5b5b7b259b0b98f2594f92cb9255a1ce3ec978608a81def66193e77f65212a1c",
       "name": "pydantic-core",
       "noticeFiles": [
         {
@@ -15647,7 +15647,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "63325e1fa102ac9784efd6e74af5e38d516d9b7da3672ff442c03f1f4eea15b4",
+      "metadataSha256": "201fdebc5da596df2df23805e8f2b6386888fad4c396dadc48c1c297a61431a5",
       "name": "pydantic",
       "noticeFiles": [
         {
@@ -15678,7 +15678,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "5e44ab4cfcfa8cdebe044915b2ed9aaa1de13e265368599e77b529d87557050a",
+      "metadataSha256": "15e51af7f5418ed361a0f1be12d382574715a87bf574800efe962728dbd3f052",
       "name": "pyjwt",
       "noticeFiles": [
         {
@@ -16167,7 +16167,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "3b76acec5c91a48523f59bcba4101b59963f9ae6233748bd407efb901301b906",
+      "metadataSha256": "33344ea8493622f2c6694a250179e7587e78ddf2eb17f349d67677bb7f9b1041",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -16268,7 +16268,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "666e8c3523fd5d44b6e11832303c5c660f8e5b115cc6ffdeb529162817454431",
+      "metadataSha256": "7718a3731c44a56ec8b4980a2ec3b3a8075be4f0e86f88d9736f62b25ea247c2",
       "name": "tifffile",
       "noticeFiles": [
         {
@@ -16362,7 +16362,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "803cc078e95743a65df3400feac314ee93a4c5bf9fbb1acf62938d50fe88660e",
+      "metadataSha256": "adde6199c173bb0732a7fac0ca6377a9377efd1f1d69b288e9b312fbf6e8b74e",
       "name": "tzdata",
       "noticeFiles": [
         {
@@ -17850,9 +17850,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "d9af2cad0f05ea04af213aa07b5d659b52b80650",
+      "gitBlob": "d29be1a97981e05a7f41b7f534175b0863940b16",
       "path": "pnpm-lock.yaml",
-      "sha256": "21b5a1daa0b4e8638550f3697eb6fd0c1c74ea8d305304094ec6b78a8d903e3d"
+      "sha256": "c97e9cfde59e620ea68684d8e3ae04fe732ba7831202c139bbdf99699b38d844"
     },
     {
       "gitBlob": "0467e61da46d6fa98b94edf7234630e8851d062f",
@@ -17870,6 +17870,6 @@
       "sha256": "818a0cc282d7afdf82a4293eb2ff3a2982ad467e53b361d9a39129b725c8c21b"
     }
   ],
-  "subjectCommit": "f59b841cd217a1ef5e01db96e3a9cc3b318eabe4",
-  "subjectTree": "4612bd8c65aee8acae583a249794bb72ba0a0a6a"
+  "subjectCommit": "386091f6bac00622939559357729c57aa4723efb",
+  "subjectTree": "fff6946fb93e53a4b31c4344d1fa0aa7df164bf8"
 }
