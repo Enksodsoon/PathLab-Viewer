@@ -2995,12 +2995,12 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:2213d91c606205c71eb051a199478cdc2adde945893404d7f1421436dd6d5cc1
 
-ID: npm:js-yaml@4.3.1
+ID: npm:js-yaml@4.3.2
 Name: js-yaml
-Version: 4.3.1
+Version: 4.3.2
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/js-yaml/4.3.1
+Source: https://registry.npmjs.org/js-yaml/4.3.2
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550

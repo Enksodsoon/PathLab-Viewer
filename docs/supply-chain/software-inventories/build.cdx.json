@@ -13060,15 +13060,15 @@
       "version": "4.0.0"
     },
     {
-      "bom-ref": "dependency:npm:js-yaml@4.3.1",
+      "bom-ref": "dependency:npm:js-yaml@4.3.2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.1.tgz"
+          "url": "https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.2.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/js-yaml/4.3.1"
+          "url": "https://registry.npmjs.org/js-yaml/4.3.2"
         }
       ],
       "licenses": [
@@ -13080,7 +13080,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:js-yaml@4.3.1"
+          "value": "npm:js-yaml@4.3.2"
         },
         {
           "name": "pathlab:role",
@@ -13099,9 +13099,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/js-yaml@4.3.1",
+      "purl": "pkg:npm/js-yaml@4.3.2",
       "type": "library",
-      "version": "4.3.1"
+      "version": "4.3.2"
     },
     {
       "bom-ref": "dependency:npm:jsdom@30.0.1",
@@ -25949,7 +25949,7 @@
         "dependency:npm:jackspeak@3.4.3",
         "dependency:npm:js-base64@3.9.1",
         "dependency:npm:js-tokens@4.0.0",
-        "dependency:npm:js-yaml@4.3.1",
+        "dependency:npm:js-yaml@4.3.2",
         "dependency:npm:jsdom@30.0.1",
         "dependency:npm:jsesc@3.1.0",
         "dependency:npm:json-buffer@3.0.1",
@@ -26227,7 +26227,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:96f06a3f4e61befc76ecef51a7f2af0e5308dd8f"
+      "ref": "pathlab:build:d21b61e8223a5e9e8c25b965801771f92e20a3cb"
     },
     {
       "dependsOn": [],
@@ -27419,7 +27419,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:js-yaml@4.3.1"
+      "ref": "dependency:npm:js-yaml@4.3.2"
     },
     {
       "dependsOn": [],
@@ -28528,15 +28528,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:96f06a3f4e61befc76ecef51a7f2af0e5308dd8f",
+      "bom-ref": "pathlab:build:d21b61e8223a5e9e8c25b965801771f92e20a3cb",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/96f06a3f4e61befc76ecef51a7f2af0e5308dd8f"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d21b61e8223a5e9e8c25b965801771f92e20a3cb"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/96f06a3f4e61befc76ecef51a7f2af0e5308dd8f"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d21b61e8223a5e9e8c25b965801771f92e20a3cb"
         }
       ],
       "licenses": [
@@ -28567,13 +28567,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@96f06a3f4e61befc76ecef51a7f2af0e5308dd8f",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@d21b61e8223a5e9e8c25b965801771f92e20a3cb",
       "type": "application",
-      "version": "96f06a3f4e61befc76ecef51a7f2af0e5308dd8f"
+      "version": "d21b61e8223a5e9e8c25b965801771f92e20a3cb"
     },
-    "timestamp": "2026-09-08T09:26:16Z"
+    "timestamp": "2026-09-13T02:23:20Z"
   },
-  "serialNumber": "urn:uuid:96f06a3f-4e61-4efc-a6ec-ef51a7f2af0e",
+  "serialNumber": "urn:uuid:d21b61e8-223a-4e9e-ac25-b965801771f9",
   "specVersion": "1.6",
   "version": 1
 }
