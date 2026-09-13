@@ -55,6 +55,12 @@ jobs:
       - run: pip install -e .[dev]
       - name: Validate dependency inventory
         run: |
+          # Squash merges can remove the branch holding this immutable subject.
+          DEPENDENCY_SUBJECT="$(python -c 'import json; print(json.load(open("docs/supply-chain/dependency-inventory.json"))["subjectCommit"])')"
+          [[ "${DEPENDENCY_SUBJECT}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          if ! git cat-file -e "${DEPENDENCY_SUBJECT}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "${DEPENDENCY_SUBJECT}"
+          fi
           python scripts/validate_dependency_inventory.py
           python scripts/validate_combine_errors_removal.py
           ruff check scripts/generate_dependency_inventory.py scripts/validate_dependency_inventory.py scripts/validate_combine_errors_removal.py tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
