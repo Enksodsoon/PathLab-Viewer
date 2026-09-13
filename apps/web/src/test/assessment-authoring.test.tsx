@@ -20,6 +20,7 @@ const api = vi.hoisted(() => ({
   importAssessmentQuestions: vi.fn(),
   listAssessmentDrafts: vi.fn(),
   listAssessmentAdministrations: vi.fn(),
+  listAssessmentClasses: vi.fn().mockResolvedValue({ items: [] }),
   listAssessmentCourses: vi.fn(),
   previewAssessmentDraft: vi.fn(),
   publishAssessmentDraft: vi.fn(),
@@ -607,4 +608,20 @@ it('autosaves a local edit once without treating the server acknowledgement as a
     await vi.advanceTimersByTimeAsync(3_000)
   })
   expect(api.saveAssessmentDraft).toHaveBeenCalledTimes(1)
+})
+
+it('keeps created links pending until responses open and allows retry without republishing', async () => {
+  api.publishAssessmentDraft.mockResolvedValueOnce({ publicId: 'qa-public', administrations: [{ id: 'qa-admin', publicId: 'qa-public', classId: null, accessCode: null }] })
+  api.setAssessmentAdministrationStatus.mockRejectedValueOnce(new Error('busy')).mockResolvedValueOnce({ id: 'qa-admin', status: 'open' })
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes><Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('All changes saved')
+  await userEvent.click(screen.getByRole('button', { name: /^Publish$/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Publish assignment' }))
+  expect(await screen.findByText('Not accepting responses yet. Open responses before sharing this link.')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Publish assignment' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Open responses' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Responses could not be opened')
+  await userEvent.click(screen.getByRole('button', { name: 'Open responses' }))
+  expect(await screen.findByText('Accepting responses. You can share this link.')).toBeVisible()
+  expect(api.publishAssessmentDraft).toHaveBeenCalledTimes(1)
 })
