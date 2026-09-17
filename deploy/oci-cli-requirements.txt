@@ -690,13 +690,13 @@ multidict==6.7.1 \
     # via
     #   aiohttp
     #   yarl
-oci==2.185.1 \
-    --hash=sha256:b3028254c45e149806566b40fe981c32834a45160aad95570b4c2f9be3873578 \
-    --hash=sha256:b703be0a94da5a2b10158ced904d2eaa732c72f0a5d4582e476758fa4db1a8ea
+oci==2.185.2 \
+    --hash=sha256:19b44890e8d4762da8e24cb40af2b09f778fa710aab4121e834301c42b841ef8 \
+    --hash=sha256:4ac140f9b54e22ed2cf0164dd800fc94fe78f1660ee18383308d95510d0735ed
     # via oci-cli
-oci-cli==3.92.0 \
-    --hash=sha256:0dc97c4e3ecf62046847b0276ef7e84b374f4c4e52f9eeb191ba9cb0a69c92ed \
-    --hash=sha256:13c231ee4ac5109c1526269f9cec278973450d0f04a4a34f1e966dd73195e1b1
+oci-cli==3.92.1 \
+    --hash=sha256:1cae35dcf23de4732446c1e9fa640e4c7c8934f0c8638dfe142afa4c5f8d3481 \
+    --hash=sha256:656938d5a631a1cdacc4189bda19740abdf246bbe08a329455f406b015d4edc2
     # via -r deploy/oci-cli-requirements.in
 prompt-toolkit==3.0.43 \
     --hash=sha256:3527b7af26106cbc65a040bcc84839a3566ec1b051bb0bfe953631e704b0ff7d \
@@ -927,9 +927,9 @@ typing-extensions==4.16.0 \
     #   aiohttp
     #   aiosignal
     #   pyopenssl
-tzdata==2026.3 \
-    --hash=sha256:4a1518b8993086a7982523e071643f3c0e5f213e75b21318e78bcabfff9d1415 \
-    --hash=sha256:dc096730c87af6cab1b171c9d532be840741ff5d459015e7f6947bd7d7e54931
+tzdata==2026.4 \
+    --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81 \
+    --hash=sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79
     # via arrow
 urllib3==2.7.0 \
     --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
