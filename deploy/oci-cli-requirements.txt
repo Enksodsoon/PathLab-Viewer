@@ -394,7 +394,7 @@ cryptography==50.0.1 \
     --hash=sha256:fd3718b960d0b5dd213cdf03f3bcb7000e69dda0de8b956061947ff6bcff5558 \
     --hash=sha256:ff838d62ec1bfce4f9ba7fa16f4a7b554cd8d0c299e6be37502161a660c84eef
     # via
-    #   -r deploy/oci-cli-requirements.in
+    #   -r oci-cli-requirements.in
     #   oci
     #   oci-cli
     #   pyopenssl
@@ -690,14 +690,14 @@ multidict==6.7.1 \
     # via
     #   aiohttp
     #   yarl
-oci==2.185.1 \
-    --hash=sha256:b3028254c45e149806566b40fe981c32834a45160aad95570b4c2f9be3873578 \
-    --hash=sha256:b703be0a94da5a2b10158ced904d2eaa732c72f0a5d4582e476758fa4db1a8ea
+oci==2.185.2 \
+    --hash=sha256:19b44890e8d4762da8e24cb40af2b09f778fa710aab4121e834301c42b841ef8 \
+    --hash=sha256:4ac140f9b54e22ed2cf0164dd800fc94fe78f1660ee18383308d95510d0735ed
     # via oci-cli
-oci-cli==3.92.0 \
-    --hash=sha256:0dc97c4e3ecf62046847b0276ef7e84b374f4c4e52f9eeb191ba9cb0a69c92ed \
-    --hash=sha256:13c231ee4ac5109c1526269f9cec278973450d0f04a4a34f1e966dd73195e1b1
-    # via -r deploy/oci-cli-requirements.in
+oci-cli==3.92.1 \
+    --hash=sha256:1cae35dcf23de4732446c1e9fa640e4c7c8934f0c8638dfe142afa4c5f8d3481 \
+    --hash=sha256:656938d5a631a1cdacc4189bda19740abdf246bbe08a329455f406b015d4edc2
+    # via -r oci-cli-requirements.in
 prompt-toolkit==3.0.43 \
     --hash=sha256:3527b7af26106cbc65a040bcc84839a3566ec1b051bb0bfe953631e704b0ff7d \
     --hash=sha256:a11a29cb3bf0a28a387fe5122cdb649816a957cd9261dcedf8c9f1fef33eacf6
@@ -839,7 +839,7 @@ pyopenssl==26.4.0 \
     --hash=sha256:28dfcce0162b9211413e26dfbfdf1d24317fbeba18fc93c12400a1856b2a0bc7 \
     --hash=sha256:f0eb0cb2d581d3ad2b9c489468485e7f2ab6727d08401bcf9d824c3caddf3c1c
     # via
-    #   -r deploy/oci-cli-requirements.in
+    #   -r oci-cli-requirements.in
     #   oci
     #   oci-cli
 python-dateutil==2.9.0.post0 \
