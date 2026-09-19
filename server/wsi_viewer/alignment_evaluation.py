@@ -34,4 +34,3 @@ def evaluate_landmarks(records: list[dict[str, Any]]) -> dict[str, Any]:
         "wrongStructureMatches": wrong,
         "qualified": qualified,
     }
-

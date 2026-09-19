@@ -19,7 +19,6 @@ def test_landmark_evaluation_reports_accuracy_coverage_and_acceptance() -> None:
     assert report["p95ErrorUm"] == 76
     assert report["qualified"] is False
 
-
 def test_confident_wrong_structure_match_blocks_acceptance() -> None:
     report = evaluate_landmarks(
         [
@@ -30,4 +29,3 @@ def test_confident_wrong_structure_match_blocks_acceptance() -> None:
 
     assert report["wrongStructureMatches"] == 1
     assert report["qualified"] is False
-
