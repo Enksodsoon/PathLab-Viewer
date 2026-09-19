@@ -296,10 +296,15 @@ export function OpenSeadragonViewer({
       viewerRef.current = viewer
       attachViewerAttachment(viewer)
       const readyViewer = viewer
+      const hasOpenImage = () => {
+        const world = readyViewer.world as typeof readyViewer.world | undefined
+        return viewerRef.current === readyViewer && (!world || world.getItemCount() > 0)
+      }
       onReadyRef.current({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
         home: () => {
+          if (!hasOpenImage()) return
           viewer?.viewport.goHome(true)
           applyRotation(0)
           setRotationOpen(false)
@@ -311,6 +316,7 @@ export function OpenSeadragonViewer({
         },
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
         fitImageBounds: ([left, top, right, bottom]) => {
+          if (!hasOpenImage()) return
           applyRotation(0)
           readyViewer.viewport.fitBounds(
             readyViewer.viewport.imageToViewportRectangle(left, top, right - left, bottom - top),
@@ -318,6 +324,7 @@ export function OpenSeadragonViewer({
           )
         },
         getImageViewport: () => {
+          if (!hasOpenImage()) return { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
           const center = readyViewer.viewport.viewportToImageCoordinates(readyViewer.viewport.getCenter(true))
           return {
             centerX: center.x,
@@ -327,16 +334,16 @@ export function OpenSeadragonViewer({
           }
         },
         setImageViewport: (snapshot) => {
-          if (!viewer) return
+          if (!hasOpenImage()) return
           suppressViewportEvent.current = true
-          const center = viewer.viewport.imageToViewportCoordinates(snapshot.centerX, snapshot.centerY)
+          const center = readyViewer.viewport.imageToViewportCoordinates(snapshot.centerX, snapshot.centerY)
           const normalizedRotation = ((snapshot.rotation % 360) + 360) % 360
           const displayRotation = Math.round(normalizedRotation)
-          viewer.viewport.panTo(center, true)
-          viewer.viewport.zoomTo(viewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
-          viewer.viewport.setRotation(displayRotation)
+          readyViewer.viewport.panTo(center, true)
+          readyViewer.viewport.zoomTo(readyViewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
+          readyViewer.viewport.setRotation(displayRotation)
           setRotation(displayRotation)
-          viewer.viewport.applyConstraints(true)
+          readyViewer.viewport.applyConstraints(true)
         },
       })
       const updateScale = () => {

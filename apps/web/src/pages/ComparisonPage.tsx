@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getComparisonSet, getSharedComparisonSet } from '../api'
-import { alignmentViewDelta, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport, type Support } from '../alignment'
+import { alignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport, type Support } from '../alignment'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { Loader } from '../components/Loader'
@@ -13,6 +13,10 @@ const MAX_PANES = 4
 
 function transform(member: ComparisonMember, referenceId: string) {
   return member.slideId === referenceId ? null : member.registration?.movingToReference ?? null
+}
+
+function localRegistration(member: ComparisonMember, referenceId: string) {
+  return member.slideId === referenceId ? null : member.registration
 }
 
 function commonReferenceBounds(comparison: ComparisonSet, slideIds: string[]): Exclude<Support, null> | null {
@@ -66,13 +70,17 @@ export function ComparisonPage() {
       setNotice(`Synchronization suspended because ${source.displayName} is not aligned.`)
       return
     }
+    if (!hasLocalEvidence(localRegistration(source, comparison.referenceSlideId))) {
+      setNotice(`Synchronization suspended because ${source.displayName} has only overview alignment.`)
+      return
+    }
     if (!withinSupport([snapshot.centerX, snapshot.centerY], source.registration?.movingSupport ?? null)) {
       setNotice(`Alignment suspended outside supported tissue on ${source.displayName}.`)
       return
     }
-    const referencePoint = mapComparisonPoint(
+    const referencePoint = mapLocalComparisonPoint(
       [snapshot.centerX, snapshot.centerY],
-      transform(source, comparison.referenceSlideId),
+      localRegistration(source, comparison.referenceSlideId),
       null,
     )
     const suspended: string[] = []
@@ -85,11 +93,15 @@ export function ComparisonPage() {
         suspended.push(target.displayName)
         continue
       }
+      if (!hasLocalEvidence(localRegistration(target, comparison.referenceSlideId))) {
+        suspended.push(target.displayName)
+        continue
+      }
       if (!withinSupport(referencePoint, target.registration?.referenceSupport ?? null)) {
         suspended.push(target.displayName)
         continue
       }
-      const [centerX, centerY] = mapComparisonPoint(referencePoint, null, transform(target, comparison.referenceSlideId))
+      const [centerX, centerY] = mapLocalComparisonPoint(referencePoint, null, localRegistration(target, comparison.referenceSlideId))
       const viewDelta = alignmentViewDelta(
         transform(source, comparison.referenceSlideId),
         transform(target, comparison.referenceSlideId),
@@ -170,7 +182,7 @@ export function ComparisonPage() {
     <main className={`comparison-grid comparison-grid--${panes.length}`}>
       {panes.map((slideId, paneIndex) => {
         const member = comparison.members.find((candidate) => candidate.slideId === slideId)!
-        const aligned = member.slideId === comparison.referenceSlideId || member.registration?.status === 'ready'
+        const aligned = member.slideId === comparison.referenceSlideId || (member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
         const anchor = member.registration?.anchorSlideId
           ? comparison.members.find((candidate) => candidate.slideId === member.registration?.anchorSlideId)
           : null
@@ -179,10 +191,10 @@ export function ComparisonPage() {
           : anchorIds.has(member.slideId)
             ? 'Reference anchor'
             : anchor && anchor.slideId !== comparison.referenceSlideId
-              ? `Aligned via ${anchor.displayName}`
-              : 'Aligned'
+              ? `Locally aligned via ${anchor.displayName}`
+              : 'Locally aligned'
         return <section className="comparison-pane" key={`${paneIndex}-${slideId}`}>
-          <header><select aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned ? 'alignment-ready' : 'alignment-unavailable'}>{aligned ? alignmentLabel : 'Not aligned'}</span>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => setPanes((current) => current.filter((_, index) => index !== paneIndex))}><X /></button> : null}</header>
+          <header><select aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned ? 'alignment-ready' : 'alignment-unavailable'}>{aligned ? alignmentLabel : member.registration?.status === 'ready' ? 'Overview only' : 'Not aligned'}</span>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => setPanes((current) => current.filter((_, index) => index !== paneIndex))}><X /></button> : null}</header>
           <OpenSeadragonViewer tileSource={member.tileSource} onReady={(handle) => handles.current.set(slideId, handle)} onOpen={() => {
             openedSlides.current.add(slideId)
             initializeOpenedPanes()

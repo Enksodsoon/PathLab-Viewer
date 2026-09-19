@@ -230,6 +230,11 @@ export interface SlideRegistration {
   referenceSupport?: [number, number, number, number] | null
   movingSupport?: [number, number, number, number] | null
   confidence?: number
+  controlPoints?: Array<{
+    moving: [number, number]
+    reference: [number, number]
+    errorPixels: number
+  }>
   reason?: string
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { alignmentViewDelta, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
+import { alignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
   it('maps bidirectionally through reference coordinates', () => {
@@ -33,5 +33,22 @@ describe('comparison coordinate mapping', () => {
     expect(withinSupport([25, 25], [0, 0, 50, 50])).toBe(true)
     expect(withinSupport([55, 25], [0, 0, 50, 50])).toBe(false)
     expect(withinSupport([55, 25], null)).toBe(true)
+  })
+
+  it('uses nearby landmarks to correct serial-section deformation in both directions', () => {
+    const registration = {
+      movingToReference: [[1, 0, 10], [0, 1, 0]],
+      controlPoints: [
+        { moving: [0, 0] as [number, number], reference: [12, 1] as [number, number], errorPixels: 1 },
+        { moving: [100, 0] as [number, number], reference: [108, -1] as [number, number], errorPixels: 1 },
+        { moving: [0, 100] as [number, number], reference: [14, 99] as [number, number], errorPixels: 1 },
+        { moving: [100, 100] as [number, number], reference: [106, 101] as [number, number], errorPixels: 1 },
+      ],
+    }
+    const mapped = mapLocalComparisonPoint([0, 0], registration, null)
+    expect(mapped).toEqual([12, 1])
+    expect(mapLocalComparisonPoint(mapped, null, registration)).toEqual([0, 0])
+    expect(hasLocalEvidence(registration)).toBe(true)
+    expect(hasLocalEvidence({ movingToReference: registration.movingToReference })).toBe(false)
   })
 })

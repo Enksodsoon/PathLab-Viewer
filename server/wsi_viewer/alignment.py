@@ -7,7 +7,7 @@ runtime shapes are validated and covered by synthetic geometry tests.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations, permutations
 from typing import Any
 
@@ -30,6 +30,7 @@ class RegistrationResult:
     inlier_count: int
     match_count: int
     median_error_pixels: float
+    control_points: list[dict[str, Any]] = field(default_factory=list)
 
     def as_json(self) -> dict[str, Any]:
         return {
@@ -41,6 +42,7 @@ class RegistrationResult:
             "inlierCount": self.inlier_count,
             "matchCount": self.match_count,
             "medianErrorPixels": self.median_error_pixels,
+            "controlPoints": self.control_points,
         }
 
 
@@ -50,6 +52,35 @@ def map_point(transform: list[list[float]], x: float, y: float) -> tuple[float, 
         raise ValueError("Alignment transform must be a 2x3 matrix")
     mapped = matrix[:, :2] @ np.array([x, y], dtype=np.float64) + matrix[:, 2]
     return float(mapped[0]), float(mapped[1])
+
+
+def map_registration_point(
+    registration: dict[str, Any], x: float, y: float, *, inverse: bool = False
+) -> tuple[float, float]:
+    """Map a navigation point with a compact landmark displacement field."""
+    transform = np.asarray(registration["movingToReference"], dtype=np.float64)
+    if inverse:
+        transform = cv2.invertAffineTransform(transform)
+    base = np.asarray(map_point(transform.tolist(), x, y))
+    controls = registration.get("controlPoints") or []
+    if not controls:
+        return float(base[0]), float(base[1])
+    samples: list[tuple[float, np.ndarray]] = []
+    for control in controls:
+        source = np.asarray(control["reference" if inverse else "moving"], dtype=np.float64)
+        target = np.asarray(control["moving" if inverse else "reference"], dtype=np.float64)
+        distance = float(np.linalg.norm(source - np.asarray([x, y])))
+        predicted = np.asarray(map_point(transform.tolist(), float(source[0]), float(source[1])))
+        samples.append((distance, target - predicted))
+    samples.sort(key=lambda item: item[0])
+    nearest = samples[: min(6, len(samples))]
+    if nearest[0][0] < 1e-6:
+        result = base + nearest[0][1]
+    else:
+        weights = np.asarray([1.0 / max(1.0, distance * distance) for distance, _ in nearest])
+        residuals = np.asarray([residual for _, residual in nearest])
+        result = base + np.average(residuals, axis=0, weights=weights)
+    return float(result[0]), float(result[1])
 
 
 def compose_transforms(outer: list[list[float]], inner: list[list[float]]) -> list[list[float]]:
@@ -125,6 +156,24 @@ def rescale_registration(
             support[3] * y_scale,
         )
 
+    moving_x_scale = moving_full_size[0] / moving_thumbnail_size[0]
+    moving_y_scale = moving_full_size[1] / moving_thumbnail_size[1]
+    reference_x_scale = reference_full_size[0] / reference_thumbnail_size[0]
+    reference_y_scale = reference_full_size[1] / reference_thumbnail_size[1]
+    controls = [
+        {
+            "moving": [
+                point["moving"][0] * moving_x_scale,
+                point["moving"][1] * moving_y_scale,
+            ],
+            "reference": [
+                point["reference"][0] * reference_x_scale,
+                point["reference"][1] * reference_y_scale,
+            ],
+            "errorPixels": point["errorPixels"] * max(reference_x_scale, reference_y_scale),
+        }
+        for point in result.control_points
+    ]
     return RegistrationResult(
         status=result.status,
         moving_to_reference=transform.round(10).tolist(),
@@ -145,6 +194,7 @@ def rescale_registration(
             ),
             4,
         ),
+        control_points=controls,
     )
 
 
@@ -215,6 +265,130 @@ def _full_resolution_transform(
     )
     affine = np.vstack([low_resolution, [0.0, 0.0, 1.0]])
     return (reference_up @ affine @ moving_down)[:2]
+
+
+def _registration_controls(
+    moving_points: np.ndarray,
+    reference_points: np.ndarray,
+    transform: np.ndarray,
+    *,
+    moving_scale: float,
+    reference_scale: float,
+) -> list[dict[str, Any]]:
+    """Return compact, spatially distributed landmarks in source coordinates."""
+    if len(moving_points) == 0:
+        return []
+    projected = cv2.transform(moving_points[:, None, :], transform)[:, 0, :]
+    errors = np.linalg.norm(projected - reference_points, axis=1)
+    order = np.argsort(errors)
+    selected: list[int] = []
+    # Keep the best landmark in each coarse cell so one repeated structure
+    # cannot dominate the local navigation map.
+    occupied: set[tuple[int, int]] = set()
+    x_span = max(1.0, float(np.ptp(moving_points[:, 0])))
+    y_span = max(1.0, float(np.ptp(moving_points[:, 1])))
+    x_min = float(np.min(moving_points[:, 0]))
+    y_min = float(np.min(moving_points[:, 1]))
+    for index in order:
+        point = moving_points[index]
+        cell = (
+            min(5, int(6 * (float(point[0]) - x_min) / x_span)),
+            min(5, int(6 * (float(point[1]) - y_min) / y_span)),
+        )
+        if cell in occupied:
+            continue
+        occupied.add(cell)
+        selected.append(int(index))
+        if len(selected) == 24:
+            break
+    return [
+        {
+            "moving": [
+                round(float(moving_points[index, 0]) / moving_scale, 4),
+                round(float(moving_points[index, 1]) / moving_scale, 4),
+            ],
+            "reference": [
+                round(float(reference_points[index, 0]) / reference_scale, 4),
+                round(float(reference_points[index, 1]) / reference_scale, 4),
+            ],
+            "errorPixels": round(float(errors[index]) / reference_scale, 4),
+        }
+        for index in selected
+    ]
+
+
+def _component_controls(
+    reference_mask: np.ndarray,
+    moving_mask: np.ndarray,
+    seed: np.ndarray,
+    *,
+    moving_scale: float,
+    reference_scale: float,
+) -> list[dict[str, Any]]:
+    """Build separate local maps for reliably paired tissue fragments."""
+    def describe(mask: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, np.ndarray, int]]:
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
+        values: list[tuple[np.ndarray, np.ndarray, np.ndarray, int]] = []
+        minimum = max(100, mask.size // 5000)
+        for index in range(1, count):
+            area = int(stats[index, cv2.CC_STAT_AREA])
+            if area < minimum:
+                continue
+            y, x = np.nonzero(labels == index)
+            center = np.asarray([x.mean(), y.mean()], dtype=np.float64)
+            covariance = np.cov(np.vstack([x, y]))
+            eigenvalues, eigenvectors = np.linalg.eigh(covariance)
+            order = np.argsort(eigenvalues)[::-1]
+            values.append((center, eigenvectors[:, order], eigenvalues[order], area))
+        return sorted(values, key=lambda item: item[3], reverse=True)[:4]
+
+    references = describe(reference_mask)
+    movings = describe(moving_mask)
+    if len(references) < 2 or len(movings) < 2:
+        return []
+    available = set(range(len(references)))
+    pairs: list[tuple[tuple[np.ndarray, np.ndarray, np.ndarray, int], tuple[np.ndarray, np.ndarray, np.ndarray, int]]] = []
+    for moving in movings:
+        projected_center = np.asarray(map_point(seed.tolist(), *moving[0]))
+        candidates = sorted(
+            available,
+            key=lambda index: float(np.linalg.norm(references[index][0] - projected_center)),
+        )
+        if not candidates:
+            break
+        reference_index = candidates[0]
+        available.remove(reference_index)
+        pairs.append((moving, references[reference_index]))
+    controls: list[dict[str, Any]] = []
+    for moving, reference in pairs:
+        moving_center, moving_vectors, moving_values, _ = moving
+        reference_center, reference_vectors, reference_values, _ = reference
+        scale = np.diag(np.sqrt(np.maximum(reference_values, 1.0) / np.maximum(moving_values, 1.0)))
+        candidates = []
+        for signs in (np.diag([1.0, 1.0]), np.diag([-1.0, -1.0])):
+            linear = reference_vectors @ signs @ scale @ moving_vectors.T
+            candidates.append(linear)
+        seed_linear = seed[:, :2].astype(np.float64)
+        linear = min(candidates, key=lambda value: float(np.linalg.norm(value - seed_linear)))
+        offset = reference_center - linear @ moving_center
+        local = np.column_stack([linear, offset])
+        axes = [
+            moving_center,
+            moving_center + moving_vectors[:, 0] * np.sqrt(max(1.0, moving_values[0])),
+            moving_center - moving_vectors[:, 0] * np.sqrt(max(1.0, moving_values[0])),
+            moving_center + moving_vectors[:, 1] * np.sqrt(max(1.0, moving_values[1])),
+            moving_center - moving_vectors[:, 1] * np.sqrt(max(1.0, moving_values[1])),
+        ]
+        for point in axes:
+            target = np.asarray(map_point(local.tolist(), *point))
+            controls.append(
+                {
+                    "moving": [round(float(point[0]) / moving_scale, 4), round(float(point[1]) / moving_scale, 4)],
+                    "reference": [round(float(target[0]) / reference_scale, 4), round(float(target[1]) / reference_scale, 4)],
+                    "errorPixels": 0.0,
+                }
+            )
+    return controls
 
 
 def _mask_seed(reference_mask: np.ndarray, moving_mask: np.ndarray) -> tuple[np.ndarray, float]:
@@ -321,6 +495,15 @@ def _coarse_refined_result(
         if component_overlap < 0.72 or component_margin < 0.05 or component_count < 2:
             raise AlignmentRejected("no reliable correspondence found")
         assert component_seed is not None
+        controls = _component_controls(
+            reference_mask,
+            moving_mask,
+            component_seed,
+            moving_scale=moving_scale,
+            reference_scale=reference_scale,
+        )
+        if len(controls) < 8:
+            raise AlignmentRejected("no reliable local correspondence found")
         full = _full_resolution_transform(component_seed, moving_scale, reference_scale)
         confidence = min(0.75, 0.45 + 0.25 * component_overlap + component_margin)
         return RegistrationResult(
@@ -332,6 +515,7 @@ def _coarse_refined_result(
             inlier_count=component_count,
             match_count=component_count,
             median_error_pixels=0.0,
+            control_points=controls,
         )
 
     if overlap < 0.45:
@@ -339,7 +523,7 @@ def _coarse_refined_result(
     size = (reference_mask.shape[1], reference_mask.shape[0])
     warped_structure = cv2.warpAffine(moving_structure, seed, size)
     warped_mask = cv2.warpAffine(moving_mask, seed, size)
-    detector = cv2.ORB_create(nfeatures=5000, scaleFactor=1.2, nlevels=8, fastThreshold=5)
+    detector = cv2.ORB_create(nfeatures=8000, scaleFactor=1.2, nlevels=8, fastThreshold=3)
     reference_keys, reference_descriptors = detector.detectAndCompute(
         reference_structure, reference_mask
     )
@@ -352,18 +536,27 @@ def _coarse_refined_result(
     matches = [
         pair[0]
         for pair in candidates
-        if len(pair) == 2 and pair[0].distance < 0.80 * pair[1].distance
+        if len(pair) == 2 and pair[0].distance < 0.82 * pair[1].distance
     ]
     if len(matches) < 16:
         return outline_result()
     moving_points = np.float32([moving_keys[item.queryIdx].pt for item in matches])
     reference_points = np.float32([reference_keys[item.trainIdx].pt for item in matches])
+    # The moving image is already outline-aligned. Matches that would jump to
+    # another repeated gland, core, or fragment are not evidence of local
+    # deformation and must never pull the whole slide toward that structure.
+    local = np.linalg.norm(moving_points - reference_points, axis=1) <= 96.0
+    moving_points = moving_points[local]
+    reference_points = reference_points[local]
+    matches = [item for item, keep in zip(matches, local, strict=True) if keep]
+    if len(matches) < 4:
+        return outline_result()
     refinement, inlier_mask = cv2.estimateAffinePartial2D(
         moving_points,
         reference_points,
         method=cv2.RANSAC,
-        ransacReprojThreshold=5.0,
-        maxIters=5000,
+        ransacReprojThreshold=7.0,
+        maxIters=10000,
         confidence=0.999,
         refineIters=25,
     )
@@ -379,7 +572,7 @@ def _coarse_refined_result(
     # Require independent local anchors after strong outline agreement, while
     # allowing stain and section-depth changes to remove most feature matches.
     if (
-        inlier_count < 3
+        inlier_count < 4
         or ratio < 0.07
         or not 0.65 <= refined_scale <= 1.5
         or spatial_coverage < 0.002
@@ -390,7 +583,27 @@ def _coarse_refined_result(
     combined = (np.vstack([refinement, [0, 0, 1]]) @ np.vstack([seed, [0, 0, 1]]))[:2]
     full = _full_resolution_transform(combined, moving_scale, reference_scale)
     confidence = min(0.95, 0.35 + 0.30 * overlap + 0.20 * ratio + 0.10 * min(1, inlier_count / 40))
-    if confidence < 0.55 or median_error > 4.0:
+    if confidence < 0.55 or median_error > 7.0:
+        return outline_result()
+    seed_inverse = cv2.invertAffineTransform(seed)
+    original_moving_points = cv2.transform(moving_points[inliers, None, :], seed_inverse)[:, 0, :]
+    controls = _registration_controls(
+        original_moving_points,
+        reference_points[inliers],
+        combined,
+        moving_scale=moving_scale,
+        reference_scale=reference_scale,
+    )
+    controls.extend(
+        _component_controls(
+            reference_mask,
+            moving_mask,
+            seed,
+            moving_scale=moving_scale,
+            reference_scale=reference_scale,
+        )
+    )
+    if len(controls) < 4:
         return outline_result()
     return RegistrationResult(
         status="ready",
@@ -401,6 +614,7 @@ def _coarse_refined_result(
         inlier_count=inlier_count,
         match_count=len(matches),
         median_error_pixels=round(median_error / reference_scale, 4),
+        control_points=controls,
     )
 
 
@@ -514,4 +728,11 @@ def register_pair(
         inlier_count=inlier_count,
         match_count=len(matches),
         median_error_pixels=round(median_error / reference_scale, 4),
+        control_points=_registration_controls(
+            moving_points[inliers],
+            reference_points[inliers],
+            transform,
+            moving_scale=moving_scale,
+            reference_scale=reference_scale,
+        ),
     )

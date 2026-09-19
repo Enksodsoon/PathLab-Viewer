@@ -100,6 +100,7 @@ def test_rescale_registration_converts_thumbnail_map_to_full_slide_coordinates()
         inlier_count=20,
         match_count=25,
         median_error_pixels=2,
+        control_points=[{"moving": [20, 30], "reference": [15, 25], "errorPixels": 2}],
     )
 
     full = rescale_registration(
@@ -114,6 +115,9 @@ def test_rescale_registration_converts_thumbnail_map_to_full_slide_coordinates()
     assert full.reference_support == (50.0, 40.0, 950.0, 760.0)
     assert full.moving_support == (40.0, 60.0, 1960.0, 1560.0)
     assert full.median_error_pixels == 20.0
+    assert full.control_points == [
+        {"moving": [400.0, 600.0], "reference": [150.0, 250.0], "errorPixels": 20.0}
+    ]
 
 
 def test_map_point_rejects_invalid_transform() -> None:

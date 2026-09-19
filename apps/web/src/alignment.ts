@@ -2,6 +2,11 @@ export type AffineTransform = number[][]
 export type Point = [number, number]
 export type Support = [number, number, number, number] | null
 
+export interface LocalRegistration {
+  movingToReference?: AffineTransform
+  controlPoints?: Array<{ moving: Point; reference: Point; errorPixels: number }>
+}
+
 interface AlignmentViewDelta {
   rotation: number
   zoomScale: number
@@ -22,6 +27,46 @@ function inverse(matrix: AffineTransform): AffineTransform {
 export function mapComparisonPoint(point: Point, sourceToReference: AffineTransform | null, targetToReference: AffineTransform | null): Point {
   const referencePoint = sourceToReference ? apply(point, sourceToReference) : point
   return targetToReference ? apply(referencePoint, inverse(targetToReference)) : referencePoint
+}
+
+function mapLocal(point: Point, registration: LocalRegistration | null, backwards = false): Point {
+  if (!registration?.movingToReference) return point
+  const matrix = backwards ? inverse(registration.movingToReference) : registration.movingToReference
+  const base = apply(point, matrix)
+  const controls = registration.controlPoints ?? []
+  if (!controls.length) return base
+  const samples = controls.map((control) => {
+    const source = backwards ? control.reference : control.moving
+    const target = backwards ? control.moving : control.reference
+    const predicted = apply(source, matrix)
+    return {
+      distance: Math.hypot(source[0] - point[0], source[1] - point[1]),
+      residual: [target[0] - predicted[0], target[1] - predicted[1]] as Point,
+    }
+  }).sort((left, right) => left.distance - right.distance).slice(0, 6)
+  if (samples[0].distance < 1e-6) return [base[0] + samples[0].residual[0], base[1] + samples[0].residual[1]]
+  let total = 0
+  let dx = 0
+  let dy = 0
+  for (const sample of samples) {
+    const weight = 1 / Math.max(1, sample.distance * sample.distance)
+    total += weight
+    dx += weight * sample.residual[0]
+    dy += weight * sample.residual[1]
+  }
+  return [base[0] + dx / total, base[1] + dy / total]
+}
+
+export function mapLocalComparisonPoint(
+  point: Point,
+  source: LocalRegistration | null,
+  target: LocalRegistration | null,
+): Point {
+  return mapLocal(mapLocal(point, source), target, true)
+}
+
+export function hasLocalEvidence(registration: LocalRegistration | null): boolean {
+  return !registration || (registration.controlPoints?.length ?? 0) >= 4
 }
 
 export function withinSupport(point: Point, support: Support): boolean {

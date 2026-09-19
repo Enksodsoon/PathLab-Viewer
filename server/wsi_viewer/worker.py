@@ -21,6 +21,7 @@ from .alignment import (
     AlignmentRejected,
     compose_transforms,
     map_bounds,
+    map_registration_point,
     register_pair,
     rescale_registration,
 )
@@ -451,6 +452,19 @@ def process_next(
                             registration_result.reference_support,
                         )
                     )
+                    result_json["controlPoints"] = [
+                        {
+                            **point,
+                            "reference": list(
+                                map_registration_point(
+                                    anchor_registration,
+                                    float(point["reference"][0]),
+                                    float(point["reference"][1]),
+                                )
+                            ),
+                        }
+                        for point in result_json.get("controlPoints", [])
+                    ]
                     confidence = min(confidence, float(anchor_registration["confidence"]))
                     result_json["confidence"] = round(confidence, 6)
                     result_json["anchorConfidence"] = registration_result.confidence
