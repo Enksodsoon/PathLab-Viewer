@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw, ImageEnhance
 from wsi_viewer.alignment import (
     AlignmentRejected,
     RegistrationResult,
+    compose_transforms,
+    map_bounds,
     map_point,
     register_pair,
     rescale_registration,
@@ -66,6 +68,28 @@ def test_register_pair_rejects_unrelated_tissue() -> None:
         register_pair(_tissue(), unrelated)
 
 
+def test_register_pair_matches_separate_fragments_and_ignores_slide_edge() -> None:
+    reference = Image.new("RGB", (800, 600), "white")
+    draw = ImageDraw.Draw(reference)
+    draw.rounded_rectangle((90, 110, 260, 470), radius=35, fill=(224, 168, 194))
+    draw.polygon([(500, 90), (650, 135), (610, 500), (470, 450)], fill=(218, 156, 188))
+    draw.ellipse((340, 420, 410, 500), fill=(210, 145, 180))
+    moving = reference.rotate(24, resample=Image.Resampling.BICUBIC, fillcolor="white")
+    moving_array = np.asarray(moving).copy()
+    tissue = np.min(moving_array, axis=2) < 245
+    moving_array[tissue] = (95, 82, 105)
+    moving = Image.fromarray(moving_array)
+    artifact = ImageDraw.Draw(moving)
+    artifact.rectangle((0, 580, 799, 599), fill=(185, 185, 185))
+
+    result = register_pair(reference, moving, max_dimension=900)
+
+    assert result.status == "ready"
+    assert result.confidence >= 0.55
+    assert result.reference_support[1] < 120
+    assert result.reference_support[3] < 520
+
+
 def test_rescale_registration_converts_thumbnail_map_to_full_slide_coordinates() -> None:
     thumbnail = RegistrationResult(
         status="ready",
@@ -95,3 +119,20 @@ def test_rescale_registration_converts_thumbnail_map_to_full_slide_coordinates()
 def test_map_point_rejects_invalid_transform() -> None:
     with pytest.raises(ValueError, match="2x3"):
         map_point([[1.0, 0.0], [0.0, 1.0]], 1.0, 2.0)
+
+
+def test_composes_secondary_reference_coordinates() -> None:
+    moving_to_anchor = [[1.0, 0.0, 10.0], [0.0, 1.0, -5.0]]
+    anchor_to_reference = [[0.0, -2.0, 100.0], [2.0, 0.0, 20.0]]
+
+    composed = compose_transforms(anchor_to_reference, moving_to_anchor)
+
+    assert map_point(composed, 4.0, 7.0) == pytest.approx(
+        map_point(anchor_to_reference, *map_point(moving_to_anchor, 4.0, 7.0))
+    )
+    assert map_bounds(anchor_to_reference, (0.0, 0.0, 10.0, 20.0)) == (
+        60.0,
+        20.0,
+        100.0,
+        40.0,
+    )

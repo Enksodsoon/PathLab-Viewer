@@ -72,6 +72,26 @@ export function mapSupportBounds(support: Exclude<Support, null>, transform: Aff
   ]
 }
 
+export function mapComparisonBounds(
+  bounds: Exclude<Support, null>,
+  sourceToReference: AffineTransform | null,
+  targetToReference: AffineTransform | null,
+): Exclude<Support, null> {
+  const corners: Point[] = [
+    [bounds[0], bounds[1]],
+    [bounds[2], bounds[1]],
+    [bounds[0], bounds[3]],
+    [bounds[2], bounds[3]],
+  ]
+  const mapped = corners.map((point) => mapComparisonPoint(point, sourceToReference, targetToReference))
+  return [
+    Math.min(...mapped.map((point) => point[0])),
+    Math.min(...mapped.map((point) => point[1])),
+    Math.max(...mapped.map((point) => point[0])),
+    Math.max(...mapped.map((point) => point[1])),
+  ]
+}
+
 export function intersectSupport(
   left: Exclude<Support, null>,
   right: Exclude<Support, null>,

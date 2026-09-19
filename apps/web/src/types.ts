@@ -225,6 +225,7 @@ export interface SharedManifest {
 export interface SlideRegistration {
   status: 'ready' | 'rejected'
   provenance: 'automatic' | 'manual'
+  anchorSlideId?: string
   movingToReference?: number[][]
   referenceSupport?: [number, number, number, number] | null
   movingSupport?: [number, number, number, number] | null

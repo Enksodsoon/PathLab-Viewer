@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { alignmentViewDelta, intersectSupport, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
+import { alignmentViewDelta, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
   it('maps bidirectionally through reference coordinates', () => {
@@ -26,6 +26,7 @@ describe('comparison coordinate mapping', () => {
     expect(mapSupportBounds([10, 20, 40, 60], transform)).toEqual([40, 30, 80, 60])
     expect(intersectSupport([0, 0, 70, 70], [40, 30, 80, 60])).toEqual([40, 30, 70, 60])
     expect(intersectSupport([0, 0, 10, 10], [20, 20, 30, 30])).toBeNull()
+    expect(mapComparisonBounds([40, 30, 80, 60], null, transform)).toEqual([10, 20, 40, 60])
   })
 
   it('rejects points outside a registration support region', () => {

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getComparisonSet, getSharedComparisonSet } from '../api'
-import { alignmentViewDelta, intersectSupport, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport, type Support } from '../alignment'
+import { alignmentViewDelta, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport, type Support } from '../alignment'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { Loader } from '../components/Loader'
@@ -121,10 +121,17 @@ export function ComparisonPage() {
     const key = opened.join('|')
     if (key === initializedPanes.current) return
     initializedPanes.current = key
-    const referenceHandle = handles.current.get(comparison.referenceSlideId)
-    if (referenceHandle && opened.includes(comparison.referenceSlideId) && opened.length > 1) {
-      const bounds = commonReferenceBounds(comparison, opened)
-      if (bounds) referenceHandle.fitImageBounds(bounds)
+    const anchorId = opened.includes(comparison.referenceSlideId)
+      ? comparison.referenceSlideId
+      : opened.find((id) => comparison.members.find((member) => member.slideId === id)?.registration?.status === 'ready')
+    const anchor = comparison.members.find((member) => member.slideId === anchorId)
+    const anchorHandle = anchorId ? handles.current.get(anchorId) : null
+    if (anchor && anchorHandle && opened.length > 1) {
+      const referenceBounds = commonReferenceBounds(comparison, opened)
+      const anchorBounds = referenceBounds
+        ? mapComparisonBounds(referenceBounds, null, transform(anchor, comparison.referenceSlideId))
+        : null
+      if (anchorBounds) anchorHandle.fitImageBounds(anchorBounds)
     }
     window.requestAnimationFrame(alignOpenedPanes)
   }, [alignOpenedPanes, comparison, linked, panes])
@@ -143,8 +150,12 @@ export function ComparisonPage() {
       ?? panes.find((id) => openedSlides.current.has(id))
     if (!anchorId) return
     const anchor = handles.current.get(anchorId)
-    const bounds = comparison && anchorId === comparison.referenceSlideId
+    const anchorMember = comparison?.members.find((member) => member.slideId === anchorId)
+    const referenceBounds = comparison
       ? commonReferenceBounds(comparison, panes.filter((id) => openedSlides.current.has(id)))
+      : null
+    const bounds = comparison && anchorMember && referenceBounds
+      ? mapComparisonBounds(referenceBounds, null, transform(anchorMember, comparison.referenceSlideId))
       : null
     if (bounds) anchor?.fitImageBounds(bounds)
     else anchor?.home()
@@ -152,6 +163,7 @@ export function ComparisonPage() {
   }, [alignOpenedPanes, comparison, linked, panes])
   if (!comparison && !notice) return <Loader label="Opening comparison…" size="large" fullscreen />
   if (!comparison) return <main className="viewer-message"><h1>{notice}</h1></main>
+  const anchorIds = new Set(comparison.members.flatMap((member) => member.registration?.anchorSlideId ? [member.registration.anchorSlideId] : []))
   return <div className="comparison-shell">
     <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><button type="button" aria-pressed={linked} onClick={() => setLinked((value) => !value)}>{linked ? <LinkSimple /> : <LinkBreak />}{linked ? 'Views linked' : 'Views independent'}</button><button type="button" onClick={resetView}><ArrowsClockwise /> Reset</button></header>
     {notice ? <div className="comparison-notice" role="status">{notice}</div> : null}
@@ -159,8 +171,18 @@ export function ComparisonPage() {
       {panes.map((slideId, paneIndex) => {
         const member = comparison.members.find((candidate) => candidate.slideId === slideId)!
         const aligned = member.slideId === comparison.referenceSlideId || member.registration?.status === 'ready'
+        const anchor = member.registration?.anchorSlideId
+          ? comparison.members.find((candidate) => candidate.slideId === member.registration?.anchorSlideId)
+          : null
+        const alignmentLabel = member.slideId === comparison.referenceSlideId
+          ? 'Primary reference'
+          : anchorIds.has(member.slideId)
+            ? 'Reference anchor'
+            : anchor && anchor.slideId !== comparison.referenceSlideId
+              ? `Aligned via ${anchor.displayName}`
+              : 'Aligned'
         return <section className="comparison-pane" key={`${paneIndex}-${slideId}`}>
-          <header><select aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned ? 'alignment-ready' : 'alignment-unavailable'}>{aligned ? (member.slideId === comparison.referenceSlideId ? 'Reference' : 'Aligned') : 'Not aligned'}</span>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => setPanes((current) => current.filter((_, index) => index !== paneIndex))}><X /></button> : null}</header>
+          <header><select aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned ? 'alignment-ready' : 'alignment-unavailable'}>{aligned ? alignmentLabel : 'Not aligned'}</span>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => setPanes((current) => current.filter((_, index) => index !== paneIndex))}><X /></button> : null}</header>
           <OpenSeadragonViewer tileSource={member.tileSource} onReady={(handle) => handles.current.set(slideId, handle)} onOpen={() => {
             openedSlides.current.add(slideId)
             initializeOpenedPanes()

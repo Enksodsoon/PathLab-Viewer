@@ -17,7 +17,13 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
 
-from .alignment import AlignmentRejected, register_pair, rescale_registration
+from .alignment import (
+    AlignmentRejected,
+    compose_transforms,
+    map_bounds,
+    register_pair,
+    rescale_registration,
+)
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
@@ -353,10 +359,14 @@ def process_next(
                 job.lease_expires_at = None
                 database.commit()
                 return True
-            reference = database.get(Slide, comparison.reference_slide_id)
+            primary_reference = database.get(Slide, comparison.reference_slide_id)
+            anchor_id = checkpoint.get("anchorSlideId") or comparison.reference_slide_id
+            reference = database.get(Slide, anchor_id)
             source_current = (
                 reference is not None
+                and primary_reference is not None
                 and comparison.source_versions.get(reference.id) == reference.sha256
+                and comparison.source_versions.get(primary_reference.id) == primary_reference.sha256
                 and comparison.source_versions.get(slide.id) == slide.sha256
             )
             if not source_current:
@@ -369,6 +379,31 @@ def process_next(
                 database.commit()
                 return True
             assert reference is not None
+            assert primary_reference is not None
+            anchor_registration = (
+                comparison.registrations.get(reference.id)
+                if reference.id != primary_reference.id
+                else None
+            )
+            if anchor_registration is not None and anchor_registration.get("status") != "ready":
+                anchor_registration = None
+            if reference.id != primary_reference.id and anchor_registration is None:
+                registrations = dict(comparison.registrations)
+                registrations[slide.id] = {
+                    "status": "rejected",
+                    "provenance": "automatic",
+                    "reason": "The selected reference anchor is unavailable.",
+                    "anchorSlideId": reference.id,
+                }
+                comparison.registrations = registrations
+                comparison.status = "partial"
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_ANCHOR_UNAVAILABLE"
+                job.error = "The selected reference anchor is unavailable"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
             checkpoint["progress"] = 10
             job.checkpoint = checkpoint
             comparison.status = "running"
@@ -403,24 +438,43 @@ def process_next(
                     reference_full_size=reference_full_size,
                     moving_full_size=moving_full_size,
                 )
+                result_json = registration_result.as_json()
+                confidence = registration_result.confidence
+                if anchor_registration is not None:
+                    result_json["movingToReference"] = compose_transforms(
+                        anchor_registration["movingToReference"],
+                        registration_result.moving_to_reference,
+                    )
+                    result_json["referenceSupport"] = list(
+                        map_bounds(
+                            anchor_registration["movingToReference"],
+                            registration_result.reference_support,
+                        )
+                    )
+                    confidence = min(confidence, float(anchor_registration["confidence"]))
+                    result_json["confidence"] = round(confidence, 6)
+                    result_json["anchorConfidence"] = registration_result.confidence
                 registrations = dict(comparison.registrations)
                 registrations[slide.id] = {
-                    **registration_result.as_json(),
+                    **result_json,
                     "provenance": "automatic",
                     "sourceVersion": slide.sha256,
-                    "referenceVersion": reference.sha256,
+                    "referenceVersion": primary_reference.sha256,
+                    "anchorSlideId": reference.id,
+                    "anchorVersion": reference.sha256,
                 }
                 comparison.registrations = registrations
                 comparison.status = (
                     "ready"
                     if len(registrations) == len(comparison.member_slide_ids) - 1
+                    and all(value.get("status") == "ready" for value in registrations.values())
                     else "partial"
                 )
                 job.checkpoint = {**checkpoint, "progress": 100}
                 job.output_manifest = {
                     "comparisonSetId": comparison.id,
                     "memberId": slide.id,
-                    "confidence": registration_result.confidence,
+                    "confidence": confidence,
                     "inlierCount": registration_result.inlier_count,
                 }
                 job.status = "succeeded"

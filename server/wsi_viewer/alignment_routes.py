@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -48,6 +49,32 @@ def _members(database: OrmSession, item: ComparisonSet) -> list[Slide]:
     if len(slides) != len(item.member_slide_ids):
         raise _error("COMPARISON_SOURCE_CHANGED", 409)
     return [slides[slide_id] for slide_id in item.member_slide_ids]
+
+
+def _serial_group(slide: Slide) -> str | None:
+    text = f"{slide.display_name} {slide.original_filename}"
+    match = re.search(r"(?<!\d)(\d+)\s*of\s*(\d+)(?!\d)", text, re.IGNORECASE)
+    return f"{match.group(1)}of{match.group(2)}" if match else None
+
+
+def _alignment_anchors(slides: list[Slide], primary_reference_id: str) -> dict[str, str]:
+    he_by_group: dict[str, list[str]] = {}
+    for slide in slides:
+        group = _serial_group(slide)
+        stain = (slide.stain or "").casefold().replace("&", "").replace(" ", "")
+        if group and stain in {"he", "hande", "hematoxylinandeosin"}:
+            he_by_group.setdefault(group, []).append(slide.id)
+    anchors: dict[str, str] = {}
+    for slide in slides:
+        group = _serial_group(slide)
+        candidates = he_by_group.get(group or "", [])
+        is_secondary_reference = slide.id in candidates and slide.id != primary_reference_id
+        anchors[slide.id] = (
+            primary_reference_id
+            if is_secondary_reference or len(candidates) != 1
+            else candidates[0]
+        )
+    return anchors
 
 
 def _json(
@@ -150,6 +177,11 @@ def register_alignment_routes(
         if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
         slides = _members(database, item)
+        anchors = _alignment_anchors(slides, item.reference_slide_id)
+        secondary_anchors = {
+            anchor_id for anchor_id in anchors.values() if anchor_id != item.reference_slide_id
+        }
+        slides = sorted(slides, key=lambda slide: slide.id not in secondary_anchors)
         queued = 0
         for slide in slides:
             if slide.id == item.reference_slide_id or slide.id in item.registrations:
@@ -168,6 +200,7 @@ def register_alignment_routes(
                         checkpoint={
                             "comparisonSetId": item.id,
                             "memberId": slide.id,
+                            "anchorSlideId": anchors[slide.id],
                             "progress": 0,
                         },
                         resource_limits={
@@ -223,9 +256,7 @@ def register_alignment_routes(
 
     def public_share(public_id: str, database: OrmSession) -> LibraryShare:
         try:
-            return active_public_share(
-                database, target_type="collection", public_id=public_id
-            )
+            return active_public_share(database, target_type="collection", public_id=public_id)
         except ShareConflict as exc:
             raise _error("COMPARISON_NOT_FOUND", 404) from exc
 

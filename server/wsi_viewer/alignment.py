@@ -8,6 +8,7 @@ runtime shapes are validated and covered by synthetic geometry tests.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import combinations, permutations
 from typing import Any
 
 import cv2
@@ -51,6 +52,34 @@ def map_point(transform: list[list[float]], x: float, y: float) -> tuple[float, 
     return float(mapped[0]), float(mapped[1])
 
 
+def compose_transforms(outer: list[list[float]], inner: list[list[float]]) -> list[list[float]]:
+    """Compose moving-to-anchor and anchor-to-reference affine maps."""
+    outer_matrix = np.asarray(outer, dtype=np.float64)
+    inner_matrix = np.asarray(inner, dtype=np.float64)
+    if outer_matrix.shape != (2, 3) or inner_matrix.shape != (2, 3):
+        raise ValueError("Alignment transforms must be 2x3 matrices")
+    outer_h = np.vstack([outer_matrix, [0.0, 0.0, 1.0]])
+    inner_h = np.vstack([inner_matrix, [0.0, 0.0, 1.0]])
+    return (outer_h @ inner_h)[:2].round(10).tolist()
+
+
+def map_bounds(
+    transform: list[list[float]], bounds: tuple[float, float, float, float]
+) -> tuple[float, float, float, float]:
+    corners = [
+        map_point(transform, bounds[0], bounds[1]),
+        map_point(transform, bounds[2], bounds[1]),
+        map_point(transform, bounds[0], bounds[3]),
+        map_point(transform, bounds[2], bounds[3]),
+    ]
+    return (
+        min(point[0] for point in corners),
+        min(point[1] for point in corners),
+        max(point[0] for point in corners),
+        max(point[1] for point in corners),
+    )
+
+
 def rescale_registration(
     result: RegistrationResult,
     *,
@@ -60,10 +89,7 @@ def rescale_registration(
     moving_full_size: tuple[int, int],
 ) -> RegistrationResult:
     sizes = (
-        reference_thumbnail_size
-        + moving_thumbnail_size
-        + reference_full_size
-        + moving_full_size
+        reference_thumbnail_size + moving_thumbnail_size + reference_full_size + moving_full_size
     )
     if any(value <= 0 for value in sizes):
         raise ValueError("Registration image dimensions must be positive")
@@ -137,9 +163,33 @@ def _structure(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     # Optical-density proxy is invariant to RGB channel order and therefore to
     # many broad stain hue changes while retaining nuclei and tissue edges.
     density = 255 - np.min(rgb, axis=2)
-    tissue = (density >= 14).astype(np.uint8) * 255
-    tissue = cv2.morphologyEx(tissue, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    # Require chroma for lightly stained tissue, while retaining dark silver
+    # deposits. This avoids scanner-bed edges and coverslip outlines becoming
+    # the dominant structures in sparse biopsy sections.
+    tissue = ((density >= 18) & ((hsv[:, :, 1] >= 10) | (gray < 205))).astype(np.uint8) * 255
+    tissue = cv2.morphologyEx(tissue, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
     tissue = cv2.morphologyEx(tissue, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    component_count, labels, stats, _ = cv2.connectedComponentsWithStats(tissue)
+    cleaned = np.zeros_like(tissue)
+    minimum_area = max(150, tissue.size // 5000)
+    retained: list[tuple[int, int]] = []
+    for index in range(1, component_count):
+        x, y, width, height, area = stats[index]
+        touches_edge = (
+            x <= 1
+            or y <= 1
+            or x + width >= tissue.shape[1] - 1
+            or y + height >= tissue.shape[0] - 1
+        )
+        if area >= minimum_area and not touches_edge:
+            retained.append((int(area), index))
+    # Whole-slide tissue may be fragmented, but tiny debris adds ambiguous
+    # component permutations without useful anatomical evidence.
+    for _, index in sorted(retained, reverse=True)[:6]:
+        cleaned[labels == index] = 255
+    tissue = cleaned
     if cv2.countNonZero(tissue) < max(512, tissue.size // 500):
         raise AlignmentRejected("insufficient tissue for alignment")
     enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(density)
@@ -197,6 +247,57 @@ def _mask_seed(reference_mask: np.ndarray, moving_mask: np.ndarray) -> tuple[np.
     return best, best_score
 
 
+def _component_seed(
+    reference_mask: np.ndarray, moving_mask: np.ndarray
+) -> tuple[np.ndarray | None, float, float, int]:
+    def components(mask: np.ndarray) -> list[tuple[int, np.ndarray]]:
+        count, _, stats, centers = cv2.connectedComponentsWithStats(mask)
+        minimum = max(100, mask.size // 5000)
+        values = [
+            (int(stats[index, cv2.CC_STAT_AREA]), centers[index])
+            for index in range(1, count)
+            if stats[index, cv2.CC_STAT_AREA] >= minimum
+        ]
+        return sorted(values, key=lambda item: item[0], reverse=True)[:4]
+
+    reference_components = components(reference_mask)
+    moving_components = components(moving_mask)
+    matched_count = min(len(reference_components), len(moving_components), 4)
+    if matched_count < 2:
+        return None, -1.0, 0.0, matched_count
+    scores: list[tuple[float, np.ndarray]] = []
+    for reference_subset in combinations(reference_components, matched_count):
+        reference_points = np.float32([item[1] for item in reference_subset])
+        for moving_subset in combinations(moving_components, matched_count):
+            for moving_order in permutations(moving_subset):
+                moving_points = np.float32([item[1] for item in moving_order])
+                candidate, _ = cv2.estimateAffinePartial2D(
+                    moving_points, reference_points, method=cv2.LMEDS
+                )
+                if candidate is None:
+                    continue
+                scale = float(np.sqrt(abs(np.linalg.det(candidate[:, :2]))))
+                if not 0.3 <= scale <= 3.0:
+                    continue
+                warped = cv2.warpAffine(
+                    moving_mask,
+                    candidate,
+                    (reference_mask.shape[1], reference_mask.shape[0]),
+                )
+                intersection = np.count_nonzero((warped > 0) & (reference_mask > 0))
+                score = (
+                    2
+                    * intersection
+                    / max(1, np.count_nonzero(warped) + np.count_nonzero(reference_mask))
+                )
+                scores.append((float(score), candidate.astype(np.float32)))
+    if not scores:
+        return None, -1.0, 0.0, matched_count
+    scores.sort(key=lambda item: item[0], reverse=True)
+    second = scores[1][0] if len(scores) > 1 else 0.0
+    return scores[0][1], scores[0][0], scores[0][0] - second, matched_count
+
+
 def _coarse_refined_result(
     reference_structure: np.ndarray,
     reference_mask: np.ndarray,
@@ -206,6 +307,33 @@ def _coarse_refined_result(
     moving_scale: float,
 ) -> RegistrationResult:
     seed, overlap = _mask_seed(reference_mask, moving_mask)
+    component_seed, component_overlap, component_margin, component_count = _component_seed(
+        reference_mask, moving_mask
+    )
+    if component_seed is not None and component_overlap > overlap:
+        seed, overlap = component_seed, component_overlap
+
+    def outline_result() -> RegistrationResult:
+        # Outline-only acceptance is reserved for multiple independently
+        # segmented fragments with a clearly better component assignment.
+        # This supports sparse cross-stain sections while rejecting symmetric
+        # or repeated-fragment permutations that remain ambiguous.
+        if component_overlap < 0.72 or component_margin < 0.05 or component_count < 2:
+            raise AlignmentRejected("no reliable correspondence found")
+        assert component_seed is not None
+        full = _full_resolution_transform(component_seed, moving_scale, reference_scale)
+        confidence = min(0.75, 0.45 + 0.25 * component_overlap + component_margin)
+        return RegistrationResult(
+            status="ready",
+            moving_to_reference=full.round(10).tolist(),
+            reference_support=_support(reference_mask, reference_scale),
+            moving_support=_support(moving_mask, moving_scale),
+            confidence=round(confidence, 6),
+            inlier_count=component_count,
+            match_count=component_count,
+            median_error_pixels=0.0,
+        )
+
     if overlap < 0.45:
         raise AlignmentRejected("no reliable correspondence found")
     size = (reference_mask.shape[1], reference_mask.shape[0])
@@ -217,7 +345,7 @@ def _coarse_refined_result(
     )
     moving_keys, moving_descriptors = detector.detectAndCompute(warped_structure, warped_mask)
     if reference_descriptors is None or moving_descriptors is None:
-        raise AlignmentRejected("no reliable correspondence found")
+        return outline_result()
     candidates = cv2.BFMatcher(cv2.NORM_HAMMING).knnMatch(
         moving_descriptors, reference_descriptors, k=2
     )
@@ -227,7 +355,7 @@ def _coarse_refined_result(
         if len(pair) == 2 and pair[0].distance < 0.80 * pair[1].distance
     ]
     if len(matches) < 16:
-        raise AlignmentRejected("no reliable correspondence found")
+        return outline_result()
     moving_points = np.float32([moving_keys[item.queryIdx].pt for item in matches])
     reference_points = np.float32([reference_keys[item.trainIdx].pt for item in matches])
     refinement, inlier_mask = cv2.estimateAffinePartial2D(
@@ -240,7 +368,7 @@ def _coarse_refined_result(
         refineIters=25,
     )
     if refinement is None or inlier_mask is None:
-        raise AlignmentRejected("no reliable correspondence found")
+        return outline_result()
     inliers = inlier_mask.ravel().astype(bool)
     inlier_count = int(np.count_nonzero(inliers))
     ratio = inlier_count / len(matches)
@@ -256,14 +384,14 @@ def _coarse_refined_result(
         or not 0.65 <= refined_scale <= 1.5
         or spatial_coverage < 0.002
     ):
-        raise AlignmentRejected("no reliable correspondence found")
+        return outline_result()
     projected = cv2.transform(moving_points[inliers, None, :], refinement)[:, 0, :]
     median_error = float(np.median(np.linalg.norm(projected - reference_points[inliers], axis=1)))
     combined = (np.vstack([refinement, [0, 0, 1]]) @ np.vstack([seed, [0, 0, 1]]))[:2]
     full = _full_resolution_transform(combined, moving_scale, reference_scale)
     confidence = min(0.95, 0.35 + 0.30 * overlap + 0.20 * ratio + 0.10 * min(1, inlier_count / 40))
     if confidence < 0.55 or median_error > 4.0:
-        raise AlignmentRejected("no reliable correspondence found")
+        return outline_result()
     return RegistrationResult(
         status="ready",
         moving_to_reference=full.round(10).tolist(),

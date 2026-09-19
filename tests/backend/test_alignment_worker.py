@@ -84,6 +84,7 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
         assert comparison is not None
         assert comparison.registrations["moving"]["status"] == "ready"
         assert comparison.registrations["moving"]["provenance"] == "automatic"
+        assert comparison.registrations["moving"]["anchorSlideId"] == "reference"
         assert abs(comparison.registrations["moving"]["movingToReference"][0][2]) > 20
         assert comparison.status == "ready"
         assert job.status == "succeeded"

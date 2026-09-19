@@ -114,6 +114,46 @@ def test_set_rejects_unready_or_missing_reference_members(tmp_path: Path) -> Non
         assert missing.json()["detail"]["code"] == "REFERENCE_NOT_MEMBER"
 
 
+def test_numbered_sections_queue_against_their_matching_he_anchor(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        with session_factory(client.app.state.settings)() as database:
+            first, second, stain = [database.get(Slide, f"slide-{index}") for index in range(1, 4)]
+            assert first and second and stain
+            first.display_name, first.original_filename = "H&E 1of2", "case_HE_1of2.svs"
+            second.display_name, second.original_filename, second.stain = (
+                "H&E 2of2",
+                "case_HE_2of2.svs",
+                "H&E",
+            )
+            stain.display_name, stain.original_filename, stain.stain = (
+                "PAS 2of2",
+                "case_PAS_2of2.svs",
+                "PAS",
+            )
+            database.commit()
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Numbered serial sections",
+                "slideIds": ["slide-1", "slide-2", "slide-3"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+
+        response = client.post(
+            f"/api/v1/admin/comparison-sets/{created['id']}/register", headers=headers
+        )
+
+        assert response.status_code == 202
+        with session_factory(client.app.state.settings)() as database:
+            jobs = {job.slide_id: job for job in database.query(Job).all()}
+            assert jobs["slide-2"].checkpoint["anchorSlideId"] == "slide-1"
+            assert jobs["slide-3"].checkpoint["anchorSlideId"] == "slide-2"
+            assert jobs["slide-2"].created_at <= jobs["slide-3"].created_at
+
+
 def test_shared_collection_lists_only_fully_authorized_comparisons(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=True) as client:
         with session_factory(client.app.state.settings)() as database:
@@ -164,6 +204,9 @@ def test_shared_collection_lists_only_fully_authorized_comparisons(tmp_path: Pat
             assert share is not None
             share.privacy_status = "pending"
             database.commit()
-        assert client.get(
-            f"/api/v2/public/collections/shared-collection/comparisons/{visible_id}"
-        ).status_code == 404
+        assert (
+            client.get(
+                f"/api/v2/public/collections/shared-collection/comparisons/{visible_id}"
+            ).status_code
+            == 404
+        )
