@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import OpenSeadragon from 'openseadragon'
 
 import {
@@ -23,7 +23,7 @@ export interface ViewerHandle {
   fullscreen: () => void
   fitImageBounds: (bounds: [number, number, number, number]) => void
   getImageViewport: () => ImageViewport
-  setImageViewport: (snapshot: ImageViewport) => void
+  setImageViewport: (snapshot: ImageViewport, transactionId?: string) => void
 }
 
 export interface ImageViewport {
@@ -46,8 +46,10 @@ interface Props {
   onViewerAttach?: ViewerAttachmentCallback
   networkProfile?: ViewerNetworkProfile
   showLoadingMode?: boolean
-  onViewportChange?: (snapshot: ImageViewport) => void
+  onViewportChange?: (snapshot: ImageViewport, transactionId?: string) => void
   onOpen?: () => void
+  onDispose?: () => void
+  displayAdjustments?: { brightness: number; contrast: number; gamma: number }
 }
 
 interface NavigatorWithConnection extends Navigator {
@@ -76,7 +78,10 @@ export function OpenSeadragonViewer({
   showLoadingMode = true,
   onViewportChange,
   onOpen,
+  onDispose,
+  displayAdjustments = { brightness: 1, contrast: 1, gamma: 1 },
 }: Props) {
+  const filterId = `pathlab-display-${useId().replace(/:/g, '')}`
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const tileSourceRef = useRef(tileSource)
@@ -89,7 +94,8 @@ export function OpenSeadragonViewer({
   const networkProfileRef = useRef(networkProfile)
   const viewportChangeRef = useRef(onViewportChange)
   const onOpenRef = useRef(onOpen)
-  const suppressViewportEvent = useRef(false)
+  const navigationTransaction = useRef<string | undefined>()
+  const onDisposeRef = useRef(onDispose)
   const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
   const windowFailures = useRef(0)
@@ -175,6 +181,7 @@ export function OpenSeadragonViewer({
     onScaleChangeRef.current = onScaleChange
     viewportChangeRef.current = onViewportChange
     onOpenRef.current = onOpen
+    onDisposeRef.current = onDispose
     if (viewerRef.current && openedSourceRef.current !== tileSource) {
       openedSourceRef.current = tileSource
       tileFailures.current = 0
@@ -197,6 +204,7 @@ export function OpenSeadragonViewer({
     onScaleChange,
     onViewportChange,
     onOpen,
+    onDispose,
     posterUrl,
     tileSource,
   ])
@@ -333,9 +341,9 @@ export function OpenSeadragonViewer({
             rotation: readyViewer.viewport.getRotation(),
           }
         },
-        setImageViewport: (snapshot) => {
+        setImageViewport: (snapshot, transactionId) => {
           if (!hasOpenImage()) return
-          suppressViewportEvent.current = true
+          navigationTransaction.current = transactionId
           const center = readyViewer.viewport.imageToViewportCoordinates(snapshot.centerX, snapshot.centerY)
           const normalizedRotation = ((snapshot.rotation % 360) + 360) % 360
           const displayRotation = Math.round(normalizedRotation)
@@ -369,17 +377,14 @@ export function OpenSeadragonViewer({
       const handleTileLoaded = () => setPosterVisible(false)
       const reportViewport = () => {
         if (!viewer) return
-        if (suppressViewportEvent.current) {
-          suppressViewportEvent.current = false
-          return
-        }
         const center = viewer.viewport.viewportToImageCoordinates(viewer.viewport.getCenter(true))
         viewportChangeRef.current?.({
           centerX: center.x,
           centerY: center.y,
           imageZoom: viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)),
           rotation: viewer.viewport.getRotation(),
-        })
+        }, navigationTransaction.current)
+        navigationTransaction.current = undefined
       }
       const handleTileLoadFailed = () => {
         windowFailures.current += 1
@@ -448,6 +453,7 @@ export function OpenSeadragonViewer({
       viewer?.removeAllHandlers('tile-load-failed')
       viewer?.destroy()
       if (viewerRef.current === viewer) viewerRef.current = null
+      onDisposeRef.current?.()
     }
   }, [applyRotation, attachViewerAttachment, detachViewerAttachment])
   return <div className="osd-surface" data-tile-source={tileSource} style={{ position: 'relative' }}>
@@ -458,7 +464,8 @@ export function OpenSeadragonViewer({
       fetchPriority="high"
       decoding="async"
     /> : null}
-    <div ref={element} style={{ position: 'absolute', inset: 0 }} />
+    <svg width="0" height="0" aria-hidden="true" focusable="false"><filter id={filterId}><feComponentTransfer><feFuncR type="gamma" amplitude="1" exponent={displayAdjustments.gamma} offset="0" /><feFuncG type="gamma" amplitude="1" exponent={displayAdjustments.gamma} offset="0" /><feFuncB type="gamma" amplitude="1" exponent={displayAdjustments.gamma} offset="0" /></feComponentTransfer></filter></svg>
+    <div ref={element} style={{ position: 'absolute', inset: 0, filter: `brightness(${displayAdjustments.brightness}) contrast(${displayAdjustments.contrast}) url(#${filterId})` }} />
     {showLoadingMode ? <label className="viewer-loading-mode">
       <span>Tile detail</span>
       <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>

@@ -2,9 +2,17 @@ export type AffineTransform = number[][]
 export type Point = [number, number]
 export type Support = [number, number, number, number] | null
 
+export interface RegistrationTriangle {
+  moving: [Point, Point, Point]
+  reference: [Point, Point, Point]
+  maxResidualPixels?: number
+  provenance?: 'structural-feature' | 'manual-landmark'
+}
+
 export interface LocalRegistration {
   movingToReference?: AffineTransform
   controlPoints?: Array<{ moving: Point; reference: Point; errorPixels: number }>
+  triangles?: RegistrationTriangle[]
 }
 
 interface AlignmentViewDelta {
@@ -29,44 +37,77 @@ export function mapComparisonPoint(point: Point, sourceToReference: AffineTransf
   return targetToReference ? apply(referencePoint, inverse(targetToReference)) : referencePoint
 }
 
-function mapLocal(point: Point, registration: LocalRegistration | null, backwards = false): Point {
-  if (!registration?.movingToReference) return point
-  const matrix = backwards ? inverse(registration.movingToReference) : registration.movingToReference
-  const base = apply(point, matrix)
-  const controls = registration.controlPoints ?? []
-  if (!controls.length) return base
-  const samples = controls.map((control) => {
-    const source = backwards ? control.reference : control.moving
-    const target = backwards ? control.moving : control.reference
-    const predicted = apply(source, matrix)
-    return {
-      distance: Math.hypot(source[0] - point[0], source[1] - point[1]),
-      residual: [target[0] - predicted[0], target[1] - predicted[1]] as Point,
-    }
-  }).sort((left, right) => left.distance - right.distance).slice(0, 6)
-  if (samples[0].distance < 1e-6) return [base[0] + samples[0].residual[0], base[1] + samples[0].residual[1]]
-  let total = 0
-  let dx = 0
-  let dy = 0
-  for (const sample of samples) {
-    const weight = 1 / Math.max(1, sample.distance * sample.distance)
-    total += weight
-    dx += weight * sample.residual[0]
-    dy += weight * sample.residual[1]
+function barycentric(point: Point, triangle: [Point, Point, Point]): Point | null {
+  const [[ax, ay], [bx, by], [cx, cy]] = triangle
+  const determinant = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+  if (Math.abs(determinant) < 1e-12) return null
+  const first = ((by - cy) * (point[0] - cx) + (cx - bx) * (point[1] - cy)) / determinant
+  const second = ((cy - ay) * (point[0] - cx) + (ax - cx) * (point[1] - cy)) / determinant
+  const third = 1 - first - second
+  return Math.min(first, second, third) >= -1e-7 ? [first, second, third] : null
+}
+
+function triangleLinear(source: [Point, Point, Point], target: [Point, Point, Point]): AffineTransform {
+  const sourceMatrix = [
+    [source[0][0], source[0][1], 1],
+    [source[1][0], source[1][1], 1],
+    [source[2][0], source[2][1], 1],
+  ]
+  const determinant = sourceMatrix[0][0] * (sourceMatrix[1][1] - sourceMatrix[2][1])
+    - sourceMatrix[0][1] * (sourceMatrix[1][0] - sourceMatrix[2][0])
+    + sourceMatrix[1][0] * sourceMatrix[2][1] - sourceMatrix[1][1] * sourceMatrix[2][0]
+  if (Math.abs(determinant) < 1e-12) throw new Error('Degenerate registration triangle')
+  const solve = (values: number[]) => {
+    const [x1, y1] = source[0]; const [x2, y2] = source[1]; const [x3, y3] = source[2]
+    const [v1, v2, v3] = values
+    return [
+      (v1 * (y2 - y3) + v2 * (y3 - y1) + v3 * (y1 - y2)) / determinant,
+      (v1 * (x3 - x2) + v2 * (x1 - x3) + v3 * (x2 - x1)) / determinant,
+      (v1 * (x2 * y3 - x3 * y2) + v2 * (x3 * y1 - x1 * y3) + v3 * (x1 * y2 - x2 * y1)) / determinant,
+    ]
   }
-  return [base[0] + dx / total, base[1] + dy / total]
+  return [solve(target.map((point) => point[0])), solve(target.map((point) => point[1]))]
+}
+
+export function mapRegistrationPoint(point: Point, registration: LocalRegistration | null, backwards = false): { point: Point; linear: AffineTransform } | null {
+  if (!registration?.movingToReference) return { point, linear: [[1, 0, 0], [0, 1, 0]] }
+  for (const triangle of registration.triangles ?? []) {
+    const source = backwards ? triangle.reference : triangle.moving
+    const target = backwards ? triangle.moving : triangle.reference
+    const weights = barycentric(point, source)
+    if (!weights) continue
+    return {
+      point: [
+        weights[0] * target[0][0] + weights[1] * target[1][0] + weights[2] * target[2][0],
+        weights[0] * target[0][1] + weights[1] * target[1][1] + weights[2] * target[2][1],
+      ],
+      linear: triangleLinear(source, target),
+    }
+  }
+  return null
 }
 
 export function mapLocalComparisonPoint(
   point: Point,
   source: LocalRegistration | null,
   target: LocalRegistration | null,
-): Point {
-  return mapLocal(mapLocal(point, source), target, true)
+): Point | null {
+  const inReference = source ? mapRegistrationPoint(point, source) : { point, linear: [[1, 0, 0], [0, 1, 0]] }
+  if (!inReference) return null
+  const inTarget = target ? mapRegistrationPoint(inReference.point, target, true) : inReference
+  return inTarget?.point ?? null
 }
 
 export function hasLocalEvidence(registration: LocalRegistration | null): boolean {
-  return !registration || (registration.controlPoints?.length ?? 0) >= 4
+  return !registration || (registration.triangles?.length ?? 0) > 0
+}
+
+export function localAlignmentViewDelta(point: Point, source: LocalRegistration | null, target: LocalRegistration | null): AlignmentViewDelta | null {
+  const sourceMap = source ? mapRegistrationPoint(point, source) : { point, linear: [[1, 0, 0], [0, 1, 0]] as AffineTransform }
+  if (!sourceMap) return null
+  const targetMap = target ? mapRegistrationPoint(sourceMap.point, target, true) : { point: sourceMap.point, linear: [[1, 0, 0], [0, 1, 0]] as AffineTransform }
+  if (!targetMap) return null
+  return alignmentViewDelta(sourceMap.linear, inverse(targetMap.linear))
 }
 
 export function withinSupport(point: Point, support: Support): boolean {

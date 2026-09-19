@@ -68,7 +68,7 @@ def test_register_pair_rejects_unrelated_tissue() -> None:
         register_pair(_tissue(), unrelated)
 
 
-def test_register_pair_matches_separate_fragments_and_ignores_slide_edge() -> None:
+def test_outline_only_fragments_are_explicitly_approximate() -> None:
     reference = Image.new("RGB", (800, 600), "white")
     draw = ImageDraw.Draw(reference)
     draw.rounded_rectangle((90, 110, 260, 470), radius=35, fill=(224, 168, 194))
@@ -84,8 +84,11 @@ def test_register_pair_matches_separate_fragments_and_ignores_slide_edge() -> No
 
     result = register_pair(reference, moving, max_dimension=900)
 
-    assert result.status == "ready"
+    assert result.status == "approximate"
     assert result.confidence >= 0.55
+    assert result.control_points == []
+    assert result.triangles == []
+    assert result.evidence["anatomicalMatchCount"] == 0
     assert result.reference_support[1] < 120
     assert result.reference_support[3] < 520
 

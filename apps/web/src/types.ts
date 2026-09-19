@@ -223,9 +223,10 @@ export interface SharedManifest {
 }
 
 export interface SlideRegistration {
-  status: 'ready' | 'rejected'
+  status: 'ready' | 'approximate' | 'rejected'
   provenance: 'automatic' | 'manual'
   anchorSlideId?: string
+  coordinateReferenceId?: string
   movingToReference?: number[][]
   referenceSupport?: [number, number, number, number] | null
   movingSupport?: [number, number, number, number] | null
@@ -235,6 +236,23 @@ export interface SlideRegistration {
     reference: [number, number]
     errorPixels: number
   }>
+  triangles?: Array<{
+    moving: [[number, number], [number, number], [number, number]]
+    reference: [[number, number], [number, number], [number, number]]
+    maxResidualPixels?: number
+    provenance?: 'structural-feature' | 'manual-landmark'
+  }>
+  supportPolygons?: {
+    moving: Array<[[number, number], [number, number], [number, number]]>
+    reference: Array<[[number, number], [number, number], [number, number]]>
+  }
+  evidence?: {
+    mode?: 'matched-regions' | 'outline-proposal'
+    anatomicalMatchCount?: number
+    triangleCount?: number
+    availabilityReason?: string
+    withheldCheck?: string
+  }
   reason?: string
 }
 
@@ -243,6 +261,7 @@ export interface ComparisonMember {
   displayName: string
   stain: string
   tileSource: string
+  thumbnailUrl: string
   metadata: SlideMetadata | null
   registration: SlideRegistration | null
 }

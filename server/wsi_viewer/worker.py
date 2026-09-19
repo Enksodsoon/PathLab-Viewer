@@ -1,16 +1,22 @@
 import hashlib
 import json
 import logging
+import math
+import multiprocessing
+import os
 import shutil
 import signal
 import stat
+import sys
 import threading
 import time
+import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+import cv2
 from PIL import Image
 from sqlalchemy import CursorResult, delete, or_, select
 from sqlalchemy.orm import Session as OrmSession
@@ -19,6 +25,7 @@ from sqlalchemy.sql import Select
 
 from .alignment import (
     AlignmentRejected,
+    _registration_triangles,
     compose_transforms,
     map_bounds,
     map_registration_point,
@@ -29,7 +36,14 @@ from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
 from .domain import SlideState
-from .models import AuditEvent, ComparisonSet, DesktopPairing, Job, Slide
+from .models import (
+    AuditEvent,
+    ComparisonRegistrationRevision,
+    ComparisonSet,
+    DesktopPairing,
+    Job,
+    Slide,
+)
 from .ome import OmeError, validate_ome_tiff
 from .runtime_protection import protection_snapshot
 from .storage import StorageLayout
@@ -312,6 +326,165 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
+    """Assemble one bounded pyramid level without opening the full-resolution WSI."""
+    descriptor = derivative / "slide.dzi"
+    root = ET.parse(descriptor).getroot()
+    namespace = root.tag.partition("}")[0].lstrip("{")
+    size = root.find(f"{{{namespace}}}Size")
+    if size is None:
+        raise OSError("DZI dimensions are unavailable")
+    full_width, full_height = int(size.attrib["Width"]), int(size.attrib["Height"])
+    tile_size = int(root.attrib["TileSize"])
+    overlap = int(root.attrib.get("Overlap", "0"))
+    image_format = root.attrib["Format"]
+    maximum_level = math.ceil(math.log2(max(full_width, full_height)))
+    level = maximum_level
+    while level > 0:
+        divisor = 2 ** (maximum_level - level)
+        if max(math.ceil(full_width / divisor), math.ceil(full_height / divisor)) <= maximum:
+            break
+        level -= 1
+    divisor = 2 ** (maximum_level - level)
+    width, height = math.ceil(full_width / divisor), math.ceil(full_height / divisor)
+    overview = Image.new("RGB", (width, height), "white")
+    tile_root = derivative / "slide_files" / str(level)
+    columns, rows = math.ceil(width / tile_size), math.ceil(height / tile_size)
+    for row in range(rows):
+        for column in range(columns):
+            path = tile_root / f"{column}_{row}.{image_format}"
+            with Image.open(path) as opened:
+                tile = opened.convert("RGB")
+            left = overlap if column else 0
+            top = overlap if row else 0
+            wanted_width = min(tile_size, width - column * tile_size)
+            wanted_height = min(tile_size, height - row * tile_size)
+            overview.paste(
+                tile.crop((left, top, left + wanted_width, top + wanted_height)),
+                (column * tile_size, row * tile_size),
+            )
+    return overview
+
+
+def _alignment_child(
+    reference_derivative: str,
+    moving_derivative: str,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    output: Any,
+) -> None:
+    try:
+        cv2.setNumThreads(1)
+
+        def overview(path: str) -> Image.Image:
+            derivative = Path(path)
+            try:
+                return _load_dzi_overview(derivative)
+            except (FileNotFoundError, OSError, ET.ParseError):
+                with Image.open(derivative / "thumbnail.jpg") as opened:
+                    return opened.convert("RGB")
+
+        reference_image = overview(reference_derivative)
+        moving_image = overview(moving_derivative)
+        result = register_pair(reference_image, moving_image, max_dimension=4096)
+        result = rescale_registration(
+            result,
+            reference_thumbnail_size=reference_image.size,
+            moving_thumbnail_size=moving_image.size,
+            reference_full_size=reference_full_size,
+            moving_full_size=moving_full_size,
+        )
+        output.put({"ok": True, "result": result.as_json()})
+    except Exception as error:
+        output.put({"ok": False, "type": type(error).__name__, "error": str(error)})
+
+
+def _process_rss_bytes(process_id: int) -> int:
+    if not sys.platform.startswith("win"):
+        try:
+            pages = int(Path(f"/proc/{process_id}/statm").read_text().split()[1])
+            return pages * os.sysconf("SC_PAGE_SIZE")
+        except (FileNotFoundError, IndexError, OSError, ValueError):
+            return 0
+    import ctypes
+    from ctypes import wintypes
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("PageFaultCount", wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    handle = ctypes.windll.kernel32.OpenProcess(0x1000 | 0x0400, False, process_id)
+    if not handle:
+        return 0
+    try:
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        if not ctypes.windll.psapi.GetProcessMemoryInfo(
+            handle, ctypes.byref(counters), counters.cb
+        ):
+            return 0
+        return int(counters.WorkingSetSize)
+    finally:
+        ctypes.windll.kernel32.CloseHandle(handle)
+
+
+def _run_alignment_bounded(
+    reference_derivative: Path,
+    moving_derivative: Path,
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+    *,
+    timeout_seconds: int,
+    memory_bytes: int,
+) -> dict[str, Any]:
+    context = multiprocessing.get_context("spawn")
+    output = context.Queue(maxsize=1)
+    process = context.Process(
+        target=_alignment_child,
+        args=(
+            str(reference_derivative),
+            str(moving_derivative),
+            reference_full_size,
+            moving_full_size,
+            output,
+        ),
+        daemon=True,
+    )
+    process.start()
+    started = time.monotonic()
+    try:
+        while process.is_alive():
+            if time.monotonic() - started > timeout_seconds:
+                process.terminate()
+                raise AlignmentRejected("registration exceeded the pair timeout")
+            if _process_rss_bytes(process.pid or 0) > memory_bytes:
+                process.terminate()
+                raise AlignmentRejected("registration exceeded the memory ceiling")
+            process.join(0.2)
+        process.join()
+        if output.empty():
+            raise AlignmentRejected("registration process ended without a result")
+        result = output.get_nowait()
+        if not result.get("ok"):
+            raise AlignmentRejected(result.get("error") or "registration failed")
+        return cast(dict[str, Any], result["result"])
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(2)
+        output.close()
+
+
 def process_next(
     factory: sessionmaker[OrmSession],
     layout: StorageLayout,
@@ -360,6 +533,15 @@ def process_next(
                 job.lease_expires_at = None
                 database.commit()
                 return True
+            expected_version = checkpoint.get("setVersion", comparison.version)
+            if comparison.version != expected_version or job.cancellation_requested_at is not None:
+                job.status = "cancelled"
+                job.failure_code = "ALIGNMENT_STALE"
+                job.error = "Comparison changed while registration was queued"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
             primary_reference = database.get(Slide, comparison.reference_slide_id)
             anchor_id = checkpoint.get("anchorSlideId") or comparison.reference_slide_id
             reference = database.get(Slide, anchor_id)
@@ -386,37 +568,20 @@ def process_next(
                 if reference.id != primary_reference.id
                 else None
             )
-            if anchor_registration is not None and anchor_registration.get("status") != "ready":
-                anchor_registration = None
-            if reference.id != primary_reference.id and anchor_registration is None:
-                registrations = dict(comparison.registrations)
-                registrations[slide.id] = {
-                    "status": "rejected",
-                    "provenance": "automatic",
-                    "reason": "The selected reference anchor is unavailable.",
-                    "anchorSlideId": reference.id,
-                }
-                comparison.registrations = registrations
-                comparison.status = "partial"
-                job.status = "failed_terminal"
-                job.failure_code = "ALIGNMENT_ANCHOR_UNAVAILABLE"
-                job.error = "The selected reference anchor is unavailable"
-                job.heartbeat_at = None
-                job.lease_expires_at = None
-                database.commit()
-                return True
-            checkpoint["progress"] = 10
+            checkpoint.update({"progress": 10, "stage": "loading-overviews", "processedPatches": 0})
             job.checkpoint = checkpoint
             comparison.status = "running"
             database.commit()
             try:
-                reference_path = layout.for_slide(reference.id).private_derivative / "thumbnail.jpg"
-                moving_path = layout.for_slide(slide.id).private_derivative / "thumbnail.jpg"
-                with Image.open(reference_path) as opened:
-                    reference_image = opened.convert("RGB")
-                with Image.open(moving_path) as opened:
-                    moving_image = opened.convert("RGB")
-                registration_result = register_pair(reference_image, moving_image)
+                reference_derivative = layout.for_slide(reference.id).private_derivative
+                moving_derivative = layout.for_slide(slide.id).private_derivative
+                checkpoint.update(
+                    {"progress": 30, "stage": "matching-structures", "totalPatches": 2}
+                )
+                job.checkpoint = checkpoint
+                job.heartbeat_at = datetime.now(UTC)
+                job.lease_expires_at = datetime.now(UTC) + timedelta(seconds=60)
+                database.commit()
                 reference_metadata = reference.slide_metadata or {}
                 moving_metadata = slide.slide_metadata or {}
                 try:
@@ -432,24 +597,30 @@ def process_next(
                     raise AlignmentRejected(
                         "full slide dimensions unavailable for coordinate mapping"
                     ) from error
-                registration_result = rescale_registration(
-                    registration_result,
-                    reference_thumbnail_size=reference_image.size,
-                    moving_thumbnail_size=moving_image.size,
-                    reference_full_size=reference_full_size,
-                    moving_full_size=moving_full_size,
+                limits = job.resource_limits or {}
+                result_json = _run_alignment_bounded(
+                    reference_derivative,
+                    moving_derivative,
+                    reference_full_size,
+                    moving_full_size,
+                    timeout_seconds=min(600, int(limits.get("timeoutSeconds", 600))),
+                    memory_bytes=min(2 * 1024**3, int(limits.get("memoryBytes", 2 * 1024**3))),
                 )
-                result_json = registration_result.as_json()
-                confidence = registration_result.confidence
-                if anchor_registration is not None:
+                checkpoint.update(
+                    {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 2}
+                )
+                job.checkpoint = checkpoint
+                confidence = float(result_json["confidence"])
+                coordinate_reference_id = reference.id
+                if anchor_registration is not None and anchor_registration.get("status") == "ready":
                     result_json["movingToReference"] = compose_transforms(
                         anchor_registration["movingToReference"],
-                        registration_result.moving_to_reference,
+                        result_json["movingToReference"],
                     )
                     result_json["referenceSupport"] = list(
                         map_bounds(
                             anchor_registration["movingToReference"],
-                            registration_result.reference_support,
+                            tuple(result_json["referenceSupport"]),
                         )
                     )
                     result_json["controlPoints"] = [
@@ -465,9 +636,32 @@ def process_next(
                         }
                         for point in result_json.get("controlPoints", [])
                     ]
+                    result_json["triangles"] = _registration_triangles(result_json["controlPoints"])
+                    if result_json["status"] == "ready" and not result_json["triangles"]:
+                        raise AlignmentRejected(
+                            "anchor bridge does not support the matched regions"
+                        )
+                    result_json["supportPolygons"] = {
+                        "moving": [item["moving"] for item in result_json["triangles"]],
+                        "reference": [item["reference"] for item in result_json["triangles"]],
+                    }
                     confidence = min(confidence, float(anchor_registration["confidence"]))
                     result_json["confidence"] = round(confidence, 6)
-                    result_json["anchorConfidence"] = registration_result.confidence
+                    result_json["anchorConfidence"] = confidence
+                    coordinate_reference_id = primary_reference.id
+                database.refresh(comparison)
+                database.refresh(job)
+                if (
+                    comparison.version != expected_version
+                    or job.cancellation_requested_at is not None
+                ):
+                    job.status = "cancelled"
+                    job.failure_code = "ALIGNMENT_STALE"
+                    job.error = "Stale registration output discarded"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
                 registrations = dict(comparison.registrations)
                 registrations[slide.id] = {
                     **result_json,
@@ -476,20 +670,33 @@ def process_next(
                     "referenceVersion": primary_reference.sha256,
                     "anchorSlideId": reference.id,
                     "anchorVersion": reference.sha256,
+                    "coordinateReferenceId": coordinate_reference_id,
                 }
                 comparison.registrations = registrations
+                database.add(
+                    ComparisonRegistrationRevision(
+                        comparison_set_id=comparison.id,
+                        slide_id=slide.id,
+                        set_version=comparison.version,
+                        source_version=slide.sha256,
+                        anchor_slide_id=reference.id,
+                        algorithm_version="piecewise-affine-v1",
+                        provenance="automatic",
+                        registration=registrations[slide.id],
+                    )
+                )
                 comparison.status = (
                     "ready"
                     if len(registrations) == len(comparison.member_slide_ids) - 1
                     and all(value.get("status") == "ready" for value in registrations.values())
                     else "partial"
                 )
-                job.checkpoint = {**checkpoint, "progress": 100}
+                job.checkpoint = {**checkpoint, "progress": 100, "stage": "complete"}
                 job.output_manifest = {
                     "comparisonSetId": comparison.id,
                     "memberId": slide.id,
                     "confidence": confidence,
-                    "inlierCount": registration_result.inlier_count,
+                    "inlierCount": result_json["inlierCount"],
                 }
                 job.status = "succeeded"
             except (AlignmentRejected, FileNotFoundError, OSError) as error:

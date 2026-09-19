@@ -31,6 +31,8 @@ class RegistrationResult:
     match_count: int
     median_error_pixels: float
     control_points: list[dict[str, Any]] = field(default_factory=list)
+    triangles: list[dict[str, Any]] = field(default_factory=list)
+    evidence: dict[str, Any] = field(default_factory=dict)
 
     def as_json(self) -> dict[str, Any]:
         return {
@@ -43,6 +45,12 @@ class RegistrationResult:
             "matchCount": self.match_count,
             "medianErrorPixels": self.median_error_pixels,
             "controlPoints": self.control_points,
+            "triangles": self.triangles,
+            "supportPolygons": {
+                "moving": [item["moving"] for item in self.triangles],
+                "reference": [item["reference"] for item in self.triangles],
+            },
+            "evidence": self.evidence,
         }
 
 
@@ -57,30 +65,31 @@ def map_point(transform: list[list[float]], x: float, y: float) -> tuple[float, 
 def map_registration_point(
     registration: dict[str, Any], x: float, y: float, *, inverse: bool = False
 ) -> tuple[float, float]:
-    """Map a navigation point with a compact landmark displacement field."""
+    """Map a point through one accepted piecewise-affine cell.
+
+    Forward and reverse navigation use the same corresponding triangle.  This
+    makes the maps mathematical inverses inside accepted support and refuses
+    extrapolation across blank or unmatched tissue.
+    """
+    triangles = registration.get("triangles") or []
+    if triangles:
+        for triangle in triangles:
+            source = np.asarray(triangle["reference" if inverse else "moving"], dtype=np.float64)
+            target = np.asarray(triangle["moving" if inverse else "reference"], dtype=np.float64)
+            matrix = np.vstack([source.T, np.ones(3, dtype=np.float64)])
+            try:
+                weights = np.linalg.solve(matrix, np.asarray([x, y, 1.0]))
+            except np.linalg.LinAlgError:
+                continue
+            if float(np.min(weights)) >= -1e-7:
+                mapped = weights @ target
+                return float(mapped[0]), float(mapped[1])
+        raise AlignmentRejected("point is outside accepted registration support")
     transform = np.asarray(registration["movingToReference"], dtype=np.float64)
     if inverse:
         transform = cv2.invertAffineTransform(transform)
     base = np.asarray(map_point(transform.tolist(), x, y))
-    controls = registration.get("controlPoints") or []
-    if not controls:
-        return float(base[0]), float(base[1])
-    samples: list[tuple[float, np.ndarray]] = []
-    for control in controls:
-        source = np.asarray(control["reference" if inverse else "moving"], dtype=np.float64)
-        target = np.asarray(control["moving" if inverse else "reference"], dtype=np.float64)
-        distance = float(np.linalg.norm(source - np.asarray([x, y])))
-        predicted = np.asarray(map_point(transform.tolist(), float(source[0]), float(source[1])))
-        samples.append((distance, target - predicted))
-    samples.sort(key=lambda item: item[0])
-    nearest = samples[: min(6, len(samples))]
-    if nearest[0][0] < 1e-6:
-        result = base + nearest[0][1]
-    else:
-        weights = np.asarray([1.0 / max(1.0, distance * distance) for distance, _ in nearest])
-        residuals = np.asarray([residual for _, residual in nearest])
-        result = base + np.average(residuals, axis=0, weights=weights)
-    return float(result[0]), float(result[1])
+    return float(base[0]), float(base[1])
 
 
 def compose_transforms(outer: list[list[float]], inner: list[list[float]]) -> list[list[float]]:
@@ -174,6 +183,22 @@ def rescale_registration(
         }
         for point in result.control_points
     ]
+    triangles = [
+        {
+            **triangle,
+            "moving": [
+                [point[0] * moving_x_scale, point[1] * moving_y_scale]
+                for point in triangle["moving"]
+            ],
+            "reference": [
+                [point[0] * reference_x_scale, point[1] * reference_y_scale]
+                for point in triangle["reference"]
+            ],
+            "maxResidualPixels": triangle["maxResidualPixels"]
+            * max(reference_x_scale, reference_y_scale),
+        }
+        for triangle in result.triangles
+    ]
     return RegistrationResult(
         status=result.status,
         moving_to_reference=transform.round(10).tolist(),
@@ -195,6 +220,8 @@ def rescale_registration(
             4,
         ),
         control_points=controls,
+        triangles=triangles,
+        evidence=result.evidence,
     )
 
 
@@ -312,9 +339,74 @@ def _registration_controls(
                 round(float(reference_points[index, 1]) / reference_scale, 4),
             ],
             "errorPixels": round(float(errors[index]) / reference_scale, 4),
+            "provenance": "structural-feature",
         }
         for index in selected
     ]
+
+
+def _triangle_area(points: np.ndarray) -> float:
+    first = points[1] - points[0]
+    second = points[2] - points[0]
+    return float((first[0] * second[1] - first[1] * second[0]) / 2.0)
+
+
+def _registration_triangles(controls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Triangulate trusted matches and reject folded or unstable cells."""
+    if len(controls) < 3:
+        return []
+    moving = np.asarray([item["moving"] for item in controls], dtype=np.float64)
+    reference = np.asarray([item["reference"] for item in controls], dtype=np.float64)
+    minimum = np.floor(np.min(moving, axis=0)).astype(int) - 2
+    maximum = np.ceil(np.max(moving, axis=0)).astype(int) + 2
+    width, height = int(maximum[0] - minimum[0]), int(maximum[1] - minimum[1])
+    if width < 2 or height < 2:
+        return []
+    subdiv = cv2.Subdiv2D((int(minimum[0]), int(minimum[1]), width, height))
+    unique: dict[tuple[int, int], int] = {}
+    for index, point in enumerate(moving):
+        key = (round(float(point[0]) * 1000), round(float(point[1]) * 1000))
+        if key in unique:
+            continue
+        unique[key] = index
+        subdiv.insert((float(point[0]), float(point[1])))
+    if len(unique) < 3:
+        return []
+    triangles: list[dict[str, Any]] = []
+    seen: set[tuple[int, int, int]] = set()
+    for raw in subdiv.getTriangleList():
+        vertices = np.asarray(raw, dtype=np.float64).reshape(3, 2)
+        indexes: list[int] = []
+        for vertex in vertices:
+            distances = np.linalg.norm(moving - vertex, axis=1)
+            index = int(np.argmin(distances))
+            if float(distances[index]) > 1e-2:
+                indexes = []
+                break
+            indexes.append(index)
+        key = tuple(sorted(indexes)) if indexes else ()
+        if len(key) != 3 or len(set(key)) != 3 or key in seen:
+            continue
+        seen.add(key)
+        source = moving[indexes]
+        target = reference[indexes]
+        source_area = _triangle_area(source)
+        target_area = _triangle_area(target)
+        if abs(source_area) < 1.0 or abs(target_area) < 1.0 or source_area * target_area <= 0:
+            continue
+        area_ratio = abs(target_area / source_area)
+        if not 0.2 <= area_ratio <= 5.0:
+            continue
+        residual = max(float(controls[index]["errorPixels"]) for index in indexes)
+        triangles.append(
+            {
+                "moving": source.round(4).tolist(),
+                "reference": target.round(4).tolist(),
+                "maxResidualPixels": round(residual, 4),
+                "provenance": "structural-feature",
+            }
+        )
+    return triangles
 
 
 def _component_controls(
@@ -326,6 +418,7 @@ def _component_controls(
     reference_scale: float,
 ) -> list[dict[str, Any]]:
     """Build separate local maps for reliably paired tissue fragments."""
+
     def describe(mask: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, np.ndarray, int]]:
         count, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
         values: list[tuple[np.ndarray, np.ndarray, np.ndarray, int]] = []
@@ -347,7 +440,12 @@ def _component_controls(
     if len(references) < 2 or len(movings) < 2:
         return []
     available = set(range(len(references)))
-    pairs: list[tuple[tuple[np.ndarray, np.ndarray, np.ndarray, int], tuple[np.ndarray, np.ndarray, np.ndarray, int]]] = []
+    pairs: list[
+        tuple[
+            tuple[np.ndarray, np.ndarray, np.ndarray, int],
+            tuple[np.ndarray, np.ndarray, np.ndarray, int],
+        ]
+    ] = []
     for moving in movings:
         projected_center = np.asarray(map_point(seed.tolist(), *moving[0]))
         candidates = sorted(
@@ -383,8 +481,14 @@ def _component_controls(
             target = np.asarray(map_point(local.tolist(), *point))
             controls.append(
                 {
-                    "moving": [round(float(point[0]) / moving_scale, 4), round(float(point[1]) / moving_scale, 4)],
-                    "reference": [round(float(target[0]) / reference_scale, 4), round(float(target[1]) / reference_scale, 4)],
+                    "moving": [
+                        round(float(point[0]) / moving_scale, 4),
+                        round(float(point[1]) / moving_scale, 4),
+                    ],
+                    "reference": [
+                        round(float(target[0]) / reference_scale, 4),
+                        round(float(target[1]) / reference_scale, 4),
+                    ],
                     "errorPixels": 0.0,
                 }
             )
@@ -495,27 +599,25 @@ def _coarse_refined_result(
         if component_overlap < 0.72 or component_margin < 0.05 or component_count < 2:
             raise AlignmentRejected("no reliable correspondence found")
         assert component_seed is not None
-        controls = _component_controls(
-            reference_mask,
-            moving_mask,
-            component_seed,
-            moving_scale=moving_scale,
-            reference_scale=reference_scale,
-        )
-        if len(controls) < 8:
-            raise AlignmentRejected("no reliable local correspondence found")
         full = _full_resolution_transform(component_seed, moving_scale, reference_scale)
         confidence = min(0.75, 0.45 + 0.25 * component_overlap + component_margin)
         return RegistrationResult(
-            status="ready",
+            status="approximate",
             moving_to_reference=full.round(10).tolist(),
             reference_support=_support(reference_mask, reference_scale),
             moving_support=_support(moving_mask, moving_scale),
             confidence=round(confidence, 6),
             inlier_count=component_count,
             match_count=component_count,
-            median_error_pixels=0.0,
-            control_points=controls,
+            median_error_pixels=-1.0,
+            control_points=[],
+            triangles=[],
+            evidence={
+                "mode": "outline-proposal",
+                "anatomicalMatchCount": 0,
+                "outlineOverlap": round(component_overlap, 6),
+                "availabilityReason": "No accepted structural feature matches",
+            },
         )
 
     if overlap < 0.45:
@@ -594,16 +696,8 @@ def _coarse_refined_result(
         moving_scale=moving_scale,
         reference_scale=reference_scale,
     )
-    controls.extend(
-        _component_controls(
-            reference_mask,
-            moving_mask,
-            seed,
-            moving_scale=moving_scale,
-            reference_scale=reference_scale,
-        )
-    )
-    if len(controls) < 4:
+    triangles = _registration_triangles(controls)
+    if len(controls) < 4 or not triangles:
         return outline_result()
     return RegistrationResult(
         status="ready",
@@ -615,6 +709,13 @@ def _coarse_refined_result(
         match_count=len(matches),
         median_error_pixels=round(median_error / reference_scale, 4),
         control_points=controls,
+        triangles=triangles,
+        evidence={
+            "mode": "matched-regions",
+            "anatomicalMatchCount": len(controls),
+            "triangleCount": len(triangles),
+            "outlineOverlap": round(overlap, 6),
+        },
     )
 
 
@@ -719,6 +820,23 @@ def register_pair(
         )
 
     full = _full_resolution_transform(transform, moving_scale, reference_scale)
+    controls = _registration_controls(
+        moving_points[inliers],
+        reference_points[inliers],
+        transform,
+        moving_scale=moving_scale,
+        reference_scale=reference_scale,
+    )
+    triangles = _registration_triangles(controls)
+    if not triangles:
+        return _coarse_refined_result(
+            reference_structure,
+            reference_mask,
+            moving_structure,
+            moving_mask,
+            reference_scale,
+            moving_scale,
+        )
     return RegistrationResult(
         status="ready",
         moving_to_reference=full.round(10).tolist(),
@@ -728,11 +846,12 @@ def register_pair(
         inlier_count=inlier_count,
         match_count=len(matches),
         median_error_pixels=round(median_error / reference_scale, 4),
-        control_points=_registration_controls(
-            moving_points[inliers],
-            reference_points[inliers],
-            transform,
-            moving_scale=moving_scale,
-            reference_scale=reference_scale,
-        ),
+        control_points=controls,
+        triangles=triangles,
+        evidence={
+            "mode": "matched-regions",
+            "anatomicalMatchCount": len(controls),
+            "triangleCount": len(triangles),
+            "withheldCheck": "pending-independent-landmarks",
+        },
     )

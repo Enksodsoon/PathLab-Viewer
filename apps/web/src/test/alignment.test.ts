@@ -35,7 +35,7 @@ describe('comparison coordinate mapping', () => {
     expect(withinSupport([55, 25], null)).toBe(true)
   })
 
-  it('uses nearby landmarks to correct serial-section deformation in both directions', () => {
+  it('uses the same accepted triangle for exact forward and reverse navigation', () => {
     const registration = {
       movingToReference: [[1, 0, 10], [0, 1, 0]],
       controlPoints: [
@@ -44,10 +44,16 @@ describe('comparison coordinate mapping', () => {
         { moving: [0, 100] as [number, number], reference: [14, 99] as [number, number], errorPixels: 1 },
         { moving: [100, 100] as [number, number], reference: [106, 101] as [number, number], errorPixels: 1 },
       ],
+      triangles: [{
+        moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+        reference: [[12, 1], [108, -1], [14, 99]] as [[number, number], [number, number], [number, number]],
+      }],
     }
-    const mapped = mapLocalComparisonPoint([0, 0], registration, null)
-    expect(mapped).toEqual([12, 1])
-    expect(mapLocalComparisonPoint(mapped, null, registration)).toEqual([0, 0])
+    const mapped = mapLocalComparisonPoint([25, 20], registration, null)
+    expect(mapped).not.toBeNull()
+    expect(mapLocalComparisonPoint(mapped!, null, registration)?.[0]).toBeCloseTo(25, 10)
+    expect(mapLocalComparisonPoint(mapped!, null, registration)?.[1]).toBeCloseTo(20, 10)
+    expect(mapLocalComparisonPoint([100, 100], registration, null)).toBeNull()
     expect(hasLocalEvidence(registration)).toBe(true)
     expect(hasLocalEvidence({ movingToReference: registration.movingToReference })).toBe(false)
   })
