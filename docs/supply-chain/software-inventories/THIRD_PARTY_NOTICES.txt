@@ -5930,15 +5930,6 @@ Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 
 Blockers: NONE
 Notice files: NONE RECORDED
 
-ID: asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
-Name: apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
-Version: 9cebccd3aef3147c
-License: UNVERIFIED
-Admission: BLOCKED_RELEASE
-Source: Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.
-Blockers: ATTRIBUTION_UNAVAILABLE, CREATOR_UNVERIFIED, PERMISSION_UNVERIFIED
-Notice files: NONE RECORDED
-
 ID: asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Name: apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Version: ca3e900abec497cc
@@ -6022,7 +6013,7 @@ Notice files: NONE RECORDED
 
 ID: asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons
 Name: npm:@phosphor-icons/react@2.1.10#imported-svg-icons
-Version: 2da31b8fcbc408a5
+Version: aad76bf66a9b8262
 License: MIT
 Admission: ADMITTED
 Source: Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.

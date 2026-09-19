@@ -26592,45 +26592,6 @@
       "version": "1e1b9a7762e2ac81"
     },
     {
-      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "9cebccd3aef3147cc22c7f2a30dec7b34e5193db2fcc8c92894bb1836fbea9af"
-        }
-      ],
-      "licenses": [
-        {
-          "expression": "UNVERIFIED"
-        }
-      ],
-      "name": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "release-asset"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "SHIPPED_RUNTIME"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "BLOCKED_RELEASE"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[\"ATTRIBUTION_UNAVAILABLE\",\"CREATOR_UNVERIFIED\",\"PERMISSION_UNVERIFIED\"]"
-        }
-      ],
-      "type": "file",
-      "version": "9cebccd3aef3147c"
-    },
-    {
       "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
       "hashes": [
         {
@@ -26998,7 +26959,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "2da31b8fcbc408a5b800e0e5c212e0f5210d08c568ef7d5ab1e036892fb8356b"
+          "content": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63"
         }
       ],
       "licenses": [
@@ -27030,7 +26991,7 @@
         }
       ],
       "type": "file",
-      "version": "2da31b8fcbc408a5"
+      "version": "aad76bf66a9b8262"
     },
     {
       "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -27717,7 +27678,6 @@
         "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
         "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
-        "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
@@ -27731,7 +27691,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:d2236bd80a816695a6ef45629803ef725e82a676"
+      "ref": "pathlab:source:7f04b20320202e35b14e3054a8ab79b22f662cc2"
     },
     {
       "dependsOn": [],
@@ -30131,10 +30091,6 @@
     },
     {
       "dependsOn": [],
-      "ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
-    },
-    {
-      "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
     },
     {
@@ -30184,15 +30140,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:d2236bd80a816695a6ef45629803ef725e82a676",
+      "bom-ref": "pathlab:source:7f04b20320202e35b14e3054a8ab79b22f662cc2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d2236bd80a816695a6ef45629803ef725e82a676"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7f04b20320202e35b14e3054a8ab79b22f662cc2"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d2236bd80a816695a6ef45629803ef725e82a676"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/7f04b20320202e35b14e3054a8ab79b22f662cc2"
         }
       ],
       "licenses": [
@@ -30223,13 +30179,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@d2236bd80a816695a6ef45629803ef725e82a676",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@7f04b20320202e35b14e3054a8ab79b22f662cc2",
       "type": "application",
-      "version": "d2236bd80a816695a6ef45629803ef725e82a676"
+      "version": "7f04b20320202e35b14e3054a8ab79b22f662cc2"
     },
-    "timestamp": "2026-09-19T18:43:48Z"
+    "timestamp": "2026-09-19T18:46:55Z"
   },
-  "serialNumber": "urn:uuid:d2236bd8-0a81-4695-a6ef-45629803ef72",
+  "serialNumber": "urn:uuid:7f04b203-2020-4e35-a14e-3054a8ab79b2",
   "specVersion": "1.6",
   "version": 1
 }
