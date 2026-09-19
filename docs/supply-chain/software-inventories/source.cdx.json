@@ -26592,6 +26592,45 @@
       "version": "1e1b9a7762e2ac81"
     },
     {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9cebccd3aef3147cc22c7f2a30dec7b34e5193db2fcc8c92894bb1836fbea9af"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "UNVERIFIED"
+        }
+      ],
+      "name": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "BLOCKED_RELEASE"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[\"ATTRIBUTION_UNAVAILABLE\",\"CREATOR_UNVERIFIED\",\"PERMISSION_UNVERIFIED\"]"
+        }
+      ],
+      "type": "file",
+      "version": "9cebccd3aef3147c"
+    },
+    {
       "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
       "hashes": [
         {
@@ -27678,6 +27717,7 @@
         "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
         "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
@@ -27691,7 +27731,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:521a0a7e3b17599811c5fd62374b1aed9bb9f0f6"
+      "ref": "pathlab:source:d2236bd80a816695a6ef45629803ef725e82a676"
     },
     {
       "dependsOn": [],
@@ -30091,6 +30131,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
     },
     {
@@ -30140,15 +30184,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:521a0a7e3b17599811c5fd62374b1aed9bb9f0f6",
+      "bom-ref": "pathlab:source:d2236bd80a816695a6ef45629803ef725e82a676",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/521a0a7e3b17599811c5fd62374b1aed9bb9f0f6"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d2236bd80a816695a6ef45629803ef725e82a676"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/521a0a7e3b17599811c5fd62374b1aed9bb9f0f6"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d2236bd80a816695a6ef45629803ef725e82a676"
         }
       ],
       "licenses": [
@@ -30179,13 +30223,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@521a0a7e3b17599811c5fd62374b1aed9bb9f0f6",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@d2236bd80a816695a6ef45629803ef725e82a676",
       "type": "application",
-      "version": "521a0a7e3b17599811c5fd62374b1aed9bb9f0f6"
+      "version": "d2236bd80a816695a6ef45629803ef725e82a676"
     },
-    "timestamp": "2026-09-19T15:03:09Z"
+    "timestamp": "2026-09-19T18:43:48Z"
   },
-  "serialNumber": "urn:uuid:521a0a7e-3b17-4998-a1c5-fd62374b1aed",
+  "serialNumber": "urn:uuid:d2236bd8-0a81-4695-a6ef-45629803ef72",
   "specVersion": "1.6",
   "version": 1
 }

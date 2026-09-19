@@ -5930,6 +5930,15 @@ Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 
 Blockers: NONE
 Notice files: NONE RECORDED
 
+ID: asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
+Name: apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
+Version: 9cebccd3aef3147c
+License: UNVERIFIED
+Admission: BLOCKED_RELEASE
+Source: Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.
+Blockers: ATTRIBUTION_UNAVAILABLE, CREATOR_UNVERIFIED, PERMISSION_UNVERIFIED
+Notice files: NONE RECORDED
+
 ID: asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Name: apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Version: ca3e900abec497cc
