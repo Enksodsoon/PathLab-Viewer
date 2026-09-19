@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import OpenSeadragon from 'openseadragon'
 
 import {
@@ -81,7 +81,6 @@ export function OpenSeadragonViewer({
   onDispose,
   displayAdjustments = { brightness: 1, contrast: 1, gamma: 1 },
 }: Props) {
-  const filterId = `pathlab-display-${useId().replace(/:/g, '')}`
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const tileSourceRef = useRef(tileSource)
@@ -464,8 +463,7 @@ export function OpenSeadragonViewer({
       fetchPriority="high"
       decoding="async"
     /> : null}
-    <svg width="0" height="0" aria-hidden="true" focusable="false"><filter id={filterId}><feComponentTransfer><feFuncR type="gamma" amplitude="1" exponent={displayAdjustments.gamma} offset="0" /><feFuncG type="gamma" amplitude="1" exponent={displayAdjustments.gamma} offset="0" /><feFuncB type="gamma" amplitude="1" exponent={displayAdjustments.gamma} offset="0" /></feComponentTransfer></filter></svg>
-    <div ref={element} style={{ position: 'absolute', inset: 0, filter: `brightness(${displayAdjustments.brightness}) contrast(${displayAdjustments.contrast}) url(#${filterId})` }} />
+    <div ref={element} style={{ position: 'absolute', inset: 0, filter: `brightness(${displayAdjustments.brightness / Math.sqrt(displayAdjustments.gamma)}) contrast(${displayAdjustments.contrast})` }} />
     {showLoadingMode ? <label className="viewer-loading-mode">
       <span>Tile detail</span>
       <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>

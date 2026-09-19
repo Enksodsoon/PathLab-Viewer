@@ -4,7 +4,6 @@ import {
   ArrowUUpLeft as Undo2,
   FolderSimple as FolderInput,
   LinkBreak as Unlink,
-  LinkSimple,
   ShareNetwork as Share,
   Tag as Tags,
   Trash as Trash2,
@@ -69,7 +68,7 @@ export function SelectionActionBar({
         <>
           <button type="button" onClick={onMove}><FolderInput /> Move</button>
           <button type="button" onClick={onCollection}><FolderInput /> Add to collection</button>
-          {onCompare ? <button type="button" onClick={onCompare}><LinkSimple /> Compare slides</button> : null}
+          {onCompare ? <button type="button" onClick={onCompare}>Compare slides</button> : null}
           {inCollection ? (
             <button type="button" onClick={onRemoveCollection}>
               <Unlink /> Remove from collection
