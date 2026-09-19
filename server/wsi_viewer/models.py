@@ -1324,6 +1324,32 @@ class CollectionSlide(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ComparisonSet(Base):
+    __tablename__ = "comparison_sets"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_comparison_sets_version"),
+        CheckConstraint(
+            "status IN ('draft', 'queued', 'running', 'ready', 'partial', 'failed')",
+            name="ck_comparison_sets_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    reference_slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    member_slide_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    source_versions: Mapped[dict[str, str | None]] = mapped_column(JSON, nullable=False)
+    registrations: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
 class SavedView(Base):
     __tablename__ = "saved_views"
 

@@ -14,6 +14,7 @@ import type {
   SharePreview,
   LibraryShare,
   StorageInventory,
+  ComparisonSet,
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
@@ -548,6 +549,25 @@ export async function getSharedManifest(
       credentials: 'omit',
     }),
   )
+}
+
+export async function createComparisonSet(name: string, slideIds: string[], referenceSlideId: string): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch('/api/v1/admin/comparison-sets', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, slideIds, referenceSlideId }),
+  }))
+}
+
+export async function registerComparisonSet(id: string): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/register`, { method: 'POST' }))
+}
+
+export async function getComparisonSet(id: string): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await fetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }))
+}
+
+export async function getSharedComparisonSet(publicId: string, id: string): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await fetch(`/api/v2/public/collections/${encodeURIComponent(publicId)}/comparisons/${encodeURIComponent(id)}`, { credentials: 'omit', cache: 'no-store' }))
 }
 
 export async function previewLibraryShare(

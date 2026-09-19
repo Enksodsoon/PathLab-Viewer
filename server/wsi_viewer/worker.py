@@ -11,16 +11,18 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from PIL import Image
 from sqlalchemy import CursorResult, delete, or_, select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
 
+from .alignment import AlignmentRejected, register_pair
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
 from .domain import SlideState
-from .models import AuditEvent, DesktopPairing, Job, Slide
+from .models import AuditEvent, ComparisonSet, DesktopPairing, Job, Slide
 from .ome import OmeError, validate_ome_tiff
 from .runtime_protection import protection_snapshot
 from .storage import StorageLayout
@@ -133,9 +135,7 @@ class WorkerScheduler:
             self._next_stale_recovery = max(
                 self._next_stale_recovery, now + STALE_RECOVERY_INTERVAL_SECONDS
             )
-            self._next_tus_cleanup = max(
-                self._next_tus_cleanup, now + TUS_CLEANUP_INTERVAL_SECONDS
-            )
+            self._next_tus_cleanup = max(self._next_tus_cleanup, now + TUS_CLEANUP_INTERVAL_SECONDS)
             self._next_pairing_cleanup = max(
                 self._next_pairing_cleanup, now + PAIRING_CLEANUP_INTERVAL_SECONDS
             )
@@ -170,9 +170,7 @@ class WorkerScheduler:
         )
 
 
-def background_work_is_allowed(
-    factory: sessionmaker[OrmSession], *, enabled: bool
-) -> bool:
+def background_work_is_allowed(factory: sessionmaker[OrmSession], *, enabled: bool) -> bool:
     if not enabled:
         return True
     with factory() as database:
@@ -326,8 +324,7 @@ def process_next(
                 database.commit()
                 return False
         statement = _next_job_statement(
-            now=now,
-            postgres=database.get_bind().dialect.name == "postgresql"
+            now=now, postgres=database.get_bind().dialect.name == "postgresql"
         )
         job = database.scalar(statement)
         if job is None:
@@ -341,6 +338,82 @@ def process_next(
             job.status = "failed_terminal"
             job.failure_code = "JOB_TARGET_MISSING"
             job.error = "Job has no supported target"
+            job.heartbeat_at = None
+            job.lease_expires_at = None
+            database.commit()
+            return True
+        if job.kind == "align":
+            checkpoint = dict(job.checkpoint or {})
+            comparison = database.get(ComparisonSet, checkpoint.get("comparisonSetId"))
+            if comparison is None or slide.id != checkpoint.get("memberId"):
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_TARGET_MISSING"
+                job.error = "Comparison set or member is unavailable"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
+            reference = database.get(Slide, comparison.reference_slide_id)
+            source_current = (
+                reference is not None
+                and comparison.source_versions.get(reference.id) == reference.sha256
+                and comparison.source_versions.get(slide.id) == slide.sha256
+            )
+            if not source_current:
+                comparison.status = "failed"
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_SOURCE_CHANGED"
+                job.error = "A comparison source changed after the set was created"
+                job.heartbeat_at = None
+                job.lease_expires_at = None
+                database.commit()
+                return True
+            assert reference is not None
+            checkpoint["progress"] = 10
+            job.checkpoint = checkpoint
+            comparison.status = "running"
+            database.commit()
+            try:
+                reference_path = layout.for_slide(reference.id).private_derivative / "thumbnail.jpg"
+                moving_path = layout.for_slide(slide.id).private_derivative / "thumbnail.jpg"
+                with Image.open(reference_path) as opened:
+                    reference_image = opened.convert("RGB")
+                with Image.open(moving_path) as opened:
+                    moving_image = opened.convert("RGB")
+                registration_result = register_pair(reference_image, moving_image)
+                registrations = dict(comparison.registrations)
+                registrations[slide.id] = {
+                    **registration_result.as_json(),
+                    "provenance": "automatic",
+                    "sourceVersion": slide.sha256,
+                    "referenceVersion": reference.sha256,
+                }
+                comparison.registrations = registrations
+                comparison.status = (
+                    "ready"
+                    if len(registrations) == len(comparison.member_slide_ids) - 1
+                    else "partial"
+                )
+                job.checkpoint = {**checkpoint, "progress": 100}
+                job.output_manifest = {
+                    "comparisonSetId": comparison.id,
+                    "memberId": slide.id,
+                    "confidence": registration_result.confidence,
+                    "inlierCount": registration_result.inlier_count,
+                }
+                job.status = "succeeded"
+            except (AlignmentRejected, FileNotFoundError, OSError) as error:
+                registrations = dict(comparison.registrations)
+                registrations[slide.id] = {
+                    "status": "rejected",
+                    "provenance": "automatic",
+                    "reason": str(error),
+                }
+                comparison.registrations = registrations
+                comparison.status = "partial"
+                job.status = "failed_terminal"
+                job.failure_code = "ALIGNMENT_REJECTED"
+                job.error = str(error)
             job.heartbeat_at = None
             job.lease_expires_at = None
             database.commit()

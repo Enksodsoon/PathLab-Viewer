@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     internal_file_redirects: bool = False
     multi_share_enabled: bool = True
     annotations_enabled: bool = False
+    alignment_enabled: bool = False
     admin_annotation_canary_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False

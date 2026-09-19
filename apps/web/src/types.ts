@@ -222,6 +222,34 @@ export interface SharedManifest {
   slides: SharedSlide[]
 }
 
+export interface SlideRegistration {
+  status: 'ready' | 'rejected'
+  provenance: 'automatic' | 'manual'
+  movingToReference?: number[][]
+  referenceSupport?: [number, number, number, number] | null
+  movingSupport?: [number, number, number, number] | null
+  confidence?: number
+  reason?: string
+}
+
+export interface ComparisonMember {
+  slideId: string
+  displayName: string
+  stain: string
+  tileSource: string
+  metadata: SlideMetadata | null
+  registration: SlideRegistration | null
+}
+
+export interface ComparisonSet {
+  id: string
+  name: string
+  referenceSlideId: string
+  status: 'draft' | 'queued' | 'running' | 'ready' | 'partial' | 'failed'
+  version: number
+  members: ComparisonMember[]
+}
+
 export interface SharePreviewItem {
   id: string
   displayName: string

@@ -21,6 +21,7 @@ from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
 from .admission import SharedAdmission
+from .alignment_routes import register_alignment_routes
 from .annotation_routes import register_annotation_routes
 from .assessment_admission import AssessmentAdmissionMiddleware
 from .assessment_assets import assessment_assets_ready
@@ -535,6 +536,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             admin_dependency=legacy_admin_session,
             csrf_dependency=legacy_csrf,
             tile_routes=tile_routes,
+        )
+        register_alignment_routes(
+            app,
+            database_dependency=database,
+            admin_dependency=legacy_admin_session,
+            csrf_dependency=legacy_csrf,
+            enabled=current.alignment_enabled,
         )
         register_annotation_routes(
             app,

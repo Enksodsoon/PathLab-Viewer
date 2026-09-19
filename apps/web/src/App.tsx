@@ -7,6 +7,7 @@ import { Loader } from './components/Loader'
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })))
 const ViewerPage = lazy(() => import('./pages/ViewerPage').then((module) => ({ default: module.ViewerPage })))
 const SharedViewerPage = lazy(() => import('./pages/SharedViewerPage').then((module) => ({ default: module.SharedViewerPage })))
+const ComparisonPage = lazy(() => import('./pages/ComparisonPage').then((module) => ({ default: module.ComparisonPage })))
 const DesktopConnectPage = lazy(() => import('./pages/DesktopConnectPage').then((module) => ({ default: module.DesktopConnectPage })))
 const ClassroomTeacherPage = lazy(() => import('./pages/ClassroomTeacherPage').then((module) => ({ default: module.ClassroomTeacherPage })))
 const ClassroomStudentPage = lazy(() => import('./pages/ClassroomStudentPage').then((module) => ({ default: module.ClassroomStudentPage })))
@@ -48,6 +49,7 @@ export function App() {
   return <ApplicationErrorBoundary resetKey={resetKey}><Routes>
     <Route path="/admin" element={<Suspense fallback={<Loader label="Opening admin…" size="large" fullscreen />}><AdminPage /></Suspense>} />
     <Route path="/admin/preview/:slideId" element={<Suspense fallback={<Loader label="Opening private preview…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
+    <Route path="/admin/comparisons/:comparisonId" element={<Suspense fallback={<Loader label="Opening comparison…" size="large" fullscreen />}><ComparisonPage /></Suspense>} />
     <Route path="/admin/connect" element={<Suspense fallback={<Loader label="Opening device pairing…" size="large" fullscreen />}><DesktopConnectPage /></Suspense>} />
     <Route path="/admin/classroom" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomTeacherPage /></Suspense>} />
     <Route path="/classroom" element={<Suspense fallback={<Loader label="Opening classroom…" size="large" fullscreen />}><ClassroomStudentPage /></Suspense>} />
@@ -74,6 +76,7 @@ export function App() {
     <Route path="/s/:publicId" element={<Suspense fallback={<Loader label="Opening slide…" size="large" fullscreen />}><ViewerPage /></Suspense>} />
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />
     <Route path="/c/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="collection" /></Suspense>} />
+    <Route path="/c/:publicId/compare/:comparisonId" element={<Suspense fallback={<Loader label="Opening shared comparison…" size="large" fullscreen />}><ComparisonPage /></Suspense>} />
     <Route path="*" element={<AdminRedirect />} />
   </Routes></ApplicationErrorBoundary>
 }

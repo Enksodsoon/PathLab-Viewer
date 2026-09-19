@@ -30,6 +30,7 @@ import {
   createCollection,
   createFolder,
   createSavedView,
+  createComparisonSet,
   deleteCollection,
   deleteLibrarySlide,
   deleteSavedView,
@@ -46,6 +47,7 @@ import {
   mutateSlide,
   publishSlide,
   reserveUpload,
+  registerComparisonSet,
   removeCollectionSlides,
   updateCollection,
   updateFolder,
@@ -1669,6 +1671,22 @@ export function AdminPage() {
           onClear={() => setSelected(new Set())}
           onMove={() => openNamedDialog('move')}
           onCollection={() => openNamedDialog('add-collection')}
+          onCompare={selectedIds.length >= 2 && selectedIds.length <= 12 ? () => {
+            void (async () => {
+              try {
+                const reference = selectedSlides.find((slide) => /(^|[^a-z])h\s*&?\s*e([^a-z]|$)/i.test(slide.stain || slide.displayName)) ?? selectedSlides[0]
+                const comparison = await createComparisonSet(
+                  `${reference.caseId || 'Slide'} comparison`, selectedIds, reference.id,
+                )
+                await registerComparisonSet(comparison.id)
+                void navigate(`/admin/comparisons/${comparison.id}`)
+              } catch (caught) {
+                setNotice(caught instanceof ApiError && caught.status === 404
+                  ? 'Slide comparison is not enabled on this server.'
+                  : 'Could not create the comparison set.')
+              }
+            })()
+          } : undefined}
           onTags={() => openNamedDialog('tags')}
           onPublish={() => openNamedDialog('publish')}
           onUnpublish={() => runAction(unpublishSelected, 'Unpublish')}

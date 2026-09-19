@@ -21,6 +21,14 @@ export interface ViewerHandle {
   home: () => void
   rotate: () => void
   fullscreen: () => void
+  setImageViewport: (snapshot: ImageViewport) => void
+}
+
+export interface ImageViewport {
+  centerX: number
+  centerY: number
+  imageZoom: number
+  rotation: number
 }
 
 export type ViewerAttachmentCallback = (
@@ -36,6 +44,7 @@ interface Props {
   onViewerAttach?: ViewerAttachmentCallback
   networkProfile?: ViewerNetworkProfile
   showLoadingMode?: boolean
+  onViewportChange?: (snapshot: ImageViewport) => void
 }
 
 interface NavigatorWithConnection extends Navigator {
@@ -62,6 +71,7 @@ export function OpenSeadragonViewer({
   onViewerAttach,
   networkProfile,
   showLoadingMode = true,
+  onViewportChange,
 }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
@@ -73,6 +83,8 @@ export function OpenSeadragonViewer({
   const onScaleChangeRef = useRef(onScaleChange)
   const attachmentCallbackRef = useRef(onViewerAttach)
   const networkProfileRef = useRef(networkProfile)
+  const viewportChangeRef = useRef(onViewportChange)
+  const suppressViewportEvent = useRef(false)
   const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
   const windowFailures = useRef(0)
@@ -156,6 +168,7 @@ export function OpenSeadragonViewer({
     onReadyRef.current = onReady
     micronsPerPixelRef.current = micronsPerPixel
     onScaleChangeRef.current = onScaleChange
+    viewportChangeRef.current = onViewportChange
     if (viewerRef.current && openedSourceRef.current !== tileSource) {
       openedSourceRef.current = tileSource
       tileFailures.current = 0
@@ -176,6 +189,7 @@ export function OpenSeadragonViewer({
     micronsPerPixel,
     onReady,
     onScaleChange,
+    onViewportChange,
     posterUrl,
     tileSource,
   ])
@@ -284,6 +298,15 @@ export function OpenSeadragonViewer({
           applyRotation(next)
         },
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
+        setImageViewport: (snapshot) => {
+          if (!viewer) return
+          suppressViewportEvent.current = true
+          const center = viewer.viewport.imageToViewportCoordinates(snapshot.centerX, snapshot.centerY)
+          viewer.viewport.panTo(center, true)
+          viewer.viewport.zoomTo(viewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
+          viewer.viewport.setRotation(snapshot.rotation)
+          viewer.viewport.applyConstraints(true)
+        },
       })
       const updateScale = () => {
         const scale = micronsPerPixelRef.current
@@ -305,6 +328,20 @@ export function OpenSeadragonViewer({
         updateScale()
       }
       const handleTileLoaded = () => setPosterVisible(false)
+      const reportViewport = () => {
+        if (!viewer) return
+        if (suppressViewportEvent.current) {
+          suppressViewportEvent.current = false
+          return
+        }
+        const center = viewer.viewport.viewportToImageCoordinates(viewer.viewport.getCenter(true))
+        viewportChangeRef.current?.({
+          centerX: center.x,
+          centerY: center.y,
+          imageZoom: viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)),
+          rotation: viewer.viewport.getRotation(),
+        })
+      }
       const handleTileLoadFailed = () => {
         windowFailures.current += 1
         if (tileFailures.current >= TILE_FAILURE_LIMIT) return
@@ -313,7 +350,7 @@ export function OpenSeadragonViewer({
       }
       viewer.addHandler('open', handleOpen)
       viewer.addHandler('tile-loaded', handleTileLoaded)
-      viewer.addHandler('animation-finish', updateScale)
+      viewer.addHandler('animation-finish', () => { updateScale(); reportViewport() })
       viewer.addHandler('open-failed', () => {
         reportLoadingError()
         scheduleReconnect()
