@@ -8,7 +8,7 @@ from pathlib import Path
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "386091f6bac00622939559357729c57aa4723efb"
+SUBJECT = "4a5bf3fd94c8ac0517ccff13a83b5385e5504387"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
@@ -33,7 +33,7 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
 def test_inventory_subject_is_current_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
     assert inventory["subjectCommit"] == SUBJECT
-    assert inventory["subjectTree"] == "fff6946fb93e53a4b31c4344d1fa0aa7df164bf8"
+    assert inventory["subjectTree"] == "2297c9dbc571a496c1e9665c751a1f0de4f58cba"
 
 
 def test_source_sha256_receipts_use_canonical_git_blob_bytes() -> None:
