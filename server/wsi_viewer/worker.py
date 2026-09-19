@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
 
-from .alignment import AlignmentRejected, register_pair
+from .alignment import AlignmentRejected, register_pair, rescale_registration
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
@@ -381,6 +381,28 @@ def process_next(
                 with Image.open(moving_path) as opened:
                     moving_image = opened.convert("RGB")
                 registration_result = register_pair(reference_image, moving_image)
+                reference_metadata = reference.slide_metadata or {}
+                moving_metadata = slide.slide_metadata or {}
+                try:
+                    reference_full_size = (
+                        int(reference_metadata["width"]),
+                        int(reference_metadata["height"]),
+                    )
+                    moving_full_size = (
+                        int(moving_metadata["width"]),
+                        int(moving_metadata["height"]),
+                    )
+                except (KeyError, TypeError, ValueError) as error:
+                    raise AlignmentRejected(
+                        "full slide dimensions unavailable for coordinate mapping"
+                    ) from error
+                registration_result = rescale_registration(
+                    registration_result,
+                    reference_thumbnail_size=reference_image.size,
+                    moving_thumbnail_size=moving_image.size,
+                    reference_full_size=reference_full_size,
+                    moving_full_size=moving_full_size,
+                )
                 registrations = dict(comparison.registrations)
                 registrations[slide.id] = {
                     **registration_result.as_json(),

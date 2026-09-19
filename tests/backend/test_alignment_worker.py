@@ -38,6 +38,7 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
             source_bytes=1,
             state=SlideState.READY_PRIVATE,
             sha256="r1",
+            slide_metadata={"width": 1200, "height": 840},
         )
         moving = Slide(
             id="moving",
@@ -47,6 +48,7 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
             source_bytes=1,
             state=SlideState.READY_PRIVATE,
             sha256="m1",
+            slide_metadata={"width": 1200, "height": 840},
         )
         database.add_all([reference, moving])
         database.flush()
@@ -82,6 +84,7 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
         assert comparison is not None
         assert comparison.registrations["moving"]["status"] == "ready"
         assert comparison.registrations["moving"]["provenance"] == "automatic"
+        assert abs(comparison.registrations["moving"]["movingToReference"][0][2]) > 20
         assert comparison.status == "ready"
         assert job.status == "succeeded"
         assert job.checkpoint["progress"] == 100

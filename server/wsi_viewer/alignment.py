@@ -51,6 +51,77 @@ def map_point(transform: list[list[float]], x: float, y: float) -> tuple[float, 
     return float(mapped[0]), float(mapped[1])
 
 
+def rescale_registration(
+    result: RegistrationResult,
+    *,
+    reference_thumbnail_size: tuple[int, int],
+    moving_thumbnail_size: tuple[int, int],
+    reference_full_size: tuple[int, int],
+    moving_full_size: tuple[int, int],
+) -> RegistrationResult:
+    sizes = (
+        reference_thumbnail_size
+        + moving_thumbnail_size
+        + reference_full_size
+        + moving_full_size
+    )
+    if any(value <= 0 for value in sizes):
+        raise ValueError("Registration image dimensions must be positive")
+    reference_scale = np.diag(
+        [
+            reference_full_size[0] / reference_thumbnail_size[0],
+            reference_full_size[1] / reference_thumbnail_size[1],
+            1.0,
+        ]
+    )
+    moving_scale = np.diag(
+        [
+            moving_thumbnail_size[0] / moving_full_size[0],
+            moving_thumbnail_size[1] / moving_full_size[1],
+            1.0,
+        ]
+    )
+    thumbnail_transform = np.vstack(
+        [np.asarray(result.moving_to_reference, dtype=np.float64), [0.0, 0.0, 1.0]]
+    )
+    transform = (reference_scale @ thumbnail_transform @ moving_scale)[:2]
+
+    def scale_support(
+        support: tuple[float, float, float, float],
+        thumbnail: tuple[int, int],
+        full: tuple[int, int],
+    ) -> tuple[float, float, float, float]:
+        x_scale, y_scale = full[0] / thumbnail[0], full[1] / thumbnail[1]
+        return (
+            support[0] * x_scale,
+            support[1] * y_scale,
+            support[2] * x_scale,
+            support[3] * y_scale,
+        )
+
+    return RegistrationResult(
+        status=result.status,
+        moving_to_reference=transform.round(10).tolist(),
+        reference_support=scale_support(
+            result.reference_support, reference_thumbnail_size, reference_full_size
+        ),
+        moving_support=scale_support(
+            result.moving_support, moving_thumbnail_size, moving_full_size
+        ),
+        confidence=result.confidence,
+        inlier_count=result.inlier_count,
+        match_count=result.match_count,
+        median_error_pixels=round(
+            result.median_error_pixels
+            * max(
+                reference_full_size[0] / reference_thumbnail_size[0],
+                reference_full_size[1] / reference_thumbnail_size[1],
+            ),
+            4,
+        ),
+    )
+
+
 def _bounded_rgb(image: Image.Image, maximum: int) -> tuple[np.ndarray, float]:
     rgb = image.convert("RGB")
     scale = min(1.0, maximum / max(rgb.size))

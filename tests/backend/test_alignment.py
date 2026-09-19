@@ -3,7 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from PIL import Image, ImageDraw, ImageEnhance
-from wsi_viewer.alignment import AlignmentRejected, map_point, register_pair
+from wsi_viewer.alignment import (
+    AlignmentRejected,
+    RegistrationResult,
+    map_point,
+    register_pair,
+    rescale_registration,
+)
 
 
 def _tissue(seed: int = 7) -> Image.Image:
@@ -58,6 +64,32 @@ def test_register_pair_rejects_unrelated_tissue() -> None:
 
     with pytest.raises(AlignmentRejected, match="reliable correspondence"):
         register_pair(_tissue(), unrelated)
+
+
+def test_rescale_registration_converts_thumbnail_map_to_full_slide_coordinates() -> None:
+    thumbnail = RegistrationResult(
+        status="ready",
+        moving_to_reference=[[1, 0, -10], [0, 1, -5]],
+        reference_support=(5, 4, 95, 76),
+        moving_support=(2, 3, 98, 78),
+        confidence=0.9,
+        inlier_count=20,
+        match_count=25,
+        median_error_pixels=2,
+    )
+
+    full = rescale_registration(
+        thumbnail,
+        reference_thumbnail_size=(100, 80),
+        moving_thumbnail_size=(100, 80),
+        reference_full_size=(1000, 800),
+        moving_full_size=(2000, 1600),
+    )
+
+    assert full.moving_to_reference == [[0.5, 0.0, -100.0], [0.0, 0.5, -50.0]]
+    assert full.reference_support == (50.0, 40.0, 950.0, 760.0)
+    assert full.moving_support == (40.0, 60.0, 1960.0, 1560.0)
+    assert full.median_error_pixels == 20.0
 
 
 def test_map_point_rejects_invalid_transform() -> None:
