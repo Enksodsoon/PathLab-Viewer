@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from .domain import SlideState
 from .models import ComparisonSet, Job, LibraryShare, ShareSlide, Slide
+from .sharing import ShareConflict, active_public_share
 
 
 class ComparisonRequest(BaseModel):
@@ -220,26 +221,43 @@ def register_alignment_routes(
         database.commit()
         return _json(item, _members(database, item))
 
+    def public_share(public_id: str, database: OrmSession) -> LibraryShare:
+        try:
+            return active_public_share(
+                database, target_type="collection", public_id=public_id
+            )
+        except ShareConflict as exc:
+            raise _error("COMPARISON_NOT_FOUND", 404) from exc
+
+    def shared_positions(database: OrmSession, share: LibraryShare) -> dict[str, int]:
+        rows = database.execute(
+            select(ShareSlide.slide_id, ShareSlide.sort_order)
+            .where(ShareSlide.share_id == share.id)
+            .order_by(ShareSlide.sort_order, ShareSlide.slide_id)
+        ).all()
+        return {slide_id: order for slide_id, order in rows}
+
+    def public_sets(
+        public_id: str, database: OrmSession = Depends(database_dependency)
+    ) -> list[dict[str, str]]:
+        share = public_share(public_id, database)
+        shared_ids = set(shared_positions(database, share))
+        return [
+            {"id": item.id, "name": item.name, "status": item.status}
+            for item in database.scalars(
+                select(ComparisonSet).order_by(ComparisonSet.updated_at.desc())
+            )
+            if set(item.member_slide_ids).issubset(shared_ids)
+        ]
+
     def public_set(
         public_id: str, set_id: str, database: OrmSession = Depends(database_dependency)
     ) -> dict[str, Any]:
-        share = database.scalar(
-            select(LibraryShare).where(
-                LibraryShare.public_id == public_id,
-                LibraryShare.target_type == "collection",
-                LibraryShare.is_active.is_(True),
-                LibraryShare.revoked_at.is_(None),
-            )
-        )
+        share = public_share(public_id, database)
         item = database.get(ComparisonSet, set_id)
-        if share is None or item is None:
+        if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
-        rows = database.execute(
-            select(ShareSlide.slide_id, ShareSlide.sort_order).where(
-                ShareSlide.share_id == share.id
-            )
-        ).all()
-        positions = {slide_id: order for slide_id, order in rows}
+        positions = shared_positions(database, share)
         if not set(item.member_slide_ids).issubset(positions):
             raise _error("COMPARISON_NOT_FOUND", 404)
         payload = _json(item, _members(database, item), shared=positions)
@@ -263,6 +281,9 @@ def register_alignment_routes(
     )
     app.add_api_route(
         "/api/v1/admin/comparison-sets/{set_id}/corrections/{slide_id}", correct, methods=["PUT"]
+    )
+    app.add_api_route(
+        "/api/v2/public/collections/{public_id}/comparisons", public_sets, methods=["GET"]
     )
     app.add_api_route(
         "/api/v2/public/collections/{public_id}/comparisons/{set_id}", public_set, methods=["GET"]

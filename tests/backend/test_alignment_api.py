@@ -1,13 +1,13 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import select, text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
-from wsi_viewer.models import Job, Slide, User
+from wsi_viewer.models import ComparisonSet, Job, LibraryShare, ShareSlide, Slide, User
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 
@@ -112,3 +112,58 @@ def test_set_rejects_unready_or_missing_reference_members(tmp_path: Path) -> Non
         )
         assert missing.status_code == 422
         assert missing.json()["detail"]["code"] == "REFERENCE_NOT_MEMBER"
+
+
+def test_shared_collection_lists_only_fully_authorized_comparisons(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        with session_factory(client.app.state.settings)() as database:
+            share = LibraryShare(
+                public_id="shared-collection",
+                target_type="collection",
+                target_id="collection-id",
+                privacy_status="passed",
+            )
+            database.add(share)
+            database.flush()
+            database.add_all(
+                [
+                    ShareSlide(share_id=share.id, slide_id="slide-1", sort_order=0),
+                    ShareSlide(share_id=share.id, slide_id="slide-2", sort_order=1),
+                ]
+            )
+            visible = ComparisonSet(
+                name="Shared H&E and PAS",
+                reference_slide_id="slide-1",
+                member_slide_ids=["slide-1", "slide-2"],
+                source_versions={"slide-1": "sha-1", "slide-2": "sha-2"},
+                registrations={},
+                status="partial",
+            )
+            hidden = ComparisonSet(
+                name="Includes unshared IHC",
+                reference_slide_id="slide-1",
+                member_slide_ids=["slide-1", "slide-3"],
+                source_versions={"slide-1": "sha-1", "slide-3": "sha-3"},
+                registrations={},
+                status="partial",
+            )
+            database.add_all([visible, hidden])
+            database.commit()
+            visible_id = visible.id
+
+        response = client.get("/api/v2/public/collections/shared-collection/comparisons")
+        assert response.status_code == 200
+        assert response.json() == [
+            {"id": visible_id, "name": "Shared H&E and PAS", "status": "partial"}
+        ]
+
+        with session_factory(client.app.state.settings)() as database:
+            share = database.scalar(
+                select(LibraryShare).where(LibraryShare.public_id == "shared-collection")
+            )
+            assert share is not None
+            share.privacy_status = "pending"
+            database.commit()
+        assert client.get(
+            f"/api/v2/public/collections/shared-collection/comparisons/{visible_id}"
+        ).status_code == 404

@@ -15,6 +15,7 @@ import type {
   LibraryShare,
   StorageInventory,
   ComparisonSet,
+  SharedComparisonSummary,
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
@@ -568,6 +569,10 @@ export async function getComparisonSet(id: string): Promise<ComparisonSet> {
 
 export async function getSharedComparisonSet(publicId: string, id: string): Promise<ComparisonSet> {
   return json<ComparisonSet>(await fetch(`/api/v2/public/collections/${encodeURIComponent(publicId)}/comparisons/${encodeURIComponent(id)}`, { credentials: 'omit', cache: 'no-store' }))
+}
+
+export async function getSharedComparisons(publicId: string): Promise<SharedComparisonSummary[]> {
+  return json<SharedComparisonSummary[]>(await fetch(`/api/v2/public/collections/${encodeURIComponent(publicId)}/comparisons`, { credentials: 'omit', cache: 'no-store' }))
 }
 
 export async function previewLibraryShare(

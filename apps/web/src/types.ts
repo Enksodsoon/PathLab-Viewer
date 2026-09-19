@@ -250,6 +250,12 @@ export interface ComparisonSet {
   members: ComparisonMember[]
 }
 
+export interface SharedComparisonSummary {
+  id: string
+  name: string
+  status: ComparisonSet['status']
+}
+
 export interface SharePreviewItem {
   id: string
   displayName: string

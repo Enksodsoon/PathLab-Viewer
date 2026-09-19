@@ -200,4 +200,22 @@ describe('shared library viewer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Next slide' }))
     expect(sessionStorage.getItem('pathlab-share-position:collection:share-public')).toBe('1')
   })
+
+  it('offers authorized comparison sets from a shared collection', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...MANIFEST, targetType: 'collection' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { id: 'comparison-1', name: 'H&E and PAS', status: 'ready' },
+      ]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    renderShare('collection')
+
+    expect(await screen.findByRole('link', { name: /compare slides.*h&e and pas/i }))
+      .toHaveAttribute('href', '/c/share-public/compare/comparison-1')
+  })
 })
