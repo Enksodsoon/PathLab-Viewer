@@ -6,10 +6,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ComparisonPage } from '../pages/ComparisonPage'
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
-  OpenSeadragonViewer: ({ tileSource, onViewportChange }: { tileSource: string, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void }) => <button
+  OpenSeadragonViewer: ({ tileSource, onOpen, onViewportChange }: { tileSource: string, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
-    onClick={() => onViewportChange?.({ centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })}
+    onClick={() => {
+      onOpen?.()
+      onViewportChange?.({ centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
+    }}
   />,
 }))
 
@@ -46,10 +49,9 @@ it('fails closed when an unaligned slide tries to synchronize', async () => {
 
   await user.selectOptions(screen.getByRole('combobox', { name: 'Slide shown in pane 2' }), 'slide-5')
   expect(screen.getByText('Not aligned')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Viewer /tiles/5.dzi' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Synchronization suspended because Slide 5 is not aligned.')
+
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
   expect(screen.getByRole('status')).toHaveTextContent('Synchronization suspended for Slide 5 because reliable correspondence is unavailable.')
-
-  await user.click(screen.getByRole('button', { name: 'Viewer /tiles/5.dzi' }))
-
-  expect(screen.getByRole('status')).toHaveTextContent('Synchronization suspended because Slide 5 is not aligned.')
 })

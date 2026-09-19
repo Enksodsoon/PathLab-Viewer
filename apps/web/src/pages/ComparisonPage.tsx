@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getComparisonSet, getSharedComparisonSet } from '../api'
-import { mapComparisonPoint, withinSupport } from '../alignment'
+import { alignmentViewDelta, intersectSupport, mapComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport, type Support } from '../alignment'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { Loader } from '../components/Loader'
@@ -15,6 +15,32 @@ function transform(member: ComparisonMember, referenceId: string) {
   return member.slideId === referenceId ? null : member.registration?.movingToReference ?? null
 }
 
+function commonReferenceBounds(comparison: ComparisonSet, slideIds: string[]): Exclude<Support, null> | null {
+  const reference = comparison.members.find((member) => member.slideId === comparison.referenceSlideId)
+  if (!reference?.metadata) return null
+  let common: Exclude<Support, null> = [0, 0, reference.metadata.width, reference.metadata.height]
+  let eligibleTargets = 0
+  for (const slideId of slideIds) {
+    if (slideId === comparison.referenceSlideId) continue
+    const member = comparison.members.find((candidate) => candidate.slideId === slideId)
+    const registration = member?.registration
+    if (!member || registration?.status !== 'ready' || !registration.movingToReference) continue
+    if (!registration.movingSupport && !member.metadata) continue
+    const movingSupport: Exclude<Support, null> = registration.movingSupport
+      ?? [0, 0, member.metadata!.width, member.metadata!.height]
+    const mappedMoving = mapSupportBounds(movingSupport, registration.movingToReference)
+    const referenceSupport: Exclude<Support, null> = registration.referenceSupport
+      ?? [0, 0, reference.metadata.width, reference.metadata.height]
+    const eligible = intersectSupport(mappedMoving, referenceSupport)
+    if (!eligible) continue
+    const next = intersectSupport(common, eligible)
+    if (!next) return null
+    common = next
+    eligibleTargets += 1
+  }
+  return eligibleTargets ? common : null
+}
+
 export function ComparisonPage() {
   const { comparisonId = '', publicId } = useParams()
   const [comparison, setComparison] = useState<ComparisonSet | null>(null)
@@ -22,6 +48,8 @@ export function ComparisonPage() {
   const [linked, setLinked] = useState(true)
   const [notice, setNotice] = useState('')
   const handles = useRef(new Map<string, ViewerHandle>())
+  const openedSlides = useRef(new Set<string>())
+  const initializedPanes = useRef('')
   useEffect(() => {
     let active = true
     const request = publicId ? getSharedComparisonSet(publicId, comparisonId) : getComparisonSet(comparisonId)
@@ -52,6 +80,7 @@ export function ComparisonPage() {
       if (targetId === source.slideId) continue
       const target = comparison.members.find((member) => member.slideId === targetId)
       if (!target) continue
+      if (!openedSlides.current.has(targetId)) continue
       if (target.slideId !== comparison.referenceSlideId && target.registration?.status !== 'ready') {
         suspended.push(target.displayName)
         continue
@@ -61,20 +90,70 @@ export function ComparisonPage() {
         continue
       }
       const [centerX, centerY] = mapComparisonPoint(referencePoint, null, transform(target, comparison.referenceSlideId))
-      const sourceMpp = source.metadata?.physicalSizeX
-      const targetMpp = target.metadata?.physicalSizeX
+      const viewDelta = alignmentViewDelta(
+        transform(source, comparison.referenceSlideId),
+        transform(target, comparison.referenceSlideId),
+      )
       handles.current.get(targetId)?.setImageViewport({
         centerX, centerY,
-        imageZoom: sourceMpp && targetMpp ? snapshot.imageZoom * targetMpp / sourceMpp : snapshot.imageZoom,
-        rotation: snapshot.rotation,
+        imageZoom: snapshot.imageZoom * viewDelta.zoomScale,
+        rotation: normalizeRotation(snapshot.rotation + viewDelta.rotation),
       })
     }
     setNotice(suspended.length ? `Synchronization suspended for ${suspended.join(', ')} because reliable correspondence is unavailable.` : '')
   }, [comparison, linked, panes])
+  const alignOpenedPanes = useCallback(() => {
+    if (!comparison || !linked) return
+    const sourceId = panes.find((id) => id === comparison.referenceSlideId && openedSlides.current.has(id))
+      ?? panes.find((id) => {
+        const member = comparison.members.find((candidate) => candidate.slideId === id)
+        return openedSlides.current.has(id) && member?.registration?.status === 'ready'
+      })
+    if (!sourceId) return
+    const source = comparison.members.find((member) => member.slideId === sourceId)
+    const handle = handles.current.get(sourceId)
+    if (!source || !handle) return
+    synchronize(source, handle.getImageViewport())
+  }, [comparison, linked, panes, synchronize])
+  const initializeOpenedPanes = useCallback(() => {
+    if (!comparison || !linked) return
+    const opened = panes.filter((id) => openedSlides.current.has(id))
+    const key = opened.join('|')
+    if (key === initializedPanes.current) return
+    initializedPanes.current = key
+    const referenceHandle = handles.current.get(comparison.referenceSlideId)
+    if (referenceHandle && opened.includes(comparison.referenceSlideId) && opened.length > 1) {
+      const bounds = commonReferenceBounds(comparison, opened)
+      if (bounds) referenceHandle.fitImageBounds(bounds)
+    }
+    window.requestAnimationFrame(alignOpenedPanes)
+  }, [alignOpenedPanes, comparison, linked, panes])
+  useEffect(() => {
+    if (!linked) return
+    initializedPanes.current = ''
+    const frame = window.requestAnimationFrame(initializeOpenedPanes)
+    return () => window.cancelAnimationFrame(frame)
+  }, [initializeOpenedPanes, linked])
+  const resetView = useCallback(() => {
+    if (!linked) {
+      panes.forEach((slideId) => handles.current.get(slideId)?.home())
+      return
+    }
+    const anchorId = panes.find((id) => id === comparison?.referenceSlideId && openedSlides.current.has(id))
+      ?? panes.find((id) => openedSlides.current.has(id))
+    if (!anchorId) return
+    const anchor = handles.current.get(anchorId)
+    const bounds = comparison && anchorId === comparison.referenceSlideId
+      ? commonReferenceBounds(comparison, panes.filter((id) => openedSlides.current.has(id)))
+      : null
+    if (bounds) anchor?.fitImageBounds(bounds)
+    else anchor?.home()
+    window.requestAnimationFrame(alignOpenedPanes)
+  }, [alignOpenedPanes, comparison, linked, panes])
   if (!comparison && !notice) return <Loader label="Opening comparison…" size="large" fullscreen />
   if (!comparison) return <main className="viewer-message"><h1>{notice}</h1></main>
   return <div className="comparison-shell">
-    <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><button type="button" aria-pressed={linked} onClick={() => setLinked((value) => !value)}>{linked ? <LinkSimple /> : <LinkBreak />}{linked ? 'Views linked' : 'Views independent'}</button><button type="button" onClick={() => panes.forEach((slideId) => handles.current.get(slideId)?.home())}><ArrowsClockwise /> Reset</button></header>
+    <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><button type="button" aria-pressed={linked} onClick={() => setLinked((value) => !value)}>{linked ? <LinkSimple /> : <LinkBreak />}{linked ? 'Views linked' : 'Views independent'}</button><button type="button" onClick={resetView}><ArrowsClockwise /> Reset</button></header>
     {notice ? <div className="comparison-notice" role="status">{notice}</div> : null}
     <main className={`comparison-grid comparison-grid--${panes.length}`}>
       {panes.map((slideId, paneIndex) => {
@@ -82,7 +161,10 @@ export function ComparisonPage() {
         const aligned = member.slideId === comparison.referenceSlideId || member.registration?.status === 'ready'
         return <section className="comparison-pane" key={`${paneIndex}-${slideId}`}>
           <header><select aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned ? 'alignment-ready' : 'alignment-unavailable'}>{aligned ? (member.slideId === comparison.referenceSlideId ? 'Reference' : 'Aligned') : 'Not aligned'}</span>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => setPanes((current) => current.filter((_, index) => index !== paneIndex))}><X /></button> : null}</header>
-          <OpenSeadragonViewer tileSource={member.tileSource} onReady={(handle) => handles.current.set(slideId, handle)} micronsPerPixel={member.metadata?.physicalSizeX} onViewportChange={(snapshot) => synchronize(member, snapshot)} networkProfile={{ initialJobLimit: 2, maximumJobLimit: panes.length > 2 ? 2 : 4 }} />
+          <OpenSeadragonViewer tileSource={member.tileSource} onReady={(handle) => handles.current.set(slideId, handle)} onOpen={() => {
+            openedSlides.current.add(slideId)
+            initializeOpenedPanes()
+          }} micronsPerPixel={member.metadata?.physicalSizeX} onViewportChange={(snapshot) => synchronize(member, snapshot)} networkProfile={{ initialJobLimit: 2, maximumJobLimit: panes.length > 2 ? 2 : 4 }} />
           {!member.metadata?.physicalSizeX ? <small className="comparison-relative-scale">Relative scale: physical pixel size unavailable</small> : null}
         </section>
       })}

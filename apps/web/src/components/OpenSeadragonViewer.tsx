@@ -21,6 +21,8 @@ export interface ViewerHandle {
   home: () => void
   rotate: () => void
   fullscreen: () => void
+  fitImageBounds: (bounds: [number, number, number, number]) => void
+  getImageViewport: () => ImageViewport
   setImageViewport: (snapshot: ImageViewport) => void
 }
 
@@ -45,6 +47,7 @@ interface Props {
   networkProfile?: ViewerNetworkProfile
   showLoadingMode?: boolean
   onViewportChange?: (snapshot: ImageViewport) => void
+  onOpen?: () => void
 }
 
 interface NavigatorWithConnection extends Navigator {
@@ -72,6 +75,7 @@ export function OpenSeadragonViewer({
   networkProfile,
   showLoadingMode = true,
   onViewportChange,
+  onOpen,
 }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
@@ -84,6 +88,7 @@ export function OpenSeadragonViewer({
   const attachmentCallbackRef = useRef(onViewerAttach)
   const networkProfileRef = useRef(networkProfile)
   const viewportChangeRef = useRef(onViewportChange)
+  const onOpenRef = useRef(onOpen)
   const suppressViewportEvent = useRef(false)
   const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
@@ -169,6 +174,7 @@ export function OpenSeadragonViewer({
     micronsPerPixelRef.current = micronsPerPixel
     onScaleChangeRef.current = onScaleChange
     viewportChangeRef.current = onViewportChange
+    onOpenRef.current = onOpen
     if (viewerRef.current && openedSourceRef.current !== tileSource) {
       openedSourceRef.current = tileSource
       tileFailures.current = 0
@@ -190,6 +196,7 @@ export function OpenSeadragonViewer({
     onReady,
     onScaleChange,
     onViewportChange,
+    onOpen,
     posterUrl,
     tileSource,
   ])
@@ -288,11 +295,12 @@ export function OpenSeadragonViewer({
       })
       viewerRef.current = viewer
       attachViewerAttachment(viewer)
+      const readyViewer = viewer
       onReadyRef.current({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
         home: () => {
-          viewer?.viewport.goHome()
+          viewer?.viewport.goHome(true)
           applyRotation(0)
           setRotationOpen(false)
         },
@@ -302,14 +310,32 @@ export function OpenSeadragonViewer({
           applyRotation(next)
         },
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
+        fitImageBounds: ([left, top, right, bottom]) => {
+          applyRotation(0)
+          readyViewer.viewport.fitBounds(
+            readyViewer.viewport.imageToViewportRectangle(left, top, right - left, bottom - top),
+            true,
+          )
+        },
+        getImageViewport: () => {
+          const center = readyViewer.viewport.viewportToImageCoordinates(readyViewer.viewport.getCenter(true))
+          return {
+            centerX: center.x,
+            centerY: center.y,
+            imageZoom: readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true)),
+            rotation: readyViewer.viewport.getRotation(),
+          }
+        },
         setImageViewport: (snapshot) => {
           if (!viewer) return
           suppressViewportEvent.current = true
           const center = viewer.viewport.imageToViewportCoordinates(snapshot.centerX, snapshot.centerY)
+          const normalizedRotation = ((snapshot.rotation % 360) + 360) % 360
+          const displayRotation = Math.round(normalizedRotation)
           viewer.viewport.panTo(center, true)
           viewer.viewport.zoomTo(viewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
-          viewer.viewport.setRotation(snapshot.rotation)
-          setRotation(snapshot.rotation)
+          viewer.viewport.setRotation(displayRotation)
+          setRotation(displayRotation)
           viewer.viewport.applyConstraints(true)
         },
       })
@@ -331,6 +357,7 @@ export function OpenSeadragonViewer({
         setConnectionStatus(null)
         clearLoadingError()
         updateScale()
+        onOpenRef.current?.()
       }
       const handleTileLoaded = () => setPosterVisible(false)
       const reportViewport = () => {

@@ -28,6 +28,8 @@ const osdMock = vi.hoisted(() => {
       panTo: vi.fn(),
       zoomTo: vi.fn(),
       applyConstraints: vi.fn(),
+      imageToViewportRectangle: vi.fn((x: number, y: number, width: number, height: number) => ({ x, y, width, height })),
+      fitBounds: vi.fn(),
     },
     setFullScreen: vi.fn(),
     isFullPage: vi.fn(() => false),
