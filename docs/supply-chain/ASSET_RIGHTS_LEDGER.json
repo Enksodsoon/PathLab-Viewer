@@ -68,26 +68,6 @@
       "sizeBytes": 270
     },
     {
-      "attribution": "REQUIRED_UNAVAILABLE",
-      "blockers": [
-        "CREATOR_UNVERIFIED",
-        "PERMISSION_UNVERIFIED",
-        "ATTRIBUTION_UNAVAILABLE"
-      ],
-      "contentSha256": "9cebccd3aef3147cc22c7f2a30dec7b34e5193db2fcc8c92894bb1836fbea9af",
-      "creator": "UNVERIFIED",
-      "distributionScope": "SHIPPED_RUNTIME",
-      "id": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
-      "kind": "inline-svg",
-      "licensePermission": "UNVERIFIED",
-      "locator": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
-      "permittedUse": "NONE_UNTIL_REPLACED_OR_EVIDENCED",
-      "privacyClass": "PUBLIC_NON_PERSONAL",
-      "provenance": "Inline visual source is repository-derived; no asset-specific creator or assignment receipt exists.",
-      "releaseDisposition": "BLOCKED_RELEASE",
-      "sizeBytes": 398
-    },
-    {
       "attribution": "Preserve repository LICENSE and NOTICE.",
       "blockers": [],
       "contentSha256": "ca3e900abec497cc68651038bcaa9b900a3b98a3e6503dafc8393deba7d29306",
@@ -261,7 +241,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "2da31b8fcbc408a5b800e0e5c212e0f5210d08c568ef7d5ab1e036892fb8356b",
+      "contentSha256": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -309,10 +289,6 @@
         {
           "contentSha256": "32b81f04f780074ba70e1e771ad1eebcbb64ba11356869a8dc6e71279a0b6c27",
           "name": "ArrowUpRight"
-        },
-        {
-          "contentSha256": "cf21da808c4ca745c3da7f6dd93daabe71e8fb2bfc36c99b074eddece5f3508b",
-          "name": "ArrowsClockwise"
         },
         {
           "contentSha256": "2caf453f4a204a8c963b38415a8903e6cb7b29c90974f8a3629c289ae56e21dc",
@@ -643,10 +619,6 @@
           "name": "LinkBreak"
         },
         {
-          "contentSha256": "2c5f9218d9c8dec2f452fd8e8c3a9b345b236796b4de3040f783be3127677b21",
-          "name": "LinkSimple"
-        },
-        {
           "contentSha256": "450db6d260cbc58a8937ad8198e232dc247abd75bb0a26391cb8d77389f4f9c6",
           "name": "List"
         },
@@ -883,7 +855,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 478062,
+      "sizeBytes": 470995,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -950,10 +922,8 @@
       "sizeBytes": 151666
     }
   ],
-  "releaseAdmission": "BLOCKED",
-  "releaseBlockers": [
-    "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
-  ],
+  "releaseAdmission": "ADMITTED",
+  "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "f99927b"
+  "subjectCommit": "37ce32895ed6210bb2977c7261b1e823e7d38a21"
 }
