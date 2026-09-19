@@ -241,7 +241,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63",
+      "contentSha256": "2da31b8fcbc408a5b800e0e5c212e0f5210d08c568ef7d5ab1e036892fb8356b",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -289,6 +289,10 @@
         {
           "contentSha256": "32b81f04f780074ba70e1e771ad1eebcbb64ba11356869a8dc6e71279a0b6c27",
           "name": "ArrowUpRight"
+        },
+        {
+          "contentSha256": "cf21da808c4ca745c3da7f6dd93daabe71e8fb2bfc36c99b074eddece5f3508b",
+          "name": "ArrowsClockwise"
         },
         {
           "contentSha256": "2caf453f4a204a8c963b38415a8903e6cb7b29c90974f8a3629c289ae56e21dc",
@@ -619,6 +623,10 @@
           "name": "LinkBreak"
         },
         {
+          "contentSha256": "2c5f9218d9c8dec2f452fd8e8c3a9b345b236796b4de3040f783be3127677b21",
+          "name": "LinkSimple"
+        },
+        {
           "contentSha256": "450db6d260cbc58a8937ad8198e232dc247abd75bb0a26391cb8d77389f4f9c6",
           "name": "List"
         },
@@ -855,7 +863,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 470995,
+      "sizeBytes": 478062,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -925,5 +933,5 @@
   "releaseAdmission": "ADMITTED",
   "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "a5707834fc1ee4606166b5c958a0054a8851bce0"
+  "subjectCommit": "bc97b3dc5f65afd89c93768b40c6b404e8bde048"
 }
