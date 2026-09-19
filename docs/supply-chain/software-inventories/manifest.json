@@ -2,27 +2,27 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "8ea53b2ca6d64e1b0da0e9a4a9299ea45f1c6b8c3913dde9e2f5a64129f3b0cd",
+      "sha256": "13378a7e6a5f391d739afc0f4bd5e500a0726e3a0aa0d91371ed365f13e9bee0",
       "sizeBytes": 184263
     },
     {
       "path": "build.cdx.json",
-      "sha256": "f912cb59daa55e285b6b7a56378e1c9d4e60f0e2954118c8f73a31df1c11e140",
+      "sha256": "c202c291ec839f241098393a108b1fe5d30a24634f0e5fd567eceeadf89cb9a4",
       "sizeBytes": 727826
     },
     {
       "path": "build.spdx.json",
-      "sha256": "4dc38cd7d319fafeb96d212f399e3d55acccb7729e6089a01e651afaf427adf6",
+      "sha256": "b5f984fdec044d4c0dc66028e2d2a8315c0e21bbc0a5c403bab53ab80ab855b0",
       "sizeBytes": 587936
     },
     {
       "path": "source.cdx.json",
-      "sha256": "141fa2fc7a243f00a0340029324eeab5ef78800a87524dce233b9803327de103",
+      "sha256": "6832e2a303a5ca02a46142fdbe5c8e237fa289d7d154bd652ed487a5cbed6dfb",
       "sizeBytes": 767926
     },
     {
       "path": "source.spdx.json",
-      "sha256": "07a52578dfe279478976caa68c2ec3b96f96cb81705d99309f7f7204e18b15c4",
+      "sha256": "733b9440c09258effc69ae52d171813b9e27ccb7e12c1da021ea18f46ac64077",
       "sizeBytes": 619600
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-13T02:23:20Z",
+  "generatedAt": "2026-09-19T14:50:53Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -69,10 +69,10 @@
       "sizeBytes": 133470
     },
     {
-      "gitBlob": "ca274771ae0deb0e7e7c5211da15afd2e31f159d",
+      "gitBlob": "80cf18a937104b07702ea4179eff3ff20789dc75",
       "path": "pyproject.toml",
-      "sha256": "5fb7090673f9e831e9beac756d800dc3893d70476beef77febaefce000de4a6c",
-      "sizeBytes": 1540
+      "sha256": "a4e7e8f06d7267299492b631ed732009595da7797975ce6150f53daddef69d70",
+      "sizeBytes": 1577
     },
     {
       "gitBlob": "e0fea267db680410d773f5c918642bbad8c1ebaa",
@@ -105,10 +105,10 @@
       "sizeBytes": 671
     },
     {
-      "gitBlob": "03f671a9b82ae0949f941515011c5d578fb596a7",
+      "gitBlob": "16e7af425bf2ad01837bb050f0cb22ee375c8d69",
       "path": "deploy/compose.yaml",
-      "sha256": "a117fef4e5980275ea3bd89cf967ed34e231cdbbad2acbbb528f4576dac03bb9",
-      "sizeBytes": 9850
+      "sha256": "74b2866d76ffa29ad47bd444e725b03364d5eafd59840cc5cda056ed5da1051e",
+      "sizeBytes": 9921
     },
     {
       "gitBlob": "cbec5c761cd48458bc2574c74a4b96d9cc588888",
@@ -117,9 +117,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "84318b9ef6c039a8f87a70f0c5a4b2fc65989c33",
+      "gitBlob": "a744a789d501721142aaa516543dbb45d24f681b",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "d53c036a67baa3e6a8987fe69f152a8c18a75f654263e054ea90e25fe0331406",
+      "sha256": "7dc60a996f3c41ca0c1b078ce370456c72a3b97fdfb52d12bdfb2fd5436b2803",
       "sizeBytes": 759005
     },
     {
@@ -141,10 +141,10 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "988f737ea1286383f8b9e2d5882e28bf0236aaad",
+      "gitBlob": "158d449c402029211be53e5de4fc1b7f519e80b7",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "b19285342b420a0b2793a96051ca88b3a840db012d881c4dfa021874731ebe7b",
-      "sizeBytes": 39755
+      "sha256": "d9a2a49927fd90aec0673f4d77cc466c02a70b154d0ebf82eea886b6ef6397b3",
+      "sizeBytes": 40054
     },
     {
       "gitBlob": "15db60aa4b9cc31865d5f3f41c7e9778356fddfe",
@@ -355,6 +355,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "d21b61e8223a5e9e8c25b965801771f92e20a3cb",
-  "subjectTree": "94e7504f4cc9e2beb2f20432b7572aaac64ce616"
+  "subjectCommit": "d50f0e5c248511a6900aa7ebc0f385dfe65663a0",
+  "subjectTree": "10603fa173fad33d69731593d0b7fb7e46873185"
 }
