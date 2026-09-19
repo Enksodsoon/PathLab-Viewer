@@ -291,7 +291,11 @@ export function OpenSeadragonViewer({
       onReadyRef.current({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
-        home: () => viewer?.viewport.goHome(),
+        home: () => {
+          viewer?.viewport.goHome()
+          applyRotation(0)
+          setRotationOpen(false)
+        },
         rotate: () => {
           if (!viewer) return
           const next = (viewer.viewport.getRotation() + 90) % 360
@@ -305,6 +309,7 @@ export function OpenSeadragonViewer({
           viewer.viewport.panTo(center, true)
           viewer.viewport.zoomTo(viewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
           viewer.viewport.setRotation(snapshot.rotation)
+          setRotation(snapshot.rotation)
           viewer.viewport.applyConstraints(true)
         },
       })
@@ -421,7 +426,7 @@ export function OpenSeadragonViewer({
     /> : null}
     <div ref={element} style={{ position: 'absolute', inset: 0 }} />
     {showLoadingMode ? <label className="viewer-loading-mode">
-      <span>Loading</span>
+      <span>Tile detail</span>
       <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>
         <option value="auto">Auto</option>
         <option value="data-saver">Data saver</option>

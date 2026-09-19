@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-import { OpenSeadragonViewer } from '../components/OpenSeadragonViewer'
+import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { ViewerPage } from '../pages/ViewerPage'
 import { ThemeProvider } from '../theme/ThemeProvider'
 
@@ -21,6 +21,13 @@ const osdMock = vi.hoisted(() => {
       getZoom: vi.fn(() => 1),
       getRotation: vi.fn(() => 0),
       setRotation: vi.fn(),
+      getCenter: vi.fn(() => ({ x: 0, y: 0 })),
+      viewportToImageCoordinates: vi.fn((point: { x: number, y: number }) => point),
+      imageToViewportCoordinates: vi.fn((x: number, y: number) => ({ x, y })),
+      imageToViewportZoom: vi.fn((zoom: number) => zoom),
+      panTo: vi.fn(),
+      zoomTo: vi.fn(),
+      applyConstraints: vi.fn(),
     },
     setFullScreen: vi.fn(),
     isFullPage: vi.fn(() => false),
@@ -147,6 +154,25 @@ it('offers a circular dial with cardinal and fine local rotation controls', () =
   expect(screen.queryByText('drag', { exact: false })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Rotate to 0 degrees' }))
   expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
+})
+
+it('keeps synchronized rotation visible and resets orientation with the home handle', () => {
+  let handle: ViewerHandle | null = null
+  render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      onReady={(value) => { handle = value }}
+    />,
+  )
+
+  expect(handle).not.toBeNull()
+  act(() => handle!.setImageViewport({ centerX: 40, centerY: 30, imageZoom: 2, rotation: 90 }))
+  expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
+
+  act(() => handle!.home())
+  expect(osdMock.viewer.viewport.goHome).toHaveBeenCalled()
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(0)
+  expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 0 degrees' })).toBeInTheDocument()
 })
 
 it('shows a prioritized poster until the first tile is visible', () => {
