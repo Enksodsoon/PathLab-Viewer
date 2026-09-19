@@ -2,38 +2,38 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "13378a7e6a5f391d739afc0f4bd5e500a0726e3a0aa0d91371ed365f13e9bee0",
-      "sizeBytes": 184263
+      "sha256": "aabf3f5960abc08581895b90e8ce31451fe482d2995e487024be98c20f632981",
+      "sizeBytes": 184933
     },
     {
       "path": "build.cdx.json",
-      "sha256": "c202c291ec839f241098393a108b1fe5d30a24634f0e5fd567eceeadf89cb9a4",
-      "sizeBytes": 727826
+      "sha256": "3811dadee3270f888835c4e406d08524a353955d6b0bee171a30123d2e717823",
+      "sizeBytes": 729316
     },
     {
       "path": "build.spdx.json",
-      "sha256": "b5f984fdec044d4c0dc66028e2d2a8315c0e21bbc0a5c403bab53ab80ab855b0",
-      "sizeBytes": 587936
+      "sha256": "8e234671f9807601effc74ecaba47d41158655a46f0679b55de642f53599be04",
+      "sizeBytes": 589206
     },
     {
       "path": "source.cdx.json",
-      "sha256": "6832e2a303a5ca02a46142fdbe5c8e237fa289d7d154bd652ed487a5cbed6dfb",
-      "sizeBytes": 767926
+      "sha256": "0da3506d8f90944ebb172cd3e4a0209ccee24ef6b41866b89ec32501eb44ef86",
+      "sizeBytes": 769416
     },
     {
       "path": "source.spdx.json",
-      "sha256": "733b9440c09258effc69ae52d171813b9e27ccb7e12c1da021ea18f46ac64077",
-      "sizeBytes": 619600
+      "sha256": "1ae32c4d0e18f6cd21939c05e2967c92cf84b6a47ae18d57da4932bdf40b0e64",
+      "sizeBytes": 620870
     }
   ],
   "coverage": {
     "assetRecordIdsSha256": "7f883f9fd96259e5f10c472db1b3e885dc8935d193a294c35e3b4379678a6923",
     "assetRecords": 16,
-    "buildComponents": 574,
-    "currentShippedInputs": 178,
-    "dependencyRecordIdsSha256": "364ada9e1bbef9209e66bb3e5fb369ae4a861278503767f52125f478eeda7247",
-    "dependencyRecords": 580,
-    "sourceComponents": 610,
+    "buildComponents": 575,
+    "currentShippedInputs": 179,
+    "dependencyRecordIdsSha256": "de2ce1216d8c02c28b6c14df4d0ed114885b7e965653b6a9c6736059c7a79d5e",
+    "dependencyRecords": 581,
+    "sourceComponents": 611,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
     "toolchainRecords": 14
   },
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-19T14:50:53Z",
+  "generatedAt": "2026-09-19T15:03:09Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -81,10 +81,10 @@
       "sizeBytes": 1765
     },
     {
-      "gitBlob": "0467e61da46d6fa98b94edf7234630e8851d062f",
+      "gitBlob": "473f3828fcc96fb1c3b866561f52e04cdef772e0",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "a7ffa0db664ba783105e140c9a7459526369867a2a6481653e8f83c8f73faba6",
-      "sizeBytes": 113931
+      "sha256": "e14fb061b0d796947f5438aff672524c0f9dcd8cb3a5513fc10feaefc24a144f",
+      "sizeBytes": 110781
     },
     {
       "gitBlob": "3c21421766a6526f8b82bd519c23a70050fc64e4",
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "a744a789d501721142aaa516543dbb45d24f681b",
+      "gitBlob": "8c3f6b8558963349c4b899e93fbe3a73f98604da",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "7dc60a996f3c41ca0c1b078ce370456c72a3b97fdfb52d12bdfb2fd5436b2803",
-      "sizeBytes": 759005
+      "sha256": "2d223dc91ce5ad21a982d5a1b427dc132b611bfbd643b7e1bf4124b23064a4dc",
+      "sizeBytes": 757721
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -333,8 +333,9 @@
     "RECORDED_UNREVIEWED:pypi:markupsafe@3.0.3",
     "RECORDED_UNREVIEWED:pypi:numpy@2.5.2",
     "RECORDED_UNREVIEWED:pypi:ome-types@0.6.3",
-    "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.5",
-    "RECORDED_UNREVIEWED:pypi:psycopg@3.3.5",
+    "RECORDED_UNREVIEWED:pypi:opencv-python-headless@4.14.0.94",
+    "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.4",
+    "RECORDED_UNREVIEWED:pypi:psycopg@3.3.4",
     "RECORDED_UNREVIEWED:pypi:pycparser@3.0",
     "RECORDED_UNREVIEWED:pypi:pydantic-core@2.46.5",
     "RECORDED_UNREVIEWED:pypi:pydantic-extra-types@2.11.1",
@@ -348,13 +349,13 @@
     "RECORDED_UNREVIEWED:pypi:tifffile@2026.8.23",
     "RECORDED_UNREVIEWED:pypi:typing-extensions@4.16.0",
     "RECORDED_UNREVIEWED:pypi:typing-inspection@0.4.4",
+    "RECORDED_UNREVIEWED:pypi:tzdata@2026.4",
     "RECORDED_UNREVIEWED:pypi:uvicorn@0.52.4",
-    "RECORDED_UNREVIEWED:pypi:uvloop@0.22.1",
     "RECORDED_UNREVIEWED:pypi:watchfiles@1.2.0",
     "RECORDED_UNREVIEWED:pypi:websockets@17.1",
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "d50f0e5c248511a6900aa7ebc0f385dfe65663a0",
-  "subjectTree": "10603fa173fad33d69731593d0b7fb7e46873185"
+  "subjectCommit": "521a0a7e3b17599811c5fd62374b1aed9bb9f0f6",
+  "subjectTree": "0c180e19415562e01875722327c51468193465de"
 }
