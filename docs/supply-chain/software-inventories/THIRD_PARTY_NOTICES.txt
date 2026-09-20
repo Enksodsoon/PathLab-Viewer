@@ -5930,6 +5930,15 @@ Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 
 Blockers: NONE
 Notice files: NONE RECORDED
 
+ID: asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
+Name: apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
+Version: 52ab4f279f464062
+License: Apache-2.0 repository source; procedural mathematical filter
+Admission: ADMITTED
+Source: Functional gamma-transfer filter introduced in 199fa1f. Zero-size SVG contains only defs/filter/feComponentTransfer and RGB power functions; no artwork, imported media, patient pixels, or external source.
+Blockers: NONE
+Notice files: NONE RECORDED
+
 ID: asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Name: apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Version: ca3e900abec497cc
