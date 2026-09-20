@@ -265,6 +265,7 @@ export interface SlideRegistration {
     structuralComponentPairsChecked?: number
     acceptedStructuralComponents?: number
     ambiguousStructuralComponents?: number
+    layoutConsistencyMedian?: number
     availabilityReason?: string
     withheldCheck?: string
   }

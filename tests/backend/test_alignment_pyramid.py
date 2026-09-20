@@ -5,7 +5,14 @@ import cv2
 import numpy as np
 import pytest
 from PIL import Image
-from wsi_viewer.alignment_pyramid import _flow_cell_evidence, _flow_refined_controls, read_region
+from wsi_viewer.alignment_pyramid import (
+    _component_identity_is_clear,
+    _ComponentMap,
+    _flow_cell_evidence,
+    _flow_refined_controls,
+    _layout_consistency,
+    read_region,
+)
 
 
 def _pyramid(path: Path, image: Image.Image) -> dict[int, Image.Image]:
@@ -175,6 +182,44 @@ def test_unique_component_can_use_patch_verified_structural_flow(tmp_path, monke
     assert result.triangles
     assert result.evidence["acceptedStructuralComponents"] == 1
     assert result.evidence["withheldCheck"] == "pending-independent-landmarks"
+
+
+def _component_candidate(identity: float, layout: float) -> _ComponentMap:
+    return _ComponentMap(
+        transform=[[1, 0, 0], [0, 1, 0]],
+        overview_cells=[],
+        verified_cells=[{}] * round(identity * 100),
+        intensity_score=0,
+        overlap=0,
+        flow_control_count=100,
+        flow_cycle_p95=0,
+        patch_ncc_median=0,
+        patch_discrimination_median=0,
+        layout_score=layout,
+    )
+
+
+def test_fragment_layout_resolves_only_a_real_internal_evidence_margin():
+    preferred = _component_candidate(0.32, 0.91)
+    weaker_wrong_fragment = _component_candidate(0.26, 0.10)
+    identical_wrong_fragment = _component_candidate(0.32, 0.10)
+
+    assert _component_identity_is_clear(preferred, [weaker_wrong_fragment])
+    assert not _component_identity_is_clear(preferred, [identical_wrong_fragment])
+
+
+def test_layout_consistency_checks_all_large_fragments():
+    reference = [(100, 100, 300, 500), (800, 150, 1000, 550)]
+    moving = [(130, 120, 330, 520), (830, 170, 1030, 570)]
+    coherent = _layout_consistency(
+        [[1, 0, -30], [0, 1, -20]], reference, moving, (1200, 700)
+    )
+    one_fragment_only = _layout_consistency(
+        [[1, 0, -730], [0, 1, -20]], reference, moving, (1200, 700)
+    )
+
+    assert coherent > 0.99
+    assert one_fragment_only < 0.2
 
 
 def test_component_refinement_keeps_valid_tissue_touching_crop_edge():

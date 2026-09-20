@@ -35,6 +35,7 @@ class _ComponentMap:
     flow_cycle_p95: float
     patch_ncc_median: float
     patch_discrimination_median: float
+    layout_score: float = 0.0
 
     @property
     def identity_score(self) -> float:
@@ -46,6 +47,69 @@ class _ComponentMap:
             + 0.5 * max(0.0, self.patch_ncc_median)
             + 0.5 * max(0.0, self.patch_discrimination_median)
         )
+
+
+def _layout_consistency(
+    transform: list[list[float]],
+    reference_boxes: list[tuple[int, int, int, int]],
+    moving_boxes: list[tuple[int, int, int, int]],
+    reference_size: tuple[int, int],
+) -> float:
+    """Score whether one component map also preserves the slide fragment layout.
+
+    This is assignment evidence, not an anatomical match.  Only the largest
+    common number of fragments participate so small stain-specific debris does
+    not penalize a serial section.  A symmetric nearest-neighbour distance
+    penalizes transforms that align one core while moving the remaining cores
+    to blank or unrelated locations.
+    """
+    count = min(len(reference_boxes), len(moving_boxes), 4)
+    if count < 2:
+        return 0.0
+
+    def centers(boxes: list[tuple[int, int, int, int]]) -> np.ndarray:
+        return np.asarray(
+            [
+                [(left + right) / 2, (top + bottom) / 2]
+                for left, top, right, bottom in boxes[:count]
+            ],
+            dtype=np.float64,
+        )
+
+    reference_centers = centers(reference_boxes)
+    moving_centers = centers(moving_boxes)
+    affine = np.asarray(transform, dtype=np.float64)
+    projected = moving_centers @ affine[:, :2].T + affine[:, 2]
+    distances = np.linalg.norm(
+        projected[:, None, :] - reference_centers[None, :, :], axis=2
+    )
+    symmetric_error = (
+        float(np.mean(np.min(distances, axis=1)))
+        + float(np.mean(np.min(distances, axis=0)))
+    ) / 2
+    diagonal = max(1.0, math.hypot(*reference_size))
+    return float(math.exp(-symmetric_error / (0.1 * diagonal)))
+
+
+def _component_identity_is_clear(
+    candidate: _ComponentMap, alternatives: list[_ComponentMap]
+) -> bool:
+    """Require internal evidence, with layout used only as a conservative tie-breaker."""
+    if not alternatives:
+        return True
+    alternative_score = max(item.identity_score for item in alternatives)
+    if (
+        candidate.identity_score >= alternative_score * 1.25
+        and candidate.identity_score - alternative_score >= 0.12
+    ):
+        return True
+    alternative_layout = max(item.layout_score for item in alternatives)
+    return (
+        candidate.layout_score >= 0.75
+        and candidate.layout_score - alternative_layout >= 0.35
+        and candidate.identity_score >= alternative_score * 1.12
+        and candidate.identity_score - alternative_score >= 0.04
+    )
 
 
 def _candidate_component_pairs(
@@ -680,6 +744,15 @@ def register_components(
                 reference, moving, reference_frame, moving_frame
             )
             if candidate:
+                candidate = replace(
+                    candidate,
+                    layout_score=_layout_consistency(
+                        candidate.transform,
+                        reference_boxes,
+                        moving_boxes,
+                        reference_size,
+                    ),
+                )
                 candidates_by_pair[key] = candidate
             return candidate
 
@@ -728,13 +801,7 @@ def register_components(
                     and (other_moving == moving_index or other_reference == reference_index)
                     and other.flow_control_count > 0
                 ]
-                alternative_score = max(
-                    (other.identity_score for other in alternatives), default=0.0
-                )
-                clearly_identified = not alternatives or (
-                    candidate.identity_score >= alternative_score * 1.25
-                    and candidate.identity_score - alternative_score >= 0.12
-                )
+                clearly_identified = _component_identity_is_clear(candidate, alternatives)
                 if clearly_identified:
                     qualified.append(candidate)
                 else:
@@ -785,6 +852,9 @@ def register_components(
                         "structuralComponentPairsChecked": len(candidates_by_pair),
                         "acceptedStructuralComponents": len(qualified),
                         "ambiguousStructuralComponents": ambiguous_components,
+                        "layoutConsistencyMedian": round(
+                            float(np.median([item.layout_score for item in qualified])), 4
+                        ),
                         "flowControlCount": sum(
                             item.flow_control_count for _, _, item in approximate
                         ),
@@ -801,6 +871,18 @@ def register_components(
                         ),
                         "verifiedPatchCount": sum(
                             len(item.verified_cells) for _, _, item in approximate
+                        ),
+                        "patchNccMedian": round(
+                            float(np.median([item.patch_ncc_median for item in qualified])),
+                            4,
+                        ),
+                        "patchDiscriminationMedian": round(
+                            float(
+                                np.median(
+                                    [item.patch_discrimination_median for item in qualified]
+                                )
+                            ),
+                            4,
                         ),
                         "withheldCheck": "pending-independent-landmarks",
                         "availabilityReason": (
@@ -846,6 +928,10 @@ def register_components(
                     "approximateComponents": len(approximate),
                     "componentIdentityChecks": identity_checks,
                     "ambiguousStructuralComponents": ambiguous_components,
+                    "layoutConsistencyMedian": round(
+                        float(np.median([item.layout_score for _, _, item in approximate])),
+                        4,
+                    ),
                     "intensityShapeScore": round(
                         float(np.mean([item.intensity_score for _, _, item in approximate])), 6
                     ),
