@@ -240,12 +240,12 @@ export interface SlideRegistration {
     moving: [[number, number], [number, number], [number, number]]
     reference: [[number, number], [number, number], [number, number]]
     maxResidualPixels?: number
-    provenance?: 'structural-feature' | 'manual-landmark' | 'approximate-intensity-shape'
+    provenance?: 'structural-feature' | 'manual-landmark' | 'approximate-intensity-shape' | 'approximate-structural-flow'
   }>
   overviewTriangles?: Array<{
     moving: [[number, number], [number, number], [number, number]]
     reference: [[number, number], [number, number], [number, number]]
-    provenance?: 'approximate-intensity-shape'
+    provenance?: 'approximate-intensity-shape' | 'approximate-structural-flow'
   }>
   supportPolygons?: {
     moving: Array<[[number, number], [number, number], [number, number]]>
@@ -257,6 +257,8 @@ export interface SlideRegistration {
     featureMatchCount?: number
     triangleCount?: number
     overviewTriangleCount?: number
+    flowControlCount?: number
+    flowCycleP95?: number
     availabilityReason?: string
     withheldCheck?: string
   }

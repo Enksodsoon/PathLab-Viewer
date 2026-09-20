@@ -1,10 +1,11 @@
 import math
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 from PIL import Image
-from wsi_viewer.alignment_pyramid import read_region
+from wsi_viewer.alignment_pyramid import _flow_refined_controls, read_region
 
 
 def _pyramid(path: Path, image: Image.Image) -> dict[int, Image.Image]:
@@ -161,3 +162,55 @@ def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
 
     assert result is not None
     assert result[1]
+
+
+def test_flow_refinement_returns_cycle_consistent_local_controls():
+    reference = np.full((512, 512), 245, dtype=np.uint8)
+    rng = np.random.default_rng(91)
+    for _ in range(180):
+        x, y = (int(value) for value in rng.integers(55, 457, 2))
+        radius = int(rng.integers(3, 14))
+        cv2.circle(reference, (x, y), radius, int(rng.integers(30, 180)), -1)
+    mask = np.zeros_like(reference)
+    cv2.ellipse(mask, (256, 256), (215, 190), 0, 0, 360, 255, -1)
+    rows, columns = np.mgrid[0:512, 0:512].astype(np.float32)
+    moving = cv2.remap(
+        reference,
+        columns + 6 * np.sin(rows / 75),
+        rows + 4 * np.sin(columns / 90),
+        cv2.INTER_LINEAR,
+        borderValue=245,
+    )
+
+    controls, cycle_p95 = _flow_refined_controls(
+        reference,
+        mask,
+        moving,
+        mask,
+        np.asarray([[1, 0, 0], [0, 1, 0]], dtype=np.float32),
+    )
+
+    assert len(controls) >= 12
+    assert 0 <= cycle_p95 <= 4
+    assert np.median(
+        [
+            np.linalg.norm(np.asarray(control["reference"]) - control["moving"])
+            for control in controls
+        ]
+    ) > 1
+
+
+def test_flow_refinement_rejects_textureless_tissue():
+    blank = np.full((384, 384), 128, dtype=np.uint8)
+    mask = np.full_like(blank, 255)
+
+    controls, cycle_p95 = _flow_refined_controls(
+        blank,
+        mask,
+        blank,
+        mask,
+        np.asarray([[1, 0, 0], [0, 1, 0]], dtype=np.float32),
+    )
+
+    assert controls == []
+    assert cycle_p95 == -1

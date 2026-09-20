@@ -6,7 +6,7 @@ export interface RegistrationTriangle {
   moving: [Point, Point, Point]
   reference: [Point, Point, Point]
   maxResidualPixels?: number
-  provenance?: 'structural-feature' | 'manual-landmark' | 'approximate-intensity-shape'
+  provenance?: 'structural-feature' | 'manual-landmark' | 'approximate-intensity-shape' | 'approximate-structural-flow'
 }
 
 export interface LocalRegistration {

@@ -391,7 +391,7 @@ it('removes handlers, pending errors, and the viewer during cleanup', () => {
   view.unmount()
   expect(clearInterval).toHaveBeenCalled()
   expect(osdMock.viewer.removeAllHandlers.mock.calls.map(([name]) => name)).toEqual([
-    'open', 'tile-loaded', 'animation-finish', 'rotate', 'after-resize', 'open-failed', 'tile-load-failed',
+    'open', 'tile-loaded', 'animation-finish', 'pan', 'zoom', 'rotate', 'after-resize', 'open-failed', 'tile-load-failed',
   ])
   expect(osdMock.viewer.destroy).toHaveBeenCalledOnce()
 })

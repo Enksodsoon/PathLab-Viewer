@@ -76,7 +76,7 @@ def _approximate_component_map(
     moving: Image.Image,
     reference_frame: tuple[int, int, int],
     moving_frame: tuple[int, int, int],
-) -> tuple[list[list[float]], list[dict[str, Any]], float, float] | None:
+) -> tuple[list[list[float]], list[dict[str, Any]], float, float, int, float] | None:
     """Fit stain-independent component shape and return explicitly approximate cells."""
     def cropped_structure(image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
         # Whole-slide segmentation rejects edge-touching components to suppress
@@ -127,27 +127,41 @@ def _approximate_component_map(
     if score < 0.78 or overlap < max(0.62, initial_overlap * 0.85) or not 0.25 <= determinant <= 4:
         return None
 
-    # Build small cells only inside the corresponding tissue component. These
-    # cells improve overview navigation but remain separate from anatomical evidence.
-    spacing = max(48, min(moving_mask.shape) // 8)
-    controls: list[dict[str, Any]] = []
-    for y in range(spacing // 2, moving_mask.shape[0], spacing):
-        for x in range(spacing // 2, moving_mask.shape[1], spacing):
-            if not moving_mask[y, x]:
-                continue
-            target = transform[:, :2] @ np.asarray([x, y]) + transform[:, 2]
-            tx, ty = int(round(target[0])), int(round(target[1]))
-            if not (0 <= tx < reference_mask.shape[1] and 0 <= ty < reference_mask.shape[0]):
-                continue
-            if not reference_mask[ty, tx]:
-                continue
-            controls.append(
-                {
-                    "moving": [float(x), float(y)],
-                    "reference": [float(target[0]), float(target[1])],
-                    "errorPixels": 0.0,
-                }
-            )
+    controls, flow_cycle_p95 = _flow_refined_controls(
+        reference_structure,
+        reference_mask,
+        moving_structure,
+        moving_mask,
+        transform,
+    )
+    provenance = "approximate-structural-flow"
+    if len(controls) < 12:
+        # Build small cells only inside the corresponding tissue component.
+        # These improve overview navigation but remain separate from anatomical evidence.
+        spacing = max(48, min(moving_mask.shape) // 8)
+        controls = []
+        for y in range(spacing // 2, moving_mask.shape[0], spacing):
+            for x in range(spacing // 2, moving_mask.shape[1], spacing):
+                if not moving_mask[y, x]:
+                    continue
+                target = transform[:, :2] @ np.asarray([x, y]) + transform[:, 2]
+                tx, ty = int(round(target[0])), int(round(target[1]))
+                if not (
+                    0 <= tx < reference_mask.shape[1]
+                    and 0 <= ty < reference_mask.shape[0]
+                ):
+                    continue
+                if not reference_mask[ty, tx]:
+                    continue
+                controls.append(
+                    {
+                        "moving": [float(x), float(y)],
+                        "reference": [float(target[0]), float(target[1])],
+                        "errorPixels": 0.0,
+                    }
+                )
+        provenance = "approximate-intensity-shape"
+        flow_cycle_p95 = -1.0
     cells = _registration_triangles(
         controls,
         moving_mask=moving_mask,
@@ -177,10 +191,138 @@ def _approximate_component_map(
                     [rx + reference_divisor * x, ry + reference_divisor * y]
                     for x, y in cell["reference"]
                 ],
-                "provenance": "approximate-intensity-shape",
+                "provenance": provenance,
             }
         )
-    return full_transform.tolist(), overview_cells, float(score), float(overlap)
+    return (
+        full_transform.tolist(),
+        overview_cells,
+        float(score),
+        float(overlap),
+        len(controls) if provenance == "approximate-structural-flow" else 0,
+        flow_cycle_p95,
+    )
+
+
+def _gradient_feature(structure: np.ndarray) -> np.ndarray:
+    blurred = cv2.GaussianBlur(structure, (0, 0), 1.5)
+    horizontal = cv2.Sobel(blurred, cv2.CV_32F, 1, 0, ksize=3)
+    vertical = cv2.Sobel(blurred, cv2.CV_32F, 0, 1, ksize=3)
+    magnitude = cv2.magnitude(horizontal, vertical)
+    normalized = cv2.normalize(  # type: ignore[call-overload]
+        magnitude, None, 0, 255, cv2.NORM_MINMAX
+    )
+    return np.asarray(normalized, dtype=np.uint8)
+
+
+def _flow_refined_controls(
+    reference_structure: np.ndarray,
+    reference_mask: np.ndarray,
+    moving_structure: np.ndarray,
+    moving_mask: np.ndarray,
+    moving_to_reference: np.ndarray,
+) -> tuple[list[dict[str, Any]], float]:
+    """Return bounded, cycle-consistent mesoscopic correspondences.
+
+    The flow operates after the accepted component affine and at half scale to
+    suppress cell-level stain differences. It never upgrades a map to accurate
+    anatomical registration; it only refines approximate navigation.
+    """
+    height, width = reference_structure.shape
+    warped_structure = cv2.warpAffine(moving_structure, moving_to_reference, (width, height))
+    warped_mask = cv2.warpAffine(moving_mask, moving_to_reference, (width, height))
+    fixed_feature = _gradient_feature(reference_structure)
+    moving_feature = _gradient_feature(warped_structure)
+    flow_width, flow_height = max(2, width // 2), max(2, height // 2)
+    size = (flow_width, flow_height)
+    fixed = cv2.resize(fixed_feature, size, interpolation=cv2.INTER_AREA)
+    moving = cv2.resize(moving_feature, size, interpolation=cv2.INTER_AREA)
+    valid = cv2.resize(
+        ((reference_mask > 0) & (warped_mask > 0)).astype(np.uint8),
+        size,
+        interpolation=cv2.INTER_NEAREST,
+    )
+    if int(np.count_nonzero(valid)) < max(512, valid.size // 100):
+        return [], -1.0
+    algorithm = cv2.DISOpticalFlow_create(  # type: ignore[attr-defined]
+        cv2.DISOPTICAL_FLOW_PRESET_MEDIUM
+    )
+    algorithm.setFinestScale(1)
+    algorithm.setPatchSize(16)
+    algorithm.setPatchStride(8)
+    forward = algorithm.calc(moving, fixed, None)
+    reverse = algorithm.calc(fixed, moving, None)
+    grid_y, grid_x = np.mgrid[0:flow_height, 0:flow_width].astype(np.float32)
+    endpoint_x = grid_x + forward[:, :, 0]
+    endpoint_y = grid_y + forward[:, :, 1]
+    reverse_x = cv2.remap(
+        reverse[:, :, 0],
+        endpoint_x,
+        endpoint_y,
+        cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=999,
+    )
+    reverse_y = cv2.remap(
+        reverse[:, :, 1],
+        endpoint_x,
+        endpoint_y,
+        cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=999,
+    )
+    cycle = np.hypot(forward[:, :, 0] + reverse_x, forward[:, :, 1] + reverse_y)
+    inverse = cv2.invertAffineTransform(moving_to_reference)
+    controls: list[dict[str, Any]] = []
+    cycles: list[float] = []
+    for y in range(32, flow_height - 32, 32):
+        for x in range(32, flow_width - 32, 32):
+            if not valid[y, x] or cycle[y, x] > 2.0:
+                continue
+            dx, dy = (float(value) for value in forward[y, x])
+            if math.hypot(dx, dy) > 32.0:
+                continue
+            endpoint_column, endpoint_row = int(round(x + dx)), int(round(y + dy))
+            patch_radius = 12
+            if not (
+                patch_radius <= endpoint_column < flow_width - patch_radius
+                and patch_radius <= endpoint_row < flow_height - patch_radius
+            ):
+                continue
+            moving_patch = moving[
+                y - patch_radius : y + patch_radius + 1,
+                x - patch_radius : x + patch_radius + 1,
+            ]
+            fixed_patch = fixed[
+                endpoint_row - patch_radius : endpoint_row + patch_radius + 1,
+                endpoint_column - patch_radius : endpoint_column + patch_radius + 1,
+            ]
+            if float(np.std(moving_patch)) < 5.0 or float(np.std(fixed_patch)) < 5.0:
+                continue
+            reference_x, reference_y = 2 * (x + dx), 2 * (y + dy)
+            warped_point = np.asarray([2.0 * x, 2.0 * y])
+            moving_point = inverse[:, :2] @ warped_point + inverse[:, 2]
+            mx, my = int(round(float(moving_point[0]))), int(round(float(moving_point[1])))
+            rx, ry = int(round(reference_x)), int(round(reference_y))
+            if not (
+                0 <= mx < moving_mask.shape[1]
+                and 0 <= my < moving_mask.shape[0]
+                and 0 <= rx < reference_mask.shape[1]
+                and 0 <= ry < reference_mask.shape[0]
+                and moving_mask[my, mx]
+                and reference_mask[ry, rx]
+            ):
+                continue
+            error = 2.0 * float(cycle[y, x])
+            cycles.append(error)
+            controls.append(
+                {
+                    "moving": [float(moving_point[0]), float(moving_point[1])],
+                    "reference": [reference_x, reference_y],
+                    "errorPixels": error,
+                }
+            )
+    return controls, float(np.percentile(cycles, 95)) if cycles else -1.0
 
 
 def read_region(
@@ -351,7 +493,9 @@ def register_components(
         and sum(other_ri == ri for _, other_ri, _ in candidates) == 1
     ]
     if not accepted:
-        approximate: list[tuple[list[list[float]], list[dict[str, Any]], float, float]] = []
+        approximate: list[
+            tuple[list[list[float]], list[dict[str, Any]], float, float, int, float]
+        ] = []
         for moving_index, reference_index in _candidate_component_pairs(
             reference_overview,
             moving_overview,
@@ -368,7 +512,7 @@ def register_components(
             if candidate:
                 approximate.append(candidate)
         if approximate:
-            overview_cells = [cell for _, cells, _, _ in approximate for cell in cells]
+            overview_cells = [cell for _, cells, _, _, _, _ in approximate for cell in cells]
             moving_points = np.asarray(
                 [point for cell in overview_cells for point in cell["moving"]], dtype=np.float64
             )
@@ -408,8 +552,17 @@ def register_components(
                         float(np.mean([item[2] for item in approximate])), 6
                     ),
                     "outlineOverlap": round(float(np.mean([item[3] for item in approximate])), 6),
+                    "flowControlCount": sum(item[4] for item in approximate),
+                    "flowCycleP95": round(
+                        max((item[5] for item in approximate if item[5] >= 0), default=-1.0),
+                        4,
+                    ),
                     "availabilityReason": "No accepted anatomical feature matches",
-                    "source": "bounded-pyramid-component-shape",
+                    "source": (
+                        "bounded-pyramid-component-flow"
+                        if any(item[4] for item in approximate)
+                        else "bounded-pyramid-component-shape"
+                    ),
                 },
             )
         raise AlignmentRejected(

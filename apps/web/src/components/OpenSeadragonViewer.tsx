@@ -238,6 +238,7 @@ export function OpenSeadragonViewer({
     const durations: number[] = []
     let performanceObserver: PerformanceObserver | null = null
     let networkTimer: number | null = null
+    let viewportFrame: number | null = null
     const scheduleReconnect = (overrideDelay?: number) => {
       if (disposed || reconnectTimer.current !== null || !navigator.onLine) return
       const index = Math.min(reconnectAttempt.current, RECONNECT_DELAYS_MS.length - 1)
@@ -393,6 +394,13 @@ export function OpenSeadragonViewer({
           rotation: viewer.viewport.getRotation(),
         }, navigationTransaction.current)
       }
+      const scheduleViewportReport = () => {
+        if (viewportFrame !== null) return
+        viewportFrame = window.requestAnimationFrame(() => {
+          viewportFrame = null
+          reportViewport()
+        })
+      }
       const handleTileLoadFailed = () => {
         windowFailures.current += 1
         if (tileFailures.current >= TILE_FAILURE_LIMIT) return
@@ -402,6 +410,8 @@ export function OpenSeadragonViewer({
       viewer.addHandler('open', handleOpen)
       viewer.addHandler('tile-loaded', handleTileLoaded)
       viewer.addHandler('animation-finish', () => { updateScale(); reportViewport() })
+      viewer.addHandler('pan', scheduleViewportReport)
+      viewer.addHandler('zoom', scheduleViewportReport)
       viewer.addHandler('after-resize', () => { window.requestAnimationFrame(() => { if (viewerRef.current === readyViewer) updateScale() }) })
       viewer.addHandler('rotate', () => { if (!applyingViewport.current) reportViewport() })
       viewer.addHandler('open-failed', () => {
@@ -452,12 +462,15 @@ export function OpenSeadragonViewer({
         reconnectTimer.current = null
       }
       if (networkTimer !== null) window.clearInterval(networkTimer)
+      if (viewportFrame !== null) window.cancelAnimationFrame(viewportFrame)
       performanceObserver?.disconnect()
       window.removeEventListener('offline', handleOffline)
       window.removeEventListener('online', handleOnline)
       viewer?.removeAllHandlers('open')
       viewer?.removeAllHandlers('tile-loaded')
       viewer?.removeAllHandlers('animation-finish')
+      viewer?.removeAllHandlers('pan')
+      viewer?.removeAllHandlers('zoom')
       viewer?.removeAllHandlers('rotate')
       viewer?.removeAllHandlers('after-resize')
       viewer?.removeAllHandlers('open-failed')

@@ -323,9 +323,21 @@ export function ComparisonPage() {
   }
   if (!comparison && !notice) return <Loader label="Opening comparison…" size="large" fullscreen />
   if (!comparison) return <main className="viewer-message"><h1>{notice}</h1></main>
+  const paneCandidates = (current: string[]) => comparison.members
+    .map((member, index) => ({
+      member,
+      index,
+      links: current.reduce((count, slideId) => {
+        const existing = comparison.members.find((candidate) => candidate.slideId === slideId)
+        return count + (existing && pairRegistrations(existing, member, comparison.referenceSlideId) ? 1 : 0)
+      }, 0),
+    }))
+    .filter(({ member }) => !current.includes(member.slideId) && member.registration?.status !== 'rejected')
+    .sort((left, right) => right.links - left.links || left.index - right.index)
+    .map(({ member }) => member)
   const setLayout = (count: number) => { setActivePane(0); setMaximizedPane(null); setPanes((current) => {
     const next = [...current]
-    for (const member of comparison.members) if (next.length < count && !next.includes(member.slideId)) next.push(member.slideId)
+    for (const member of paneCandidates(current)) if (next.length < count) next.push(member.slideId)
     return next.slice(0, Math.min(count, comparison.members.length))
   }) }
   const selectPaneSlide = (paneIndex: number, slideId: string) => {
@@ -404,11 +416,11 @@ export function ComparisonPage() {
           {(correction || (paneLinked && !suspended)) ? <div className="comparison-crosshair" aria-hidden="true" /> : null}
           {scaleBars[slideId] ? <div className="comparison-scale-bar" style={{ width: scaleBars[slideId].width }}><i /><span>{scaleBars[slideId].microns >= 1000 ? `${scaleBars[slideId].microns / 1000} mm` : `${scaleBars[slideId].microns} µm`}</span></div> : null}
           <details className="comparison-display"><summary>Display</summary><label>Brightness<input type="range" min="0.5" max="1.5" step="0.05" value={adjustments.brightness} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, brightness: Number(event.target.value) } }))} /></label><label>Contrast<input type="range" min="0.5" max="1.5" step="0.05" value={adjustments.contrast} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, contrast: Number(event.target.value) } }))} /></label><label>Gamma<input type="range" min="0.5" max="2" step="0.05" value={adjustments.gamma} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, gamma: Number(event.target.value) } }))} /></label><button type="button" onClick={() => setDisplay((current) => ({ ...current, [slideId]: { brightness: 1, contrast: 1, gamma: 1 } }))}>Reset display</button></details>
-          <details className="comparison-quality"><summary>Alignment quality</summary>{member.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{member.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{evidence?.featureMatchCount ?? evidence?.anatomicalMatchCount ?? 0} {member.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{evidence?.triangleCount ?? member.registration?.triangles?.length ?? 0} accepted cells</dd></div>{member.registration?.overviewTriangles?.length ? <div><dt>Overview map</dt><dd>{member.registration.overviewTriangles.length} approximate cells</dd></div> : null}<div><dt>Fit residual (not accuracy)</dt><dd>{medianResidual === null ? 'Not measured' : `${medianResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{member.registration?.provenance ?? 'none'}</dd></div></dl>}{member.registration?.reason ? <p>{member.registration.reason}</p> : null}</details>
+          <details className="comparison-quality"><summary>Alignment quality</summary>{member.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{member.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{evidence?.featureMatchCount ?? evidence?.anatomicalMatchCount ?? 0} {member.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{evidence?.triangleCount ?? member.registration?.triangles?.length ?? 0} accepted cells</dd></div>{member.registration?.overviewTriangles?.length ? <div><dt>Overview map</dt><dd>{member.registration.overviewTriangles.length} approximate cells</dd></div> : null}{evidence?.flowControlCount ? <div><dt>Local refinement</dt><dd>{evidence.flowControlCount} cycle-consistent controls</dd></div> : null}{evidence?.flowCycleP95 !== undefined ? <div><dt>Flow cycle p95</dt><dd>{evidence.flowCycleP95.toFixed(2)} px</dd></div> : null}<div><dt>Fit residual (not accuracy)</dt><dd>{medianResidual === null ? 'Not measured' : `${medianResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{member.registration?.provenance ?? 'none'}</dd></div></dl>}{member.registration?.reason ? <p>{member.registration.reason}</p> : null}</details>
           {!member.metadata?.physicalSizeX ? <small className="comparison-relative-scale">Relative scale: physical pixel size unavailable</small> : null}
         </section>
       })}
     </main></div>
-    {panes.length < Math.min(MAX_PANES, comparison.members.length) ? <button type="button" className="comparison-add-pane" disabled={!!correction} onClick={() => { const next = comparison.members.find((member) => !panes.includes(member.slideId)); if (next) setPanes((current) => [...current, next.slideId]) }}><Plus /> Add pane</button> : null}
+    {panes.length < Math.min(MAX_PANES, comparison.members.length) ? <button type="button" className="comparison-add-pane" disabled={!!correction} onClick={() => { const next = paneCandidates(panes)[0]; if (next) setPanes((current) => [...current, next.slideId]) }}><Plus /> Add pane</button> : null}
   </div>
 }
