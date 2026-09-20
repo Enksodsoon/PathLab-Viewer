@@ -68,18 +68,20 @@ it('restores an explicitly selected approximate alignment mode after a page remo
   expect(await screen.findByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
 })
 
-it('fails closed when an unaligned slide tries to synchronize', async () => {
+it('opens a rejected slide independently instead of attempting synchronization', async () => {
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Multi-stain set')).toBeVisible()
 
   await user.selectOptions(screen.getByRole('combobox', { name: 'Slide shown in pane 2' }), 'slide-5')
-  expect(screen.getByText('Not aligned')).toBeVisible()
+  expect(screen.getAllByText('Independent')).toHaveLength(2)
+  expect(screen.getByRole('status')).toHaveTextContent('Slide 5 has no reliable counterpart and is opened independently.')
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/5.dzi' }))
-  expect(screen.getByRole('status')).toHaveTextContent('Synchronization suspended because Slide 5 is not aligned.')
+  expect(screen.getByRole('status')).toHaveTextContent('Slide 5 has no reliable counterpart and is opened independently.')
 
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
-  expect(screen.getByRole('status')).toHaveTextContent('Synchronization suspended for Slide 5 because reliable correspondence is unavailable.')
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getAllByText('Independent')).toHaveLength(2)
 })
 
 

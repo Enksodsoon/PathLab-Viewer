@@ -359,6 +359,13 @@ export function ComparisonPage() {
     hasInitialField.current = false
     initializedPanes.current = ''
     drivingPane.current = null
+    const selected = comparison.members.find((member) => member.slideId === slideId)
+    if (selected?.registration?.status === 'rejected') {
+      setUnlinkedPanes((current) => new Set(current).add(slideId))
+      setNotice(`${selected.displayName} has no reliable counterpart and is opened independently.`)
+    } else {
+      setNotice('')
+    }
     setPanes((current) => current.map((id, index) => index === paneIndex ? slideId : id))
   }
   const hasMatchedMap = comparison.members.some((member) => member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
