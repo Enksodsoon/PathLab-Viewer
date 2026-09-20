@@ -82,6 +82,7 @@ export function ComparisonPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const viewStorageKey = `pathlab-comparison-view:${publicId ?? 'admin'}:${comparisonId}`
+  const preferenceStorageKey = `${viewStorageKey}:preferences`
   const [comparison, setComparison] = useState<ComparisonSet | null>(null)
   const [panes, setPanes] = useState<string[]>([])
   const [linked, setLinked] = useState(true)
@@ -115,6 +116,15 @@ export function ComparisonPage() {
       setNotice('')
       let saved: string[] = []
       try { saved = JSON.parse(sessionStorage.getItem(viewStorageKey) ?? '[]') as string[] } catch { saved = [] }
+      try {
+        const preferences = JSON.parse(sessionStorage.getItem(preferenceStorageKey) ?? '{}') as { alignmentMode?: AlignmentMode, zoomMode?: ZoomMode }
+        if (['matched', 'approximate', 'independent'].includes(preferences.alignmentMode ?? '')) {
+          const restoredMode = preferences.alignmentMode as AlignmentMode
+          setAlignmentMode(restoredMode)
+          setLinked(restoredMode !== 'independent')
+        }
+        if (['physical', 'tissue'].includes(preferences.zoomMode ?? '')) setZoomMode(preferences.zoomMode as ZoomMode)
+      } catch { /* Invalid saved preferences fall back to safe matched navigation. */ }
       const available = new Set(value.members.map((member) => member.slideId))
       const restored = Array.isArray(saved) ? [...new Set(saved)].filter((slideId) => available.has(slideId)).slice(0, MAX_PANES) : []
       setPanes(restored.length ? restored : value.members.slice(0, 2).map((member) => member.slideId))
@@ -127,11 +137,15 @@ export function ComparisonPage() {
       setNotice('Comparison set is unavailable.')
     })
     return () => { active = false }
-  }, [comparisonId, location.hash, location.pathname, location.search, navigate, publicId, viewStorageKey])
+  }, [comparisonId, location.hash, location.pathname, location.search, navigate, preferenceStorageKey, publicId, viewStorageKey])
   useEffect(() => {
     if (!comparison || !panes.length) return
     try { sessionStorage.setItem(viewStorageKey, JSON.stringify(panes)) } catch { /* Storage may be disabled. Viewing remains available. */ }
   }, [comparison, panes, viewStorageKey])
+  useEffect(() => {
+    if (!comparison) return
+    try { sessionStorage.setItem(preferenceStorageKey, JSON.stringify({ alignmentMode, zoomMode })) } catch { /* Storage may be disabled. Viewing remains available. */ }
+  }, [alignmentMode, comparison, preferenceStorageKey, zoomMode])
   useEffect(() => {
     if (!comparison || !['queued', 'running'].includes(comparison.status)) return
     const timer = window.setInterval(() => {

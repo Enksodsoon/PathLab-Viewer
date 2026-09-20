@@ -56,6 +56,18 @@ it('restores the selected stain panes after a page remount', async () => {
   expect(await screen.findByRole('combobox', { name: 'Slide shown in pane 2' })).toHaveValue('slide-3')
 })
 
+it('restores an explicitly selected approximate alignment mode after a page remount', async () => {
+  const user = userEvent.setup()
+  const first = render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'approximate')
+  first.unmount()
+
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
+})
+
 it('fails closed when an unaligned slide tries to synchronize', async () => {
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
