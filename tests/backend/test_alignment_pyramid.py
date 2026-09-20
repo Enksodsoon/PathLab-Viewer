@@ -120,8 +120,8 @@ def test_component_maps_use_full_slide_coordinates_and_round_trip(tmp_path):
         np.testing.assert_allclose(restored, source, atol=0.5)
 
 
-def test_identical_repeated_fragments_do_not_choose_arbitrary_assignment(tmp_path):
-    from wsi_viewer.alignment import AlignmentRejected
+def test_identical_repeated_fragments_remain_explicitly_approximate(tmp_path):
+    from wsi_viewer.alignment import map_registration_point
     from wsi_viewer.alignment_pyramid import register_components
 
     tissue = _textured_tissue()
@@ -130,5 +130,34 @@ def test_identical_repeated_fragments_do_not_choose_arbitrary_assignment(tmp_pat
     image.paste(tissue, (950, 150))
     _pyramid(tmp_path / "r", image)
     _pyramid(tmp_path / "m", image)
-    with pytest.raises(AlignmentRejected, match="unambiguous"):
-        register_components(tmp_path / "r", tmp_path / "m", image, image, image.size, image.size)
+    result = register_components(
+        tmp_path / "r", tmp_path / "m", image, image, image.size, image.size
+    )
+    assert result.status == "approximate"
+    assert result.triangles == []
+    assert result.overview_triangles
+    assert result.evidence["anatomicalMatchCount"] == 0
+    cell = result.overview_triangles[0]
+    source = np.mean(cell["moving"], axis=0)
+    overview_map = {**result.as_json(), "triangles": result.overview_triangles}
+    mapped = map_registration_point(overview_map, *source)
+    restored = map_registration_point(overview_map, *mapped, inverse=True)
+    np.testing.assert_allclose(restored, source, atol=0.5)
+
+
+def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
+    from PIL import ImageDraw
+    from wsi_viewer.alignment_pyramid import _approximate_component_map
+
+    reference = Image.new("RGB", (500, 500), "white")
+    draw = ImageDraw.Draw(reference)
+    draw.ellipse((-30, 40, 430, 470), fill=(220, 150, 180))
+    for x in range(20, 420, 40):
+        for y in range(80, 440, 40):
+            draw.ellipse((x, y, x + 10, y + 10), fill=(60, 45, 100))
+    moving = reference.rotate(4, resample=Image.Resampling.BICUBIC, fillcolor="white")
+
+    result = _approximate_component_map(reference, moving, (0, 0, 1), (0, 0, 1))
+
+    assert result is not None
+    assert result[1]

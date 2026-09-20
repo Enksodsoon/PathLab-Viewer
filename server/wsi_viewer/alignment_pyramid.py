@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -15,10 +16,171 @@ from PIL import Image
 from .alignment import (
     AlignmentRejected,
     RegistrationResult,
+    _mask_seed,
+    _registration_triangles,
     _structure,
     register_pair,
     rescale_registration,
 )
+
+
+def _candidate_component_pairs(
+    reference_overview: Image.Image,
+    moving_overview: Image.Image,
+    reference_boxes: list[tuple[int, int, int, int]],
+    moving_boxes: list[tuple[int, int, int, int]],
+    reference_size: tuple[int, int],
+    moving_size: tuple[int, int],
+) -> list[tuple[int, int]]:
+    """Pair fragments using the whole-slide layout without claiming anatomy."""
+    _, reference_mask = _structure(np.asarray(reference_overview.convert("RGB")))
+    _, moving_mask = _structure(np.asarray(moving_overview.convert("RGB")))
+    seed, _ = _mask_seed(reference_mask, moving_mask)
+    reference_scale = np.asarray(
+        [
+            reference_overview.width / reference_size[0],
+            reference_overview.height / reference_size[1],
+        ]
+    )
+    moving_scale = np.asarray(
+        [moving_overview.width / moving_size[0], moving_overview.height / moving_size[1]]
+    )
+    reference_centers = (
+        np.asarray(
+            [
+                [(left + right) / 2, (top + bottom) / 2]
+                for left, top, right, bottom in reference_boxes
+            ]
+        )
+        * reference_scale
+    )
+    moving_centers = (
+        np.asarray(
+            [[(left + right) / 2, (top + bottom) / 2] for left, top, right, bottom in moving_boxes]
+        )
+        * moving_scale
+    )
+    projected = cv2.transform(moving_centers.astype(np.float32)[:, None, :], seed)[:, 0, :]
+    distances = np.linalg.norm(projected[:, None, :] - reference_centers[None, :, :], axis=2)
+    pairs: list[tuple[int, int]] = []
+    for moving_index in range(len(moving_boxes)):
+        reference_index = int(np.argmin(distances[moving_index]))
+        if int(np.argmin(distances[:, reference_index])) != moving_index:
+            continue
+        pairs.append((moving_index, reference_index))
+    return pairs
+
+
+def _approximate_component_map(
+    reference: Image.Image,
+    moving: Image.Image,
+    reference_frame: tuple[int, int, int],
+    moving_frame: tuple[int, int, int],
+) -> tuple[list[list[float]], list[dict[str, Any]], float, float] | None:
+    """Fit stain-independent component shape and return explicitly approximate cells."""
+    def cropped_structure(image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
+        # Whole-slide segmentation rejects edge-touching components to suppress
+        # scanner borders. A deliberately cropped component can validly touch
+        # its crop edge, so surround it with known white context first.
+        rgb = np.asarray(image.convert("RGB"))
+        padding = max(24, min(rgb.shape[:2]) // 40)
+        padded = np.pad(
+            rgb,
+            ((padding, padding), (padding, padding), (0, 0)),
+            mode="constant",
+            constant_values=255,
+        )
+        structure, mask = _structure(padded)
+        return (
+            structure[padding:-padding, padding:-padding],
+            mask[padding:-padding, padding:-padding],
+        )
+
+    reference_structure, reference_mask = cropped_structure(reference)
+    moving_structure, moving_mask = cropped_structure(moving)
+    seed, initial_overlap = _mask_seed(reference_mask, moving_mask)
+    inverse_seed = cv2.invertAffineTransform(seed).astype(np.float32)
+    try:
+        score = 0.0
+        for sigma in (12.0, 6.0, 3.0):
+            fixed = cv2.GaussianBlur(reference_structure, (0, 0), sigma).astype(np.float32) / 255
+            floating = cv2.GaussianBlur(moving_structure, (0, 0), sigma).astype(np.float32) / 255
+            score, inverse_seed = cv2.findTransformECC(  # type: ignore[call-overload]
+                fixed,
+                floating,
+                inverse_seed,
+                cv2.MOTION_AFFINE,
+                (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 80, 1e-5),
+                None,
+                5,
+            )
+    except cv2.error:
+        return None
+    transform = cv2.invertAffineTransform(inverse_seed)
+    determinant = float(np.linalg.det(transform[:, :2]))
+    warped_mask = cv2.warpAffine(
+        moving_mask, transform, (reference_mask.shape[1], reference_mask.shape[0])
+    )
+    intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
+    total_tissue = int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
+    overlap = 2 * intersection / max(1, total_tissue)
+    if score < 0.78 or overlap < max(0.62, initial_overlap * 0.85) or not 0.25 <= determinant <= 4:
+        return None
+
+    # Build small cells only inside the corresponding tissue component. These
+    # cells improve overview navigation but remain separate from anatomical evidence.
+    spacing = max(48, min(moving_mask.shape) // 8)
+    controls: list[dict[str, Any]] = []
+    for y in range(spacing // 2, moving_mask.shape[0], spacing):
+        for x in range(spacing // 2, moving_mask.shape[1], spacing):
+            if not moving_mask[y, x]:
+                continue
+            target = transform[:, :2] @ np.asarray([x, y]) + transform[:, 2]
+            tx, ty = int(round(target[0])), int(round(target[1]))
+            if not (0 <= tx < reference_mask.shape[1] and 0 <= ty < reference_mask.shape[0]):
+                continue
+            if not reference_mask[ty, tx]:
+                continue
+            controls.append(
+                {
+                    "moving": [float(x), float(y)],
+                    "reference": [float(target[0]), float(target[1])],
+                    "errorPixels": 0.0,
+                }
+            )
+    cells = _registration_triangles(
+        controls,
+        moving_mask=moving_mask,
+        reference_mask=reference_mask,
+    )
+    if not cells:
+        return None
+    rx, ry, reference_divisor = reference_frame
+    mx, my, moving_divisor = moving_frame
+    linear = (
+        np.diag([reference_divisor, reference_divisor])
+        @ transform[:, :2]
+        @ np.diag([1 / moving_divisor, 1 / moving_divisor])
+    )
+    offset = (
+        np.asarray([rx, ry]) + reference_divisor * transform[:, 2] - linear @ np.asarray([mx, my])
+    )
+    full_transform = np.column_stack([linear, offset])
+    overview_cells: list[dict[str, Any]] = []
+    for cell in cells:
+        overview_cells.append(
+            {
+                "moving": [
+                    [mx + moving_divisor * x, my + moving_divisor * y] for x, y in cell["moving"]
+                ],
+                "reference": [
+                    [rx + reference_divisor * x, ry + reference_divisor * y]
+                    for x, y in cell["reference"]
+                ],
+                "provenance": "approximate-intensity-shape",
+            }
+        )
+    return full_transform.tolist(), overview_cells, float(score), float(overlap)
 
 
 def read_region(
@@ -189,6 +351,67 @@ def register_components(
         and sum(other_ri == ri for _, other_ri, _ in candidates) == 1
     ]
     if not accepted:
+        approximate: list[tuple[list[list[float]], list[dict[str, Any]], float, float]] = []
+        for moving_index, reference_index in _candidate_component_pairs(
+            reference_overview,
+            moving_overview,
+            reference_boxes,
+            moving_boxes,
+            reference_size,
+            moving_size,
+        ):
+            moving, moving_frame = read_region(moving_path, moving_boxes[moving_index])
+            reference, reference_frame = read_region(
+                reference_path, reference_boxes[reference_index]
+            )
+            candidate = _approximate_component_map(reference, moving, reference_frame, moving_frame)
+            if candidate:
+                approximate.append(candidate)
+        if approximate:
+            overview_cells = [cell for _, cells, _, _ in approximate for cell in cells]
+            moving_points = np.asarray(
+                [point for cell in overview_cells for point in cell["moving"]], dtype=np.float64
+            )
+            reference_points = np.asarray(
+                [point for cell in overview_cells for point in cell["reference"]], dtype=np.float64
+            )
+            approximate_best = max(approximate, key=lambda item: len(item[1]))
+            return RegistrationResult(
+                status="approximate",
+                moving_to_reference=approximate_best[0],
+                reference_support=(
+                    float(reference_points[:, 0].min()),
+                    float(reference_points[:, 1].min()),
+                    float(reference_points[:, 0].max()),
+                    float(reference_points[:, 1].max()),
+                ),
+                moving_support=(
+                    float(moving_points[:, 0].min()),
+                    float(moving_points[:, 1].min()),
+                    float(moving_points[:, 0].max()),
+                    float(moving_points[:, 1].max()),
+                ),
+                confidence=min(0.49, 0.3 + 0.1 * float(np.mean([item[2] for item in approximate]))),
+                inlier_count=0,
+                match_count=0,
+                median_error_pixels=-1.0,
+                overview_triangles=overview_cells,
+                evidence={
+                    "mode": "outline-proposal",
+                    "anatomicalMatchCount": 0,
+                    "featureMatchCount": 0,
+                    "triangleCount": 0,
+                    "overviewTriangleCount": len(overview_cells),
+                    "componentPairsChecked": attempted,
+                    "approximateComponents": len(approximate),
+                    "intensityShapeScore": round(
+                        float(np.mean([item[2] for item in approximate])), 6
+                    ),
+                    "outlineOverlap": round(float(np.mean([item[3] for item in approximate])), 6),
+                    "availabilityReason": "No accepted anatomical feature matches",
+                    "source": "bounded-pyramid-component-shape",
+                },
+            )
         raise AlignmentRejected(
             f"No unambiguous high-resolution component match ({attempted} candidate pairs checked)"
         )

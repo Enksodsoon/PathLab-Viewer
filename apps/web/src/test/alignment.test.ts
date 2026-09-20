@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { alignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
+import { alignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
   it('maps bidirectionally through reference coordinates', () => {
@@ -56,5 +56,29 @@ describe('comparison coordinate mapping', () => {
     expect(mapLocalComparisonPoint([100, 100], registration, null)).toBeNull()
     expect(hasLocalEvidence(registration)).toBe(true)
     expect(hasLocalEvidence({ movingToReference: registration.movingToReference })).toBe(false)
+  })
+
+  it('uses approximate component cells without treating them as anatomical evidence', () => {
+    const registration = {
+      movingToReference: [[1, 0, 50], [0, 1, 20]],
+      overviewTriangles: [{
+        moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+        reference: [[12, 8], [110, 5], [15, 112]] as [[number, number], [number, number], [number, number]],
+      }],
+    }
+    const mapped = mapOverviewComparisonPoint([20, 25], registration, null)
+    expect(mapped).not.toBeNull()
+    expect(mapOverviewComparisonPoint(mapped!, null, registration)?.[0]).toBeCloseTo(20, 10)
+    expect(mapOverviewComparisonPoint(mapped!, null, registration)?.[1]).toBeCloseTo(25, 10)
+    const delta = overviewAlignmentViewDelta([20, 25], registration, null)
+    expect(delta).not.toBeNull()
+    expect(hasLocalEvidence(registration)).toBe(false)
+    // A small margin keeps panning continuous around sparse component cells.
+    const nearby = mapOverviewComparisonPoint([110, 25], registration, null)
+    expect(nearby).toEqual([120.55, 30.7])
+    expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[0]).toBeCloseTo(110, 10)
+    expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[1]).toBeCloseTo(25, 10)
+    // Distant blank regions remain unsupported.
+    expect(mapOverviewComparisonPoint([500, 500], registration, null)).toBeNull()
   })
 })

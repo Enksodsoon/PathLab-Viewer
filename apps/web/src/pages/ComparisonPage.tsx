@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, correctComparisonSet, getComparisonSet, getSharedComparisonSet, reregisterComparisonSet } from '../api'
-import { alignmentViewDelta, hasLocalEvidence, intersectSupport, localAlignmentViewDelta, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
+import { hasLocalEvidence, intersectSupport, localAlignmentViewDelta, mapComparisonBounds, mapLocalComparisonPoint, mapOverviewComparisonPoint, mapSupportBounds, normalizeRotation, overviewAlignmentViewDelta, type Support } from '../alignment'
 import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
@@ -54,6 +54,19 @@ function overviewFocusBounds(source: ComparisonMember, target: ComparisonMember,
   const pair = pairRegistrations(source, target, primaryReferenceId)
   if (!pair || !source.metadata || !target.metadata) return null
   const [sourceMap, targetMap] = pair
+  const cells = sourceMap?.overviewTriangles?.map((triangle) => triangle.moving)
+    ?? targetMap?.overviewTriangles?.map((triangle) => triangle.reference)
+  if (cells?.length) {
+    const area = (triangle: [[number, number], [number, number], [number, number]]) => Math.abs(
+      (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
+      - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]),
+    )
+    const triangle = [...cells].sort((left, right) => area(right) - area(left))[0]
+    const centerX = triangle.reduce((sum, point) => sum + point[0], 0) / 3
+    const centerY = triangle.reduce((sum, point) => sum + point[1], 0) / 3
+    const extent = Math.max(320, Math.min(source.metadata.width, source.metadata.height) * 0.15)
+    return [centerX - extent / 2, centerY - extent / 2, centerX + extent / 2, centerY + extent / 2]
+  }
   if ([sourceMap, targetMap].some((registration) => registration && !registration.movingToReference)) return null
   const sourceBounds: Exclude<Support, null> = sourceMap?.movingSupport ?? [0, 0, source.metadata.width, source.metadata.height]
   const targetBounds: Exclude<Support, null> = targetMap?.movingSupport ?? [0, 0, target.metadata.width, target.metadata.height]
@@ -172,7 +185,7 @@ export function ComparisonPage() {
       }
       const referencePoint = alignmentMode === 'matched'
         ? mapLocalComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
-        : mapComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration?.movingToReference ?? null, null)
+        : mapOverviewComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
       if (!referencePoint) {
         suspended.push(target.displayName)
         suspendedIds.add(targetId)
@@ -180,10 +193,10 @@ export function ComparisonPage() {
       }
       const targetPoint = alignmentMode === 'matched'
         ? mapLocalComparisonPoint(referencePoint, null, targetRegistration)
-        : mapComparisonPoint(referencePoint, null, targetRegistration?.movingToReference ?? null)
+        : mapOverviewComparisonPoint(referencePoint, null, targetRegistration)
       const viewDelta = alignmentMode === 'matched'
         ? localAlignmentViewDelta([snapshot.centerX, snapshot.centerY], sourceRegistration, targetRegistration)
-        : alignmentViewDelta(sourceRegistration?.movingToReference ?? null, targetRegistration?.movingToReference ?? null)
+        : overviewAlignmentViewDelta([snapshot.centerX, snapshot.centerY], sourceRegistration, targetRegistration)
       if (!targetPoint || !viewDelta) {
         suspended.push(target.displayName)
         suspendedIds.add(targetId)
@@ -315,14 +328,21 @@ export function ComparisonPage() {
     for (const member of comparison.members) if (next.length < count && !next.includes(member.slideId)) next.push(member.slideId)
     return next.slice(0, Math.min(count, comparison.members.length))
   }) }
+  const selectPaneSlide = (paneIndex: number, slideId: string) => {
+    hasInitialField.current = false
+    initializedPanes.current = ''
+    drivingPane.current = null
+    setPanes((current) => current.map((id, index) => index === paneIndex ? slideId : id))
+  }
   const hasMatchedMap = comparison.members.some((member) => member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
+  const hasApproximateMap = comparison.members.some((member) => (member.registration?.overviewTriangles?.length ?? 0) > 0)
   const registrationPending = ['queued', 'running'].includes(comparison.status)
   const anchorIds = new Set(comparison.members.flatMap((member) => member.registration?.anchorSlideId ? [member.registration.anchorSlideId] : []))
   return <div className="comparison-shell">
-    <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><label className="comparison-toolbar-field"><span>Layout</span><select disabled={!!correction} aria-label="Pane layout" value={panes.length} onChange={(event) => { setMaximizedPane(null); setLayout(Number(event.target.value)) }}><option value="1">1 pane</option><option value="2">2 panes</option><option value="4">4 panes</option></select></label><label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Matched regions</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label><label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">Equal µm/pixel</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" disabled={!!correction} aria-pressed={linked} onClick={() => { setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}>{linked ? 'Views linked' : 'Views independent'}</button>{!publicId ? <button type="button" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued', members: current.members.map((member) => ({ ...member, registration: null })) } : current); setNotice('Registration queued with the current anchors.') }).catch(() => setNotice('Registration could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Re-register'}</button> : null}{!publicId ? <button type="button" disabled={!!correction || panes.length !== 2 || panes[1] === comparison.referenceSlideId} onClick={() => {
+    <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><label className="comparison-toolbar-field"><span>Layout</span><select disabled={!!correction} aria-label="Pane layout" value={panes.length} onChange={(event) => { setMaximizedPane(null); setLayout(Number(event.target.value)) }}><option value="1">1 pane</option><option value="2">2 panes</option><option value="4">4 panes</option></select></label><label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; hasInitialField.current = false; initializedPanes.current = ''; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Matched regions</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label><label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">Equal µm/pixel</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" disabled={!!correction} aria-pressed={linked} onClick={() => { setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}>{linked ? 'Views linked' : 'Views independent'}</button>{!publicId ? <button type="button" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued', members: current.members.map((member) => ({ ...member, registration: null })) } : current); setNotice('Registration queued with the current anchors.') }).catch(() => setNotice('Registration could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Re-register'}</button> : null}{!publicId ? <button type="button" disabled={!!correction || panes.length !== 2 || panes[1] === comparison.referenceSlideId} onClick={() => {
       setCorrection({ original: comparison, referenceId: panes[0], movingId: panes[1], points: [], preview: false }); setCorrectionError(''); setLinked(false); setAlignmentMode('independent'); setNotice(''); setMaximizedPane(null)
     }}>Correct alignment</button> : null}<button type="button" onClick={resetView}><span aria-hidden="true">↻</span> Reset</button></header>
-    {!correction && !hasMatchedMap && !registrationPending ? <div className="comparison-notice" role="note" aria-label="Alignment unavailable"><strong>Automatic anatomical alignment is unavailable for this set.</strong> No accepted tissue correspondence was found. Linking panes cannot align these slides. {publicId ? 'Ask the set administrator to review the registration.' : 'Use Correct alignment to define and preview corresponding landmarks.'}</div> : null}
+    {!correction && !hasMatchedMap && !registrationPending ? <div className="comparison-notice" role="note" aria-label="Alignment unavailable"><strong>{hasApproximateMap ? 'Exact anatomical alignment is unavailable for this set.' : 'Automatic anatomical alignment is unavailable for this set.'}</strong> {hasApproximateMap ? 'Approximate overview aligns tissue-component shape, tilt, and size but may not place the same microscopic structure under both crosshairs.' : 'No accepted tissue correspondence was found. Linking panes cannot align these slides.'} {publicId ? 'Ask the set administrator to review the registration.' : 'Use Correct alignment to define and preview corresponding landmarks.'}</div> : null}
     {notice ? <div className="comparison-notice" role="status">{notice}</div> : null}
     {correction ? <section className="comparison-correction" aria-label="Landmark correction">
       <strong>{correction.preview ? 'Correction preview' : 'Mark corresponding tissue'}</strong>
@@ -339,7 +359,7 @@ export function ComparisonPage() {
       {correction.preview ? <p>Preview only. Inspect corresponding anatomy and the fit residual in Alignment quality before saving.</p> : null}
       {correctionError ? <p role="alert">{correctionError}</p> : null}
     </section> : null}
-    <div className="comparison-workstation"><aside className="comparison-tray" aria-label="Case slides"><strong>Case slides</strong>{comparison.members.map((member) => <button type="button" key={member.slideId} disabled={!!correction} data-active={panes.includes(member.slideId)} onClick={() => { const existing = panes.indexOf(member.slideId); if (existing >= 0) { setActivePane(existing); if (maximizedPane !== null) setMaximizedPane(existing); return } setPanes((current) => current.map((id, index) => index === Math.min(activePane, current.length - 1) ? member.slideId : id)) }}><img src={member.thumbnailUrl} alt="" loading="lazy" /><span><b>{member.stain || 'Unspecified'}</b><small>{member.displayName}</small></span></button>)}</aside>
+    <div className="comparison-workstation"><aside className="comparison-tray" aria-label="Case slides"><strong>Case slides</strong>{comparison.members.map((member) => <button type="button" key={member.slideId} disabled={!!correction} data-active={panes.includes(member.slideId)} onClick={() => { const existing = panes.indexOf(member.slideId); if (existing >= 0) { setActivePane(existing); if (maximizedPane !== null) setMaximizedPane(existing); return } selectPaneSlide(Math.min(activePane, panes.length - 1), member.slideId) }}><img src={member.thumbnailUrl} alt="" loading="lazy" /><span><b>{member.stain || 'Unspecified'}</b><small>{member.displayName}</small></span></button>)}</aside>
     <main className={`comparison-grid comparison-grid--${panes.length}`} data-maximized={maximizedPane === null ? undefined : maximizedPane}>
       {panes.map((slideId, paneIndex) => {
         if (maximizedPane !== null && maximizedPane !== paneIndex) return null
@@ -368,7 +388,7 @@ export function ComparisonPage() {
           ? [...residuals].sort((left, right) => left - right)[Math.floor(residuals.length / 2)]
           : null
         return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
-          <header><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned && paneLinked && !suspended ? 'alignment-ready' : 'alignment-unavailable'}>{suspended ? 'Sync suspended' : !paneLinked ? 'Independent' : aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate only' : member.registration?.status === 'ready' ? 'Overview only' : 'Not aligned'}</span><button type="button" disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
+          <header><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned && paneLinked && !suspended ? 'alignment-ready' : 'alignment-unavailable'}>{suspended ? 'Sync suspended' : !paneLinked ? 'Independent' : aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate only' : member.registration?.status === 'ready' ? 'Overview only' : 'Not aligned'}</span><button type="button" disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
             if (!paneLinked) {
               setLinked(true)
               if (alignmentMode === 'independent') setAlignmentMode('matched')
@@ -384,7 +404,7 @@ export function ComparisonPage() {
           {(correction || (paneLinked && !suspended)) ? <div className="comparison-crosshair" aria-hidden="true" /> : null}
           {scaleBars[slideId] ? <div className="comparison-scale-bar" style={{ width: scaleBars[slideId].width }}><i /><span>{scaleBars[slideId].microns >= 1000 ? `${scaleBars[slideId].microns / 1000} mm` : `${scaleBars[slideId].microns} µm`}</span></div> : null}
           <details className="comparison-display"><summary>Display</summary><label>Brightness<input type="range" min="0.5" max="1.5" step="0.05" value={adjustments.brightness} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, brightness: Number(event.target.value) } }))} /></label><label>Contrast<input type="range" min="0.5" max="1.5" step="0.05" value={adjustments.contrast} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, contrast: Number(event.target.value) } }))} /></label><label>Gamma<input type="range" min="0.5" max="2" step="0.05" value={adjustments.gamma} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, gamma: Number(event.target.value) } }))} /></label><button type="button" onClick={() => setDisplay((current) => ({ ...current, [slideId]: { brightness: 1, contrast: 1, gamma: 1 } }))}>Reset display</button></details>
-          <details className="comparison-quality"><summary>Alignment quality</summary>{member.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{member.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{evidence?.featureMatchCount ?? evidence?.anatomicalMatchCount ?? 0} {member.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{evidence?.triangleCount ?? member.registration?.triangles?.length ?? 0} accepted cells</dd></div><div><dt>Fit residual (not accuracy)</dt><dd>{medianResidual === null ? 'Not measured' : `${medianResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{member.registration?.provenance ?? 'none'}</dd></div></dl>}{member.registration?.reason ? <p>{member.registration.reason}</p> : null}</details>
+          <details className="comparison-quality"><summary>Alignment quality</summary>{member.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{member.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{evidence?.featureMatchCount ?? evidence?.anatomicalMatchCount ?? 0} {member.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{evidence?.triangleCount ?? member.registration?.triangles?.length ?? 0} accepted cells</dd></div>{member.registration?.overviewTriangles?.length ? <div><dt>Overview map</dt><dd>{member.registration.overviewTriangles.length} approximate cells</dd></div> : null}<div><dt>Fit residual (not accuracy)</dt><dd>{medianResidual === null ? 'Not measured' : `${medianResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{member.registration?.provenance ?? 'none'}</dd></div></dl>}{member.registration?.reason ? <p>{member.registration.reason}</p> : null}</details>
           {!member.metadata?.physicalSizeX ? <small className="comparison-relative-scale">Relative scale: physical pixel size unavailable</small> : null}
         </section>
       })}

@@ -6,13 +6,14 @@ export interface RegistrationTriangle {
   moving: [Point, Point, Point]
   reference: [Point, Point, Point]
   maxResidualPixels?: number
-  provenance?: 'structural-feature' | 'manual-landmark'
+  provenance?: 'structural-feature' | 'manual-landmark' | 'approximate-intensity-shape'
 }
 
 export interface LocalRegistration {
   movingToReference?: AffineTransform
   controlPoints?: Array<{ moving: Point; reference: Point; errorPixels: number }>
   triangles?: RegistrationTriangle[]
+  overviewTriangles?: RegistrationTriangle[]
 }
 
 interface AlignmentViewDelta {
@@ -69,9 +70,14 @@ function triangleLinear(source: [Point, Point, Point], target: [Point, Point, Po
   return [solve(target.map((point) => point[0])), solve(target.map((point) => point[1]))]
 }
 
-export function mapRegistrationPoint(point: Point, registration: LocalRegistration | null, backwards = false): { point: Point; linear: AffineTransform } | null {
+function mapRegistrationPointUsing(
+  point: Point,
+  registration: LocalRegistration | null,
+  triangles: RegistrationTriangle[] | undefined,
+  backwards = false,
+): { point: Point; linear: AffineTransform } | null {
   if (!registration?.movingToReference) return { point, linear: [[1, 0, 0], [0, 1, 0]] }
-  for (const triangle of registration.triangles ?? []) {
+  for (const triangle of triangles ?? []) {
     const source = backwards ? triangle.reference : triangle.moving
     const target = backwards ? triangle.moving : triangle.reference
     const weights = barycentric(point, source)
@@ -87,6 +93,62 @@ export function mapRegistrationPoint(point: Point, registration: LocalRegistrati
   return null
 }
 
+function squaredDistanceToSegment(point: Point, start: Point, end: Point): number {
+  const dx = end[0] - start[0]
+  const dy = end[1] - start[1]
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared <= 1e-12) return (point[0] - start[0]) ** 2 + (point[1] - start[1]) ** 2
+  const projection = Math.max(0, Math.min(1,
+    ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared,
+  ))
+  const x = start[0] + projection * dx
+  const y = start[1] + projection * dy
+  return (point[0] - x) ** 2 + (point[1] - y) ** 2
+}
+
+function mapUsingNearbyOverviewCell(
+  point: Point,
+  triangles: RegistrationTriangle[],
+  backwards: boolean,
+): { point: Point; linear: AffineTransform } | null {
+  const maximumDistanceSquared = 96 ** 2
+  let candidate: RegistrationTriangle | null = null
+  let candidateDistanceSquared = Number.POSITIVE_INFINITY
+  for (const triangle of triangles) {
+    const source = backwards ? triangle.reference : triangle.moving
+    const distanceSquared = Math.min(
+      squaredDistanceToSegment(point, source[0], source[1]),
+      squaredDistanceToSegment(point, source[1], source[2]),
+      squaredDistanceToSegment(point, source[2], source[0]),
+    )
+    if (distanceSquared < candidateDistanceSquared) {
+      candidate = triangle
+      candidateDistanceSquared = distanceSquared
+    }
+  }
+  if (!candidate || candidateDistanceSquared > maximumDistanceSquared) return null
+  const source = backwards ? candidate.reference : candidate.moving
+  const target = backwards ? candidate.moving : candidate.reference
+  const matrix = triangleLinear(source, target)
+  return { point: apply(point, matrix), linear: matrix }
+}
+
+export function mapRegistrationPoint(point: Point, registration: LocalRegistration | null, backwards = false): { point: Point; linear: AffineTransform } | null {
+  return mapRegistrationPointUsing(point, registration, registration?.triangles, backwards)
+}
+
+function mapOverviewRegistrationPoint(point: Point, registration: LocalRegistration | null, backwards = false) {
+  if (!registration) return { point, linear: [[1, 0, 0], [0, 1, 0]] as AffineTransform }
+  if (registration.overviewTriangles?.length) {
+    const mapped = mapRegistrationPointUsing(point, registration, registration.overviewTriangles, backwards)
+    if (mapped) return mapped
+    return mapUsingNearbyOverviewCell(point, registration.overviewTriangles, backwards)
+  }
+  if (!registration.movingToReference) return null
+  const matrix = backwards ? inverse(registration.movingToReference) : registration.movingToReference
+  return { point: apply(point, matrix), linear: matrix }
+}
+
 export function mapLocalComparisonPoint(
   point: Point,
   source: LocalRegistration | null,
@@ -100,6 +162,28 @@ export function mapLocalComparisonPoint(
 
 export function hasLocalEvidence(registration: LocalRegistration | null): boolean {
   return !registration || (registration.triangles?.length ?? 0) > 0
+}
+
+export function mapOverviewComparisonPoint(
+  point: Point,
+  source: LocalRegistration | null,
+  target: LocalRegistration | null,
+): Point | null {
+  const inReference = mapOverviewRegistrationPoint(point, source)
+  if (!inReference) return null
+  return mapOverviewRegistrationPoint(inReference.point, target, true)?.point ?? null
+}
+
+export function overviewAlignmentViewDelta(
+  point: Point,
+  source: LocalRegistration | null,
+  target: LocalRegistration | null,
+): AlignmentViewDelta | null {
+  const sourceMap = mapOverviewRegistrationPoint(point, source)
+  if (!sourceMap) return null
+  const targetMap = mapOverviewRegistrationPoint(sourceMap.point, target, true)
+  if (!targetMap) return null
+  return alignmentViewDelta(sourceMap.linear, inverse(targetMap.linear))
 }
 
 export function localAlignmentViewDelta(point: Point, source: LocalRegistration | null, target: LocalRegistration | null): AlignmentViewDelta | null {

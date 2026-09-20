@@ -32,6 +32,7 @@ class RegistrationResult:
     median_error_pixels: float
     control_points: list[dict[str, Any]] = field(default_factory=list)
     triangles: list[dict[str, Any]] = field(default_factory=list)
+    overview_triangles: list[dict[str, Any]] = field(default_factory=list)
     evidence: dict[str, Any] = field(default_factory=dict)
 
     def as_json(self) -> dict[str, Any]:
@@ -46,6 +47,7 @@ class RegistrationResult:
             "medianErrorPixels": self.median_error_pixels,
             "controlPoints": self.control_points,
             "triangles": self.triangles,
+            "overviewTriangles": self.overview_triangles,
             "supportPolygons": {
                 "moving": [item["moving"] for item in self.triangles],
                 "reference": [item["reference"] for item in self.triangles],
@@ -200,6 +202,20 @@ def rescale_registration(
         }
         for triangle in result.triangles
     ]
+    overview_triangles = [
+        {
+            **triangle,
+            "moving": [
+                [point[0] * moving_x_scale, point[1] * moving_y_scale]
+                for point in triangle["moving"]
+            ],
+            "reference": [
+                [point[0] * reference_x_scale, point[1] * reference_y_scale]
+                for point in triangle["reference"]
+            ],
+        }
+        for triangle in result.overview_triangles
+    ]
     return RegistrationResult(
         status=result.status,
         moving_to_reference=transform.round(10).tolist(),
@@ -222,6 +238,7 @@ def rescale_registration(
         ),
         control_points=controls,
         triangles=triangles,
+        overview_triangles=overview_triangles,
         evidence=result.evidence,
     )
 
