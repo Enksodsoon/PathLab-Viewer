@@ -171,6 +171,7 @@ def rescale_registration(
     reference_y_scale = reference_full_size[1] / reference_thumbnail_size[1]
     controls = [
         {
+            **point,
             "moving": [
                 point["moving"][0] * moving_x_scale,
                 point["moving"][1] * moving_y_scale,

@@ -342,6 +342,8 @@ def register_alignment_routes(
                 "stage": (job.checkpoint or {}).get("stage", "queued"),
                 "progress": (job.checkpoint or {}).get("progress", 0),
                 "processedPatches": (job.checkpoint or {}).get("processedPatches", 0),
+                "processedComponentPairs": (job.checkpoint or {}).get("processedComponentPairs", 0),
+                "totalComponentPairs": (job.checkpoint or {}).get("totalComponentPairs", 0),
                 "totalPatches": (job.checkpoint or {}).get("totalPatches", 0),
                 "failureCode": job.failure_code,
             }

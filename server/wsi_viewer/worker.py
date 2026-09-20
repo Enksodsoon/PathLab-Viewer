@@ -29,6 +29,7 @@ from .alignment import (
     register_pair,
     rescale_registration,
 )
+from .alignment_pyramid import register_components
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
@@ -383,14 +384,49 @@ def _alignment_child(
 
         reference_image = overview(reference_derivative)
         moving_image = overview(moving_derivative)
-        result = register_pair(reference_image, moving_image, max_dimension=4096)
-        result = rescale_registration(
-            result,
-            reference_thumbnail_size=reference_image.size,
-            moving_thumbnail_size=moving_image.size,
-            reference_full_size=reference_full_size,
-            moving_full_size=moving_full_size,
-        )
+        result = None
+        overview_error = None
+        try:
+            result = register_pair(reference_image, moving_image, max_dimension=4096)
+            result = rescale_registration(
+                result,
+                reference_thumbnail_size=reference_image.size,
+                moving_thumbnail_size=moving_image.size,
+                reference_full_size=reference_full_size,
+                moving_full_size=moving_full_size,
+            )
+        except AlignmentRejected as error:
+            overview_error = str(error)
+        if result is None or result.status != "ready":
+            if all(
+                (Path(path) / "slide.dzi").exists()
+                for path in (reference_derivative, moving_derivative)
+            ):
+                try:
+                    result = register_components(
+                        Path(reference_derivative),
+                        Path(moving_derivative),
+                        reference_image,
+                        moving_image,
+                        reference_full_size,
+                        moving_full_size,
+                        progress=lambda done, total: output.put(
+                            {
+                                "progress": {
+                                    "stage": "high-resolution-components",
+                                    "processedComponentPairs": done,
+                                    "totalComponentPairs": total,
+                                }
+                            }
+                        ),
+                    )
+                except AlignmentRejected as error:
+                    if result is None:
+                        raise
+                    result.evidence["componentRefinementReason"] = str(error)
+            elif result is None:
+                raise AlignmentRejected(overview_error or "No reliable correspondence found")
+        assert result is not None
         output.put({"ok": True, "result": result.as_json()})
     except Exception as error:
         output.put({"ok": False, "type": type(error).__name__, "error": str(error)})
@@ -444,6 +480,7 @@ def _run_alignment_bounded(
     timeout_seconds: int,
     memory_bytes: int,
     heartbeat: Callable[[], None] | None = None,
+    progress: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     context = multiprocessing.get_context("spawn")
     output = context.Queue(maxsize=1)
@@ -476,6 +513,10 @@ def _run_alignment_bounded(
                 raise AlignmentRejected("registration exceeded the memory ceiling")
             try:
                 result = output.get(timeout=0.2)
+                if "progress" in result:
+                    if progress:
+                        progress(result["progress"])
+                    continue
                 break
             except queue.Empty:
                 if not process.is_alive():
@@ -608,6 +649,12 @@ def process_next(
                     job.lease_expires_at = datetime.now(UTC) + timedelta(seconds=60)
                     database.commit()
 
+                def record_alignment_progress(values: dict[str, Any]) -> None:
+                    renew_alignment_lease()
+                    checkpoint.update(values)
+                    job.checkpoint = dict(checkpoint)
+                    database.commit()
+
                 limits = job.resource_limits or {}
                 result_json = _run_alignment_bounded(
                     reference_derivative,
@@ -617,9 +664,10 @@ def process_next(
                     timeout_seconds=min(600, int(limits.get("timeoutSeconds", 600))),
                     memory_bytes=min(2 * 1024**3, int(limits.get("memoryBytes", 2 * 1024**3))),
                     heartbeat=renew_alignment_lease,
+                    progress=record_alignment_progress,
                 )
                 checkpoint.update(
-                    {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 2}
+                    {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 0}
                 )
                 job.checkpoint = checkpoint
                 confidence = float(result_json["confidence"])
@@ -658,7 +706,7 @@ def process_next(
                         set_version=comparison.version,
                         source_version=slide.sha256,
                         anchor_slide_id=reference.id,
-                        algorithm_version="piecewise-affine-reciprocal-v2",
+                        algorithm_version="piecewise-affine-components-v3",
                         provenance="automatic",
                         registration=registrations[slide.id],
                     )

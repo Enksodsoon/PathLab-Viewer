@@ -112,3 +112,21 @@ it('opens a correction with independent panes and requires preview before save',
   await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
   expect(screen.queryByRole('button', { name: 'Record point pair' })).not.toBeInTheDocument()
 })
+
+
+it('enables matched navigation when linking a pane from independent mode', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'independent')
+  await user.click(screen.getByRole('button', { name: 'Link Slide 2 pane' }))
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('matched')
+  expect(screen.getByRole('button', { name: 'Unlink Slide 2 pane' })).toHaveAttribute('aria-pressed', 'true')
+  await user.click(screen.getByRole('button', { name: 'Unlink Slide 2 pane' }))
+  expect(screen.getByRole('button', { name: 'Link Slide 2 pane' })).toHaveAttribute('aria-pressed', 'false')
+})
+
+it('explains missing anatomical maps before the first navigation gesture', async () => {
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByRole('note', { name: 'Alignment unavailable' })).toHaveTextContent('Linking panes cannot align these slides.')
+})
