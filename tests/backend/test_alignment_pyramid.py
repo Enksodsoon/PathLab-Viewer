@@ -8,6 +8,7 @@ from PIL import Image
 from wsi_viewer.alignment_pyramid import (
     _component_identity_is_clear,
     _ComponentMap,
+    _expand_verified_support,
     _flow_cell_evidence,
     _flow_refined_controls,
     _layout_consistency,
@@ -189,6 +190,7 @@ def _component_candidate(identity: float, layout: float) -> _ComponentMap:
         transform=[[1, 0, 0], [0, 1, 0]],
         overview_cells=[],
         verified_cells=[{}] * round(identity * 100),
+        supported_cells=[],
         intensity_score=0,
         overlap=0,
         flow_control_count=100,
@@ -220,6 +222,35 @@ def test_layout_consistency_checks_all_large_fragments():
 
     assert coherent > 0.99
     assert one_fragment_only < 0.2
+
+
+def test_support_expansion_adds_only_edge_adjacent_low_residual_cells():
+    verified = {
+        "moving": [[0, 0], [10, 0], [0, 10]],
+        "reference": [[0, 0], [10, 0], [0, 10]],
+        "maxResidualPixels": 1.0,
+    }
+    adjacent = {
+        "moving": [[10, 0], [0, 10], [10, 10]],
+        "reference": [[10, 0], [0, 10], [10, 10]],
+        "maxResidualPixels": 2.0,
+    }
+    point_touching = {
+        "moving": [[10, 10], [20, 10], [10, 20]],
+        "reference": [[10, 10], [20, 10], [10, 20]],
+        "maxResidualPixels": 1.0,
+    }
+    unstable = {
+        "moving": [[10, 0], [0, 10], [15, 15]],
+        "reference": [[10, 0], [0, 10], [15, 15]],
+        "maxResidualPixels": 8.0,
+    }
+
+    expanded = _expand_verified_support(
+        [verified, adjacent, point_touching, unstable], [verified]
+    )
+
+    assert expanded == [verified, adjacent]
 
 
 def test_component_refinement_keeps_valid_tissue_touching_crop_edge():

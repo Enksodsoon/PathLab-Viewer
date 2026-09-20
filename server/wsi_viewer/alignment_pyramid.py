@@ -29,6 +29,7 @@ class _ComponentMap:
     transform: list[list[float]]
     overview_cells: list[dict[str, Any]]
     verified_cells: list[dict[str, Any]]
+    supported_cells: list[dict[str, Any]]
     intensity_score: float
     overlap: float
     flow_control_count: int
@@ -262,6 +263,7 @@ def _approximate_component_map(
         if provenance == "approximate-structural-flow"
         else ([], -1.0, -1.0)
     )
+    supported_cells = _expand_verified_support(cells, verified_cells)
     rx, ry, reference_divisor = reference_frame
     mx, my, moving_divisor = moving_frame
     linear = (
@@ -275,6 +277,7 @@ def _approximate_component_map(
     full_transform = np.column_stack([linear, offset])
     overview_cells: list[dict[str, Any]] = []
     full_verified_cells: list[dict[str, Any]] = []
+    full_supported_cells: list[dict[str, Any]] = []
     for cell in cells:
         overview_cells.append(
             {
@@ -302,10 +305,31 @@ def _approximate_component_map(
                 "provenance": "structural-flow-patch",
             }
         )
+    verified_ids = {id(item) for item in verified_cells}
+    for cell in supported_cells:
+        full_supported_cells.append(
+            {
+                "moving": [
+                    [mx + moving_divisor * x, my + moving_divisor * y]
+                    for x, y in cell["moving"]
+                ],
+                "reference": [
+                    [rx + reference_divisor * x, ry + reference_divisor * y]
+                    for x, y in cell["reference"]
+                ],
+                "maxResidualPixels": cell.get("maxResidualPixels", flow_cycle_p95),
+                "provenance": (
+                    "structural-flow-patch"
+                    if id(cell) in verified_ids
+                    else "structural-flow-neighbor"
+                ),
+            }
+        )
     return _ComponentMap(
         transform=full_transform.tolist(),
         overview_cells=overview_cells,
         verified_cells=full_verified_cells,
+        supported_cells=full_supported_cells,
         intensity_score=float(score),
         overlap=float(overlap),
         flow_control_count=(
@@ -434,6 +458,42 @@ def _flow_cell_evidence(
         float(np.median(scores)) if scores else -1.0,
         float(np.median(discriminations)) if discriminations else -1.0,
     )
+
+
+def _expand_verified_support(
+    cells: list[dict[str, Any]], verified: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Add one continuous ring around directly patch-verified triangles.
+
+    Every added cell shares a complete edge with verified support and comes
+    from the same cycle-consistent flow controls.  This closes small Delaunay
+    gaps during panning without extrapolating across unverified tissue.
+    """
+    if not verified:
+        return []
+
+    def vertices(cell: dict[str, Any]) -> set[tuple[int, int]]:
+        return {
+            (round(float(x) * 1000), round(float(y) * 1000))
+            for x, y in cell["moving"]
+        }
+
+    accepted_ids = {id(cell) for cell in verified}
+    accepted_vertices = [vertices(cell) for cell in verified]
+    verified_residuals = [
+        float(cell.get("maxResidualPixels", 0.0)) for cell in verified
+    ]
+    residual_limit = max(4.0, float(np.percentile(verified_residuals, 95)) * 1.25)
+    expanded = list(verified)
+    for cell in cells:
+        if id(cell) in accepted_ids:
+            continue
+        cell_vertices = vertices(cell)
+        if float(cell.get("maxResidualPixels", 0.0)) > residual_limit:
+            continue
+        if any(len(cell_vertices & existing) >= 2 for existing in accepted_vertices):
+            expanded.append(cell)
+    return expanded
 
 
 def _flow_refined_controls(
@@ -806,16 +866,16 @@ def register_components(
                     qualified.append(candidate)
                 else:
                     ambiguous_components += 1
-            verified_cells = [
-                cell for candidate in qualified for cell in candidate.verified_cells
+            supported_cells = [
+                cell for candidate in qualified for cell in candidate.supported_cells
             ]
-            if verified_cells:
+            if supported_cells:
                 verified_moving = np.asarray(
-                    [point for cell in verified_cells for point in cell["moving"]],
+                    [point for cell in supported_cells for point in cell["moving"]],
                     dtype=np.float64,
                 )
                 verified_reference = np.asarray(
-                    [point for cell in verified_cells for point in cell["reference"]],
+                    [point for cell in supported_cells for point in cell["reference"]],
                     dtype=np.float64,
                 )
                 return RegistrationResult(
@@ -837,16 +897,16 @@ def register_components(
                         0.75,
                         0.45 + 0.2 * float(np.mean([item.identity_score for item in qualified])),
                     ),
-                    inlier_count=len(verified_cells),
-                    match_count=len(verified_cells),
+                    inlier_count=len(supported_cells),
+                    match_count=len(supported_cells),
                     median_error_pixels=-1.0,
-                    triangles=verified_cells,
+                    triangles=supported_cells,
                     overview_triangles=overview_cells,
                     evidence={
                         "mode": "matched-regions",
                         "anatomicalMatchCount": 0,
                         "featureMatchCount": 0,
-                        "triangleCount": len(verified_cells),
+                        "triangleCount": len(supported_cells),
                         "overviewTriangleCount": len(overview_cells),
                         "componentPairsChecked": attempted,
                         "structuralComponentPairsChecked": len(candidates_by_pair),
@@ -870,8 +930,10 @@ def register_components(
                             4,
                         ),
                         "verifiedPatchCount": sum(
-                            len(item.verified_cells) for _, _, item in approximate
+                            len(item.verified_cells) for item in qualified
                         ),
+                        "supportExpansionCount": len(supported_cells)
+                        - sum(len(item.verified_cells) for item in qualified),
                         "patchNccMedian": round(
                             float(np.median([item.patch_ncc_median for item in qualified])),
                             4,
