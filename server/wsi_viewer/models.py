@@ -1354,9 +1354,6 @@ class ComparisonSet(Base):
 class ComparisonRegistrationRevision(Base):
     __tablename__ = "comparison_registration_revisions"
     __table_args__ = (
-        UniqueConstraint(
-            "comparison_set_id", "slide_id", "set_version", name="uq_registration_revision"
-        ),
         Index("ix_registration_revisions_set", "comparison_set_id", "created_at"),
     )
 

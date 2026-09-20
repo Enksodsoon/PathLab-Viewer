@@ -43,6 +43,19 @@ def test_engine_map_rejects_inconsistent_inverse() -> None:
         )
 
 
+def test_engine_map_rejects_self_consistent_wrong_tissue_overlap() -> None:
+    image = _tissue()
+    offset = np.asarray([150.0, 0.0])
+    with pytest.raises(AlignmentRejected, match="whole-tissue overlap"):
+        _sample_coordinate_map(
+            reference_rgb=image,
+            moving_rgb=image,
+            map_moving_to_reference=lambda points: points + offset,
+            map_reference_to_moving=lambda points: points - offset,
+            provenance="wrong-anatomy",
+        )
+
+
 def test_availability_always_reports_native_and_explains_optional_engines() -> None:
     availability = engine_availability()
     assert availability["native-v12"]["available"] is True

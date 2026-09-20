@@ -9,6 +9,7 @@ from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     ComparisonRegistrationCandidate,
+    ComparisonRegistrationRevision,
     ComparisonSet,
     Job,
     LibraryShare,
@@ -190,6 +191,18 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
                 evidence={"roundTripP95Pixels": 0.1},
             )
             database.add(candidate)
+            database.add(
+                ComparisonRegistrationRevision(
+                    comparison_set_id=created["id"],
+                    slide_id="slide-2",
+                    set_version=created["version"],
+                    source_version="sha-2",
+                    anchor_slide_id="slide-1",
+                    algorithm_version="native-v12",
+                    provenance="automatic",
+                    registration={"status": "approximate"},
+                )
+            )
             stale_candidate = ComparisonRegistrationCandidate(
                 comparison_set_id=created["id"],
                 slide_id="slide-2",
@@ -223,6 +236,12 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         )
         assert promoted.status_code == 200, promoted.text
         assert promoted.json()["members"][1]["registration"]["engine"] == "hisalign-0.2.1"
+        with session_factory(client.app.state.settings)() as database:
+            assert database.query(ComparisonRegistrationRevision).filter(
+                ComparisonRegistrationRevision.comparison_set_id == created["id"],
+                ComparisonRegistrationRevision.slide_id == "slide-2",
+                ComparisonRegistrationRevision.set_version == created["version"],
+            ).count() == 2
         manifest = client.get(url + "/candidates")
         assert manifest.status_code == 200
         assert manifest.json()["candidates"][0]["artifactSha256"] is None

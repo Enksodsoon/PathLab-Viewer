@@ -4,8 +4,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 from wsi_viewer.alignment_pyramid import (
+    _candidate_component_pairs,
     _component_identity_is_clear,
     _ComponentMap,
     _expand_verified_support,
@@ -209,6 +210,38 @@ def test_fragment_layout_resolves_only_a_real_internal_evidence_margin():
 
     assert _component_identity_is_clear(preferred, [weaker_wrong_fragment])
     assert not _component_identity_is_clear(preferred, [identical_wrong_fragment])
+
+
+def test_fragment_pairing_marks_only_displaced_unambiguous_layout() -> None:
+    reference = Image.new("RGB", (1000, 600), "white")
+    moving = Image.new("RGB", reference.size, "white")
+    for image, boxes in (
+        (reference, [(100, 100, 300, 500), (700, 100, 900, 500)]),
+        (moving, [(125, 100, 325, 500), (675, 100, 875, 500)]),
+    ):
+        draw = ImageDraw.Draw(image)
+        for box in boxes:
+            draw.ellipse(box, fill=(150, 80, 120))
+    pairs, resolved = _candidate_component_pairs(
+        reference,
+        moving,
+        [(100, 100, 300, 500), (700, 100, 900, 500)],
+        [(125, 100, 325, 500), (675, 100, 875, 500)],
+        reference.size,
+        moving.size,
+    )
+    assert pairs == [(0, 0), (1, 1)]
+    assert resolved == {(0, 0), (1, 1)}
+
+    _, unchanged = _candidate_component_pairs(
+        reference,
+        reference,
+        [(100, 100, 300, 500), (700, 100, 900, 500)],
+        [(100, 100, 300, 500), (700, 100, 900, 500)],
+        reference.size,
+        reference.size,
+    )
+    assert unchanged == set()
 
 
 def test_optical_density_kaze_prefers_same_structure_across_stain_hues():

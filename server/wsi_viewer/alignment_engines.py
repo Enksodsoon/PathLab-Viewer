@@ -188,6 +188,20 @@ def _sample_coordinate_map(
         }
         for source, target, error in zip(moving_points, reference_points, cycle, strict=True)
     ]
+    affine = _affine_from_controls(controls)
+    warped_mask = cv2.warpAffine(
+        moving_mask,
+        np.asarray(affine, dtype=np.float32),
+        (reference_mask.shape[1], reference_mask.shape[0]),
+    )
+    intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
+    tissue_dice = 2 * intersection / max(
+        1, int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
+    )
+    if tissue_dice < 0.68:
+        raise AlignmentRejected(
+            f"engine map failed whole-tissue overlap validation ({tissue_dice:.3f} Dice)"
+        )
     triangles = _registration_triangles(
         controls,
         moving_mask=moving_mask,
@@ -204,7 +218,7 @@ def _sample_coordinate_map(
     cycle_p95 = float(np.percentile(cycle, 95))
     return RegistrationResult(
         status="ready",
-        moving_to_reference=_affine_from_controls(controls),
+        moving_to_reference=affine,
         reference_support=(rx, ry, rx + rw, ry + rh),
         moving_support=(mx, my, mx + mw, my + mh),
         confidence=max(0.0, min(0.99, 1.0 - cycle_p95 / 2.0)),
@@ -219,7 +233,8 @@ def _sample_coordinate_map(
             "triangleCount": len(triangles),
             "sampledControlCount": len(controls),
             "roundTripP95Pixels": round(cycle_p95, 6),
-            "withheldCheck": "engine-cycle-and-tissue-support",
+            "tissueDice": round(tissue_dice, 6),
+            "withheldCheck": "engine-cycle-tissue-support-and-overlap",
         },
     )
 

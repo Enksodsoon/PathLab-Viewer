@@ -329,6 +329,8 @@ export function OpenSeadragonViewer({
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
         home: () => {
           if (!hasOpenImage()) return
+          navigationTransaction.current = undefined
+          userNavigation.current = true
           viewer?.viewport.goHome(true)
           applyRotation(0)
           setRotationOpen(false)
@@ -341,6 +343,8 @@ export function OpenSeadragonViewer({
         fullscreen: () => void viewer?.setFullScreen(!viewer.isFullPage()),
         fitImageBounds: ([left, top, right, bottom]) => {
           if (!hasOpenImage()) return
+          navigationTransaction.current = undefined
+          userNavigation.current = true
           applyRotation(0)
           readyViewer.viewport.fitBounds(
             readyViewer.viewport.imageToViewportRectangle(left, top, right - left, bottom - top),

@@ -37,22 +37,28 @@ function pairRegistrations(source: ComparisonMember, target: ComparisonMember, p
     : null
 }
 
-function matchedFocusBounds(source: ComparisonMember, target: ComparisonMember, primaryReferenceId: string): Exclude<Support, null> | null {
-  const pair = pairRegistrations(source, target, primaryReferenceId)
-  if (!pair) return null
-  const [sourceRegistration, targetRegistration] = pair
-  const cells = sourceRegistration?.triangles?.map((triangle) => ({ points: triangle.moving, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
-    ?? targetRegistration?.triangles?.map((triangle) => ({ points: triangle.reference, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+function matchedFocusBounds(source: ComparisonMember, targets: ComparisonMember[], primaryReferenceId: string): Exclude<Support, null> | null {
+  const pairs = targets.map((target) => pairRegistrations(source, target, primaryReferenceId))
+  if (!pairs.length || pairs.some((pair) => !pair)) return null
+  const cells = pairs.flatMap((pair) => {
+    const [sourceRegistration, targetRegistration] = pair!
+    return sourceRegistration?.triangles?.map((triangle) => ({ points: triangle.moving, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+      ?? targetRegistration?.triangles?.map((triangle) => ({ points: triangle.reference, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+      ?? []
+  })
   if (!cells?.length || !source.metadata) return null
   const area = (triangle: [[number, number], [number, number], [number, number]]) => Math.abs(
     (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
     - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]),
   )
   const sorted = [...cells].sort((left, right) => left.residual - right.residual || area(right.points) - area(left.points))
-  const candidate = sorted.find(({ points }) => mapLocalComparisonPoint([
-    points.reduce((sum, point) => sum + point[0], 0) / 3,
-    points.reduce((sum, point) => sum + point[1], 0) / 3,
-  ], sourceRegistration, targetRegistration))
+  const candidate = sorted.find(({ points }) => {
+    const center: [number, number] = [
+      points.reduce((sum, point) => sum + point[0], 0) / 3,
+      points.reduce((sum, point) => sum + point[1], 0) / 3,
+    ]
+    return pairs.every((pair) => mapLocalComparisonPoint(center, pair![0], pair![1]))
+  })
   if (!candidate) return null
   const triangle = candidate.points
   const centerX = triangle.reduce((sum, point) => sum + point[0], 0) / 3
@@ -293,16 +299,22 @@ export function ComparisonPage() {
     const anchor = comparison.members.find((member) => member.slideId === anchorId)
     const anchorHandle = anchorId ? handles.current.get(anchorId) : null
     if (anchor && anchorHandle && opened.length > 1) {
-      const other = comparison.members.find((member) => opened.includes(member.slideId) && member.slideId !== anchor.slideId)
-      const matchedBounds = alignmentMode === 'matched' && other
-        ? matchedFocusBounds(anchor, other, comparison.referenceSlideId)
+      const others = comparison.members.filter((member) => opened.includes(member.slideId) && member.slideId !== anchor.slideId)
+      const other = others[0]
+      const matchedBounds = alignmentMode === 'matched' && others.length
+        ? matchedFocusBounds(anchor, others, comparison.referenceSlideId)
         : null
       const anchorBounds = matchedBounds ?? (alignmentMode === 'approximate' && other
         ? overviewFocusBounds(anchor, other, comparison.referenceSlideId) : null)
-      if (anchorBounds && !hasInitialField.current) { anchorHandle.fitImageBounds(anchorBounds); hasInitialField.current = true; drivingPane.current = anchorId ?? null }
+      if (anchorBounds && (!hasInitialField.current || opened.length === panes.length)) {
+        anchorHandle.fitImageBounds(anchorBounds)
+        hasInitialField.current = true
+        drivingPane.current = anchorId ?? null
+        synchronize(anchor, anchorHandle.getImageViewport())
+      }
     }
     window.requestAnimationFrame(alignOpenedPanes)
-  }, [alignOpenedPanes, alignmentMode, comparison, linked, panes])
+  }, [alignOpenedPanes, alignmentMode, comparison, linked, panes, synchronize])
   useEffect(() => {
     if (!linked) return
     initializedPanes.current = ''
@@ -319,17 +331,17 @@ export function ComparisonPage() {
     if (!anchorId) return
     const anchor = handles.current.get(anchorId)
     const anchorMember = comparison?.members.find((member) => member.slideId === anchorId)
-    const otherMember = comparison?.members.find((member) => panes.includes(member.slideId) && member.slideId !== anchorId)
-    const bounds = comparison && anchorMember && otherMember
+    const otherMembers = comparison?.members.filter((member) => panes.includes(member.slideId) && member.slideId !== anchorId) ?? []
+    const bounds = comparison && anchorMember && otherMembers.length
       ? alignmentMode === 'matched'
-        ? matchedFocusBounds(anchorMember, otherMember, comparison.referenceSlideId)
-        : overviewFocusBounds(anchorMember, otherMember, comparison.referenceSlideId)
+        ? matchedFocusBounds(anchorMember, otherMembers, comparison.referenceSlideId)
+        : overviewFocusBounds(anchorMember, otherMembers[0], comparison.referenceSlideId)
       : null
     if (bounds) anchor?.fitImageBounds(bounds)
     else anchor?.home()
     drivingPane.current = anchorId
-    window.requestAnimationFrame(alignOpenedPanes)
-  }, [alignOpenedPanes, alignmentMode, comparison, linked, panes])
+    if (anchor && anchorMember) synchronize(anchorMember, anchor.getImageViewport())
+  }, [alignmentMode, comparison, linked, panes, synchronize])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (correction) return
@@ -380,15 +392,21 @@ export function ComparisonPage() {
     .map((member, index) => ({
       member,
       index,
+      localLinks: current.reduce((count, slideId) => {
+        const existing = comparison.members.find((candidate) => candidate.slideId === slideId)
+        const pair = existing ? pairRegistrations(existing, member, comparison.referenceSlideId) : null
+        return count + (pair && pair.filter((registration) => registration !== null)
+          .every((registration) => registration?.status === 'ready' && hasLocalEvidence(registration)) ? 1 : 0)
+      }, 0),
       links: current.reduce((count, slideId) => {
         const existing = comparison.members.find((candidate) => candidate.slideId === slideId)
         return count + (existing && pairRegistrations(existing, member, comparison.referenceSlideId) ? 1 : 0)
       }, 0),
     }))
     .filter(({ member }) => !current.includes(member.slideId) && member.registration?.status !== 'rejected')
-    .sort((left, right) => right.links - left.links || left.index - right.index)
+    .sort((left, right) => right.localLinks - left.localLinks || right.links - left.links || left.index - right.index)
     .map(({ member }) => member)
-  const setLayout = (count: number) => { setActivePane(0); setMaximizedPane(null); setPanes((current) => {
+  const setLayout = (count: number) => { setActivePane(0); setMaximizedPane(null); setSuspendedPanes(new Set()); setNotice(''); setPanes((current) => {
     const next = [...current]
     for (const member of paneCandidates(current)) if (next.length < count) next.push(member.slideId)
     return next.slice(0, Math.min(count, comparison.members.length))

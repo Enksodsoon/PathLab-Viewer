@@ -412,6 +412,9 @@ def _alignment_child(
 
         def overview(path: str) -> Image.Image:
             derivative = Path(path)
+            if engine_name != ENGINE_NATIVE:
+                with Image.open(derivative / "thumbnail.jpg") as opened:
+                    return opened.convert("RGB")
             try:
                 return _load_dzi_overview(derivative)
             except (FileNotFoundError, OSError, ET.ParseError):
@@ -1069,12 +1072,14 @@ def run_worker_loop(scheduler: WorkerScheduler, shutdown: threading.Event) -> No
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     settings = Settings()
-    configure_libvips(
-        concurrency=settings.libvips_concurrency,
-        cache_max_mem_bytes=settings.libvips_cache_max_mem_bytes,
-        cache_max_files=settings.libvips_cache_max_files,
-        cache_max_operations=settings.libvips_cache_max_operations,
-    )
+    alignment_role = settings.service_role == "alignment"
+    if not alignment_role:
+        configure_libvips(
+            concurrency=settings.libvips_concurrency,
+            cache_max_mem_bytes=settings.libvips_cache_max_mem_bytes,
+            cache_max_files=settings.libvips_cache_max_files,
+            cache_max_operations=settings.libvips_cache_max_operations,
+        )
     factory = session_factory(settings)
     layout = StorageLayout(settings.data_root, settings.storage_cap_bytes)
     capacity_monitor = StorageCapacityMonitor(settings.data_root)
@@ -1085,7 +1090,6 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, request_shutdown)
     signal.signal(signal.SIGINT, request_shutdown)
-    alignment_role = settings.service_role == "alignment"
     scheduler = WorkerScheduler(
         recover_stale=lambda: recover_stale_jobs(
             factory, stale_after=timedelta(seconds=settings.worker_stale_seconds)

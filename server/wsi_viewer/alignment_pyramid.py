@@ -130,11 +130,11 @@ def _candidate_component_pairs(
     moving_boxes: list[tuple[int, int, int, int]],
     reference_size: tuple[int, int],
     moving_size: tuple[int, int],
-) -> list[tuple[int, int]]:
+) -> tuple[list[tuple[int, int]], set[tuple[int, int]]]:
     """Pair fragments using the whole-slide layout without claiming anatomy."""
     _, reference_mask = _structure(np.asarray(reference_overview.convert("RGB")))
     _, moving_mask = _structure(np.asarray(moving_overview.convert("RGB")))
-    seed, _ = _mask_seed(reference_mask, moving_mask)
+    seed, seed_overlap = _mask_seed(reference_mask, moving_mask)
     reference_scale = np.asarray(
         [
             reference_overview.width / reference_size[0],
@@ -162,12 +162,26 @@ def _candidate_component_pairs(
     projected = cv2.transform(moving_centers.astype(np.float32)[:, None, :], seed)[:, 0, :]
     distances = np.linalg.norm(projected[:, None, :] - reference_centers[None, :, :], axis=2)
     pairs: list[tuple[int, int]] = []
+    layout_resolved: set[tuple[int, int]] = set()
+    diagonal = max(1.0, math.hypot(reference_overview.width, reference_overview.height))
     for moving_index in range(len(moving_boxes)):
         reference_index = int(np.argmin(distances[moving_index]))
         if int(np.argmin(distances[:, reference_index])) != moving_index:
             continue
-        pairs.append((moving_index, reference_index))
-    return pairs
+        pair = (moving_index, reference_index)
+        pairs.append(pair)
+        ordered = np.sort(distances[moving_index])
+        best = float(ordered[0]) / diagonal
+        margin = float(ordered[1] - ordered[0]) / diagonal if len(ordered) > 1 else 0.0
+        if (
+            len(reference_boxes) >= 2
+            and len(moving_boxes) >= 2
+            and seed_overlap >= 0.2
+            and 0.005 < best <= 0.08
+            and margin >= 0.12
+        ):
+            layout_resolved.add(pair)
+    return pairs, layout_resolved
 
 
 def _approximate_component_map(
@@ -931,7 +945,7 @@ def register_components(
         and sum(other_ri == ri for _, other_ri, _ in candidates) == 1
     ]
     if not accepted:
-        preferred_pairs = _candidate_component_pairs(
+        preferred_pairs, layout_resolved_pairs = _candidate_component_pairs(
             reference_overview,
             moving_overview,
             reference_boxes,
@@ -990,6 +1004,7 @@ def register_components(
             qualified: list[_ComponentMap] = []
             ambiguous_components = 0
             identity_checks = 0
+            layout_resolved_components = 0
             for moving_index, reference_index, candidate in approximate:
                 verified_count = len(candidate.verified_cells)
                 verified_ratio = verified_count / max(1, candidate.flow_control_count)
@@ -1018,9 +1033,13 @@ def register_components(
                     and (other_moving == moving_index or other_reference == reference_index)
                     and other.flow_control_count > 0
                 ]
-                clearly_identified = _component_identity_is_clear(candidate, alternatives)
+                resolved_by_layout = (moving_index, reference_index) in layout_resolved_pairs
+                clearly_identified = resolved_by_layout or _component_identity_is_clear(
+                    candidate, alternatives
+                )
                 if clearly_identified:
                     qualified.append(candidate)
+                    layout_resolved_components += int(resolved_by_layout)
                 else:
                     ambiguous_components += 1
             supported_cells = [
@@ -1068,6 +1087,7 @@ def register_components(
                         "componentPairsChecked": attempted,
                         "structuralComponentPairsChecked": len(candidates_by_pair),
                         "acceptedStructuralComponents": len(qualified),
+                        "layoutResolvedComponents": layout_resolved_components,
                         "ambiguousStructuralComponents": ambiguous_components,
                         "layoutConsistencyMedian": round(
                             float(np.median([item.layout_score for item in qualified])), 4
