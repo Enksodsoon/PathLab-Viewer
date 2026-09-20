@@ -253,6 +253,29 @@ def test_support_expansion_adds_only_edge_adjacent_low_residual_cells():
     assert expanded == [verified, adjacent]
 
 
+def test_distributed_patch_evidence_fills_connected_flow_support():
+    cells = [
+        {
+            "moving": [[index, 0], [index + 1, 0], [index + 2, 0]],
+            "reference": [[index, 0], [index + 1, 0], [index + 2, 0]],
+            "maxResidualPixels": 1.0,
+        }
+        for index in range(10)
+    ]
+    # Give the verified subset non-zero two-dimensional extent while keeping
+    # the same shared-edge chain topology.
+    for index, cell in enumerate(cells):
+        cell["moving"][2][1] = index % 2 + 1
+        cell["reference"][2][1] = index % 2 + 1
+        if index:
+            cell["moving"][:2] = cells[index - 1]["moving"][1:]
+            cell["reference"][:2] = cells[index - 1]["reference"][1:]
+
+    expanded = _expand_verified_support(cells, cells[:8])
+
+    assert expanded == cells
+
+
 def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
     from PIL import ImageDraw
     from wsi_viewer.alignment_pyramid import _approximate_component_map

@@ -463,11 +463,12 @@ def _flow_cell_evidence(
 def _expand_verified_support(
     cells: list[dict[str, Any]], verified: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    """Add one continuous ring around directly patch-verified triangles.
+    """Extend directly verified triangles through continuous low-residual flow.
 
-    Every added cell shares a complete edge with verified support and comes
-    from the same cycle-consistent flow controls.  This closes small Delaunay
-    gaps during panning without extrapolating across unverified tissue.
+    Every added cell shares a complete edge with accepted support and comes
+    from the same cycle-consistent flow controls. Spatially sparse evidence is
+    limited to one ring; distributed evidence may cover its connected tissue
+    region without extrapolating across blank gaps.
     """
     if not verified:
         return []
@@ -484,15 +485,37 @@ def _expand_verified_support(
         float(cell.get("maxResidualPixels", 0.0)) for cell in verified
     ]
     residual_limit = max(4.0, float(np.percentile(verified_residuals, 95)) * 1.25)
+    all_points = np.asarray(
+        [point for cell in cells for point in cell["moving"]], dtype=np.float64
+    )
+    verified_points = np.asarray(
+        [point for cell in verified for point in cell["moving"]], dtype=np.float64
+    )
+
+    def box_area(points: np.ndarray) -> float:
+        extent = np.ptp(points, axis=0)
+        return float(extent[0] * extent[1])
+
+    spatial_coverage = box_area(verified_points) / max(1.0, box_area(all_points))
+    distributed = len(verified) >= 8 and spatial_coverage >= 0.2
     expanded = list(verified)
-    for cell in cells:
-        if id(cell) in accepted_ids:
-            continue
-        cell_vertices = vertices(cell)
-        if float(cell.get("maxResidualPixels", 0.0)) > residual_limit:
-            continue
-        if any(len(cell_vertices & existing) >= 2 for existing in accepted_vertices):
-            expanded.append(cell)
+    remaining = [cell for cell in cells if id(cell) not in accepted_ids]
+    while remaining:
+        added: list[dict[str, Any]] = []
+        for cell in remaining:
+            cell_vertices = vertices(cell)
+            if float(cell.get("maxResidualPixels", 0.0)) > residual_limit:
+                continue
+            if any(len(cell_vertices & existing) >= 2 for existing in accepted_vertices):
+                added.append(cell)
+        if not added:
+            break
+        expanded.extend(added)
+        if not distributed:
+            break
+        accepted_vertices.extend(vertices(cell) for cell in added)
+        added_ids = {id(cell) for cell in added}
+        remaining = [cell for cell in remaining if id(cell) not in added_ids]
     return expanded
 
 
