@@ -351,7 +351,14 @@ def _triangle_area(points: np.ndarray) -> float:
     return float((first[0] * second[1] - first[1] * second[0]) / 2.0)
 
 
-def _registration_triangles(controls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _registration_triangles(
+    controls: list[dict[str, Any]],
+    *,
+    moving_mask: np.ndarray | None = None,
+    reference_mask: np.ndarray | None = None,
+    moving_scale: float = 1.0,
+    reference_scale: float = 1.0,
+) -> list[dict[str, Any]]:
     """Triangulate trusted matches and reject folded or unstable cells."""
     if len(controls) < 3:
         return []
@@ -374,6 +381,56 @@ def _registration_triangles(controls: list[dict[str, Any]]) -> list[dict[str, An
         return []
     triangles: list[dict[str, Any]] = []
     seen: set[tuple[int, int, int]] = set()
+    mask_context: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None = None
+    if moving_mask is not None and reference_mask is not None:
+        radius = max(3, min(*moving_mask.shape, *reference_mask.shape) // 220)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (radius * 2 + 1, radius * 2 + 1))
+        moving_allowed = cv2.dilate((moving_mask > 0).astype(np.uint8), kernel)
+        reference_allowed = cv2.dilate((reference_mask > 0).astype(np.uint8), kernel)
+        _, moving_labels = cv2.connectedComponents((moving_mask > 0).astype(np.uint8))
+        _, reference_labels = cv2.connectedComponents((reference_mask > 0).astype(np.uint8))
+        mask_context = moving_allowed, reference_allowed, moving_labels, reference_labels
+
+    def supported_cell(source: np.ndarray, target: np.ndarray) -> bool:
+        if mask_context is None:
+            return True
+        moving_allowed, reference_allowed, moving_labels, reference_labels = mask_context
+
+        def mask_point(
+            point: np.ndarray, scale: float, shape: tuple[int, int]
+        ) -> tuple[int, int] | None:
+            x, y = int(round(float(point[0]) * scale)), int(round(float(point[1]) * scale))
+            return (x, y) if 0 <= x < shape[1] and 0 <= y < shape[0] else None
+
+        moving_vertices = [mask_point(point, moving_scale, moving_mask.shape) for point in source]
+        reference_vertices = [
+            mask_point(point, reference_scale, reference_mask.shape) for point in target
+        ]
+        if any(point is None for point in moving_vertices + reference_vertices):
+            return False
+        moving_components = {
+            int(moving_labels[y, x]) for x, y in moving_vertices if moving_labels[y, x]
+        }
+        reference_components = {
+            int(reference_labels[y, x]) for x, y in reference_vertices if reference_labels[y, x]
+        }
+        if len(moving_components) != 1 or len(reference_components) != 1:
+            return False
+        # Check a small barycentric grid so Delaunay edges cannot bridge blank
+        # gaps between fragments or cut across a curved tissue outline.
+        for first in np.linspace(0.0, 1.0, 6):
+            for second in np.linspace(0.0, 1.0 - first, 6):
+                third = 1.0 - first - second
+                for triangle, scale, allowed in (
+                    (source, moving_scale, moving_allowed),
+                    (target, reference_scale, reference_allowed),
+                ):
+                    point = first * triangle[0] + second * triangle[1] + third * triangle[2]
+                    location = mask_point(point, scale, allowed.shape)
+                    if location is None or not allowed[location[1], location[0]]:
+                        return False
+        return True
+
     for raw in subdiv.getTriangleList():
         vertices = np.asarray(raw, dtype=np.float64).reshape(3, 2)
         indexes: list[int] = []
@@ -396,6 +453,8 @@ def _registration_triangles(controls: list[dict[str, Any]]) -> list[dict[str, An
             continue
         area_ratio = abs(target_area / source_area)
         if not 0.2 <= area_ratio <= 5.0:
+            continue
+        if not supported_cell(source, target):
             continue
         residual = max(float(controls[index]["errorPixels"]) for index in indexes)
         triangles.append(
@@ -696,7 +755,13 @@ def _coarse_refined_result(
         moving_scale=moving_scale,
         reference_scale=reference_scale,
     )
-    triangles = _registration_triangles(controls)
+    triangles = _registration_triangles(
+        controls,
+        moving_mask=moving_mask,
+        reference_mask=reference_mask,
+        moving_scale=moving_scale,
+        reference_scale=reference_scale,
+    )
     if len(controls) < 4 or not triangles:
         return outline_result()
     return RegistrationResult(
@@ -827,7 +892,13 @@ def register_pair(
         moving_scale=moving_scale,
         reference_scale=reference_scale,
     )
-    triangles = _registration_triangles(controls)
+    triangles = _registration_triangles(
+        controls,
+        moving_mask=moving_mask,
+        reference_mask=reference_mask,
+        moving_scale=moving_scale,
+        reference_scale=reference_scale,
+    )
     if not triangles:
         return _coarse_refined_result(
             reference_structure,

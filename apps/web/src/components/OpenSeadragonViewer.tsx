@@ -307,6 +307,15 @@ export function OpenSeadragonViewer({
         const world = readyViewer.world as typeof readyViewer.world | undefined
         return viewerRef.current === readyViewer && (!world || world.getItemCount() > 0)
       }
+      const updateScale = () => {
+        const scale = micronsPerPixelRef.current
+        const reportScale = onScaleChangeRef.current
+        if (!viewer || !scale || !reportScale) return
+        const imageZoom = viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))
+        const micronsPerScreenPixel = scale / imageZoom
+        const microns = niceScale(micronsPerScreenPixel * 90)
+        reportScale(microns, microns / micronsPerScreenPixel)
+      }
       onReadyRef.current({
         zoomIn: () => viewer?.viewport.zoomBy(1.5),
         zoomOut: () => viewer?.viewport.zoomBy(1 / 1.5),
@@ -329,6 +338,7 @@ export function OpenSeadragonViewer({
             readyViewer.viewport.imageToViewportRectangle(left, top, right - left, bottom - top),
             true,
           )
+          updateScale()
         },
         getImageViewport: () => {
           if (!hasOpenImage()) return { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
@@ -351,17 +361,9 @@ export function OpenSeadragonViewer({
           readyViewer.viewport.setRotation(displayRotation)
           setRotation(displayRotation)
           readyViewer.viewport.applyConstraints(true)
+          updateScale()
         },
       })
-      const updateScale = () => {
-        const scale = micronsPerPixelRef.current
-        const reportScale = onScaleChangeRef.current
-        if (!viewer || !scale || !reportScale) return
-        const imageZoom = viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))
-        const micronsPerScreenPixel = scale / imageZoom
-        const microns = niceScale(micronsPerScreenPixel * 90)
-        reportScale(microns, microns / micronsPerScreenPixel)
-      }
       const handleOpen = () => {
         if (reconnectTimer.current !== null) {
           window.clearTimeout(reconnectTimer.current)

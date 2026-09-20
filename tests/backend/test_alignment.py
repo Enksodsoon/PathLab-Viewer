@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw, ImageEnhance
 from wsi_viewer.alignment import (
     AlignmentRejected,
     RegistrationResult,
+    _registration_triangles,
     compose_transforms,
     map_bounds,
     map_point,
@@ -66,6 +67,27 @@ def test_register_pair_rejects_unrelated_tissue() -> None:
 
     with pytest.raises(AlignmentRejected, match="reliable correspondence"):
         register_pair(_tissue(), unrelated)
+
+
+def test_registration_cells_do_not_bridge_blank_gaps_between_fragments() -> None:
+    mask = np.zeros((100, 220), dtype=np.uint8)
+    mask[10:90, 10:80] = 255
+    mask[10:90, 150:210] = 255
+    controls = [
+        {"moving": [20, 20], "reference": [20, 20], "errorPixels": 1},
+        {"moving": [65, 25], "reference": [65, 25], "errorPixels": 1},
+        {"moving": [40, 75], "reference": [40, 75], "errorPixels": 1},
+        {"moving": [175, 50], "reference": [175, 50], "errorPixels": 1},
+    ]
+
+    triangles = _registration_triangles(
+        controls,
+        moving_mask=mask,
+        reference_mask=mask,
+    )
+
+    assert len(triangles) == 1
+    assert all(point[0] < 80 for point in triangles[0]["moving"])
 
 
 def test_outline_only_fragments_are_explicitly_approximate() -> None:

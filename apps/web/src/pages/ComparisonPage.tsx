@@ -1,9 +1,10 @@
 import { Plus, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { getComparisonSet, getSharedComparisonSet, reregisterComparisonSet } from '../api'
+import { ApiError, getComparisonSet, getSharedComparisonSet, reregisterComparisonSet } from '../api'
 import { alignmentViewDelta, hasLocalEvidence, intersectSupport, localAlignmentViewDelta, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
+import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { Loader } from '../components/Loader'
@@ -44,19 +45,19 @@ function matchedFocusBounds(source: ComparisonMember, target: ComparisonMember, 
   const pair = pairRegistrations(source, target, primaryReferenceId)
   if (!pair) return null
   const [sourceRegistration, targetRegistration] = pair
-  const triangles = sourceRegistration?.triangles?.map((triangle) => triangle.moving)
-    ?? targetRegistration?.triangles?.map((triangle) => triangle.reference)
-  if (!triangles?.length) return null
+  const cells = sourceRegistration?.triangles?.map((triangle) => ({ points: triangle.moving, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+    ?? targetRegistration?.triangles?.map((triangle) => ({ points: triangle.reference, residual: triangle.maxResidualPixels ?? Number.POSITIVE_INFINITY }))
+  if (!cells?.length || !source.metadata) return null
   const area = (triangle: [[number, number], [number, number], [number, number]]) => Math.abs(
     (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
     - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]),
   )
-  const triangle = [...triangles].sort((left, right) => area(right) - area(left))[0]
+  const triangle = [...cells]
+    .sort((left, right) => left.residual - right.residual || area(right.points) - area(left.points))[0].points
   const centerX = triangle.reduce((sum, point) => sum + point[0], 0) / 3
   const centerY = triangle.reduce((sum, point) => sum + point[1], 0) / 3
-  const width = Math.max(...triangle.map((point) => point[0])) - Math.min(...triangle.map((point) => point[0]))
-  const height = Math.max(...triangle.map((point) => point[1])) - Math.min(...triangle.map((point) => point[1]))
-  return [centerX - width * 0.22, centerY - height * 0.22, centerX + width * 0.22, centerY + height * 0.22]
+  const extent = Math.max(160, Math.min(source.metadata.width, source.metadata.height) * 0.08)
+  return [centerX - extent / 2, centerY - extent / 2, centerX + extent / 2, centerY + extent / 2]
 }
 
 function commonReferenceBounds(comparison: ComparisonSet, slideIds: string[]): Exclude<Support, null> | null {
@@ -87,6 +88,9 @@ function commonReferenceBounds(comparison: ComparisonSet, slideIds: string[]): E
 
 export function ComparisonPage() {
   const { comparisonId = '', publicId } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const viewStorageKey = `pathlab-comparison-view:${publicId ?? 'admin'}:${comparisonId}`
   const [comparison, setComparison] = useState<ComparisonSet | null>(null)
   const [panes, setPanes] = useState<string[]>([])
   const [linked, setLinked] = useState(true)
@@ -110,10 +114,26 @@ export function ComparisonPage() {
     void request.then((value) => {
       if (!active) return
       setComparison(value)
-      setPanes(value.members.slice(0, 2).map((member) => member.slideId))
-    }).catch(() => { if (active) setNotice('Comparison set is unavailable.') })
+      setNotice('')
+      let saved: string[] = []
+      try { saved = JSON.parse(sessionStorage.getItem(viewStorageKey) ?? '[]') as string[] } catch { saved = [] }
+      const available = new Set(value.members.map((member) => member.slideId))
+      const restored = saved.filter((slideId) => available.has(slideId)).slice(0, MAX_PANES)
+      setPanes(restored.length ? restored : value.members.slice(0, 2).map((member) => member.slideId))
+    }).catch((caught) => {
+      if (!active) return
+      if (!publicId && caught instanceof ApiError && caught.status === 401) {
+        void navigate(adminSignInPath(`${location.pathname}${location.search}${location.hash}`), { replace: true })
+        return
+      }
+      setNotice('Comparison set is unavailable.')
+    })
     return () => { active = false }
-  }, [comparisonId, publicId])
+  }, [comparisonId, location.hash, location.pathname, location.search, navigate, publicId, viewStorageKey])
+  useEffect(() => {
+    if (!comparison || !panes.length) return
+    sessionStorage.setItem(viewStorageKey, JSON.stringify(panes))
+  }, [comparison, panes, viewStorageKey])
   useEffect(() => {
     if (!comparison || !['queued', 'running'].includes(comparison.status)) return
     const timer = window.setInterval(() => {
@@ -212,18 +232,24 @@ export function ComparisonPage() {
     initializedPanes.current = key
     const anchorId = opened.includes(comparison.referenceSlideId)
       ? comparison.referenceSlideId
-      : opened.find((id) => comparison.members.find((member) => member.slideId === id)?.registration?.status === 'ready')
+      : opened.find((id) => opened.some((otherId) => comparison.members
+        .find((member) => member.slideId === otherId)?.registration?.anchorSlideId === id))
+        ?? opened.find((id) => comparison.members.find((member) => member.slideId === id)?.registration?.status === 'ready')
     const anchor = comparison.members.find((member) => member.slideId === anchorId)
     const anchorHandle = anchorId ? handles.current.get(anchorId) : null
     if (anchor && anchorHandle && opened.length > 1) {
-      const referenceBounds = commonReferenceBounds(comparison, opened)
-      const anchorBounds = referenceBounds
-        ? mapComparisonBounds(referenceBounds, null, transform(anchor, comparison.referenceSlideId))
+      const other = comparison.members.find((member) => opened.includes(member.slideId) && member.slideId !== anchor.slideId)
+      const matchedBounds = alignmentMode === 'matched' && other
+        ? matchedFocusBounds(anchor, other, comparison.referenceSlideId)
         : null
+      const referenceBounds = matchedBounds ? null : commonReferenceBounds(comparison, opened)
+      const anchorBounds = matchedBounds ?? (referenceBounds
+        ? mapComparisonBounds(referenceBounds, null, transform(anchor, comparison.referenceSlideId))
+        : null)
       if (anchorBounds) anchorHandle.fitImageBounds(anchorBounds)
     }
     window.requestAnimationFrame(alignOpenedPanes)
-  }, [alignOpenedPanes, comparison, linked, panes])
+  }, [alignOpenedPanes, alignmentMode, comparison, linked, panes])
   useEffect(() => {
     if (!linked) return
     initializedPanes.current = ''

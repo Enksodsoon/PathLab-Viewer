@@ -17,6 +17,7 @@ vi.mock('../components/OpenSeadragonViewer', () => ({
 }))
 
 beforeEach(() => {
+  sessionStorage.clear()
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Multi-stain set', referenceSlideId: 'slide-1', status: 'ready', version: 1,
     members: Array.from({ length: 5 }, (_, index) => ({
@@ -40,6 +41,19 @@ it('mounts two panes by default and caps visible panes at four', async () => {
   await user.click(screen.getByRole('button', { name: 'Add pane' }))
   expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(4)
   expect(screen.queryByRole('button', { name: 'Add pane' })).not.toBeInTheDocument()
+})
+
+it('restores the selected stain panes after a page remount', async () => {
+  const user = userEvent.setup()
+  const route = <MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>
+  const first = render(route)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Slide shown in pane 2' }), 'slide-3')
+  first.unmount()
+
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('combobox', { name: 'Slide shown in pane 2' })).toHaveValue('slide-3')
 })
 
 it('fails closed when an unaligned slide tries to synchronize', async () => {

@@ -364,6 +364,23 @@ it('updates scale after open and animation finish only', () => {
   expect(osdMock.handlers.has('animation')).toBe(false)
 })
 
+it('updates the physical scale after an immediate synchronized viewport change', () => {
+  const onScaleChange = vi.fn()
+  let handle: ViewerHandle | null = null
+  render(
+    <OpenSeadragonViewer
+      tileSource="/tiles/public-1/slide.dzi"
+      micronsPerPixel={0.25}
+      onReady={(value) => { handle = value }}
+      onScaleChange={onScaleChange}
+    />,
+  )
+
+  act(() => handle!.setImageViewport({ centerX: 40, centerY: 30, imageZoom: 2, rotation: 15 }))
+
+  expect(onScaleChange).toHaveBeenCalledOnce()
+})
+
 it('removes handlers, pending errors, and the viewer during cleanup', () => {
   vi.useFakeTimers()
   const clearInterval = vi.spyOn(window, 'clearInterval')

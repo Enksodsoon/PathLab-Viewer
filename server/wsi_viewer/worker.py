@@ -25,7 +25,6 @@ from sqlalchemy.sql import Select
 
 from .alignment import (
     AlignmentRejected,
-    _registration_triangles,
     compose_transforms,
     map_bounds,
     map_registration_point,
@@ -636,8 +635,33 @@ def process_next(
                         }
                         for point in result_json.get("controlPoints", [])
                     ]
-                    result_json["triangles"] = _registration_triangles(result_json["controlPoints"])
-                    if result_json["status"] == "ready" and not result_json["triangles"]:
+                    composed_triangles: list[dict[str, Any]] = []
+                    for triangle in result_json.get("triangles", []):
+                        try:
+                            mapped_reference = [
+                                list(
+                                    map_registration_point(
+                                        anchor_registration,
+                                        float(point[0]),
+                                        float(point[1]),
+                                    )
+                                )
+                                for point in triangle["reference"]
+                            ]
+                        except AlignmentRejected:
+                            continue
+                        composed_triangles.append(
+                            {
+                                **triangle,
+                                "reference": mapped_reference,
+                                "maxResidualPixels": max(
+                                    float(triangle.get("maxResidualPixels", 0.0)),
+                                    float(anchor_registration.get("medianErrorPixels", 0.0)),
+                                ),
+                            }
+                        )
+                    result_json["triangles"] = composed_triangles
+                    if result_json["status"] == "ready" and not composed_triangles:
                         raise AlignmentRejected(
                             "anchor bridge does not support the matched regions"
                         )
