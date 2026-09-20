@@ -249,6 +249,7 @@ export interface SlideRegistration {
   evidence?: {
     mode?: 'matched-regions' | 'outline-proposal'
     anatomicalMatchCount?: number
+    featureMatchCount?: number
     triangleCount?: number
     availabilityReason?: string
     withheldCheck?: string

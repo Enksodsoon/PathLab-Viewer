@@ -391,7 +391,7 @@ it('removes handlers, pending errors, and the viewer during cleanup', () => {
   view.unmount()
   expect(clearInterval).toHaveBeenCalled()
   expect(osdMock.viewer.removeAllHandlers.mock.calls.map(([name]) => name)).toEqual([
-    'open', 'tile-loaded', 'animation-finish', 'open-failed', 'tile-load-failed',
+    'open', 'tile-loaded', 'animation-finish', 'rotate', 'after-resize', 'open-failed', 'tile-load-failed',
   ])
   expect(osdMock.viewer.destroy).toHaveBeenCalledOnce()
 })
@@ -624,4 +624,25 @@ it('shows a private-safe not found state', async () => {
 it('keeps pathology posters and viewer stages free of theme color filters', () => {
   expect(viewerCss).not.toMatch(/(?:^|[;{])\s*(?:filter|mix-blend-mode)\s*:/m)
   expect(viewerCss).not.toMatch(/invert\(/i)
+})
+
+
+it('does not swallow the first user drag after a synchronized viewport update', () => {
+  let handle: ViewerHandle | undefined
+  const onViewportChange = vi.fn()
+  const { container } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={(value) => { handle = value }} onViewportChange={onViewportChange} />)
+  act(() => handle!.setImageViewport({ centerX: 25, centerY: 30, imageZoom: 1, rotation: 12.345 }, 'sync-1'))
+  expect(osdMock.viewer.viewport.setRotation).toHaveBeenLastCalledWith(expect.closeTo(12.345, 6))
+  fireEvent.pointerDown(container.querySelector('.osd-surface')!)
+  emitViewerEvent('animation-finish')
+  expect(onViewportChange).toHaveBeenLastCalledWith(expect.any(Object), undefined)
+})
+
+
+it('does not promote an initial image load into a driving user gesture', () => {
+  const onViewportChange = vi.fn()
+  render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={vi.fn()} onViewportChange={onViewportChange} />)
+  emitViewerEvent('open')
+  emitViewerEvent('animation-finish')
+  expect(onViewportChange).not.toHaveBeenCalled()
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import OpenSeadragon from 'openseadragon'
 
 import {
@@ -81,6 +81,7 @@ export function OpenSeadragonViewer({
   onDispose,
   displayAdjustments = { brightness: 1, contrast: 1, gamma: 1 },
 }: Props) {
+  const gammaFilterId = `slide-gamma-${useId().replace(/:/g, '')}`
   const element = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null)
   const tileSourceRef = useRef(tileSource)
@@ -93,7 +94,9 @@ export function OpenSeadragonViewer({
   const networkProfileRef = useRef(networkProfile)
   const viewportChangeRef = useRef(onViewportChange)
   const onOpenRef = useRef(onOpen)
-  const navigationTransaction = useRef<string | undefined>()
+  const navigationTransaction = useRef<string | undefined>(undefined)
+  const applyingViewport = useRef(false)
+  const userNavigation = useRef(false)
   const onDisposeRef = useRef(onDispose)
   const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
@@ -283,6 +286,7 @@ export function OpenSeadragonViewer({
         element: element.current,
         tileSources: tileSourceRef.current,
         showNavigationControl: false,
+        preserveImageSizeOnResize: true,
         showNavigator: !mountedNarrowViewport,
         navigatorPosition: 'BOTTOM_RIGHT',
         navigatorSizeRatio: 0.16,
@@ -352,16 +356,19 @@ export function OpenSeadragonViewer({
         },
         setImageViewport: (snapshot, transactionId) => {
           if (!hasOpenImage()) return
+          applyingViewport.current = true
+          userNavigation.current = false
           navigationTransaction.current = transactionId
           const center = readyViewer.viewport.imageToViewportCoordinates(snapshot.centerX, snapshot.centerY)
           const normalizedRotation = ((snapshot.rotation % 360) + 360) % 360
-          const displayRotation = Math.round(normalizedRotation)
+          const displayRotation = normalizedRotation
           readyViewer.viewport.panTo(center, true)
           readyViewer.viewport.zoomTo(readyViewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
           readyViewer.viewport.setRotation(displayRotation)
-          setRotation(displayRotation)
+          setRotation(Number(displayRotation.toFixed(1)) % 360)
           readyViewer.viewport.applyConstraints(true)
           updateScale()
+          applyingViewport.current = false
         },
       })
       const handleOpen = () => {
@@ -377,7 +384,7 @@ export function OpenSeadragonViewer({
       }
       const handleTileLoaded = () => setPosterVisible(false)
       const reportViewport = () => {
-        if (!viewer) return
+        if (!viewer || (!navigationTransaction.current && !userNavigation.current)) return
         const center = viewer.viewport.viewportToImageCoordinates(viewer.viewport.getCenter(true))
         viewportChangeRef.current?.({
           centerX: center.x,
@@ -385,7 +392,6 @@ export function OpenSeadragonViewer({
           imageZoom: viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)),
           rotation: viewer.viewport.getRotation(),
         }, navigationTransaction.current)
-        navigationTransaction.current = undefined
       }
       const handleTileLoadFailed = () => {
         windowFailures.current += 1
@@ -396,6 +402,8 @@ export function OpenSeadragonViewer({
       viewer.addHandler('open', handleOpen)
       viewer.addHandler('tile-loaded', handleTileLoaded)
       viewer.addHandler('animation-finish', () => { updateScale(); reportViewport() })
+      viewer.addHandler('after-resize', () => { window.requestAnimationFrame(() => { if (viewerRef.current === readyViewer) updateScale() }) })
+      viewer.addHandler('rotate', () => { if (!applyingViewport.current) reportViewport() })
       viewer.addHandler('open-failed', () => {
         reportLoadingError()
         scheduleReconnect()
@@ -450,6 +458,8 @@ export function OpenSeadragonViewer({
       viewer?.removeAllHandlers('open')
       viewer?.removeAllHandlers('tile-loaded')
       viewer?.removeAllHandlers('animation-finish')
+      viewer?.removeAllHandlers('rotate')
+      viewer?.removeAllHandlers('after-resize')
       viewer?.removeAllHandlers('open-failed')
       viewer?.removeAllHandlers('tile-load-failed')
       viewer?.destroy()
@@ -457,7 +467,12 @@ export function OpenSeadragonViewer({
       onDisposeRef.current?.()
     }
   }, [applyRotation, attachViewerAttachment, detachViewerAttachment])
-  return <div className="osd-surface" data-tile-source={tileSource} style={{ position: 'relative' }}>
+  return <div className="osd-surface" onPointerDownCapture={() => { navigationTransaction.current = undefined; userNavigation.current = true }} onWheelCapture={() => { navigationTransaction.current = undefined; userNavigation.current = true }} onKeyDownCapture={() => { navigationTransaction.current = undefined; userNavigation.current = true }} data-tile-source={tileSource} style={{ position: 'relative' }}>
+    <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}><defs><filter id={gammaFilterId} colorInterpolationFilters="sRGB"><feComponentTransfer>
+      <feFuncR type="gamma" amplitude="1" exponent={1 / displayAdjustments.gamma} offset="0" />
+      <feFuncG type="gamma" amplitude="1" exponent={1 / displayAdjustments.gamma} offset="0" />
+      <feFuncB type="gamma" amplitude="1" exponent={1 / displayAdjustments.gamma} offset="0" />
+    </feComponentTransfer></filter></defs></svg>
     {posterVisible && posterUrl ? <img
       className="viewer-poster"
       src={posterUrl}
@@ -465,7 +480,7 @@ export function OpenSeadragonViewer({
       fetchPriority="high"
       decoding="async"
     /> : null}
-    <div ref={element} style={{ position: 'absolute', inset: 0, filter: `brightness(${displayAdjustments.brightness / Math.sqrt(displayAdjustments.gamma)}) contrast(${displayAdjustments.contrast})` }} />
+    <div ref={element} style={{ position: 'absolute', inset: 0, filter: `url(#${gammaFilterId}) brightness(${displayAdjustments.brightness}) contrast(${displayAdjustments.contrast})` }} />
     {showLoadingMode ? <label className="viewer-loading-mode">
       <span>Tile detail</span>
       <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>

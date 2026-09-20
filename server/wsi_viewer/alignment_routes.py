@@ -35,7 +35,13 @@ class ComparisonRequest(BaseModel):
 
 
 class CorrectionRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, allow_inf_nan=False)
+    version: int = Field(ge=1)
+    reference_slide_id: str | None = Field(default=None, alias="referenceSlideId")
+    preview_only: bool = Field(default=False, alias="previewOnly")
+    moving_points: list[tuple[float, float]] = Field(
+        alias="movingPoints", min_length=3, max_length=20
+    )
     reference_points: list[tuple[float, float]] = Field(
         alias="referencePoints", min_length=3, max_length=20
     )
@@ -46,9 +52,6 @@ class ComparisonUpdateRequest(BaseModel):
     version: int = Field(ge=1)
     reference_slide_id: str | None = Field(default=None, alias="referenceSlideId")
     anchors: dict[str, str] | None = None
-    moving_points: list[tuple[float, float]] = Field(
-        alias="movingPoints", min_length=3, max_length=20
-    )
 
 
 def _error(code: str, http_status: int = 422) -> HTTPException:
@@ -381,6 +384,24 @@ def register_alignment_routes(
             or slide_id == item.reference_slide_id
         ):
             raise _error("COMPARISON_MEMBER_NOT_FOUND", 404)
+        if payload.version != item.version:
+            raise _error("COMPARISON_VERSION_CONFLICT", 409)
+        anchor_id = payload.reference_slide_id or item.reference_slide_id
+        if anchor_id not in item.member_slide_ids or anchor_id == slide_id:
+            raise _error("REFERENCE_NOT_MEMBER")
+        members = {slide.id: slide for slide in _members(database, item)}
+        for member_id, points in (
+            (anchor_id, payload.reference_points),
+            (slide_id, payload.moving_points),
+        ):
+            metadata = members[member_id].slide_metadata or {}
+            width, height = metadata.get("width"), metadata.get("height")
+            if (
+                not width
+                or not height
+                or any(not (0 <= x < width and 0 <= y < height) for x, y in points)
+            ):
+                raise _error("LANDMARK_OUTSIDE_SLIDE")
         if len(payload.reference_points) != len(payload.moving_points):
             raise _error("LANDMARK_COUNT_MISMATCH")
         transform, _ = cv2.estimateAffinePartial2D(
@@ -418,6 +439,8 @@ def register_alignment_routes(
         registrations[slide_id] = {
             "status": "ready",
             "provenance": "manual",
+            "anchorSlideId": anchor_id,
+            "coordinateReferenceId": anchor_id,
             "movingToReference": transform.tolist(),
             "referenceSupport": None,
             "movingSupport": None,
@@ -436,6 +459,25 @@ def register_alignment_routes(
                 "withheldCheck": "manual-preview",
             },
         }
+        if payload.preview_only:
+            preview = _json(item, list(members.values()))
+            for member in preview["members"]:
+                if member["slideId"] == slide_id:
+                    member["registration"] = registrations[slide_id]
+            return preview
+        # Maps depending on a corrected anchor must not retain stale coordinates.
+        affected = {slide_id}
+        while True:
+            downstream = {
+                key
+                for key, value in registrations.items()
+                if key not in affected and value.get("anchorSlideId") in affected
+            }
+            if not downstream:
+                break
+            affected.update(downstream)
+        for key in affected - {slide_id}:
+            registrations.pop(key, None)
         item.registrations = registrations
         item.version += 1
         database.add(
@@ -444,13 +486,18 @@ def register_alignment_routes(
                 slide_id=slide_id,
                 set_version=item.version,
                 source_version=item.source_versions.get(slide_id),
-                anchor_slide_id=item.reference_slide_id,
+                anchor_slide_id=anchor_id,
                 algorithm_version="piecewise-affine-v1",
                 provenance="manual",
                 registration=registrations[slide_id],
             )
         )
-        item.status = "ready" if len(registrations) == len(item.member_slide_ids) - 1 else "partial"
+        item.status = (
+            "ready"
+            if len(registrations) == len(item.member_slide_ids) - 1
+            and all(value.get("status") == "ready" for value in registrations.values())
+            else "partial"
+        )
         database.commit()
         return _json(item, _members(database, item))
 

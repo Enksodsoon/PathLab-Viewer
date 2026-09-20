@@ -210,3 +210,72 @@ def test_shared_collection_lists_only_fully_authorized_comparisons(tmp_path: Pat
             ).status_code
             == 404
         )
+
+
+def test_correction_preview_save_and_stale_write(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Correction test",
+                "slideIds": ["slide-1", "slide-2", "slide-3"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        url = f"/api/v1/admin/comparison-sets/{created['id']}"
+        payload = {
+            "version": created["version"],
+            "referenceSlideId": "slide-2",
+            "referencePoints": [[100, 100], [500, 100], [100, 500]],
+            "movingPoints": [[120, 110], [520, 110], [120, 510]],
+            "previewOnly": True,
+        }
+        preview = client.put(url + "/corrections/slide-3", headers=headers, json=payload)
+        assert preview.status_code == 200, preview.text
+        assert preview.json()["members"][2]["registration"]["coordinateReferenceId"] == "slide-2"
+        assert client.get(url).json()["members"][2]["registration"] is None
+        payload["previewOnly"] = False
+        saved = client.put(url + "/corrections/slide-3", headers=headers, json=payload)
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["version"] == created["version"] + 1
+        assert client.get(url).json()["members"][2]["registration"]["provenance"] == "manual"
+        assert (
+            client.put(url + "/corrections/slide-3", headers=headers, json=payload).status_code
+            == 409
+        )
+        assert len(client.get(url + "/revisions").json()) == 1
+        # Updating anchors must not incorrectly require movingPoints.
+        updated = client.patch(
+            url,
+            headers=headers,
+            json={"version": saved.json()["version"], "anchors": {"slide-3": "slide-2"}},
+        )
+        assert updated.status_code == 200, updated.text
+
+
+def test_correction_rejects_collinear_and_out_of_bounds_points(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Correction test",
+                "slideIds": ["slide-1", "slide-2"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        url = f"/api/v1/admin/comparison-sets/{created['id']}/corrections/slide-2"
+        for points in ([[100, 100], [200, 200], [300, 300]], [[100, 100], [1200, 100], [100, 500]]):
+            response = client.put(
+                url,
+                headers=headers,
+                json={
+                    "version": created["version"],
+                    "referencePoints": points,
+                    "movingPoints": points,
+                },
+            )
+            assert response.status_code == 422

@@ -635,6 +635,26 @@ def _component_seed(
     return scores[0][1], scores[0][0], scores[0][0] - second, matched_count
 
 
+def _mutual_matches(
+    moving_descriptors: np.ndarray, reference_descriptors: np.ndarray, ratio: float
+) -> list[Any]:
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
+    forward = matcher.knnMatch(moving_descriptors, reference_descriptors, k=2)
+    reverse = matcher.knnMatch(reference_descriptors, moving_descriptors, k=2)
+    reciprocal = {
+        pair[0].queryIdx: pair[0].trainIdx
+        for pair in reverse
+        if len(pair) == 2 and pair[0].distance < ratio * pair[1].distance
+    }
+    return [
+        pair[0]
+        for pair in forward
+        if len(pair) == 2
+        and pair[0].distance < ratio * pair[1].distance
+        and reciprocal.get(pair[0].trainIdx) == pair[0].queryIdx
+    ]
+
+
 def _coarse_refined_result(
     reference_structure: np.ndarray,
     reference_mask: np.ndarray,
@@ -691,14 +711,7 @@ def _coarse_refined_result(
     moving_keys, moving_descriptors = detector.detectAndCompute(warped_structure, warped_mask)
     if reference_descriptors is None or moving_descriptors is None:
         return outline_result()
-    candidates = cv2.BFMatcher(cv2.NORM_HAMMING).knnMatch(
-        moving_descriptors, reference_descriptors, k=2
-    )
-    matches = [
-        pair[0]
-        for pair in candidates
-        if len(pair) == 2 and pair[0].distance < 0.82 * pair[1].distance
-    ]
+    matches = _mutual_matches(moving_descriptors, reference_descriptors, 0.72)
     if len(matches) < 16:
         return outline_result()
     moving_points = np.float32([moving_keys[item.queryIdx].pt for item in matches])
@@ -733,8 +746,8 @@ def _coarse_refined_result(
     # Require independent local anchors after strong outline agreement, while
     # allowing stain and section-depth changes to remove most feature matches.
     if (
-        inlier_count < 4
-        or ratio < 0.07
+        inlier_count < 10
+        or ratio < 0.28
         or not 0.65 <= refined_scale <= 1.5
         or spatial_coverage < 0.002
     ):
@@ -777,7 +790,8 @@ def _coarse_refined_result(
         triangles=triangles,
         evidence={
             "mode": "matched-regions",
-            "anatomicalMatchCount": len(controls),
+            "featureMatchCount": len(controls),
+            "anatomicalMatchCount": 0,
             "triangleCount": len(triangles),
             "outlineOverlap": round(overlap, 6),
         },
@@ -812,13 +826,7 @@ def register_pair(
             moving_scale,
         )
 
-    matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
-    candidates = matcher.knnMatch(moving_descriptors, reference_descriptors, k=2)
-    matches = [
-        pair[0]
-        for pair in candidates
-        if len(pair) == 2 and pair[0].distance < 0.72 * pair[1].distance
-    ]
+    matches = _mutual_matches(moving_descriptors, reference_descriptors, 0.72)
     if len(matches) < 10:
         return _coarse_refined_result(
             reference_structure,
@@ -921,7 +929,8 @@ def register_pair(
         triangles=triangles,
         evidence={
             "mode": "matched-regions",
-            "anatomicalMatchCount": len(controls),
+            "featureMatchCount": len(controls),
+            "anatomicalMatchCount": 0,
             "triangleCount": len(triangles),
             "withheldCheck": "pending-independent-landmarks",
         },

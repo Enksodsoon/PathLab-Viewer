@@ -69,3 +69,46 @@ it('fails closed when an unaligned slide tries to synchronize', async () => {
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
   expect(screen.getByRole('status')).toHaveTextContent('Synchronization suspended for Slide 5 because reliable correspondence is unavailable.')
 })
+
+
+it('activates an already open tray slide instead of duplicating its viewer', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'IHC 1Slide 2' }))
+  expect(screen.getAllByLabelText('Viewer /tiles/1.dzi')).toHaveLength(1)
+  expect(screen.getAllByLabelText('Viewer /tiles/2.dzi')).toHaveLength(1)
+  await user.click(screen.getByRole('button', { name: 'IHC 2Slide 3' }))
+  expect(screen.getByRole('combobox', { name: 'Slide shown in pane 2' })).toHaveValue('slide-3')
+})
+
+it('tolerates invalid persisted pane data', async () => {
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', '{}')
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
+})
+
+
+it('unmounts hidden viewers when maximizing and restores them afterwards', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Maximize Slide 2 pane' }))
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(1)
+  expect(screen.getByLabelText('Viewer /tiles/2.dzi')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Restore Slide 2 pane' }))
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
+})
+
+it('opens a correction with independent panes and requires preview before save', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Correct alignment' }))
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('independent')
+  expect(screen.getByRole('button', { name: 'Save correction' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Preview correction' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
+  expect(screen.queryByRole('button', { name: 'Record point pair' })).not.toBeInTheDocument()
+})

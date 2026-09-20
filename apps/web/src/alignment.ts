@@ -37,7 +37,7 @@ export function mapComparisonPoint(point: Point, sourceToReference: AffineTransf
   return targetToReference ? apply(referencePoint, inverse(targetToReference)) : referencePoint
 }
 
-function barycentric(point: Point, triangle: [Point, Point, Point]): Point | null {
+function barycentric(point: Point, triangle: [Point, Point, Point]): [number, number, number] | null {
   const [[ax, ay], [bx, by], [cx, cy]] = triangle
   const determinant = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
   if (Math.abs(determinant) < 1e-12) return null

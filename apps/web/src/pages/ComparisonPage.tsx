@@ -2,7 +2,7 @@ import { Plus, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { ApiError, getComparisonSet, getSharedComparisonSet, reregisterComparisonSet } from '../api'
+import { ApiError, correctComparisonSet, getComparisonSet, getSharedComparisonSet, reregisterComparisonSet } from '../api'
 import { alignmentViewDelta, hasLocalEvidence, intersectSupport, localAlignmentViewDelta, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapSupportBounds, normalizeRotation, type Support } from '../alignment'
 import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
@@ -14,29 +14,14 @@ const MAX_PANES = 4
 type AlignmentMode = 'independent' | 'matched' | 'approximate'
 type ZoomMode = 'physical' | 'tissue'
 
-function transform(member: ComparisonMember, referenceId: string) {
-  return member.slideId === referenceId ? null : member.registration?.movingToReference ?? null
-}
-
-function localRegistration(member: ComparisonMember, referenceId: string) {
-  return member.slideId === referenceId ? null : member.registration
-}
 
 function pairRegistrations(source: ComparisonMember, target: ComparisonMember, primaryReferenceId: string) {
   const sourceRegistration = source.slideId === primaryReferenceId ? null : source.registration
   const targetRegistration = target.slideId === primaryReferenceId ? null : target.registration
-  if (source.slideId === targetRegistration?.anchorSlideId) return [null, targetRegistration] as const
-  if (target.slideId === sourceRegistration?.anchorSlideId) return [sourceRegistration, null] as const
-  if (sourceRegistration?.anchorSlideId && sourceRegistration.anchorSlideId === targetRegistration?.anchorSlideId) {
-    return [sourceRegistration, targetRegistration] as const
-  }
-  const sourceCoordinates = source.slideId === primaryReferenceId
-    ? primaryReferenceId
-    : sourceRegistration?.coordinateReferenceId ?? primaryReferenceId
-  const targetCoordinates = target.slideId === primaryReferenceId
-    ? primaryReferenceId
-    : targetRegistration?.coordinateReferenceId ?? primaryReferenceId
-  return sourceCoordinates === primaryReferenceId && targetCoordinates === primaryReferenceId
+  const coordinates = (registration: typeof sourceRegistration) => registration?.coordinateReferenceId ?? registration?.anchorSlideId ?? primaryReferenceId
+  if (source.slideId === coordinates(targetRegistration)) return [null, targetRegistration] as const
+  if (target.slideId === coordinates(sourceRegistration)) return [sourceRegistration, null] as const
+  return coordinates(sourceRegistration) === coordinates(targetRegistration)
     ? [sourceRegistration, targetRegistration] as const
     : null
 }
@@ -52,38 +37,31 @@ function matchedFocusBounds(source: ComparisonMember, target: ComparisonMember, 
     (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
     - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]),
   )
-  const triangle = [...cells]
-    .sort((left, right) => left.residual - right.residual || area(right.points) - area(left.points))[0].points
+  const sorted = [...cells].sort((left, right) => left.residual - right.residual || area(right.points) - area(left.points))
+  const candidate = sorted.find(({ points }) => mapLocalComparisonPoint([
+    points.reduce((sum, point) => sum + point[0], 0) / 3,
+    points.reduce((sum, point) => sum + point[1], 0) / 3,
+  ], sourceRegistration, targetRegistration))
+  if (!candidate) return null
+  const triangle = candidate.points
   const centerX = triangle.reduce((sum, point) => sum + point[0], 0) / 3
   const centerY = triangle.reduce((sum, point) => sum + point[1], 0) / 3
   const extent = Math.max(160, Math.min(source.metadata.width, source.metadata.height) * 0.08)
   return [centerX - extent / 2, centerY - extent / 2, centerX + extent / 2, centerY + extent / 2]
 }
 
-function commonReferenceBounds(comparison: ComparisonSet, slideIds: string[]): Exclude<Support, null> | null {
-  const reference = comparison.members.find((member) => member.slideId === comparison.referenceSlideId)
-  if (!reference?.metadata) return null
-  let common: Exclude<Support, null> = [0, 0, reference.metadata.width, reference.metadata.height]
-  let eligibleTargets = 0
-  for (const slideId of slideIds) {
-    if (slideId === comparison.referenceSlideId) continue
-    const member = comparison.members.find((candidate) => candidate.slideId === slideId)
-    const registration = member?.registration
-    if (!member || registration?.status !== 'ready' || !registration.movingToReference) continue
-    if (!registration.movingSupport && !member.metadata) continue
-    const movingSupport: Exclude<Support, null> = registration.movingSupport
-      ?? [0, 0, member.metadata!.width, member.metadata!.height]
-    const mappedMoving = mapSupportBounds(movingSupport, registration.movingToReference)
-    const referenceSupport: Exclude<Support, null> = registration.referenceSupport
-      ?? [0, 0, reference.metadata.width, reference.metadata.height]
-    const eligible = intersectSupport(mappedMoving, referenceSupport)
-    if (!eligible) continue
-    const next = intersectSupport(common, eligible)
-    if (!next) return null
-    common = next
-    eligibleTargets += 1
-  }
-  return eligibleTargets ? common : null
+function overviewFocusBounds(source: ComparisonMember, target: ComparisonMember, primaryReferenceId: string): Exclude<Support, null> | null {
+  const pair = pairRegistrations(source, target, primaryReferenceId)
+  if (!pair || !source.metadata || !target.metadata) return null
+  const [sourceMap, targetMap] = pair
+  if ([sourceMap, targetMap].some((registration) => registration && !registration.movingToReference)) return null
+  const sourceBounds: Exclude<Support, null> = sourceMap?.movingSupport ?? [0, 0, source.metadata.width, source.metadata.height]
+  const targetBounds: Exclude<Support, null> = targetMap?.movingSupport ?? [0, 0, target.metadata.width, target.metadata.height]
+  const common = intersectSupport(
+    sourceMap?.movingToReference ? mapSupportBounds(sourceBounds, sourceMap.movingToReference) : sourceBounds,
+    targetMap?.movingToReference ? mapSupportBounds(targetBounds, targetMap.movingToReference) : targetBounds,
+  )
+  return common ? mapComparisonBounds(common, null, sourceMap?.movingToReference ?? null) : null
 }
 
 export function ComparisonPage() {
@@ -103,10 +81,16 @@ export function ComparisonPage() {
   const [display, setDisplay] = useState<Record<string, { brightness: number; contrast: number; gamma: number }>>({})
   const [notice, setNotice] = useState('')
   const [registering, setRegistering] = useState(false)
+  const [correction, setCorrection] = useState<{ original: ComparisonSet; referenceId: string; movingId: string; points: Array<{ reference: [number, number]; moving: [number, number] }>; preview: boolean } | null>(null)
+  const [correctionBusy, setCorrectionBusy] = useState(false)
+  const [correctionError, setCorrectionError] = useState('')
+  const [suspendedPanes, setSuspendedPanes] = useState<Set<string>>(() => new Set())
   const handles = useRef(new Map<string, ViewerHandle>())
+  const savedViewports = useRef(new Map<string, ImageViewport>())
   const openedSlides = useRef(new Set<string>())
   const initializedPanes = useRef('')
   const drivingPane = useRef<string | null>(null)
+  const hasInitialField = useRef(false)
   const activeTransaction = useRef<string | null>(null)
   useEffect(() => {
     let active = true
@@ -118,7 +102,7 @@ export function ComparisonPage() {
       let saved: string[] = []
       try { saved = JSON.parse(sessionStorage.getItem(viewStorageKey) ?? '[]') as string[] } catch { saved = [] }
       const available = new Set(value.members.map((member) => member.slideId))
-      const restored = saved.filter((slideId) => available.has(slideId)).slice(0, MAX_PANES)
+      const restored = Array.isArray(saved) ? [...new Set(saved)].filter((slideId) => available.has(slideId)).slice(0, MAX_PANES) : []
       setPanes(restored.length ? restored : value.members.slice(0, 2).map((member) => member.slideId))
     }).catch((caught) => {
       if (!active) return
@@ -132,7 +116,7 @@ export function ComparisonPage() {
   }, [comparisonId, location.hash, location.pathname, location.search, navigate, publicId, viewStorageKey])
   useEffect(() => {
     if (!comparison || !panes.length) return
-    sessionStorage.setItem(viewStorageKey, JSON.stringify(panes))
+    try { sessionStorage.setItem(viewStorageKey, JSON.stringify(panes)) } catch { /* Storage may be disabled. Viewing remains available. */ }
   }, [comparison, panes, viewStorageKey])
   useEffect(() => {
     if (!comparison || !['queued', 'running'].includes(comparison.status)) return
@@ -145,7 +129,7 @@ export function ComparisonPage() {
   const synchronize = useCallback((source: ComparisonMember, snapshot: ImageViewport, incomingTransaction?: string) => {
     if (!comparison || !linked || alignmentMode === 'independent') return
     if (unlinkedPanes.has(source.slideId)) return
-    if (incomingTransaction && incomingTransaction === activeTransaction.current) return
+    if (incomingTransaction) return
     drivingPane.current = source.slideId
     const transactionId = `${source.slideId}:${performance.now().toFixed(3)}`
     activeTransaction.current = transactionId
@@ -153,15 +137,18 @@ export function ComparisonPage() {
       .find((member) => member.slideId === targetId)?.registration?.anchorSlideId === source.slideId)
     if (source.slideId !== comparison.referenceSlideId && !sourceIsLocalAnchor) {
       if (source.registration?.status === 'rejected' || !source.registration) {
+        setSuspendedPanes(new Set(panes))
         setNotice(`Synchronization suspended because ${source.displayName} is not aligned.`)
         return
       }
       if (alignmentMode === 'matched' && !hasLocalEvidence(source.registration)) {
+        setSuspendedPanes(new Set(panes))
         setNotice(`Synchronization suspended because ${source.displayName} has only overview alignment.`)
         return
       }
     }
     const suspended: string[] = []
+    const suspendedIds = new Set<string>()
     for (const targetId of panes) {
       if (targetId === source.slideId) continue
       if (unlinkedPanes.has(targetId)) continue
@@ -171,6 +158,7 @@ export function ComparisonPage() {
       const pair = pairRegistrations(source, target, comparison.referenceSlideId)
       if (!pair) {
         suspended.push(target.displayName)
+        suspendedIds.add(targetId)
         continue
       }
       const [sourceRegistration, targetRegistration] = pair
@@ -179,6 +167,7 @@ export function ComparisonPage() {
         || (alignmentMode === 'approximate' && registration?.status === 'approximate'))
       if (!usable || (alignmentMode === 'matched' && registrations.some((registration) => !hasLocalEvidence(registration)))) {
         suspended.push(target.displayName)
+        suspendedIds.add(targetId)
         continue
       }
       const referencePoint = alignmentMode === 'matched'
@@ -186,6 +175,7 @@ export function ComparisonPage() {
         : mapComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration?.movingToReference ?? null, null)
       if (!referencePoint) {
         suspended.push(target.displayName)
+        suspendedIds.add(targetId)
         continue
       }
       const targetPoint = alignmentMode === 'matched'
@@ -193,9 +183,10 @@ export function ComparisonPage() {
         : mapComparisonPoint(referencePoint, null, targetRegistration?.movingToReference ?? null)
       const viewDelta = alignmentMode === 'matched'
         ? localAlignmentViewDelta([snapshot.centerX, snapshot.centerY], sourceRegistration, targetRegistration)
-        : alignmentViewDelta(transform(source, comparison.referenceSlideId), transform(target, comparison.referenceSlideId))
+        : alignmentViewDelta(sourceRegistration?.movingToReference ?? null, targetRegistration?.movingToReference ?? null)
       if (!targetPoint || !viewDelta) {
         suspended.push(target.displayName)
+        suspendedIds.add(targetId)
         continue
       }
       const sourceMpp = source.metadata?.physicalSizeX
@@ -203,21 +194,27 @@ export function ComparisonPage() {
       const zoomScale = zoomMode === 'physical' && sourceMpp && targetMpp
         ? targetMpp / sourceMpp
         : viewDelta.zoomScale
-      handles.current.get(targetId)?.setImageViewport({
+      const targetViewport = {
         centerX: targetPoint[0], centerY: targetPoint[1],
         imageZoom: snapshot.imageZoom * zoomScale,
         rotation: normalizeRotation(snapshot.rotation + viewDelta.rotation),
-      }, transactionId)
+      }
+      savedViewports.current.set(targetId, targetViewport)
+      handles.current.get(targetId)?.setImageViewport(targetViewport, transactionId)
     }
+    setSuspendedPanes(suspendedIds)
     setNotice(suspended.length ? `Synchronization suspended for ${suspended.join(', ')} because reliable correspondence is unavailable.` : '')
   }, [alignmentMode, comparison, linked, panes, unlinkedPanes, zoomMode])
   const alignOpenedPanes = useCallback(() => {
     if (!comparison || !linked) return
-    const sourceId = panes.find((id) => id === comparison.referenceSlideId && openedSlides.current.has(id))
+    const sourceId = panes.find((id) => id === drivingPane.current && openedSlides.current.has(id))
+      ?? panes.find((id) => id === comparison.referenceSlideId && openedSlides.current.has(id))
       ?? panes.find((id) => {
         const member = comparison.members.find((candidate) => candidate.slideId === id)
         return openedSlides.current.has(id) && member?.registration?.status === 'ready'
       })
+      ?? panes.find((id) => openedSlides.current.has(id) && panes.some((targetId) => comparison.members.find((member) => member.slideId === targetId)?.registration?.anchorSlideId === id))
+      ?? panes.find((id) => openedSlides.current.has(id))
     if (!sourceId) return
     const source = comparison.members.find((member) => member.slideId === sourceId)
     const handle = handles.current.get(sourceId)
@@ -242,11 +239,9 @@ export function ComparisonPage() {
       const matchedBounds = alignmentMode === 'matched' && other
         ? matchedFocusBounds(anchor, other, comparison.referenceSlideId)
         : null
-      const referenceBounds = matchedBounds ? null : commonReferenceBounds(comparison, opened)
-      const anchorBounds = matchedBounds ?? (referenceBounds
-        ? mapComparisonBounds(referenceBounds, null, transform(anchor, comparison.referenceSlideId))
-        : null)
-      if (anchorBounds) anchorHandle.fitImageBounds(anchorBounds)
+      const anchorBounds = matchedBounds ?? (alignmentMode === 'approximate' && other
+        ? overviewFocusBounds(anchor, other, comparison.referenceSlideId) : null)
+      if (anchorBounds && !hasInitialField.current) { anchorHandle.fitImageBounds(anchorBounds); hasInitialField.current = true; drivingPane.current = anchorId ?? null }
     }
     window.requestAnimationFrame(alignOpenedPanes)
   }, [alignOpenedPanes, alignmentMode, comparison, linked, panes])
@@ -267,20 +262,19 @@ export function ComparisonPage() {
     const anchor = handles.current.get(anchorId)
     const anchorMember = comparison?.members.find((member) => member.slideId === anchorId)
     const otherMember = comparison?.members.find((member) => panes.includes(member.slideId) && member.slideId !== anchorId)
-    const referenceBounds = comparison
-      ? commonReferenceBounds(comparison, panes.filter((id) => openedSlides.current.has(id)))
+    const bounds = comparison && anchorMember && otherMember
+      ? alignmentMode === 'matched'
+        ? matchedFocusBounds(anchorMember, otherMember, comparison.referenceSlideId)
+        : overviewFocusBounds(anchorMember, otherMember, comparison.referenceSlideId)
       : null
-    const bounds = comparison && anchorMember && otherMember && alignmentMode === 'matched'
-      ? matchedFocusBounds(anchorMember, otherMember, comparison.referenceSlideId)
-      : comparison && anchorMember && referenceBounds
-        ? mapComparisonBounds(referenceBounds, null, transform(anchorMember, comparison.referenceSlideId))
-        : null
     if (bounds) anchor?.fitImageBounds(bounds)
     else anchor?.home()
+    drivingPane.current = anchorId
     window.requestAnimationFrame(alignOpenedPanes)
   }, [alignOpenedPanes, alignmentMode, comparison, linked, panes])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (correction) return
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return
       if (event.key === '1' || event.key === '2' || event.key === '4') {
         const requested = Math.min(Number(event.key), comparison?.members.length ?? 1)
@@ -294,21 +288,58 @@ export function ComparisonPage() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [comparison, resetView])
+  }, [comparison, correction, resetView])
+  const submitCorrection = async (previewOnly: boolean) => {
+    if (!comparison || !correction) return
+    setCorrectionBusy(true); setCorrectionError('')
+    try {
+      const result = await correctComparisonSet(comparison.id, correction.movingId, {
+        version: correction.original.version, referenceSlideId: correction.referenceId,
+        referencePoints: correction.points.map((point) => point.reference),
+        movingPoints: correction.points.map((point) => point.moving), previewOnly,
+      })
+      setComparison(result); setLinked(true); setAlignmentMode('matched')
+      hasInitialField.current = false; initializedPanes.current = ''; drivingPane.current = correction.referenceId
+      if (previewOnly) setCorrection({ ...correction, preview: true })
+      else { setCorrection(null); setNotice('Manual correction saved. Support is limited to the area between your landmarks.') }
+    } catch (error) {
+      setCorrectionError(error instanceof ApiError && error.status === 409
+        ? 'This set changed. Cancel and reload before saving new landmarks.'
+        : 'Correction rejected. Use at least three non-collinear corresponding points spread across the same tissue.')
+    } finally { setCorrectionBusy(false) }
+  }
   if (!comparison && !notice) return <Loader label="Opening comparison…" size="large" fullscreen />
   if (!comparison) return <main className="viewer-message"><h1>{notice}</h1></main>
-  const setLayout = (count: number) => setPanes((current) => {
+  const setLayout = (count: number) => { setActivePane(0); setMaximizedPane(null); setPanes((current) => {
     const next = [...current]
     for (const member of comparison.members) if (next.length < count && !next.includes(member.slideId)) next.push(member.slideId)
     return next.slice(0, Math.min(count, comparison.members.length))
-  })
+  }) }
   const anchorIds = new Set(comparison.members.flatMap((member) => member.registration?.anchorSlideId ? [member.registration.anchorSlideId] : []))
   return <div className="comparison-shell">
-    <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><label className="comparison-toolbar-field"><span>Layout</span><select aria-label="Pane layout" value={panes.length} onChange={(event) => { setMaximizedPane(null); setLayout(Number(event.target.value)) }}><option value="1">1 pane</option><option value="2">2 panes</option><option value="4">4 panes</option></select></label><label className="comparison-toolbar-field"><span>Alignment</span><select aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; setAlignmentMode(mode); setLinked(mode !== 'independent') }}><option value="matched">Matched regions</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label><label className="comparison-toolbar-field"><span>Zoom</span><select aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">Equal µm/pixel</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" aria-pressed={linked} onClick={() => { setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}><span aria-hidden="true">{linked ? '⛓' : '⛓̸'}</span>{linked ? 'Views linked' : 'Views independent'}</button>{!publicId ? <button type="button" disabled={registering} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued' } : current); setNotice('Registration queued with the current anchors.') }).catch(() => setNotice('Registration could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Re-register'}</button> : null}<button type="button" onClick={resetView}><span aria-hidden="true">↻</span> Reset</button></header>
+    <header className="comparison-header"><Brand variant="library" /><div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div><label className="comparison-toolbar-field"><span>Layout</span><select disabled={!!correction} aria-label="Pane layout" value={panes.length} onChange={(event) => { setMaximizedPane(null); setLayout(Number(event.target.value)) }}><option value="1">1 pane</option><option value="2">2 panes</option><option value="4">4 panes</option></select></label><label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Matched regions</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label><label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">Equal µm/pixel</option><option value="tissue">Fit corresponding tissue</option></select></label><button type="button" disabled={!!correction} aria-pressed={linked} onClick={() => { setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}>{linked ? 'Views linked' : 'Views independent'}</button>{!publicId ? <button type="button" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued', members: current.members.map((member) => ({ ...member, registration: null })) } : current); setNotice('Registration queued with the current anchors.') }).catch(() => setNotice('Registration could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Re-register'}</button> : null}{!publicId ? <button type="button" disabled={!!correction || panes.length !== 2 || panes[1] === comparison.referenceSlideId} onClick={() => {
+      setCorrection({ original: comparison, referenceId: panes[0], movingId: panes[1], points: [], preview: false }); setCorrectionError(''); setLinked(false); setAlignmentMode('independent'); setNotice(''); setMaximizedPane(null)
+    }}>Correct alignment</button> : null}<button type="button" onClick={resetView}><span aria-hidden="true">↻</span> Reset</button></header>
     {notice ? <div className="comparison-notice" role="status">{notice}</div> : null}
-    <div className="comparison-workstation"><aside className="comparison-tray" aria-label="Case slides"><strong>Case slides</strong>{comparison.members.map((member) => <button type="button" key={member.slideId} data-active={panes.includes(member.slideId)} onClick={() => setPanes((current) => current.map((id, index) => index === activePane ? member.slideId : id))}><img src={member.thumbnailUrl} alt="" loading="lazy" /><span><b>{member.stain || 'Unspecified'}</b><small>{member.displayName}</small></span></button>)}</aside>
+    {correction ? <section className="comparison-correction" aria-label="Landmark correction">
+      <strong>{correction.preview ? 'Correction preview' : 'Mark corresponding tissue'}</strong>
+      <p>Left pane is the reference. Pan each image independently until the same anatomical point is under both crosshairs, then record the pair. Use at least three points spread across the tissue.</p>
+      <span>{correction.points.length} point pairs</span>
+      <button type="button" disabled={correctionBusy || correction.preview || correction.points.length >= 20} onClick={() => {
+        const reference = handles.current.get(correction.referenceId)?.getImageViewport(); const moving = handles.current.get(correction.movingId)?.getImageViewport()
+        if (reference && moving) setCorrection({ ...correction, points: [...correction.points, { reference: [reference.centerX, reference.centerY], moving: [moving.centerX, moving.centerY] }] })
+      }}>Record point pair</button>
+      <button type="button" disabled={correctionBusy || !correction.points.length} onClick={() => { setComparison(correction.original); setCorrection({ ...correction, points: correction.points.slice(0, -1), preview: false }); setLinked(false); setAlignmentMode('independent') }}>Undo last pair</button>
+      <button type="button" disabled={correctionBusy || correction.points.length < 3} onClick={() => void submitCorrection(true)}>Preview correction</button>
+      <button type="button" disabled={correctionBusy || !correction.preview} onClick={() => void submitCorrection(false)}>Save correction</button>
+      <button type="button" disabled={correctionBusy} onClick={() => { setComparison(correction.original); setCorrection(null); setCorrectionError(''); setLinked(false); setAlignmentMode('independent') }}>Cancel correction</button>
+      {correction.preview ? <p>Preview only. Inspect corresponding anatomy and the fit residual in Alignment quality before saving.</p> : null}
+      {correctionError ? <p role="alert">{correctionError}</p> : null}
+    </section> : null}
+    <div className="comparison-workstation"><aside className="comparison-tray" aria-label="Case slides"><strong>Case slides</strong>{comparison.members.map((member) => <button type="button" key={member.slideId} disabled={!!correction} data-active={panes.includes(member.slideId)} onClick={() => { const existing = panes.indexOf(member.slideId); if (existing >= 0) { setActivePane(existing); if (maximizedPane !== null) setMaximizedPane(existing); return } setPanes((current) => current.map((id, index) => index === Math.min(activePane, current.length - 1) ? member.slideId : id)) }}><img src={member.thumbnailUrl} alt="" loading="lazy" /><span><b>{member.stain || 'Unspecified'}</b><small>{member.displayName}</small></span></button>)}</aside>
     <main className={`comparison-grid comparison-grid--${panes.length}`} data-maximized={maximizedPane === null ? undefined : maximizedPane}>
       {panes.map((slideId, paneIndex) => {
+        if (maximizedPane !== null && maximizedPane !== paneIndex) return null
         const member = comparison.members.find((candidate) => candidate.slideId === slideId)!
         const aligned = member.slideId === comparison.referenceSlideId
           || anchorIds.has(member.slideId)
@@ -321,10 +352,11 @@ export function ComparisonPage() {
           : anchorIds.has(member.slideId)
             ? 'Reference anchor'
             : anchor && anchor.slideId !== comparison.referenceSlideId
-              ? `Locally aligned via ${anchor.displayName}`
-              : 'Locally aligned'
+              ? `Local map via ${anchor.displayName}`
+              : 'Local map available'
         const adjustments = display[slideId] ?? { brightness: 1, contrast: 1, gamma: 1 }
         const paneLinked = linked && !unlinkedPanes.has(slideId)
+        const suspended = paneLinked && suspendedPanes.has(slideId)
         const evidence = member.registration?.evidence
         const residuals = member.registration?.controlPoints
           ?.map((point) => point.errorPixels)
@@ -333,19 +365,21 @@ export function ComparisonPage() {
           ? [...residuals].sort((left, right) => left - right)[Math.floor(residuals.length / 2)]
           : null
         return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
-          <header><select aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned ? 'alignment-ready' : 'alignment-unavailable'}>{aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate only' : member.registration?.status === 'ready' ? 'Overview only' : 'Not aligned'}</span><button type="button" aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => setUnlinkedPanes((current) => { const next = new Set(current); if (next.has(slideId)) next.delete(slideId); else next.add(slideId); return next })}><span aria-hidden="true">{paneLinked ? '⛓' : '⛓̸'}</span></button><button type="button" aria-label={`${maximizedPane === paneIndex ? 'Restore' : 'Maximize'} ${member.displayName} pane`} onClick={() => setMaximizedPane((current) => current === paneIndex ? null : paneIndex)}>{maximizedPane === paneIndex ? '↙' : '↗'}</button>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => setPanes((current) => current.filter((_, index) => index !== paneIndex))}><X /></button> : null}</header>
+          <header><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => setPanes((current) => current.map((id, index) => index === paneIndex ? event.target.value : id))}>{comparison.members.filter((candidate) => !panes.includes(candidate.slideId) || candidate.slideId === slideId).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={aligned && !suspended ? 'alignment-ready' : 'alignment-unavailable'}>{suspended ? 'Sync suspended' : !paneLinked ? 'Independent' : aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate only' : member.registration?.status === 'ready' ? 'Overview only' : 'Not aligned'}</span><button type="button" disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => setUnlinkedPanes((current) => { const next = new Set(current); if (next.has(slideId)) next.delete(slideId); else next.add(slideId); return next })}><span aria-hidden="true">{paneLinked ? 'On' : 'Off'}</span></button><button type="button" disabled={!!correction} aria-label={`${maximizedPane === paneIndex ? 'Restore' : 'Maximize'} ${member.displayName} pane`} onClick={() => setMaximizedPane((current) => current === paneIndex ? null : paneIndex)}>{maximizedPane === paneIndex ? '↙' : '↗'}</button>{panes.length > 2 ? <button type="button" aria-label={`Close ${member.displayName} pane`} onClick={() => { setActivePane(0); setMaximizedPane(null); setPanes((current) => current.filter((_, index) => index !== paneIndex)) }}><X /></button> : null}</header>
           <OpenSeadragonViewer tileSource={member.tileSource} displayAdjustments={adjustments} onReady={(handle) => handles.current.set(slideId, handle)} onDispose={() => { handles.current.delete(slideId); openedSlides.current.delete(slideId) }} onOpen={() => {
             openedSlides.current.add(slideId)
+            const saved = savedViewports.current.get(slideId)
+            if (saved) handles.current.get(slideId)?.setImageViewport(saved, 'restore-field')
             initializeOpenedPanes()
-          }} micronsPerPixel={member.metadata?.physicalSizeX} onScaleChange={(microns, width) => setScaleBars((current) => ({ ...current, [slideId]: { microns, width } }))} onViewportChange={(snapshot, transactionId) => synchronize(member, snapshot, transactionId)} networkProfile={{ initialJobLimit: 2, maximumJobLimit: Math.max(1, Math.floor(8 / panes.length)) }} />
-          <div className="comparison-crosshair" aria-hidden="true" />
+          }} micronsPerPixel={member.metadata?.physicalSizeX} onScaleChange={(microns, width) => setScaleBars((current) => ({ ...current, [slideId]: { microns, width } }))} onViewportChange={(snapshot, transactionId) => { savedViewports.current.set(slideId, snapshot); synchronize(member, snapshot, transactionId) }} networkProfile={{ initialJobLimit: 2, maximumJobLimit: Math.max(1, Math.floor(8 / panes.length)) }} />
+          {(correction || (paneLinked && !suspended)) ? <div className="comparison-crosshair" aria-hidden="true" /> : null}
           {scaleBars[slideId] ? <div className="comparison-scale-bar" style={{ width: scaleBars[slideId].width }}><i /><span>{scaleBars[slideId].microns >= 1000 ? `${scaleBars[slideId].microns / 1000} mm` : `${scaleBars[slideId].microns} µm`}</span></div> : null}
           <details className="comparison-display"><summary>Display</summary><label>Brightness<input type="range" min="0.5" max="1.5" step="0.05" value={adjustments.brightness} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, brightness: Number(event.target.value) } }))} /></label><label>Contrast<input type="range" min="0.5" max="1.5" step="0.05" value={adjustments.contrast} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, contrast: Number(event.target.value) } }))} /></label><label>Gamma<input type="range" min="0.5" max="2" step="0.05" value={adjustments.gamma} onChange={(event) => setDisplay((current) => ({ ...current, [slideId]: { ...adjustments, gamma: Number(event.target.value) } }))} /></label><button type="button" onClick={() => setDisplay((current) => ({ ...current, [slideId]: { brightness: 1, contrast: 1, gamma: 1 } }))}>Reset display</button></details>
-          <details className="comparison-quality"><summary>Alignment quality</summary>{member.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{member.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{evidence?.anatomicalMatchCount ?? 0} anatomical matches</dd></div><div><dt>Map</dt><dd>{evidence?.triangleCount ?? member.registration?.triangles?.length ?? 0} accepted cells</dd></div><div><dt>Median residual</dt><dd>{medianResidual === null ? 'Not measured' : `${medianResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{member.registration?.provenance ?? 'none'}</dd></div></dl>}{member.registration?.reason ? <p>{member.registration.reason}</p> : null}</details>
+          <details className="comparison-quality"><summary>Alignment quality</summary>{member.slideId === comparison.referenceSlideId ? <p>Primary coordinate reference.</p> : <dl><div><dt>Mode</dt><dd>{member.registration?.status ?? 'unavailable'}</dd></div><div><dt>Evidence</dt><dd>{evidence?.featureMatchCount ?? evidence?.anatomicalMatchCount ?? 0} {member.registration?.provenance === 'manual' ? 'manual landmarks' : 'feature candidates'}</dd></div><div><dt>Map</dt><dd>{evidence?.triangleCount ?? member.registration?.triangles?.length ?? 0} accepted cells</dd></div><div><dt>Fit residual (not accuracy)</dt><dd>{medianResidual === null ? 'Not measured' : `${medianResidual.toFixed(1)} px`}</dd></div><div><dt>Provenance</dt><dd>{member.registration?.provenance ?? 'none'}</dd></div></dl>}{member.registration?.reason ? <p>{member.registration.reason}</p> : null}</details>
           {!member.metadata?.physicalSizeX ? <small className="comparison-relative-scale">Relative scale: physical pixel size unavailable</small> : null}
         </section>
       })}
     </main></div>
-    {panes.length < Math.min(MAX_PANES, comparison.members.length) ? <button type="button" className="comparison-add-pane" onClick={() => { const next = comparison.members.find((member) => !panes.includes(member.slideId)); if (next) setPanes((current) => [...current, next.slideId]) }}><Plus /> Add pane</button> : null}
+    {panes.length < Math.min(MAX_PANES, comparison.members.length) ? <button type="button" className="comparison-add-pane" disabled={!!correction} onClick={() => { const next = comparison.members.find((member) => !panes.includes(member.slideId)); if (next) setPanes((current) => [...current, next.slideId]) }}><Plus /> Add pane</button> : null}
   </div>
 }

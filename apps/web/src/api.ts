@@ -641,3 +641,13 @@ export async function revokeLibraryShare(shareId: string): Promise<void> {
     }),
   )
 }
+
+
+export async function correctComparisonSet(id: string, slideId: string, payload: {
+  version: number; referenceSlideId: string; referencePoints: [number, number][];
+  movingPoints: [number, number][]; previewOnly: boolean
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/corrections/${encodeURIComponent(slideId)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }))
+}

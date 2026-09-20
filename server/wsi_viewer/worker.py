@@ -4,6 +4,7 @@ import logging
 import math
 import multiprocessing
 import os
+import queue
 import shutil
 import signal
 import stat
@@ -25,9 +26,6 @@ from sqlalchemy.sql import Select
 
 from .alignment import (
     AlignmentRejected,
-    compose_transforms,
-    map_bounds,
-    map_registration_point,
     register_pair,
     rescale_registration,
 )
@@ -445,6 +443,7 @@ def _run_alignment_bounded(
     *,
     timeout_seconds: int,
     memory_bytes: int,
+    heartbeat: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     context = multiprocessing.get_context("spawn")
     output = context.Queue(maxsize=1)
@@ -461,19 +460,27 @@ def _run_alignment_bounded(
     )
     process.start()
     started = time.monotonic()
+    last_heartbeat = started
     try:
-        while process.is_alive():
+        # Drain the result while the child is alive: Queue's feeder can block
+        # child shutdown until a large coordinate map has been consumed.
+        while True:
+            if heartbeat and time.monotonic() - last_heartbeat >= 10:
+                heartbeat()
+                last_heartbeat = time.monotonic()
             if time.monotonic() - started > timeout_seconds:
                 process.terminate()
                 raise AlignmentRejected("registration exceeded the pair timeout")
             if _process_rss_bytes(process.pid or 0) > memory_bytes:
                 process.terminate()
                 raise AlignmentRejected("registration exceeded the memory ceiling")
-            process.join(0.2)
-        process.join()
-        if output.empty():
-            raise AlignmentRejected("registration process ended without a result")
-        result = output.get_nowait()
+            try:
+                result = output.get(timeout=0.2)
+                break
+            except queue.Empty:
+                if not process.is_alive():
+                    raise AlignmentRejected("registration process ended without a result") from None
+        process.join(2)
         if not result.get("ok"):
             raise AlignmentRejected(result.get("error") or "registration failed")
         return cast(dict[str, Any], result["result"])
@@ -562,11 +569,6 @@ def process_next(
                 return True
             assert reference is not None
             assert primary_reference is not None
-            anchor_registration = (
-                comparison.registrations.get(reference.id)
-                if reference.id != primary_reference.id
-                else None
-            )
             checkpoint.update({"progress": 10, "stage": "loading-overviews", "processedPatches": 0})
             job.checkpoint = checkpoint
             comparison.status = "running"
@@ -596,6 +598,16 @@ def process_next(
                     raise AlignmentRejected(
                         "full slide dimensions unavailable for coordinate mapping"
                     ) from error
+
+                def renew_alignment_lease() -> None:
+                    database.refresh(job)
+                    database.refresh(comparison)
+                    if job.cancellation_requested_at or comparison.version != expected_version:
+                        raise AlignmentRejected("registration cancelled or superseded")
+                    job.heartbeat_at = datetime.now(UTC)
+                    job.lease_expires_at = datetime.now(UTC) + timedelta(seconds=60)
+                    database.commit()
+
                 limits = job.resource_limits or {}
                 result_json = _run_alignment_bounded(
                     reference_derivative,
@@ -604,6 +616,7 @@ def process_next(
                     moving_full_size,
                     timeout_seconds=min(600, int(limits.get("timeoutSeconds", 600))),
                     memory_bytes=min(2 * 1024**3, int(limits.get("memoryBytes", 2 * 1024**3))),
+                    heartbeat=renew_alignment_lease,
                 )
                 checkpoint.update(
                     {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 2}
@@ -611,68 +624,9 @@ def process_next(
                 job.checkpoint = checkpoint
                 confidence = float(result_json["confidence"])
                 coordinate_reference_id = reference.id
-                if anchor_registration is not None and anchor_registration.get("status") == "ready":
-                    result_json["movingToReference"] = compose_transforms(
-                        anchor_registration["movingToReference"],
-                        result_json["movingToReference"],
-                    )
-                    result_json["referenceSupport"] = list(
-                        map_bounds(
-                            anchor_registration["movingToReference"],
-                            tuple(result_json["referenceSupport"]),
-                        )
-                    )
-                    result_json["controlPoints"] = [
-                        {
-                            **point,
-                            "reference": list(
-                                map_registration_point(
-                                    anchor_registration,
-                                    float(point["reference"][0]),
-                                    float(point["reference"][1]),
-                                )
-                            ),
-                        }
-                        for point in result_json.get("controlPoints", [])
-                    ]
-                    composed_triangles: list[dict[str, Any]] = []
-                    for triangle in result_json.get("triangles", []):
-                        try:
-                            mapped_reference = [
-                                list(
-                                    map_registration_point(
-                                        anchor_registration,
-                                        float(point[0]),
-                                        float(point[1]),
-                                    )
-                                )
-                                for point in triangle["reference"]
-                            ]
-                        except AlignmentRejected:
-                            continue
-                        composed_triangles.append(
-                            {
-                                **triangle,
-                                "reference": mapped_reference,
-                                "maxResidualPixels": max(
-                                    float(triangle.get("maxResidualPixels", 0.0)),
-                                    float(anchor_registration.get("medianErrorPixels", 0.0)),
-                                ),
-                            }
-                        )
-                    result_json["triangles"] = composed_triangles
-                    if result_json["status"] == "ready" and not composed_triangles:
-                        raise AlignmentRejected(
-                            "anchor bridge does not support the matched regions"
-                        )
-                    result_json["supportPolygons"] = {
-                        "moving": [item["moving"] for item in result_json["triangles"]],
-                        "reference": [item["reference"] for item in result_json["triangles"]],
-                    }
-                    confidence = min(confidence, float(anchor_registration["confidence"]))
-                    result_json["confidence"] = round(confidence, 6)
-                    result_json["anchorConfidence"] = confidence
-                    coordinate_reference_id = primary_reference.id
+                # Preserve the direct stain-to-anchor map. Composing its vertices
+                # through different anchor cells changes interior geometry and
+                # also breaks consumers expecting anchor coordinates.
                 database.refresh(comparison)
                 database.refresh(job)
                 if (
@@ -704,7 +658,7 @@ def process_next(
                         set_version=comparison.version,
                         source_version=slide.sha256,
                         anchor_slide_id=reference.id,
-                        algorithm_version="piecewise-affine-v1",
+                        algorithm_version="piecewise-affine-reciprocal-v2",
                         provenance="automatic",
                         registration=registrations[slide.id],
                     )
@@ -713,6 +667,8 @@ def process_next(
                     "ready"
                     if len(registrations) == len(comparison.member_slide_ids) - 1
                     and all(value.get("status") == "ready" for value in registrations.values())
+                    else "running"
+                    if len(registrations) < len(comparison.member_slide_ids) - 1
                     else "partial"
                 )
                 job.checkpoint = {**checkpoint, "progress": 100, "stage": "complete"}
@@ -724,6 +680,15 @@ def process_next(
                 }
                 job.status = "succeeded"
             except (AlignmentRejected, FileNotFoundError, OSError) as error:
+                database.refresh(comparison)
+                database.refresh(job)
+                if comparison.version != expected_version or job.cancellation_requested_at:
+                    job.status = "cancelled"
+                    job.failure_code = "ALIGNMENT_STALE"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
                 registrations = dict(comparison.registrations)
                 registrations[slide.id] = {
                     "status": "rejected",
@@ -731,7 +696,11 @@ def process_next(
                     "reason": str(error),
                 }
                 comparison.registrations = registrations
-                comparison.status = "partial"
+                comparison.status = (
+                    "running"
+                    if len(registrations) < len(comparison.member_slide_ids) - 1
+                    else "partial"
+                )
                 job.status = "failed_terminal"
                 job.failure_code = "ALIGNMENT_REJECTED"
                 job.error = str(error)
