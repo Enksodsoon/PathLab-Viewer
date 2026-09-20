@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pytest
 from PIL import Image
-from wsi_viewer.alignment_pyramid import _flow_refined_controls, read_region
+from wsi_viewer.alignment_pyramid import _flow_cell_evidence, _flow_refined_controls, read_region
 
 
 def _pyramid(path: Path, image: Image.Image) -> dict[int, Image.Image]:
@@ -214,3 +214,21 @@ def test_flow_refinement_rejects_textureless_tissue():
 
     assert controls == []
     assert cycle_p95 == -1
+
+
+def test_flow_cell_evidence_requires_local_patch_agreement_and_discrimination():
+    rng = np.random.default_rng(144)
+    reference = rng.integers(0, 256, (512, 512), dtype=np.uint8)
+    cell = {
+        "moving": [[120.0, 120.0], [420.0, 120.0], [120.0, 420.0]],
+        "reference": [[120.0, 120.0], [420.0, 120.0], [120.0, 420.0]],
+    }
+
+    verified, ncc, discrimination = _flow_cell_evidence([cell], reference, reference.copy())
+    unrelated = rng.integers(0, 256, reference.shape, dtype=np.uint8)
+    rejected, _, _ = _flow_cell_evidence([cell], reference, unrelated)
+
+    assert verified == 1
+    assert ncc > 0.99
+    assert discrimination > 0.8
+    assert rejected == 0

@@ -259,6 +259,9 @@ export interface SlideRegistration {
     overviewTriangleCount?: number
     flowControlCount?: number
     flowCycleP95?: number
+    verifiedPatchCount?: number
+    patchNccMedian?: number
+    patchDiscriminationMedian?: number
     availabilityReason?: string
     withheldCheck?: string
   }

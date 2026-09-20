@@ -76,7 +76,9 @@ def _approximate_component_map(
     moving: Image.Image,
     reference_frame: tuple[int, int, int],
     moving_frame: tuple[int, int, int],
-) -> tuple[list[list[float]], list[dict[str, Any]], float, float, int, float] | None:
+) -> tuple[
+    list[list[float]], list[dict[str, Any]], float, float, int, float, int, float, float
+] | None:
     """Fit stain-independent component shape and return explicitly approximate cells."""
     def cropped_structure(image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
         # Whole-slide segmentation rejects edge-touching components to suppress
@@ -169,6 +171,11 @@ def _approximate_component_map(
     )
     if not cells:
         return None
+    verified_count, patch_ncc_median, patch_discrimination_median = (
+        _flow_cell_evidence(cells, reference_structure, moving_structure)
+        if provenance == "approximate-structural-flow"
+        else (0, -1.0, -1.0)
+    )
     rx, ry, reference_divisor = reference_frame
     mx, my, moving_divisor = moving_frame
     linear = (
@@ -201,6 +208,9 @@ def _approximate_component_map(
         float(overlap),
         len(controls) if provenance == "approximate-structural-flow" else 0,
         flow_cycle_p95,
+        verified_count,
+        patch_ncc_median,
+        patch_discrimination_median,
     )
 
 
@@ -213,6 +223,114 @@ def _gradient_feature(structure: np.ndarray) -> np.ndarray:
         magnitude, None, 0, 255, cv2.NORM_MINMAX
     )
     return np.asarray(normalized, dtype=np.uint8)
+
+
+def _flow_cell_evidence(
+    cells: list[dict[str, Any]],
+    reference_structure: np.ndarray,
+    moving_structure: np.ndarray,
+) -> tuple[int, float, float]:
+    """Withhold an affine-warped patch check from optical-flow estimation.
+
+    A cycle-consistent flow can still follow the wrong repeated texture.  Each
+    triangle is therefore tested on gradient patches after applying its local
+    affine map, and against four displaced reference patches.  The metrics are
+    evidence only: component assignment must also be disambiguated before a
+    map can be promoted from approximate navigation.
+    """
+    reference_feature = _gradient_feature(reference_structure)
+    moving_feature = _gradient_feature(moving_structure)
+    # A 97 px patch at the bounded component level represents the same
+    # mesoscopic field as the 49 px withheld patch at the 2x overview level.
+    # This is large enough to compare glands/cores across serial sections
+    # without relying on individual nuclei surviving the cut.
+    radius = 48
+    displacement = 100
+    accepted = 0
+    scores: list[float] = []
+    discriminations: list[float] = []
+
+    def correlation(first: np.ndarray, second: np.ndarray) -> float:
+        left = first.astype(np.float32) - float(np.mean(first))
+        right = second.astype(np.float32) - float(np.mean(second))
+        denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
+        return float(np.sum(left * right) / denominator) if denominator > 1e-6 else -1.0
+
+    for cell in cells:
+        moving = np.asarray(cell["moving"], dtype=np.float32)
+        reference = np.asarray(cell["reference"], dtype=np.float32)
+        inverse = cv2.invertAffineTransform(cv2.getAffineTransform(moving, reference))
+        center_x, center_y = np.rint(np.mean(reference, axis=0)).astype(int)
+        if not (
+            radius <= center_x < reference_feature.shape[1] - radius
+            and radius <= center_y < reference_feature.shape[0] - radius
+        ):
+            continue
+        rows, columns = np.mgrid[
+            center_y - radius : center_y + radius + 1,
+            center_x - radius : center_x + radius + 1,
+        ].astype(np.float32)
+        map_x = np.asarray(
+            inverse[0, 0] * columns + inverse[0, 1] * rows + inverse[0, 2],
+            dtype=np.float32,
+        )
+        map_y = np.asarray(
+            inverse[1, 0] * columns + inverse[1, 1] * rows + inverse[1, 2],
+            dtype=np.float32,
+        )
+        if (
+            float(np.min(map_x)) < 0
+            or float(np.min(map_y)) < 0
+            or float(np.max(map_x)) >= moving_feature.shape[1] - 1
+            or float(np.max(map_y)) >= moving_feature.shape[0] - 1
+        ):
+            continue
+        moving_patch = cv2.remap(
+            moving_feature,
+            map_x,
+            map_y,
+            cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=0,
+        )
+        reference_patch = reference_feature[
+            center_y - radius : center_y + radius + 1,
+            center_x - radius : center_x + radius + 1,
+        ]
+        score = correlation(moving_patch, reference_patch)
+        displaced: list[float] = []
+        for delta_x, delta_y in (
+            (displacement, 0),
+            (-displacement, 0),
+            (0, displacement),
+            (0, -displacement),
+        ):
+            displaced_x, displaced_y = center_x + delta_x, center_y + delta_y
+            if (
+                radius <= displaced_x < reference_feature.shape[1] - radius
+                and radius <= displaced_y < reference_feature.shape[0] - radius
+            ):
+                displaced.append(
+                    correlation(
+                        moving_patch,
+                        reference_feature[
+                            displaced_y - radius : displaced_y + radius + 1,
+                            displaced_x - radius : displaced_x + radius + 1,
+                        ],
+                    )
+                )
+        if not displaced:
+            continue
+        discrimination = score - float(np.median(displaced))
+        scores.append(score)
+        discriminations.append(discrimination)
+        if score >= 0.18 and discrimination >= 0.12:
+            accepted += 1
+    return (
+        accepted,
+        float(np.median(scores)) if scores else -1.0,
+        float(np.median(discriminations)) if discriminations else -1.0,
+    )
 
 
 def _flow_refined_controls(
@@ -494,7 +612,17 @@ def register_components(
     ]
     if not accepted:
         approximate: list[
-            tuple[list[list[float]], list[dict[str, Any]], float, float, int, float]
+            tuple[
+                list[list[float]],
+                list[dict[str, Any]],
+                float,
+                float,
+                int,
+                float,
+                int,
+                float,
+                float,
+            ]
         ] = []
         for moving_index, reference_index in _candidate_component_pairs(
             reference_overview,
@@ -512,7 +640,7 @@ def register_components(
             if candidate:
                 approximate.append(candidate)
         if approximate:
-            overview_cells = [cell for _, cells, _, _, _, _ in approximate for cell in cells]
+            overview_cells = [cell for item in approximate for cell in item[1]]
             moving_points = np.asarray(
                 [point for cell in overview_cells for point in cell["moving"]], dtype=np.float64
             )
@@ -557,6 +685,15 @@ def register_components(
                         max((item[5] for item in approximate if item[5] >= 0), default=-1.0),
                         4,
                     ),
+                    "verifiedPatchCount": sum(item[6] for item in approximate),
+                    "patchNccMedian": round(
+                        float(np.median([item[7] for item in approximate if item[7] >= -0.99])),
+                        4,
+                    ) if any(item[7] >= -0.99 for item in approximate) else -1.0,
+                    "patchDiscriminationMedian": round(
+                        float(np.median([item[8] for item in approximate if item[8] >= -0.99])),
+                        4,
+                    ) if any(item[8] >= -0.99 for item in approximate) else -1.0,
                     "availabilityReason": "No accepted anatomical feature matches",
                     "source": (
                         "bounded-pyramid-component-flow"

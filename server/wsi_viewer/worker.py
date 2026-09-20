@@ -706,7 +706,7 @@ def process_next(
                         set_version=comparison.version,
                         source_version=slide.sha256,
                         anchor_slide_id=reference.id,
-                        algorithm_version="piecewise-affine-components-v5",
+                        algorithm_version="piecewise-affine-components-v7",
                         provenance="automatic",
                         registration=registrations[slide.id],
                     )
