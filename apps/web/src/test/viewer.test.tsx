@@ -310,6 +310,22 @@ it('bounds repeated tile failures before showing the loading error', async () =>
   expect(screen.getByRole('alert')).toBeVisible()
 })
 
+it('clears transient tile failures after a tile loads successfully', async () => {
+  vi.useFakeTimers()
+  renderViewer()
+
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-loaded')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  emitViewerEvent('tile-load-failed')
+  await act(async () => { await vi.runOnlyPendingTimersAsync() })
+
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
 it('retries the tile source and clears the loading error', async () => {
   vi.useFakeTimers()
   renderViewer()

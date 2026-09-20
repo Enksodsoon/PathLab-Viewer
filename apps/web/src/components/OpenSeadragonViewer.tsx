@@ -100,6 +100,7 @@ export function OpenSeadragonViewer({
   const onDisposeRef = useRef(onDispose)
   const attachmentCleanupRef = useRef<(() => void) | null>(null)
   const tileFailures = useRef(0)
+  const successfulTiles = useRef(0)
   const windowFailures = useRef(0)
   const errorTimer = useRef<number | null>(null)
   const reconnectTimer = useRef<number | null>(null)
@@ -125,6 +126,7 @@ export function OpenSeadragonViewer({
       errorTimer.current = null
     }
     tileFailures.current = 0
+    successfulTiles.current = 0
     setLoadingError(false)
     viewerRef.current?.open(tileSourceRef.current as unknown as OpenSeadragon.TileSourceSpecifier)
   }, [])
@@ -187,6 +189,7 @@ export function OpenSeadragonViewer({
     if (viewerRef.current && openedSourceRef.current !== tileSource) {
       openedSourceRef.current = tileSource
       tileFailures.current = 0
+      successfulTiles.current = 0
       setPosterVisible(Boolean(posterUrl))
       setLoadingError(false)
       detachViewerAttachment()
@@ -383,7 +386,14 @@ export function OpenSeadragonViewer({
         updateScale()
         onOpenRef.current?.()
       }
-      const handleTileLoaded = () => setPosterVisible(false)
+      const handleTileLoaded = () => {
+        setPosterVisible(false)
+        successfulTiles.current += 1
+        // Treat the threshold as consecutive failures. Large multi-pane views
+        // can cancel obsolete edge-tile requests while useful tiles continue
+        // to arrive; a successful tile proves the pane itself is available.
+        clearLoadingError()
+      }
       const reportViewport = () => {
         if (!viewer || (!navigationTransaction.current && !userNavigation.current)) return
         const center = viewer.viewport.viewportToImageCoordinates(viewer.viewport.getCenter(true))
@@ -403,6 +413,10 @@ export function OpenSeadragonViewer({
       }
       const handleTileLoadFailed = () => {
         windowFailures.current += 1
+        // OpenSeadragon may cancel obsolete edge or navigator requests while
+        // the visible pane continues rendering. The full-pane error is only
+        // valid when no tile has loaded at all.
+        if (successfulTiles.current > 0) return
         if (tileFailures.current >= TILE_FAILURE_LIMIT) return
         tileFailures.current += 1
         if (tileFailures.current === TILE_FAILURE_LIMIT) reportLoadingError()

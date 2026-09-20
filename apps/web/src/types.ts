@@ -267,6 +267,8 @@ export interface SlideRegistration {
     acceptedStructuralComponents?: number
     ambiguousStructuralComponents?: number
     layoutConsistencyMedian?: number
+    opticalDensityKazeInliers?: number
+    opticalDensityKazeSpreadMedian?: number
     availabilityReason?: string
     withheldCheck?: string
   }

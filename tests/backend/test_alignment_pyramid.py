@@ -9,6 +9,7 @@ from wsi_viewer.alignment_pyramid import (
     _component_identity_is_clear,
     _ComponentMap,
     _expand_verified_support,
+    _feature_identity_evidence,
     _flow_cell_evidence,
     _flow_refined_controls,
     _layout_consistency,
@@ -208,6 +209,36 @@ def test_fragment_layout_resolves_only_a_real_internal_evidence_margin():
 
     assert _component_identity_is_clear(preferred, [weaker_wrong_fragment])
     assert not _component_identity_is_clear(preferred, [identical_wrong_fragment])
+
+
+def test_optical_density_kaze_prefers_same_structure_across_stain_hues():
+    rng = np.random.default_rng(42)
+    reference = np.full((600, 700, 3), 250, dtype=np.uint8)
+    for _ in range(140):
+        x, y = (int(value) for value in rng.integers([60, 60], [640, 540]))
+        radius = int(rng.integers(4, 18))
+        cv2.circle(reference, (x, y), radius, (95, 55, 135), -1)
+    mask = np.zeros(reference.shape[:2], dtype=np.uint8)
+    cv2.ellipse(mask, (350, 300), (300, 240), 0, 0, 360, 255, -1)
+    reference[mask == 0] = 255
+    moving = np.full_like(reference, 255)
+    density = 255 - cv2.cvtColor(reference, cv2.COLOR_RGB2GRAY)
+    moving[:, :, 0] = 255 - density // 3
+    moving[:, :, 1] = 255 - density
+    moving[:, :, 2] = 255 - density // 2
+    moving[mask == 0] = 255
+
+    same_inliers, same_spread = _feature_identity_evidence(
+        reference, mask, moving, mask, np.asarray([[1, 0, 0], [0, 1, 0]], dtype=float)
+    )
+    unrelated = np.roll(moving, 230, axis=0)
+    wrong_inliers, wrong_spread = _feature_identity_evidence(
+        reference, mask, unrelated, mask, np.asarray([[1, 0, 0], [0, 1, 0]], dtype=float)
+    )
+
+    assert same_inliers >= 20
+    assert same_spread >= 0.25
+    assert (same_inliers * same_spread) > (wrong_inliers * wrong_spread) * 1.5
 
 
 def test_layout_consistency_checks_all_large_fragments():

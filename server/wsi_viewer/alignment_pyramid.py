@@ -37,6 +37,15 @@ class _ComponentMap:
     patch_ncc_median: float
     patch_discrimination_median: float
     layout_score: float = 0.0
+    feature_inliers: int = 0
+    feature_spread: float = 0.0
+
+    @property
+    def feature_identity_score(self) -> float:
+        """Bounded KAZE support used only to distinguish component candidates."""
+        return min(1.0, self.feature_inliers / 50.0) * math.sqrt(
+            max(0.0, min(1.0, self.feature_spread))
+        )
 
     @property
     def identity_score(self) -> float:
@@ -47,6 +56,7 @@ class _ComponentMap:
             verified_ratio
             + 0.5 * max(0.0, self.patch_ncc_median)
             + 0.5 * max(0.0, self.patch_discrimination_median)
+            + 0.25 * self.feature_identity_score
         )
 
 
@@ -167,6 +177,9 @@ def _approximate_component_map(
     moving_frame: tuple[int, int, int],
 ) -> _ComponentMap | None:
     """Fit stain-independent component shape and return explicitly approximate cells."""
+    reference_rgb = np.asarray(reference.convert("RGB"))
+    moving_rgb = np.asarray(moving.convert("RGB"))
+
     def cropped_structure(image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
         # Whole-slide segmentation rejects edge-touching components to suppress
         # scanner borders. A deliberately cropped component can validly touch
@@ -215,6 +228,14 @@ def _approximate_component_map(
     overlap = 2 * intersection / max(1, total_tissue)
     if score < 0.78 or overlap < max(0.62, initial_overlap * 0.85) or not 0.25 <= determinant <= 4:
         return None
+
+    feature_inliers, feature_spread = _feature_identity_evidence(
+        reference_rgb,
+        reference_mask,
+        moving_rgb,
+        moving_mask,
+        transform,
+    )
 
     controls, flow_cycle_p95 = _flow_refined_controls(
         reference_structure,
@@ -338,6 +359,8 @@ def _approximate_component_map(
         flow_cycle_p95=flow_cycle_p95,
         patch_ncc_median=patch_ncc_median,
         patch_discrimination_median=patch_discrimination_median,
+        feature_inliers=feature_inliers,
+        feature_spread=feature_spread,
     )
 
 
@@ -350,6 +373,117 @@ def _gradient_feature(structure: np.ndarray) -> np.ndarray:
         magnitude, None, 0, 255, cv2.NORM_MINMAX
     )
     return np.asarray(normalized, dtype=np.uint8)
+
+
+def _optical_density_gray(rgb: np.ndarray) -> np.ndarray:
+    """Return a stain-tolerant optical-density image using NumPy and OpenCV only."""
+    density = -np.log10(np.clip(rgb.astype(np.float32) / 255.0, 1 / 255, 1))
+    gray = np.mean(density, axis=2)
+    upper = float(np.percentile(gray, 95))
+    return np.asarray(np.clip(gray * 255 / max(upper, 1e-6), 0, 255), dtype=np.uint8)
+
+
+def _feature_identity_evidence(
+    reference_rgb: np.ndarray,
+    reference_mask: np.ndarray,
+    moving_rgb: np.ndarray,
+    moving_mask: np.ndarray,
+    moving_to_reference: np.ndarray,
+) -> tuple[int, float]:
+    """Measure distributed, mutually matched KAZE features after coarse alignment.
+
+    This is candidate-identity evidence, not an anatomical registration map.
+    It follows the lightweight optical-density/KAZE strategy used by HISAlign,
+    while keeping the default worker free of its Torch, SimpleITK, and
+    scikit-image runtime dependencies.
+    """
+    maximum = 1200
+
+    def bounded(image: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+        scale = min(1.0, maximum / max(image.shape[:2]))
+        size = (
+            max(1, round(image.shape[1] * scale)),
+            max(1, round(image.shape[0] * scale)),
+        )
+        gray = _optical_density_gray(image)
+        return (
+            cv2.resize(gray, size, interpolation=cv2.INTER_AREA),
+            cv2.resize(mask, size, interpolation=cv2.INTER_NEAREST),
+            scale,
+        )
+
+    reference, reference_small_mask, reference_scale = bounded(
+        reference_rgb, reference_mask
+    )
+    moving, moving_small_mask, moving_scale = bounded(moving_rgb, moving_mask)
+    transform = np.asarray(moving_to_reference, dtype=np.float64).copy()
+    transform[:, :2] *= reference_scale / moving_scale
+    transform[:, 2] *= reference_scale
+    warped = cv2.warpAffine(
+        moving,
+        transform.astype(np.float32),
+        (reference.shape[1], reference.shape[0]),
+        borderValue=0,
+    )
+    warped_mask = cv2.warpAffine(
+        moving_small_mask,
+        transform.astype(np.float32),
+        (reference.shape[1], reference.shape[0]),
+        flags=cv2.INTER_NEAREST,
+    )
+    valid = np.asarray(
+        (reference_small_mask > 0) & (warped_mask > 0), dtype=np.uint8
+    ) * 255
+    if cv2.countNonZero(valid) < max(512, valid.size // 200):
+        return 0, 0.0
+
+    detector = cv2.KAZE_create()  # type: ignore[attr-defined]
+    reference_keypoints, reference_descriptors = detector.detectAndCompute(reference, valid)
+    moving_keypoints, moving_descriptors = detector.detectAndCompute(warped, valid)
+    if reference_descriptors is None or moving_descriptors is None:
+        return 0, 0.0
+    if len(reference_descriptors) < 4 or len(moving_descriptors) < 4:
+        return 0, 0.0
+
+    matcher = cv2.BFMatcher(cv2.NORM_L2)
+
+    def ratio_matches(first: np.ndarray, second: np.ndarray) -> list[cv2.DMatch]:
+        return [
+            best
+            for best, alternate in matcher.knnMatch(first, second, k=2)
+            if best.distance < 0.8 * alternate.distance
+        ]
+
+    forward = ratio_matches(reference_descriptors, moving_descriptors)
+    reverse = {
+        (match.trainIdx, match.queryIdx)
+        for match in ratio_matches(moving_descriptors, reference_descriptors)
+    }
+    mutual = [
+        match for match in forward if (match.queryIdx, match.trainIdx) in reverse
+    ]
+    if len(mutual) < 4:
+        return 0, 0.0
+    source = np.asarray(
+        [reference_keypoints[match.queryIdx].pt for match in mutual], dtype=np.float32
+    )
+    target = np.asarray(
+        [moving_keypoints[match.trainIdx].pt for match in mutual], dtype=np.float32
+    )
+    _, inlier_mask = cv2.findHomography(source, target, cv2.USAC_MAGSAC, 5.0)
+    if inlier_mask is None:
+        return 0, 0.0
+    inlier_points = source[inlier_mask.ravel() > 0]
+    if len(inlier_points) < 4:
+        return len(inlier_points), 0.0
+    valid_points = cv2.findNonZero(valid)
+    if valid_points is None:
+        return len(inlier_points), 0.0
+    x, y, width, height = cv2.boundingRect(valid_points)
+    del x, y
+    extent = np.ptp(inlier_points, axis=0)
+    spread = float(extent[0] * extent[1] / max(1, width * height))
+    return len(inlier_points), min(1.0, spread)
 
 
 def _flow_cell_evidence(
@@ -938,6 +1072,12 @@ def register_components(
                         "layoutConsistencyMedian": round(
                             float(np.median([item.layout_score for item in qualified])), 4
                         ),
+                        "opticalDensityKazeInliers": sum(
+                            item.feature_inliers for item in qualified
+                        ),
+                        "opticalDensityKazeSpreadMedian": round(
+                            float(np.median([item.feature_spread for item in qualified])), 4
+                        ),
                         "flowControlCount": sum(
                             item.flow_control_count for _, _, item in approximate
                         ),
@@ -1015,6 +1155,17 @@ def register_components(
                     "ambiguousStructuralComponents": ambiguous_components,
                     "layoutConsistencyMedian": round(
                         float(np.median([item.layout_score for _, _, item in approximate])),
+                        4,
+                    ),
+                    "opticalDensityKazeInliers": sum(
+                        item.feature_inliers for _, _, item in approximate
+                    ),
+                    "opticalDensityKazeSpreadMedian": round(
+                        float(
+                            np.median(
+                                [item.feature_spread for _, _, item in approximate]
+                            )
+                        ),
                         4,
                     ),
                     "intensityShapeScore": round(
