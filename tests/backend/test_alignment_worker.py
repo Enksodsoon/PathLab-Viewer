@@ -90,3 +90,37 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
         assert job.status == "succeeded"
         assert job.checkpoint["progress"] == 100
         assert database.get(Slide, "moving").state is SlideState.READY_PRIVATE
+
+
+def test_alignment_jobs_have_exclusive_heavy_work_admission(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'admission.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        database.add_all(
+            [
+                Job(kind="align_benchmark", resource_class="isolated", status="queued"),
+                Job(kind="convert", resource_class="background", status="queued"),
+            ]
+        )
+        database.commit()
+
+    assert process_next(factory, layout, exclusive_alignment=False) is False
+
+    with factory() as database:
+        alignment = database.query(Job).filter(Job.kind == "align_benchmark").one()
+        alignment.status = "running"
+        ordinary = database.query(Job).filter(Job.kind == "convert").one()
+        ordinary.status = "running"
+        database.commit()
+
+    assert process_next(
+        factory,
+        layout,
+        include_kinds=frozenset({"align", "align_benchmark"}),
+        exclusive_alignment=True,
+    ) is False

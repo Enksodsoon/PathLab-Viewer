@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import uuid
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -15,8 +16,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
 from .alignment import _registration_triangles
+from .alignment_engines import (
+    ENGINE_HISALIGN,
+    ENGINE_NATIVE,
+    ENGINE_VALIS,
+    SUPPORTED_ENGINES,
+    engine_availability,
+    settings_digest,
+)
 from .domain import SlideState
 from .models import (
+    ComparisonRegistrationCandidate,
     ComparisonRegistrationRevision,
     ComparisonSet,
     Job,
@@ -52,6 +62,16 @@ class ComparisonUpdateRequest(BaseModel):
     version: int = Field(ge=1)
     reference_slide_id: str | None = Field(default=None, alias="referenceSlideId")
     anchors: dict[str, str] | None = None
+
+
+class BenchmarkRequest(BaseModel):
+    version: int = Field(ge=1)
+    engines: list[str] = Field(default_factory=lambda: list(SUPPORTED_ENGINES), min_length=1)
+    rerun: bool = False
+
+
+class PromoteCandidateRequest(BaseModel):
+    version: int = Field(ge=1)
 
 
 def _error(code: str, http_status: int = 422) -> HTTPException:
@@ -136,6 +156,8 @@ def register_alignment_routes(
     admin_dependency: Callable[..., Any],
     csrf_dependency: Callable[..., Any],
     enabled: bool,
+    hisalign_enabled: bool = False,
+    valis_enabled: bool = False,
 ) -> None:
     if not enabled:
         return
@@ -242,8 +264,6 @@ def register_alignment_routes(
                     )
                 )
                 queued += 1
-        if queued:
-            item.status = "queued"
         database.commit()
         return {"comparisonSetId": item.id, "queuedPairs": queued, "status": item.status}
 
@@ -327,6 +347,197 @@ def register_alignment_routes(
             )
         ]
 
+    def candidates(
+        set_id: str,
+        _: Any = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        item = database.get(ComparisonSet, set_id)
+        if item is None:
+            raise _error("COMPARISON_NOT_FOUND", 404)
+        rows = database.scalars(
+            select(ComparisonRegistrationCandidate)
+            .where(ComparisonRegistrationCandidate.comparison_set_id == set_id)
+            .order_by(ComparisonRegistrationCandidate.created_at.desc())
+        )
+        return {
+            "comparisonSetId": set_id,
+            "setVersion": item.version,
+            "engineAvailability": engine_availability(),
+            "candidates": [
+                {
+                    "id": row.id,
+                    "slideId": row.slide_id,
+                    "setVersion": row.set_version,
+                    "anchorSlideId": row.anchor_slide_id,
+                    "engine": row.engine,
+                    "engineVersion": row.engine_version,
+                    "settingsDigest": row.settings_digest,
+                    "status": row.status,
+                    "validationState": row.validation_state,
+                    "registration": row.registration,
+                    "evidence": row.evidence,
+                    "artifactSha256": row.artifact_sha256,
+                    "failureReason": row.failure_reason,
+                    "createdAt": row.created_at.isoformat(),
+                }
+                for row in rows
+            ],
+        }
+
+    def benchmark(
+        set_id: str,
+        payload: BenchmarkRequest,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        item = database.get(ComparisonSet, set_id)
+        if item is None:
+            raise _error("COMPARISON_NOT_FOUND", 404)
+        if item.version != payload.version:
+            raise _error("COMPARISON_STALE_WRITE", 409)
+        requested = list(dict.fromkeys(payload.engines))
+        if any(engine not in SUPPORTED_ENGINES for engine in requested):
+            raise _error("ALIGNMENT_ENGINE_UNSUPPORTED")
+        enabled_engines = {ENGINE_NATIVE}
+        if hisalign_enabled:
+            enabled_engines.add(ENGINE_HISALIGN)
+        if valis_enabled:
+            enabled_engines.add(ENGINE_VALIS)
+        if any(engine not in enabled_engines for engine in requested):
+            raise _error("ALIGNMENT_ENGINE_DISABLED", 409)
+        slides = _members(database, item)
+        anchors = _alignment_anchors(slides, item.reference_slide_id)
+        anchors.update((item.alignment_config or {}).get("anchors", {}))
+        queued = 0
+        for slide in slides:
+            if slide.id == item.reference_slide_id:
+                continue
+            anchor_id = anchors.get(slide.id, item.reference_slide_id)
+            anchor = next(member for member in slides if member.id == anchor_id)
+            for engine in requested:
+                digest = settings_digest(engine)
+                existing_candidate = database.scalar(
+                    select(ComparisonRegistrationCandidate.id).where(
+                        ComparisonRegistrationCandidate.comparison_set_id == item.id,
+                        ComparisonRegistrationCandidate.slide_id == slide.id,
+                        ComparisonRegistrationCandidate.set_version == item.version,
+                        ComparisonRegistrationCandidate.anchor_slide_id == anchor_id,
+                        ComparisonRegistrationCandidate.engine == engine,
+                        ComparisonRegistrationCandidate.source_version == slide.sha256,
+                        ComparisonRegistrationCandidate.anchor_version == anchor.sha256,
+                        ComparisonRegistrationCandidate.settings_digest == digest,
+                    )
+                )
+                key = hashlib.sha256(
+                    (
+                        f"benchmark:{item.id}:{item.version}:{slide.id}:{anchor_id}:"
+                        f"{engine}:{slide.sha256}:{anchor.sha256}:{digest}"
+                    ).encode()
+                ).hexdigest()
+                existing_job = database.scalar(
+                    select(Job.id).where(Job.idempotency_key_hash == key)
+                )
+                if not payload.rerun and (
+                    existing_candidate is not None or existing_job is not None
+                ):
+                    continue
+                if payload.rerun:
+                    key = hashlib.sha256(f"{key}:{uuid.uuid4()}".encode()).hexdigest()
+                database.add(
+                    Job(
+                        slide_id=slide.id,
+                        kind="align_benchmark",
+                        resource_class="isolated",
+                        idempotency_key_hash=key,
+                        checkpoint={
+                            "comparisonSetId": item.id,
+                            "memberId": slide.id,
+                            "anchorSlideId": anchor_id,
+                            "setVersion": item.version,
+                            "engine": engine,
+                            "progress": 0,
+                            "stage": "queued",
+                        },
+                        resource_limits={
+                            "cpuThreads": 2,
+                            "memoryBytes": 7 * 1024**3,
+                            "timeoutSeconds": 2700,
+                        },
+                    )
+                )
+                queued += 1
+        config = dict(item.alignment_config or {})
+        config["enginePolicy"] = "benchmark"
+        config["benchmarkEngines"] = requested
+        item.alignment_config = config
+        database.commit()
+        return {"comparisonSetId": item.id, "queuedCandidates": queued, "engines": requested}
+
+    def promote_candidate(
+        set_id: str,
+        candidate_id: str,
+        payload: PromoteCandidateRequest,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        item = database.get(ComparisonSet, set_id)
+        candidate = database.get(ComparisonRegistrationCandidate, candidate_id)
+        if item is None or candidate is None or candidate.comparison_set_id != set_id:
+            raise _error("ALIGNMENT_CANDIDATE_NOT_FOUND", 404)
+        if item.version != payload.version or candidate.set_version != item.version:
+            raise _error("COMPARISON_STALE_WRITE", 409)
+        if candidate.status != "ready" or candidate.validation_state != "engineering_passed":
+            raise _error("ALIGNMENT_CANDIDATE_NOT_PROMOTABLE", 409)
+        source = database.get(Slide, candidate.slide_id)
+        anchor = database.get(Slide, candidate.anchor_slide_id)
+        if (
+            source is None
+            or anchor is None
+            or source.sha256 != candidate.source_version
+            or anchor.sha256 != candidate.anchor_version
+            or item.source_versions.get(source.id) != source.sha256
+            or item.source_versions.get(anchor.id) != anchor.sha256
+        ):
+            raise _error("ALIGNMENT_CANDIDATE_STALE", 409)
+        registration = {
+            **candidate.registration,
+            "provenance": "automatic",
+            "selectedCandidateId": candidate.id,
+            "engine": candidate.engine,
+            "engineVersion": candidate.engine_version,
+            "sourceVersion": candidate.source_version,
+            "anchorVersion": candidate.anchor_version,
+        }
+        registrations = dict(item.registrations)
+        registrations[candidate.slide_id] = registration
+        item.registrations = registrations
+        config = dict(item.alignment_config or {})
+        selected = dict(config.get("selectedEngines") or {})
+        selected[candidate.slide_id] = candidate.engine
+        config["selectedEngines"] = selected
+        item.alignment_config = config
+        database.add(
+            ComparisonRegistrationRevision(
+                comparison_set_id=item.id,
+                slide_id=candidate.slide_id,
+                set_version=item.version,
+                source_version=candidate.source_version,
+                anchor_slide_id=candidate.anchor_slide_id,
+                algorithm_version=candidate.engine[:40],
+                provenance="automatic",
+                registration=registration,
+            )
+        )
+        item.status = (
+            "ready"
+            if len(registrations) == len(item.member_slide_ids) - 1
+            and all(value.get("status") == "ready" for value in registrations.values())
+            else "partial"
+        )
+        database.commit()
+        return _json(item, _members(database, item))
+
     def jobs(
         set_id: str,
         _: Any = Depends(admin_dependency),
@@ -347,7 +558,9 @@ def register_alignment_routes(
                 "totalPatches": (job.checkpoint or {}).get("totalPatches", 0),
                 "failureCode": job.failure_code,
             }
-            for job in database.scalars(select(Job).where(Job.kind == "align"))
+            for job in database.scalars(
+                select(Job).where(Job.kind.in_({"align", "align_benchmark"}))
+            )
             if (job.checkpoint or {}).get("comparisonSetId") == set_id
         ]
 
@@ -362,7 +575,7 @@ def register_alignment_routes(
         now = datetime.now(UTC)
         for job in database.scalars(
             select(Job).where(
-                Job.kind == "align",
+                Job.kind.in_({"align", "align_benchmark"}),
                 Job.status.in_(["queued", "leased", "running", "retry_wait"]),
             )
         ):
@@ -556,6 +769,20 @@ def register_alignment_routes(
     app.add_api_route("/api/v1/admin/comparison-sets/{set_id}", update_set, methods=["PATCH"])
     app.add_api_route(
         "/api/v1/admin/comparison-sets/{set_id}/revisions", revisions, methods=["GET"]
+    )
+    app.add_api_route(
+        "/api/v1/admin/comparison-sets/{set_id}/candidates", candidates, methods=["GET"]
+    )
+    app.add_api_route(
+        "/api/v1/admin/comparison-sets/{set_id}/benchmark",
+        benchmark,
+        methods=["POST"],
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    app.add_api_route(
+        "/api/v1/admin/comparison-sets/{set_id}/candidates/{candidate_id}/promote",
+        promote_candidate,
+        methods=["POST"],
     )
     app.add_api_route("/api/v1/admin/comparison-sets/{set_id}/jobs", jobs, methods=["GET"])
     app.add_api_route(

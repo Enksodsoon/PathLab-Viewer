@@ -56,6 +56,11 @@
 .comparison-quality summary { padding: 8px; cursor: pointer; font: 700 11px/1 var(--font-ui); }
 .comparison-quality dl, .comparison-quality p { margin: 0; padding: 0 8px 8px; font-size: 10px; line-height: 1.4; }
 .comparison-quality dl > div { display: flex; justify-content: space-between; gap: 8px; }.comparison-quality dt { color: #bcb7b0; }.comparison-quality dd { margin: 0; text-align: right; }
+.comparison-engine-candidates { position: static; z-index: auto; width: auto; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--surface-elevated); color: var(--ink); }
+.comparison-engine-candidates > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; padding: 0 12px 12px; }
+.comparison-engine-candidates article { display: grid; gap: 4px; padding: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); font-size: 11px; }
+.comparison-engine-candidates article span, .comparison-engine-candidates article small { color: var(--muted); }
+.comparison-engine-candidates article button { justify-self: start; min-height: 32px; }
 .comparison-add-pane { position: fixed; right: 18px; bottom: 18px; z-index: 10; box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 20%, transparent); }
 @media (max-width: 900px) {
   .comparison-workstation { grid-template-columns: 1fr; }.comparison-tray { display: flex; gap: 6px; border-right: 0; border-bottom: 1px solid #34322f; }.comparison-tray > strong { display: none; }.comparison-tray button { min-width: 150px; margin: 0; }

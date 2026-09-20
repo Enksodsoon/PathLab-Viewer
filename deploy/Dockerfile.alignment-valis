@@ -1,0 +1,53 @@
+ARG PATHLAB_RELEASE_IMAGE_TAG=live
+FROM pathlab-viewer-alignment:${PATHLAB_RELEASE_IMAGE_TAG}
+
+COPY deploy/third_party/VALIS_LICENSE.txt /usr/share/licenses/valis/LICENSE.txt
+
+USER root
+
+# VALIS is isolated in an optional image because several pinned native wheels
+# are not published for Linux ARM64. This build is the explicit OCI admission
+# gate: a failure leaves HISAlign usable and VALIS disabled.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential cmake ninja-build openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG VALIS_COMMIT=325828c1dec444e6bb672a78e875537436dd3c20
+ARG VALIS_ARCHIVE_SHA256=ac57c00c6b0c90b23ff09a0c7fa84fc76441a8b2733669fcb4b6a08f4a5e859d
+ARG UV_VERSION=0.8.13
+ENV VALIS_COMMIT=${VALIS_COMMIT} VALIS_ARCHIVE_SHA256=${VALIS_ARCHIVE_SHA256} UV_VERSION=${UV_VERSION}
+RUN python - <<'PY'
+import hashlib
+import os
+import pathlib
+import urllib.request
+
+commit = os.environ.get("VALIS_COMMIT", "325828c1dec444e6bb672a78e875537436dd3c20")
+expected = os.environ.get(
+    "VALIS_ARCHIVE_SHA256",
+    "ac57c00c6b0c90b23ff09a0c7fa84fc76441a8b2733669fcb4b6a08f4a5e859d",
+)
+destination = pathlib.Path("/tmp/valis.tar.gz")
+urllib.request.urlretrieve(
+    f"https://github.com/MathOnco/valis/archive/{commit}.tar.gz", destination
+)
+actual = hashlib.sha256(destination.read_bytes()).hexdigest()
+if actual != expected:
+    raise SystemExit(f"VALIS archive digest mismatch: {actual}")
+PY
+# The tagged source ships a platform-aware uv.lock, including a Linux ARM64
+# resolution. Exporting it frozen prevents the image build from silently
+# selecting newer transitive packages. Hashes from the lock are retained in
+# the generated requirements file and enforced by pip.
+RUN pip install --no-cache-dir "uv==${UV_VERSION}" \
+    && install -d /opt/valis \
+    && tar -xzf /tmp/valis.tar.gz --strip-components=1 -C /opt/valis \
+    && cd /opt/valis \
+    && uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file /tmp/valis-requirements.lock \
+    && pip install --no-cache-dir --require-hashes -r /tmp/valis-requirements.lock \
+    && pip install --no-cache-dir --no-deps /opt/valis \
+    && rm -f /tmp/valis.tar.gz /tmp/valis-requirements.lock \
+    && python -c "from valis import registration; assert registration.Valis"
+
+USER pathlab
+CMD ["pathlab-worker"]

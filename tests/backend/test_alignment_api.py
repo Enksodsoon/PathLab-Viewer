@@ -7,12 +7,22 @@ from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
-from wsi_viewer.models import ComparisonSet, Job, LibraryShare, ShareSlide, Slide, User
+from wsi_viewer.models import (
+    ComparisonRegistrationCandidate,
+    ComparisonSet,
+    Job,
+    LibraryShare,
+    ShareSlide,
+    Slide,
+    User,
+)
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
 
 
-def _client(tmp_path: Path, *, enabled: bool) -> TestClient:
+def _client(
+    tmp_path: Path, *, enabled: bool, hisalign: bool = False, valis: bool = False
+) -> TestClient:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
@@ -20,6 +30,8 @@ def _client(tmp_path: Path, *, enabled: bool) -> TestClient:
         secure_cookies=False,
         tus_internal_upload_dir=tmp_path / "tus",
         alignment_enabled=enabled,
+        alignment_hisalign_enabled=hisalign,
+        alignment_valis_enabled=valis,
     )
     create_schema(settings)
     with session_factory(settings)() as database:
@@ -96,6 +108,124 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
         assert second.json()["queuedPairs"] == 0
         with session_factory(client.app.state.settings)() as database:
             assert database.query(Job).filter(Job.kind == "align").count() == 2
+
+
+def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True, hisalign=True, valis=False) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Engine bakeoff",
+                "slideIds": ["slide-1", "slide-2"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        original_status = created["status"]
+        url = f"/api/v1/admin/comparison-sets/{created['id']}"
+        disabled = client.post(
+            url + "/benchmark",
+            headers=headers,
+            json={"version": created["version"], "engines": ["valis-1.2.0"]},
+        )
+        assert disabled.status_code == 409
+        queued = client.post(
+            url + "/benchmark",
+            headers=headers,
+            json={
+                "version": created["version"],
+                "engines": ["native-v12", "hisalign-0.2.1"],
+            },
+        )
+        assert queued.status_code == 202, queued.text
+        assert queued.json()["queuedCandidates"] == 2
+        assert client.get(url).json()["status"] == original_status
+        rerun = client.post(
+            url + "/benchmark",
+            headers=headers,
+            json={
+                "version": created["version"],
+                "engines": ["hisalign-0.2.1"],
+                "rerun": True,
+            },
+        )
+        assert rerun.status_code == 202
+        assert rerun.json()["queuedCandidates"] == 1
+        cancelled = client.delete(url + "/register", headers=headers)
+        assert cancelled.status_code == 200
+        assert cancelled.json()["cancelledJobs"] == 3
+        with session_factory(client.app.state.settings)() as database:
+            assert database.query(Job).filter(Job.kind == "align_benchmark").count() == 3
+            assert (
+                database.query(Job)
+                .filter(
+                    Job.kind == "align_benchmark", Job.cancellation_requested_at.is_not(None)
+                )
+                .count()
+                == 3
+            )
+            candidate = ComparisonRegistrationCandidate(
+                comparison_set_id=created["id"],
+                slide_id="slide-2",
+                set_version=created["version"],
+                anchor_slide_id="slide-1",
+                source_version="sha-2",
+                anchor_version="sha-1",
+                engine="hisalign-0.2.1",
+                engine_version="commit",
+                settings_digest="a" * 64,
+                status="ready",
+                validation_state="engineering_passed",
+                registration={
+                    "status": "ready",
+                    "movingToReference": [[1, 0, 10], [0, 1, 5]],
+                    "triangles": [
+                        {
+                            "moving": [[0, 0], [100, 0], [0, 100]],
+                            "reference": [[10, 5], [110, 5], [10, 105]],
+                        }
+                    ],
+                },
+                evidence={"roundTripP95Pixels": 0.1},
+            )
+            database.add(candidate)
+            stale_candidate = ComparisonRegistrationCandidate(
+                comparison_set_id=created["id"],
+                slide_id="slide-2",
+                set_version=created["version"],
+                anchor_slide_id="slide-1",
+                source_version="superseded-source",
+                anchor_version="sha-1",
+                engine="native-v12",
+                engine_version="old-build",
+                settings_digest="b" * 64,
+                status="ready",
+                validation_state="engineering_passed",
+                registration={"status": "ready"},
+                evidence={},
+            )
+            database.add(stale_candidate)
+            database.commit()
+            candidate_id = candidate.id
+            stale_candidate_id = stale_candidate.id
+        stale_promotion = client.post(
+            url + f"/candidates/{stale_candidate_id}/promote",
+            headers=headers,
+            json={"version": created["version"]},
+        )
+        assert stale_promotion.status_code == 409
+        assert stale_promotion.json()["detail"]["code"] == "ALIGNMENT_CANDIDATE_STALE"
+        promoted = client.post(
+            url + f"/candidates/{candidate_id}/promote",
+            headers=headers,
+            json={"version": created["version"]},
+        )
+        assert promoted.status_code == 200, promoted.text
+        assert promoted.json()["members"][1]["registration"]["engine"] == "hisalign-0.2.1"
+        manifest = client.get(url + "/candidates")
+        assert manifest.status_code == 200
+        assert manifest.json()["candidates"][0]["artifactSha256"] is None
 
 
 def test_set_rejects_unready_or_missing_reference_members(tmp_path: Path) -> None:

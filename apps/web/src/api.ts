@@ -16,6 +16,7 @@ import type {
   StorageInventory,
   ComparisonSet,
   SharedComparisonSummary,
+  RegistrationCandidateManifest,
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
@@ -569,6 +570,26 @@ export async function reregisterComparisonSet(id: string): Promise<void> {
 
 export async function getComparisonSet(id: string): Promise<ComparisonSet> {
   return json<ComparisonSet>(await fetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }))
+}
+
+export async function benchmarkComparisonSet(id: string, version: number, engines: string[], rerun = false): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/benchmark`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version, engines, rerun }),
+  }))
+}
+
+export async function getComparisonCandidates(id: string): Promise<RegistrationCandidateManifest> {
+  return json<RegistrationCandidateManifest>(await fetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/candidates`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function promoteComparisonCandidate(id: string, candidateId: string, version: number): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/candidates/${encodeURIComponent(candidateId)}/promote`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) },
+  ))
 }
 
 export async function updateComparisonSet(id: string, payload: {

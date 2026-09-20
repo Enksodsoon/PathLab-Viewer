@@ -1376,6 +1376,49 @@ class ComparisonRegistrationRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ComparisonRegistrationCandidate(Base):
+    """Immutable output from one engine before an administrator promotes it."""
+
+    __tablename__ = "comparison_registration_candidates"
+    __table_args__ = (
+        Index(
+            "ix_registration_candidate_identity",
+            "comparison_set_id",
+            "slide_id",
+            "set_version",
+            "anchor_slide_id",
+            "engine",
+            "source_version",
+            "anchor_version",
+            "settings_digest",
+        ),
+        Index("ix_registration_candidates_set", "comparison_set_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    comparison_set_id: Mapped[str] = mapped_column(
+        ForeignKey("comparison_sets.id", ondelete="CASCADE"), nullable=False
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    set_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    anchor_slide_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    source_version: Mapped[str | None] = mapped_column(String(128))
+    anchor_version: Mapped[str | None] = mapped_column(String(128))
+    engine: Mapped[str] = mapped_column(String(40), nullable=False)
+    engine_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    settings_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    validation_state: Mapped[str] = mapped_column(String(24), nullable=False)
+    registration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    artifact_path: Mapped[str | None] = mapped_column(String(500))
+    artifact_sha256: Mapped[str | None] = mapped_column(String(64))
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class SavedView(Base):
     __tablename__ = "saved_views"
 

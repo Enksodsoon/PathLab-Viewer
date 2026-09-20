@@ -276,6 +276,48 @@ services:
     cpus: 1.50
     cpu_shares: 256
 
+  alignment-worker:
+    profiles: ["alignment"]
+    image: pathlab-viewer-alignment:${PATHLAB_RELEASE_IMAGE_TAG:-live}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.alignment
+      args:
+        PATHLAB_RELEASE_IMAGE_TAG: ${PATHLAB_RELEASE_IMAGE_TAG:-live}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["pathlab-worker"]
+    stop_grace_period: 45m
+    environment:
+      <<: *pathlab-environment
+      PATHLAB_SERVICE_ROLE: alignment
+      PATHLAB_ALIGNMENT_HISALIGN_ENABLED: "${PATHLAB_ALIGNMENT_HISALIGN_ENABLED:-false}"
+      PATHLAB_ALIGNMENT_VALIS_ENABLED: "${PATHLAB_ALIGNMENT_VALIS_ENABLED:-false}"
+      PATHLAB_WORKER_HEARTBEAT_PATH: /tmp/pathlab-alignment-worker-heartbeat
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      VIPS_CONCURRENCY: "1"
+      MALLOC_ARENA_MAX: "2"
+    volumes:
+      - ${PATHLAB_DATA_DIR:-/srv/pathlab/data}:/data
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pathlab-worker-healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    mem_limit: 8g
+    cpus: 1.75
+    cpu_shares: 128
+
 volumes:
   caddy_data:
   caddy_config:

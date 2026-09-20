@@ -13,6 +13,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -29,6 +30,12 @@ from .alignment import (
     register_pair,
     rescale_registration,
 )
+from .alignment_engines import (
+    ENGINE_NATIVE,
+    ENGINE_VERSIONS,
+    run_engine,
+    settings_digest,
+)
 from .alignment_pyramid import register_components
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
@@ -36,6 +43,7 @@ from .database import session_factory
 from .domain import SlideState
 from .models import (
     AuditEvent,
+    ComparisonRegistrationCandidate,
     ComparisonRegistrationRevision,
     ComparisonSet,
     DesktopPairing,
@@ -57,7 +65,13 @@ STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
 
 
-def _next_job_statement(*, now: datetime, postgres: bool) -> Select[tuple[Job]]:
+def _next_job_statement(
+    *,
+    now: datetime,
+    postgres: bool,
+    include_kinds: frozenset[str] | None = None,
+    exclude_kinds: frozenset[str] | None = None,
+) -> Select[tuple[Job]]:
     statement = (
         select(Job)
         .where(
@@ -67,6 +81,10 @@ def _next_job_statement(*, now: datetime, postgres: bool) -> Select[tuple[Job]]:
         .order_by(Job.created_at)
         .limit(1)
     )
+    if include_kinds:
+        statement = statement.where(Job.kind.in_(include_kinds))
+    if exclude_kinds:
+        statement = statement.where(Job.kind.not_in(exclude_kinds))
     return statement.with_for_update(skip_locked=True) if postgres else statement
 
 
@@ -79,6 +97,17 @@ class DiskUsage(Protocol):
 
     @property
     def free(self) -> int: ...
+
+
+class ChildProcess(Protocol):
+    @property
+    def pid(self) -> int | None: ...
+
+    def is_alive(self) -> bool: ...
+
+    def terminate(self) -> None: ...
+
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 class StorageCapacityMonitor:
@@ -369,8 +398,14 @@ def _alignment_child(
     moving_derivative: str,
     reference_full_size: tuple[int, int],
     moving_full_size: tuple[int, int],
+    engine_name: str,
+    artifact_dir: str | None,
     output: Any,
 ) -> None:
+    # Give every native registration and any JVM it launches one process group
+    # so the OCI supervisor can stop the complete tree on timeout/cancellation.
+    if not sys.platform.startswith("win"):
+        os.setsid()
     try:
         cv2.setNumThreads(1)
         cv2.setRNGSeed(0)
@@ -385,6 +420,28 @@ def _alignment_child(
 
         reference_image = overview(reference_derivative)
         moving_image = overview(moving_derivative)
+        if engine_name != ENGINE_NATIVE:
+            engine_run = run_engine(
+                engine_name,
+                reference=reference_image,
+                moving=moving_image,
+                reference_full_size=reference_full_size,
+                moving_full_size=moving_full_size,
+                artifact_dir=Path(artifact_dir) if artifact_dir else None,
+                progress=lambda values: output.put({"progress": values}),
+            )
+            output.put(
+                {
+                    "ok": True,
+                    "result": engine_run.registration,
+                    "artifactPath": str(engine_run.artifact_path)
+                    if engine_run.artifact_path
+                    else None,
+                    "artifactSha256": engine_run.artifact_sha256,
+                    "runtimeSeconds": engine_run.runtime_seconds,
+                }
+            )
+            return
         result = None
         overview_error = None
         try:
@@ -472,12 +529,49 @@ def _process_rss_bytes(process_id: int) -> int:
         ctypes.windll.kernel32.CloseHandle(handle)
 
 
+def _descendant_process_ids(process_id: int) -> set[int]:
+    if sys.platform.startswith("win") or process_id <= 0:
+        return {process_id} if process_id > 0 else set()
+    discovered = {process_id}
+    pending = [process_id]
+    while pending:
+        parent = pending.pop()
+        children_file = Path(f"/proc/{parent}/task/{parent}/children")
+        try:
+            children = {int(value) for value in children_file.read_text().split()}
+        except (FileNotFoundError, OSError, ValueError):
+            children = set()
+        unseen = children - discovered
+        discovered.update(unseen)
+        pending.extend(unseen)
+    return discovered
+
+
+def _process_tree_rss_bytes(process_id: int) -> int:
+    return sum(_process_rss_bytes(pid) for pid in _descendant_process_ids(process_id))
+
+
+def _terminate_process_tree(process: ChildProcess) -> None:
+    if process.pid and not sys.platform.startswith("win"):
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        process.join(2)
+        if process.is_alive():
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+    elif process.is_alive():
+        process.terminate()
+    process.join(2)
+
+
 def _run_alignment_bounded(
     reference_derivative: Path,
     moving_derivative: Path,
     reference_full_size: tuple[int, int],
     moving_full_size: tuple[int, int],
     *,
+    engine_name: str = ENGINE_NATIVE,
+    artifact_dir: Path | None = None,
     timeout_seconds: int,
     memory_bytes: int,
     heartbeat: Callable[[], None] | None = None,
@@ -492,6 +586,8 @@ def _run_alignment_bounded(
             str(moving_derivative),
             reference_full_size,
             moving_full_size,
+            engine_name,
+            str(artifact_dir) if artifact_dir else None,
             output,
         ),
         daemon=True,
@@ -499,6 +595,7 @@ def _run_alignment_bounded(
     process.start()
     started = time.monotonic()
     last_heartbeat = started
+    peak_memory_bytes = 0
     try:
         # Drain the result while the child is alive: Queue's feeder can block
         # child shutdown until a large coordinate map has been consumed.
@@ -507,10 +604,12 @@ def _run_alignment_bounded(
                 heartbeat()
                 last_heartbeat = time.monotonic()
             if time.monotonic() - started > timeout_seconds:
-                process.terminate()
+                _terminate_process_tree(process)
                 raise AlignmentRejected("registration exceeded the pair timeout")
-            if _process_rss_bytes(process.pid or 0) > memory_bytes:
-                process.terminate()
+            current_memory_bytes = _process_tree_rss_bytes(process.pid or 0)
+            peak_memory_bytes = max(peak_memory_bytes, current_memory_bytes)
+            if current_memory_bytes > memory_bytes:
+                _terminate_process_tree(process)
                 raise AlignmentRejected("registration exceeded the memory ceiling")
             try:
                 result = output.get(timeout=0.2)
@@ -525,11 +624,18 @@ def _run_alignment_bounded(
         process.join(2)
         if not result.get("ok"):
             raise AlignmentRejected(result.get("error") or "registration failed")
-        return cast(dict[str, Any], result["result"])
+        payload = cast(dict[str, Any], result["result"])
+        if result.get("artifactPath"):
+            payload["artifactPath"] = result["artifactPath"]
+        if result.get("artifactSha256"):
+            payload["artifactSha256"] = result["artifactSha256"]
+        if result.get("runtimeSeconds") is not None:
+            payload["runtimeSeconds"] = result["runtimeSeconds"]
+        payload["peakMemoryBytes"] = peak_memory_bytes
+        return payload
     finally:
         if process.is_alive():
-            process.terminate()
-            process.join(2)
+            _terminate_process_tree(process)
         output.close()
 
 
@@ -539,6 +645,9 @@ def process_next(
     *,
     shutdown_requested: Callable[[], bool] = lambda: False,
     protection_enabled: bool = False,
+    include_kinds: frozenset[str] | None = None,
+    exclude_kinds: frozenset[str] | None = None,
+    exclusive_alignment: bool | None = None,
 ) -> bool:
     if shutdown_requested():
         return False
@@ -551,8 +660,32 @@ def process_next(
             if snapshot.blocks_background_work:
                 database.commit()
                 return False
+        alignment_kinds = {"align", "align_benchmark"}
+        active_statuses = {"leased", "running", "checkpointing"}
+        if exclusive_alignment is True:
+            # A queued alignment owns admission priority, but it starts only
+            # after ordinary heavy work has drained.
+            ordinary_active = database.scalar(
+                select(Job.id).where(
+                    Job.kind.not_in(alignment_kinds), Job.status.in_(active_statuses)
+                ).limit(1)
+            )
+            if ordinary_active is not None:
+                return False
+        elif exclusive_alignment is False:
+            alignment_waiting_or_active = database.scalar(
+                select(Job.id).where(
+                    Job.kind.in_(alignment_kinds),
+                    Job.status.in_(active_statuses | {"queued", "retry_wait"}),
+                ).limit(1)
+            )
+            if alignment_waiting_or_active is not None:
+                return False
         statement = _next_job_statement(
-            now=now, postgres=database.get_bind().dialect.name == "postgresql"
+            now=now,
+            postgres=database.get_bind().dialect.name == "postgresql",
+            include_kinds=include_kinds,
+            exclude_kinds=exclude_kinds,
         )
         job = database.scalar(statement)
         if job is None:
@@ -570,7 +703,7 @@ def process_next(
             job.lease_expires_at = None
             database.commit()
             return True
-        if job.kind == "align":
+        if job.kind in {"align", "align_benchmark"}:
             checkpoint = dict(job.checkpoint or {})
             comparison = database.get(ComparisonSet, checkpoint.get("comparisonSetId"))
             if comparison is None or slide.id != checkpoint.get("memberId"):
@@ -613,7 +746,8 @@ def process_next(
             assert primary_reference is not None
             checkpoint.update({"progress": 10, "stage": "loading-overviews", "processedPatches": 0})
             job.checkpoint = checkpoint
-            comparison.status = "running"
+            if job.kind != "align_benchmark":
+                comparison.status = "running"
             database.commit()
             try:
                 reference_derivative = layout.for_slide(reference.id).private_derivative
@@ -657,13 +791,24 @@ def process_next(
                     database.commit()
 
                 limits = job.resource_limits or {}
+                engine_name = str(checkpoint.get("engine") or ENGINE_NATIVE)
+                artifact_dir = (
+                    layout.root
+                    / "alignment-artifacts"
+                    / comparison.id
+                    / str(expected_version)
+                    / slide.id
+                    / engine_name
+                )
                 result_json = _run_alignment_bounded(
                     reference_derivative,
                     moving_derivative,
                     reference_full_size,
                     moving_full_size,
-                    timeout_seconds=min(600, int(limits.get("timeoutSeconds", 600))),
-                    memory_bytes=min(2 * 1024**3, int(limits.get("memoryBytes", 2 * 1024**3))),
+                    engine_name=engine_name,
+                    artifact_dir=artifact_dir,
+                    timeout_seconds=min(2700, int(limits.get("timeoutSeconds", 2700))),
+                    memory_bytes=min(7 * 1024**3, int(limits.get("memoryBytes", 7 * 1024**3))),
                     heartbeat=renew_alignment_lease,
                     progress=record_alignment_progress,
                 )
@@ -678,13 +823,68 @@ def process_next(
                 # also breaks consumers expecting anchor coordinates.
                 database.refresh(comparison)
                 database.refresh(job)
+                database.refresh(slide)
+                database.refresh(reference)
                 if (
                     comparison.version != expected_version
                     or job.cancellation_requested_at is not None
+                    or comparison.source_versions.get(slide.id) != slide.sha256
+                    or comparison.source_versions.get(reference.id) != reference.sha256
                 ):
                     job.status = "cancelled"
                     job.failure_code = "ALIGNMENT_STALE"
                     job.error = "Stale registration output discarded"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
+                if job.kind == "align_benchmark":
+                    artifact_path = result_json.pop("artifactPath", None)
+                    artifact_sha256 = result_json.pop("artifactSha256", None)
+                    runtime_seconds = result_json.pop("runtimeSeconds", None)
+                    peak_memory_bytes = result_json.pop("peakMemoryBytes", None)
+                    evidence = dict(result_json.get("evidence") or {})
+                    evidence.update(
+                        {
+                            "runtimeSeconds": runtime_seconds,
+                            "peakMemoryBytes": peak_memory_bytes,
+                            "engineBuildVersion": ENGINE_VERSIONS[engine_name],
+                        }
+                    )
+                    database.add(
+                        ComparisonRegistrationCandidate(
+                            comparison_set_id=comparison.id,
+                            slide_id=slide.id,
+                            set_version=comparison.version,
+                            anchor_slide_id=reference.id,
+                            source_version=slide.sha256,
+                            anchor_version=reference.sha256,
+                            engine=engine_name,
+                            engine_version=ENGINE_VERSIONS[engine_name],
+                            settings_digest=settings_digest(engine_name),
+                            status=str(result_json.get("status", "rejected")),
+                            validation_state="engineering_passed"
+                            if result_json.get("status") == "ready"
+                            else "rejected",
+                            registration={
+                                **result_json,
+                                "provenance": "automatic-candidate",
+                                "anchorSlideId": reference.id,
+                                "coordinateReferenceId": reference.id,
+                            },
+                            evidence=evidence,
+                            artifact_path=artifact_path,
+                            artifact_sha256=artifact_sha256,
+                        )
+                    )
+                    job.checkpoint = {**checkpoint, "progress": 100, "stage": "complete"}
+                    job.output_manifest = {
+                        "comparisonSetId": comparison.id,
+                        "memberId": slide.id,
+                        "engine": engine_name,
+                        "candidate": True,
+                    }
+                    job.status = "succeeded"
                     job.heartbeat_at = None
                     job.lease_expires_at = None
                     database.commit()
@@ -734,6 +934,33 @@ def process_next(
                 if comparison.version != expected_version or job.cancellation_requested_at:
                     job.status = "cancelled"
                     job.failure_code = "ALIGNMENT_STALE"
+                    job.heartbeat_at = None
+                    job.lease_expires_at = None
+                    database.commit()
+                    return True
+                if job.kind == "align_benchmark":
+                    engine_name = str(checkpoint.get("engine") or ENGINE_NATIVE)
+                    database.add(
+                        ComparisonRegistrationCandidate(
+                            comparison_set_id=comparison.id,
+                            slide_id=slide.id,
+                            set_version=comparison.version,
+                            anchor_slide_id=str(checkpoint.get("anchorSlideId")),
+                            source_version=slide.sha256,
+                            anchor_version=(reference.sha256 if reference else None),
+                            engine=engine_name,
+                            engine_version=ENGINE_VERSIONS[engine_name],
+                            settings_digest=settings_digest(engine_name),
+                            status="rejected",
+                            validation_state="rejected",
+                            registration={},
+                            evidence={},
+                            failure_reason=str(error),
+                        )
+                    )
+                    job.status = "failed_terminal"
+                    job.failure_code = "ALIGNMENT_ENGINE_REJECTED"
+                    job.error = str(error)
                     job.heartbeat_at = None
                     job.lease_expires_at = None
                     database.commit()
@@ -858,6 +1085,7 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, request_shutdown)
     signal.signal(signal.SIGINT, request_shutdown)
+    alignment_role = settings.service_role == "alignment"
     scheduler = WorkerScheduler(
         recover_stale=lambda: recover_stale_jobs(
             factory, stale_after=timedelta(seconds=settings.worker_stale_seconds)
@@ -872,6 +1100,15 @@ def main() -> None:
             layout,
             shutdown_requested=shutdown.is_set,
             protection_enabled=settings.classroom_protection_enabled,
+            include_kinds=(frozenset({"align", "align_benchmark"}) if alignment_role else None),
+            exclude_kinds=(
+                None
+                if alignment_role or settings.service_role == "all"
+                else frozenset({"align", "align_benchmark"})
+            ),
+            exclusive_alignment=(
+                True if alignment_role else (None if settings.service_role == "all" else False)
+            ),
         ),
         cleanup_pairings=lambda: expire_desktop_pairings(factory),
         report_capacity=capacity_monitor.check,

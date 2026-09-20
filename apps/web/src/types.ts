@@ -224,7 +224,9 @@ export interface SharedManifest {
 
 export interface SlideRegistration {
   status: 'ready' | 'approximate' | 'rejected'
-  provenance: 'automatic' | 'manual'
+  provenance: 'automatic' | 'automatic-candidate' | 'manual'
+  engine?: string
+  engineVersion?: string
   anchorSlideId?: string
   coordinateReferenceId?: string
   movingToReference?: number[][]
@@ -291,8 +293,37 @@ export interface ComparisonSet {
   referenceSlideId: string
   status: 'draft' | 'queued' | 'running' | 'ready' | 'partial' | 'failed'
   version: number
-  alignmentConfig?: { anchors?: Record<string, string> }
+  alignmentConfig?: {
+    anchors?: Record<string, string>
+    enginePolicy?: 'benchmark' | 'selected'
+    benchmarkEngines?: string[]
+    selectedEngines?: Record<string, string>
+  }
   members: ComparisonMember[]
+}
+
+export interface RegistrationCandidate {
+  id: string
+  slideId: string
+  setVersion: number
+  anchorSlideId: string
+  engine: string
+  engineVersion: string
+  settingsDigest: string
+  status: 'ready' | 'approximate' | 'rejected'
+  validationState: 'engineering_passed' | 'landmark_passed' | 'rejected'
+  registration: SlideRegistration | null
+  evidence: Record<string, unknown>
+  artifactSha256: string | null
+  failureReason: string | null
+  createdAt: string
+}
+
+export interface RegistrationCandidateManifest {
+  comparisonSetId: string
+  setVersion: number
+  engineAvailability: Record<string, { available: boolean, reason: string | null, buildVersion: string }>
+  candidates: RegistrationCandidate[]
 }
 
 export interface SharedComparisonSummary {

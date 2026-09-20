@@ -543,6 +543,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             admin_dependency=legacy_admin_session,
             csrf_dependency=legacy_csrf,
             enabled=current.alignment_enabled,
+            hisalign_enabled=current.alignment_hisalign_enabled,
+            valis_enabled=current.alignment_valis_enabled,
         )
         register_annotation_routes(
             app,
