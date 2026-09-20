@@ -240,7 +240,7 @@ export interface SlideRegistration {
     moving: [[number, number], [number, number], [number, number]]
     reference: [[number, number], [number, number], [number, number]]
     maxResidualPixels?: number
-    provenance?: 'structural-feature' | 'manual-landmark' | 'approximate-intensity-shape' | 'approximate-structural-flow'
+    provenance?: 'structural-feature' | 'structural-flow-patch' | 'manual-landmark' | 'approximate-intensity-shape' | 'approximate-structural-flow'
   }>
   overviewTriangles?: Array<{
     moving: [[number, number], [number, number], [number, number]]
@@ -262,6 +262,9 @@ export interface SlideRegistration {
     verifiedPatchCount?: number
     patchNccMedian?: number
     patchDiscriminationMedian?: number
+    structuralComponentPairsChecked?: number
+    acceptedStructuralComponents?: number
+    ambiguousStructuralComponents?: number
     availabilityReason?: string
     withheldCheck?: string
   }

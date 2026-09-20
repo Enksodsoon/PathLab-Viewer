@@ -373,6 +373,7 @@ def _alignment_child(
 ) -> None:
     try:
         cv2.setNumThreads(1)
+        cv2.setRNGSeed(0)
 
         def overview(path: str) -> Image.Image:
             derivative = Path(path)
@@ -706,7 +707,7 @@ def process_next(
                         set_version=comparison.version,
                         source_version=slide.sha256,
                         anchor_slide_id=reference.id,
-                        algorithm_version="piecewise-affine-components-v7",
+                        algorithm_version="piecewise-affine-components-v8",
                         provenance="automatic",
                         registration=registrations[slide.id],
                     )

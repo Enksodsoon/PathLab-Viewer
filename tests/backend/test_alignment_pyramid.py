@@ -146,6 +146,37 @@ def test_identical_repeated_fragments_remain_explicitly_approximate(tmp_path):
     np.testing.assert_allclose(restored, source, atol=0.5)
 
 
+def test_unique_component_can_use_patch_verified_structural_flow(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_pyramid
+    from wsi_viewer.alignment import RegistrationResult
+
+    tissue = _textured_tissue()
+    _pyramid(tmp_path / "r", tissue)
+    _pyramid(tmp_path / "m", tissue)
+
+    def no_feature_result(*_args, **_kwargs):
+        return RegistrationResult(
+            status="approximate",
+            moving_to_reference=[[1, 0, 0], [0, 1, 0]],
+            reference_support=(0, 0, tissue.width, tissue.height),
+            moving_support=(0, 0, tissue.width, tissue.height),
+            confidence=0,
+            inlier_count=0,
+            match_count=0,
+            median_error_pixels=-1,
+        )
+
+    monkeypatch.setattr(alignment_pyramid, "register_pair", no_feature_result)
+    result = alignment_pyramid.register_components(
+        tmp_path / "r", tmp_path / "m", tissue, tissue, tissue.size, tissue.size
+    )
+
+    assert result.status == "ready"
+    assert result.triangles
+    assert result.evidence["acceptedStructuralComponents"] == 1
+    assert result.evidence["withheldCheck"] == "pending-independent-landmarks"
+
+
 def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
     from PIL import ImageDraw
     from wsi_viewer.alignment_pyramid import _approximate_component_map
@@ -161,7 +192,7 @@ def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
     result = _approximate_component_map(reference, moving, (0, 0, 1), (0, 0, 1))
 
     assert result is not None
-    assert result[1]
+    assert result.overview_cells
 
 
 def test_flow_refinement_returns_cycle_consistent_local_controls():
@@ -228,7 +259,7 @@ def test_flow_cell_evidence_requires_local_patch_agreement_and_discrimination():
     unrelated = rng.integers(0, 256, reference.shape, dtype=np.uint8)
     rejected, _, _ = _flow_cell_evidence([cell], reference, unrelated)
 
-    assert verified == 1
+    assert len(verified) == 1
     assert ncc > 0.99
     assert discrimination > 0.8
-    assert rejected == 0
+    assert rejected == []

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +22,30 @@ from .alignment import (
     register_pair,
     rescale_registration,
 )
+
+
+@dataclass(frozen=True)
+class _ComponentMap:
+    transform: list[list[float]]
+    overview_cells: list[dict[str, Any]]
+    verified_cells: list[dict[str, Any]]
+    intensity_score: float
+    overlap: float
+    flow_control_count: int
+    flow_cycle_p95: float
+    patch_ncc_median: float
+    patch_discrimination_median: float
+
+    @property
+    def identity_score(self) -> float:
+        if not self.flow_control_count:
+            return 0.0
+        verified_ratio = len(self.verified_cells) / self.flow_control_count
+        return (
+            verified_ratio
+            + 0.5 * max(0.0, self.patch_ncc_median)
+            + 0.5 * max(0.0, self.patch_discrimination_median)
+        )
 
 
 def _candidate_component_pairs(
@@ -76,9 +100,7 @@ def _approximate_component_map(
     moving: Image.Image,
     reference_frame: tuple[int, int, int],
     moving_frame: tuple[int, int, int],
-) -> tuple[
-    list[list[float]], list[dict[str, Any]], float, float, int, float, int, float, float
-] | None:
+) -> _ComponentMap | None:
     """Fit stain-independent component shape and return explicitly approximate cells."""
     def cropped_structure(image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
         # Whole-slide segmentation rejects edge-touching components to suppress
@@ -171,10 +193,10 @@ def _approximate_component_map(
     )
     if not cells:
         return None
-    verified_count, patch_ncc_median, patch_discrimination_median = (
+    verified_cells, patch_ncc_median, patch_discrimination_median = (
         _flow_cell_evidence(cells, reference_structure, moving_structure)
         if provenance == "approximate-structural-flow"
-        else (0, -1.0, -1.0)
+        else ([], -1.0, -1.0)
     )
     rx, ry, reference_divisor = reference_frame
     mx, my, moving_divisor = moving_frame
@@ -188,6 +210,7 @@ def _approximate_component_map(
     )
     full_transform = np.column_stack([linear, offset])
     overview_cells: list[dict[str, Any]] = []
+    full_verified_cells: list[dict[str, Any]] = []
     for cell in cells:
         overview_cells.append(
             {
@@ -201,16 +224,32 @@ def _approximate_component_map(
                 "provenance": provenance,
             }
         )
-    return (
-        full_transform.tolist(),
-        overview_cells,
-        float(score),
-        float(overlap),
-        len(controls) if provenance == "approximate-structural-flow" else 0,
-        flow_cycle_p95,
-        verified_count,
-        patch_ncc_median,
-        patch_discrimination_median,
+    for cell in verified_cells:
+        full_verified_cells.append(
+            {
+                "moving": [
+                    [mx + moving_divisor * x, my + moving_divisor * y] for x, y in cell["moving"]
+                ],
+                "reference": [
+                    [rx + reference_divisor * x, ry + reference_divisor * y]
+                    for x, y in cell["reference"]
+                ],
+                "maxResidualPixels": cell.get("maxResidualPixels", flow_cycle_p95),
+                "provenance": "structural-flow-patch",
+            }
+        )
+    return _ComponentMap(
+        transform=full_transform.tolist(),
+        overview_cells=overview_cells,
+        verified_cells=full_verified_cells,
+        intensity_score=float(score),
+        overlap=float(overlap),
+        flow_control_count=(
+            len(controls) if provenance == "approximate-structural-flow" else 0
+        ),
+        flow_cycle_p95=flow_cycle_p95,
+        patch_ncc_median=patch_ncc_median,
+        patch_discrimination_median=patch_discrimination_median,
     )
 
 
@@ -229,7 +268,7 @@ def _flow_cell_evidence(
     cells: list[dict[str, Any]],
     reference_structure: np.ndarray,
     moving_structure: np.ndarray,
-) -> tuple[int, float, float]:
+) -> tuple[list[dict[str, Any]], float, float]:
     """Withhold an affine-warped patch check from optical-flow estimation.
 
     A cycle-consistent flow can still follow the wrong repeated texture.  Each
@@ -246,7 +285,7 @@ def _flow_cell_evidence(
     # without relying on individual nuclei surviving the cut.
     radius = 48
     displacement = 100
-    accepted = 0
+    accepted: list[dict[str, Any]] = []
     scores: list[float] = []
     discriminations: list[float] = []
 
@@ -325,7 +364,7 @@ def _flow_cell_evidence(
         scores.append(score)
         discriminations.append(discrimination)
         if score >= 0.18 and discrimination >= 0.12:
-            accepted += 1
+            accepted.append(cell)
     return (
         accepted,
         float(np.median(scores)) if scores else -1.0,
@@ -611,46 +650,169 @@ def register_components(
         and sum(other_ri == ri for _, other_ri, _ in candidates) == 1
     ]
     if not accepted:
-        approximate: list[
-            tuple[
-                list[list[float]],
-                list[dict[str, Any]],
-                float,
-                float,
-                int,
-                float,
-                int,
-                float,
-                float,
-            ]
-        ] = []
-        for moving_index, reference_index in _candidate_component_pairs(
+        preferred_pairs = _candidate_component_pairs(
             reference_overview,
             moving_overview,
             reference_boxes,
             moving_boxes,
             reference_size,
             moving_size,
-        ):
-            moving, moving_frame = read_region(moving_path, moving_boxes[moving_index])
-            reference, reference_frame = read_region(
-                reference_path, reference_boxes[reference_index]
+        )
+        moving_regions = {
+            index: read_region(moving_path, bounds)
+            for index, bounds in enumerate(moving_boxes)
+        }
+        reference_regions = {
+            index: read_region(reference_path, bounds)
+            for index, bounds in enumerate(reference_boxes)
+        }
+        candidates_by_pair: dict[tuple[int, int], _ComponentMap] = {}
+        evaluated_pairs: set[tuple[int, int]] = set()
+
+        def candidate_for(moving_index: int, reference_index: int) -> _ComponentMap | None:
+            key = (moving_index, reference_index)
+            if key in evaluated_pairs:
+                return candidates_by_pair.get(key)
+            evaluated_pairs.add(key)
+            moving, moving_frame = moving_regions[moving_index]
+            reference, reference_frame = reference_regions[reference_index]
+            candidate = _approximate_component_map(
+                reference, moving, reference_frame, moving_frame
             )
-            candidate = _approximate_component_map(reference, moving, reference_frame, moving_frame)
             if candidate:
-                approximate.append(candidate)
+                candidates_by_pair[key] = candidate
+            return candidate
+
+        approximate: list[tuple[int, int, _ComponentMap]] = []
+        for moving_index, reference_index in preferred_pairs:
+            candidate = candidate_for(moving_index, reference_index)
+            if candidate:
+                approximate.append((moving_index, reference_index, candidate))
         if approximate:
-            overview_cells = [cell for item in approximate for cell in item[1]]
+            overview_cells = [cell for _, _, item in approximate for cell in item.overview_cells]
             moving_points = np.asarray(
                 [point for cell in overview_cells for point in cell["moving"]], dtype=np.float64
             )
             reference_points = np.asarray(
                 [point for cell in overview_cells for point in cell["reference"]], dtype=np.float64
             )
-            approximate_best = max(approximate, key=lambda item: len(item[1]))
+            approximate_best = max(approximate, key=lambda item: len(item[2].overview_cells))[2]
+            qualified: list[_ComponentMap] = []
+            ambiguous_components = 0
+            identity_checks = 0
+            for moving_index, reference_index, candidate in approximate:
+                verified_count = len(candidate.verified_cells)
+                verified_ratio = verified_count / max(1, candidate.flow_control_count)
+                enough_local_support = verified_count >= 8 or (
+                    verified_count >= 6 and verified_ratio >= 0.5
+                )
+                if not enough_local_support:
+                    continue
+                identity_checks += 1
+                alternative_pairs = {
+                    *(
+                        (moving_index, other_reference)
+                        for other_reference in range(len(reference_boxes))
+                    ),
+                    *(
+                        (other_moving, reference_index)
+                        for other_moving in range(len(moving_boxes))
+                    ),
+                } - {(moving_index, reference_index)}
+                for other_moving, other_reference in alternative_pairs:
+                    candidate_for(other_moving, other_reference)
+                alternatives = [
+                    other
+                    for (other_moving, other_reference), other in candidates_by_pair.items()
+                    if (other_moving, other_reference) != (moving_index, reference_index)
+                    and (other_moving == moving_index or other_reference == reference_index)
+                    and other.flow_control_count > 0
+                ]
+                alternative_score = max(
+                    (other.identity_score for other in alternatives), default=0.0
+                )
+                clearly_identified = not alternatives or (
+                    candidate.identity_score >= alternative_score * 1.25
+                    and candidate.identity_score - alternative_score >= 0.12
+                )
+                if clearly_identified:
+                    qualified.append(candidate)
+                else:
+                    ambiguous_components += 1
+            verified_cells = [
+                cell for candidate in qualified for cell in candidate.verified_cells
+            ]
+            if verified_cells:
+                verified_moving = np.asarray(
+                    [point for cell in verified_cells for point in cell["moving"]],
+                    dtype=np.float64,
+                )
+                verified_reference = np.asarray(
+                    [point for cell in verified_cells for point in cell["reference"]],
+                    dtype=np.float64,
+                )
+                return RegistrationResult(
+                    status="ready",
+                    moving_to_reference=approximate_best.transform,
+                    reference_support=(
+                        float(verified_reference[:, 0].min()),
+                        float(verified_reference[:, 1].min()),
+                        float(verified_reference[:, 0].max()),
+                        float(verified_reference[:, 1].max()),
+                    ),
+                    moving_support=(
+                        float(verified_moving[:, 0].min()),
+                        float(verified_moving[:, 1].min()),
+                        float(verified_moving[:, 0].max()),
+                        float(verified_moving[:, 1].max()),
+                    ),
+                    confidence=min(
+                        0.75,
+                        0.45 + 0.2 * float(np.mean([item.identity_score for item in qualified])),
+                    ),
+                    inlier_count=len(verified_cells),
+                    match_count=len(verified_cells),
+                    median_error_pixels=-1.0,
+                    triangles=verified_cells,
+                    overview_triangles=overview_cells,
+                    evidence={
+                        "mode": "matched-regions",
+                        "anatomicalMatchCount": 0,
+                        "featureMatchCount": 0,
+                        "triangleCount": len(verified_cells),
+                        "overviewTriangleCount": len(overview_cells),
+                        "componentPairsChecked": attempted,
+                        "structuralComponentPairsChecked": len(candidates_by_pair),
+                        "acceptedStructuralComponents": len(qualified),
+                        "ambiguousStructuralComponents": ambiguous_components,
+                        "flowControlCount": sum(
+                            item.flow_control_count for _, _, item in approximate
+                        ),
+                        "flowCycleP95": round(
+                            max(
+                                (
+                                    item.flow_cycle_p95
+                                    for _, _, item in approximate
+                                    if item.flow_cycle_p95 >= 0
+                                ),
+                                default=-1.0,
+                            ),
+                            4,
+                        ),
+                        "verifiedPatchCount": sum(
+                            len(item.verified_cells) for _, _, item in approximate
+                        ),
+                        "withheldCheck": "pending-independent-landmarks",
+                        "availabilityReason": (
+                            "Local structural correspondence passed alternative-fragment checks; "
+                            "independent landmark accuracy is pending"
+                        ),
+                        "source": "bounded-pyramid-component-flow-patch",
+                    },
+                )
             return RegistrationResult(
                 status="approximate",
-                moving_to_reference=approximate_best[0],
+                moving_to_reference=approximate_best.transform,
                 reference_support=(
                     float(reference_points[:, 0].min()),
                     float(reference_points[:, 1].min()),
@@ -663,7 +825,12 @@ def register_components(
                     float(moving_points[:, 0].max()),
                     float(moving_points[:, 1].max()),
                 ),
-                confidence=min(0.49, 0.3 + 0.1 * float(np.mean([item[2] for item in approximate]))),
+                confidence=min(
+                    0.49,
+                    0.3
+                    + 0.1
+                    * float(np.mean([item.intensity_score for _, _, item in approximate])),
+                ),
                 inlier_count=0,
                 match_count=0,
                 median_error_pixels=-1.0,
@@ -675,29 +842,68 @@ def register_components(
                     "triangleCount": 0,
                     "overviewTriangleCount": len(overview_cells),
                     "componentPairsChecked": attempted,
+                    "structuralComponentPairsChecked": len(candidates_by_pair),
                     "approximateComponents": len(approximate),
+                    "componentIdentityChecks": identity_checks,
+                    "ambiguousStructuralComponents": ambiguous_components,
                     "intensityShapeScore": round(
-                        float(np.mean([item[2] for item in approximate])), 6
+                        float(np.mean([item.intensity_score for _, _, item in approximate])), 6
                     ),
-                    "outlineOverlap": round(float(np.mean([item[3] for item in approximate])), 6),
-                    "flowControlCount": sum(item[4] for item in approximate),
+                    "outlineOverlap": round(
+                        float(np.mean([item.overlap for _, _, item in approximate])), 6
+                    ),
+                    "flowControlCount": sum(
+                        item.flow_control_count for _, _, item in approximate
+                    ),
                     "flowCycleP95": round(
-                        max((item[5] for item in approximate if item[5] >= 0), default=-1.0),
+                        max(
+                            (
+                                item.flow_cycle_p95
+                                for _, _, item in approximate
+                                if item.flow_cycle_p95 >= 0
+                            ),
+                            default=-1.0,
+                        ),
                         4,
                     ),
-                    "verifiedPatchCount": sum(item[6] for item in approximate),
+                    "verifiedPatchCount": sum(
+                        len(item.verified_cells) for _, _, item in approximate
+                    ),
                     "patchNccMedian": round(
-                        float(np.median([item[7] for item in approximate if item[7] >= -0.99])),
+                        float(
+                            np.median(
+                                [
+                                    item.patch_ncc_median
+                                    for _, _, item in approximate
+                                    if item.patch_ncc_median >= -0.99
+                                ]
+                            )
+                        ),
                         4,
-                    ) if any(item[7] >= -0.99 for item in approximate) else -1.0,
+                    )
+                    if any(item.patch_ncc_median >= -0.99 for _, _, item in approximate)
+                    else -1.0,
                     "patchDiscriminationMedian": round(
-                        float(np.median([item[8] for item in approximate if item[8] >= -0.99])),
+                        float(
+                            np.median(
+                                [
+                                    item.patch_discrimination_median
+                                    for _, _, item in approximate
+                                    if item.patch_discrimination_median >= -0.99
+                                ]
+                            )
+                        ),
                         4,
-                    ) if any(item[8] >= -0.99 for item in approximate) else -1.0,
+                    )
+                    if any(
+                        item.patch_discrimination_median >= -0.99
+                        for _, _, item in approximate
+                    )
+                    else -1.0,
                     "availabilityReason": "No accepted anatomical feature matches",
                     "source": (
                         "bounded-pyramid-component-flow"
-                        if any(item[4] for item in approximate)
+                        if any(item.flow_control_count for _, _, item in approximate)
                         else "bounded-pyramid-component-shape"
                     ),
                 },
