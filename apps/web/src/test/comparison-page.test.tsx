@@ -130,3 +130,29 @@ it('explains missing anatomical maps before the first navigation gesture', async
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByRole('note', { name: 'Alignment unavailable' })).toHaveTextContent('Linking panes cannot align these slides.')
 })
+
+it('lets an administrator save a direct serial-section anchor and queue registration', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  const response = {
+    id: 'set-1', name: 'Multi-stain set', referenceSlideId: 'slide-1', status: 'draft', version: 2,
+    alignmentConfig: { anchors: { 'slide-4': 'slide-3' } },
+    members: Array.from({ length: 5 }, (_, index) => ({
+      slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
+      tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null,
+    })),
+  }
+  vi.mocked(fetch).mockImplementation(async (_input, init) => init?.method === 'PATCH'
+    ? new Response(JSON.stringify(response), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    : new Response(null, { status: 202 }))
+
+  await user.click(screen.getByRole('button', { name: 'Groups' }))
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Anchor for Slide 4' }), 'slide-3')
+  await user.click(screen.getByRole('button', { name: 'Save and register' }))
+
+  await vi.waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/v1/admin/comparison-sets/set-1', expect.objectContaining({ method: 'PATCH' })))
+  const patchCall = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PATCH')
+  expect(JSON.parse(String(patchCall?.[1]?.body))).toMatchObject({ version: 1, anchors: { 'slide-4': 'slide-3' } })
+  expect(await screen.findByText('Registration queued with the updated reference groups.')).toBeVisible()
+})

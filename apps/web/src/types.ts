@@ -281,6 +281,7 @@ export interface ComparisonSet {
   referenceSlideId: string
   status: 'draft' | 'queued' | 'running' | 'ready' | 'partial' | 'failed'
   version: number
+  alignmentConfig?: { anchors?: Record<string, string> }
   members: ComparisonMember[]
 }
 

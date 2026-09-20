@@ -571,6 +571,16 @@ export async function getComparisonSet(id: string): Promise<ComparisonSet> {
   return json<ComparisonSet>(await fetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }))
 }
 
+export async function updateComparisonSet(id: string, payload: {
+  version: number
+  referenceSlideId: string
+  anchors: Record<string, string>
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }))
+}
+
 export async function getSharedComparisonSet(publicId: string, id: string): Promise<ComparisonSet> {
   return json<ComparisonSet>(await fetch(`/api/v2/public/collections/${encodeURIComponent(publicId)}/comparisons/${encodeURIComponent(id)}`, { credentials: 'omit', cache: 'no-store' }))
 }
