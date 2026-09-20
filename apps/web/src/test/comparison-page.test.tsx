@@ -70,7 +70,7 @@ it('restores an explicitly selected approximate alignment mode after a page remo
 
 it('opens a rejected slide independently instead of attempting synchronization', async () => {
   const user = userEvent.setup()
-  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  const first = render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Multi-stain set')).toBeVisible()
 
   await user.selectOptions(screen.getByRole('combobox', { name: 'Slide shown in pane 2' }), 'slide-5')
@@ -81,6 +81,11 @@ it('opens a rejected slide independently instead of attempting synchronization',
 
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getAllByText('Independent')).toHaveLength(2)
+
+  first.unmount()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByRole('button', { name: 'Link Slide 5 pane' })).toHaveAttribute('aria-pressed', 'false')
   expect(screen.getAllByText('Independent')).toHaveLength(2)
 })
 
@@ -125,6 +130,28 @@ it('opens a correction with independent panes and requires preview before save',
   expect(screen.getByRole('button', { name: 'Preview correction' })).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
   expect(screen.queryByRole('button', { name: 'Record point pair' })).not.toBeInTheDocument()
+})
+
+it('focuses the active rejected slide for correction and restores the previous layout on cancel', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'approximate')
+  await user.click(screen.getByRole('button', { name: 'Add pane' }))
+  await user.click(screen.getByRole('button', { name: 'Add pane' }))
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Slide shown in pane 4' }), 'slide-5')
+
+  await user.click(screen.getByRole('button', { name: 'Correct alignment' }))
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
+  expect(screen.getByLabelText('Viewer /tiles/1.dzi')).toBeVisible()
+  expect(screen.getByLabelText('Viewer /tiles/5.dzi')).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('independent')
+
+  await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(4)
+  expect(screen.getByRole('combobox', { name: 'Slide shown in pane 4' })).toHaveValue('slide-5')
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
+  expect(screen.getByRole('button', { name: 'Views linked' })).toHaveAttribute('aria-pressed', 'true')
 })
 
 
