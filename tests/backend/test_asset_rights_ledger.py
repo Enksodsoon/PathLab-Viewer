@@ -27,7 +27,7 @@ SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
 
 def test_exact_restored_assets_are_admitted_after_owner_approval() -> None:
     ledger = validate(require_release_admission=True)
-    assert len(ledger["records"]) == 16
+    assert len(ledger["records"]) == 17
     assert ledger["releaseAdmission"] == "ADMITTED"
     assert all(
         r["releaseDisposition"] in {"ADMITTED", "EXCLUDED_NON_RELEASE"}
