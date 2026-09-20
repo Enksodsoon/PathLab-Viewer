@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { alignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
+import { alignmentViewDelta, continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
   it('maps bidirectionally through reference coordinates', () => {
@@ -78,7 +78,28 @@ describe('comparison coordinate mapping', () => {
     expect(nearby).toEqual([120.55, 30.7])
     expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[0]).toBeCloseTo(110, 10)
     expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[1]).toBeCloseTo(25, 10)
-    // Distant blank regions remain unsupported.
-    expect(mapOverviewComparisonPoint([500, 500], registration, null)).toBeNull()
+    // The explicit approximate mode remains continuous across the surrounding
+    // slide by falling back to the overview affine beyond component cells.
+    expect(mapOverviewComparisonPoint([500, 500], registration, null)).toEqual([550, 520])
+  })
+
+  it('keeps validated registrations continuous outside sparse local cells', () => {
+    const registration = {
+      movingToReference: [[0, -2, 1000], [2, 0, 200]],
+      triangles: [{
+        moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+        reference: [[1000, 200], [1000, 400], [800, 200]] as [[number, number], [number, number], [number, number]],
+      }],
+    }
+    // The point is outside the only local cell, so the validated affine fills
+    // the surrounding slide instead of suspending navigation.
+    const mapped = mapContinuousComparisonPoint([400, 300], registration, null)
+    expect(mapped).toEqual([400, 1000])
+    expect(mapContinuousComparisonPoint(mapped!, null, registration)?.[0]).toBeCloseTo(400, 10)
+    expect(mapContinuousComparisonPoint(mapped!, null, registration)?.[1]).toBeCloseTo(300, 10)
+    expect(continuousAlignmentViewDelta([400, 300], registration, null)).toMatchObject({
+      rotation: -90,
+      zoomScale: 0.5,
+    })
   })
 })

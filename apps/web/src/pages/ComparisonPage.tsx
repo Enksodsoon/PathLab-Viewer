@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, benchmarkComparisonSet, correctComparisonSet, getComparisonCandidates, getComparisonSet, getSharedComparisonSet, promoteComparisonCandidate, registerComparisonSet, reregisterComparisonSet, updateComparisonSet } from '../api'
-import { hasLocalEvidence, intersectSupport, localAlignmentViewDelta, mapComparisonBounds, mapLocalComparisonPoint, mapOverviewComparisonPoint, mapSupportBounds, normalizeRotation, overviewAlignmentViewDelta, type Support } from '../alignment'
+import { continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, mapSupportBounds, normalizeRotation, overviewAlignmentViewDelta, type Support } from '../alignment'
 import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
@@ -181,14 +181,12 @@ export function ComparisonPage() {
   useEffect(() => {
     if (publicId || !comparisonId) return
     let active = true
-    const load = () => void getComparisonCandidates(comparisonId)
+    void getComparisonCandidates(comparisonId)
       .then((value) => {
         if (active && Array.isArray(value.candidates)) setCandidateManifest(value)
       })
       .catch(() => undefined)
-    load()
-    const timer = window.setInterval(load, 2500)
-    return () => { active = false; window.clearInterval(timer) }
+    return () => { active = false }
   }, [comparisonId, publicId])
   const synchronize = useCallback((source: ComparisonMember, snapshot: ImageViewport, incomingTransaction?: string) => {
     if (!comparison || !linked || alignmentMode === 'independent') return
@@ -235,7 +233,7 @@ export function ComparisonPage() {
         continue
       }
       const referencePoint = alignmentMode === 'matched'
-        ? mapLocalComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
+        ? mapContinuousComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
         : mapOverviewComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
       if (!referencePoint) {
         suspended.push(target.displayName)
@@ -243,10 +241,10 @@ export function ComparisonPage() {
         continue
       }
       const targetPoint = alignmentMode === 'matched'
-        ? mapLocalComparisonPoint(referencePoint, null, targetRegistration)
+        ? mapContinuousComparisonPoint(referencePoint, null, targetRegistration)
         : mapOverviewComparisonPoint(referencePoint, null, targetRegistration)
       const viewDelta = alignmentMode === 'matched'
-        ? localAlignmentViewDelta([snapshot.centerX, snapshot.centerY], sourceRegistration, targetRegistration)
+        ? continuousAlignmentViewDelta([snapshot.centerX, snapshot.centerY], sourceRegistration, targetRegistration)
         : overviewAlignmentViewDelta([snapshot.centerX, snapshot.centerY], sourceRegistration, targetRegistration)
       if (!targetPoint || !viewDelta) {
         suspended.push(target.displayName)
@@ -419,6 +417,10 @@ export function ComparisonPage() {
     if (selected?.registration?.status === 'rejected') {
       setUnlinkedPanes((current) => new Set(current).add(slideId))
       setNotice(`${selected.displayName} has no reliable counterpart and is opened independently.`)
+    } else if (selected?.registration?.status === 'approximate' && alignmentMode === 'matched') {
+      setAlignmentMode('approximate')
+      setLinked(true)
+      setNotice(`${selected.displayName} uses approximate whole-slide synchronization.`)
     } else {
       setNotice('')
     }

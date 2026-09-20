@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import re
+import threading
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
@@ -22,6 +26,8 @@ _DZI_TILE = re.compile(
     r"^slide_files/(?P<level>[0-9]{1,3})/"
     r"(?P<column>[0-9]{1,9})_(?P<row>[0-9]{1,9})\.(?:jpg|jpeg)$"
 )
+_LOCAL_OPENSLIDE_LOCKS: dict[str, threading.Lock] = {}
+_LOCAL_OPENSLIDE_LOCKS_GUARD = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,3 +194,72 @@ def private_static_target(storage: StorageLayout, slide_id: str, tile_path: str)
     ):
         raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
     return target
+
+
+def materialize_local_openslide_tile(
+    storage: StorageLayout, slide_id: str, tile_path: str
+) -> Path:
+    """Render one missing private demo tile from its local source WSI.
+
+    Production ingestion still creates complete immutable pyramids. This opt-in
+    pointer is used by the local real-slide fixture so original-resolution tiles
+    can be verified without first duplicating every private WSI on disk.
+    """
+    root = storage.for_slide(slide_id).private_derivative.resolve()
+    match = _DZI_TILE.fullmatch(tile_path)
+    pointer = root / ".openslide-source.json"
+    if match is None or not pointer.is_file():
+        raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+    target = (root / tile_path).resolve()
+    if not target.is_relative_to(root):
+        raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+    with _LOCAL_OPENSLIDE_LOCKS_GUARD:
+        # ponytail: one lock per local slide bounds lock growth; split per tile only
+        # if local fixture rendering becomes a measured throughput bottleneck.
+        lock = _LOCAL_OPENSLIDE_LOCKS.setdefault(slide_id, threading.Lock())
+    with lock:
+        if target.is_file():
+            return target
+        try:
+            settings = json.loads(pointer.read_text(encoding="utf-8"))
+            source = Path(settings["source"])
+            if not source.is_absolute() or not source.is_file():
+                raise ValueError("Local WSI source is unavailable")
+            import openslide
+            from openslide.deepzoom import DeepZoomGenerator
+
+            slide = openslide.OpenSlide(str(source))
+            try:
+                generator = DeepZoomGenerator(
+                    slide,
+                    tile_size=int(settings.get("tileSize", 1024)),
+                    overlap=1,
+                    limit_bounds=False,
+                )
+                level = int(match["level"])
+                column = int(match["column"])
+                row = int(match["row"])
+                if level < 0 or level >= generator.level_count:
+                    raise ValueError("DZI level is out of bounds")
+                columns, rows = generator.level_tiles[level]
+                if column < 0 or row < 0 or column >= columns or row >= rows:
+                    raise ValueError("DZI tile is out of bounds")
+                image = generator.get_tile(level, (column, row)).convert("RGB")
+            finally:
+                slide.close()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(f".{target.name}.{os.getpid()}-{uuid.uuid4().hex}.tmp")
+            image.save(
+                temporary,
+                "JPEG",
+                quality=int(settings.get("quality", 92)),
+                subsampling=0,
+            )
+            temporary.replace(target)
+            return target
+        except HTTPException:
+            raise
+        except (ImportError, KeyError, OSError, ValueError) as error:
+            raise HTTPException(
+                status_code=503, detail={"code": "TILE_UNAVAILABLE"}
+            ) from error

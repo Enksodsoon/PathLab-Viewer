@@ -122,10 +122,11 @@ def _json(
     members = []
     for slide in slides:
         position = shared.get(slide.id) if shared is not None else None
+        revision = slide.sha256 or str(int(slide.updated_at.timestamp()))
         tile_source = (
-            f"/api/v2/public/collections/{{sharePublicId}}/slides/{position}/tiles/slide.dzi"
+            f"/api/v2/public/collections/{{sharePublicId}}/slides/{position}/tiles/slide.dzi?v={revision}"
             if position is not None
-            else f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi"
+            else f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi?v={revision}"
         )
         members.append(
             {

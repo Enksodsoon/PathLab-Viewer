@@ -142,7 +142,8 @@ function mapOverviewRegistrationPoint(point: Point, registration: LocalRegistrat
   if (registration.overviewTriangles?.length) {
     const mapped = mapRegistrationPointUsing(point, registration, registration.overviewTriangles, backwards)
     if (mapped) return mapped
-    return mapUsingNearbyOverviewCell(point, registration.overviewTriangles, backwards)
+    const nearby = mapUsingNearbyOverviewCell(point, registration.overviewTriangles, backwards)
+    if (nearby) return nearby
   }
   if (!registration.movingToReference) return null
   const matrix = backwards ? inverse(registration.movingToReference) : registration.movingToReference
@@ -162,6 +163,48 @@ export function mapLocalComparisonPoint(
 
 export function hasLocalEvidence(registration: LocalRegistration | null): boolean {
   return !registration || (registration.triangles?.length ?? 0) > 0
+}
+
+function mapContinuousRegistrationPoint(
+  point: Point,
+  registration: LocalRegistration | null,
+  backwards = false,
+): { point: Point; linear: AffineTransform } | null {
+  if (!registration) return { point, linear: [[1, 0, 0], [0, 1, 0]] }
+  const local = mapRegistrationPoint(point, registration, backwards)
+  if (local) return local
+  const overview = mapOverviewRegistrationPoint(point, registration, backwards)
+  if (overview) return overview
+  if (!registration.movingToReference) return null
+  const matrix = backwards ? inverse(registration.movingToReference) : registration.movingToReference
+  return { point: apply(point, matrix), linear: matrix }
+}
+
+/**
+ * Keep a validated registration moving across the whole slide. Local triangles
+ * remain authoritative where present; the engine's validated overview/affine
+ * transform fills the spaces between them and the surrounding glass.
+ */
+export function mapContinuousComparisonPoint(
+  point: Point,
+  source: LocalRegistration | null,
+  target: LocalRegistration | null,
+): Point | null {
+  const inReference = mapContinuousRegistrationPoint(point, source)
+  if (!inReference) return null
+  return mapContinuousRegistrationPoint(inReference.point, target, true)?.point ?? null
+}
+
+export function continuousAlignmentViewDelta(
+  point: Point,
+  source: LocalRegistration | null,
+  target: LocalRegistration | null,
+): AlignmentViewDelta | null {
+  const sourceMap = mapContinuousRegistrationPoint(point, source)
+  if (!sourceMap) return null
+  const targetMap = mapContinuousRegistrationPoint(sourceMap.point, target, true)
+  if (!targetMap) return null
+  return alignmentViewDelta(sourceMap.linear, inverse(targetMap.linear))
 }
 
 export function mapOverviewComparisonPoint(

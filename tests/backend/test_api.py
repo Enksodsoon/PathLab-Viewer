@@ -1867,8 +1867,10 @@ def test_private_preview_publish_and_delete_lifecycle(tmp_path: Path) -> None:
 
         preview = client.get(f"/api/v1/admin/slides/{slide_id}")
         assert preview.status_code == 200
-        assert preview.json()["tileSource"].endswith("/slide.dzi")
-        assert preview.json()["thumbnailUrl"].endswith("/preview/thumbnail.jpg")
+        assert preview.json()["tileSource"].split("?", 1)[0].endswith("/slide.dzi")
+        assert preview.json()["thumbnailUrl"].split("?", 1)[0].endswith(
+            "/preview/thumbnail.jpg"
+        )
         tile = client.get(f"/api/v1/admin/slides/{slide_id}/preview/slide_files/0/0_0.jpeg")
         assert tile.content == b"jpeg"
 
