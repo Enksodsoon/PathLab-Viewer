@@ -15,6 +15,8 @@ import type {
   LibraryShare,
   StorageInventory,
   ComparisonSet,
+  SlideStackSummary,
+  StackSuggestion,
   SharedComparisonSummary,
   RegistrationCandidateManifest,
 } from './types'
@@ -232,6 +234,7 @@ export async function getLibraryNavigation(folderId?: string): Promise<LibraryNa
       classroom: response.headers.get('X-PathLab-Classroom-Enabled') === 'true',
       study: response.headers.get('X-PathLab-Study-Enabled') === 'true',
       assessment: response.headers.get('X-PathLab-Assessment-Enabled') === 'true',
+      alignment: response.headers.get('X-PathLab-Alignment-Enabled') === 'true',
     },
   }
 }
@@ -566,6 +569,54 @@ export async function registerComparisonSet(id: string): Promise<void> {
 
 export async function reregisterComparisonSet(id: string): Promise<void> {
   await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/reregister`, { method: 'POST' }))
+}
+
+export async function getSlideStacks(slideId: string): Promise<SlideStackSummary[]> {
+  return json<SlideStackSummary[]>(await fetch(
+    `/api/v1/admin/slides/${encodeURIComponent(slideId)}/stacks`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function getStackSuggestions(slideId: string, query = ''): Promise<StackSuggestion[]> {
+  const parameters = new URLSearchParams()
+  if (query.trim()) parameters.set('q', query.trim())
+  return json<StackSuggestion[]>(await fetch(
+    `/api/v1/admin/slides/${encodeURIComponent(slideId)}/stack-suggestions?${parameters}`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function updateStackMembers(id: string, payload: {
+  version: number
+  add: Array<{ slideId: string; anchorSlideId: string }>
+  remove?: string[]
+  referenceSlideId?: string
+  order?: string[]
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/members`,
+    { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+  ))
+}
+
+export async function reserveStackUpload(id: string, file: File, payload: {
+  version: number
+  displayName: string
+  stain: string
+  anchorSlideId: string
+  folderId: string | null
+  caseId: string
+  organSite: string
+}): Promise<UploadReservation & { comparisonSetId: string }> {
+  return json<UploadReservation & { comparisonSetId: string }>(await csrfFetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/upload-reservations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, filename: file.name, length: file.size }),
+    },
+  ))
 }
 
 export async function cancelComparisonRegistration(id: string): Promise<void> {

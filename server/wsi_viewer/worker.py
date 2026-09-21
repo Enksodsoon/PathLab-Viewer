@@ -52,6 +52,7 @@ from .models import (
 )
 from .ome import OmeError, validate_ome_tiff
 from .runtime_protection import protection_snapshot
+from .stack_service import activate_ready_slide_memberships, remove_slide_from_stacks
 from .storage import StorageLayout
 from .worker_health import HeartbeatWriter
 
@@ -339,6 +340,7 @@ def expire_incomplete_uploads(
             for artifact in artifacts:
                 _unlink_upload_artifact(artifact)
             database.add(AuditEvent(action="upload.expired", target_id=slide.id))
+            remove_slide_from_stacks(database, slide.id)
             database.delete(slide)
             database.commit()
         expired += 1
@@ -675,18 +677,20 @@ def process_next(
             # A queued alignment owns admission priority, but it starts only
             # after ordinary heavy work has drained.
             ordinary_active = database.scalar(
-                select(Job.id).where(
-                    Job.kind.not_in(alignment_kinds), Job.status.in_(active_statuses)
-                ).limit(1)
+                select(Job.id)
+                .where(Job.kind.not_in(alignment_kinds), Job.status.in_(active_statuses))
+                .limit(1)
             )
             if ordinary_active is not None:
                 return False
         elif exclusive_alignment is False:
             alignment_waiting_or_active = database.scalar(
-                select(Job.id).where(
+                select(Job.id)
+                .where(
                     Job.kind.in_(alignment_kinds),
                     Job.status.in_(active_statuses | {"queued", "retry_wait"}),
-                ).limit(1)
+                )
+                .limit(1)
             )
             if alignment_waiting_or_active is not None:
                 return False
@@ -995,6 +999,7 @@ def process_next(
             return True
         if job.kind == "delete":
             remove_slide(layout, slide.id, slide.public_id)
+            remove_slide_from_stacks(database, slide.id)
             database.delete(slide)
             database.commit()
             return True
@@ -1041,6 +1046,7 @@ def process_next(
             job.status = "succeeded"
             job.heartbeat_at = None
             job.lease_expires_at = None
+            activate_ready_slide_memberships(database, slide)
             database.commit()
         except Exception as error:
             slide.reserved_bytes = 0

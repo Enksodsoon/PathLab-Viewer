@@ -544,6 +544,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         register_alignment_routes(
             app,
+            factory=factory,
+            storage=storage,
+            secret_key=current.secret_key,
+            tus_public_url=current.tus_public_url,
+            max_upload_bytes=current.max_upload_bytes,
             database_dependency=database,
             admin_dependency=legacy_admin_session,
             csrf_dependency=legacy_csrf,

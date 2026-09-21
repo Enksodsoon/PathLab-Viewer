@@ -38,6 +38,7 @@ from .models import (
     AuditEvent,
     Collection,
     CollectionSlide,
+    ComparisonSetMember,
     Folder,
     Job,
     LibraryShare,
@@ -316,6 +317,9 @@ def register_library_routes(
         response.headers["X-PathLab-Assessment-Enabled"] = (
             "true" if app.state.settings.assessment_enabled else "false"
         )
+        response.headers["X-PathLab-Alignment-Enabled"] = (
+            "true" if app.state.settings.alignment_enabled else "false"
+        )
         result = {
             "counts": {
                 "all": int(state_counts[0]),
@@ -556,8 +560,25 @@ def register_library_routes(
         next_cursor = (
             cursor_for_slide(page[-1], sort) if has_more and page and sort != "manual" else None
         )
+        counts = (
+            dict(
+                database.execute(
+                    select(ComparisonSetMember.slide_id, func.count(ComparisonSetMember.id))
+                    .where(ComparisonSetMember.slide_id.in_([slide.id for slide in page]))
+                    .group_by(ComparisonSetMember.slide_id)
+                ).all()
+            )
+            if page and app.state.settings.alignment_enabled
+            else {}
+        )
+        items = []
+        for slide in page:
+            value = slide_json(slide)
+            if app.state.settings.alignment_enabled:
+                value["stackCount"] = int(counts.get(slide.id, 0))
+            items.append(value)
         return {
-            "items": [slide_json(slide) for slide in page],
+            "items": items,
             "nextCursor": next_cursor,
             "total": total,
         }
@@ -638,7 +659,17 @@ def register_library_routes(
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
-        return slide_json(_get_slide(database, slide_id), include_details=True)
+        value = slide_json(_get_slide(database, slide_id), include_details=True)
+        if app.state.settings.alignment_enabled:
+            value["stackCount"] = int(
+                database.scalar(
+                    select(func.count(ComparisonSetMember.id)).where(
+                        ComparisonSetMember.slide_id == slide_id
+                    )
+                )
+                or 0
+            )
+        return value
 
     app.add_api_route(
         "/api/v2/admin/slides/{slide_id}",
@@ -1504,9 +1535,14 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
-        database.execute(update(LibraryShare).where(LibraryShare.id == share_id).values(
-            id=LibraryShare.id, updated_at=LibraryShare.updated_at,
-        ))
+        database.execute(
+            update(LibraryShare)
+            .where(LibraryShare.id == share_id)
+            .values(
+                id=LibraryShare.id,
+                updated_at=LibraryShare.updated_at,
+            )
+        )
         share = database.get(LibraryShare, share_id, populate_existing=True)
         if share is None or not share.is_active:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})
@@ -1544,9 +1580,14 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
-        database.execute(update(LibraryShare).where(LibraryShare.id == share_id).values(
-            id=LibraryShare.id, updated_at=LibraryShare.updated_at,
-        ))
+        database.execute(
+            update(LibraryShare)
+            .where(LibraryShare.id == share_id)
+            .values(
+                id=LibraryShare.id,
+                updated_at=LibraryShare.updated_at,
+            )
+        )
         share = database.get(LibraryShare, share_id, populate_existing=True)
         if share is None or not share.is_active:
             raise HTTPException(status_code=404, detail={"code": "SHARE_NOT_FOUND"})

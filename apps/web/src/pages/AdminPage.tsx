@@ -1714,6 +1714,7 @@ export function AdminPage() {
                 (collection) => collection.id === location.slice('collection:'.length),
               )?.name].filter((name): name is string => Boolean(name))
               : []}
+            stackEnabled={navigation.capabilities?.alignment === true}
             onClose={() => setDetails(null)}
             onEdit={() => {
               void openEditor(details)

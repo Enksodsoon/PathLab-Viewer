@@ -2324,6 +2324,37 @@ button.library-storage-meter:focus-visible {
   cursor: pointer;
 }
 
+.library-slide-thumbnail { position: relative; }
+.library-stack-badge { position: absolute; z-index: 2; inset: 8px 8px auto auto; padding: 4px 7px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 84%, transparent); color: var(--surface-elevated); font-size: 10px; font-weight: 700; }
+.slide-stack-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.slide-stack-heading, .slide-stack-actions, .slide-stack-heading > div { display: flex; align-items: center; }
+.slide-stack-heading { justify-content: space-between; gap: 12px; }
+.slide-stack-heading > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+.slide-stack-heading h4 { margin: 0; }
+.slide-stack-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.slide-stack-heading button { width: 36px; height: 36px; padding: 8px; }
+.slide-stack-section > label, .slide-stack-workflow > label, .slide-stack-workflow article label { display: grid; gap: 5px; margin-top: 12px; color: var(--muted); font-size: 11px; }
+.slide-stack-section input, .slide-stack-section select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); }
+.slide-stack-section button, .slide-stack-open { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); text-decoration: none; cursor: pointer; }
+.slide-stack-section .primary { background: var(--ink); color: var(--surface-elevated); }
+.slide-stack-members { display: grid; gap: 6px; margin: 12px 0; }
+.slide-stack-members > span { display: grid; grid-template-columns: auto 1fr; gap: 3px 7px; padding: 9px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); font-size: 12px; }
+.slide-stack-members small { grid-column: 1 / -1; color: var(--muted); text-transform: capitalize; }
+.slide-stack-actions { gap: 7px; margin-top: 8px; }
+.slide-stack-actions button { flex: 1; font-size: 11px; }
+.slide-stack-workflow { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface-card); }
+.slide-stack-file input { padding: 7px; }
+.slide-stack-workflow article { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-elevated); }
+.slide-stack-workflow article label { margin: 0; }
+.slide-stack-workflow article > span { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.slide-stack-suggestions { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.slide-stack-suggestions label { display: grid; grid-template-columns: auto 44px 1fr; align-items: center; gap: 8px; padding: 7px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-elevated); }
+.slide-stack-suggestions input { width: 18px; min-height: 18px; }
+.slide-stack-suggestions img { width: 44px; height: 36px; object-fit: cover; border-radius: 4px; }
+.slide-stack-suggestions span { display: grid; min-width: 0; font-size: 11px; }
+.slide-stack-suggestions small { color: var(--muted); overflow-wrap: anywhere; }
+.slide-stack-message { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
 /* Native dialogs */
 
 .library-dialog {

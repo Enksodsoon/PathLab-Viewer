@@ -11,6 +11,7 @@ from wsi_viewer.models import (
     ComparisonRegistrationCandidate,
     ComparisonRegistrationRevision,
     ComparisonSet,
+    ComparisonSetMember,
     Job,
     LibraryShare,
     ShareSlide,
@@ -19,6 +20,7 @@ from wsi_viewer.models import (
 )
 from wsi_viewer.readiness import ALEMBIC_HEAD
 from wsi_viewer.security import hash_password
+from wsi_viewer.stack_service import activate_ready_slide_memberships, remove_slide_from_stacks
 
 
 def _client(
@@ -111,6 +113,124 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
             assert database.query(Job).filter(Job.kind == "align").count() == 2
 
 
+def test_slide_stack_membership_lifecycle_and_suggestions(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Case stack",
+                "slideIds": ["slide-1"],
+                "referenceSlideId": "slide-1",
+            },
+        )
+        assert created.status_code == 201, created.text
+        stack = created.json()
+        assert stack["status"] == "draft"
+        assert stack["members"][0]["anchorSlideId"] is None
+
+        summaries = client.get("/api/v1/admin/slides/slide-1/stacks")
+        assert summaries.status_code == 200
+        assert summaries.json()[0]["role"] == "reference"
+        suggestions = client.get("/api/v1/admin/slides/slide-1/stack-suggestions")
+        assert {item["slideId"] for item in suggestions.json()} == {"slide-2", "slide-3"}
+
+        linked = client.patch(
+            f"/api/v1/admin/comparison-sets/{stack['id']}/members",
+            headers=headers,
+            json={
+                "version": stack["version"],
+                "add": [{"slideId": "slide-2", "anchorSlideId": "slide-1"}],
+                "order": ["slide-2", "slide-1"],
+            },
+        )
+        assert linked.status_code == 200, linked.text
+        payload = linked.json()
+        assert payload["version"] == stack["version"] + 1
+        assert [member["slideId"] for member in payload["members"]] == [
+            "slide-2",
+            "slide-1",
+        ]
+        assert payload["members"][0]["anchorSlideId"] == "slide-1"
+
+        stale = client.patch(
+            f"/api/v1/admin/comparison-sets/{stack['id']}/members",
+            headers=headers,
+            json={"version": stack["version"], "add": []},
+        )
+        assert stale.status_code == 409
+        with session_factory(client.app.state.settings)() as database:
+            assert (
+                database.query(ComparisonSetMember).filter_by(comparison_set_id=stack["id"]).count()
+                == 2
+            )
+            assert database.query(Job).filter(Job.kind == "align").count() == 1
+
+
+def test_stack_upload_reservation_is_atomic_and_queues_when_ready(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Upload stack",
+                "slideIds": ["slide-1"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        endpoint = f"/api/v1/admin/comparison-sets/{stack['id']}/upload-reservations"
+        base = {
+            "version": stack["version"],
+            "displayName": "HER2 serial section",
+            "length": 4096,
+            "stain": "HER2",
+            "anchorSlideId": "slide-1",
+            "folderId": None,
+            "caseId": "case-a",
+            "organSite": "breast",
+        }
+        rejected = client.post(endpoint, headers=headers, json={**base, "filename": "her2.svs"})
+        assert rejected.status_code == 422
+        assert rejected.json()["detail"]["code"] == "OME_TIFF_REQUIRED"
+
+        reserved = client.post(
+            endpoint, headers=headers, json={**base, "filename": "her2.ome.tiff"}
+        )
+        assert reserved.status_code == 201, reserved.text
+        slide_id = reserved.json()["slide"]["id"]
+        manifest = client.get(f"/api/v1/admin/comparison-sets/{stack['id']}").json()
+        pending = next(member for member in manifest["members"] if member["slideId"] == slide_id)
+        assert pending["state"] == "uploading"
+        assert pending["tileSource"] is None
+        assert pending["anchorSlideId"] == "slide-1"
+
+        with session_factory(client.app.state.settings)() as database:
+            slide = database.get(Slide, slide_id)
+            assert slide is not None
+            slide.state = SlideState.READY_PRIVATE
+            slide.sha256 = "uploaded-sha"
+            assert activate_ready_slide_memberships(database, slide) == 1
+            database.commit()
+            job = database.scalar(select(Job).where(Job.slide_id == slide_id, Job.kind == "align"))
+            assert job is not None
+            assert job.checkpoint["anchorSlideId"] == "slide-1"
+            remove_slide_from_stacks(database, slide_id)
+            database.delete(slide)
+            database.commit()
+            remaining = database.get(ComparisonSet, stack["id"])
+            assert remaining is not None
+            assert remaining.member_slide_ids == ["slide-1"]
+
+            reference = database.get(Slide, "slide-1")
+            assert reference is not None
+            remove_slide_from_stacks(database, reference.id)
+            database.delete(reference)
+            database.commit()
+            assert database.get(ComparisonSet, stack["id"]) is None
+
+
 def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=True, hisalign=True, valis=False) as client:
         headers = _headers(client)
@@ -160,9 +280,7 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
             assert database.query(Job).filter(Job.kind == "align_benchmark").count() == 3
             assert (
                 database.query(Job)
-                .filter(
-                    Job.kind == "align_benchmark", Job.cancellation_requested_at.is_not(None)
-                )
+                .filter(Job.kind == "align_benchmark", Job.cancellation_requested_at.is_not(None))
                 .count()
                 == 3
             )
@@ -237,11 +355,16 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         assert promoted.status_code == 200, promoted.text
         assert promoted.json()["members"][1]["registration"]["engine"] == "hisalign-0.2.1"
         with session_factory(client.app.state.settings)() as database:
-            assert database.query(ComparisonRegistrationRevision).filter(
-                ComparisonRegistrationRevision.comparison_set_id == created["id"],
-                ComparisonRegistrationRevision.slide_id == "slide-2",
-                ComparisonRegistrationRevision.set_version == created["version"],
-            ).count() == 2
+            assert (
+                database.query(ComparisonRegistrationRevision)
+                .filter(
+                    ComparisonRegistrationRevision.comparison_set_id == created["id"],
+                    ComparisonRegistrationRevision.slide_id == "slide-2",
+                    ComparisonRegistrationRevision.set_version == created["version"],
+                )
+                .count()
+                == 2
+            )
         manifest = client.get(url + "/candidates")
         assert manifest.status_code == 200
         assert manifest.json()["candidates"][0]["artifactSha256"] is None
@@ -347,10 +470,26 @@ def test_shared_collection_lists_only_fully_authorized_comparisons(tmp_path: Pat
         ]
 
         with session_factory(client.app.state.settings)() as database:
+            slide = database.get(Slide, "slide-2")
+            assert slide is not None
+            slide.state = SlideState.CONVERTING
+            database.commit()
+        assert client.get("/api/v2/public/collections/shared-collection/comparisons").json() == []
+        assert (
+            client.get(
+                f"/api/v2/public/collections/shared-collection/comparisons/{visible_id}"
+            ).status_code
+            == 404
+        )
+
+        with session_factory(client.app.state.settings)() as database:
             share = database.scalar(
                 select(LibraryShare).where(LibraryShare.public_id == "shared-collection")
             )
             assert share is not None
+            slide = database.get(Slide, "slide-2")
+            assert slide is not None
+            slide.state = SlideState.READY_PRIVATE
             share.privacy_status = "pending"
             database.commit()
         assert (

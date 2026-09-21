@@ -28,9 +28,9 @@ def finding(**overrides: object) -> dict[str, object]:
 def test_current_security_baseline_reconciles() -> None:
     result = validate()
     assert result == {
-        "backendRoutes": 251,
+        "backendRoutes": 258,
         "frontendRoutes": 29,
-        "egressFiles": 78,
+        "egressFiles": 82,
         "findingResult": "SUCCESS",
     }
 

@@ -1351,6 +1351,28 @@ class ComparisonSet(Base):
     )
 
 
+class ComparisonSetMember(Base):
+    __tablename__ = "comparison_set_members"
+    __table_args__ = (
+        UniqueConstraint("comparison_set_id", "slide_id", name="uq_comparison_set_member"),
+        CheckConstraint("position >= 0", name="ck_comparison_set_members_position"),
+        Index("ix_comparison_set_members_slide", "slide_id", "comparison_set_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    comparison_set_id: Mapped[str] = mapped_column(
+        ForeignKey("comparison_sets.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    slide_id: Mapped[str] = mapped_column(
+        ForeignKey("slides.id", ondelete="CASCADE"), nullable=False
+    )
+    anchor_slide_id: Mapped[str | None] = mapped_column(
+        ForeignKey("slides.id", ondelete="SET NULL")
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class ComparisonRegistrationRevision(Base):
     __tablename__ = "comparison_registration_revisions"
     __table_args__ = (

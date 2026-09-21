@@ -66,6 +66,7 @@ export interface LibrarySlide {
   updatedAt: string
   trashedAt: string | null
   thumbnailUrl: string | null
+  stackCount?: number
 }
 
 export interface LibrarySlideDetails extends LibrarySlide {
@@ -112,6 +113,7 @@ export interface LibraryNavigation {
     classroom: boolean
     study?: boolean
     assessment?: boolean
+    alignment?: boolean
   }
   counts: {
     all: number
@@ -282,10 +284,14 @@ export interface ComparisonMember {
   slideId: string
   displayName: string
   stain: string
-  tileSource: string
-  thumbnailUrl: string
+  tileSource: string | null
+  thumbnailUrl: string | null
   metadata: SlideMetadata | null
   registration: SlideRegistration | null
+  state?: SlideState
+  availabilityReason?: string | null
+  errorCode?: string | null
+  anchorSlideId?: string | null
 }
 
 export interface ComparisonSet {
@@ -331,6 +337,28 @@ export interface SharedComparisonSummary {
   id: string
   name: string
   status: ComparisonSet['status']
+}
+
+export interface SlideStackSummary {
+  id: string
+  name: string
+  status: ComparisonSet['status']
+  version: number
+  referenceSlideId: string
+  role: 'reference' | 'member'
+  memberCount: number
+  stains: string[]
+}
+
+export interface StackSuggestion {
+  slideId: string
+  displayName: string
+  stain: string
+  caseId: string
+  organSite: string
+  folderId: string | null
+  thumbnailUrl: string | null
+  reasons: string[]
 }
 
 export interface SharePreviewItem {

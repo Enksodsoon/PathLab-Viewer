@@ -2,6 +2,7 @@ import { Eye, Lock, LockOpen, PencilSimple as Edit3, X } from '@phosphor-icons/r
 
 import type { LibrarySlide, LibrarySlideDetails } from '../../types'
 import { formatBytes } from './format'
+import { SlideStackSection } from './SlideStackSection'
 
 interface SlideDetailsPanelProps {
   slide: LibrarySlideDetails | LibrarySlide | null
@@ -9,6 +10,7 @@ interface SlideDetailsPanelProps {
   onEdit: () => void
   folderName?: string
   collectionNames?: string[]
+  stackEnabled?: boolean
 }
 
 export function SlideDetailsPanel({
@@ -17,6 +19,7 @@ export function SlideDetailsPanel({
   onEdit,
   folderName,
   collectionNames = [],
+  stackEnabled = false,
 }: SlideDetailsPanelProps) {
   if (!slide) return null
   const adminNote = 'adminNotes' in slide ? slide.adminNotes : ''
@@ -66,6 +69,7 @@ export function SlideDetailsPanel({
         <h4>Admin note</h4>
         <p className="admin-note">{adminNote || 'No administrator note.'}</p>
       </section>
+      <SlideStackSection slide={slide} enabled={stackEnabled} />
       <div className="details-actions">
         {slide.state === 'ready_private' || slide.state === 'published' ? (
           <a href={`/admin/preview/${slide.id}`}><Eye /> Preview</a>

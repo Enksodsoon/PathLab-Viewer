@@ -5,15 +5,17 @@ import hashlib
 import re
 import uuid
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
+from sqlalchemy.orm import sessionmaker
 
 from .alignment import _registration_triangles
 from .alignment_engines import (
@@ -29,18 +31,29 @@ from .models import (
     ComparisonRegistrationCandidate,
     ComparisonRegistrationRevision,
     ComparisonSet,
+    ComparisonSetMember,
     Job,
     LibraryShare,
     ShareSlide,
     Slide,
 )
+from .security import UploadGrant, issue_upload_token
 from .sharing import ShareConflict, active_public_share
+from .stack_service import (
+    READY_STATES,
+    cancel_stack_jobs,
+    membership_rows,
+    queue_ready_registrations,
+    sync_membership_mirror,
+)
+from .storage import InsufficientStorage, StorageLayout
+from .storage_accounting import reserve_new_slide
 
 
 class ComparisonRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     name: str = Field(min_length=1, max_length=160)
-    slide_ids: list[str] = Field(alias="slideIds", min_length=2, max_length=12)
+    slide_ids: list[str] = Field(alias="slideIds", min_length=1, max_length=12)
     reference_slide_id: str = Field(alias="referenceSlideId", min_length=1, max_length=64)
 
 
@@ -64,6 +77,34 @@ class ComparisonUpdateRequest(BaseModel):
     anchors: dict[str, str] | None = None
 
 
+class StackMemberInput(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    slide_id: str = Field(alias="slideId", min_length=1, max_length=64)
+    anchor_slide_id: str | None = Field(default=None, alias="anchorSlideId", max_length=64)
+
+
+class StackMembershipRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    version: int = Field(ge=1)
+    add: list[StackMemberInput] = Field(default_factory=list, max_length=11)
+    remove: list[str] = Field(default_factory=list, max_length=11)
+    reference_slide_id: str | None = Field(default=None, alias="referenceSlideId", max_length=64)
+    order: list[str] | None = Field(default=None, max_length=12)
+
+
+class StackUploadRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    version: int = Field(ge=1)
+    display_name: str = Field(alias="displayName", min_length=1, max_length=200)
+    filename: str = Field(min_length=1, max_length=500)
+    length: int = Field(gt=0)
+    stain: str = Field(min_length=1, max_length=80)
+    anchor_slide_id: str = Field(alias="anchorSlideId", min_length=1, max_length=64)
+    folder_id: str | None = Field(default=None, alias="folderId", max_length=64)
+    case_id: str = Field(default="", alias="caseId", max_length=120)
+    organ_site: str = Field(default="", alias="organSite", max_length=120)
+
+
 class BenchmarkRequest(BaseModel):
     version: int = Field(ge=1)
     engines: list[str] = Field(default_factory=lambda: list(SUPPORTED_ENGINES), min_length=1)
@@ -79,15 +120,14 @@ def _error(code: str, http_status: int = 422) -> HTTPException:
 
 
 def _members(database: OrmSession, item: ComparisonSet) -> list[Slide]:
+    rows = membership_rows(database, item)
+    member_ids = [row.slide_id for row in rows]
     slides = {
-        slide.id: slide
-        for slide in database.scalars(
-            select(Slide).where(Slide.id.in_(item.member_slide_ids), Slide.trashed_at.is_(None))
-        )
+        slide.id: slide for slide in database.scalars(select(Slide).where(Slide.id.in_(member_ids)))
     }
-    if len(slides) != len(item.member_slide_ids):
+    if len(slides) != len(member_ids):
         raise _error("COMPARISON_SOURCE_CHANGED", 409)
-    return [slides[slide_id] for slide_id in item.member_slide_ids]
+    return [slides[slide_id] for slide_id in member_ids]
 
 
 def _serial_group(slide: Slide) -> str | None:
@@ -117,17 +157,36 @@ def _alignment_anchors(slides: list[Slide], primary_reference_id: str) -> dict[s
 
 
 def _json(
-    item: ComparisonSet, slides: list[Slide], *, shared: dict[str, int] | None = None
+    item: ComparisonSet,
+    slides: list[Slide],
+    *,
+    shared: dict[str, int] | None = None,
+    database: OrmSession | None = None,
 ) -> dict[str, Any]:
+    anchors = (item.alignment_config or {}).get("anchors", {})
+    if database is not None:
+        anchors = {
+            row.slide_id: row.anchor_slide_id or item.reference_slide_id
+            for row in membership_rows(database, item)
+            if row.slide_id != item.reference_slide_id
+        }
     members = []
     for slide in slides:
         position = shared.get(slide.id) if shared is not None else None
         revision = slide.sha256 or str(int(slide.updated_at.timestamp()))
-        tile_source = (
-            f"/api/v2/public/collections/{{sharePublicId}}/slides/{position}/tiles/slide.dzi?v={revision}"
-            if position is not None
-            else f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi?v={revision}"
-        )
+        available = slide.trashed_at is None and slide.state in READY_STATES
+        tile_source = None
+        if available:
+            tile_source = (
+                f"/api/v2/public/collections/{{sharePublicId}}/slides/{position}/tiles/slide.dzi?v={revision}"
+                if position is not None
+                else f"/api/v1/admin/slides/{slide.id}/preview/slide.dzi?v={revision}"
+            )
+        availability_reason = None
+        if slide.trashed_at is not None:
+            availability_reason = "trashed"
+        elif slide.state not in READY_STATES:
+            availability_reason = slide.state.value
         members.append(
             {
                 "slideId": slide.id,
@@ -135,8 +194,16 @@ def _json(
                 "stain": slide.stain,
                 "metadata": slide.slide_metadata,
                 "tileSource": tile_source,
-                "thumbnailUrl": tile_source.replace("slide.dzi", "thumbnail.jpg"),
+                "thumbnailUrl": tile_source.replace("slide.dzi", "thumbnail.jpg")
+                if tile_source
+                else None,
                 "registration": item.registrations.get(slide.id),
+                "state": slide.state.value,
+                "availabilityReason": availability_reason,
+                "errorCode": slide.error_code,
+                "anchorSlideId": None
+                if slide.id == item.reference_slide_id
+                else anchors.get(slide.id, item.reference_slide_id),
             }
         )
     return {
@@ -157,6 +224,11 @@ def register_alignment_routes(
     admin_dependency: Callable[..., Any],
     csrf_dependency: Callable[..., Any],
     enabled: bool,
+    factory: sessionmaker[OrmSession] | None = None,
+    storage: StorageLayout | None = None,
+    secret_key: str | None = None,
+    tus_public_url: str = "/files/",
+    max_upload_bytes: int = 5 * 1024**3,
     hisalign_enabled: bool = False,
     valis_enabled: bool = False,
 ) -> None:
@@ -167,7 +239,7 @@ def register_alignment_routes(
         _: Any = Depends(admin_dependency), database: OrmSession = Depends(database_dependency)
     ) -> list[dict[str, Any]]:
         return [
-            _json(item, _members(database, item))
+            _json(item, _members(database, item), database=database)
             for item in database.scalars(
                 select(ComparisonSet).order_by(ComparisonSet.updated_at.desc())
             )
@@ -199,9 +271,20 @@ def register_alignment_routes(
             status="draft",
         )
         database.add(item)
+        database.flush()
+        for position, slide_id in enumerate(ids):
+            database.add(
+                ComparisonSetMember(
+                    comparison_set_id=item.id,
+                    slide_id=slide_id,
+                    anchor_slide_id=None
+                    if slide_id == item.reference_slide_id
+                    else item.reference_slide_id,
+                    position=position,
+                )
+            )
         database.commit()
-        database.refresh(item)
-        return _json(item, [by_id[item] for item in ids])
+        return _json(item, [by_id[item] for item in ids], database=database)
 
     def get_set(
         set_id: str,
@@ -211,7 +294,7 @@ def register_alignment_routes(
         item = database.get(ComparisonSet, set_id)
         if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
-        return _json(item, _members(database, item))
+        return _json(item, _members(database, item), database=database)
 
     def queue_set(
         set_id: str,
@@ -231,40 +314,11 @@ def register_alignment_routes(
                 if slide_id in item.member_slide_ids and anchor_id in item.member_slide_ids
             }
         )
-        secondary_anchors = {
-            anchor_id for anchor_id in anchors.values() if anchor_id != item.reference_slide_id
-        }
-        slides = sorted(slides, key=lambda slide: slide.id not in secondary_anchors)
-        queued = 0
-        for slide in slides:
-            if slide.id == item.reference_slide_id or slide.id in item.registrations:
-                continue
-            key = hashlib.sha256(f"{item.id}:{item.version}:{slide.id}".encode()).hexdigest()
-            exists = database.scalar(
-                select(Job.id).where(Job.kind == "align", Job.idempotency_key_hash == key)
-            )
-            if exists is None:
-                database.add(
-                    Job(
-                        slide_id=slide.id,
-                        kind="align",
-                        resource_class="isolated",
-                        idempotency_key_hash=key,
-                        checkpoint={
-                            "comparisonSetId": item.id,
-                            "memberId": slide.id,
-                            "anchorSlideId": anchors[slide.id],
-                            "setVersion": item.version,
-                            "progress": 0,
-                        },
-                        resource_limits={
-                            "cpuThreads": 1,
-                            "memoryBytes": 2 * 1024**3,
-                            "timeoutSeconds": 600,
-                        },
-                    )
-                )
-                queued += 1
+        for row in membership_rows(database, item):
+            if row.slide_id != item.reference_slide_id:
+                row.anchor_slide_id = anchors.get(row.slide_id, item.reference_slide_id)
+        sync_membership_mirror(database, item)
+        queued = queue_ready_registrations(database, item)
         database.commit()
         return {"comparisonSetId": item.id, "queuedPairs": queued, "status": item.status}
 
@@ -294,19 +348,121 @@ def register_alignment_routes(
         item.reference_slide_id = reference_id
         item.alignment_config = {**(item.alignment_config or {}), "anchors": anchors}
         if changed:
+            for row in membership_rows(database, item):
+                row.anchor_slide_id = (
+                    None
+                    if row.slide_id == reference_id
+                    else anchors.get(row.slide_id, reference_id)
+                )
             item.version += 1
             item.registrations = {}
             item.status = "draft"
-            for job in database.scalars(
-                select(Job).where(
-                    Job.kind == "align",
-                    Job.status.in_(["queued", "leased", "running", "retry_wait"]),
-                )
-            ):
-                if (job.checkpoint or {}).get("comparisonSetId") == item.id:
-                    job.cancellation_requested_at = datetime.now(UTC)
+            cancel_stack_jobs(database, item.id)
+            sync_membership_mirror(database, item)
         database.commit()
-        return _json(item, _members(database, item))
+        return _json(item, _members(database, item), database=database)
+
+    def update_members(
+        set_id: str,
+        payload: StackMembershipRequest,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        item = database.get(ComparisonSet, set_id)
+        if item is None:
+            raise _error("COMPARISON_NOT_FOUND", 404)
+        if item.version != payload.version:
+            raise _error("COMPARISON_STALE_WRITE", 409)
+        rows = membership_rows(database, item)
+        by_slide = {row.slide_id: row for row in rows}
+        remove_ids = set(payload.remove)
+        if len({entry.slide_id for entry in payload.add}) != len(payload.add):
+            raise _error("STACK_MEMBER_DUPLICATE")
+        next_reference = payload.reference_slide_id or item.reference_slide_id
+        if item.reference_slide_id in remove_ids and next_reference == item.reference_slide_id:
+            raise _error("REFERENCE_REPLACEMENT_REQUIRED")
+        add_ids = [entry.slide_id for entry in payload.add if entry.slide_id not in by_slide]
+        final_ids = [row.slide_id for row in rows if row.slide_id not in remove_ids] + add_ids
+        if not final_ids or len(final_ids) > 12:
+            raise _error("STACK_MEMBER_LIMIT")
+        if next_reference not in final_ids:
+            raise _error("REFERENCE_NOT_MEMBER")
+        if payload.order is not None and (
+            len(payload.order) != len(final_ids) or set(payload.order) != set(final_ids)
+        ):
+            raise _error("STACK_ORDER_INVALID")
+        additions = {
+            slide.id: slide
+            for slide in database.scalars(select(Slide).where(Slide.id.in_(add_ids)))
+        }
+        if len(additions) != len(add_ids) or any(
+            slide.trashed_at is not None or slide.state not in READY_STATES
+            for slide in additions.values()
+        ):
+            raise _error("SLIDES_NOT_READY")
+        anchors = {
+            row.slide_id: row.anchor_slide_id or next_reference
+            for row in rows
+            if row.slide_id not in remove_ids
+        }
+        anchors.update(
+            {entry.slide_id: entry.anchor_slide_id or next_reference for entry in payload.add}
+        )
+        if any(
+            anchor_id not in final_ids
+            for slide_id, anchor_id in anchors.items()
+            if slide_id != next_reference
+        ):
+            raise _error("ANCHOR_NOT_MEMBER")
+        for row in rows:
+            if row.slide_id in remove_ids:
+                database.delete(row)
+        position = len(rows) - len(remove_ids)
+        for entry in payload.add:
+            if entry.slide_id in by_slide:
+                by_slide[entry.slide_id].anchor_slide_id = entry.anchor_slide_id or next_reference
+                continue
+            database.add(
+                ComparisonSetMember(
+                    comparison_set_id=item.id,
+                    slide_id=entry.slide_id,
+                    anchor_slide_id=None
+                    if entry.slide_id == next_reference
+                    else entry.anchor_slide_id or next_reference,
+                    position=position,
+                )
+            )
+            position += 1
+        database.flush()
+        ordered_ids = payload.order or final_ids
+        for row in membership_rows(database, item):
+            row.anchor_slide_id = (
+                None
+                if row.slide_id == next_reference
+                else anchors.get(row.slide_id, next_reference)
+            )
+            row.position = ordered_ids.index(row.slide_id)
+        affected = remove_ids | {entry.slide_id for entry in payload.add}
+        registrations = dict(item.registrations or {})
+        for slide_id in list(registrations):
+            if slide_id in affected or registrations[slide_id].get("anchorSlideId") in affected:
+                registrations.pop(slide_id, None)
+        item.registrations = registrations
+        item.reference_slide_id = next_reference
+        item.version += 1
+        item.status = "draft"
+        item.source_versions = {
+            slide_id: digest
+            for slide_id, digest in (item.source_versions or {}).items()
+            if slide_id in final_ids
+        }
+        for slide_id, slide in additions.items():
+            item.source_versions[slide_id] = slide.sha256
+        cancel_stack_jobs(database, item.id)
+        sync_membership_mirror(database, item)
+        queue_ready_registrations(database, item)
+        database.commit()
+        return _json(item, _members(database, item), database=database)
 
     def reregister(
         set_id: str,
@@ -321,6 +477,178 @@ def register_alignment_routes(
         item.status = "draft"
         database.commit()
         return queue_set(set_id, authorization, database)
+
+    def slide_stacks(
+        slide_id: str,
+        _: Any = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> list[dict[str, Any]]:
+        if database.get(Slide, slide_id) is None:
+            raise _error("SLIDE_NOT_FOUND", 404)
+        set_ids = list(
+            database.scalars(
+                select(ComparisonSetMember.comparison_set_id).where(
+                    ComparisonSetMember.slide_id == slide_id
+                )
+            )
+        )
+        result = []
+        for set_id in set_ids:
+            item = database.get(ComparisonSet, set_id)
+            if item is None:
+                continue
+            members = _members(database, item)
+            result.append(
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "status": item.status,
+                    "version": item.version,
+                    "referenceSlideId": item.reference_slide_id,
+                    "role": "reference" if item.reference_slide_id == slide_id else "member",
+                    "memberCount": len(members),
+                    "stains": [slide.stain for slide in members if slide.stain],
+                }
+            )
+        return result
+
+    def stack_suggestions(
+        slide_id: str,
+        q: str = Query(default="", max_length=200),
+        _: Any = Depends(admin_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> list[dict[str, Any]]:
+        source = database.get(Slide, slide_id)
+        if source is None:
+            raise _error("SLIDE_NOT_FOUND", 404)
+        query = q.strip().casefold()
+        candidates = list(
+            database.scalars(
+                select(Slide)
+                .where(
+                    Slide.id != source.id,
+                    Slide.trashed_at.is_(None),
+                    Slide.state.in_(READY_STATES),
+                )
+                .limit(250)
+            )
+        )
+        scored: list[tuple[int, Slide, list[str]]] = []
+        for slide in candidates:
+            haystack = " ".join(
+                (slide.display_name, slide.case_id, slide.organ_site, slide.stain)
+            ).casefold()
+            if query and query not in haystack:
+                continue
+            reasons: list[str] = []
+            score = 0
+            if source.case_id and slide.case_id == source.case_id:
+                score += 4
+                reasons.append("Same case")
+            if source.folder_id and slide.folder_id == source.folder_id:
+                score += 2
+                reasons.append("Same folder")
+            if source.organ_site and slide.organ_site.casefold() == source.organ_site.casefold():
+                score += 1
+                reasons.append("Same organ")
+            scored.append((score, slide, reasons or ["Library result"]))
+        scored.sort(key=lambda value: (-value[0], value[1].display_name.casefold()))
+        return [
+            {
+                "slideId": slide.id,
+                "displayName": slide.display_name,
+                "stain": slide.stain,
+                "caseId": slide.case_id,
+                "organSite": slide.organ_site,
+                "folderId": slide.folder_id,
+                "thumbnailUrl": f"/api/v1/admin/slides/{slide.id}/preview/thumbnail.jpg",
+                "reasons": reasons,
+            }
+            for _, slide, reasons in scored[:50]
+        ]
+
+    def reserve_stack_upload(
+        set_id: str,
+        payload: StackUploadRequest,
+        authenticated: Any = Depends(csrf_dependency),
+    ) -> dict[str, Any]:
+        if factory is None or storage is None or secret_key is None:
+            raise _error("STACK_UPLOAD_UNAVAILABLE", 503)
+        if payload.length > max_upload_bytes:
+            raise _error("UPLOAD_TOO_LARGE", 413)
+        if not payload.filename.casefold().endswith((".ome.tif", ".ome.tiff")):
+            raise _error("OME_TIFF_REQUIRED")
+
+        def attach(database: OrmSession, slide: Slide) -> None:
+            item = database.get(ComparisonSet, set_id)
+            if item is None:
+                raise _error("COMPARISON_NOT_FOUND", 404)
+            if item.version != payload.version:
+                raise _error("COMPARISON_STALE_WRITE", 409)
+            rows = membership_rows(database, item)
+            member_ids = {row.slide_id for row in rows}
+            if len(rows) >= 12:
+                raise _error("STACK_MEMBER_LIMIT")
+            if payload.anchor_slide_id not in member_ids:
+                raise _error("ANCHOR_NOT_MEMBER")
+            anchor = database.get(Slide, payload.anchor_slide_id)
+            if anchor is None or anchor.trashed_at is not None or anchor.state not in READY_STATES:
+                raise _error("ANCHOR_NOT_READY")
+            slide.case_id = payload.case_id.strip()
+            slide.organ_site = payload.organ_site.strip()
+            slide.stain = payload.stain.strip()
+            database.add(
+                ComparisonSetMember(
+                    comparison_set_id=item.id,
+                    slide_id=slide.id,
+                    anchor_slide_id=payload.anchor_slide_id,
+                    position=len(rows),
+                )
+            )
+            item.version += 1
+            item.status = "draft"
+            item.source_versions = {**(item.source_versions or {}), slide.id: None}
+            cancel_stack_jobs(database, item.id)
+            database.flush()
+            sync_membership_mirror(database, item)
+
+        try:
+            slide = reserve_new_slide(
+                factory,
+                storage,
+                display_name=payload.display_name.strip(),
+                original_filename=Path(payload.filename).name,
+                source_bytes=payload.length,
+                actor_user_id=getattr(authenticated, "user_id", None),
+                folder_id=payload.folder_id,
+                after_flush=attach,
+            )
+        except InsufficientStorage as error:
+            raise _error("INSUFFICIENT_STORAGE", 507) from error
+        except LookupError as error:
+            raise _error("FOLDER_NOT_FOUND", 404) from error
+        token = issue_upload_token(
+            UploadGrant(slide.id, payload.length), secret_key, ttl=timedelta(hours=1)
+        )
+        return {
+            "slide": {
+                "id": slide.id,
+                "publicId": slide.public_id,
+                "displayName": slide.display_name,
+                "filename": slide.original_filename,
+                "sourceBytes": slide.source_bytes,
+                "state": slide.state.value,
+                "errorCode": slide.error_code,
+                "errorMessage": slide.error_message,
+                "metadata": slide.slide_metadata,
+                "createdAt": slide.created_at.isoformat(),
+                "folderId": slide.folder_id,
+            },
+            "uploadUrl": tus_public_url,
+            "uploadToken": token,
+            "expiresIn": 3600,
+            "comparisonSetId": set_id,
+        }
 
     def revisions(
         set_id: str,
@@ -537,7 +865,7 @@ def register_alignment_routes(
             else "partial"
         )
         database.commit()
-        return _json(item, _members(database, item))
+        return _json(item, _members(database, item), database=database)
 
     def jobs(
         set_id: str,
@@ -676,7 +1004,7 @@ def register_alignment_routes(
             },
         }
         if payload.preview_only:
-            preview = _json(item, list(members.values()))
+            preview = _json(item, list(members.values()), database=database)
             for member in preview["members"]:
                 if member["slideId"] == slide_id:
                     member["registration"] = registrations[slide_id]
@@ -715,7 +1043,7 @@ def register_alignment_routes(
             else "partial"
         )
         database.commit()
-        return _json(item, _members(database, item))
+        return _json(item, _members(database, item), database=database)
 
     def public_share(public_id: str, database: OrmSession) -> LibraryShare:
         try:
@@ -731,6 +1059,12 @@ def register_alignment_routes(
         ).all()
         return {slide_id: order for slide_id, order in rows}
 
+    def stack_is_publicly_available(database: OrmSession, item: ComparisonSet) -> bool:
+        members = _members(database, item)
+        return bool(members) and all(
+            slide.trashed_at is None and slide.state in READY_STATES for slide in members
+        )
+
     def public_sets(
         public_id: str, database: OrmSession = Depends(database_dependency)
     ) -> list[dict[str, str]]:
@@ -742,6 +1076,7 @@ def register_alignment_routes(
                 select(ComparisonSet).order_by(ComparisonSet.updated_at.desc())
             )
             if set(item.member_slide_ids).issubset(shared_ids)
+            and stack_is_publicly_available(database, item)
         ]
 
     def public_set(
@@ -752,9 +1087,11 @@ def register_alignment_routes(
         if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
         positions = shared_positions(database, share)
-        if not set(item.member_slide_ids).issubset(positions):
+        if not set(item.member_slide_ids).issubset(positions) or not stack_is_publicly_available(
+            database, item
+        ):
             raise _error("COMPARISON_NOT_FOUND", 404)
-        payload = _json(item, _members(database, item), shared=positions)
+        payload = _json(item, _members(database, item), shared=positions, database=database)
         for member in payload["members"]:
             member["tileSource"] = member["tileSource"].replace("{sharePublicId}", public_id)
         return payload
@@ -768,6 +1105,21 @@ def register_alignment_routes(
     )
     app.add_api_route("/api/v1/admin/comparison-sets/{set_id}", get_set, methods=["GET"])
     app.add_api_route("/api/v1/admin/comparison-sets/{set_id}", update_set, methods=["PATCH"])
+    app.add_api_route(
+        "/api/v1/admin/comparison-sets/{set_id}/members", update_members, methods=["PATCH"]
+    )
+    app.add_api_route(
+        "/api/v1/admin/comparison-sets/{set_id}/upload-reservations",
+        reserve_stack_upload,
+        methods=["POST"],
+        status_code=status.HTTP_201_CREATED,
+    )
+    app.add_api_route("/api/v1/admin/slides/{slide_id}/stacks", slide_stacks, methods=["GET"])
+    app.add_api_route(
+        "/api/v1/admin/slides/{slide_id}/stack-suggestions",
+        stack_suggestions,
+        methods=["GET"],
+    )
     app.add_api_route(
         "/api/v1/admin/comparison-sets/{set_id}/revisions", revisions, methods=["GET"]
     )
