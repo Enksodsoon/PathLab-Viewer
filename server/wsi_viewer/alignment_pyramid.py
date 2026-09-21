@@ -1205,9 +1205,6 @@ def register_components(
         abs(reference_size[0] / moving_size[0] - 1),
         abs(reference_size[1] / moving_size[1] - 1),
     )
-    if whole_proposal is not None and 0.01 <= frame_size_delta <= 0.15:
-        return whole_proposal
-
     reference_boxes = component_bounds(reference_overview, reference_size)
     moving_boxes = component_bounds(moving_overview, moving_size)
     candidates = []
