@@ -263,7 +263,7 @@ def _structure(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     # Require chroma for lightly stained tissue, while retaining dark silver
     # deposits. This avoids scanner-bed edges and coverslip outlines becoming
     # the dominant structures in sparse biopsy sections.
-    tissue = ((density >= 18) & ((hsv[:, :, 1] >= 10) | (gray < 205))).astype(np.uint8) * 255
+    tissue = ((density >= 10) & ((hsv[:, :, 1] >= 6) | (gray < 235))).astype(np.uint8) * 255
     tissue = cv2.morphologyEx(tissue, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
     tissue = cv2.morphologyEx(tissue, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     component_count, labels, stats, _ = cv2.connectedComponentsWithStats(tissue)
@@ -278,7 +278,16 @@ def _structure(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             or x + width >= tissue.shape[1] - 1
             or y + height >= tissue.shape[0] - 1
         )
-        if area >= minimum_area and not touches_edge:
+        # Real resections and cores are often clipped by the scanned image
+        # boundary. Only discard edge components that look like thin scanner
+        # bed/coverslip strips (or a threshold flood), rather than dropping the
+        # patient's largest tissue component merely because it touches an edge.
+        thin_edge_artifact = touches_edge and (
+            (width >= tissue.shape[1] * 0.9 and height <= tissue.shape[0] * 0.08)
+            or (height >= tissue.shape[0] * 0.9 and width <= tissue.shape[1] * 0.08)
+        )
+        threshold_flood = area >= tissue.size * 0.92
+        if area >= minimum_area and not thin_edge_artifact and not threshold_flood:
             retained.append((int(area), index))
     # Whole-slide tissue may be fragmented, but tiny debris adds ambiguous
     # component permutations without useful anatomical evidence.

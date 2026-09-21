@@ -50,7 +50,7 @@ function guessStain(filename: string) {
   if (name.includes('silver')) return 'Silver'
   if (/\bpas\b/.test(name)) return 'PAS'
   if (name.includes('her2')) return 'HER2'
-  const marker = name.match(/\b(cd\d+|panc?ytokeratin|ki-?67|p53|er|pr)\b/i)
+  const marker = name.match(/(?:^|[^a-z0-9])(cd\d+|panc?ytokeratin|ki-?67|p40|p53|ttf-?1|er|pr)(?=$|[^a-z0-9])/i)
   return marker?.[1]?.toUpperCase() ?? 'Other stain'
 }
 
@@ -146,7 +146,7 @@ export function SlideStackShelf({ enabled, slides, onNotice }: SlideStackShelfPr
         newName.trim() || `${reference.caseId || reference.displayName} slide stack`,
         [reference.id], reference.id,
       )
-      setMode(null); setNewReferenceId(''); setNewName('')
+      setMode(null); setNewReferenceId(''); setNewName(''); setUploads([])
       await refresh(created.id)
       announce('Stack created. Drop stained slides into it or add slides from the library.')
     } catch { setMessage('The stack could not be created.') } finally { setBusy(false) }

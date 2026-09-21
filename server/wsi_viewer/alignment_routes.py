@@ -130,6 +130,25 @@ def _members(database: OrmSession, item: ComparisonSet) -> list[Slide]:
     return [slides[slide_id] for slide_id in member_ids]
 
 
+def _settled_registration_status(item: ComparisonSet) -> str:
+    """Return the durable stack status when no registration job is active."""
+    target_count = max(0, len(item.member_slide_ids) - 1)
+    if target_count == 0:
+        return "draft"
+    registrations = {
+        slide_id: registration
+        for slide_id, registration in (item.registrations or {}).items()
+        if slide_id in item.member_slide_ids and slide_id != item.reference_slide_id
+    }
+    if not registrations:
+        return "draft"
+    if len(registrations) == target_count and all(
+        registration.get("status") == "ready" for registration in registrations.values()
+    ):
+        return "ready"
+    return "partial"
+
+
 def _serial_group(slide: Slide) -> str | None:
     text = f"{slide.display_name} {slide.original_filename}"
     match = re.search(r"(?<!\d)(\d+)\s*of\s*(\d+)(?!\d)", text, re.IGNORECASE)
@@ -909,7 +928,8 @@ def register_alignment_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, int]:
-        if database.get(ComparisonSet, set_id) is None:
+        item = database.get(ComparisonSet, set_id)
+        if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
         cancelled = 0
         now = datetime.now(UTC)
@@ -922,6 +942,10 @@ def register_alignment_routes(
             if (job.checkpoint or {}).get("comparisonSetId") == set_id:
                 job.cancellation_requested_at = now
                 cancelled += 1
+        if cancelled:
+            # Existing maps remain usable while the worker observes cancellation.
+            # Do not leave the stack permanently claiming that alignment is running.
+            item.status = _settled_registration_status(item)
         database.commit()
         return {"cancelledJobs": cancelled}
 

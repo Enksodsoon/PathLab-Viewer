@@ -83,6 +83,21 @@ describe('expandable slide stack shelf', () => {
     expect(view.getByRole('button', { name: 'Upload 1 slide' })).toBeInTheDocument()
   })
 
+  it('recognizes common pulmonary IHC markers from filenames', async () => {
+    const view = render(<SlideStackShelf enabled slides={[slide]} />)
+    fireEvent.click(await view.findByRole('button', { name: /Breast block A/i }))
+    await view.findByRole('link', { name: 'View side by side' })
+
+    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [
+      new File(['x'], 'case-a_P40.ome.tiff', { type: 'image/tiff' }),
+      new File(['x'], 'case-a_TTF1.ome.tiff', { type: 'image/tiff' }),
+    ] } })
+
+    expect(await view.findByDisplayValue('P40')).toBeInTheDocument()
+    expect(view.getByDisplayValue('TTF1')).toBeInTheDocument()
+  })
+
   it('reorders stack cards with drag and drop', async () => {
     const view = render(<SlideStackShelf enabled slides={[slide]} />)
     fireEvent.click(await view.findByRole('button', { name: /Breast block A/i }))
@@ -130,5 +145,26 @@ describe('expandable slide stack shelf', () => {
     await waitFor(() => expect(createComparisonSet).toHaveBeenCalledWith(
       'Breast serials', ['slide-he'], 'slide-he',
     ))
+  })
+
+  it('clears files queued in another stack after creating a new stack', async () => {
+    const created = { ...stack, id: 'stack-2', name: 'Second stack' }
+    listComparisonSets.mockResolvedValueOnce([stack]).mockResolvedValue([created])
+    createComparisonSet.mockResolvedValue(created)
+    getComparisonSet.mockResolvedValueOnce(stack).mockResolvedValue(created)
+    const view = render(<SlideStackShelf enabled slides={[slide]} />)
+    fireEvent.click(await view.findByRole('button', { name: /Breast block A/i }))
+    await view.findByRole('link', { name: 'View side by side' })
+    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [new File(['x'], 'wrong_P40.ome.tiff', { type: 'image/tiff' })] } })
+    expect(await view.findByDisplayValue('wrong P40')).toBeInTheDocument()
+
+    fireEvent.click(view.getByRole('button', { name: 'New stack' }))
+    fireEvent.change(view.getByLabelText('Stack name'), { target: { value: 'Second stack' } })
+    fireEvent.change(view.getByLabelText('First slide'), { target: { value: 'slide-he' } })
+    const panel = view.getByText('Choose the first slide').parentElement?.parentElement
+    fireEvent.click(within(panel as HTMLElement).getByRole('button', { name: 'Create stack' }))
+
+    await waitFor(() => expect(view.queryByDisplayValue('wrong P40')).not.toBeInTheDocument())
   })
 })

@@ -423,6 +423,47 @@ def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
     assert result.overview_cells
 
 
+def test_whole_slide_shape_fallback_survives_fragmented_pale_ihc(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_pyramid
+
+    reference = Image.new("RGB", (700, 520), "white")
+    draw = ImageDraw.Draw(reference)
+    draw.ellipse((80, 70, 650, 540), fill=(225, 155, 190))
+    moving = Image.new("RGB", reference.size, "white")
+    pale = Image.new("RGB", reference.size, "white")
+    pale_draw = ImageDraw.Draw(pale)
+    pale_draw.ellipse((80, 70, 650, 540), fill=(244, 238, 245))
+    moving.paste(pale, (8, -5))
+    _pyramid(tmp_path / "r", reference)
+    _pyramid(tmp_path / "m", moving)
+    original_approximate = alignment_pyramid._approximate_component_map
+    monkeypatch.setattr(
+        alignment_pyramid,
+        "register_pair",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            alignment_pyramid.AlignmentRejected("no local anatomy")
+        ),
+    )
+    monkeypatch.setattr(
+        alignment_pyramid,
+        "_approximate_component_map",
+        lambda fixed, floating, fixed_frame, floating_frame: (
+            original_approximate(fixed, floating, fixed_frame, floating_frame)
+            if fixed.size == reference.size and floating.size == moving.size
+            else None
+        ),
+    )
+
+    result = alignment_pyramid.register_components(
+        tmp_path / "r", tmp_path / "m", reference, moving, reference.size, moving.size
+    )
+
+    assert result.status == "approximate"
+    assert result.triangles == []
+    assert result.overview_triangles
+    assert result.evidence["source"] == "bounded-pyramid-whole-slide-shape"
+
+
 def test_flow_refinement_returns_cycle_consistent_local_controls():
     reference = np.full((512, 512), 245, dtype=np.uint8)
     rng = np.random.default_rng(91)

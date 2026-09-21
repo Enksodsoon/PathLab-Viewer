@@ -117,6 +117,23 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
         assert {job["setVersion"] for job in jobs} == {payload["version"]}
         assert all(job["createdAt"] for job in jobs)
 
+        with session_factory(client.app.state.settings)() as database:
+            item = database.get(ComparisonSet, payload["id"])
+            assert item is not None
+            item.registrations = {
+                "slide-2": {"status": "approximate", "anchorSlideId": "slide-1"}
+            }
+            item.status = "running"
+            database.commit()
+        cancelled = client.delete(
+            f"/api/v1/admin/comparison-sets/{payload['id']}/register", headers=headers
+        )
+        assert cancelled.status_code == 200
+        assert cancelled.json()["cancelledJobs"] == 2
+        assert client.get(f"/api/v1/admin/comparison-sets/{payload['id']}").json()[
+            "status"
+        ] == "partial"
+
 
 def test_slide_stack_membership_lifecycle_and_suggestions(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=True) as client:
@@ -318,6 +335,7 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         cancelled = client.delete(url + "/register", headers=headers)
         assert cancelled.status_code == 200
         assert cancelled.json()["cancelledJobs"] == 4
+        assert client.get(url).json()["status"] == "draft"
         with session_factory(client.app.state.settings)() as database:
             assert database.query(Job).filter(Job.kind == "align_benchmark").count() == 3
             assert (

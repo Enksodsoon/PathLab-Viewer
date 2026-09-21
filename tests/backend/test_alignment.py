@@ -7,6 +7,7 @@ from wsi_viewer.alignment import (
     AlignmentRejected,
     RegistrationResult,
     _registration_triangles,
+    _structure,
     compose_transforms,
     map_bounds,
     map_point,
@@ -57,6 +58,23 @@ def test_register_pair_maps_corresponding_structure_across_stains() -> None:
 def test_register_pair_rejects_blank_slide() -> None:
     with pytest.raises(AlignmentRejected, match="insufficient tissue"):
         register_pair(_tissue(), Image.new("RGB", (720, 520), "white"))
+
+
+def test_structure_keeps_faint_tissue_clipped_by_slide_edge_and_rejects_scanner_strip() -> None:
+    image = Image.new("RGB", (640, 480), "white")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 639, 18), fill=(190, 190, 190))
+    draw.polygon(
+        [(120, 150), (510, 120), (600, 330), (530, 479), (170, 479), (70, 310)],
+        fill=(244, 238, 245),
+    )
+    for x in range(150, 560, 45):
+        draw.ellipse((x, 260, x + 12, 272), fill=(205, 177, 210))
+
+    _, mask = _structure(np.asarray(image))
+
+    assert np.count_nonzero(mask[120:, :]) > 60_000
+    assert np.count_nonzero(mask[:24, :]) == 0
 
 
 def test_register_pair_rejects_unrelated_tissue() -> None:

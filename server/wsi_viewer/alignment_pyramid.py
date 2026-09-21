@@ -282,7 +282,7 @@ def _approximate_component_map(
         # when its tissue overlap is strong; it never becomes anatomical
         # evidence or a ready registration.
         seed_determinant = float(np.linalg.det(seed[:, :2]))
-        if initial_overlap < 0.8 or not 0.25 <= seed_determinant <= 4:
+        if initial_overlap < 0.6 or not 0.25 <= seed_determinant <= 4:
             return None
         transform = seed.copy()
         score = float(initial_overlap)
@@ -1309,6 +1309,69 @@ def register_components(
                         else "bounded-pyramid-component-shape"
                     ),
                 },
+            )
+        # Component crops can fragment very pale IHC tissue or omit a specimen
+        # clipped by the scan boundary. Preserve the conservative anatomical
+        # rejection, but offer a clearly labelled whole-slide shape map when
+        # the complete tissue masks have strong overlap. This map is never
+        # counted as anatomical evidence or promoted to matched-regions.
+        whole = _approximate_component_map(
+            reference_overview,
+            moving_overview,
+            (0, 0, 1),
+            (0, 0, 1),
+        )
+        if whole:
+            moving_points = np.asarray(
+                [point for cell in whole.overview_cells for point in cell["moving"]],
+                dtype=np.float64,
+            )
+            reference_points = np.asarray(
+                [point for cell in whole.overview_cells for point in cell["reference"]],
+                dtype=np.float64,
+            )
+            overview = RegistrationResult(
+                status="approximate",
+                moving_to_reference=whole.transform,
+                reference_support=(
+                    float(reference_points[:, 0].min()),
+                    float(reference_points[:, 1].min()),
+                    float(reference_points[:, 0].max()),
+                    float(reference_points[:, 1].max()),
+                ),
+                moving_support=(
+                    float(moving_points[:, 0].min()),
+                    float(moving_points[:, 1].min()),
+                    float(moving_points[:, 0].max()),
+                    float(moving_points[:, 1].max()),
+                ),
+                confidence=min(0.49, 0.3 + 0.1 * whole.intensity_score),
+                inlier_count=0,
+                match_count=0,
+                median_error_pixels=-1.0,
+                overview_triangles=whole.overview_cells,
+                evidence={
+                    "mode": "outline-proposal",
+                    "anatomicalMatchCount": 0,
+                    "featureMatchCount": 0,
+                    "triangleCount": 0,
+                    "overviewTriangleCount": len(whole.overview_cells),
+                    "componentPairsChecked": attempted,
+                    "intensityShapeScore": round(whole.intensity_score, 6),
+                    "outlineOverlap": round(whole.overlap, 6),
+                    "availabilityReason": (
+                        "Component-level anatomy was unsupported; whole-slide tissue shape "
+                        "provides approximate overview navigation only"
+                    ),
+                    "source": "bounded-pyramid-whole-slide-shape",
+                },
+            )
+            return rescale_registration(
+                overview,
+                reference_thumbnail_size=reference_overview.size,
+                moving_thumbnail_size=moving_overview.size,
+                reference_full_size=reference_size,
+                moving_full_size=moving_size,
             )
         raise AlignmentRejected(
             f"No unambiguous high-resolution component match ({attempted} candidate pairs checked)"
