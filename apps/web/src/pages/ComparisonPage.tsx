@@ -8,7 +8,7 @@ import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { Loader } from '../components/Loader'
-import type { ComparisonMember, ComparisonRegistrationJob, ComparisonSet, RegistrationCandidateManifest } from '../types'
+import type { ComparisonMember, ComparisonRegistrationJob, ComparisonSet, RegistrationCandidate, RegistrationCandidateManifest } from '../types'
 
 const MAX_PANES = 4
 type AlignmentMode = 'independent' | 'matched' | 'approximate'
@@ -35,6 +35,13 @@ function pairRegistrations(source: ComparisonMember, target: ComparisonMember, p
   return coordinates(sourceRegistration) === coordinates(targetRegistration)
     ? [sourceRegistration, targetRegistration] as const
     : null
+}
+type CandidatePreviewState = {
+  candidateId: string
+  engine: string
+  slideId: string
+  slideName: string
+  originalRegistration: ComparisonMember['registration']
 }
 
 function hasSafeApproximateOverview(registration: ComparisonMember['registration']) {
@@ -123,6 +130,7 @@ export function ComparisonPage() {
   const [registering, setRegistering] = useState(false)
   const [progressNow, setProgressNow] = useState(() => Date.now())
   const [candidateManifest, setCandidateManifest] = useState<RegistrationCandidateManifest | null>(null)
+  const [candidatePreview, setCandidatePreview] = useState<CandidatePreviewState | null>(null)
   const [benchmarking, setBenchmarking] = useState(false)
   const [grouping, setGrouping] = useState<{ referenceId: string, anchors: Record<string, string> } | null>(null)
   const [correction, setCorrection] = useState<CorrectionState | null>(null)
@@ -139,6 +147,45 @@ export function ComparisonPage() {
   const restoreNavigationAfterCorrection = useRef(false)
   const alignmentPreferenceExplicit = useRef(false)
   const comparisonStatus = comparison?.status
+  const previewCandidate = (candidate: RegistrationCandidate, slideName: string) => {
+    if (!candidate.registration || !comparison) return
+    const originalRegistration = candidatePreview?.slideId === candidate.slideId
+      ? candidatePreview.originalRegistration
+      : comparison.members.find((member) => member.slideId === candidate.slideId)?.registration ?? null
+    setComparison((current) => {
+      if (!current) return current
+      const restoredMembers = candidatePreview
+        ? current.members.map((member) => member.slideId === candidatePreview.slideId
+          ? { ...member, registration: candidatePreview.originalRegistration }
+          : member)
+        : current.members
+      return {
+        ...current,
+        members: restoredMembers.map((member) => member.slideId === candidate.slideId
+          ? { ...member, registration: candidate.registration }
+          : member),
+      }
+    })
+    setCandidatePreview({ candidateId: candidate.id, engine: candidate.engine, slideId: candidate.slideId, slideName, originalRegistration })
+    hasInitialField.current = false
+    initializedPanes.current = ''
+    setSuspendedPanes(new Set())
+    setNotice('')
+  }
+  const stopCandidatePreview = () => {
+    if (!candidatePreview) return
+    setComparison((current) => current ? {
+      ...current,
+      members: current.members.map((member) => member.slideId === candidatePreview.slideId
+        ? { ...member, registration: candidatePreview.originalRegistration }
+        : member),
+    } : current)
+    setCandidatePreview(null)
+    hasInitialField.current = false
+    initializedPanes.current = ''
+    setSuspendedPanes(new Set())
+    setNotice('Candidate preview closed. The saved alignment is active again.')
+  }
   useEffect(() => {
     let active = true
     const request = publicId ? getSharedComparisonSet(publicId, comparisonId) : getComparisonSet(comparisonId)
@@ -579,7 +626,8 @@ export function ComparisonPage() {
       })}</ul>
       <p>You can view every slide now. Linked navigation becomes available for each slide as its map completes.</p>
     </section> : null}
-    {!publicId && candidateManifest?.candidates?.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy.</p><div>{candidateManifest.candidates.filter((candidate) => candidate.setVersion === comparison.version).map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; return <article key={candidate.id}><strong>{candidateSlideName}</strong><span>{candidate.engine} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}</span>{candidate.failureReason ? <small>{candidate.failureReason}</small> : null}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={candidate.status !== 'ready' || candidate.validationState !== 'engineering_passed'} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></article> })}</div></details> : null}
+    {!publicId && candidateManifest?.candidates?.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy. Preview a candidate and inspect corresponding tissue before saving it.</p><div>{candidateManifest.candidates.filter((candidate) => candidate.setVersion === comparison.version).map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; const canPreview = candidate.status !== 'rejected' && !!candidate.registration; const canPromote = candidate.currentSettings !== false && candidate.status === 'ready' && candidate.validationState === 'engineering_passed' && !!candidate.registration; const isPreviewing = candidatePreview?.candidateId === candidate.id; return <article key={candidate.id} data-previewing={isPreviewing}><strong>{candidateSlideName}</strong><span>{candidate.engine} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}{candidate.currentSettings === false ? ' · outdated adapter' : ''}</span>{candidate.failureReason ? <small>{candidate.failureReason}</small> : null}<div className="comparison-candidate-actions">{isPreviewing ? <button type="button" aria-label={`Stop previewing ${candidate.engine} for ${candidateSlideName}`} onClick={stopCandidatePreview}>Stop preview</button> : <button type="button" aria-label={`Preview ${candidate.engine} for ${candidateSlideName}`} disabled={!canPreview} onClick={() => previewCandidate(candidate, candidateSlideName)}>Preview candidate</button>}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={!canPromote || registering} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setCandidatePreview(null); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></div></article> })}</div></details> : null}
+    {candidatePreview ? <div className="comparison-notice comparison-candidate-preview" role="status"><strong>Experimental alignment preview</strong> {candidatePreview.engine} is temporarily driving {candidatePreview.slideName}. No server changes have been saved. Pan and zoom through several tissue regions before promotion. <button type="button" onClick={stopCandidatePreview}>Restore saved alignment</button></div> : null}
     {grouping ? <section className="comparison-groups" aria-label="Alignment groups"><strong>Reference and groups</strong><p>Choose the primary reference, then choose the serial-section anchor used for each other slide.</p><label>Primary reference<select aria-label="Primary reference" value={grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, referenceId: event.target.value })}>{comparison.members.map((member) => <option key={member.slideId} value={member.slideId}>{member.stain} · {member.displayName}</option>)}</select></label>{comparison.members.filter((member) => member.slideId !== grouping.referenceId).map((member) => <label key={member.slideId}>{member.displayName}<select aria-label={`Anchor for ${member.displayName}`} value={grouping.anchors[member.slideId] ?? grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, anchors: { ...grouping.anchors, [member.slideId]: event.target.value } })}>{comparison.members.filter((anchor) => anchor.slideId !== member.slideId).map((anchor) => <option key={anchor.slideId} value={anchor.slideId}>{anchor.stain} · {anchor.displayName}</option>)}</select></label>)}<button type="button" disabled={registering} onClick={() => { setRegistering(true); void updateComparisonSet(comparison.id, { version: comparison.version, referenceSlideId: grouping.referenceId, anchors: grouping.anchors }).then(async (updated) => { await registerComparisonSet(updated.id); setComparison({ ...updated, status: 'queued', members: updated.members.map((member) => ({ ...member, registration: null })) }); setGrouping(null); setNotice('Registration queued with the updated reference groups.') }).catch(() => setNotice('Reference groups could not be saved.')).finally(() => setRegistering(false)) }}>Save and register</button><button type="button" disabled={registering} onClick={() => setGrouping(null)}>Cancel</button></section> : null}
     {!correction && !grouping && !hasMatchedMap && !registrationPending ? <div className="comparison-notice" role="note" aria-label="Alignment unavailable"><strong>{hasApproximateMap ? 'Automatic alignment completed with overview maps.' : 'Automatic anatomical alignment could not establish a map for this set.'}</strong> {hasApproximateMap ? 'Overview alignment matches tissue-component shape, tilt, and size but may not place the same microscopic structure under both crosshairs.' : 'No accepted tissue correspondence was found. Linking panes cannot align these slides.'} {publicId ? 'Ask the set administrator to review the registration.' : 'Use Correct alignment to define and preview corresponding landmarks.'}</div> : null}
     {!correction && !grouping && hasMatchedMap && hasPendingLandmarkValidation && !registrationPending ? <details className="comparison-notice comparison-validation" aria-label="Alignment validation pending"><summary><strong>Local structural maps available</strong><span>Validation details</span></summary><p>Matched regions passed alternative-fragment and withheld patch checks, but anatomical error has not been measured against independent landmarks.</p></details> : null}

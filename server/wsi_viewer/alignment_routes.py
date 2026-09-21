@@ -747,6 +747,7 @@ def register_alignment_routes(
                     "engine": row.engine,
                     "engineVersion": row.engine_version,
                     "settingsDigest": row.settings_digest,
+                    "currentSettings": row.settings_digest == settings_digest(row.engine),
                     "status": row.status,
                     "validationState": row.validation_state,
                     "registration": row.registration,
@@ -874,6 +875,8 @@ def register_alignment_routes(
             or item.source_versions.get(anchor.id) != anchor.sha256
         ):
             raise _error("ALIGNMENT_CANDIDATE_STALE", 409)
+        if candidate.settings_digest != settings_digest(candidate.engine):
+            raise _error("ALIGNMENT_CANDIDATE_SETTINGS_STALE", 409)
         registration = {
             **candidate.registration,
             "provenance": "automatic",

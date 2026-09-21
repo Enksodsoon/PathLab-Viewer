@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
+from wsi_viewer.alignment_engines import settings_digest
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -373,7 +374,7 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
                 anchor_version="sha-1",
                 engine="hisalign-0.2.1",
                 engine_version="commit",
-                settings_digest="a" * 64,
+                settings_digest=settings_digest("hisalign-0.2.1"),
                 status="ready",
                 validation_state="engineering_passed",
                 registration={
@@ -417,9 +418,26 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
                 evidence={},
             )
             database.add(stale_candidate)
+            stale_settings_candidate = ComparisonRegistrationCandidate(
+                comparison_set_id=created["id"],
+                slide_id="slide-2",
+                set_version=created["version"],
+                anchor_slide_id="slide-1",
+                source_version="sha-2",
+                anchor_version="sha-1",
+                engine="hisalign-0.2.1",
+                engine_version="commit",
+                settings_digest="c" * 64,
+                status="ready",
+                validation_state="engineering_passed",
+                registration={"status": "ready"},
+                evidence={},
+            )
+            database.add(stale_settings_candidate)
             database.commit()
             candidate_id = candidate.id
             stale_candidate_id = stale_candidate.id
+            stale_settings_candidate_id = stale_settings_candidate.id
         stale_promotion = client.post(
             url + f"/candidates/{stale_candidate_id}/promote",
             headers=headers,
@@ -427,6 +445,15 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         )
         assert stale_promotion.status_code == 409
         assert stale_promotion.json()["detail"]["code"] == "ALIGNMENT_CANDIDATE_STALE"
+        stale_settings_promotion = client.post(
+            url + f"/candidates/{stale_settings_candidate_id}/promote",
+            headers=headers,
+            json={"version": created["version"]},
+        )
+        assert stale_settings_promotion.status_code == 409
+        assert stale_settings_promotion.json()["detail"]["code"] == (
+            "ALIGNMENT_CANDIDATE_SETTINGS_STALE"
+        )
         promoted = client.post(
             url + f"/candidates/{candidate_id}/promote",
             headers=headers,
@@ -448,6 +475,7 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         manifest = client.get(url + "/candidates")
         assert manifest.status_code == 200
         assert manifest.json()["candidates"][0]["artifactSha256"] is None
+        assert manifest.json()["candidates"][0]["currentSettings"] is False
 
 
 def test_set_rejects_unready_or_missing_reference_members(tmp_path: Path) -> None:

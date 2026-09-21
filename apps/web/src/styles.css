@@ -67,6 +67,10 @@
 .comparison-engine-candidates article { display: grid; gap: 4px; padding: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); font-size: 11px; }
 .comparison-engine-candidates article span, .comparison-engine-candidates article small { color: var(--muted); }
 .comparison-engine-candidates article button { justify-self: start; min-height: 32px; }
+.comparison-engine-candidates article[data-previewing="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.comparison-candidate-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.comparison-candidate-preview { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; border-color: #d28a20; background: #fff5df; color: #4d340c; }
+.comparison-candidate-preview button { min-height: 32px; margin-left: auto; }
 .comparison-add-pane { position: fixed; right: 18px; bottom: 18px; z-index: 10; box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 20%, transparent); }
 @media (max-width: 900px) {
   .comparison-workstation { grid-template-columns: 1fr; }.comparison-tray { display: flex; gap: 6px; border-right: 0; border-bottom: 1px solid #34322f; }.comparison-tray > strong { display: none; }.comparison-tray button { min-width: 150px; margin: 0; }

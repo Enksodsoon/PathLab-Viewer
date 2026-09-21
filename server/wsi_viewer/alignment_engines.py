@@ -41,6 +41,11 @@ ENGINE_VERSIONS = {
     ENGINE_HISALIGN: "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
     ENGINE_VALIS: "325828c1dec444e6bb672a78e875537436dd3c20",
 }
+ADAPTER_VERSIONS = {
+    ENGINE_NATIVE: "pathlab-adapter-v1",
+    ENGINE_HISALIGN: "pathlab-adapter-v2-distributed-feature-gate",
+    ENGINE_VALIS: "pathlab-adapter-v1",
+}
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
 
 
@@ -90,6 +95,7 @@ def settings_digest(engine: str, settings: dict[str, Any] | None = None) -> str:
     payload = {
         "engine": engine,
         "buildVersion": ENGINE_VERSIONS[engine],
+        "adapterVersion": ADAPTER_VERSIONS[engine],
         "settings": settings or {},
     }
     return hashlib.sha256(
@@ -113,6 +119,86 @@ def _affine_from_controls(controls: list[dict[str, Any]]) -> list[list[float]]:
         raise AlignmentRejected("engine transform did not yield a stable affine overview")
     values = np.asarray(matrix, dtype=np.float64).round(10)
     return [[float(value) for value in row] for row in values]
+
+
+def _scanner_frame_candidate(
+    reference_rgb: np.ndarray,
+    moving_rgb: np.ndarray,
+    *,
+    maximum: int = 1024,
+) -> tuple[np.ndarray, float, float] | None:
+    """Return a bounded, stain-independent scanner-frame proposal.
+
+    The proposal is useful as an external engine initializer, not anatomical
+    evidence. Callers must still validate the resulting coordinate map.
+    """
+
+    def bounded(rgb: np.ndarray) -> np.ndarray:
+        height, width = rgb.shape[:2]
+        scale = min(1.0, maximum / max(width, height))
+        if scale == 1.0:
+            return rgb
+        return cv2.resize(
+            rgb,
+            (max(1, round(width * scale)), max(1, round(height * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+
+    reference_small = bounded(reference_rgb)
+    moving_small = bounded(moving_rgb)
+    reference_structure, reference_mask = _structure(reference_small)
+    moving_structure, moving_mask = _structure(moving_small)
+    forward = np.asarray(
+        [
+            [reference_mask.shape[1] / moving_mask.shape[1], 0.0, 0.0],
+            [0.0, reference_mask.shape[0] / moving_mask.shape[0], 0.0],
+        ],
+        dtype=np.float32,
+    )
+    inverse = cv2.invertAffineTransform(forward)
+    try:
+        score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
+            cv2.GaussianBlur(reference_structure, (0, 0), 4).astype(np.float32) / 255,
+            cv2.GaussianBlur(moving_structure, (0, 0), 4).astype(np.float32) / 255,
+            inverse,
+            cv2.MOTION_TRANSLATION,
+            (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 100, 1e-6),
+            None,
+            7,
+        )
+    except cv2.error:
+        return None
+    transform = cv2.invertAffineTransform(inverse)
+    warped_mask = cv2.warpAffine(
+        moving_mask,
+        transform,
+        (reference_mask.shape[1], reference_mask.shape[0]),
+    )
+    intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
+    overlap = 2 * intersection / max(
+        1,
+        int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)),
+    )
+    if score < 0.45 or overlap < 0.5:
+        return None
+    reference_scale = np.asarray(
+        [
+            reference_rgb.shape[1] / reference_small.shape[1],
+            reference_rgb.shape[0] / reference_small.shape[0],
+        ]
+    )
+    moving_scale = np.asarray(
+        [
+            moving_rgb.shape[1] / moving_small.shape[1],
+            moving_rgb.shape[0] / moving_small.shape[0],
+        ]
+    )
+    full = np.zeros((2, 3), dtype=np.float64)
+    full[:, :2] = (
+        np.diag(reference_scale) @ transform[:, :2] @ np.diag(1 / moving_scale)
+    )
+    full[:, 2] = transform[:, 2] * reference_scale
+    return full, float(score), float(overlap)
 
 
 def _sample_coordinate_map(
@@ -239,6 +325,35 @@ def _sample_coordinate_map(
     )
 
 
+def _mark_approximate_engine_map(
+    payload: dict[str, Any], *, reason: str
+) -> dict[str, Any]:
+    """Keep a useful whole-slide proposal without claiming local anatomy.
+
+    Dense-flow cycle consistency only proves that an engine can invert its own
+    transform. It does not prove that the transform joins corresponding
+    anatomy, so maps without distributed matched features are overview-only.
+    """
+    result = dict(payload)
+    result["status"] = "approximate"
+    result["reason"] = reason
+    result["confidence"] = min(0.49, float(result.get("confidence") or 0.0))
+    result["overviewTriangles"] = list(result.get("triangles") or [])
+    result["triangles"] = []
+    result["controlPoints"] = []
+    result["inlierCount"] = 0
+    result["supportPolygons"] = {"moving": [], "reference": []}
+    evidence = dict(result.get("evidence") or {})
+    evidence.update(
+        {
+            "mode": "approximate-overview",
+            "withheldCheck": "insufficient-distributed-anatomical-features",
+        }
+    )
+    result["evidence"] = evidence
+    return result
+
+
 class NativeEngine:
     name = ENGINE_NATIVE
 
@@ -329,6 +444,46 @@ class HisAlignEngine:
             moving_name="moving",
         )
         rigid.fit(feature_detector=detector, matcher=matcher, transform_type="similarity")
+        _, reference_mask = _structure(reference_rgb)
+        _, moving_mask = _structure(moving_rgb)
+
+        def padded_tissue_dice(matrix: np.ndarray) -> float:
+            reference_padded_mask = cv2.warpPerspective(
+                reference_mask, reference_padding, (width, height)
+            )
+            moving_padded_mask = cv2.warpPerspective(
+                moving_mask, moving_padding, (width, height)
+            )
+            warped = cv2.warpPerspective(
+                moving_padded_mask,
+                matrix,
+                (width, height),
+            )
+            intersection = int(
+                np.count_nonzero((warped > 0) & (reference_padded_mask > 0))
+            )
+            return 2 * intersection / max(
+                1,
+                int(np.count_nonzero(warped))
+                + int(np.count_nonzero(reference_padded_mask)),
+            )
+
+        feature_dice = padded_tissue_dice(np.asarray(rigid.M))
+        initializer = "hisalign-kaze"
+        scanner_score = -1.0
+        scanner_dice = -1.0
+        scanner = _scanner_frame_candidate(reference_rgb, moving_rgb)
+        if scanner is not None:
+            scanner_transform, scanner_score, _ = scanner
+            scanner_homogeneous = np.eye(3, dtype=np.float64)
+            scanner_homogeneous[:2] = scanner_transform
+            scanner_padded = (
+                reference_padding @ scanner_homogeneous @ np.linalg.inv(moving_padding)
+            )
+            scanner_dice = padded_tissue_dice(scanner_padded)
+            if rigid.n_matches < 8 or scanner_dice >= feature_dice + 0.05:
+                rigid.M = scanner_padded
+                initializer = "scanner-structure"
         progress({"stage": "hisalign-non-rigid", "progress": 60})
         non_rigid = NonRigidRegistrar(
             ref_img=reference_padded,
@@ -338,6 +493,34 @@ class HisAlignEngine:
             moving_name="moving",
         )
         non_rigid.fit()
+        reference_matches = np.asarray(
+            rigid.matched_kp_ref if rigid.matched_kp_ref is not None else [],
+            dtype=np.float64,
+        ).reshape((-1, 2))
+        moving_matches = np.asarray(
+            rigid.matched_kp_moving if rigid.matched_kp_moving is not None else [],
+            dtype=np.float64,
+        ).reshape((-1, 2))
+        feature_spread = 0.0
+        feature_residual = float("inf")
+        if len(reference_matches) >= 3 and len(moving_matches) == len(reference_matches):
+            reference_area = float(
+                cv2.contourArea(cv2.convexHull(reference_matches.astype(np.float32)))
+            )
+            moving_area = float(
+                cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32)))
+            )
+            feature_spread = min(reference_area, moving_area) / max(1.0, float(width * height))
+            warped_matches = np.asarray(non_rigid.warp_xy(moving_matches), dtype=np.float64)
+            feature_residual = float(
+                np.median(np.linalg.norm(warped_matches - reference_matches, axis=1))
+            )
+        feature_residual_limit = 0.02 * float(np.hypot(width, height))
+        local_evidence_qualified = bool(
+            rigid.n_matches >= 8
+            and feature_spread >= 0.08
+            and feature_residual <= feature_residual_limit
+        )
         moving_padding_inverse = np.linalg.inv(moving_padding)
         reference_padding_inverse = np.linalg.inv(reference_padding)
 
@@ -386,8 +569,30 @@ class HisAlignEngine:
             forward_dy=np.asarray(non_rigid.fwd_dxdy[1]),
         )
         payload = result.as_json()
+        if not local_evidence_qualified:
+            payload = _mark_approximate_engine_map(
+                payload,
+                reason=(
+                    "HISAlign produced a whole-slide proposal but did not find enough "
+                    "spatially distributed anatomical feature matches for local synchronization"
+                ),
+            )
         payload["engine"] = self.name
         payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["evidence"] = {
+            **payload.get("evidence", {}),
+            "rigidInitializer": initializer,
+            "adapterVersion": ADAPTER_VERSIONS[self.name],
+            "hisalignFeatureMatches": int(rigid.n_matches),
+            "hisalignFeatureTissueDice": round(feature_dice, 6),
+            "hisalignFeatureSpatialSpread": round(feature_spread, 6),
+            "hisalignFeatureResidualPixels": (
+                round(feature_residual, 6) if np.isfinite(feature_residual) else None
+            ),
+            "hisalignLocalEvidenceQualified": local_evidence_qualified,
+            "scannerStructureScore": round(scanner_score, 6),
+            "scannerTissueDice": round(scanner_dice, 6),
+        }
         return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
 
 

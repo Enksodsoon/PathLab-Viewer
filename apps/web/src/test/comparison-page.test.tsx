@@ -78,7 +78,7 @@ it('shows durable automatic alignment progress for every stack member', async ()
 
   expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('1 of 3 slides complete · 43%')
   expect(screen.getByText(/high resolution components · 4\/4 regions · 0\/2 patches/)).toBeVisible()
-  expect(screen.getByText(/Worker active · 1m 15s elapsed/)).toBeVisible()
+  expect(screen.getByText(/Worker active · 1m \d+s elapsed/)).toBeVisible()
   expect(screen.getByText('Waiting for worker')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Correct alignment' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Benchmark engines' })).toBeDisabled()
@@ -106,6 +106,42 @@ it('keeps the current map usable while a replacement registration runs', async (
   expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('0 of 1 slides complete · 30%')
   expect(screen.getByText(/Worker active/)).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toBeEnabled()
+})
+
+it('previews an engine candidate without promoting it and restores the saved map', async () => {
+  const savedRegistration = { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] }
+  const candidateRegistration = { status: 'ready', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', movingToReference: [[1.03, 0, 40], [0, 1.03, 25]], triangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[40, 25], [555, 25], [40, 540]], maxResidualPixels: 0.2 }], evidence: { featureMatchCount: 12 } }
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const url = String(input)
+    if (url.endsWith('/jobs')) return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    if (url.endsWith('/candidates')) return new Response(JSON.stringify({
+      comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {},
+      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings: true, status: 'ready', validationState: 'engineering_passed', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    if (init?.method === 'POST') throw new Error('Preview must not mutate the server')
+    return new Response(JSON.stringify({
+      id: 'set-1', name: 'Candidate preview set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
+      members: [
+        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: savedRegistration },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+
+  expect(await screen.findByText('Candidate preview set')).toBeVisible()
+  await user.click(await screen.findByText('Registration engine candidates'))
+  await user.click(screen.getByRole('button', { name: 'Preview hisalign-0.2.1 for P40' }))
+
+  expect(screen.getByText('Experimental alignment preview')).toBeVisible()
+  expect(screen.getByRole('status')).toHaveTextContent('No server changes have been saved')
+  expect(screen.getByRole('button', { name: 'Stop previewing hisalign-0.2.1 for P40' })).toBeVisible()
+  expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/promote'), expect.anything())
+
+  await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+  expect(screen.queryByText('Experimental alignment preview')).not.toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('saved alignment is active again')
 })
 
 it('supports a real three-pane layout and makes the replacement target explicit', async () => {

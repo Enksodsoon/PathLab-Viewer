@@ -336,6 +336,7 @@ export interface RegistrationCandidate {
   engine: string
   engineVersion: string
   settingsDigest: string
+  currentSettings: boolean
   status: 'ready' | 'approximate' | 'rejected'
   validationState: 'engineering_passed' | 'landmark_passed' | 'rejected'
   registration: SlideRegistration | null
