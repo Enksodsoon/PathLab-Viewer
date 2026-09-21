@@ -111,7 +111,6 @@ function mapUsingNearbyOverviewCell(
   triangles: RegistrationTriangle[],
   backwards: boolean,
 ): { point: Point; linear: AffineTransform } | null {
-  const maximumDistanceSquared = 96 ** 2
   let candidate: RegistrationTriangle | null = null
   let candidateDistanceSquared = Number.POSITIVE_INFINITY
   for (const triangle of triangles) {
@@ -126,7 +125,10 @@ function mapUsingNearbyOverviewCell(
       candidateDistanceSquared = distanceSquared
     }
   }
-  if (!candidate || candidateDistanceSquared > maximumDistanceSquared) return null
+  // Approximate registrations can contain several tissue components, each with
+  // its own transform. Continuing from the nearest component is safer than
+  // applying the affine from an unrelated component across the whole slide.
+  if (!candidate) return null
   const source = backwards ? candidate.reference : candidate.moving
   const target = backwards ? candidate.moving : candidate.reference
   const matrix = triangleLinear(source, target)

@@ -78,9 +78,12 @@ describe('comparison coordinate mapping', () => {
     expect(nearby).toEqual([120.55, 30.7])
     expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[0]).toBeCloseTo(110, 10)
     expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[1]).toBeCloseTo(25, 10)
-    // The explicit approximate mode remains continuous across the surrounding
-    // slide by falling back to the overview affine beyond component cells.
-    expect(mapOverviewComparisonPoint([500, 500], registration, null)).toEqual([550, 520])
+    // The closest component transform continues across surrounding glass. A
+    // registration with multiple components must not use an unrelated global affine.
+    const distant = mapOverviewComparisonPoint([500, 500], registration, null)
+    expect(distant).toEqual([517, 513])
+    expect(mapOverviewComparisonPoint(distant!, null, registration)?.[0]).toBeCloseTo(500, 10)
+    expect(mapOverviewComparisonPoint(distant!, null, registration)?.[1]).toBeCloseTo(500, 10)
   })
 
   it('keeps validated registrations continuous outside sparse local cells', () => {

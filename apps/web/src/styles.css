@@ -1033,6 +1033,7 @@ button .pathlab-loader__label { color:currentColor; }
 .comparison-pane-number { flex: 0 0 24px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 999px; background: rgb(255 255 255 / 13%); color: #d8d3cb; font: 800 10px/1 var(--font-ui); }
 .comparison-pane[data-active="true"] > header { border-color: rgb(89 170 248 / 70%); box-shadow: 0 0 0 1px rgb(89 170 248 / 38%); }
 .comparison-pane[data-active="true"] .comparison-pane-number { background: #59aaf8; color: #101820; }
+.comparison-pane .alignment-approximate { color: #f2c46d; }
 
 @media (max-width: 1180px) {
   .comparison-header { flex-wrap: wrap; }
