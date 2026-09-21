@@ -114,6 +114,7 @@ export function ComparisonPage() {
   const [display, setDisplay] = useState<Record<string, { brightness: number; contrast: number; gamma: number }>>({})
   const [notice, setNotice] = useState('')
   const [registering, setRegistering] = useState(false)
+  const [progressNow, setProgressNow] = useState(() => Date.now())
   const [candidateManifest, setCandidateManifest] = useState<RegistrationCandidateManifest | null>(null)
   const [benchmarking, setBenchmarking] = useState(false)
   const [grouping, setGrouping] = useState<{ referenceId: string, anchors: Record<string, string> } | null>(null)
@@ -130,6 +131,7 @@ export function ComparisonPage() {
   const activeTransaction = useRef<string | null>(null)
   const restoreNavigationAfterCorrection = useRef(false)
   const alignmentPreferenceExplicit = useRef(false)
+  const comparisonStatus = comparison?.status
   useEffect(() => {
     let active = true
     const request = publicId ? getSharedComparisonSet(publicId, comparisonId) : getComparisonSet(comparisonId)
@@ -194,6 +196,12 @@ export function ComparisonPage() {
     }, 2000)
     return () => window.clearInterval(timer)
   }, [comparison, publicId])
+  useEffect(() => {
+    if (!comparisonStatus || !['queued', 'running'].includes(comparisonStatus)) return
+    setProgressNow(Date.now())
+    const timer = window.setInterval(() => setProgressNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [comparisonStatus])
   useEffect(() => {
     if (publicId || !comparisonId) return
     let active = true
@@ -517,9 +525,15 @@ export function ComparisonPage() {
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     .forEach((job) => { if (job.memberId && !currentJobsByMember.has(job.memberId)) currentJobsByMember.set(job.memberId, job) })
   const registrationMembers = comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId)
-  const completedRegistrations = registrationMembers.filter((member) => member.registration || currentJobsByMember.get(member.slideId)?.status === 'succeeded').length
+  const completedRegistrations = registrationMembers.filter((member) => {
+    const job = currentJobsByMember.get(member.slideId)
+    return job ? job.status === 'succeeded' : Boolean(member.registration)
+  }).length
   const totalRegistrationProgress = registrationMembers.length
-    ? Math.round(registrationMembers.reduce((total, member) => total + (member.registration ? 100 : currentJobsByMember.get(member.slideId)?.progress ?? 0), 0) / registrationMembers.length)
+    ? Math.round(registrationMembers.reduce((total, member) => {
+      const job = currentJobsByMember.get(member.slideId)
+      return total + (job ? (job.status === 'succeeded' ? 100 : job.progress) : member.registration ? 100 : 0)
+    }, 0) / registrationMembers.length)
     : 100
   const anchorIds = new Set(comparison.members.flatMap((member) => member.registration?.anchorSlideId ? [member.registration.anchorSlideId] : []))
   return <div className="comparison-shell">
@@ -535,7 +549,7 @@ export function ComparisonPage() {
         <button type="button" className="comparison-tray-toggle" aria-expanded={trayOpen} onClick={() => setTrayOpen((value) => !value)}>{trayOpen ? 'Hide slides' : 'Show slides'}</button>
       </div>
       {!publicId ? <details className="comparison-setup-menu"><summary>Setup</summary><div>
-        <button type="button" disabled={registering || !!correction || !!grouping || registrationPending} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued', members: current.members.map((member) => ({ ...member, registration: null })) } : current); setNotice('Automatic alignment queued with the current anchors.') }).catch(() => setNotice('Automatic alignment could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Run automatic alignment again'}</button>
+        <button type="button" disabled={registering || !!correction || !!grouping || registrationPending} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued' } : current); setNotice('Automatic alignment queued. The current map remains active until its replacement succeeds.') }).catch(() => setNotice('Automatic alignment could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Run automatic alignment again'}</button>
         {['queued', 'running'].includes(comparison.status) ? <button type="button" disabled={registering} onClick={() => { setRegistering(true); void cancelComparisonRegistration(comparison.id).then(() => setNotice('Registration cancellation requested.')).catch(() => setNotice('Registration could not be cancelled.')).finally(() => setRegistering(false)) }}>Cancel registration</button> : null}
         <button type="button" aria-label="Groups" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => setGrouping({ referenceId: comparison.referenceSlideId, anchors: Object.fromEntries(comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId).map((member) => [member.slideId, comparison.alignmentConfig?.anchors?.[member.slideId] ?? member.registration?.anchorSlideId ?? comparison.referenceSlideId])) })}>Reference groups</button>
         <button type="button" disabled={benchmarking || registrationPending} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(() => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.') }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
@@ -547,12 +561,17 @@ export function ComparisonPage() {
       <progress max="100" value={totalRegistrationProgress}>{totalRegistrationProgress}%</progress>
       <ul>{registrationMembers.map((member) => {
         const job = currentJobsByMember.get(member.slideId)
-        const complete = Boolean(member.registration) || job?.status === 'succeeded'
+        const complete = job ? job.status === 'succeeded' : Boolean(member.registration)
         const stage = complete ? 'Aligned' : job?.status === 'queued' ? 'Waiting for worker' : job?.stage?.replaceAll('-', ' ') || 'Preparing alignment'
+        const elapsedSeconds = job ? Math.max(0, Math.floor((progressNow - Date.parse(job.createdAt)) / 1000)) : 0
+        const heartbeatAge = job?.heartbeatAt ? Math.max(0, Math.floor((progressNow - Date.parse(job.heartbeatAt)) / 1000)) : null
+        const activity = job && ['running', 'leased'].includes(job.status)
+          ? `${heartbeatAge !== null && heartbeatAge > 25 ? 'Worker heartbeat delayed' : 'Worker active'} · ${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s elapsed`
+          : ''
         const counters = job && !complete
           ? [job.totalComponentPairs ? `${job.processedComponentPairs}/${job.totalComponentPairs} regions` : '', job.totalPatches ? `${job.processedPatches}/${job.totalPatches} patches` : ''].filter(Boolean).join(' · ')
           : ''
-        return <li key={member.slideId} data-status={complete ? 'complete' : job?.status ?? 'queued'}><span>{complete ? '✓' : job?.status === 'running' || job?.status === 'leased' ? '●' : '○'}</span><b>{member.stain || member.displayName}</b><small>{stage}{counters ? ` · ${counters}` : ''}</small><em>{complete ? '100%' : `${job?.progress ?? 0}%`}</em></li>
+        return <li key={member.slideId} data-status={complete ? 'complete' : job?.status ?? 'queued'}><span>{complete ? '✓' : job?.status === 'running' || job?.status === 'leased' ? '●' : '○'}</span><b>{member.stain || member.displayName}</b><small>{stage}{counters ? ` · ${counters}` : ''}{activity ? ` · ${activity}` : ''}</small><em>{complete ? '100%' : `${job?.progress ?? 0}%`}</em></li>
       })}</ul>
       <p>You can view every slide now. Linked navigation becomes available for each slide as its map completes.</p>
     </section> : null}

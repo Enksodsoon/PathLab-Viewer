@@ -119,6 +119,12 @@ def _error(code: str, http_status: int = 422) -> HTTPException:
     return HTTPException(status_code=http_status, detail={"code": code})
 
 
+def _utc_iso(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
 def _members(database: OrmSession, item: ComparisonSet) -> list[Slide]:
     rows = membership_rows(database, item)
     member_ids = [row.slide_id for row in rows]
@@ -493,17 +499,29 @@ def register_alignment_routes(
 
     def reregister(
         set_id: str,
-        authorization: Any = Depends(csrf_dependency),
+        _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         item = database.get(ComparisonSet, set_id)
         if item is None:
             raise _error("COMPARISON_NOT_FOUND", 404)
+        cancel_stack_jobs(database, item.id)
         item.version += 1
-        item.registrations = {}
+        # Keep the last usable map active while a replacement is calculated.
+        # The worker replaces it atomically only after the new result succeeds.
         item.status = "draft"
+        queued = queue_ready_registrations(
+            database,
+            item,
+            force=True,
+            preserve_existing=True,
+        )
         database.commit()
-        return queue_set(set_id, authorization, database)
+        return {
+            "comparisonSetId": item.id,
+            "queuedPairs": queued,
+            "status": item.status,
+        }
 
     def slide_stacks(
         slide_id: str,
@@ -915,7 +933,9 @@ def register_alignment_routes(
                 "totalComponentPairs": (job.checkpoint or {}).get("totalComponentPairs", 0),
                 "totalPatches": (job.checkpoint or {}).get("totalPatches", 0),
                 "failureCode": job.failure_code,
-                "createdAt": job.created_at.isoformat(),
+                "createdAt": _utc_iso(job.created_at),
+                "updatedAt": _utc_iso(job.updated_at),
+                "heartbeatAt": _utc_iso(job.heartbeat_at) if job.heartbeat_at else None,
             }
             for job in database.scalars(
                 select(Job).where(Job.kind.in_({"align", "align_benchmark"}))

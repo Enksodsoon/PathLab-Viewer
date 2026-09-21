@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import pytest
 from PIL import Image, ImageDraw
+from wsi_viewer.alignment import AlignmentRejected
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -23,7 +25,8 @@ def _image(path: Path, *, offset: int = 0) -> None:
 
 
 def test_alignment_overview_prefers_bounded_pyramid_for_external_engines(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     expected = Image.new("RGB", (4096, 1200), "red")
     thumbnail = Image.new("RGB", (320, 100), "blue")
@@ -133,6 +136,93 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
         assert database.get(Slide, "moving").state is SlideState.READY_PRIVATE
 
 
+def test_failed_reregistration_preserves_previous_usable_map(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'rerun.sqlite3'}", data_root=tmp_path / "data"
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    previous = {
+        "status": "approximate",
+        "provenance": "automatic",
+        "anchorSlideId": "reference",
+        "overviewTriangles": [
+            {"moving": [[0, 0], [1, 0], [0, 1]], "reference": [[0, 0], [1, 0], [0, 1]]}
+        ],
+    }
+    with factory() as database:
+        database.add_all(
+            [
+                Slide(
+                    id="reference",
+                    public_id="p-reference",
+                    display_name="H&E",
+                    original_filename="r.tif",
+                    source_bytes=1,
+                    state=SlideState.READY_PRIVATE,
+                    sha256="r1",
+                    slide_metadata={"width": 1200, "height": 840},
+                ),
+                Slide(
+                    id="moving",
+                    public_id="p-moving",
+                    display_name="IHC",
+                    original_filename="m.tif",
+                    source_bytes=1,
+                    state=SlideState.READY_PRIVATE,
+                    sha256="m1",
+                    slide_metadata={"width": 1200, "height": 840},
+                ),
+            ]
+        )
+        database.flush()
+        comparison = ComparisonSet(
+            name="Set",
+            reference_slide_id="reference",
+            member_slide_ids=["reference", "moving"],
+            source_versions={"reference": "r1", "moving": "m1"},
+            registrations={"moving": previous},
+            status="queued",
+        )
+        database.add(comparison)
+        database.flush()
+        database.add(
+            Job(
+                slide_id="moving",
+                kind="align",
+                resource_class="isolated",
+                checkpoint={
+                    "comparisonSetId": comparison.id,
+                    "memberId": "moving",
+                    "anchorSlideId": "reference",
+                    "setVersion": comparison.version,
+                    "preserveExisting": True,
+                    "progress": 0,
+                },
+                resource_limits={},
+            )
+        )
+        database.commit()
+        comparison_id = comparison.id
+
+    monkeypatch.setattr(
+        "wsi_viewer.worker._run_alignment_bounded",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AlignmentRejected("no replacement")),
+    )
+
+    assert process_next(factory, layout) is True
+
+    with factory() as database:
+        comparison = database.get(ComparisonSet, comparison_id)
+        assert comparison is not None
+        assert comparison.registrations["moving"] == previous
+        assert comparison.status == "partial"
+        assert database.query(Job).one().status == "failed_terminal"
+
+
 def test_alignment_jobs_have_exclusive_heavy_work_admission(tmp_path: Path) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'admission.sqlite3'}",
@@ -159,9 +249,12 @@ def test_alignment_jobs_have_exclusive_heavy_work_admission(tmp_path: Path) -> N
         ordinary.status = "running"
         database.commit()
 
-    assert process_next(
-        factory,
-        layout,
-        include_kinds=frozenset({"align", "align_benchmark"}),
-        exclusive_alignment=True,
-    ) is False
+    assert (
+        process_next(
+            factory,
+            layout,
+            include_kinds=frozenset({"align", "align_benchmark"}),
+            exclusive_alignment=True,
+        )
+        is False
+    )

@@ -116,13 +116,15 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
         assert {job["kind"] for job in jobs} == {"align"}
         assert {job["setVersion"] for job in jobs} == {payload["version"]}
         assert all(job["createdAt"] for job in jobs)
+        assert all(job["updatedAt"] for job in jobs)
+        assert all(job["createdAt"].endswith("Z") for job in jobs)
+        assert all(job["updatedAt"].endswith("Z") for job in jobs)
+        assert all("heartbeatAt" in job for job in jobs)
 
         with session_factory(client.app.state.settings)() as database:
             item = database.get(ComparisonSet, payload["id"])
             assert item is not None
-            item.registrations = {
-                "slide-2": {"status": "approximate", "anchorSlideId": "slide-1"}
-            }
+            item.registrations = {"slide-2": {"status": "approximate", "anchorSlideId": "slide-1"}}
             item.status = "running"
             database.commit()
         cancelled = client.delete(
@@ -130,9 +132,27 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
         )
         assert cancelled.status_code == 200
         assert cancelled.json()["cancelledJobs"] == 2
-        assert client.get(f"/api/v1/admin/comparison-sets/{payload['id']}").json()[
-            "status"
-        ] == "partial"
+        assert (
+            client.get(f"/api/v1/admin/comparison-sets/{payload['id']}").json()["status"]
+            == "partial"
+        )
+
+        rerun = client.post(
+            f"/api/v1/admin/comparison-sets/{payload['id']}/reregister", headers=headers
+        )
+        assert rerun.status_code == 202
+        assert rerun.json()["queuedPairs"] == 2
+        refreshed = client.get(f"/api/v1/admin/comparison-sets/{payload['id']}").json()
+        assert refreshed["status"] == "queued"
+        assert refreshed["members"][1]["registration"]["status"] == "approximate"
+        with session_factory(client.app.state.settings)() as database:
+            current_jobs = [
+                job
+                for job in database.query(Job).filter(Job.kind == "align").all()
+                if (job.checkpoint or {}).get("setVersion") == refreshed["version"]
+            ]
+            assert len(current_jobs) == 2
+            assert all(job.checkpoint["preserveExisting"] is True for job in current_jobs)
 
 
 def test_slide_stack_membership_lifecycle_and_suggestions(tmp_path: Path) -> None:

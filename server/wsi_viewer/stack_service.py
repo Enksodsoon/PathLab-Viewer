@@ -63,13 +63,21 @@ def cancel_stack_jobs(database: OrmSession, comparison_set_id: str) -> None:
             job.cancellation_requested_at = now
 
 
-def queue_ready_registrations(database: OrmSession, item: ComparisonSet) -> int:
+def queue_ready_registrations(
+    database: OrmSession,
+    item: ComparisonSet,
+    *,
+    force: bool = False,
+    preserve_existing: bool = False,
+) -> int:
     rows = membership_rows(database, item)
     ids = [row.slide_id for row in rows]
     slides = {slide.id: slide for slide in database.scalars(select(Slide).where(Slide.id.in_(ids)))}
     queued = 0
     for row in rows:
-        if row.slide_id == item.reference_slide_id or row.slide_id in item.registrations:
+        if row.slide_id == item.reference_slide_id or (
+            row.slide_id in item.registrations and not force
+        ):
             continue
         slide = slides.get(row.slide_id)
         anchor_id = row.anchor_slide_id or item.reference_slide_id
@@ -112,6 +120,7 @@ def queue_ready_registrations(database: OrmSession, item: ComparisonSet) -> int:
                     "anchorSlideId": anchor.id,
                     "setVersion": item.version,
                     "progress": 0,
+                    "preserveExisting": preserve_existing,
                 },
                 resource_limits={
                     "cpuThreads": 1,

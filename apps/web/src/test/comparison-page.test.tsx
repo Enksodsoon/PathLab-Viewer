@@ -62,7 +62,7 @@ it('shows durable automatic alignment progress for every stack member', async ()
   vi.mocked(fetch).mockImplementation(async (input) => String(input).endsWith('/jobs')
     ? new Response(JSON.stringify([
       { id: 'job-pas', kind: 'align', memberId: 'slide-2', setVersion: 4, status: 'succeeded', stage: 'complete', progress: 100, processedPatches: 2, totalPatches: 2, processedComponentPairs: 4, totalComponentPairs: 4, failureCode: null, createdAt: '2026-09-21T10:00:00Z' },
-      { id: 'job-silver', kind: 'align', memberId: 'slide-3', setVersion: 4, status: 'running', stage: 'high-resolution-components', progress: 30, processedPatches: 0, totalPatches: 2, processedComponentPairs: 4, totalComponentPairs: 4, failureCode: null, createdAt: '2026-09-21T10:01:00Z' },
+      { id: 'job-silver', kind: 'align', memberId: 'slide-3', setVersion: 4, status: 'running', stage: 'high-resolution-components', progress: 30, processedPatches: 0, totalPatches: 2, processedComponentPairs: 4, totalComponentPairs: 4, failureCode: null, createdAt: new Date(Date.now() - 75_000).toISOString(), updatedAt: new Date().toISOString(), heartbeatAt: new Date().toISOString() },
       { id: 'job-trichrome', kind: 'align', memberId: 'slide-4', setVersion: 4, status: 'queued', stage: 'queued', progress: 0, processedPatches: 0, totalPatches: 0, processedComponentPairs: 0, totalComponentPairs: 0, failureCode: null, createdAt: '2026-09-21T10:02:00Z' },
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } })
     : new Response(JSON.stringify({
@@ -78,9 +78,34 @@ it('shows durable automatic alignment progress for every stack member', async ()
 
   expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('1 of 3 slides complete · 43%')
   expect(screen.getByText(/high resolution components · 4\/4 regions · 0\/2 patches/)).toBeVisible()
+  expect(screen.getByText(/Worker active · 1m 15s elapsed/)).toBeVisible()
   expect(screen.getByText('Waiting for worker')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Correct alignment' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Benchmark engines' })).toBeDisabled()
+})
+
+it('keeps the current map usable while a replacement registration runs', async () => {
+  vi.mocked(fetch).mockImplementation(async (input) => String(input).endsWith('/jobs')
+    ? new Response(JSON.stringify([{
+      id: 'job-rerun', kind: 'align', memberId: 'slide-2', setVersion: 2,
+      status: 'running', stage: 'high-resolution-components', progress: 30,
+      processedPatches: 0, totalPatches: 2, processedComponentPairs: 4, totalComponentPairs: 4,
+      failureCode: null, createdAt: new Date(Date.now() - 30_000).toISOString(),
+      updatedAt: new Date().toISOString(), heartbeatAt: new Date().toISOString(),
+    }]), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    : new Response(JSON.stringify({
+      id: 'set-1', name: 'Rerunning set', referenceSlideId: 'slide-1', status: 'running', version: 2,
+      members: [
+        { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+        { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] } },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('0 of 1 slides complete · 30%')
+  expect(screen.getByText(/Worker active/)).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toBeEnabled()
 })
 
 it('supports a real three-pane layout and makes the replacement target explicit', async () => {

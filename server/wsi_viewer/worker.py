@@ -979,15 +979,20 @@ def process_next(
                     database.commit()
                     return True
                 registrations = dict(comparison.registrations)
-                registrations[slide.id] = {
-                    "status": "rejected",
-                    "provenance": "automatic",
-                    "reason": str(error),
-                }
+                if not (
+                    checkpoint.get("preserveExisting")
+                    and registrations.get(slide.id, {}).get("status") in {"ready", "approximate"}
+                ):
+                    registrations[slide.id] = {
+                        "status": "rejected",
+                        "provenance": "automatic",
+                        "reason": str(error),
+                    }
                 comparison.registrations = registrations
                 comparison.status = (
-                    "running"
-                    if len(registrations) < len(comparison.member_slide_ids) - 1
+                    "ready"
+                    if len(registrations) == len(comparison.member_slide_ids) - 1
+                    and all(value.get("status") == "ready" for value in registrations.values())
                     else "partial"
                 )
                 job.status = "failed_terminal"

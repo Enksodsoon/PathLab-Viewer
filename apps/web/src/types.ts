@@ -323,6 +323,8 @@ export interface ComparisonRegistrationJob {
   totalPatches: number
   failureCode: string | null
   createdAt: string
+  updatedAt?: string
+  heartbeatAt?: string | null
 }
 
 export interface RegistrationCandidate {
