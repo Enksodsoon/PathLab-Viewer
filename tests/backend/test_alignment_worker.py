@@ -223,6 +223,103 @@ def test_failed_reregistration_preserves_previous_usable_map(
         assert database.query(Job).one().status == "failed_terminal"
 
 
+def test_successful_reregistration_does_not_replace_stronger_existing_map(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'rerun-quality.sqlite3'}",
+        data_root=tmp_path / "data",
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    previous = {
+        "status": "approximate",
+        "provenance": "automatic",
+        "anchorSlideId": "reference",
+        "sourceVersion": "m1",
+        "anchorVersion": "r1",
+        "confidence": 0.4,
+        "overviewTriangles": [
+            {"moving": [[0, 0], [1, 0], [0, 1]], "reference": [[0, 0], [1, 0], [0, 1]]}
+        ],
+        "evidence": {"source": "bounded-pyramid-whole-slide-structure"},
+    }
+    with factory() as database:
+        database.add_all(
+            [
+                Slide(
+                    id="reference",
+                    public_id="p-reference",
+                    display_name="H&E",
+                    original_filename="r.tif",
+                    source_bytes=1,
+                    state=SlideState.READY_PRIVATE,
+                    sha256="r1",
+                    slide_metadata={"width": 1200, "height": 840},
+                ),
+                Slide(
+                    id="moving",
+                    public_id="p-moving",
+                    display_name="IHC",
+                    original_filename="m.tif",
+                    source_bytes=1,
+                    state=SlideState.READY_PRIVATE,
+                    sha256="m1",
+                    slide_metadata={"width": 1200, "height": 840},
+                ),
+            ]
+        )
+        database.flush()
+        comparison = ComparisonSet(
+            name="Set",
+            reference_slide_id="reference",
+            member_slide_ids=["reference", "moving"],
+            source_versions={"reference": "r1", "moving": "m1"},
+            registrations={"moving": previous},
+            status="queued",
+        )
+        database.add(comparison)
+        database.flush()
+        database.add(
+            Job(
+                slide_id="moving",
+                kind="align",
+                resource_class="isolated",
+                checkpoint={
+                    "comparisonSetId": comparison.id,
+                    "memberId": "moving",
+                    "anchorSlideId": "reference",
+                    "setVersion": comparison.version,
+                    "preserveExisting": True,
+                    "progress": 0,
+                },
+                resource_limits={},
+            )
+        )
+        database.commit()
+        comparison_id = comparison.id
+
+    weaker = {
+        **previous,
+        "confidence": 0.49,
+        "inlierCount": 0,
+        "matchCount": 0,
+        "evidence": {"source": "bounded-pyramid-component-flow"},
+    }
+    monkeypatch.setattr("wsi_viewer.worker._run_alignment_bounded", lambda *_a, **_k: weaker)
+
+    assert process_next(factory, layout) is True
+
+    with factory() as database:
+        comparison = database.get(ComparisonSet, comparison_id)
+        job = database.query(Job).one()
+        assert comparison is not None
+        assert comparison.registrations["moving"] == previous
+        assert job.status == "succeeded"
+        assert job.output_manifest["preservedExisting"] is True
+
+
 def test_alignment_jobs_have_exclusive_heavy_work_admission(tmp_path: Path) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'admission.sqlite3'}",

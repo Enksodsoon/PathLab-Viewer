@@ -66,6 +66,68 @@ STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
 
 
+def _registration_quality(registration: dict[str, Any] | None) -> tuple[int, float, int]:
+    """Rank navigation evidence without treating an approximate map as anatomy."""
+    if not registration:
+        return (0, 0.0, 0)
+    provenance = str(registration.get("provenance") or "")
+    status = str(registration.get("status") or "")
+    evidence = registration.get("evidence") or {}
+    overview_count = len(registration.get("overviewTriangles") or [])
+    triangle_count = len(registration.get("triangles") or [])
+    confidence = float(registration.get("confidence") or 0.0)
+    if provenance.startswith("manual"):
+        tier = 100
+    elif status == "ready" and triangle_count:
+        tier = 80
+    elif (
+        status == "approximate"
+        and overview_count
+        and evidence.get("source") == "bounded-pyramid-whole-slide-structure"
+    ):
+        tier = 60
+    elif (
+        status == "approximate"
+        and overview_count
+        and evidence.get("componentOrderPreserved") is True
+    ):
+        tier = 50
+    elif status == "approximate" and overview_count:
+        tier = 20
+    elif status == "rejected":
+        tier = 5
+    else:
+        tier = 10
+    return (tier, confidence, triangle_count or overview_count)
+
+
+def _best_compatible_registration(
+    database: OrmSession,
+    *,
+    comparison: ComparisonSet,
+    slide: Slide,
+    reference: Slide,
+) -> dict[str, Any] | None:
+    candidates: list[dict[str, Any]] = []
+    current = comparison.registrations.get(slide.id)
+    if current:
+        candidates.append(current)
+    revisions = database.scalars(
+        select(ComparisonRegistrationRevision).where(
+            ComparisonRegistrationRevision.comparison_set_id == comparison.id,
+            ComparisonRegistrationRevision.slide_id == slide.id,
+            ComparisonRegistrationRevision.source_version == slide.sha256,
+            ComparisonRegistrationRevision.anchor_slide_id == reference.id,
+        )
+    ).all()
+    for revision in revisions:
+        registration = revision.registration
+        if registration.get("anchorVersion") not in {None, reference.sha256}:
+            continue
+        candidates.append(registration)
+    return max(candidates, key=_registration_quality, default=None)
+
+
 def _next_job_statement(
     *,
     now: datetime,
@@ -903,7 +965,7 @@ def process_next(
                     database.commit()
                     return True
                 registrations = dict(comparison.registrations)
-                registrations[slide.id] = {
+                replacement = {
                     **result_json,
                     "provenance": "automatic",
                     "sourceVersion": slide.sha256,
@@ -912,19 +974,31 @@ def process_next(
                     "anchorVersion": reference.sha256,
                     "coordinateReferenceId": coordinate_reference_id,
                 }
-                comparison.registrations = registrations
-                database.add(
-                    ComparisonRegistrationRevision(
-                        comparison_set_id=comparison.id,
-                        slide_id=slide.id,
-                        set_version=comparison.version,
-                        source_version=slide.sha256,
-                        anchor_slide_id=reference.id,
-                        algorithm_version="piecewise-affine-components-v12",
-                        provenance="automatic",
-                        registration=registrations[slide.id],
+                preserved = None
+                if checkpoint.get("preserveExisting"):
+                    existing = _best_compatible_registration(
+                        database,
+                        comparison=comparison,
+                        slide=slide,
+                        reference=reference,
                     )
-                )
+                    if _registration_quality(existing) > _registration_quality(replacement):
+                        preserved = existing
+                registrations[slide.id] = preserved or replacement
+                comparison.registrations = registrations
+                if preserved is None:
+                    database.add(
+                        ComparisonRegistrationRevision(
+                            comparison_set_id=comparison.id,
+                            slide_id=slide.id,
+                            set_version=comparison.version,
+                            source_version=slide.sha256,
+                            anchor_slide_id=reference.id,
+                            algorithm_version="piecewise-affine-components-v12",
+                            provenance="automatic",
+                            registration=registrations[slide.id],
+                        )
+                    )
                 comparison.status = (
                     "ready"
                     if len(registrations) == len(comparison.member_slide_ids) - 1
@@ -937,8 +1011,12 @@ def process_next(
                 job.output_manifest = {
                     "comparisonSetId": comparison.id,
                     "memberId": slide.id,
-                    "confidence": confidence,
-                    "inlierCount": result_json["inlierCount"],
+                    "confidence": float(registrations[slide.id].get("confidence") or confidence),
+                    "inlierCount": int(
+                        registrations[slide.id].get("inlierCount")
+                        or result_json["inlierCount"]
+                    ),
+                    "preservedExisting": preserved is not None,
                 }
                 job.status = "succeeded"
             except (AlignmentRejected, FileNotFoundError, OSError) as error:

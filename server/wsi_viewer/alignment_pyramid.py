@@ -988,43 +988,109 @@ def register_components(
         moving_structure, moving_mask = _structure(
             np.asarray(bounded_moving.convert("RGB"))
         )
-        inverse = np.asarray(
+        scanner_forward = np.asarray(
             [
-                [moving_mask.shape[1] / reference_mask.shape[1], 0.0, 0.0],
-                [0.0, moving_mask.shape[0] / reference_mask.shape[0], 0.0],
+                [reference_mask.shape[1] / moving_mask.shape[1], 0.0, 0.0],
+                [0.0, reference_mask.shape[0] / moving_mask.shape[0], 0.0],
             ],
             dtype=np.float32,
         )
-        try:
-            score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
-                cv2.GaussianBlur(reference_structure, (0, 0), 4).astype(np.float32)
-                / 255,
-                cv2.GaussianBlur(moving_structure, (0, 0), 4).astype(np.float32)
-                / 255,
-                inverse,
-                cv2.MOTION_TRANSLATION,
-                (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 120, 1e-6),
-                None,
-                7,
+
+        def ecc_candidate(
+            forward_seed: np.ndarray, motion: int
+        ) -> tuple[float, float, np.ndarray] | None:
+            inverse = cv2.invertAffineTransform(forward_seed).astype(np.float32)
+            try:
+                score = 0.0
+                sigmas = (4.0,) if motion == cv2.MOTION_TRANSLATION else (8.0, 4.0)
+                for sigma in sigmas:
+                    score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
+                        cv2.GaussianBlur(
+                            reference_structure, (0, 0), sigma
+                        ).astype(np.float32)
+                        / 255,
+                        cv2.GaussianBlur(
+                            moving_structure, (0, 0), sigma
+                        ).astype(np.float32)
+                        / 255,
+                        inverse,
+                        motion,
+                        (
+                            cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
+                            70,
+                            1e-6,
+                        ),
+                        None,
+                        7,
+                    )
+            except cv2.error:
+                return None
+            transform = cv2.invertAffineTransform(inverse)
+            linear = transform[:, :2]
+            determinant = float(np.linalg.det(linear))
+            singular = np.linalg.svd(linear, compute_uv=False)
+            if (
+                determinant <= 0
+                or not 0.25 <= determinant <= 4
+                or singular[-1] <= 0
+                or singular[0] / singular[-1] > 1.35
+            ):
+                return None
+            warped_mask = cv2.warpAffine(
+                moving_mask,
+                transform,
+                (reference_mask.shape[1], reference_mask.shape[0]),
             )
-        except cv2.error:
+            intersection = int(
+                np.count_nonzero((warped_mask > 0) & (reference_mask > 0))
+            )
+            overlap = 2 * intersection / max(
+                1,
+                int(np.count_nonzero(warped_mask))
+                + int(np.count_nonzero(reference_mask)),
+            )
+            return float(score), float(overlap), transform
+
+        translation = ecc_candidate(scanner_forward, cv2.MOTION_TRANSLATION)
+        mask_seed, _ = _mask_seed(reference_mask, moving_mask)
+        seed_rotation = abs(
+            math.degrees(
+                math.atan2(float(mask_seed[1, 0]), float(mask_seed[0, 0]))
+            )
+        )
+        affine_candidates = [
+            candidate
+            for candidate in (
+                ecc_candidate(mask_seed, cv2.MOTION_AFFINE)
+                if seed_rotation >= 1.5 or translation is None
+                else None,
+            )
+            if candidate is not None
+            and candidate[0] >= 0.5
+            and candidate[1] >= 0.5
+        ]
+        chosen = translation
+        transform_kind = "scanner-translation"
+        if affine_candidates:
+            affine = max(affine_candidates, key=lambda item: item[0] + 0.15 * item[1])
+            # A broad or fragmented tissue outline can suggest a false PCA
+            # rotation. Require internal structure to improve materially over
+            # the normalized scanner frame before accepting tilt or rotation.
+            if translation is None or (
+                affine[0] >= translation[0] + 0.025
+                and affine[0] + 0.15 * affine[1]
+                >= translation[0] + 0.15 * translation[1] + 0.025
+            ):
+                chosen = affine
+                transform_kind = "structure-affine"
+        if chosen is None:
             return None
-        transform = cv2.invertAffineTransform(inverse)
-        warped_mask = cv2.warpAffine(
-            moving_mask,
-            transform,
-            (reference_mask.shape[1], reference_mask.shape[0]),
-        )
-        intersection = int(
-            np.count_nonzero((warped_mask > 0) & (reference_mask > 0))
-        )
-        overlap = 2 * intersection / max(
-            1,
-            int(np.count_nonzero(warped_mask))
-            + int(np.count_nonzero(reference_mask)),
-        )
+        score, overlap, transform = chosen
         if score < 0.45 or overlap < 0.5:
             return None
+        rotation_degrees = math.degrees(
+            math.atan2(float(transform[1, 0]), float(transform[0, 0]))
+        )
         spacing = max(32, min(moving_mask.shape) // 8)
         controls = []
         for y in range(spacing // 2, moving_mask.shape[0], spacing):
@@ -1052,6 +1118,12 @@ def register_components(
         )
         if not cells:
             return None
+        verified_cells, patch_ncc_median, patch_discrimination_median = (
+            _flow_cell_evidence(cells, reference_structure, moving_structure)
+        )
+        minimum_verified = max(1, min(3, math.ceil(len(cells) * 0.1)))
+        if len(verified_cells) < minimum_verified:
+            return None
         whole = _ComponentMap(
             transform=transform.tolist(),
             overview_cells=cells,
@@ -1061,8 +1133,8 @@ def register_components(
             overlap=float(overlap),
             flow_control_count=0,
             flow_cycle_p95=-1.0,
-            patch_ncc_median=-1.0,
-            patch_discrimination_median=-1.0,
+            patch_ncc_median=patch_ncc_median,
+            patch_discrimination_median=patch_discrimination_median,
             feature_inliers=0,
             feature_spread=0.0,
         )
@@ -1103,6 +1175,13 @@ def register_components(
                 "componentPairsChecked": attempted,
                 "intensityShapeScore": round(whole.intensity_score, 6),
                 "outlineOverlap": round(whole.overlap, 6),
+                "wholeSlideTransformKind": transform_kind,
+                "wholeSlideRotationDegrees": round(rotation_degrees, 4),
+                "verifiedPatchCount": len(verified_cells),
+                "patchNccMedian": round(patch_ncc_median, 4),
+                "patchDiscriminationMedian": round(
+                    patch_discrimination_median, 4
+                ),
                 "availabilityReason": (
                     "Internal whole-slide structure supports scanner-frame overview "
                     "navigation; independent landmark accuracy is pending"

@@ -463,10 +463,16 @@ def test_whole_slide_shape_fallback_survives_fragmented_pale_ihc(tmp_path, monke
     reference = Image.new("RGB", (700, 520), "white")
     draw = ImageDraw.Draw(reference)
     draw.ellipse((80, 70, 650, 540), fill=(225, 155, 190))
+    for x in range(145, 610, 58):
+        for y in range(135, 455, 61):
+            draw.ellipse((x, y, x + 15, y + 11), fill=(92, 51, 103))
     moving = Image.new("RGB", reference.size, "white")
     pale = Image.new("RGB", reference.size, "white")
     pale_draw = ImageDraw.Draw(pale)
     pale_draw.ellipse((80, 70, 650, 540), fill=(244, 238, 245))
+    for x in range(145, 610, 58):
+        for y in range(135, 455, 61):
+            pale_draw.ellipse((x, y, x + 15, y + 11), fill=(192, 178, 205))
     moving.paste(pale, (8, -5))
     _pyramid(tmp_path / "r", reference)
     _pyramid(tmp_path / "m", moving)
@@ -496,6 +502,78 @@ def test_whole_slide_shape_fallback_survives_fragmented_pale_ihc(tmp_path, monke
     assert result.triangles == []
     assert result.overview_triangles
     assert result.evidence["source"] == "bounded-pyramid-whole-slide-structure"
+
+
+def test_whole_slide_structural_fallback_recovers_real_rotation(tmp_path, monkeypatch):
+    from PIL import ImageDraw
+    from wsi_viewer import alignment_pyramid
+
+    reference = Image.new("RGB", (760, 560), "white")
+    draw = ImageDraw.Draw(reference)
+    draw.ellipse((80, 70, 660, 500), fill=(221, 151, 181))
+    draw.rectangle((150, 120, 235, 440), fill=(120, 65, 105))
+    draw.ellipse((430, 260, 625, 455), fill=(88, 45, 91))
+    for x in range(270, 610, 45):
+        for y in range(105, 440, 52):
+            draw.ellipse((x, y, x + 13, y + 9), fill=(67, 43, 96))
+    moving = reference.rotate(8, resample=Image.Resampling.BICUBIC, fillcolor="white")
+    _pyramid(tmp_path / "r", reference)
+    _pyramid(tmp_path / "m", moving)
+    monkeypatch.setattr(
+        alignment_pyramid,
+        "register_pair",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            alignment_pyramid.AlignmentRejected("no local anatomy")
+        ),
+    )
+    monkeypatch.setattr(
+        alignment_pyramid,
+        "_approximate_component_map",
+        lambda *_args, **_kwargs: None,
+    )
+
+    result = alignment_pyramid.register_components(
+        tmp_path / "r", tmp_path / "m", reference, moving, reference.size, moving.size
+    )
+
+    assert result.status == "approximate"
+    assert result.evidence["source"] == "bounded-pyramid-whole-slide-structure"
+    assert result.evidence["wholeSlideTransformKind"] == "structure-affine"
+    assert abs(abs(result.evidence["wholeSlideRotationDegrees"]) - 8) < 2
+
+
+def test_whole_slide_structural_fallback_rejects_unrelated_same_size_tissue(
+    tmp_path, monkeypatch
+):
+    from PIL import ImageDraw
+    from wsi_viewer import alignment_pyramid
+
+    reference = _textured_tissue()
+    moving = Image.new("RGB", reference.size, "white")
+    draw = ImageDraw.Draw(moving)
+    draw.rectangle((80, 80, 620, 520), fill=(226, 162, 186))
+    for index in range(12):
+        x = 105 + index * 43
+        draw.line((x, 95, 620 - index * 17, 505), fill=(73, 42, 102), width=11)
+    _pyramid(tmp_path / "r", reference)
+    _pyramid(tmp_path / "m", moving)
+    monkeypatch.setattr(
+        alignment_pyramid,
+        "register_pair",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            alignment_pyramid.AlignmentRejected("no local anatomy")
+        ),
+    )
+    monkeypatch.setattr(
+        alignment_pyramid,
+        "_approximate_component_map",
+        lambda *_args, **_kwargs: None,
+    )
+
+    with pytest.raises(alignment_pyramid.AlignmentRejected):
+        alignment_pyramid.register_components(
+            tmp_path / "r", tmp_path / "m", reference, moving, reference.size, moving.size
+        )
 
 
 def test_flow_refinement_returns_cycle_consistent_local_controls():
