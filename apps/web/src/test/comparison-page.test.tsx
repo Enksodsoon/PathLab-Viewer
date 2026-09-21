@@ -216,7 +216,7 @@ it('does not use an unverified component proposal in best-available mode', async
   expect(screen.queryByText(/Synchronization suspended/)).not.toBeInTheDocument()
 })
 
-it('uses an order-preserving component overview when exact evidence is unavailable', async () => {
+it('requires explicit approximate mode for an order-preserving component overview', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Ordered component set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -235,13 +235,12 @@ it('uses an order-preserving component overview when exact evidence is unavailab
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Ordered component set')).toBeVisible()
 
-  await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
-
+  expect(screen.getByText('Not aligned')).toBeVisible()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'approximate')
   expect(screen.getByText('Approximate sync')).toBeVisible()
-  expect(screen.queryByText('Unavailable')).not.toBeInTheDocument()
 })
 
-it('uses a validated whole-slide structural overview in best-available mode', async () => {
+it('requires explicit approximate mode for a whole-slide structural overview', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Whole-slide structural set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -257,11 +256,13 @@ it('uses a validated whole-slide structural overview in best-available mode', as
     ],
   }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
 
+  const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Whole-slide structural set')).toBeVisible()
 
+  expect(screen.getByText('Not aligned')).toBeVisible()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'approximate')
   expect(screen.getByText('Approximate sync')).toBeVisible()
-  expect(screen.queryByText('Unavailable')).not.toBeInTheDocument()
 })
 
 it('opens a rejected slide independently instead of attempting synchronization', async () => {

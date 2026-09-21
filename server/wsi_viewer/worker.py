@@ -32,6 +32,7 @@ from .alignment import (
 )
 from .alignment_engines import (
     ENGINE_NATIVE,
+    ENGINE_VALIS,
     ENGINE_VERSIONS,
     run_engine,
     settings_digest,
@@ -477,6 +478,7 @@ def _alignment_child(
     reference_full_size: tuple[int, int],
     moving_full_size: tuple[int, int],
     engine_name: str,
+    engine_settings: dict[str, Any] | None,
     artifact_dir: str | None,
     output: Any,
 ) -> None:
@@ -501,6 +503,7 @@ def _alignment_child(
                 reference_full_size=reference_full_size,
                 moving_full_size=moving_full_size,
                 artifact_dir=Path(artifact_dir) if artifact_dir else None,
+                settings=engine_settings,
                 progress=lambda values: output.put({"progress": values}),
             )
             output.put(
@@ -644,6 +647,7 @@ def _run_alignment_bounded(
     moving_full_size: tuple[int, int],
     *,
     engine_name: str = ENGINE_NATIVE,
+    engine_settings: dict[str, Any] | None = None,
     artifact_dir: Path | None = None,
     timeout_seconds: int,
     memory_bytes: int,
@@ -660,6 +664,7 @@ def _run_alignment_bounded(
             reference_full_size,
             moving_full_size,
             engine_name,
+            engine_settings,
             str(artifact_dir) if artifact_dir else None,
             output,
         ),
@@ -683,7 +688,11 @@ def _run_alignment_bounded(
             peak_memory_bytes = max(peak_memory_bytes, current_memory_bytes)
             if current_memory_bytes > memory_bytes:
                 _terminate_process_tree(process)
-                raise AlignmentRejected("registration exceeded the memory ceiling")
+                raise AlignmentRejected(
+                    "registration exceeded the memory ceiling "
+                    f"({current_memory_bytes / 1024**3:.2f} GiB > "
+                    f"{memory_bytes / 1024**3:.2f} GiB)"
+                )
             try:
                 result = output.get(timeout=0.2)
                 if "progress" in result:
@@ -875,18 +884,49 @@ def process_next(
                     / slide.id
                     / engine_name
                 )
-                result_json = _run_alignment_bounded(
-                    reference_derivative,
-                    moving_derivative,
-                    reference_full_size,
-                    moving_full_size,
-                    engine_name=engine_name,
-                    artifact_dir=artifact_dir,
-                    timeout_seconds=min(2700, int(limits.get("timeoutSeconds", 2700))),
-                    memory_bytes=min(7 * 1024**3, int(limits.get("memoryBytes", 7 * 1024**3))),
-                    heartbeat=renew_alignment_lease,
-                    progress=record_alignment_progress,
-                )
+                run_options = {
+                    "engine_name": engine_name,
+                    "artifact_dir": artifact_dir,
+                    "timeout_seconds": min(2700, int(limits.get("timeoutSeconds", 2700))),
+                    "memory_bytes": min(
+                        7 * 1024**3, int(limits.get("memoryBytes", 7 * 1024**3))
+                    ),
+                    "heartbeat": renew_alignment_lease,
+                    "progress": record_alignment_progress,
+                }
+                try:
+                    result_json = _run_alignment_bounded(
+                        reference_derivative,
+                        moving_derivative,
+                        reference_full_size,
+                        moving_full_size,
+                        **run_options,
+                    )
+                except AlignmentRejected as error:
+                    if engine_name != ENGINE_VALIS or "memory ceiling" not in str(error):
+                        raise
+                    checkpoint.update(
+                        {
+                            "progress": 36,
+                            "stage": "valis-memory-fallback",
+                            "fallbackReason": str(error),
+                        }
+                    )
+                    job.checkpoint = dict(checkpoint)
+                    database.commit()
+                    result_json = _run_alignment_bounded(
+                        reference_derivative,
+                        moving_derivative,
+                        reference_full_size,
+                        moving_full_size,
+                        engine_settings={"maxImageDimension": 768},
+                        **run_options,
+                    )
+                    result_json["evidence"] = {
+                        **(result_json.get("evidence") or {}),
+                        "adaptiveMemoryFallback": True,
+                        "fallbackReason": str(error),
+                    }
                 checkpoint.update(
                     {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 0}
                 )

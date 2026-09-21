@@ -926,6 +926,7 @@ def register_alignment_routes(
             {
                 "id": job.id,
                 "kind": job.kind,
+                "engine": (job.checkpoint or {}).get("engine"),
                 "memberId": (job.checkpoint or {}).get("memberId"),
                 "setVersion": (job.checkpoint or {}).get("setVersion"),
                 "status": job.status,

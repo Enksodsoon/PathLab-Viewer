@@ -313,6 +313,7 @@ export interface ComparisonSet {
 export interface ComparisonRegistrationJob {
   id: string
   kind: 'align' | 'align_benchmark'
+  engine?: string | null
   memberId: string | null
   setVersion: number | null
   status: 'queued' | 'leased' | 'running' | 'retry_wait' | 'succeeded' | 'failed' | 'cancelled'

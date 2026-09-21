@@ -44,7 +44,7 @@ ENGINE_VERSIONS = {
 ADAPTER_VERSIONS = {
     ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
     ENGINE_HISALIGN: "pathlab-adapter-v2-distributed-feature-gate",
-    ENGINE_VALIS: "pathlab-adapter-v1",
+    ENGINE_VALIS: "pathlab-adapter-v8-adaptive-disk-lightglue",
 }
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
 
@@ -60,6 +60,7 @@ class EngineInput:
     reference_full_size: tuple[int, int]
     moving_full_size: tuple[int, int]
     workspace: Path
+    settings: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -209,6 +210,7 @@ def _sample_coordinate_map(
     map_reference_to_moving: Callable[[np.ndarray], np.ndarray],
     provenance: str,
     grid_size: int = 25,
+    minimum_tissue_dice: float = 0.68,
 ) -> RegistrationResult:
     """Sample an upstream dense transform into invertible paired triangles."""
     _, moving_mask = _structure(moving_rgb)
@@ -284,7 +286,7 @@ def _sample_coordinate_map(
     tissue_dice = 2 * intersection / max(
         1, int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
     )
-    if tissue_dice < 0.68:
+    if tissue_dice < minimum_tissue_dice:
         raise AlignmentRejected(
             f"engine map failed whole-tissue overlap validation ({tissue_dice:.3f} Dice)"
         )
@@ -612,11 +614,7 @@ class ValisEngine:
         available, reason = self.available()
         if not available:
             raise AlignmentRejected(reason or "VALIS is unavailable")
-        from valis import (  # type: ignore[import-not-found]
-            feature_detectors,
-            feature_matcher,
-            registration,
-        )
+        from valis import registration  # type: ignore[import-not-found]
 
         started = time.monotonic()
         source = inputs.workspace / "valis-input"
@@ -627,20 +625,30 @@ class ValisEngine:
         inputs.reference.save(reference_path)
         inputs.moving.save(moving_path)
         progress({"stage": "valis-rigid-and-non-rigid", "progress": 35})
-        detector = feature_detectors.KazeFD()
-        matcher = feature_matcher.Matcher(feature_detector=detector)
+        maximum_dimension = int((inputs.settings or {}).get("maxImageDimension", 896))
+        if maximum_dimension not in {768, 896}:
+            raise AlignmentRejected("VALIS image dimension must use a qualified profile")
         registrar = registration.Valis(
             str(source),
             str(output),
             reference_img_f=reference_path.name,
             imgs_ordered=True,
-            feature_detector_cls=detector,
-            matcher=matcher,
-            matcher_for_sorting=matcher,
-            max_processed_image_dim_px=4096,
-            max_non_rigid_registration_dim_px=2048,
+            align_to_reference=True,
+            # VALIS otherwise promotes its default 1024-pixel reader limit to
+            # max_processed_image_dim_px and materializes several 4096-pixel
+            # float images during non-rigid registration.  That exceeded the
+            # worker's 7 GiB process ceiling for ordinary two-slide stacks.
+            # VALIS can expand a rotated rematching canvas to roughly twice
+            # this dimension. 896 retains more feature detail than the safe
+            # 768 fallback while leaving enough headroom below the 7 GiB child
+            # process ceiling on the development pair.
+            max_image_dim_px=maximum_dimension,
+            max_processed_image_dim_px=maximum_dimension,
+            max_non_rigid_registration_dim_px=1024,
         )
-        registrar.register()
+        _, _, error_df = registrar.register()
+        if error_df is None:
+            raise AlignmentRejected("VALIS registration did not produce validation evidence")
         moving_slide = registrar.get_slide(moving_path.name)
         reference_slide = registrar.get_slide(reference_path.name)
         if moving_slide is None or reference_slide is None:
@@ -663,6 +671,78 @@ class ValisEngine:
             map_moving_to_reference=forward,
             map_reference_to_moving=inverse,
             provenance=self.name,
+            # Serial sections can have real missing edge tissue, so VALIS is
+            # allowed to produce a preview map below the strict whole-outline
+            # threshold. Distributed feature evidence below decides whether
+            # the result may be called locally aligned.
+            minimum_tissue_dice=0.45,
+        )
+        raw_moving_matches = getattr(moving_slide, "xy_matched_to_prev", None)
+        raw_reference_matches = getattr(moving_slide, "xy_in_prev", None)
+        moving_matches = np.asarray(
+            raw_moving_matches if raw_moving_matches is not None else [],
+            dtype=np.float64,
+        ).reshape(-1, 2)
+        reference_matches = np.asarray(
+            raw_reference_matches if raw_reference_matches is not None else [],
+            dtype=np.float64,
+        ).reshape(-1, 2)
+        if len(moving_matches):
+            moving_matches *= np.asarray(
+                moving_slide.slide_dimensions_wh[0], dtype=np.float64
+            ) / np.asarray(moving_slide.processed_img_shape_rc[::-1], dtype=np.float64)
+        if len(reference_matches):
+            reference_matches *= np.asarray(
+                reference_slide.slide_dimensions_wh[0], dtype=np.float64
+            ) / np.asarray(reference_slide.processed_img_shape_rc[::-1], dtype=np.float64)
+        match_count = min(len(moving_matches), len(reference_matches))
+        moving_matches = moving_matches[:match_count]
+        reference_matches = reference_matches[:match_count]
+        match_spread = 0.0
+        if match_count >= 3:
+            moving_area = float(
+                cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32)))
+            )
+            reference_area = float(
+                cv2.contourArea(cv2.convexHull(reference_matches.astype(np.float32)))
+            )
+            match_spread = min(
+                moving_area / max(1.0, float(np.prod(inputs.moving.size))),
+                reference_area / max(1.0, float(np.prod(inputs.reference.size))),
+            )
+        match_residual = float("inf")
+        if match_count:
+            match_residual = float(
+                np.median(
+                    np.linalg.norm(
+                        forward(moving_matches) - reference_matches,
+                        axis=1,
+                    )
+                )
+            )
+        valis_non_rigid_rtre = float("inf")
+        try:
+            error_rows = error_df.to_dict(orient="records")
+            moving_names = {moving_path.name, moving_path.stem}
+            moving_row = next(
+                row
+                for row in error_rows
+                if str(row.get("from") or "") in moving_names
+                or Path(str(row.get("filename") or "")).name == moving_path.name
+            )
+            raw_rtre = moving_row.get("non_rigid_rTRE")
+            if raw_rtre is None or not np.isfinite(float(raw_rtre)):
+                raw_rtre = moving_row.get("rigid_rTRE")
+            if raw_rtre is not None and np.isfinite(float(raw_rtre)):
+                valis_non_rigid_rtre = float(raw_rtre)
+        except (StopIteration, TypeError, ValueError):
+            pass
+        tissue_dice = float(result.evidence.get("tissueDice") or 0.0)
+        local_evidence_qualified = bool(
+            match_count >= 8
+            and match_spread >= 0.08
+            and valis_non_rigid_rtre <= 0.02
+            and tissue_dice >= 0.45
         )
         result = rescale_registration(
             result,
@@ -674,8 +754,32 @@ class ValisEngine:
         artifact = inputs.workspace / "valis-coordinate-map.json"
         artifact.write_text(json.dumps(result.as_json(), separators=(",", ":")))
         payload = result.as_json()
+        if not local_evidence_qualified:
+            payload = _mark_approximate_engine_map(
+                payload,
+                reason=(
+                    "VALIS produced a whole-slide proposal but did not find enough "
+                    "spatially distributed anatomical feature matches for local synchronization"
+                ),
+            )
         payload["engine"] = self.name
         payload["engineVersion"] = ENGINE_VERSIONS[self.name]
+        payload["evidence"] = {
+            **payload.get("evidence", {}),
+            "adapterVersion": ADAPTER_VERSIONS[self.name],
+            "valisImageDimension": maximum_dimension,
+            "valisFeatureMatches": match_count,
+            "valisFeatureSpatialSpread": round(match_spread, 6),
+            "valisFeatureResidualPixels": (
+                round(match_residual, 6) if np.isfinite(match_residual) else None
+            ),
+            "valisNonRigidRTRE": (
+                round(valis_non_rigid_rtre, 8)
+                if np.isfinite(valis_non_rigid_rtre)
+                else None
+            ),
+            "valisLocalEvidenceQualified": local_evidence_qualified,
+        }
         return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
 
 
@@ -698,6 +802,7 @@ def run_engine(
     moving_full_size: tuple[int, int],
     workspace_root: Path | None = None,
     artifact_dir: Path | None = None,
+    settings: dict[str, Any] | None = None,
     progress: Progress = lambda _values: None,
 ) -> EngineRun:
     root = workspace_root or Path(tempfile.gettempdir())
@@ -709,6 +814,7 @@ def run_engine(
                 reference_full_size=reference_full_size,
                 moving_full_size=moving_full_size,
                 workspace=Path(temporary),
+                settings=settings,
             ),
             progress,
         )
