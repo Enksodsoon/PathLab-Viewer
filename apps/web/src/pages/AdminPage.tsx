@@ -76,6 +76,7 @@ import { SelectionActionBar } from '../components/library/SelectionActionBar'
 import { PublishConfirmationDialog } from '../components/library/PublishConfirmationDialog'
 import { ShareDialog } from '../components/library/ShareDialog'
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
+import { SlideStackShelf } from '../components/library/SlideStackShelf'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
 import {
   UploadWorkspace,
@@ -1574,6 +1575,13 @@ export function AdminPage() {
             >
               {notice}
             </StatusMessage>
+          ) : null}
+          {location === 'all' ? (
+            <SlideStackShelf
+              enabled={Boolean(navigation.capabilities?.alignment)}
+              slides={page.items}
+              onNotice={setNotice}
+            />
           ) : null}
           {contentLoading ? (
             <div className="library-loading">

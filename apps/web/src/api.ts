@@ -571,6 +571,13 @@ export async function reregisterComparisonSet(id: string): Promise<void> {
   await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/reregister`, { method: 'POST' }))
 }
 
+export async function listComparisonSets(): Promise<ComparisonSet[]> {
+  return json<ComparisonSet[]>(await fetch('/api/v1/admin/comparison-sets', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  }))
+}
+
 export async function getSlideStacks(slideId: string): Promise<SlideStackSummary[]> {
   return json<SlideStackSummary[]>(await fetch(
     `/api/v1/admin/slides/${encodeURIComponent(slideId)}/stacks`,
