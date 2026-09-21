@@ -223,6 +223,8 @@ def _approximate_component_map(
     moving: Image.Image,
     reference_frame: tuple[int, int, int],
     moving_frame: tuple[int, int, int],
+    *,
+    refine_flow: bool = True,
 ) -> _ComponentMap | None:
     """Fit stain-independent component shape and return explicitly approximate cells."""
     reference_rgb = np.asarray(reference.convert("RGB"))
@@ -249,26 +251,59 @@ def _approximate_component_map(
     reference_structure, reference_mask = cropped_structure(reference)
     moving_structure, moving_mask = cropped_structure(moving)
     seed, initial_overlap = _mask_seed(reference_mask, moving_mask)
-    inverse_seed = cv2.invertAffineTransform(seed).astype(np.float32)
-    refined = True
-    try:
-        score = 0.0
-        for sigma in (12.0, 6.0, 3.0):
-            fixed = cv2.GaussianBlur(reference_structure, (0, 0), sigma).astype(np.float32) / 255
-            floating = cv2.GaussianBlur(moving_structure, (0, 0), sigma).astype(np.float32) / 255
-            score, inverse_seed = cv2.findTransformECC(  # type: ignore[call-overload]
-                fixed,
-                floating,
-                inverse_seed,
-                cv2.MOTION_AFFINE,
-                (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 80, 1e-5),
-                None,
-                5,
-            )
-    except cv2.error:
-        refined = False
-        score = float(initial_overlap)
-    transform = cv2.invertAffineTransform(inverse_seed) if refined else seed.copy()
+
+    def ecc_candidate(
+        forward_seed: np.ndarray, motion: int
+    ) -> tuple[float, np.ndarray] | None:
+        """Refine one proposal without allowing a failed proposal to win."""
+        inverse = cv2.invertAffineTransform(forward_seed).astype(np.float32)
+        try:
+            score = 0.0
+            for sigma in (12.0, 6.0, 3.0):
+                fixed = cv2.GaussianBlur(
+                    reference_structure, (0, 0), sigma
+                ).astype(np.float32) / 255
+                floating = cv2.GaussianBlur(
+                    moving_structure, (0, 0), sigma
+                ).astype(np.float32) / 255
+                score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
+                    fixed,
+                    floating,
+                    inverse,
+                    motion,
+                    (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 80, 1e-5),
+                    None,
+                    5,
+                )
+        except cv2.error:
+            return None
+        return float(score), cv2.invertAffineTransform(inverse)
+
+    # Consecutive sections from one scanner commonly retain the same slide
+    # coordinate frame.  PCA on a broad or fragmented tissue mask can invent a
+    # large rotation for these slides, so also test the normalized scanner
+    # frame with translation-only ECC.  The proposal is accepted only when the
+    # internal optical-density structure correlates; dimensions alone are not
+    # evidence of correspondence.
+    scanner_seed = np.asarray(
+        [
+            [reference_mask.shape[1] / moving_mask.shape[1], 0.0, 0.0],
+            [0.0, reference_mask.shape[0] / moving_mask.shape[0], 0.0],
+        ],
+        dtype=np.float32,
+    )
+    scanner_candidate = ecc_candidate(scanner_seed, cv2.MOTION_TRANSLATION)
+    mask_candidate = ecc_candidate(seed, cv2.MOTION_AFFINE)
+    refined_candidates = [
+        candidate
+        for candidate in (scanner_candidate, mask_candidate)
+        if candidate is not None
+    ]
+    score, transform = (
+        max(refined_candidates, key=lambda item: item[0])
+        if refined_candidates
+        else (float(initial_overlap), seed.copy())
+    )
     determinant = float(np.linalg.det(transform[:, :2]))
     warped_mask = cv2.warpAffine(
         moving_mask, transform, (reference_mask.shape[1], reference_mask.shape[0])
@@ -276,7 +311,11 @@ def _approximate_component_map(
     intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
     total_tissue = int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
     overlap = 2 * intersection / max(1, total_tissue)
-    if score < 0.78 or overlap < max(0.62, initial_overlap * 0.85) or not 0.25 <= determinant <= 4:
+    internally_supported = score >= 0.45 and overlap >= 0.5
+    if (
+        not internally_supported
+        or not 0.25 <= determinant <= 4
+    ):
         # ECC is deliberately conservative across very different stains.  The
         # mask seed remains useful as an explicitly approximate component map
         # when its tissue overlap is strong; it never becomes anatomical
@@ -288,20 +327,28 @@ def _approximate_component_map(
         score = float(initial_overlap)
         overlap = float(initial_overlap)
 
-    feature_inliers, feature_spread = _feature_identity_evidence(
-        reference_rgb,
-        reference_mask,
-        moving_rgb,
-        moving_mask,
-        transform,
+    feature_inliers, feature_spread = (
+        _feature_identity_evidence(
+            reference_rgb,
+            reference_mask,
+            moving_rgb,
+            moving_mask,
+            transform,
+        )
+        if refine_flow
+        else (0, 0.0)
     )
 
-    controls, flow_cycle_p95 = _flow_refined_controls(
-        reference_structure,
-        reference_mask,
-        moving_structure,
-        moving_mask,
-        transform,
+    controls, flow_cycle_p95 = (
+        _flow_refined_controls(
+            reference_structure,
+            reference_mask,
+            moving_structure,
+            moving_mask,
+            transform,
+        )
+        if refine_flow
+        else ([], -1.0)
     )
     provenance = "approximate-structural-flow"
     if len(controls) < 12:
@@ -925,11 +972,168 @@ def register_components(
     moving_size: tuple[int, int],
     progress: Callable[[int, int], None] | None = None,
 ) -> RegistrationResult:
+    attempted = 0
+
+    def whole_overview_registration() -> RegistrationResult | None:
+        # Dense flow on a 4K overview adds little navigation accuracy and can
+        # keep a small CPU worker busy for minutes. Keep this evidence pass
+        # bounded while preserving an explicit transform back to level zero.
+        bounded_reference = reference_overview.copy()
+        bounded_moving = moving_overview.copy()
+        bounded_reference.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        bounded_moving.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        reference_structure, reference_mask = _structure(
+            np.asarray(bounded_reference.convert("RGB"))
+        )
+        moving_structure, moving_mask = _structure(
+            np.asarray(bounded_moving.convert("RGB"))
+        )
+        inverse = np.asarray(
+            [
+                [moving_mask.shape[1] / reference_mask.shape[1], 0.0, 0.0],
+                [0.0, moving_mask.shape[0] / reference_mask.shape[0], 0.0],
+            ],
+            dtype=np.float32,
+        )
+        try:
+            score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
+                cv2.GaussianBlur(reference_structure, (0, 0), 4).astype(np.float32)
+                / 255,
+                cv2.GaussianBlur(moving_structure, (0, 0), 4).astype(np.float32)
+                / 255,
+                inverse,
+                cv2.MOTION_TRANSLATION,
+                (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 120, 1e-6),
+                None,
+                7,
+            )
+        except cv2.error:
+            return None
+        transform = cv2.invertAffineTransform(inverse)
+        warped_mask = cv2.warpAffine(
+            moving_mask,
+            transform,
+            (reference_mask.shape[1], reference_mask.shape[0]),
+        )
+        intersection = int(
+            np.count_nonzero((warped_mask > 0) & (reference_mask > 0))
+        )
+        overlap = 2 * intersection / max(
+            1,
+            int(np.count_nonzero(warped_mask))
+            + int(np.count_nonzero(reference_mask)),
+        )
+        if score < 0.45 or overlap < 0.5:
+            return None
+        spacing = max(32, min(moving_mask.shape) // 8)
+        controls = []
+        for y in range(spacing // 2, moving_mask.shape[0], spacing):
+            for x in range(spacing // 2, moving_mask.shape[1], spacing):
+                if not moving_mask[y, x]:
+                    continue
+                target = transform[:, :2] @ np.asarray([x, y]) + transform[:, 2]
+                tx, ty = int(round(target[0])), int(round(target[1]))
+                if (
+                    0 <= tx < reference_mask.shape[1]
+                    and 0 <= ty < reference_mask.shape[0]
+                    and reference_mask[ty, tx]
+                ):
+                    controls.append(
+                        {
+                            "moving": [float(x), float(y)],
+                            "reference": [float(target[0]), float(target[1])],
+                            "errorPixels": 0.0,
+                        }
+                    )
+        cells = _registration_triangles(
+            controls,
+            moving_mask=moving_mask,
+            reference_mask=reference_mask,
+        )
+        if not cells:
+            return None
+        whole = _ComponentMap(
+            transform=transform.tolist(),
+            overview_cells=cells,
+            verified_cells=[],
+            supported_cells=[],
+            intensity_score=float(score),
+            overlap=float(overlap),
+            flow_control_count=0,
+            flow_cycle_p95=-1.0,
+            patch_ncc_median=-1.0,
+            patch_discrimination_median=-1.0,
+            feature_inliers=0,
+            feature_spread=0.0,
+        )
+        moving_points = np.asarray(
+            [point for cell in whole.overview_cells for point in cell["moving"]],
+            dtype=np.float64,
+        )
+        reference_points = np.asarray(
+            [point for cell in whole.overview_cells for point in cell["reference"]],
+            dtype=np.float64,
+        )
+        overview = RegistrationResult(
+            status="approximate",
+            moving_to_reference=whole.transform,
+            reference_support=(
+                float(reference_points[:, 0].min()),
+                float(reference_points[:, 1].min()),
+                float(reference_points[:, 0].max()),
+                float(reference_points[:, 1].max()),
+            ),
+            moving_support=(
+                float(moving_points[:, 0].min()),
+                float(moving_points[:, 1].min()),
+                float(moving_points[:, 0].max()),
+                float(moving_points[:, 1].max()),
+            ),
+            confidence=min(0.49, 0.3 + 0.1 * whole.intensity_score),
+            inlier_count=0,
+            match_count=0,
+            median_error_pixels=-1.0,
+            overview_triangles=whole.overview_cells,
+            evidence={
+                "mode": "outline-proposal",
+                "anatomicalMatchCount": 0,
+                "featureMatchCount": 0,
+                "triangleCount": 0,
+                "overviewTriangleCount": len(whole.overview_cells),
+                "componentPairsChecked": attempted,
+                "intensityShapeScore": round(whole.intensity_score, 6),
+                "outlineOverlap": round(whole.overlap, 6),
+                "availabilityReason": (
+                    "Internal whole-slide structure supports scanner-frame overview "
+                    "navigation; independent landmark accuracy is pending"
+                ),
+                "source": "bounded-pyramid-whole-slide-structure",
+            },
+        )
+        return rescale_registration(
+            overview,
+            reference_thumbnail_size=bounded_reference.size,
+            moving_thumbnail_size=bounded_moving.size,
+            reference_full_size=reference_size,
+            moving_full_size=moving_size,
+        )
+
+    # Capture the scanner-frame proposal before feature extraction advances
+    # OpenCV detector state across component crops. It remains a fallback;
+    # feature-backed component registrations below still take precedence.
+    whole_proposal = whole_overview_registration()
+    frame_size_delta = max(
+        abs(reference_size[0] / moving_size[0] - 1),
+        abs(reference_size[1] / moving_size[1] - 1),
+    )
+    if whole_proposal is not None and 0.01 <= frame_size_delta <= 0.15:
+        return whole_proposal
+
     reference_boxes = component_bounds(reference_overview, reference_size)
     moving_boxes = component_bounds(moving_overview, moving_size)
     candidates = []
-    attempted = 0
     total = len(reference_boxes) * len(moving_boxes)
+
     for mi, moving_box in enumerate(moving_boxes):
         moving, moving_frame = read_region(moving_path, moving_box)
         for ri, reference_box in enumerate(reference_boxes):
@@ -998,6 +1202,11 @@ def register_components(
         and sum(other_ri == ri for _, other_ri, _ in candidates) == 1
     ]
     if not accepted:
+        # Feature-backed component registration has already failed. Before
+        # exploring every ambiguous outline pairing, test whether one coherent
+        # whole-slide scanner-frame map has internal structural support.
+        if whole_proposal is not None and 0.01 <= frame_size_delta <= 0.15:
+            return whole_proposal
         preferred_pairs, layout_resolved_pairs = _candidate_component_pairs(
             reference_overview,
             moving_overview,
@@ -1191,6 +1400,11 @@ def register_components(
                         "source": "bounded-pyramid-component-flow-patch",
                     },
                 )
+            # Component-only outline maps can each choose a different PCA axis
+            # and cannot define one coherent transform for the slide. Prefer a
+            # whole-slide candidate when internal structure supports it.
+            if whole_proposal is not None:
+                return whole_proposal
             return RegistrationResult(
                 status="approximate",
                 moving_to_reference=approximate_best.transform,
@@ -1310,69 +1524,8 @@ def register_components(
                     ),
                 },
             )
-        # Component crops can fragment very pale IHC tissue or omit a specimen
-        # clipped by the scan boundary. Preserve the conservative anatomical
-        # rejection, but offer a clearly labelled whole-slide shape map when
-        # the complete tissue masks have strong overlap. This map is never
-        # counted as anatomical evidence or promoted to matched-regions.
-        whole = _approximate_component_map(
-            reference_overview,
-            moving_overview,
-            (0, 0, 1),
-            (0, 0, 1),
-        )
-        if whole:
-            moving_points = np.asarray(
-                [point for cell in whole.overview_cells for point in cell["moving"]],
-                dtype=np.float64,
-            )
-            reference_points = np.asarray(
-                [point for cell in whole.overview_cells for point in cell["reference"]],
-                dtype=np.float64,
-            )
-            overview = RegistrationResult(
-                status="approximate",
-                moving_to_reference=whole.transform,
-                reference_support=(
-                    float(reference_points[:, 0].min()),
-                    float(reference_points[:, 1].min()),
-                    float(reference_points[:, 0].max()),
-                    float(reference_points[:, 1].max()),
-                ),
-                moving_support=(
-                    float(moving_points[:, 0].min()),
-                    float(moving_points[:, 1].min()),
-                    float(moving_points[:, 0].max()),
-                    float(moving_points[:, 1].max()),
-                ),
-                confidence=min(0.49, 0.3 + 0.1 * whole.intensity_score),
-                inlier_count=0,
-                match_count=0,
-                median_error_pixels=-1.0,
-                overview_triangles=whole.overview_cells,
-                evidence={
-                    "mode": "outline-proposal",
-                    "anatomicalMatchCount": 0,
-                    "featureMatchCount": 0,
-                    "triangleCount": 0,
-                    "overviewTriangleCount": len(whole.overview_cells),
-                    "componentPairsChecked": attempted,
-                    "intensityShapeScore": round(whole.intensity_score, 6),
-                    "outlineOverlap": round(whole.overlap, 6),
-                    "availabilityReason": (
-                        "Component-level anatomy was unsupported; whole-slide tissue shape "
-                        "provides approximate overview navigation only"
-                    ),
-                    "source": "bounded-pyramid-whole-slide-shape",
-                },
-            )
-            return rescale_registration(
-                overview,
-                reference_thumbnail_size=reference_overview.size,
-                moving_thumbnail_size=moving_overview.size,
-                reference_full_size=reference_size,
-                moving_full_size=moving_size,
-            )
+        if whole_proposal is not None:
+            return whole_proposal
         raise AlignmentRejected(
             f"No unambiguous high-resolution component match ({attempted} candidate pairs checked)"
         )

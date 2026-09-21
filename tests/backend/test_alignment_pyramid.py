@@ -423,6 +423,40 @@ def test_component_refinement_keeps_valid_tissue_touching_crop_edge():
     assert result.overview_cells
 
 
+def test_same_scanner_frame_does_not_invent_mask_axis_rotation():
+    from PIL import ImageDraw
+    from wsi_viewer.alignment_pyramid import _approximate_component_map
+
+    reference = Image.new("RGB", (720, 520), "white")
+    draw = ImageDraw.Draw(reference)
+    draw.ellipse((70, 60, 650, 480), fill=(218, 145, 178))
+    draw.rectangle((330, 35, 390, 465), fill=(130, 70, 105))
+    draw.ellipse((410, 250, 625, 455), fill=(95, 48, 88))
+    for x in range(100, 620, 55):
+        for y in range(90, 450, 50):
+            draw.ellipse((x, y, x + 12, y + 9), fill=(70, 45, 95))
+
+    # Preserve the scanner frame and internal geometry while changing the
+    # stain intensity substantially. The broad asymmetric mask has an oblique
+    # PCA axis, which must not become an invented slide rotation.
+    moving = Image.new("RGB", reference.size, "white")
+    source = np.asarray(reference)
+    density = 255 - np.min(source, axis=2)
+    pale = np.full_like(source, 255)
+    pale[:, :, 0] = np.where(density > 8, 238 - density // 7, 255)
+    pale[:, :, 1] = np.where(density > 8, 239 - density // 8, 255)
+    pale[:, :, 2] = np.where(density > 8, 246 - density // 5, 255)
+    moving.paste(Image.fromarray(pale), (7, -5))
+
+    result = _approximate_component_map(reference, moving, (0, 0, 1), (0, 0, 1))
+
+    assert result is not None
+    linear = np.asarray(result.transform)[:, :2]
+    rotation = math.degrees(math.atan2(linear[1, 0], linear[0, 0]))
+    assert abs(rotation) < 2
+    assert result.intensity_score >= 0.45
+
+
 def test_whole_slide_shape_fallback_survives_fragmented_pale_ihc(tmp_path, monkeypatch):
     from wsi_viewer import alignment_pyramid
 
@@ -447,7 +481,7 @@ def test_whole_slide_shape_fallback_survives_fragmented_pale_ihc(tmp_path, monke
     monkeypatch.setattr(
         alignment_pyramid,
         "_approximate_component_map",
-        lambda fixed, floating, fixed_frame, floating_frame: (
+        lambda fixed, floating, fixed_frame, floating_frame, **kwargs: (
             original_approximate(fixed, floating, fixed_frame, floating_frame)
             if fixed.size == reference.size and floating.size == moving.size
             else None
@@ -461,7 +495,7 @@ def test_whole_slide_shape_fallback_survives_fragmented_pale_ihc(tmp_path, monke
     assert result.status == "approximate"
     assert result.triangles == []
     assert result.overview_triangles
-    assert result.evidence["source"] == "bounded-pyramid-whole-slide-shape"
+    assert result.evidence["source"] == "bounded-pyramid-whole-slide-structure"
 
 
 def test_flow_refinement_returns_cycle_consistent_local_controls():
