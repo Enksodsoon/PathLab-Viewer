@@ -816,9 +816,17 @@ def read_region(
     result = Image.new("RGB", (x1 - x0, y1 - y0), "white")
     for row in range(y0 // tile_size, (y1 - 1) // tile_size + 1):
         for column in range(x0 // tile_size, (x1 - 1) // tile_size + 1):
-            with Image.open(
-                path / "slide_files" / str(level) / f"{column}_{row}.{root.attrib['Format']}"
-            ) as source:
+            relative_tile = (
+                Path("slide_files") / str(level) / f"{column}_{row}.{root.attrib['Format']}"
+            )
+            tile_path = path / relative_tile
+            if not tile_path.is_file() and (path / ".openslide-source.json").is_file():
+                from .tile_routes import materialize_local_openslide_tile_from_root
+
+                tile_path = materialize_local_openslide_tile_from_root(
+                    path, path.name, relative_tile.as_posix()
+                )
+            with Image.open(tile_path) as source:
                 tile = source.convert("RGB")
             origin_x = column * tile_size - (overlap if column else 0)
             origin_y = row * tile_size - (overlap if row else 0)

@@ -568,6 +568,10 @@ export async function reregisterComparisonSet(id: string): Promise<void> {
   await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/reregister`, { method: 'POST' }))
 }
 
+export async function cancelComparisonRegistration(id: string): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/register`, { method: 'DELETE' }))
+}
+
 export async function getComparisonSet(id: string): Promise<ComparisonSet> {
   return json<ComparisonSet>(await fetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }))
 }

@@ -56,6 +56,40 @@ it('restores the selected stain panes after a page remount', async () => {
   expect(await screen.findByRole('combobox', { name: 'Slide shown in pane 2' })).toHaveValue('slide-3')
 })
 
+it('supports a real three-pane layout and makes the replacement target explicit', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Pane layout' }), '3')
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(3)
+  expect(screen.getByRole('combobox', { name: 'Pane layout' })).toHaveValue('3')
+  expect(screen.getByRole('button', { name: 'H&ESlide 1' })).toHaveAttribute('aria-current', 'true')
+
+  await user.click(screen.getByRole('button', { name: 'IHC 2Slide 3' }))
+  expect(screen.getByRole('button', { name: 'IHC 2Slide 3' })).toHaveAttribute('aria-current', 'true')
+})
+
+it('supports the three-pane keyboard shortcut', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+
+  await user.keyboard('3')
+  expect(screen.getByRole('combobox', { name: 'Pane layout' })).toHaveValue('3')
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(3)
+})
+
+it('can hide the case slide tray without changing the open panes', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+
+  await user.click(screen.getByRole('button', { name: 'Hide slides' }))
+  expect(screen.getByRole('button', { name: 'Show slides' })).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
+})
+
 it('restores an explicitly selected approximate alignment mode after a page remount', async () => {
   const user = userEvent.setup()
   const first = render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)

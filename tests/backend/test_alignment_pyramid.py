@@ -77,6 +77,35 @@ def test_region_does_not_read_unrelated_tiles(tmp_path):
     assert region.getpixel((100, 100)) == (91, 40, 121)
 
 
+def test_region_materializes_missing_local_openslide_tiles(tmp_path, monkeypatch):
+    from wsi_viewer import tile_routes
+
+    root = tmp_path / "slide"
+    root.mkdir()
+    (root / "slide.dzi").write_text(
+        '<Image TileSize="128" Overlap="0" Format="jpg" '
+        'xmlns="http://schemas.microsoft.com/deepzoom/2008">'
+        '<Size Width="512" Height="256" /></Image>',
+        encoding="utf-8",
+    )
+    (root / ".openslide-source.json").write_text("{}", encoding="utf-8")
+    requested = []
+
+    def materialize(path, slide_id, relative):
+        requested.append((path, slide_id, relative))
+        target = path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (128, 128), (77, 31, 102)).save(target, "JPEG")
+        return target
+
+    monkeypatch.setattr(tile_routes, "materialize_local_openslide_tile_from_root", materialize)
+    region, frame = read_region(root, (0, 0, 128, 128))
+
+    assert frame == (0, 0, 1)
+    assert requested == [(root, "slide", "slide_files/9/0_0.jpg")]
+    assert region.getpixel((64, 64)) == pytest.approx((77, 31, 102), abs=3)
+
+
 def test_region_rejects_outside_bounds_and_unbounded_allocations(tmp_path):
     _pyramid(tmp_path / "slide", Image.new("RGB", (600, 400)))
     with pytest.raises(ValueError, match="outside"):

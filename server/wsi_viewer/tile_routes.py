@@ -206,13 +206,26 @@ def materialize_local_openslide_tile(
     can be verified without first duplicating every private WSI on disk.
     """
     root = storage.for_slide(slide_id).private_derivative.resolve()
+    try:
+        return materialize_local_openslide_tile_from_root(root, slide_id, tile_path)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"}) from error
+    except (ImportError, KeyError, OSError, ValueError) as error:
+        raise HTTPException(status_code=503, detail={"code": "TILE_UNAVAILABLE"}) from error
+
+
+def materialize_local_openslide_tile_from_root(
+    root: Path, slide_id: str, tile_path: str
+) -> Path:
+    """Render one local fixture tile for browser or registration consumers."""
+    root = root.resolve()
     match = _DZI_TILE.fullmatch(tile_path)
     pointer = root / ".openslide-source.json"
     if match is None or not pointer.is_file():
-        raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+        raise FileNotFoundError(tile_path)
     target = (root / tile_path).resolve()
     if not target.is_relative_to(root):
-        raise HTTPException(status_code=404, detail={"code": "TILE_NOT_FOUND"})
+        raise FileNotFoundError(tile_path)
     with _LOCAL_OPENSLIDE_LOCKS_GUARD:
         # ponytail: one lock per local slide bounds lock growth; split per tile only
         # if local fixture rendering becomes a measured throughput bottleneck.
@@ -220,46 +233,39 @@ def materialize_local_openslide_tile(
     with lock:
         if target.is_file():
             return target
-        try:
-            settings = json.loads(pointer.read_text(encoding="utf-8"))
-            source = Path(settings["source"])
-            if not source.is_absolute() or not source.is_file():
-                raise ValueError("Local WSI source is unavailable")
-            import openslide
-            from openslide.deepzoom import DeepZoomGenerator
+        settings = json.loads(pointer.read_text(encoding="utf-8"))
+        source = Path(settings["source"])
+        if not source.is_absolute() or not source.is_file():
+            raise ValueError("Local WSI source is unavailable")
+        import openslide
+        from openslide.deepzoom import DeepZoomGenerator
 
-            slide = openslide.OpenSlide(str(source))
-            try:
-                generator = DeepZoomGenerator(
-                    slide,
-                    tile_size=int(settings.get("tileSize", 1024)),
-                    overlap=1,
-                    limit_bounds=False,
-                )
-                level = int(match["level"])
-                column = int(match["column"])
-                row = int(match["row"])
-                if level < 0 or level >= generator.level_count:
-                    raise ValueError("DZI level is out of bounds")
-                columns, rows = generator.level_tiles[level]
-                if column < 0 or row < 0 or column >= columns or row >= rows:
-                    raise ValueError("DZI tile is out of bounds")
-                image = generator.get_tile(level, (column, row)).convert("RGB")
-            finally:
-                slide.close()
-            target.parent.mkdir(parents=True, exist_ok=True)
-            temporary = target.with_name(f".{target.name}.{os.getpid()}-{uuid.uuid4().hex}.tmp")
-            image.save(
-                temporary,
-                "JPEG",
-                quality=int(settings.get("quality", 92)),
-                subsampling=0,
+        slide = openslide.OpenSlide(str(source))
+        try:
+            generator = DeepZoomGenerator(
+                slide,
+                tile_size=int(settings.get("tileSize", 1024)),
+                overlap=1,
+                limit_bounds=False,
             )
-            temporary.replace(target)
-            return target
-        except HTTPException:
-            raise
-        except (ImportError, KeyError, OSError, ValueError) as error:
-            raise HTTPException(
-                status_code=503, detail={"code": "TILE_UNAVAILABLE"}
-            ) from error
+            level = int(match["level"])
+            column = int(match["column"])
+            row = int(match["row"])
+            if level < 0 or level >= generator.level_count:
+                raise ValueError("DZI level is out of bounds")
+            columns, rows = generator.level_tiles[level]
+            if column < 0 or row < 0 or column >= columns or row >= rows:
+                raise ValueError("DZI tile is out of bounds")
+            image = generator.get_tile(level, (column, row)).convert("RGB")
+        finally:
+            slide.close()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_name(f".{target.name}.{os.getpid()}-{uuid.uuid4().hex}.tmp")
+        image.save(
+            temporary,
+            "JPEG",
+            quality=int(settings.get("quality", 92)),
+            subsampling=0,
+        )
+        temporary.replace(target)
+        return target
