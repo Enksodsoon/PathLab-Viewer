@@ -18,7 +18,9 @@ vi.mock('../components/OpenSeadragonViewer', () => ({
 
 beforeEach(() => {
   sessionStorage.clear()
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+  vi.stubGlobal('fetch', vi.fn(async (input) => String(input).endsWith('/jobs')
+    ? new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    : new Response(JSON.stringify({
     id: 'set-1', name: 'Multi-stain set', referenceSlideId: 'slide-1', status: 'ready', version: 1,
     members: Array.from({ length: 5 }, (_, index) => ({
       slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: index === 0 ? 'H&E' : `IHC ${index}`,
@@ -54,6 +56,31 @@ it('restores the selected stain panes after a page remount', async () => {
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
 
   expect(await screen.findByRole('combobox', { name: 'Slide shown in pane 2' })).toHaveValue('slide-3')
+})
+
+it('shows durable automatic alignment progress for every stack member', async () => {
+  vi.mocked(fetch).mockImplementation(async (input) => String(input).endsWith('/jobs')
+    ? new Response(JSON.stringify([
+      { id: 'job-pas', kind: 'align', memberId: 'slide-2', setVersion: 4, status: 'succeeded', stage: 'complete', progress: 100, processedPatches: 2, totalPatches: 2, processedComponentPairs: 4, totalComponentPairs: 4, failureCode: null, createdAt: '2026-09-21T10:00:00Z' },
+      { id: 'job-silver', kind: 'align', memberId: 'slide-3', setVersion: 4, status: 'running', stage: 'high-resolution-components', progress: 30, processedPatches: 0, totalPatches: 2, processedComponentPairs: 4, totalComponentPairs: 4, failureCode: null, createdAt: '2026-09-21T10:01:00Z' },
+      { id: 'job-trichrome', kind: 'align', memberId: 'slide-4', setVersion: 4, status: 'queued', stage: 'queued', progress: 0, processedPatches: 0, totalPatches: 0, processedComponentPairs: 0, totalComponentPairs: 0, failureCode: null, createdAt: '2026-09-21T10:02:00Z' },
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    : new Response(JSON.stringify({
+      id: 'set-1', name: 'Renal Test', referenceSlideId: 'slide-1', status: 'running', version: 4,
+      members: Array.from({ length: 4 }, (_, index) => ({
+        slideId: `slide-${index + 1}`, displayName: `Slide ${index + 1}`, stain: ['H&E', 'PAS', 'Silver', 'Trichrome'][index],
+        tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
+        registration: index === 1 ? { status: 'approximate', provenance: 'automatic', overviewTriangles: [] } : null,
+      })),
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+
+  expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('1 of 3 slides complete · 43%')
+  expect(screen.getByText(/high resolution components · 4\/4 regions · 0\/2 patches/)).toBeVisible()
+  expect(screen.getByText('Waiting for worker')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Correct alignment' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Benchmark engines' })).toBeDisabled()
 })
 
 it('supports a real three-pane layout and makes the replacement target explicit', async () => {

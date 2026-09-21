@@ -2,13 +2,13 @@ import { Plus, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { ApiError, benchmarkComparisonSet, cancelComparisonRegistration, correctComparisonSet, getComparisonCandidates, getComparisonSet, getSharedComparisonSet, promoteComparisonCandidate, registerComparisonSet, reregisterComparisonSet, updateComparisonSet } from '../api'
+import { ApiError, benchmarkComparisonSet, cancelComparisonRegistration, correctComparisonSet, getComparisonCandidates, getComparisonJobs, getComparisonSet, getSharedComparisonSet, promoteComparisonCandidate, registerComparisonSet, reregisterComparisonSet, updateComparisonSet } from '../api'
 import { continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, mapSupportBounds, normalizeRotation, overviewAlignmentViewDelta, type Support } from '../alignment'
 import { adminSignInPath } from '../authReturnPath'
 import { Brand } from '../components/Brand'
 import { type ImageViewport, OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { Loader } from '../components/Loader'
-import type { ComparisonMember, ComparisonSet, RegistrationCandidateManifest } from '../types'
+import type { ComparisonMember, ComparisonRegistrationJob, ComparisonSet, RegistrationCandidateManifest } from '../types'
 
 const MAX_PANES = 4
 type AlignmentMode = 'independent' | 'matched' | 'approximate'
@@ -101,6 +101,7 @@ export function ComparisonPage() {
   const viewStorageKey = `pathlab-comparison-view:${publicId ?? 'admin'}:${comparisonId}`
   const preferenceStorageKey = `${viewStorageKey}:preferences`
   const [comparison, setComparison] = useState<ComparisonSet | null>(null)
+  const [jobs, setJobs] = useState<ComparisonRegistrationJob[]>([])
   const [panes, setPanes] = useState<string[]>([])
   const [linked, setLinked] = useState(true)
   const [unlinkedPanes, setUnlinkedPanes] = useState<Set<string>>(() => new Set())
@@ -128,6 +129,7 @@ export function ComparisonPage() {
   const hasInitialField = useRef(false)
   const activeTransaction = useRef<string | null>(null)
   const restoreNavigationAfterCorrection = useRef(false)
+  const alignmentPreferenceExplicit = useRef(false)
   useEffect(() => {
     let active = true
     const request = publicId ? getSharedComparisonSet(publicId, comparisonId) : getComparisonSet(comparisonId)
@@ -138,8 +140,9 @@ export function ComparisonPage() {
       let saved: string[] = []
       try { saved = JSON.parse(sessionStorage.getItem(viewStorageKey) ?? '[]') as string[] } catch { saved = [] }
       try {
-        const preferences = JSON.parse(sessionStorage.getItem(preferenceStorageKey) ?? '{}') as { alignmentMode?: AlignmentMode, zoomMode?: ZoomMode }
-        if (['matched', 'approximate', 'independent'].includes(preferences.alignmentMode ?? '')) {
+        const preferences = JSON.parse(sessionStorage.getItem(preferenceStorageKey) ?? '{}') as { alignmentMode?: AlignmentMode, zoomMode?: ZoomMode, alignmentExplicit?: boolean }
+        alignmentPreferenceExplicit.current = preferences.alignmentExplicit === true
+        if (['matched', 'approximate', 'independent'].includes(preferences.alignmentMode ?? '') && (preferences.alignmentMode !== 'independent' || alignmentPreferenceExplicit.current)) {
           const restoredMode = preferences.alignmentMode as AlignmentMode
           setAlignmentMode(restoredMode)
           setLinked(restoredMode !== 'independent')
@@ -169,14 +172,25 @@ export function ComparisonPage() {
     try { sessionStorage.setItem(viewStorageKey, JSON.stringify(panes)) } catch { /* Storage may be disabled. Viewing remains available. */ }
   }, [comparison, panes, viewStorageKey])
   useEffect(() => {
-    if (!comparison) return
-    try { sessionStorage.setItem(preferenceStorageKey, JSON.stringify({ alignmentMode, zoomMode })) } catch { /* Storage may be disabled. Viewing remains available. */ }
-  }, [alignmentMode, comparison, preferenceStorageKey, zoomMode])
+    if (!comparison || correction) return
+    try { sessionStorage.setItem(preferenceStorageKey, JSON.stringify({ alignmentMode, zoomMode, alignmentExplicit: alignmentPreferenceExplicit.current })) } catch { /* Storage may be disabled. Viewing remains available. */ }
+  }, [alignmentMode, comparison, correction, preferenceStorageKey, zoomMode])
+  useEffect(() => {
+    if (publicId || !comparisonId) return
+    let active = true
+    void getComparisonJobs(comparisonId).then((value) => { if (active && Array.isArray(value)) setJobs(value) }).catch(() => undefined)
+    return () => { active = false }
+  }, [comparisonId, publicId])
   useEffect(() => {
     if (!comparison || !['queued', 'running'].includes(comparison.status)) return
     const timer = window.setInterval(() => {
-      const request = publicId ? getSharedComparisonSet(publicId, comparison.id) : getComparisonSet(comparison.id)
-      void request.then(setComparison).catch(() => undefined)
+      if (publicId) {
+        void getSharedComparisonSet(publicId, comparison.id).then(setComparison).catch(() => undefined)
+        return
+      }
+      void Promise.all([getComparisonSet(comparison.id), getComparisonJobs(comparison.id)])
+        .then(([updated, updatedJobs]) => { setComparison(updated); if (Array.isArray(updatedJobs)) setJobs(updatedJobs) })
+        .catch(() => undefined)
     }, 2000)
     return () => window.clearInterval(timer)
   }, [comparison, publicId])
@@ -497,6 +511,16 @@ export function ComparisonPage() {
   const hasApproximateMap = comparison.members.some((member) => (member.registration?.overviewTriangles?.length ?? 0) > 0)
   const hasPendingLandmarkValidation = comparison.members.some((member) => member.registration?.status === 'ready' && member.registration.evidence?.withheldCheck === 'pending-independent-landmarks')
   const registrationPending = ['queued', 'running'].includes(comparison.status)
+  const currentJobsByMember = new Map<string, ComparisonRegistrationJob>()
+  jobs
+    .filter((job) => job.kind === 'align' && job.setVersion === comparison.version && job.memberId)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .forEach((job) => { if (job.memberId && !currentJobsByMember.has(job.memberId)) currentJobsByMember.set(job.memberId, job) })
+  const registrationMembers = comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId)
+  const completedRegistrations = registrationMembers.filter((member) => member.registration || currentJobsByMember.get(member.slideId)?.status === 'succeeded').length
+  const totalRegistrationProgress = registrationMembers.length
+    ? Math.round(registrationMembers.reduce((total, member) => total + (member.registration ? 100 : currentJobsByMember.get(member.slideId)?.progress ?? 0), 0) / registrationMembers.length)
+    : 100
   const anchorIds = new Set(comparison.members.flatMap((member) => member.registration?.anchorSlideId ? [member.registration.anchorSlideId] : []))
   return <div className="comparison-shell">
     <header className="comparison-header">
@@ -504,23 +528,37 @@ export function ComparisonPage() {
       <div className="comparison-heading"><strong>{comparison.name}</strong><span>{comparison.status} · {comparison.members.length} slides</span></div>
       <div className="comparison-view-controls" aria-label="Viewing controls">
         <label className="comparison-toolbar-field"><span>Layout</span><select disabled={!!correction || !!grouping} aria-label="Pane layout" value={panes.length} onChange={(event) => { setMaximizedPane(null); setLayout(Number(event.target.value)) }}><option value="1">1 pane</option><option value="2">2 panes</option><option value="3">3 panes</option><option value="4">4 panes</option></select></label>
-        <label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction || !!grouping} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; hasInitialField.current = false; initializedPanes.current = ''; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Best available</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label>
+        <label className="comparison-toolbar-field"><span>Alignment</span><select disabled={!!correction || !!grouping} aria-label="Alignment mode" value={alignmentMode} onChange={(event) => { const mode = event.target.value as AlignmentMode; alignmentPreferenceExplicit.current = true; hasInitialField.current = false; initializedPanes.current = ''; setAlignmentMode(mode); setLinked(mode !== 'independent'); setNotice(''); setSuspendedPanes(new Set()) }}><option value="matched">Best available</option><option value="approximate">Approximate overview</option><option value="independent">Independent</option></select></label>
         <label className="comparison-toolbar-field"><span>Zoom</span><select disabled={!!correction || !!grouping} aria-label="Linked zoom mode" value={zoomMode} onChange={(event) => setZoomMode(event.target.value as ZoomMode)}><option value="physical">Equal µm/pixel</option><option value="tissue">Fit corresponding tissue</option></select></label>
-        <button type="button" className="comparison-link-control" disabled={!!correction || !!grouping} aria-label={linked ? 'Views linked' : 'Views independent'} aria-pressed={linked} onClick={() => { setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}><span aria-hidden="true">{linked ? '●' : '○'}</span>{linked ? 'Linked' : 'Independent'}</button>
+        <button type="button" className="comparison-link-control" disabled={!!correction || !!grouping} aria-label={linked ? 'Views linked' : 'Views independent'} aria-pressed={linked} onClick={() => { alignmentPreferenceExplicit.current = true; setLinked((value) => !value); if (linked) setAlignmentMode('independent'); else setAlignmentMode('matched') }}><span aria-hidden="true">{linked ? '●' : '○'}</span>{linked ? 'Linked' : 'Independent'}</button>
         <button type="button" onClick={resetView}><span aria-hidden="true">↻</span> Reset view</button>
         <button type="button" className="comparison-tray-toggle" aria-expanded={trayOpen} onClick={() => setTrayOpen((value) => !value)}>{trayOpen ? 'Hide slides' : 'Show slides'}</button>
       </div>
       {!publicId ? <details className="comparison-setup-menu"><summary>Setup</summary><div>
-        <button type="button" disabled={registering || !!correction || !!grouping || ['queued', 'running'].includes(comparison.status)} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued', members: current.members.map((member) => ({ ...member, registration: null })) } : current); setNotice('Registration queued with the current anchors.') }).catch(() => setNotice('Registration could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Re-register'}</button>
+        <button type="button" disabled={registering || !!correction || !!grouping || registrationPending} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued', members: current.members.map((member) => ({ ...member, registration: null })) } : current); setNotice('Automatic alignment queued with the current anchors.') }).catch(() => setNotice('Automatic alignment could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Run automatic alignment again'}</button>
         {['queued', 'running'].includes(comparison.status) ? <button type="button" disabled={registering} onClick={() => { setRegistering(true); void cancelComparisonRegistration(comparison.id).then(() => setNotice('Registration cancellation requested.')).catch(() => setNotice('Registration could not be cancelled.')).finally(() => setRegistering(false)) }}>Cancel registration</button> : null}
         <button type="button" aria-label="Groups" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => setGrouping({ referenceId: comparison.referenceSlideId, anchors: Object.fromEntries(comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId).map((member) => [member.slideId, comparison.alignmentConfig?.anchors?.[member.slideId] ?? member.registration?.anchorSlideId ?? comparison.referenceSlideId])) })}>Reference groups</button>
-        <button type="button" disabled={benchmarking} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(() => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.') }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
-        <button type="button" disabled={!!correction || !!grouping || !panes.some((slideId) => slideId !== comparison.referenceSlideId)} onClick={startCorrection}>Correct alignment</button>
+        <button type="button" disabled={benchmarking || registrationPending} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(() => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.') }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
+        <button type="button" disabled={registrationPending || !!correction || !!grouping || !panes.some((slideId) => slideId !== comparison.referenceSlideId)} onClick={startCorrection}>Correct alignment</button>
       </div></details> : null}
     </header>
+    {registrationPending ? <section className="comparison-registration-progress" aria-label="Automatic alignment progress" aria-live="polite">
+      <div><strong>Automatic alignment in progress</strong><span>{completedRegistrations} of {registrationMembers.length} slides complete · {totalRegistrationProgress}%</span></div>
+      <progress max="100" value={totalRegistrationProgress}>{totalRegistrationProgress}%</progress>
+      <ul>{registrationMembers.map((member) => {
+        const job = currentJobsByMember.get(member.slideId)
+        const complete = Boolean(member.registration) || job?.status === 'succeeded'
+        const stage = complete ? 'Aligned' : job?.status === 'queued' ? 'Waiting for worker' : job?.stage?.replaceAll('-', ' ') || 'Preparing alignment'
+        const counters = job && !complete
+          ? [job.totalComponentPairs ? `${job.processedComponentPairs}/${job.totalComponentPairs} regions` : '', job.totalPatches ? `${job.processedPatches}/${job.totalPatches} patches` : ''].filter(Boolean).join(' · ')
+          : ''
+        return <li key={member.slideId} data-status={complete ? 'complete' : job?.status ?? 'queued'}><span>{complete ? '✓' : job?.status === 'running' || job?.status === 'leased' ? '●' : '○'}</span><b>{member.stain || member.displayName}</b><small>{stage}{counters ? ` · ${counters}` : ''}</small><em>{complete ? '100%' : `${job?.progress ?? 0}%`}</em></li>
+      })}</ul>
+      <p>You can view every slide now. Linked navigation becomes available for each slide as its map completes.</p>
+    </section> : null}
     {!publicId && candidateManifest?.candidates?.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy.</p><div>{candidateManifest.candidates.filter((candidate) => candidate.setVersion === comparison.version).map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; return <article key={candidate.id}><strong>{candidateSlideName}</strong><span>{candidate.engine} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}</span>{candidate.failureReason ? <small>{candidate.failureReason}</small> : null}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={candidate.status !== 'ready' || candidate.validationState !== 'engineering_passed'} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></article> })}</div></details> : null}
     {grouping ? <section className="comparison-groups" aria-label="Alignment groups"><strong>Reference and groups</strong><p>Choose the primary reference, then choose the serial-section anchor used for each other slide.</p><label>Primary reference<select aria-label="Primary reference" value={grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, referenceId: event.target.value })}>{comparison.members.map((member) => <option key={member.slideId} value={member.slideId}>{member.stain} · {member.displayName}</option>)}</select></label>{comparison.members.filter((member) => member.slideId !== grouping.referenceId).map((member) => <label key={member.slideId}>{member.displayName}<select aria-label={`Anchor for ${member.displayName}`} value={grouping.anchors[member.slideId] ?? grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, anchors: { ...grouping.anchors, [member.slideId]: event.target.value } })}>{comparison.members.filter((anchor) => anchor.slideId !== member.slideId).map((anchor) => <option key={anchor.slideId} value={anchor.slideId}>{anchor.stain} · {anchor.displayName}</option>)}</select></label>)}<button type="button" disabled={registering} onClick={() => { setRegistering(true); void updateComparisonSet(comparison.id, { version: comparison.version, referenceSlideId: grouping.referenceId, anchors: grouping.anchors }).then(async (updated) => { await registerComparisonSet(updated.id); setComparison({ ...updated, status: 'queued', members: updated.members.map((member) => ({ ...member, registration: null })) }); setGrouping(null); setNotice('Registration queued with the updated reference groups.') }).catch(() => setNotice('Reference groups could not be saved.')).finally(() => setRegistering(false)) }}>Save and register</button><button type="button" disabled={registering} onClick={() => setGrouping(null)}>Cancel</button></section> : null}
-    {!correction && !grouping && !hasMatchedMap && !registrationPending ? <div className="comparison-notice" role="note" aria-label="Alignment unavailable"><strong>{hasApproximateMap ? 'Exact anatomical alignment is unavailable for this set.' : 'Automatic anatomical alignment is unavailable for this set.'}</strong> {hasApproximateMap ? 'Approximate overview aligns tissue-component shape, tilt, and size but may not place the same microscopic structure under both crosshairs.' : 'No accepted tissue correspondence was found. Linking panes cannot align these slides.'} {publicId ? 'Ask the set administrator to review the registration.' : 'Use Correct alignment to define and preview corresponding landmarks.'}</div> : null}
+    {!correction && !grouping && !hasMatchedMap && !registrationPending ? <div className="comparison-notice" role="note" aria-label="Alignment unavailable"><strong>{hasApproximateMap ? 'Automatic alignment completed with overview maps.' : 'Automatic anatomical alignment could not establish a map for this set.'}</strong> {hasApproximateMap ? 'Overview alignment matches tissue-component shape, tilt, and size but may not place the same microscopic structure under both crosshairs.' : 'No accepted tissue correspondence was found. Linking panes cannot align these slides.'} {publicId ? 'Ask the set administrator to review the registration.' : 'Use Correct alignment to define and preview corresponding landmarks.'}</div> : null}
     {!correction && !grouping && hasMatchedMap && hasPendingLandmarkValidation && !registrationPending ? <details className="comparison-notice comparison-validation" aria-label="Alignment validation pending"><summary><strong>Local structural maps available</strong><span>Validation details</span></summary><p>Matched regions passed alternative-fragment and withheld patch checks, but anatomical error has not been measured against independent landmarks.</p></details> : null}
     {notice ? <div className="comparison-notice" role="status">{notice}</div> : null}
     {correction ? <section className="comparison-correction" aria-label="Landmark correction">
@@ -569,6 +607,7 @@ export function ComparisonPage() {
         return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
           <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={suspended || !paneLinked ? 'alignment-unavailable' : member.registration?.status === 'approximate' ? 'alignment-approximate' : aligned ? 'alignment-ready' : 'alignment-unavailable'}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate sync' : member.registration?.status === 'ready' ? 'Overview sync' : 'Not aligned'}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
             if (!paneLinked) {
+              alignmentPreferenceExplicit.current = true
               setLinked(true)
               if (alignmentMode === 'independent') setAlignmentMode('matched')
             }

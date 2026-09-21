@@ -15,6 +15,7 @@ import type {
   LibraryShare,
   StorageInventory,
   ComparisonSet,
+  ComparisonRegistrationJob,
   SlideStackSummary,
   StackSuggestion,
   SharedComparisonSummary,
@@ -632,6 +633,13 @@ export async function cancelComparisonRegistration(id: string): Promise<void> {
 
 export async function getComparisonSet(id: string): Promise<ComparisonSet> {
   return json<ComparisonSet>(await fetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }))
+}
+
+export async function getComparisonJobs(id: string): Promise<ComparisonRegistrationJob[]> {
+  return json<ComparisonRegistrationJob[]>(await fetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/jobs`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
 }
 
 export async function benchmarkComparisonSet(id: string, version: number, engines: string[], rerun = false): Promise<void> {

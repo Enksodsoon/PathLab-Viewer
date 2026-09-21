@@ -272,6 +272,9 @@ def register_alignment_routes(
         )
         database.add(item)
         database.flush()
+        suggested_anchors = _alignment_anchors(
+            [by_id[slide_id] for slide_id in ids], item.reference_slide_id
+        )
         for position, slide_id in enumerate(ids):
             database.add(
                 ComparisonSetMember(
@@ -279,10 +282,13 @@ def register_alignment_routes(
                     slide_id=slide_id,
                     anchor_slide_id=None
                     if slide_id == item.reference_slide_id
-                    else item.reference_slide_id,
+                    else suggested_anchors.get(slide_id, item.reference_slide_id),
                     position=position,
                 )
             )
+        database.flush()
+        sync_membership_mirror(database, item)
+        queue_ready_registrations(database, item)
         database.commit()
         return _json(item, [by_id[item] for item in ids], database=database)
 
@@ -879,7 +885,9 @@ def register_alignment_routes(
         return [
             {
                 "id": job.id,
+                "kind": job.kind,
                 "memberId": (job.checkpoint or {}).get("memberId"),
+                "setVersion": (job.checkpoint or {}).get("setVersion"),
                 "status": job.status,
                 "stage": (job.checkpoint or {}).get("stage", "queued"),
                 "progress": (job.checkpoint or {}).get("progress", 0),
@@ -888,6 +896,7 @@ def register_alignment_routes(
                 "totalComponentPairs": (job.checkpoint or {}).get("totalComponentPairs", 0),
                 "totalPatches": (job.checkpoint or {}).get("totalPatches", 0),
                 "failureCode": job.failure_code,
+                "createdAt": job.created_at.isoformat(),
             }
             for job in database.scalars(
                 select(Job).where(Job.kind.in_({"align", "align_benchmark"}))

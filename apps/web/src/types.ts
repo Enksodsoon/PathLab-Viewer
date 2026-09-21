@@ -309,6 +309,22 @@ export interface ComparisonSet {
   members: ComparisonMember[]
 }
 
+export interface ComparisonRegistrationJob {
+  id: string
+  kind: 'align' | 'align_benchmark'
+  memberId: string | null
+  setVersion: number | null
+  status: 'queued' | 'leased' | 'running' | 'retry_wait' | 'succeeded' | 'failed' | 'cancelled'
+  stage: string
+  progress: number
+  processedPatches: number
+  processedComponentPairs: number
+  totalComponentPairs: number
+  totalPatches: number
+  failureCode: string | null
+  createdAt: string
+}
+
 export interface RegistrationCandidate {
   id: string
   slideId: string

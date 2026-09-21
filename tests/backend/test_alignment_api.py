@@ -99,6 +99,7 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
         payload = created.json()
         assert payload["referenceSlideId"] == "slide-1"
         assert [member["stain"] for member in payload["members"]] == ["H&E", "PAS", "CD3"]
+        assert payload["status"] == "queued"
 
         first = client.post(
             f"/api/v1/admin/comparison-sets/{payload['id']}/register", headers=headers
@@ -107,10 +108,14 @@ def test_admin_creates_set_and_queues_idempotent_pair_jobs(tmp_path: Path) -> No
             f"/api/v1/admin/comparison-sets/{payload['id']}/register", headers=headers
         )
         assert first.status_code == second.status_code == 202
-        assert first.json()["queuedPairs"] == 2
+        assert first.json()["queuedPairs"] == 0
         assert second.json()["queuedPairs"] == 0
         with session_factory(client.app.state.settings)() as database:
             assert database.query(Job).filter(Job.kind == "align").count() == 2
+        jobs = client.get(f"/api/v1/admin/comparison-sets/{payload['id']}/jobs").json()
+        assert {job["kind"] for job in jobs} == {"align"}
+        assert {job["setVersion"] for job in jobs} == {payload["version"]}
+        assert all(job["createdAt"] for job in jobs)
 
 
 def test_slide_stack_membership_lifecycle_and_suggestions(tmp_path: Path) -> None:
@@ -312,7 +317,7 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         assert rerun.json()["queuedCandidates"] == 1
         cancelled = client.delete(url + "/register", headers=headers)
         assert cancelled.status_code == 200
-        assert cancelled.json()["cancelledJobs"] == 3
+        assert cancelled.json()["cancelledJobs"] == 4
         with session_factory(client.app.state.settings)() as database:
             assert database.query(Job).filter(Job.kind == "align_benchmark").count() == 3
             assert (
