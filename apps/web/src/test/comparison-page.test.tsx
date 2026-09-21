@@ -128,6 +128,31 @@ it('does not use an unverified component proposal in best-available mode', async
   expect(screen.queryByText(/Synchronization suspended/)).not.toBeInTheDocument()
 })
 
+it('uses an order-preserving component overview when exact evidence is unavailable', async () => {
+  vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
+    id: 'set-1', name: 'Ordered component set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
+    members: [
+      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+      {
+        slideId: 'slide-2', displayName: 'Silver', stain: 'Silver', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
+        registration: {
+          status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], triangles: [],
+          overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }],
+          evidence: { componentOrderPreserved: true },
+        },
+      },
+    ],
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Ordered component set')).toBeVisible()
+
+  await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
+
+  expect(screen.getByText('Approximate sync')).toBeVisible()
+  expect(screen.queryByText('Unavailable')).not.toBeInTheDocument()
+})
+
 it('opens a rejected slide independently instead of attempting synchronization', async () => {
   const user = userEvent.setup()
   const first = render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)

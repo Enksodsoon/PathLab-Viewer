@@ -271,6 +271,7 @@ export interface SlideRegistration {
     layoutConsistencyMedian?: number
     opticalDensityKazeInliers?: number
     opticalDensityKazeSpreadMedian?: number
+    componentOrderPreserved?: boolean
     availabilityReason?: string
     withheldCheck?: string
   }

@@ -222,15 +222,20 @@ export function ComparisonPage() {
       }
       const [sourceRegistration, targetRegistration] = pair
       const registrations = [sourceRegistration, targetRegistration].filter((item) => item !== null)
+      const hasSafeComponentOverview = (registration: typeof sourceRegistration) => registration?.status === 'approximate'
+        && registration.evidence?.componentOrderPreserved === true
+        && (registration.overviewTriangles?.length ?? 0) > 0
       const usable = alignmentMode === 'approximate'
         ? registrations.every((registration) => registration?.status === 'ready' || registration?.status === 'approximate')
-        : registrations.every((registration) => registration?.status === 'ready' && hasLocalEvidence(registration))
+        : registrations.every((registration) => (registration?.status === 'ready' && hasLocalEvidence(registration))
+          || hasSafeComponentOverview(registration))
       if (!usable) {
         suspended.push(target.displayName)
         suspendedIds.add(targetId)
         continue
       }
       const useOverview = alignmentMode === 'approximate'
+        || registrations.some((registration) => hasSafeComponentOverview(registration))
       if (useOverview) approximate.push(target.displayName)
       const referencePoint = !useOverview
         ? mapContinuousComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)

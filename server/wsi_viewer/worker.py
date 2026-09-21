@@ -380,6 +380,11 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
     for row in range(rows):
         for column in range(columns):
             path = tile_root / f"{column}_{row}.{image_format}"
+            # Sparse DZI writers omit all-white tiles. The missing tile is
+            # background, not a corrupt pyramid and must not force engines
+            # back to the low-resolution thumbnail.
+            if not path.exists():
+                continue
             with Image.open(path) as opened:
                 tile = opened.convert("RGB")
             left = overlap if column else 0
@@ -391,6 +396,15 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
                 (column * tile_size, row * tile_size),
             )
     return overview
+
+
+def _load_alignment_overview(derivative: Path) -> Image.Image:
+    """Prefer a bounded pyramid level for every registration engine."""
+    try:
+        return _load_dzi_overview(derivative)
+    except (FileNotFoundError, OSError, ET.ParseError):
+        with Image.open(derivative / "thumbnail.jpg") as opened:
+            return opened.convert("RGB")
 
 
 def _alignment_child(
@@ -411,15 +425,7 @@ def _alignment_child(
         cv2.setRNGSeed(0)
 
         def overview(path: str) -> Image.Image:
-            derivative = Path(path)
-            if engine_name != ENGINE_NATIVE:
-                with Image.open(derivative / "thumbnail.jpg") as opened:
-                    return opened.convert("RGB")
-            try:
-                return _load_dzi_overview(derivative)
-            except (FileNotFoundError, OSError, ET.ParseError):
-                with Image.open(derivative / "thumbnail.jpg") as opened:
-                    return opened.convert("RGB")
+            return _load_alignment_overview(Path(path))
 
         reference_image = overview(reference_derivative)
         moving_image = overview(moving_derivative)

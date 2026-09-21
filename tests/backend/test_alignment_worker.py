@@ -6,7 +6,7 @@ from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import ComparisonSet, Job, Slide
 from wsi_viewer.storage import StorageLayout
-from wsi_viewer.worker import process_next
+from wsi_viewer.worker import _load_alignment_overview, _load_dzi_overview, process_next
 
 
 def _image(path: Path, *, offset: int = 0) -> None:
@@ -20,6 +20,47 @@ def _image(path: Path, *, offset: int = 0) -> None:
             draw.ellipse((x + offset, y, x + 7 + offset, y + 7), fill=(65, 45, 110))
     path.parent.mkdir(parents=True, exist_ok=True)
     image.save(path)
+
+
+def test_alignment_overview_prefers_bounded_pyramid_for_external_engines(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    expected = Image.new("RGB", (4096, 1200), "red")
+    thumbnail = Image.new("RGB", (320, 100), "blue")
+    thumbnail.save(tmp_path / "thumbnail.jpg")
+    monkeypatch.setattr("wsi_viewer.worker._load_dzi_overview", lambda _path: expected)
+
+    loaded = _load_alignment_overview(tmp_path)
+
+    assert loaded is expected
+    assert loaded.size == (4096, 1200)
+
+
+def test_alignment_overview_falls_back_to_thumbnail(tmp_path: Path) -> None:
+    thumbnail = Image.new("RGB", (320, 100), "blue")
+    thumbnail.save(tmp_path / "thumbnail.jpg")
+
+    loaded = _load_alignment_overview(tmp_path)
+
+    assert loaded.size == thumbnail.size
+
+
+def test_dzi_overview_preserves_sparse_white_tiles(tmp_path: Path) -> None:
+    (tmp_path / "slide.dzi").write_text(
+        '<Image TileSize="256" Overlap="0" Format="jpg" '
+        'xmlns="http://schemas.microsoft.com/deepzoom/2008">'
+        '<Size Width="512" Height="256"/></Image>',
+        encoding="utf-8",
+    )
+    tile_root = tmp_path / "slide_files" / "9"
+    tile_root.mkdir(parents=True)
+    Image.new("RGB", (256, 256), "red").save(tile_root / "0_0.jpg")
+
+    loaded = _load_dzi_overview(tmp_path)
+
+    assert loaded.size == (512, 256)
+    assert loaded.getpixel((64, 64))[0] > 240
+    assert loaded.getpixel((400, 64)) == (255, 255, 255)
 
 
 def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path) -> None:

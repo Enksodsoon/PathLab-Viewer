@@ -283,6 +283,32 @@ def test_fragment_pairing_marks_only_displaced_unambiguous_layout() -> None:
     assert unchanged == set()
 
 
+def test_fragment_pairing_does_not_swap_repeated_components_for_outline_score() -> None:
+    reference = Image.new("RGB", (1000, 600), "white")
+    moving = Image.new("RGB", reference.size, "white")
+    reference_boxes = [(90, 120, 260, 480), (690, 80, 930, 520)]
+    moving_boxes = [(120, 90, 360, 530), (740, 120, 910, 480)]
+    reference_draw = ImageDraw.Draw(reference)
+    moving_draw = ImageDraw.Draw(moving)
+    reference_draw.ellipse(reference_boxes[0], fill=(150, 80, 120))
+    reference_draw.ellipse(reference_boxes[1], fill=(150, 80, 120))
+    # The large and small outlines trade sides, which tempts a whole-mask fit
+    # to rotate 180 degrees. Scanner-order pairing must keep left with left.
+    moving_draw.ellipse(moving_boxes[0], fill=(150, 80, 120))
+    moving_draw.ellipse(moving_boxes[1], fill=(150, 80, 120))
+
+    pairs, _ = _candidate_component_pairs(
+        reference,
+        moving,
+        reference_boxes,
+        moving_boxes,
+        reference.size,
+        moving.size,
+    )
+
+    assert pairs == [(0, 0), (1, 1)]
+
+
 def test_optical_density_kaze_prefers_same_structure_across_stain_hues():
     rng = np.random.default_rng(42)
     reference = np.full((600, 700, 3), 250, dtype=np.uint8)

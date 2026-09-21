@@ -165,6 +165,34 @@ def _candidate_component_pairs(
         )
         * moving_scale
     )
+    # Serial sections mounted and scanned together normally preserve fragment
+    # order even when their margins, rotation, and scale differ.  A whole-mask
+    # fit can gain a slightly better outline score by rotating a two-core slide
+    # 180 degrees and swapping the cores.  Rank along the dominant scanner axis
+    # first so repeated cores cannot be exchanged by that outline symmetry.
+    if len(reference_centers) == len(moving_centers) and len(reference_centers) >= 2:
+        reference_span = np.ptp(reference_centers, axis=0) / np.asarray(
+            [reference_overview.width, reference_overview.height]
+        )
+        moving_span = np.ptp(moving_centers, axis=0) / np.asarray(
+            [moving_overview.width, moving_overview.height]
+        )
+        axis = int(np.argmax(reference_span + moving_span))
+        reference_order = np.argsort(reference_centers[:, axis])
+        moving_order = np.argsort(moving_centers[:, axis])
+        ordered_pairs = list(
+            zip(moving_order.tolist(), reference_order.tolist(), strict=True)
+        )
+        normalized_reference = reference_centers[reference_order] / np.asarray(
+            [reference_overview.width, reference_overview.height]
+        )
+        normalized_moving = moving_centers[moving_order] / np.asarray(
+            [moving_overview.width, moving_overview.height]
+        )
+        displaced = float(
+            np.mean(np.linalg.norm(normalized_reference - normalized_moving, axis=1))
+        )
+        return ordered_pairs, set(ordered_pairs) if displaced > 0.005 else set()
     projected = cv2.transform(moving_centers.astype(np.float32)[:, None, :], seed)[:, 0, :]
     distances = np.linalg.norm(projected[:, None, :] - reference_centers[None, :, :], axis=2)
     pairs: list[tuple[int, int]] = []
@@ -222,6 +250,7 @@ def _approximate_component_map(
     moving_structure, moving_mask = cropped_structure(moving)
     seed, initial_overlap = _mask_seed(reference_mask, moving_mask)
     inverse_seed = cv2.invertAffineTransform(seed).astype(np.float32)
+    refined = True
     try:
         score = 0.0
         for sigma in (12.0, 6.0, 3.0):
@@ -237,8 +266,9 @@ def _approximate_component_map(
                 5,
             )
     except cv2.error:
-        return None
-    transform = cv2.invertAffineTransform(inverse_seed)
+        refined = False
+        score = float(initial_overlap)
+    transform = cv2.invertAffineTransform(inverse_seed) if refined else seed.copy()
     determinant = float(np.linalg.det(transform[:, :2]))
     warped_mask = cv2.warpAffine(
         moving_mask, transform, (reference_mask.shape[1], reference_mask.shape[0])
@@ -247,7 +277,16 @@ def _approximate_component_map(
     total_tissue = int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
     overlap = 2 * intersection / max(1, total_tissue)
     if score < 0.78 or overlap < max(0.62, initial_overlap * 0.85) or not 0.25 <= determinant <= 4:
-        return None
+        # ECC is deliberately conservative across very different stains.  The
+        # mask seed remains useful as an explicitly approximate component map
+        # when its tissue overlap is strong; it never becomes anatomical
+        # evidence or a ready registration.
+        seed_determinant = float(np.linalg.det(seed[:, :2]))
+        if initial_overlap < 0.8 or not 0.25 <= seed_determinant <= 4:
+            return None
+        transform = seed.copy()
+        score = float(initial_overlap)
+        overlap = float(initial_overlap)
 
     feature_inliers, feature_spread = _feature_identity_evidence(
         reference_rgb,
@@ -1258,6 +1297,12 @@ def register_components(
                     )
                     else -1.0,
                     "availabilityReason": "No accepted anatomical feature matches",
+                    "componentOrderPreserved": len(reference_boxes) >= 2
+                    and len(approximate) == len(reference_boxes) == len(moving_boxes)
+                    and float(
+                        np.median([item.layout_score for _, _, item in approximate])
+                    )
+                    >= 0.65,
                     "source": (
                         "bounded-pyramid-component-flow"
                         if any(item.flow_control_count for _, _, item in approximate)
