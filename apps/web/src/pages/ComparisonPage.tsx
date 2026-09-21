@@ -37,6 +37,13 @@ function pairRegistrations(source: ComparisonMember, target: ComparisonMember, p
     : null
 }
 
+function hasSafeApproximateOverview(registration: ComparisonMember['registration']) {
+  return registration?.status === 'approximate'
+    && (registration.overviewTriangles?.length ?? 0) > 0
+    && (registration.evidence?.componentOrderPreserved === true
+      || registration.evidence?.source === 'bounded-pyramid-whole-slide-structure')
+}
+
 function matchedFocusBounds(source: ComparisonMember, targets: ComparisonMember[], primaryReferenceId: string): Exclude<Support, null> | null {
   const pairs = targets.map((target) => pairRegistrations(source, target, primaryReferenceId))
   if (!pairs.length || pairs.some((pair) => !pair)) return null
@@ -245,20 +252,17 @@ export function ComparisonPage() {
       }
       const [sourceRegistration, targetRegistration] = pair
       const registrations = [sourceRegistration, targetRegistration].filter((item) => item !== null)
-      const hasSafeComponentOverview = (registration: typeof sourceRegistration) => registration?.status === 'approximate'
-        && registration.evidence?.componentOrderPreserved === true
-        && (registration.overviewTriangles?.length ?? 0) > 0
       const usable = alignmentMode === 'approximate'
         ? registrations.every((registration) => registration?.status === 'ready' || registration?.status === 'approximate')
         : registrations.every((registration) => (registration?.status === 'ready' && hasLocalEvidence(registration))
-          || hasSafeComponentOverview(registration))
+          || hasSafeApproximateOverview(registration))
       if (!usable) {
         suspended.push(target.displayName)
         suspendedIds.add(targetId)
         continue
       }
       const useOverview = alignmentMode === 'approximate'
-        || registrations.some((registration) => hasSafeComponentOverview(registration))
+        || registrations.some((registration) => hasSafeApproximateOverview(registration))
       if (useOverview) approximate.push(target.displayName)
       const referencePoint = !useOverview
         ? mapContinuousComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
@@ -458,7 +462,7 @@ export function ComparisonPage() {
     if (selected?.registration?.status === 'rejected') {
       setUnlinkedPanes((current) => new Set(current).add(slideId))
       setNotice(`${selected.displayName} has no reliable counterpart and is opened independently.`)
-    } else if (selected?.registration?.status === 'approximate' && alignmentMode === 'matched') {
+    } else if (selected?.registration?.status === 'approximate' && alignmentMode === 'matched' && !hasSafeApproximateOverview(selected.registration)) {
       setUnlinkedPanes((current) => new Set(current).add(slideId))
       setNotice(`${selected.displayName} has no verified component match and is opened independently. Choose Approximate overview to inspect the unverified proposal.`)
     } else if (selected?.registration?.status === 'approximate') {
@@ -603,6 +607,8 @@ export function ComparisonPage() {
         const aligned = member.slideId === comparison.referenceSlideId
           || anchorIds.has(member.slideId)
           || (member.registration?.status === 'ready' && hasLocalEvidence(member.registration))
+          || (alignmentMode === 'matched' && hasSafeApproximateOverview(member.registration))
+          || (alignmentMode === 'approximate' && member.registration?.status === 'approximate')
         const anchor = member.registration?.anchorSlideId
           ? comparison.members.find((candidate) => candidate.slideId === member.registration?.anchorSlideId)
           : null
@@ -624,7 +630,7 @@ export function ComparisonPage() {
           ? [...residuals].sort((left, right) => left - right)[Math.floor(residuals.length / 2)]
           : null
         return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
-          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={suspended || !paneLinked ? 'alignment-unavailable' : member.registration?.status === 'approximate' ? 'alignment-approximate' : aligned ? 'alignment-ready' : 'alignment-unavailable'}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate sync' : member.registration?.status === 'ready' ? 'Overview sync' : 'Not aligned'}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
+          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={suspended || !paneLinked ? 'alignment-unavailable' : member.registration?.status === 'approximate' ? 'alignment-approximate' : aligned ? 'alignment-ready' : 'alignment-unavailable'}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : aligned && member.registration?.status === 'approximate' ? 'Approximate sync' : aligned ? alignmentLabel : member.registration?.status === 'approximate' ? 'Approximate sync' : member.registration?.status === 'ready' ? 'Overview sync' : 'Not aligned'}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
             if (!paneLinked) {
               alignmentPreferenceExplicit.current = true
               setLinked(true)

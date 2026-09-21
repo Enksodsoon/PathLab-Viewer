@@ -256,6 +256,7 @@ export interface SlideRegistration {
     reference: Array<[[number, number], [number, number], [number, number]]>
   }
   evidence?: {
+    source?: string
     mode?: 'matched-regions' | 'outline-proposal'
     anatomicalMatchCount?: number
     featureMatchCount?: number
