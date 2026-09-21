@@ -241,6 +241,16 @@ def test_fragment_layout_resolves_only_a_real_internal_evidence_margin():
     assert not _component_identity_is_clear(preferred, [identical_wrong_fragment])
 
 
+def test_repeated_fragment_with_strong_runner_up_remains_ambiguous():
+    apparent_winner = _component_candidate(0.75, 0.95)
+    plausible_other_core = _component_candidate(0.52, 0.10)
+    decisive_winner = _component_candidate(0.90, 0.95)
+    weaker_other_core = _component_candidate(0.45, 0.10)
+
+    assert not _component_identity_is_clear(apparent_winner, [plausible_other_core])
+    assert _component_identity_is_clear(decisive_winner, [weaker_other_core])
+
+
 def test_fragment_pairing_marks_only_displaced_unambiguous_layout() -> None:
     reference = Image.new("RGB", (1000, 600), "white")
     moving = Image.new("RGB", reference.size, "white")

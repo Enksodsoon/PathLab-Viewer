@@ -222,16 +222,16 @@ export function ComparisonPage() {
       }
       const [sourceRegistration, targetRegistration] = pair
       const registrations = [sourceRegistration, targetRegistration].filter((item) => item !== null)
-      const usable = registrations.every((registration) => registration?.status === 'ready'
-        || registration?.status === 'approximate')
+      const usable = alignmentMode === 'approximate'
+        ? registrations.every((registration) => registration?.status === 'ready' || registration?.status === 'approximate')
+        : registrations.every((registration) => registration?.status === 'ready' && hasLocalEvidence(registration))
       if (!usable) {
         suspended.push(target.displayName)
         suspendedIds.add(targetId)
         continue
       }
       const useOverview = alignmentMode === 'approximate'
-        || registrations.some((registration) => registration?.status === 'approximate' || !hasLocalEvidence(registration))
-      if (useOverview && alignmentMode === 'matched') approximate.push(target.displayName)
+      if (useOverview) approximate.push(target.displayName)
       const referencePoint = !useOverview
         ? mapContinuousComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
         : mapOverviewComparisonPoint([snapshot.centerX, snapshot.centerY], sourceRegistration, null)
@@ -266,7 +266,7 @@ export function ComparisonPage() {
     }
     setSuspendedPanes(suspendedIds)
     setNotice(suspended.length
-      ? `Synchronization unavailable for ${suspended.join(', ')} because no correspondence map exists.`
+      ? `No verified correspondence is available at this field for ${suspended.join(', ')}. Those panes remain at their last verified position.`
       : approximate.length
         ? `Using approximate overview synchronization for ${[...new Set(approximate)].join(', ')}. Exact local correspondence is unavailable for these slides.`
         : '')
@@ -430,9 +430,12 @@ export function ComparisonPage() {
     if (selected?.registration?.status === 'rejected') {
       setUnlinkedPanes((current) => new Set(current).add(slideId))
       setNotice(`${selected.displayName} has no reliable counterpart and is opened independently.`)
+    } else if (selected?.registration?.status === 'approximate' && alignmentMode === 'matched') {
+      setUnlinkedPanes((current) => new Set(current).add(slideId))
+      setNotice(`${selected.displayName} has no verified component match and is opened independently. Choose Approximate overview to inspect the unverified proposal.`)
     } else if (selected?.registration?.status === 'approximate') {
       setLinked(true)
-      setNotice(`${selected.displayName} uses approximate overview synchronization because exact local correspondence is unavailable.`)
+      setNotice(`${selected.displayName} uses an unverified approximate overview proposal.`)
     } else {
       setNotice('')
     }

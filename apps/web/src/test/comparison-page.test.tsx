@@ -102,7 +102,7 @@ it('restores an explicitly selected approximate alignment mode after a page remo
   expect(await screen.findByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
 })
 
-it('uses a clearly labeled overview fallback instead of suspending a mapped slide', async () => {
+it('does not use an unverified component proposal in best-available mode', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Mixed evidence set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -123,8 +123,8 @@ it('uses a clearly labeled overview fallback instead of suspending a mapped slid
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/2.dzi' }))
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
 
-  expect(screen.getByText('Approximate sync')).toBeVisible()
-  expect(screen.getByRole('status')).toHaveTextContent('Using approximate overview synchronization for Silver')
+  expect(screen.getByText('Unavailable')).toBeVisible()
+  expect(screen.getByRole('status')).toHaveTextContent('No verified correspondence is available at this field for Silver')
   expect(screen.queryByText(/Synchronization suspended/)).not.toBeInTheDocument()
 })
 

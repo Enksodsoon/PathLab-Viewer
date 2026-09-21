@@ -106,10 +106,11 @@ function squaredDistanceToSegment(point: Point, start: Point, end: Point): numbe
   return (point[0] - x) ** 2 + (point[1] - y) ** 2
 }
 
-function mapUsingNearbyOverviewCell(
+function mapUsingNearbyCell(
   point: Point,
   triangles: RegistrationTriangle[],
   backwards: boolean,
+  maximumEdgeMultiples: number | null = null,
 ): { point: Point; linear: AffineTransform } | null {
   let candidate: RegistrationTriangle | null = null
   let candidateDistanceSquared = Number.POSITIVE_INFINITY
@@ -130,6 +131,14 @@ function mapUsingNearbyOverviewCell(
   // applying the affine from an unrelated component across the whole slide.
   if (!candidate) return null
   const source = backwards ? candidate.reference : candidate.moving
+  if (maximumEdgeMultiples !== null) {
+    const longestEdgeSquared = Math.max(
+      (source[0][0] - source[1][0]) ** 2 + (source[0][1] - source[1][1]) ** 2,
+      (source[1][0] - source[2][0]) ** 2 + (source[1][1] - source[2][1]) ** 2,
+      (source[2][0] - source[0][0]) ** 2 + (source[2][1] - source[0][1]) ** 2,
+    )
+    if (candidateDistanceSquared > longestEdgeSquared * maximumEdgeMultiples ** 2) return null
+  }
   const target = backwards ? candidate.moving : candidate.reference
   const matrix = triangleLinear(source, target)
   return { point: apply(point, matrix), linear: matrix }
@@ -144,7 +153,7 @@ function mapOverviewRegistrationPoint(point: Point, registration: LocalRegistrat
   if (registration.overviewTriangles?.length) {
     const mapped = mapRegistrationPointUsing(point, registration, registration.overviewTriangles, backwards)
     if (mapped) return mapped
-    const nearby = mapUsingNearbyOverviewCell(point, registration.overviewTriangles, backwards)
+    const nearby = mapUsingNearbyCell(point, registration.overviewTriangles, backwards)
     if (nearby) return nearby
   }
   if (!registration.movingToReference) return null
@@ -175,17 +184,16 @@ function mapContinuousRegistrationPoint(
   if (!registration) return { point, linear: [[1, 0, 0], [0, 1, 0]] }
   const local = mapRegistrationPoint(point, registration, backwards)
   if (local) return local
-  const overview = mapOverviewRegistrationPoint(point, registration, backwards)
-  if (overview) return overview
-  if (!registration.movingToReference) return null
-  const matrix = backwards ? inverse(registration.movingToReference) : registration.movingToReference
-  return { point: apply(point, matrix), linear: matrix }
+  if (registration.triangles?.length) {
+    return mapUsingNearbyCell(point, registration.triangles, backwards, 2)
+  }
+  return null
 }
 
 /**
- * Keep a validated registration moving across the whole slide. Local triangles
- * remain authoritative where present; the engine's validated overview/affine
- * transform fills the spaces between them and the surrounding glass.
+ * Map inside validated local cells and across only short gaps beside them.
+ * Unbounded extension over blank glass can cross into a different, repeated
+ * tissue fragment.
  */
 export function mapContinuousComparisonPoint(
   point: Point,

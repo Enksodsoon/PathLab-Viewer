@@ -86,7 +86,7 @@ describe('comparison coordinate mapping', () => {
     expect(mapOverviewComparisonPoint(distant!, null, registration)?.[1]).toBeCloseTo(500, 10)
   })
 
-  it('keeps validated registrations continuous outside sparse local cells', () => {
+  it('does not extrapolate a validated component map into another fragment', () => {
     const registration = {
       movingToReference: [[0, -2, 1000], [2, 0, 200]],
       triangles: [{
@@ -94,15 +94,17 @@ describe('comparison coordinate mapping', () => {
         reference: [[1000, 200], [1000, 400], [800, 200]] as [[number, number], [number, number], [number, number]],
       }],
     }
-    // The point is outside the only local cell, so the validated affine fills
-    // the surrounding slide instead of suspending navigation.
+    // The point is outside the only local cell. Applying its affine here could
+    // jump into a different repeated core, so the map must be unavailable.
     const mapped = mapContinuousComparisonPoint([400, 300], registration, null)
-    expect(mapped).toEqual([400, 1000])
-    expect(mapContinuousComparisonPoint(mapped!, null, registration)?.[0]).toBeCloseTo(400, 10)
-    expect(mapContinuousComparisonPoint(mapped!, null, registration)?.[1]).toBeCloseTo(300, 10)
-    expect(continuousAlignmentViewDelta([400, 300], registration, null)).toMatchObject({
-      rotation: -90,
-      zoomScale: 0.5,
-    })
+    expect(mapped).toBeNull()
+    expect(continuousAlignmentViewDelta([400, 300], registration, null)).toBeNull()
+
+    // A short gap next to the verified cell remains navigable so sparse mesh
+    // sampling does not interrupt ordinary panning within one component.
+    const adjacent = mapContinuousComparisonPoint([150, 25], registration, null)
+    expect(adjacent).toEqual([950, 500])
+    expect(mapContinuousComparisonPoint(adjacent!, null, registration)?.[0]).toBeCloseTo(150, 10)
+    expect(mapContinuousComparisonPoint(adjacent!, null, registration)?.[1]).toBeCloseTo(25, 10)
   })
 })

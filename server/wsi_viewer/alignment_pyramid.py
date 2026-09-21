@@ -109,6 +109,12 @@ def _component_identity_is_clear(
     if not alternatives:
         return True
     alternative_score = max(item.identity_score for item in alternatives)
+    # Repeated cores and near-duplicate fragments can both produce plausible
+    # patch matches.  Do not let a modest winner claim component identity when
+    # the runner-up is itself strongly supported; that is the failure mode that
+    # swaps two serial biopsy cores while reporting a locally good fit.
+    if alternative_score >= 0.45 and candidate.identity_score - alternative_score < 0.30:
+        return False
     if (
         candidate.identity_score >= alternative_score * 1.25
         and candidate.identity_score - alternative_score >= 0.12
@@ -1042,9 +1048,10 @@ def register_components(
                     and other.flow_control_count > 0
                 ]
                 resolved_by_layout = (moving_index, reference_index) in layout_resolved_pairs
-                clearly_identified = resolved_by_layout or _component_identity_is_clear(
-                    candidate, alternatives
-                )
+                # Layout can help rank an otherwise supported candidate, but a
+                # 180-degree whole-slide seed may swap repeated components. It
+                # must never bypass the internal identity comparison.
+                clearly_identified = _component_identity_is_clear(candidate, alternatives)
                 if clearly_identified:
                     qualified.append(candidate)
                     layout_resolved_components += int(resolved_by_layout)
