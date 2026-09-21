@@ -443,6 +443,8 @@ def register_alignment_routes(
             )
             row.position = ordered_ids.index(row.slide_id)
         affected = remove_ids | {entry.slide_id for entry in payload.add}
+        if next_reference != item.reference_slide_id:
+            affected.update({item.reference_slide_id, next_reference})
         registrations = dict(item.registrations or {})
         for slide_id in list(registrations):
             if slide_id in affected or registrations[slide_id].get("anchorSlideId") in affected:

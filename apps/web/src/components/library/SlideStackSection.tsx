@@ -1,4 +1,13 @@
-import { ArrowClockwise, LinkSimple, Plus, UploadSimple } from '@phosphor-icons/react'
+import {
+  ArrowClockwise,
+  ArrowDown,
+  ArrowUp,
+  LinkSimple,
+  Plus,
+  SlidersHorizontal,
+  Trash,
+  UploadSimple,
+} from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 
 import {
@@ -18,7 +27,7 @@ import type {
   StackSuggestion,
 } from '../../types'
 
-type Mode = 'upload' | 'link' | null
+type Mode = 'upload' | 'link' | 'manage' | null
 type UploadItem = {
   id: string
   file: File
@@ -202,17 +211,49 @@ export function SlideStackSection({ slide, enabled }: SlideStackSectionProps) {
     } finally { setBusy(false) }
   }
 
+  async function updateOrganization(payload: {
+    add?: Array<{ slideId: string; anchorSlideId: string }>
+    remove?: string[]
+    referenceSlideId?: string
+    order?: string[]
+  }, successMessage: string) {
+    if (!stack) return
+    setBusy(true); setMessage('')
+    try {
+      const updated = await updateStackMembers(stack.id, {
+        version: stack.version,
+        add: payload.add ?? [],
+        ...payload,
+      })
+      setStack(updated)
+      await refreshStacks(updated.id)
+      setMessage(successMessage)
+    } catch {
+      setMessage('The stack changed elsewhere or could not be updated. Refresh and try again.')
+    } finally { setBusy(false) }
+  }
+
+  function moveMember(slideId: string, direction: -1 | 1) {
+    if (!stack) return
+    const order = stack.members.map((member) => member.slideId)
+    const index = order.indexOf(slideId)
+    const destination = index + direction
+    if (index < 0 || destination < 0 || destination >= order.length) return
+    ;[order[index], order[destination]] = [order[destination], order[index]]
+    void updateOrganization({ order }, 'Slide order updated.')
+  }
+
   return <section className="slide-stack-section" aria-label="Slide stack">
     <div className="slide-stack-heading">
       <div><h4>Slide stack</h4><p>Link serial sections and synchronized stains.</p></div>
       <button type="button" aria-label="Refresh slide stack" onClick={() => void refreshStacks()}><ArrowClockwise /></button>
     </div>
     {!stacks.length ? <button type="button" className="primary" disabled={busy || !['ready_private', 'published'].includes(slide.state)} onClick={() => void createStack()}><Plus /> Create stack</button> : <>
-      <label>Stack<select aria-label="Slide stack" value={selectedId} onChange={(event) => void chooseStack(event.target.value)}>{stacks.map((value) => <option key={value.id} value={value.id}>{value.name} · {value.memberCount} slides</option>)}</select></label>
+      <div className="slide-stack-picker"><label>Stack<select aria-label="Slide stack" value={selectedId} onChange={(event) => void chooseStack(event.target.value)}>{stacks.map((value) => <option key={value.id} value={value.id}>{value.name} · {value.memberCount} slides</option>)}</select></label><button type="button" disabled={busy} onClick={() => void createStack()}><Plus /> New stack</button></div>
       {stack ? <>
-        <div className="slide-stack-members">{stack.members.map((member) => <span key={member.slideId} data-state={member.availabilityReason ?? member.registration?.status ?? 'ready'}><b>{member.stain || 'Unspecified'}</b> {member.displayName}<small>{member.slideId === stack.referenceSlideId ? 'Reference' : member.availabilityReason?.replaceAll('_', ' ') ?? member.registration?.status ?? 'Waiting for alignment'}</small></span>)}</div>
+        <div className="slide-stack-members">{stack.members.map((member) => <article key={member.slideId} data-state={member.availabilityReason ?? member.registration?.status ?? 'ready'}><span><b>{member.stain || 'Unspecified'}</b> {member.displayName}<small>{member.slideId === stack.referenceSlideId ? 'Reference' : member.availabilityReason?.replaceAll('_', ' ') ?? member.registration?.status ?? 'Waiting for alignment'}</small></span>{mode === 'manage' ? <div className="slide-stack-member-tools"><button type="button" aria-label={`Move ${member.displayName} up`} disabled={busy || stack.members[0].slideId === member.slideId} onClick={() => moveMember(member.slideId, -1)}><ArrowUp /></button><button type="button" aria-label={`Move ${member.displayName} down`} disabled={busy || stack.members.at(-1)?.slideId === member.slideId} onClick={() => moveMember(member.slideId, 1)}><ArrowDown /></button><button type="button" disabled={busy || member.slideId === stack.referenceSlideId || !member.tileSource} onClick={() => void updateOrganization({ referenceSlideId: member.slideId }, `${member.displayName} is now the reference slide.`)}>Make reference</button><button type="button" className="danger" aria-label={`Remove ${member.displayName} from stack`} disabled={busy || member.slideId === stack.referenceSlideId || stack.members.length <= 1} title={member.slideId === stack.referenceSlideId ? 'Choose another reference before removing this slide.' : undefined} onClick={() => void updateOrganization({ remove: [member.slideId] }, `${member.displayName} was removed from this stack.`)}><Trash /></button>{member.slideId !== stack.referenceSlideId ? <label>Align to<select aria-label={`Alignment anchor for ${member.displayName}`} value={member.anchorSlideId ?? stack.referenceSlideId} disabled={busy} onChange={(event) => void updateOrganization({ add: [{ slideId: member.slideId, anchorSlideId: event.target.value }] }, `Alignment anchor updated for ${member.displayName}.`)}>{readyAnchors.filter((anchor) => anchor.slideId !== member.slideId).map((anchor) => <option key={anchor.slideId} value={anchor.slideId}>{anchor.stain || 'Unspecified'} · {anchor.displayName}</option>)}</select></label> : null}</div> : null}</article>)}</div>
         <a className="slide-stack-open" href={`/admin/comparisons/${stack.id}`}>Open stack</a>
-        <div className="slide-stack-actions"><button type="button" disabled={busy || stack.members.length >= 12} onClick={() => setMode(mode === 'upload' ? null : 'upload')}><UploadSimple /> Add stained slides</button><button type="button" disabled={busy || stack.members.length >= 12} onClick={() => setMode(mode === 'link' ? null : 'link')}><LinkSimple /> Link existing slides</button></div>
+        <div className="slide-stack-actions"><button type="button" disabled={busy || stack.members.length >= 12} onClick={() => setMode(mode === 'upload' ? null : 'upload')}><UploadSimple /> Add stained slides</button><button type="button" disabled={busy || stack.members.length >= 12} onClick={() => setMode(mode === 'link' ? null : 'link')}><LinkSimple /> Link existing slides</button><button type="button" disabled={busy} onClick={() => setMode(mode === 'manage' ? null : 'manage')}><SlidersHorizontal /> Organize</button></div>
       </> : null}
     </>}
     {mode === 'upload' && stack ? <div className="slide-stack-workflow">

@@ -231,6 +231,43 @@ def test_stack_upload_reservation_is_atomic_and_queues_when_ready(tmp_path: Path
             assert database.get(ComparisonSet, stack["id"]) is None
 
 
+def test_changing_stack_reference_invalidates_dependent_maps(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Editable anchors",
+                "slideIds": ["slide-1", "slide-2"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        with session_factory(client.app.state.settings)() as database:
+            item = database.get(ComparisonSet, stack["id"])
+            assert item is not None
+            item.registrations = {"slide-2": {"status": "ready", "anchorSlideId": "slide-1"}}
+            database.commit()
+
+        updated = client.patch(
+            f"/api/v1/admin/comparison-sets/{stack['id']}/members",
+            headers=headers,
+            json={
+                "version": stack["version"],
+                "add": [],
+                "referenceSlideId": "slide-2",
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        payload = updated.json()
+        assert payload["referenceSlideId"] == "slide-2"
+        assert all(member["registration"] is None for member in payload["members"])
+        old_reference = next(
+            member for member in payload["members"] if member["slideId"] == "slide-1"
+        )
+        assert old_reference["anchorSlideId"] == "slide-2"
+
+
 def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path) -> None:
     with _client(tmp_path, enabled=True, hisalign=True, valis=False) as client:
         headers = _headers(client)

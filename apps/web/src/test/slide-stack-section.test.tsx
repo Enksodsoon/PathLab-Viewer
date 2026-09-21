@@ -7,6 +7,7 @@ import type { ComparisonSet, LibrarySlide, SlideStackSummary } from '../types'
 const getSlideStacks = vi.fn()
 const getComparisonSet = vi.fn()
 const getStackSuggestions = vi.fn()
+const updateStackMembers = vi.fn()
 
 vi.mock('../api', () => ({
   createComparisonSet: vi.fn(),
@@ -14,7 +15,7 @@ vi.mock('../api', () => ({
   getSlideStacks: (...args: unknown[]) => getSlideStacks(...args),
   getStackSuggestions: (...args: unknown[]) => getStackSuggestions(...args),
   reserveStackUpload: vi.fn(),
-  updateStackMembers: vi.fn(),
+  updateStackMembers: (...args: unknown[]) => updateStackMembers(...args),
 }))
 
 const slide: LibrarySlide = {
@@ -52,6 +53,7 @@ describe('slide stack details workflow', () => {
     getSlideStacks.mockReset().mockResolvedValue([summary])
     getComparisonSet.mockReset().mockResolvedValue(stack)
     getStackSuggestions.mockReset().mockResolvedValue([])
+    updateStackMembers.mockReset().mockResolvedValue(stack)
   })
 
   it('shows every membership and exposes upload and linking workflows', async () => {
@@ -71,6 +73,15 @@ describe('slide stack details workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Link existing slides' }))
     await waitFor(() => expect(getStackSuggestions).toHaveBeenCalledWith('slide-he', ''))
     expect(screen.getByRole('searchbox', { name: 'Find slides' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Organize' }))
+    expect(screen.getByRole('button', { name: 'Move H&E up' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove HER2 from stack' }))
+    await waitFor(() => expect(updateStackMembers).toHaveBeenCalledWith('stack-1', {
+      version: 1,
+      add: [],
+      remove: ['slide-her2'],
+    }))
   })
 
   it('is hidden with the alignment capability disabled', () => {
