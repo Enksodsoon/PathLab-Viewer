@@ -108,15 +108,15 @@ it('keeps the current map usable while a replacement registration runs', async (
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toBeEnabled()
 })
 
-it('previews an engine candidate without promoting it and restores the saved map', async () => {
+it('activates an explicit approximate candidate preview and restores the saved navigation mode', async () => {
   const savedRegistration = { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] }
-  const candidateRegistration = { status: 'ready', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', movingToReference: [[1.03, 0, 40], [0, 1.03, 25]], triangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[40, 25], [555, 25], [40, 540]], maxResidualPixels: 0.2 }], evidence: { featureMatchCount: 12 } }
+  const candidateRegistration = { status: 'approximate', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', movingToReference: [[1.03, 0, 40], [0, 1.03, 25]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[40, 25], [555, 25], [40, 540]], maxResidualPixels: 0.2 }], evidence: { featureMatchCount: 7 } }
   vi.mocked(fetch).mockImplementation(async (input, init) => {
     const url = String(input)
     if (url.endsWith('/jobs')) return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (url.endsWith('/candidates')) return new Response(JSON.stringify({
       comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {},
-      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings: true, status: 'ready', validationState: 'engineering_passed', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
+      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings: true, status: 'approximate', validationState: 'rejected', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (init?.method === 'POST') throw new Error('Preview must not mutate the server')
     return new Response(JSON.stringify({
@@ -136,12 +136,14 @@ it('previews an engine candidate without promoting it and restores the saved map
 
   expect(screen.getByText('Experimental alignment preview')).toBeVisible()
   expect(screen.getByRole('status')).toHaveTextContent('No server changes have been saved')
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
   expect(screen.getByRole('button', { name: 'Stop previewing hisalign-0.2.1 for P40' })).toBeVisible()
   expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/promote'), expect.anything())
 
   await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
   expect(screen.queryByText('Experimental alignment preview')).not.toBeInTheDocument()
   expect(screen.getByRole('status')).toHaveTextContent('saved alignment is active again')
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('matched')
 })
 
 it('supports a real three-pane layout and makes the replacement target explicit', async () => {

@@ -42,6 +42,8 @@ type CandidatePreviewState = {
   slideId: string
   slideName: string
   originalRegistration: ComparisonMember['registration']
+  originalAlignmentMode: AlignmentMode
+  originalLinked: boolean
 }
 
 function matchedFocusBounds(source: ComparisonMember, targets: ComparisonMember[], primaryReferenceId: string): Exclude<Support, null> | null {
@@ -147,6 +149,8 @@ export function ComparisonPage() {
     const originalRegistration = candidatePreview?.slideId === candidate.slideId
       ? candidatePreview.originalRegistration
       : comparison.members.find((member) => member.slideId === candidate.slideId)?.registration ?? null
+    const originalAlignmentMode = candidatePreview?.originalAlignmentMode ?? alignmentMode
+    const originalLinked = candidatePreview?.originalLinked ?? linked
     setComparison((current) => {
       if (!current) return current
       const restoredMembers = candidatePreview
@@ -161,7 +165,9 @@ export function ComparisonPage() {
           : member),
       }
     })
-    setCandidatePreview({ candidateId: candidate.id, engine: candidate.engine, slideId: candidate.slideId, slideName, originalRegistration })
+    setCandidatePreview({ candidateId: candidate.id, engine: candidate.engine, slideId: candidate.slideId, slideName, originalRegistration, originalAlignmentMode, originalLinked })
+    setAlignmentMode(candidate.registration.status === 'approximate' ? 'approximate' : 'matched')
+    setLinked(true)
     hasInitialField.current = false
     initializedPanes.current = ''
     setSuspendedPanes(new Set())
@@ -176,6 +182,8 @@ export function ComparisonPage() {
         : member),
     } : current)
     setCandidatePreview(null)
+    setAlignmentMode(candidatePreview.originalAlignmentMode)
+    setLinked(candidatePreview.originalLinked)
     hasInitialField.current = false
     initializedPanes.current = ''
     setSuspendedPanes(new Set())
@@ -223,9 +231,9 @@ export function ComparisonPage() {
     try { sessionStorage.setItem(viewStorageKey, JSON.stringify(panes)) } catch { /* Storage may be disabled. Viewing remains available. */ }
   }, [comparison, panes, viewStorageKey])
   useEffect(() => {
-    if (!comparison || correction) return
+    if (!comparison || correction || candidatePreview) return
     try { sessionStorage.setItem(preferenceStorageKey, JSON.stringify({ alignmentMode, zoomMode, alignmentExplicit: alignmentPreferenceExplicit.current })) } catch { /* Storage may be disabled. Viewing remains available. */ }
-  }, [alignmentMode, comparison, correction, preferenceStorageKey, zoomMode])
+  }, [alignmentMode, candidatePreview, comparison, correction, preferenceStorageKey, zoomMode])
   useEffect(() => {
     if (publicId || !comparisonId) return
     let active = true
