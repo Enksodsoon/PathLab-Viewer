@@ -14,48 +14,7 @@ COPY scripts/alignment_image_smoke.py ./scripts/alignment_image_smoke.py
 RUN pip install --no-cache-dir --require-hashes -r deploy/backend-requirements.txt \
     && pip install --no-cache-dir --no-deps .
 
-ARG HISALIGN_COMMIT=c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5
-ARG HISALIGN_ARCHIVE_SHA256=db866088a81e53816b591b7915dc1c205deb9512ef5a23a7545a6767fb7e3f6b
-ENV HISALIGN_COMMIT=${HISALIGN_COMMIT} HISALIGN_ARCHIVE_SHA256=${HISALIGN_ARCHIVE_SHA256}
-
-RUN python - <<'PY'
-import hashlib
-import os
-import pathlib
-import urllib.request
-
-commit = os.environ.get("HISALIGN_COMMIT", "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5")
-expected = os.environ.get(
-    "HISALIGN_ARCHIVE_SHA256",
-    "db866088a81e53816b591b7915dc1c205deb9512ef5a23a7545a6767fb7e3f6b",
-)
-destination = pathlib.Path("/tmp/hisalign.tar.gz")
-urllib.request.urlretrieve(
-    f"https://github.com/yifanfeng97/hisalign/archive/{commit}.tar.gz",
-    destination,
-)
-actual = hashlib.sha256(destination.read_bytes()).hexdigest()
-if actual != expected:
-    raise SystemExit(f"HISAlign archive digest mismatch: {actual}")
-PY
-
-# HISAlign's selected path uses scikit-image, scikit-learn, OpenSlide, and
-# OpenCV optical flow. Torch, SimpleITK, and KFB remain intentionally omitted.
-RUN pip install --no-cache-dir \
-      "scikit-image==0.26.0" \
-      "scikit-learn==1.7.2" \
-      "scipy==1.18.1" \
-      "networkx==3.6.1" \
-      "imageio==2.37.4" \
-      "lazy-loader==0.5" \
-      "joblib==1.6.0" \
-      "threadpoolctl==3.7.0" \
-      "cloudpickle==3.1.2" \
-      "openslide-python==1.4.2" \
-      "tqdm==4.67.1" \
-    && pip install --no-cache-dir --no-deps "/tmp/hisalign.tar.gz" \
-    && rm -f /tmp/hisalign.tar.gz \
-    && python -c "import sys, types; sys.modules['kfbslide'] = types.ModuleType('kfbslide'); from hisalign.registration import feature_detectors; from hisalign.registration.non_rigid import NonRigidRegistrar; assert feature_detectors.create_feature_detector('kaze')"
+# HISAlign is excluded until its upstream license file is resolved.
 
 RUN python -c "from PIL import Image; import pyvips; import wsi_viewer.main, wsi_viewer.alignment_engines; payload = pyvips.Image.black(1, 1, bands=3).jpegsave_buffer(Q=75, strip=True, optimize_coding=True); assert payload.startswith(b'\\xff\\xd8') and payload.endswith(b'\\xff\\xd9')" \
     && useradd --system --uid 10001 --create-home pathlab \

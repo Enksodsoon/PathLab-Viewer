@@ -403,7 +403,7 @@ jobs:
           --cache-from type=gha,scope=backend
           --cache-to type=gha,mode=max,scope=backend
           -f deploy/Dockerfile.backend .
-      - name: Build ARM64 alignment image and import HISAlign
+      - name: Build ARM64 native alignment image
         run: >-
           docker buildx build --platform linux/arm64
           --cache-from type=gha,scope=alignment
@@ -412,10 +412,10 @@ jobs:
           -t pathlab-viewer-alignment:ci
           --load
           -f deploy/Dockerfile.alignment .
-      - name: Execute ARM64 HISAlign and process-limit smoke tests
+      - name: Execute ARM64 native preview and process-limit smoke tests
         run: >-
           docker run --rm --platform linux/arm64
-          --memory 8g --cpus 1.75
+          --memory 512m --cpus 1.75
           --entrypoint python
           pathlab-viewer-alignment:ci
           scripts/alignment_image_smoke.py

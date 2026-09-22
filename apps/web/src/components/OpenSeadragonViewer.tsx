@@ -350,6 +350,7 @@ export function OpenSeadragonViewer({
             readyViewer.viewport.imageToViewportRectangle(left, top, right - left, bottom - top),
             true,
           )
+          readyViewer.viewport.applyConstraints(true)
           updateScale()
         },
         getImageViewport: () => {

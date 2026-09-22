@@ -8,16 +8,15 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 from wsi_viewer.alignment import AlignmentRejected, map_registration_point
-from wsi_viewer.alignment_engines import ENGINE_HISALIGN, engine_availability, run_engine
+from wsi_viewer.alignment_engines import ENGINE_NATIVE, engine_availability
+from wsi_viewer.alignment_fast import PreparationCache, register_prepared
 from wsi_viewer.worker import _run_alignment_bounded
 
 
 def synthetic_pair() -> tuple[Image.Image, Image.Image]:
     reference = Image.new("RGB", (600, 420), "white")
     drawing = ImageDraw.Draw(reference)
-    drawing.ellipse(
-        (70, 50, 530, 370), fill=(220, 155, 185), outline=(60, 40, 90), width=7
-    )
+    drawing.ellipse((70, 50, 530, 370), fill=(220, 155, 185), outline=(60, 40, 90), width=7)
     for x in range(110, 500, 35):
         for y in range(90, 340, 35):
             drawing.ellipse((x, y, x + 7, y + 7), fill=(65, 45, 110))
@@ -28,29 +27,21 @@ def synthetic_pair() -> tuple[Image.Image, Image.Image]:
 
 def main() -> None:
     availability = engine_availability()
-    assert availability[ENGINE_HISALIGN]["available"], availability
+    assert availability[ENGINE_NATIVE]["available"], availability
     reference, moving = synthetic_pair()
     with tempfile.TemporaryDirectory(prefix="pathlab-alignment-smoke-") as temporary:
         root = Path(temporary)
-        artifact_dir = root / "artifacts"
-        result = run_engine(
-            ENGINE_HISALIGN,
-            reference=reference,
-            moving=moving,
-            reference_full_size=(1200, 840),
-            moving_full_size=(1200, 840),
-            workspace_root=root,
-            artifact_dir=artifact_dir,
-        )
-        assert result.registration["status"] == "ready"
-        assert result.artifact_path and result.artifact_path.is_file()
-        with np.load(result.artifact_path, allow_pickle=False) as model:
-            required = {"rigid", "backward_dx", "backward_dy", "forward_dx", "forward_dy"}
-            assert required <= set(model.files)
-        moving_triangle = result.registration["triangles"][0]["moving"]
+        cache = PreparationCache()
+        fixed, _ = cache.prepare("fixed", reference, (1200, 840))
+        floating, _ = cache.prepare("floating", moving, (1200, 840))
+        result = register_prepared(fixed, floating).as_json()
+        assert result["status"] == "approximate" and not result["triangles"]
+        # Exercise coordinate round trip using the published approximate cells.
+        overview = {**result, "triangles": result["overviewTriangles"]}
+        moving_triangle = overview["triangles"][0]["moving"]
         point = tuple(np.mean(np.asarray(moving_triangle), axis=0))
-        mapped = map_registration_point(result.registration, *point)
-        restored = map_registration_point(result.registration, *mapped, inverse=True)
+        mapped = map_registration_point(overview, *point)
+        restored = map_registration_point(overview, *mapped, inverse=True)
         assert np.linalg.norm(np.asarray(restored) - point) < 0.5
 
         reference_dir = root / "reference"
@@ -65,7 +56,7 @@ def main() -> None:
                 moving_dir,
                 reference.size,
                 moving.size,
-                engine_name=ENGINE_HISALIGN,
+                engine_name=ENGINE_NATIVE,
                 timeout_seconds=60,
                 memory_bytes=1,
             )

@@ -225,7 +225,7 @@ export interface SharedManifest {
 }
 
 export interface SlideRegistration {
-  status: 'ready' | 'approximate' | 'rejected'
+  status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
   provenance: 'automatic' | 'automatic-candidate' | 'manual'
   engine?: string
   engineVersion?: string
@@ -256,6 +256,8 @@ export interface SlideRegistration {
     reference: Array<[[number, number], [number, number], [number, number]]>
   }
   evidence?: {
+    stackAcceptedAt?: string
+    previewPublishedAt?: string
     source?: string
     mode?: 'matched-regions' | 'outline-proposal'
     anatomicalMatchCount?: number
@@ -311,6 +313,10 @@ export interface ComparisonSet {
 }
 
 export interface ComparisonRegistrationJob {
+  phase?: 'preview' | 'refinement' | 'fallback'
+  resultStatus?: SlideRegistration['status']
+  runtimeSeconds?: number
+  queueSeconds?: number
   id: string
   kind: 'align' | 'align_benchmark'
   engine?: string | null
@@ -338,7 +344,7 @@ export interface RegistrationCandidate {
   engineVersion: string
   settingsDigest: string
   currentSettings: boolean
-  status: 'ready' | 'approximate' | 'rejected'
+  status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
   validationState: 'engineering_passed' | 'landmark_passed' | 'rejected'
   registration: SlideRegistration | null
   evidence: Record<string, unknown>

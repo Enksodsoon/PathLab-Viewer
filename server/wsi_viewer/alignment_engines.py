@@ -123,18 +123,18 @@ def _affine_from_controls(controls: list[dict[str, Any]]) -> list[list[float]]:
 
 
 def _scanner_frame_candidate(
-    reference_rgb: np.ndarray,
-    moving_rgb: np.ndarray,
+    reference_rgb: np.ndarray[Any, Any],
+    moving_rgb: np.ndarray[Any, Any],
     *,
     maximum: int = 1024,
-) -> tuple[np.ndarray, float, float] | None:
+) -> tuple[np.ndarray[Any, Any], float, float] | None:
     """Return a bounded, stain-independent scanner-frame proposal.
 
     The proposal is useful as an external engine initializer, not anatomical
     evidence. Callers must still validate the resulting coordinate map.
     """
 
-    def bounded(rgb: np.ndarray) -> np.ndarray:
+    def bounded(rgb: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
         height, width = rgb.shape[:2]
         scale = min(1.0, maximum / max(width, height))
         if scale == 1.0:
@@ -169,16 +169,20 @@ def _scanner_frame_candidate(
         )
     except cv2.error:
         return None
-    transform = cv2.invertAffineTransform(inverse)
-    warped_mask = cv2.warpAffine(
+    transform: np.ndarray[Any, Any] = cv2.invertAffineTransform(inverse)
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
         moving_mask,
         transform,
         (reference_mask.shape[1], reference_mask.shape[0]),
     )
     intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
-    overlap = 2 * intersection / max(
-        1,
-        int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)),
+    overlap = (
+        2
+        * intersection
+        / max(
+            1,
+            int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)),
+        )
     )
     if score < 0.45 or overlap < 0.5:
         return None
@@ -195,19 +199,17 @@ def _scanner_frame_candidate(
         ]
     )
     full = np.zeros((2, 3), dtype=np.float64)
-    full[:, :2] = (
-        np.diag(reference_scale) @ transform[:, :2] @ np.diag(1 / moving_scale)
-    )
+    full[:, :2] = np.diag(reference_scale) @ transform[:, :2] @ np.diag(1 / moving_scale)
     full[:, 2] = transform[:, 2] * reference_scale
     return full, float(score), float(overlap)
 
 
 def _sample_coordinate_map(
     *,
-    reference_rgb: np.ndarray,
-    moving_rgb: np.ndarray,
-    map_moving_to_reference: Callable[[np.ndarray], np.ndarray],
-    map_reference_to_moving: Callable[[np.ndarray], np.ndarray],
+    reference_rgb: np.ndarray[Any, Any],
+    moving_rgb: np.ndarray[Any, Any],
+    map_moving_to_reference: Callable[[np.ndarray[Any, Any]], np.ndarray[Any, Any]],
+    map_reference_to_moving: Callable[[np.ndarray[Any, Any]], np.ndarray[Any, Any]],
     provenance: str,
     grid_size: int = 25,
     minimum_tissue_dice: float = 0.68,
@@ -277,14 +279,16 @@ def _sample_coordinate_map(
         for source, target, error in zip(moving_points, reference_points, cycle, strict=True)
     ]
     affine = _affine_from_controls(controls)
-    warped_mask = cv2.warpAffine(
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
         moving_mask,
         np.asarray(affine, dtype=np.float32),
         (reference_mask.shape[1], reference_mask.shape[0]),
     )
     intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
-    tissue_dice = 2 * intersection / max(
-        1, int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
+    tissue_dice = (
+        2
+        * intersection
+        / max(1, int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)))
     )
     if tissue_dice < minimum_tissue_dice:
         raise AlignmentRejected(
@@ -327,9 +331,7 @@ def _sample_coordinate_map(
     )
 
 
-def _mark_approximate_engine_map(
-    payload: dict[str, Any], *, reason: str
-) -> dict[str, Any]:
+def _mark_approximate_engine_map(payload: dict[str, Any], *, reason: str) -> dict[str, Any]:
     """Keep a useful whole-slide proposal without claiming local anatomy.
 
     Dense-flow cycle consistency only proves that an engine can invert its own
@@ -392,11 +394,8 @@ class HisAlignEngine:
     def available(self) -> tuple[bool, str | None]:
         if importlib.util.find_spec("hisalign") is None:
             return False, "HISAlign runtime is not installed in this worker image"
-        try:
-            self._prepare_imports()
-            __import__("hisalign.registration.non_rigid")
-        except Exception as error:
-            return False, f"HISAlign runtime import failed: {type(error).__name__}"
+        # Discovery must not load models into the API/foreground worker.
+        # Import and execution are validated in the isolated registration child.
         return True, None
 
     def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
@@ -404,15 +403,15 @@ class HisAlignEngine:
         available, reason = self.available()
         if not available:
             raise AlignmentRejected(reason or "HISAlign is unavailable")
-        from hisalign.preprocessing import optical_density_gray  # type: ignore[import-untyped]
-        from hisalign.registration import (  # type: ignore[import-untyped]
-            feature_detectors,
-            feature_matcher,
-        )
-        from hisalign.registration.non_rigid import (  # type: ignore[import-untyped]
-            NonRigidRegistrar,
-        )
-        from hisalign.registration.rigid import RigidRegistrar  # type: ignore[import-untyped]
+        optical_density_gray = importlib.import_module(
+            "hisalign.preprocessing"
+        ).optical_density_gray
+        feature_detectors = importlib.import_module("hisalign.registration.feature_detectors")
+        feature_matcher = importlib.import_module("hisalign.registration.feature_matcher")
+        NonRigidRegistrar = importlib.import_module(
+            "hisalign.registration.non_rigid"
+        ).NonRigidRegistrar
+        RigidRegistrar = importlib.import_module("hisalign.registration.rigid").RigidRegistrar
 
         started = time.monotonic()
         reference_rgb = np.asarray(inputs.reference.convert("RGB"), dtype=np.uint8)
@@ -423,7 +422,7 @@ class HisAlignEngine:
         height = max(reference_gray.shape[0], moving_gray.shape[0])
         width = max(reference_gray.shape[1], moving_gray.shape[1])
 
-        def pad(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        def pad(image: np.ndarray[Any, Any]) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
             matrix = np.asarray(
                 [
                     [1.0, 0.0, (width - image.shape[1]) / 2],
@@ -449,25 +448,24 @@ class HisAlignEngine:
         _, reference_mask = _structure(reference_rgb)
         _, moving_mask = _structure(moving_rgb)
 
-        def padded_tissue_dice(matrix: np.ndarray) -> float:
-            reference_padded_mask = cv2.warpPerspective(
+        def padded_tissue_dice(matrix: np.ndarray[Any, Any]) -> float:
+            reference_padded_mask: np.ndarray[Any, Any] = cv2.warpPerspective(
                 reference_mask, reference_padding, (width, height)
             )
-            moving_padded_mask = cv2.warpPerspective(
-                moving_mask, moving_padding, (width, height)
-            )
-            warped = cv2.warpPerspective(
+            moving_padded_mask = cv2.warpPerspective(moving_mask, moving_padding, (width, height))
+            warped: np.ndarray[Any, Any] = cv2.warpPerspective(
                 moving_padded_mask,
                 matrix,
                 (width, height),
             )
-            intersection = int(
-                np.count_nonzero((warped > 0) & (reference_padded_mask > 0))
-            )
-            return 2 * intersection / max(
-                1,
-                int(np.count_nonzero(warped))
-                + int(np.count_nonzero(reference_padded_mask)),
+            intersection = int(np.count_nonzero((warped > 0) & (reference_padded_mask > 0)))
+            return (
+                2
+                * intersection
+                / max(
+                    1,
+                    int(np.count_nonzero(warped)) + int(np.count_nonzero(reference_padded_mask)),
+                )
             )
 
         feature_dice = padded_tissue_dice(np.asarray(rigid.M))
@@ -479,9 +477,7 @@ class HisAlignEngine:
             scanner_transform, scanner_score, _ = scanner
             scanner_homogeneous = np.eye(3, dtype=np.float64)
             scanner_homogeneous[:2] = scanner_transform
-            scanner_padded = (
-                reference_padding @ scanner_homogeneous @ np.linalg.inv(moving_padding)
-            )
+            scanner_padded = reference_padding @ scanner_homogeneous @ np.linalg.inv(moving_padding)
             scanner_dice = padded_tissue_dice(scanner_padded)
             if rigid.n_matches < 8 or scanner_dice >= feature_dice + 0.05:
                 rigid.M = scanner_padded
@@ -509,9 +505,7 @@ class HisAlignEngine:
             reference_area = float(
                 cv2.contourArea(cv2.convexHull(reference_matches.astype(np.float32)))
             )
-            moving_area = float(
-                cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32)))
-            )
+            moving_area = float(cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32))))
             feature_spread = min(reference_area, moving_area) / max(1.0, float(width * height))
             warped_matches = np.asarray(non_rigid.warp_xy(moving_matches), dtype=np.float64)
             feature_residual = float(
@@ -526,11 +520,13 @@ class HisAlignEngine:
         moving_padding_inverse = np.linalg.inv(moving_padding)
         reference_padding_inverse = np.linalg.inv(reference_padding)
 
-        def homogeneous(points: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+        def homogeneous(
+            points: np.ndarray[Any, Any], matrix: np.ndarray[Any, Any]
+        ) -> np.ndarray[Any, Any]:
             values = np.column_stack([points, np.ones(len(points))]) @ matrix.T
             return np.asarray(values[:, :2] / values[:, 2:3], dtype=np.float64)
 
-        def forward(points: np.ndarray) -> np.ndarray:
+        def forward(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
             padded = homogeneous(points, moving_padding)
             mapped = non_rigid.warp_xy(padded)
             return np.asarray(
@@ -538,7 +534,7 @@ class HisAlignEngine:
                 dtype=np.float64,
             )
 
-        def inverse(points: np.ndarray) -> np.ndarray:
+        def inverse(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
             padded = homogeneous(points, reference_padding)
             mapped = non_rigid.inverse_warp_xy(padded)
             return np.asarray(
@@ -604,17 +600,15 @@ class ValisEngine:
     def available(self) -> tuple[bool, str | None]:
         if importlib.util.find_spec("valis") is None:
             return False, "VALIS runtime is not installed in this worker image"
-        try:
-            __import__("valis.registration")
-        except Exception as error:
-            return False, f"VALIS runtime import failed: {type(error).__name__}"
+        # VALIS import can initialize Torch models and a JVM. Keep that cost
+        # inside the bounded child, never in capability polling.
         return True, None
 
     def register(self, inputs: EngineInput, progress: Progress) -> EngineRun:
         available, reason = self.available()
         if not available:
             raise AlignmentRejected(reason or "VALIS is unavailable")
-        from valis import registration  # type: ignore[import-not-found]
+        registration = importlib.import_module("valis.registration")
 
         started = time.monotonic()
         source = inputs.workspace / "valis-input"
@@ -654,12 +648,12 @@ class ValisEngine:
         if moving_slide is None or reference_slide is None:
             raise AlignmentRejected("VALIS did not expose both registered slides")
 
-        def forward(points: np.ndarray) -> np.ndarray:
+        def forward(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
             return np.asarray(
                 moving_slide.warp_xy_from_to(points, reference_slide), dtype=np.float64
             )
 
-        def inverse(points: np.ndarray) -> np.ndarray:
+        def inverse(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
             return np.asarray(
                 reference_slide.warp_xy_from_to(points, moving_slide), dtype=np.float64
             )
@@ -700,9 +694,7 @@ class ValisEngine:
         reference_matches = reference_matches[:match_count]
         match_spread = 0.0
         if match_count >= 3:
-            moving_area = float(
-                cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32)))
-            )
+            moving_area = float(cv2.contourArea(cv2.convexHull(moving_matches.astype(np.float32))))
             reference_area = float(
                 cv2.contourArea(cv2.convexHull(reference_matches.astype(np.float32)))
             )
@@ -774,9 +766,7 @@ class ValisEngine:
                 round(match_residual, 6) if np.isfinite(match_residual) else None
             ),
             "valisNonRigidRTRE": (
-                round(valis_non_rigid_rtre, 8)
-                if np.isfinite(valis_non_rigid_rtre)
-                else None
+                round(valis_non_rigid_rtre, 8) if np.isfinite(valis_non_rigid_rtre) else None
             ),
             "valisLocalEvidenceQualified": local_evidence_qualified,
         }

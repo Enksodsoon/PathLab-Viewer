@@ -342,9 +342,7 @@ def test_optical_density_kaze_prefers_same_structure_across_stain_hues():
 def test_layout_consistency_checks_all_large_fragments():
     reference = [(100, 100, 300, 500), (800, 150, 1000, 550)]
     moving = [(130, 120, 330, 520), (830, 170, 1030, 570)]
-    coherent = _layout_consistency(
-        [[1, 0, -30], [0, 1, -20]], reference, moving, (1200, 700)
-    )
+    coherent = _layout_consistency([[1, 0, -30], [0, 1, -20]], reference, moving, (1200, 700))
     one_fragment_only = _layout_consistency(
         [[1, 0, -730], [0, 1, -20]], reference, moving, (1200, 700)
     )
@@ -375,9 +373,7 @@ def test_support_expansion_adds_only_edge_adjacent_low_residual_cells():
         "maxResidualPixels": 8.0,
     }
 
-    expanded = _expand_verified_support(
-        [verified, adjacent, point_touching, unstable], [verified]
-    )
+    expanded = _expand_verified_support([verified, adjacent, point_touching, unstable], [verified])
 
     assert expanded == [verified, adjacent]
 
@@ -542,9 +538,7 @@ def test_whole_slide_structural_fallback_recovers_real_rotation(tmp_path, monkey
     assert abs(abs(result.evidence["wholeSlideRotationDegrees"]) - 8) < 2
 
 
-def test_whole_slide_structural_fallback_rejects_unrelated_same_size_tissue(
-    tmp_path, monkeypatch
-):
+def test_whole_slide_structural_fallback_rejects_unrelated_same_size_tissue(tmp_path, monkeypatch):
     from PIL import ImageDraw
     from wsi_viewer import alignment_pyramid
 
@@ -604,12 +598,15 @@ def test_flow_refinement_returns_cycle_consistent_local_controls():
 
     assert len(controls) >= 12
     assert 0 <= cycle_p95 <= 4
-    assert np.median(
-        [
-            np.linalg.norm(np.asarray(control["reference"]) - control["moving"])
-            for control in controls
-        ]
-    ) > 1
+    assert (
+        np.median(
+            [
+                np.linalg.norm(np.asarray(control["reference"]) - control["moving"])
+                for control in controls
+            ]
+        )
+        > 1
+    )
 
 
 def test_flow_refinement_rejects_textureless_tissue():
@@ -644,3 +641,47 @@ def test_flow_cell_evidence_requires_local_patch_agreement_and_discrimination():
     assert ncc > 0.99
     assert discrimination > 0.8
     assert rejected == []
+
+
+def test_component_batches_reuse_decodes_and_resume_completed_attempts(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_pyramid as pyramid
+    from wsi_viewer.alignment import AlignmentRejected
+
+    image = _textured_tissue()
+    reads = []
+    attempts = []
+    structures = []
+    boxes = [(40, 40, 250, 250), (350, 330, 650, 570)]
+    monkeypatch.setattr(pyramid, "component_bounds", lambda *_: boxes)
+    monkeypatch.setattr(pyramid, "_flow_cell_evidence", lambda *_: ([], -1.0, -1.0))
+
+    def read(path, bounds):
+        reads.append((path, bounds))
+        return image.crop(bounds), (bounds[0], bounds[1], 1)
+
+    def reject(*args, **kwargs):
+        attempts.append(True)
+        raise AlignmentRejected("no feature support")
+
+    def no_structure(*args):
+        structures.append(True)
+        return None
+
+    monkeypatch.setattr(pyramid, "read_region", read)
+    monkeypatch.setattr(pyramid, "register_pair", reject)
+    monkeypatch.setattr(pyramid, "_approximate_component_map", no_structure)
+    for _ in range(2):
+        reads.clear()
+        with pytest.raises(AlignmentRejected):
+            pyramid.register_components(
+                tmp_path / "ref",
+                tmp_path / "mov",
+                image,
+                image,
+                image.size,
+                image.size,
+                checkpoint_dir=tmp_path / "batches",
+            )
+        assert len(reads) == len(set(reads)) == 4
+    assert len(attempts) == 4
+    assert len(structures) == 2

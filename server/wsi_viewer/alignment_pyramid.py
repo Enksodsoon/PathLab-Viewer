@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import xml.etree.ElementTree as ET
+from collections import OrderedDict
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from contextlib import suppress
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -78,7 +82,7 @@ def _layout_consistency(
     if count < 2:
         return 0.0
 
-    def centers(boxes: list[tuple[int, int, int, int]]) -> np.ndarray:
+    def centers(boxes: list[tuple[int, int, int, int]]) -> np.ndarray[Any, Any]:
         return np.asarray(
             [
                 [(left + right) / 2, (top + bottom) / 2]
@@ -91,12 +95,9 @@ def _layout_consistency(
     moving_centers = centers(moving_boxes)
     affine = np.asarray(transform, dtype=np.float64)
     projected = moving_centers @ affine[:, :2].T + affine[:, 2]
-    distances = np.linalg.norm(
-        projected[:, None, :] - reference_centers[None, :, :], axis=2
-    )
+    distances = np.linalg.norm(projected[:, None, :] - reference_centers[None, :, :], axis=2)
     symmetric_error = (
-        float(np.mean(np.min(distances, axis=1)))
-        + float(np.mean(np.min(distances, axis=0)))
+        float(np.mean(np.min(distances, axis=1))) + float(np.mean(np.min(distances, axis=0)))
     ) / 2
     diagonal = max(1.0, math.hypot(*reference_size))
     return float(math.exp(-symmetric_error / (0.1 * diagonal)))
@@ -180,18 +181,14 @@ def _candidate_component_pairs(
         axis = int(np.argmax(reference_span + moving_span))
         reference_order = np.argsort(reference_centers[:, axis])
         moving_order = np.argsort(moving_centers[:, axis])
-        ordered_pairs = list(
-            zip(moving_order.tolist(), reference_order.tolist(), strict=True)
-        )
+        ordered_pairs = list(zip(moving_order.tolist(), reference_order.tolist(), strict=True))
         normalized_reference = reference_centers[reference_order] / np.asarray(
             [reference_overview.width, reference_overview.height]
         )
         normalized_moving = moving_centers[moving_order] / np.asarray(
             [moving_overview.width, moving_overview.height]
         )
-        displaced = float(
-            np.mean(np.linalg.norm(normalized_reference - normalized_moving, axis=1))
-        )
+        displaced = float(np.mean(np.linalg.norm(normalized_reference - normalized_moving, axis=1)))
         return ordered_pairs, set(ordered_pairs) if displaced > 0.005 else set()
     projected = cv2.transform(moving_centers.astype(np.float32)[:, None, :], seed)[:, 0, :]
     distances = np.linalg.norm(projected[:, None, :] - reference_centers[None, :, :], axis=2)
@@ -230,7 +227,7 @@ def _approximate_component_map(
     reference_rgb = np.asarray(reference.convert("RGB"))
     moving_rgb = np.asarray(moving.convert("RGB"))
 
-    def cropped_structure(image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
+    def cropped_structure(image: Image.Image) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
         # Whole-slide segmentation rejects edge-touching components to suppress
         # scanner borders. A deliberately cropped component can validly touch
         # its crop edge, so surround it with known white context first.
@@ -253,19 +250,19 @@ def _approximate_component_map(
     seed, initial_overlap = _mask_seed(reference_mask, moving_mask)
 
     def ecc_candidate(
-        forward_seed: np.ndarray, motion: int
-    ) -> tuple[float, np.ndarray] | None:
+        forward_seed: np.ndarray[Any, Any], motion: int
+    ) -> tuple[float, np.ndarray[Any, Any]] | None:
         """Refine one proposal without allowing a failed proposal to win."""
         inverse = cv2.invertAffineTransform(forward_seed).astype(np.float32)
         try:
             score = 0.0
             for sigma in (12.0, 6.0, 3.0):
-                fixed = cv2.GaussianBlur(
-                    reference_structure, (0, 0), sigma
-                ).astype(np.float32) / 255
-                floating = cv2.GaussianBlur(
-                    moving_structure, (0, 0), sigma
-                ).astype(np.float32) / 255
+                fixed = (
+                    cv2.GaussianBlur(reference_structure, (0, 0), sigma).astype(np.float32) / 255
+                )
+                floating = (
+                    cv2.GaussianBlur(moving_structure, (0, 0), sigma).astype(np.float32) / 255
+                )
                 score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
                     fixed,
                     floating,
@@ -295,9 +292,7 @@ def _approximate_component_map(
     scanner_candidate = ecc_candidate(scanner_seed, cv2.MOTION_TRANSLATION)
     mask_candidate = ecc_candidate(seed, cv2.MOTION_AFFINE)
     refined_candidates = [
-        candidate
-        for candidate in (scanner_candidate, mask_candidate)
-        if candidate is not None
+        candidate for candidate in (scanner_candidate, mask_candidate) if candidate is not None
     ]
     score, transform = (
         max(refined_candidates, key=lambda item: item[0])
@@ -305,17 +300,14 @@ def _approximate_component_map(
         else (float(initial_overlap), seed.copy())
     )
     determinant = float(np.linalg.det(transform[:, :2]))
-    warped_mask = cv2.warpAffine(
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
         moving_mask, transform, (reference_mask.shape[1], reference_mask.shape[0])
     )
     intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
     total_tissue = int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask))
     overlap = 2 * intersection / max(1, total_tissue)
     internally_supported = score >= 0.45 and overlap >= 0.5
-    if (
-        not internally_supported
-        or not 0.25 <= determinant <= 4
-    ):
+    if not internally_supported or not 0.25 <= determinant <= 4:
         # ECC is deliberately conservative across very different stains.  The
         # mask seed remains useful as an explicitly approximate component map
         # when its tissue overlap is strong; it never becomes anatomical
@@ -362,10 +354,7 @@ def _approximate_component_map(
                     continue
                 target = transform[:, :2] @ np.asarray([x, y]) + transform[:, 2]
                 tx, ty = int(round(target[0])), int(round(target[1]))
-                if not (
-                    0 <= tx < reference_mask.shape[1]
-                    and 0 <= ty < reference_mask.shape[0]
-                ):
+                if not (0 <= tx < reference_mask.shape[1] and 0 <= ty < reference_mask.shape[0]):
                     continue
                 if not reference_mask[ty, tx]:
                     continue
@@ -437,8 +426,7 @@ def _approximate_component_map(
         full_supported_cells.append(
             {
                 "moving": [
-                    [mx + moving_divisor * x, my + moving_divisor * y]
-                    for x, y in cell["moving"]
+                    [mx + moving_divisor * x, my + moving_divisor * y] for x, y in cell["moving"]
                 ],
                 "reference": [
                     [rx + reference_divisor * x, ry + reference_divisor * y]
@@ -459,9 +447,7 @@ def _approximate_component_map(
         supported_cells=full_supported_cells,
         intensity_score=float(score),
         overlap=float(overlap),
-        flow_control_count=(
-            len(controls) if provenance == "approximate-structural-flow" else 0
-        ),
+        flow_control_count=(len(controls) if provenance == "approximate-structural-flow" else 0),
         flow_cycle_p95=flow_cycle_p95,
         patch_ncc_median=patch_ncc_median,
         patch_discrimination_median=patch_discrimination_median,
@@ -470,7 +456,7 @@ def _approximate_component_map(
     )
 
 
-def _gradient_feature(structure: np.ndarray) -> np.ndarray:
+def _gradient_feature(structure: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
     blurred = cv2.GaussianBlur(structure, (0, 0), 1.5)
     horizontal = cv2.Sobel(blurred, cv2.CV_32F, 1, 0, ksize=3)
     vertical = cv2.Sobel(blurred, cv2.CV_32F, 0, 1, ksize=3)
@@ -481,7 +467,7 @@ def _gradient_feature(structure: np.ndarray) -> np.ndarray:
     return np.asarray(normalized, dtype=np.uint8)
 
 
-def _optical_density_gray(rgb: np.ndarray) -> np.ndarray:
+def _optical_density_gray(rgb: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
     """Return a stain-tolerant optical-density image using NumPy and OpenCV only."""
     density = -np.log10(np.clip(rgb.astype(np.float32) / 255.0, 1 / 255, 1))
     gray = np.mean(density, axis=2)
@@ -490,11 +476,11 @@ def _optical_density_gray(rgb: np.ndarray) -> np.ndarray:
 
 
 def _feature_identity_evidence(
-    reference_rgb: np.ndarray,
-    reference_mask: np.ndarray,
-    moving_rgb: np.ndarray,
-    moving_mask: np.ndarray,
-    moving_to_reference: np.ndarray,
+    reference_rgb: np.ndarray[Any, Any],
+    reference_mask: np.ndarray[Any, Any],
+    moving_rgb: np.ndarray[Any, Any],
+    moving_mask: np.ndarray[Any, Any],
+    moving_to_reference: np.ndarray[Any, Any],
 ) -> tuple[int, float]:
     """Measure distributed, mutually matched KAZE features after coarse alignment.
 
@@ -505,7 +491,9 @@ def _feature_identity_evidence(
     """
     maximum = 1200
 
-    def bounded(image: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    def bounded(
+        image: np.ndarray[Any, Any], mask: np.ndarray[Any, Any]
+    ) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any], float]:
         scale = min(1.0, maximum / max(image.shape[:2]))
         size = (
             max(1, round(image.shape[1] * scale)),
@@ -518,28 +506,24 @@ def _feature_identity_evidence(
             scale,
         )
 
-    reference, reference_small_mask, reference_scale = bounded(
-        reference_rgb, reference_mask
-    )
+    reference, reference_small_mask, reference_scale = bounded(reference_rgb, reference_mask)
     moving, moving_small_mask, moving_scale = bounded(moving_rgb, moving_mask)
     transform = np.asarray(moving_to_reference, dtype=np.float64).copy()
     transform[:, :2] *= reference_scale / moving_scale
     transform[:, 2] *= reference_scale
-    warped = cv2.warpAffine(
+    warped: np.ndarray[Any, Any] = cv2.warpAffine(
         moving,
         transform.astype(np.float32),
         (reference.shape[1], reference.shape[0]),
-        borderValue=0,
+        borderValue=(0,),
     )
-    warped_mask = cv2.warpAffine(
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
         moving_small_mask,
         transform.astype(np.float32),
         (reference.shape[1], reference.shape[0]),
         flags=cv2.INTER_NEAREST,
     )
-    valid = np.asarray(
-        (reference_small_mask > 0) & (warped_mask > 0), dtype=np.uint8
-    ) * 255
+    valid = np.asarray((reference_small_mask > 0) & (warped_mask > 0), dtype=np.uint8) * 255
     if cv2.countNonZero(valid) < max(512, valid.size // 200):
         return 0, 0.0
 
@@ -553,7 +537,9 @@ def _feature_identity_evidence(
 
     matcher = cv2.BFMatcher(cv2.NORM_L2)
 
-    def ratio_matches(first: np.ndarray, second: np.ndarray) -> list[cv2.DMatch]:
+    def ratio_matches(
+        first: np.ndarray[Any, Any], second: np.ndarray[Any, Any]
+    ) -> list[cv2.DMatch]:
         return [
             best
             for best, alternate in matcher.knnMatch(first, second, k=2)
@@ -565,21 +551,17 @@ def _feature_identity_evidence(
         (match.trainIdx, match.queryIdx)
         for match in ratio_matches(moving_descriptors, reference_descriptors)
     }
-    mutual = [
-        match for match in forward if (match.queryIdx, match.trainIdx) in reverse
-    ]
+    mutual = [match for match in forward if (match.queryIdx, match.trainIdx) in reverse]
     if len(mutual) < 4:
         return 0, 0.0
     source = np.asarray(
         [reference_keypoints[match.queryIdx].pt for match in mutual], dtype=np.float32
     )
-    target = np.asarray(
-        [moving_keypoints[match.trainIdx].pt for match in mutual], dtype=np.float32
-    )
+    target = np.asarray([moving_keypoints[match.trainIdx].pt for match in mutual], dtype=np.float32)
     _, inlier_mask = cv2.findHomography(source, target, cv2.USAC_MAGSAC, 5.0)
     if inlier_mask is None:
         return 0, 0.0
-    inlier_points = source[inlier_mask.ravel() > 0]
+    inlier_points = source[np.asarray(inlier_mask, dtype=np.uint8).ravel() > 0]
     if len(inlier_points) < 4:
         return len(inlier_points), 0.0
     valid_points = cv2.findNonZero(valid)
@@ -594,8 +576,8 @@ def _feature_identity_evidence(
 
 def _flow_cell_evidence(
     cells: list[dict[str, Any]],
-    reference_structure: np.ndarray,
-    moving_structure: np.ndarray,
+    reference_structure: np.ndarray[Any, Any],
+    moving_structure: np.ndarray[Any, Any],
 ) -> tuple[list[dict[str, Any]], float, float]:
     """Withhold an affine-warped patch check from optical-flow estimation.
 
@@ -617,7 +599,7 @@ def _flow_cell_evidence(
     scores: list[float] = []
     discriminations: list[float] = []
 
-    def correlation(first: np.ndarray, second: np.ndarray) -> float:
+    def correlation(first: np.ndarray[Any, Any], second: np.ndarray[Any, Any]) -> float:
         left = first.astype(np.float32) - float(np.mean(first))
         right = second.astype(np.float32) - float(np.mean(second))
         denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
@@ -658,7 +640,7 @@ def _flow_cell_evidence(
             map_y,
             cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_CONSTANT,
-            borderValue=0,
+            borderValue=(0,),
         )
         reference_patch = reference_feature[
             center_y - radius : center_y + radius + 1,
@@ -714,25 +696,18 @@ def _expand_verified_support(
         return []
 
     def vertices(cell: dict[str, Any]) -> set[tuple[int, int]]:
-        return {
-            (round(float(x) * 1000), round(float(y) * 1000))
-            for x, y in cell["moving"]
-        }
+        return {(round(float(x) * 1000), round(float(y) * 1000)) for x, y in cell["moving"]}
 
     accepted_ids = {id(cell) for cell in verified}
     accepted_vertices = [vertices(cell) for cell in verified]
-    verified_residuals = [
-        float(cell.get("maxResidualPixels", 0.0)) for cell in verified
-    ]
+    verified_residuals = [float(cell.get("maxResidualPixels", 0.0)) for cell in verified]
     residual_limit = max(4.0, float(np.percentile(verified_residuals, 95)) * 1.25)
-    all_points = np.asarray(
-        [point for cell in cells for point in cell["moving"]], dtype=np.float64
-    )
+    all_points = np.asarray([point for cell in cells for point in cell["moving"]], dtype=np.float64)
     verified_points = np.asarray(
         [point for cell in verified for point in cell["moving"]], dtype=np.float64
     )
 
-    def box_area(points: np.ndarray) -> float:
+    def box_area(points: np.ndarray[Any, Any]) -> float:
         extent = np.ptp(points, axis=0)
         return float(extent[0] * extent[1])
 
@@ -760,11 +735,11 @@ def _expand_verified_support(
 
 
 def _flow_refined_controls(
-    reference_structure: np.ndarray,
-    reference_mask: np.ndarray,
-    moving_structure: np.ndarray,
-    moving_mask: np.ndarray,
-    moving_to_reference: np.ndarray,
+    reference_structure: np.ndarray[Any, Any],
+    reference_mask: np.ndarray[Any, Any],
+    moving_structure: np.ndarray[Any, Any],
+    moving_mask: np.ndarray[Any, Any],
+    moving_to_reference: np.ndarray[Any, Any],
 ) -> tuple[list[dict[str, Any]], float]:
     """Return bounded, cycle-consistent mesoscopic correspondences.
 
@@ -774,7 +749,9 @@ def _flow_refined_controls(
     """
     height, width = reference_structure.shape
     warped_structure = cv2.warpAffine(moving_structure, moving_to_reference, (width, height))
-    warped_mask = cv2.warpAffine(moving_mask, moving_to_reference, (width, height))
+    warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
+        moving_mask, moving_to_reference, (width, height)
+    )
     fixed_feature = _gradient_feature(reference_structure)
     moving_feature = _gradient_feature(warped_structure)
     flow_width, flow_height = max(2, width // 2), max(2, height // 2)
@@ -805,7 +782,7 @@ def _flow_refined_controls(
         endpoint_y,
         cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
-        borderValue=999,
+        borderValue=(999,),
     )
     reverse_y = cv2.remap(
         reverse[:, :, 1],
@@ -813,7 +790,7 @@ def _flow_refined_controls(
         endpoint_y,
         cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
-        borderValue=999,
+        borderValue=(999,),
     )
     cycle = np.hypot(forward[:, :, 0] + reverse_x, forward[:, :, 1] + reverse_y)
     inverse = cv2.invertAffineTransform(moving_to_reference)
@@ -841,7 +818,10 @@ def _flow_refined_controls(
                 endpoint_row - patch_radius : endpoint_row + patch_radius + 1,
                 endpoint_column - patch_radius : endpoint_column + patch_radius + 1,
             ]
-            if float(np.std(moving_patch)) < 5.0 or float(np.std(fixed_patch)) < 5.0:
+            if (
+                float(np.std(np.asarray(moving_patch))) < 5.0
+                or float(np.std(np.asarray(fixed_patch))) < 5.0
+            ):
                 continue
             reference_x, reference_y = 2 * (x + dx), 2 * (y + dy)
             warped_point = np.asarray([2.0 * x, 2.0 * y])
@@ -971,8 +951,33 @@ def register_components(
     reference_size: tuple[int, int],
     moving_size: tuple[int, int],
     progress: Callable[[int, int], None] | None = None,
+    checkpoint_dir: Path | None = None,
 ) -> RegistrationResult:
     attempted = 0
+    regions: OrderedDict[
+        tuple[Path, tuple[int, int, int, int]], tuple[Image.Image, tuple[int, int, int]]
+    ] = OrderedDict()
+    region_bytes = 0
+
+    def region(
+        path: Path, bounds: tuple[int, int, int, int]
+    ) -> tuple[Image.Image, tuple[int, int, int]]:
+        nonlocal region_bytes
+        key = (path, bounds)
+        if key in regions:
+            regions.move_to_end(key)
+            return regions[key]
+        value = read_region(path, bounds)
+        image = value[0]
+        cost = image.width * image.height * len(image.getbands())
+        # Eight bounded RGB crops fit; retain reference pixels across all pairs.
+        while regions and region_bytes + cost > 384 * 1024**2:
+            _, (old, _) = regions.popitem(last=False)
+            region_bytes -= old.width * old.height * len(old.getbands())
+        if cost <= 384 * 1024**2:
+            regions[key] = value
+            region_bytes += cost
+        return value
 
     def whole_overview_registration() -> RegistrationResult | None:
         # Dense flow on a 4K overview adds little navigation accuracy and can
@@ -985,9 +990,7 @@ def register_components(
         reference_structure, reference_mask = _structure(
             np.asarray(bounded_reference.convert("RGB"))
         )
-        moving_structure, moving_mask = _structure(
-            np.asarray(bounded_moving.convert("RGB"))
-        )
+        moving_structure, moving_mask = _structure(np.asarray(bounded_moving.convert("RGB")))
         scanner_forward = np.asarray(
             [
                 [reference_mask.shape[1] / moving_mask.shape[1], 0.0, 0.0],
@@ -997,22 +1000,17 @@ def register_components(
         )
 
         def ecc_candidate(
-            forward_seed: np.ndarray, motion: int
-        ) -> tuple[float, float, np.ndarray] | None:
+            forward_seed: np.ndarray[Any, Any], motion: int
+        ) -> tuple[float, float, np.ndarray[Any, Any]] | None:
             inverse = cv2.invertAffineTransform(forward_seed).astype(np.float32)
             try:
                 score = 0.0
                 sigmas = (4.0,) if motion == cv2.MOTION_TRANSLATION else (8.0, 4.0)
                 for sigma in sigmas:
                     score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
-                        cv2.GaussianBlur(
-                            reference_structure, (0, 0), sigma
-                        ).astype(np.float32)
+                        cv2.GaussianBlur(reference_structure, (0, 0), sigma).astype(np.float32)
                         / 255,
-                        cv2.GaussianBlur(
-                            moving_structure, (0, 0), sigma
-                        ).astype(np.float32)
-                        / 255,
+                        cv2.GaussianBlur(moving_structure, (0, 0), sigma).astype(np.float32) / 255,
                         inverse,
                         motion,
                         (
@@ -1025,7 +1023,7 @@ def register_components(
                     )
             except cv2.error:
                 return None
-            transform = cv2.invertAffineTransform(inverse)
+            transform: np.ndarray[Any, Any] = cv2.invertAffineTransform(inverse)
             linear = transform[:, :2]
             determinant = float(np.linalg.det(linear))
             singular = np.linalg.svd(linear, compute_uv=False)
@@ -1036,27 +1034,26 @@ def register_components(
                 or singular[0] / singular[-1] > 1.35
             ):
                 return None
-            warped_mask = cv2.warpAffine(
+            warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
                 moving_mask,
                 transform,
                 (reference_mask.shape[1], reference_mask.shape[0]),
             )
-            intersection = int(
-                np.count_nonzero((warped_mask > 0) & (reference_mask > 0))
-            )
-            overlap = 2 * intersection / max(
-                1,
-                int(np.count_nonzero(warped_mask))
-                + int(np.count_nonzero(reference_mask)),
+            intersection = int(np.count_nonzero((warped_mask > 0) & (reference_mask > 0)))
+            overlap = (
+                2
+                * intersection
+                / max(
+                    1,
+                    int(np.count_nonzero(warped_mask)) + int(np.count_nonzero(reference_mask)),
+                )
             )
             return float(score), float(overlap), transform
 
         translation = ecc_candidate(scanner_forward, cv2.MOTION_TRANSLATION)
         mask_seed, _ = _mask_seed(reference_mask, moving_mask)
         seed_rotation = abs(
-            math.degrees(
-                math.atan2(float(mask_seed[1, 0]), float(mask_seed[0, 0]))
-            )
+            math.degrees(math.atan2(float(mask_seed[1, 0]), float(mask_seed[0, 0])))
         )
         affine_candidates = [
             candidate
@@ -1065,9 +1062,7 @@ def register_components(
                 if seed_rotation >= 1.5 or translation is None
                 else None,
             )
-            if candidate is not None
-            and candidate[0] >= 0.5
-            and candidate[1] >= 0.5
+            if candidate is not None and candidate[0] >= 0.5 and candidate[1] >= 0.5
         ]
         chosen = translation
         transform_kind = "scanner-translation"
@@ -1078,8 +1073,7 @@ def register_components(
             # the normalized scanner frame before accepting tilt or rotation.
             if translation is None or (
                 affine[0] >= translation[0] + 0.025
-                and affine[0] + 0.15 * affine[1]
-                >= translation[0] + 0.15 * translation[1] + 0.025
+                and affine[0] + 0.15 * affine[1] >= translation[0] + 0.15 * translation[1] + 0.025
             ):
                 chosen = affine
                 transform_kind = "structure-affine"
@@ -1088,9 +1082,7 @@ def register_components(
         score, overlap, transform = chosen
         if score < 0.45 or overlap < 0.5:
             return None
-        rotation_degrees = math.degrees(
-            math.atan2(float(transform[1, 0]), float(transform[0, 0]))
-        )
+        rotation_degrees = math.degrees(math.atan2(float(transform[1, 0]), float(transform[0, 0])))
         spacing = max(32, min(moving_mask.shape) // 8)
         controls = []
         for y in range(spacing // 2, moving_mask.shape[0], spacing):
@@ -1118,8 +1110,8 @@ def register_components(
         )
         if not cells:
             return None
-        verified_cells, patch_ncc_median, patch_discrimination_median = (
-            _flow_cell_evidence(cells, reference_structure, moving_structure)
+        verified_cells, patch_ncc_median, patch_discrimination_median = _flow_cell_evidence(
+            cells, reference_structure, moving_structure
         )
         minimum_verified = max(1, min(3, math.ceil(len(cells) * 0.1)))
         if len(verified_cells) < minimum_verified:
@@ -1179,9 +1171,7 @@ def register_components(
                 "wholeSlideRotationDegrees": round(rotation_degrees, 4),
                 "verifiedPatchCount": len(verified_cells),
                 "patchNccMedian": round(patch_ncc_median, 4),
-                "patchDiscriminationMedian": round(
-                    patch_discrimination_median, 4
-                ),
+                "patchDiscriminationMedian": round(patch_discrimination_median, 4),
                 "availabilityReason": (
                     "Internal whole-slide structure supports scanner-frame overview "
                     "navigation; independent landmark accuracy is pending"
@@ -1211,11 +1201,46 @@ def register_components(
     total = len(reference_boxes) * len(moving_boxes)
 
     for mi, moving_box in enumerate(moving_boxes):
-        moving, moving_frame = read_region(moving_path, moving_box)
+        moving, moving_frame = region(moving_path, moving_box)
         for ri, reference_box in enumerate(reference_boxes):
-            reference, reference_frame = read_region(reference_path, reference_box)
+            reference, reference_frame = region(reference_path, reference_box)
             try:
-                result = register_pair(reference, moving, max_dimension=4096)
+                # A completed native pair is a resumable batch. Scope storage to
+                # source hashes and engine version in the worker; bind crop geometry here.
+                key = hashlib.sha256(
+                    repr(
+                        (
+                            reference_frame,
+                            moving_frame,
+                            reference.size,
+                            moving.size,
+                            cv2.__version__,
+                        )
+                    ).encode()
+                ).hexdigest()
+                receipt = checkpoint_dir / f"{key}.json" if checkpoint_dir else None
+                cached = None
+                if receipt and receipt.is_file():
+                    with suppress(OSError, ValueError):
+                        cached = json.loads(receipt.read_text())
+                if cached and "rejected" in cached:
+                    raise AlignmentRejected(cached["rejected"])
+                if cached:
+                    result = RegistrationResult(**cached)
+                else:
+                    record = None
+                    try:
+                        result = register_pair(reference, moving, max_dimension=4096)
+                        record = asdict(result)
+                    except AlignmentRejected as error:
+                        record = {"rejected": str(error)}
+                        raise
+                    finally:
+                        if receipt and record is not None:
+                            receipt.parent.mkdir(parents=True, exist_ok=True)
+                            temporary = receipt.with_suffix(".tmp")
+                            temporary.write_text(json.dumps(record))
+                            temporary.replace(receipt)
                 if result.status != "ready" or not result.triangles:
                     continue
                 # Convert crop-local cells with the exact DZI sampling interval.
@@ -1291,14 +1316,6 @@ def register_components(
             reference_size,
             moving_size,
         )
-        moving_regions = {
-            index: read_region(moving_path, bounds)
-            for index, bounds in enumerate(moving_boxes)
-        }
-        reference_regions = {
-            index: read_region(reference_path, bounds)
-            for index, bounds in enumerate(reference_boxes)
-        }
         candidates_by_pair: dict[tuple[int, int], _ComponentMap] = {}
         evaluated_pairs: set[tuple[int, int]] = set()
 
@@ -1307,11 +1324,29 @@ def register_components(
             if key in evaluated_pairs:
                 return candidates_by_pair.get(key)
             evaluated_pairs.add(key)
-            moving, moving_frame = moving_regions[moving_index]
-            reference, reference_frame = reference_regions[reference_index]
-            candidate = _approximate_component_map(
-                reference, moving, reference_frame, moving_frame
-            )
+            moving, moving_frame = region(moving_path, moving_boxes[moving_index])
+            reference, reference_frame = region(reference_path, reference_boxes[reference_index])
+            batch_key = hashlib.sha256(
+                repr(
+                    (reference_frame, moving_frame, reference.size, moving.size, cv2.__version__)
+                ).encode()
+            ).hexdigest()
+            receipt = checkpoint_dir / f"structure-{batch_key}.json" if checkpoint_dir else None
+            cached = None
+            if receipt and receipt.is_file():
+                with suppress(OSError, ValueError):
+                    cached = json.loads(receipt.read_text())
+            if cached is not None:
+                candidate = _ComponentMap(**cached) if cached else None
+            else:
+                candidate = _approximate_component_map(
+                    reference, moving, reference_frame, moving_frame
+                )
+                if receipt:
+                    receipt.parent.mkdir(parents=True, exist_ok=True)
+                    temporary = receipt.with_suffix(".tmp")
+                    temporary.write_text(json.dumps(asdict(candidate) if candidate else {}))
+                    temporary.replace(receipt)
             if candidate:
                 candidate = replace(
                     candidate,
@@ -1357,10 +1392,7 @@ def register_components(
                         (moving_index, other_reference)
                         for other_reference in range(len(reference_boxes))
                     ),
-                    *(
-                        (other_moving, reference_index)
-                        for other_moving in range(len(moving_boxes))
-                    ),
+                    *((other_moving, reference_index) for other_moving in range(len(moving_boxes))),
                 } - {(moving_index, reference_index)}
                 for other_moving, other_reference in alternative_pairs:
                     candidate_for(other_moving, other_reference)
@@ -1451,9 +1483,7 @@ def register_components(
                             ),
                             4,
                         ),
-                        "verifiedPatchCount": sum(
-                            len(item.verified_cells) for item in qualified
-                        ),
+                        "verifiedPatchCount": sum(len(item.verified_cells) for item in qualified),
                         "supportExpansionCount": len(supported_cells)
                         - sum(len(item.verified_cells) for item in qualified),
                         "patchNccMedian": round(
@@ -1462,9 +1492,7 @@ def register_components(
                         ),
                         "patchDiscriminationMedian": round(
                             float(
-                                np.median(
-                                    [item.patch_discrimination_median for item in qualified]
-                                )
+                                np.median([item.patch_discrimination_median for item in qualified])
                             ),
                             4,
                         ),
@@ -1499,8 +1527,7 @@ def register_components(
                 confidence=min(
                     0.49,
                     0.3
-                    + 0.1
-                    * float(np.mean([item.intensity_score for _, _, item in approximate])),
+                    + 0.1 * float(np.mean([item.intensity_score for _, _, item in approximate])),
                 ),
                 inlier_count=0,
                 match_count=0,
@@ -1525,11 +1552,7 @@ def register_components(
                         item.feature_inliers for _, _, item in approximate
                     ),
                     "opticalDensityKazeSpreadMedian": round(
-                        float(
-                            np.median(
-                                [item.feature_spread for _, _, item in approximate]
-                            )
-                        ),
+                        float(np.median([item.feature_spread for _, _, item in approximate])),
                         4,
                     ),
                     "intensityShapeScore": round(
@@ -1538,9 +1561,7 @@ def register_components(
                     "outlineOverlap": round(
                         float(np.mean([item.overlap for _, _, item in approximate])), 6
                     ),
-                    "flowControlCount": sum(
-                        item.flow_control_count for _, _, item in approximate
-                    ),
+                    "flowControlCount": sum(item.flow_control_count for _, _, item in approximate),
                     "flowCycleP95": round(
                         max(
                             (
@@ -1581,18 +1602,12 @@ def register_components(
                         ),
                         4,
                     )
-                    if any(
-                        item.patch_discrimination_median >= -0.99
-                        for _, _, item in approximate
-                    )
+                    if any(item.patch_discrimination_median >= -0.99 for _, _, item in approximate)
                     else -1.0,
                     "availabilityReason": "No accepted anatomical feature matches",
                     "componentOrderPreserved": len(reference_boxes) >= 2
                     and len(approximate) == len(reference_boxes) == len(moving_boxes)
-                    and float(
-                        np.median([item.layout_score for _, _, item in approximate])
-                    )
-                    >= 0.65,
+                    and float(np.median([item.layout_score for _, _, item in approximate])) >= 0.65,
                     "source": (
                         "bounded-pyramid-component-flow"
                         if any(item.flow_control_count for _, _, item in approximate)

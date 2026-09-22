@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
+from .alignment_policy import VALIDATION_POLICY, current_registration
 from .domain import SlideState
 from .models import ComparisonSet, ComparisonSetMember, Job, Slide
 
@@ -74,10 +75,9 @@ def queue_ready_registrations(
     ids = [row.slide_id for row in rows]
     slides = {slide.id: slide for slide in database.scalars(select(Slide).where(Slide.id.in_(ids)))}
     queued = 0
+    foreground_deadline = (datetime.now(UTC) + timedelta(seconds=10)).isoformat()
     for row in rows:
-        if row.slide_id == item.reference_slide_id or (
-            row.slide_id in item.registrations and not force
-        ):
+        if row.slide_id == item.reference_slide_id:
             continue
         slide = slides.get(row.slide_id)
         anchor_id = row.anchor_slide_id or item.reference_slide_id
@@ -93,6 +93,13 @@ def queue_ready_registrations(
             or not anchor.sha256
         ):
             continue
+        saved = current_registration(
+            item.registrations.get(row.slide_id),
+            source_version=slide.sha256,
+            anchor_version=anchor.sha256,
+        )
+        if saved and saved.get("status") != "stale" and not force:
+            continue
         versions = dict(item.source_versions or {})
         versions[slide.id] = slide.sha256
         versions[anchor.id] = anchor.sha256
@@ -100,7 +107,9 @@ def queue_ready_registrations(
         if reference and reference.sha256:
             versions[reference.id] = reference.sha256
         item.source_versions = versions
-        key = hashlib.sha256(f"{item.id}:{item.version}:{slide.id}".encode()).hexdigest()
+        key = hashlib.sha256(
+            f"{item.id}:{item.version}:{slide.id}:{slide.sha256}:{anchor.id}:{anchor.sha256}:{VALIDATION_POLICY}".encode()
+        ).hexdigest()
         if (
             database.scalar(
                 select(Job.id).where(Job.kind == "align", Job.idempotency_key_hash == key)
@@ -118,14 +127,18 @@ def queue_ready_registrations(
                     "comparisonSetId": item.id,
                     "memberId": slide.id,
                     "anchorSlideId": anchor.id,
+                    "sourceVersion": slide.sha256,
+                    "anchorVersion": anchor.sha256,
                     "setVersion": item.version,
                     "progress": 0,
+                    "phase": "preview",
+                    "foregroundDeadlineAt": foreground_deadline,
                     "preserveExisting": preserve_existing,
                 },
                 resource_limits={
                     "cpuThreads": 1,
-                    "memoryBytes": 2 * 1024**3,
-                    "timeoutSeconds": 600,
+                    "memoryBytes": 512 * 1024**2,
+                    "timeoutSeconds": 10,
                 },
             )
         )

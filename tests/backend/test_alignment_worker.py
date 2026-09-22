@@ -8,7 +8,12 @@ from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import ComparisonSet, Job, Slide
 from wsi_viewer.storage import StorageLayout
-from wsi_viewer.worker import _load_alignment_overview, _load_dzi_overview, process_next
+from wsi_viewer.worker import (
+    AlignmentPreempted,
+    _load_alignment_overview,
+    _load_dzi_overview,
+    process_next,
+)
 
 
 def _image(path: Path, *, offset: int = 0) -> None:
@@ -136,8 +141,9 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
         assert database.get(Slide, "moving").state is SlideState.READY_PRIVATE
 
 
+@pytest.mark.parametrize("preempted", [False, True])
 def test_failed_reregistration_preserves_previous_usable_map(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, preempted: bool
 ) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'rerun.sqlite3'}", data_root=tmp_path / "data"
@@ -149,6 +155,8 @@ def test_failed_reregistration_preserves_previous_usable_map(
         "status": "approximate",
         "provenance": "automatic",
         "anchorSlideId": "reference",
+        "sourceVersion": "m1",
+        "anchorVersion": "r1",
         "overviewTriangles": [
             {"moving": [[0, 0], [1, 0], [0, 1]], "reference": [[0, 0], [1, 0], [0, 1]]}
         ],
@@ -210,7 +218,9 @@ def test_failed_reregistration_preserves_previous_usable_map(
 
     monkeypatch.setattr(
         "wsi_viewer.worker._run_alignment_bounded",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AlignmentRejected("no replacement")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AlignmentPreempted() if preempted else AlignmentRejected("no replacement")
+        ),
     )
 
     assert process_next(factory, layout) is True
@@ -219,8 +229,8 @@ def test_failed_reregistration_preserves_previous_usable_map(
         comparison = database.get(ComparisonSet, comparison_id)
         assert comparison is not None
         assert comparison.registrations["moving"] == previous
-        assert comparison.status == "partial"
-        assert database.query(Job).one().status == "failed_terminal"
+        assert comparison.status == ("running" if preempted else "partial")
+        assert database.query(Job).one().status == ("queued" if preempted else "failed_terminal")
 
 
 def test_successful_reregistration_does_not_replace_stronger_existing_map(

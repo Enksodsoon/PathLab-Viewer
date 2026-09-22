@@ -560,13 +560,15 @@ def register_library_routes(
         next_cursor = (
             cursor_for_slide(page[-1], sort) if has_more and page and sort != "manual" else None
         )
-        counts = (
+        counts: dict[str, int] = (
             dict(
                 database.execute(
                     select(ComparisonSetMember.slide_id, func.count(ComparisonSetMember.id))
                     .where(ComparisonSetMember.slide_id.in_([slide.id for slide in page]))
                     .group_by(ComparisonSetMember.slide_id)
-                ).all()
+                )
+                .tuples()
+                .all()
             )
             if page and app.state.settings.alignment_enabled
             else {}

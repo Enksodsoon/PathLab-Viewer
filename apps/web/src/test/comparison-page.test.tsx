@@ -27,7 +27,7 @@ beforeEach(() => {
       tileSource: `/tiles/${index + 1}.dzi`, metadata: { width: 1000, height: 800, physicalSizeX: 0.25 },
       registration: index === 0 ? null : index === 4
         ? { status: 'rejected', provenance: 'automatic' }
-        : { status: 'ready', provenance: 'automatic', movingToReference: [[1, 0, 0], [0, 1, 0]], movingSupport: null, referenceSupport: null },
+        : { status: 'ready', provenance: 'automatic', movingToReference: [[1, 0, 0], [0, 1, 0]], movingSupport: null, referenceSupport: null, triangles: [{ moving: [[0, 0], [1000, 0], [0, 800]], reference: [[0, 0], [1000, 0], [0, 800]] }] },
     })),
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
 })
@@ -192,7 +192,7 @@ it('restores an explicitly selected approximate alignment mode after a page remo
   expect(await screen.findByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
 })
 
-it('does not use an unverified component proposal in best-available mode', async () => {
+it('does not extrapolate an approximate component proposal outside its support', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Mixed evidence set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -218,7 +218,7 @@ it('does not use an unverified component proposal in best-available mode', async
   expect(screen.queryByText(/Synchronization suspended/)).not.toBeInTheDocument()
 })
 
-it('requires explicit approximate mode for an order-preserving component overview', async () => {
+it('automatically uses and labels an order-preserving component overview', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Ordered component set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -237,12 +237,13 @@ it('requires explicit approximate mode for an order-preserving component overvie
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Ordered component set')).toBeVisible()
 
-  expect(screen.getByText('Not aligned')).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('matched')
+  expect(screen.getByText('Approximate sync')).toBeVisible()
   await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'approximate')
   expect(screen.getByText('Approximate sync')).toBeVisible()
 })
 
-it('requires explicit approximate mode for a whole-slide structural overview', async () => {
+it('automatically uses and labels a whole-slide structural overview', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Whole-slide structural set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -262,7 +263,8 @@ it('requires explicit approximate mode for a whole-slide structural overview', a
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Whole-slide structural set')).toBeVisible()
 
-  expect(screen.getByText('Not aligned')).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('matched')
+  expect(screen.getByText('Approximate sync')).toBeVisible()
   await user.selectOptions(screen.getByRole('combobox', { name: 'Alignment mode' }), 'approximate')
   expect(screen.getByText('Approximate sync')).toBeVisible()
 })
@@ -367,6 +369,10 @@ it('enables matched navigation when linking a pane from independent mode', async
 })
 
 it('explains missing anatomical maps before the first navigation gesture', async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+    id: 'set-1', name: 'Unmatched set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
+    members: [1, 2].map(i => ({ slideId: `slide-${i}`, displayName: `Slide ${i}`, stain: '', tileSource: `/tiles/${i}.dzi`, metadata: { width: 1000, height: 800 }, registration: null })),
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByRole('note', { name: 'Alignment unavailable' })).toHaveTextContent('Linking panes cannot align these slides.')
 })

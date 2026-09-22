@@ -93,6 +93,62 @@ function mapRegistrationPointUsing(
   return null
 }
 
+type StackRegistration = LocalRegistration & {
+  status: string
+  coordinateReferenceId?: string | null
+  anchorSlideId?: string | null
+}
+
+/** Traverse direct maps without flattening non-rigid geometry across anchor cells. */
+export function mapStackPoint(
+  point: Point, sourceId: string, targetId: string, referenceId: string,
+  members: Array<{ slideId: string; registration?: StackRegistration | null }>,
+  mode: 'best' | 'strict' | 'overview' = 'best',
+): { point: Point; rotation: number; zoomScale: number; approximate: boolean } | null {
+  const byId = new Map(members.map(member => [member.slideId, member]))
+  const chain = (id: string) => {
+    const nodes: string[] = []
+    while (byId.has(id)) {
+      if (nodes.includes(id)) return null
+      nodes.push(id)
+      if (id === referenceId) return nodes
+      const registration = byId.get(id)?.registration
+      if (!registration || !['ready', 'approximate'].includes(registration.status) || !registration.movingToReference) return nodes
+      id = registration.coordinateReferenceId ?? registration.anchorSlideId ?? referenceId
+    }
+    return nodes
+  }
+  const source = chain(sourceId); const target = chain(targetId)
+  if (!source || !target) return null
+  const common = source.find(id => target.includes(id))
+  if (!common) return null
+  let result = { point, rotation: 0, zoomScale: 1, approximate: false }
+  const step = (id: string, backwards: boolean) => {
+    const registration = byId.get(id)?.registration
+    if (!registration?.movingToReference) return false
+    let mapped = mode !== 'overview' && registration.status === 'ready'
+      ? mapRegistrationPoint(result.point, registration, backwards) : null
+    const approximate = !mapped
+    if (!mapped && mode !== 'strict') {
+      if (registration.overviewTriangles?.length) {
+        mapped = mapRegistrationPointUsing(result.point, registration, registration.overviewTriangles, backwards)
+      } else if (registration.status === 'approximate') {
+        mapped = mapOverviewRegistrationPoint(result.point, registration, backwards)
+      }
+    }
+    if (!mapped) return false
+    const view = linearView(mapped.linear)
+    result = { point: mapped.point, rotation: result.rotation - view.rotation,
+      zoomScale: result.zoomScale / view.scale, approximate: result.approximate || approximate }
+    return true
+  }
+  try {
+    for (const id of source.slice(0, source.indexOf(common))) if (!step(id, false)) return null
+    for (const id of target.slice(0, target.indexOf(common)).reverse()) if (!step(id, true)) return null
+    return result
+  } catch { return null }
+}
+
 function squaredDistanceToSegment(point: Point, start: Point, end: Point): number {
   const dx = end[0] - start[0]
   const dy = end[1] - start[1]

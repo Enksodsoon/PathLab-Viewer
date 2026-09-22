@@ -26,6 +26,7 @@ from .alignment_engines import (
     engine_availability,
     settings_digest,
 )
+from .alignment_policy import current_registration
 from .domain import SlideState
 from .models import (
     ComparisonRegistrationCandidate,
@@ -195,7 +196,8 @@ def _json(
             for row in membership_rows(database, item)
             if row.slide_id != item.reference_slide_id
         }
-    members = []
+    members: list[dict[str, Any]] = []
+    by_id = {slide.id: slide for slide in slides}
     for slide in slides:
         position = shared.get(slide.id) if shared is not None else None
         revision = slide.sha256 or str(int(slide.updated_at.timestamp()))
@@ -222,7 +224,13 @@ def _json(
                 "thumbnailUrl": tile_source.replace("slide.dzi", "thumbnail.jpg")
                 if tile_source
                 else None,
-                "registration": item.registrations.get(slide.id),
+                "registration": current_registration(
+                    item.registrations.get(slide.id),
+                    source_version=slide.sha256,
+                    anchor_version=by_id[anchors.get(slide.id, item.reference_slide_id)].sha256
+                    if anchors.get(slide.id, item.reference_slide_id) in by_id
+                    else None,
+                ),
                 "state": slide.state.value,
                 "availabilityReason": availability_reason,
                 "errorCode": slide.error_code,
@@ -235,7 +243,10 @@ def _json(
         "id": item.id,
         "name": item.name,
         "referenceSlideId": item.reference_slide_id,
-        "status": item.status,
+        "status": "partial"
+        if item.status == "ready"
+        and any((member.get("registration") or {}).get("status") == "stale" for member in members)
+        else item.status,
         "version": item.version,
         "alignmentConfig": item.alignment_config,
         "members": members,
@@ -931,6 +942,11 @@ def register_alignment_routes(
                 "setVersion": (job.checkpoint or {}).get("setVersion"),
                 "status": job.status,
                 "stage": (job.checkpoint or {}).get("stage", "queued"),
+                "phase": (job.checkpoint or {}).get("phase"),
+                "resultStatus": (job.checkpoint or {}).get("resultStatus"),
+                "runtimeSeconds": (job.checkpoint or {}).get("runtimeSeconds"),
+                "queueSeconds": (job.checkpoint or {}).get("queueSeconds"),
+                "timings": (job.checkpoint or {}).get("timings"),
                 "progress": (job.checkpoint or {}).get("progress", 0),
                 "processedPatches": (job.checkpoint or {}).get("processedPatches", 0),
                 "processedComponentPairs": (job.checkpoint or {}).get("processedComponentPairs", 0),
@@ -1020,7 +1036,9 @@ def register_alignment_routes(
         reference_hull = cv2.contourArea(cv2.convexHull(reference.astype(np.float32)))
         if moving_hull < 4.0 or reference_hull < 4.0:
             raise _error("LANDMARKS_NOT_DISTRIBUTED")
-        predicted = cv2.transform(moving[:, None, :].astype(np.float32), transform)[:, 0, :]
+        predicted: np.ndarray[Any, Any] = cv2.transform(
+            moving[:, None, :].astype(np.float32), transform
+        )[:, 0, :]
         residuals = np.linalg.norm(predicted - reference, axis=1)
         controls = [
             {
@@ -1042,6 +1060,8 @@ def register_alignment_routes(
         registrations[slide_id] = {
             "status": "ready",
             "provenance": "manual",
+            "sourceVersion": members[slide_id].sha256,
+            "anchorVersion": members[anchor_id].sha256,
             "anchorSlideId": anchor_id,
             "coordinateReferenceId": anchor_id,
             "movingToReference": transform.tolist(),
