@@ -7,6 +7,37 @@ from pathlib import Path
 SCANNER = Path(__file__).resolve().parents[2] / "scripts" / "check_public_repository.py"
 
 
+def test_recorded_opencv_version_does_not_exempt_network_addresses() -> None:
+    from scripts.check_public_repository import scan_text
+
+    version = ".".join(("4", "14", "0", "94"))
+    receipt = "docs/supply-chain/software-inventories/build.cdx.json"
+    assert scan_text(receipt, f'"version": "{version}"') == []
+    assert scan_text(receipt, f'"purl": "pkg:pypi/opencv-python-headless@{version}"') == []
+    assert scan_text("deploy/backend-requirements.txt", f"opencv-python-headless=={version}") == []
+    assert scan_text(receipt, f'"url": "https://{version}/opencv-python-headless@{version}"')
+    assert scan_text(receipt, f'"host": "{version}"')
+    assert scan_text("config.json", f'"version": "{version}"')
+    assert scan_text(receipt, '"version": "' + ".".join(("8", "8", "8", "8")) + '"')
+
+
+def test_historical_dash_repair_is_bound_to_exact_blob(monkeypatch) -> None:
+    import pytest
+
+    from scripts import check_public_repository as scanner
+
+    relative = "docs/alignment-validation.md"
+    raw = subprocess.check_output(
+        ["git", "show", f"965956c5d4fd:{relative}"], cwd=SCANNER.parent.parent,
+    )
+    monkeypatch.setattr(scanner, "git", lambda *_: subprocess.CompletedProcess([], 0, stdout=raw))
+    expected = raw.replace(bytes([0x96]), "\u2013".encode()).decode()
+    assert scanner.text_at_commit("historical", relative) == expected
+    raw += b"changed"
+    with pytest.raises(UnicodeDecodeError):
+        scanner.text_at_commit("historical", relative)
+
+
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
