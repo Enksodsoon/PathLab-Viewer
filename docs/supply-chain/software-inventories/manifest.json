@@ -2,27 +2,27 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "c8d5506be63ac3a4dd72a269024a54420ce8d2f3be682a0465b3589162dd47ce",
-      "sizeBytes": 185455
+      "sha256": "a032ba6d6e32cc75a4b85466e7fcf20e0d84a3beb590a26a9be68aea285e8de7",
+      "sizeBytes": 185783
     },
     {
       "path": "build.cdx.json",
-      "sha256": "c967bc6609b96b13ba3bb1553f1cb3770595787a6f43361433a47eb1f67a6cb6",
+      "sha256": "bcd240d5f64443613c74355a51ce5afaf69694130c744a6d961aadaa9cf5255e",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "11a5fe4c583b1ecb26fcd45b7cfaa43345c389c8d67e312216d595b2a0577c0b",
+      "sha256": "2e7756e69f3fbbde11df093fdae34494a0945a9a552c9659aa5882c75d7282da",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "93ffa5f13ca232dc271eea4e4545236cfbf223b2e2cb2eac5b23c40a680b5cf9",
+      "sha256": "a408ae9646807281dadcebbe195ce80bcbf8b7a46da3398363a72f096bb1fe16",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "858a06173f714ce0f2b18517ccc3f20f6af06b0435b633ee36d74765865ab9a6",
+      "sha256": "f8973ced76d5abe33018d5b56ece50ba11018865711beaacc6970a1bfccc6f34",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-20T09:45:48Z",
+  "generatedAt": "2026-09-22T08:23:01Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -51,10 +51,10 @@
       "sizeBytes": 11357
     },
     {
-      "gitBlob": "fd312c719b36b17ecb2955a91fa6d507f9e0cae5",
+      "gitBlob": "8dee2ec3ad43713b9dfca71d85faf3e802df5186",
       "path": "NOTICE",
-      "sha256": "2e0c4ec3c41b544f893e251afbd969253b1e25c54ff00e04658a833f468d33f5",
-      "sizeBytes": 485
+      "sha256": "9034ea9324073b5295a6b6d2e13c277452c1f951fefcd5fc0e5ff673cb34f531",
+      "sizeBytes": 813
     },
     {
       "gitBlob": "25a827bbb94da906d8cf46d1354712fd96a78f26",
@@ -105,10 +105,10 @@
       "sizeBytes": 671
     },
     {
-      "gitBlob": "16e7af425bf2ad01837bb050f0cb22ee375c8d69",
+      "gitBlob": "aac5ca3a298fd2a769fbd1efc1a500875e0d2456",
       "path": "deploy/compose.yaml",
-      "sha256": "74b2866d76ffa29ad47bd444e725b03364d5eafd59840cc5cda056ed5da1051e",
-      "sizeBytes": 9921
+      "sha256": "754d8399be4af154dda739ba9c11b2e8f83b7621d4f9d2d34fa1cf0fac2641c6",
+      "sizeBytes": 11187
     },
     {
       "gitBlob": "cbec5c761cd48458bc2574c74a4b96d9cc588888",
@@ -141,10 +141,10 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "08dcd5fd9317a81610a66244997822a6f8d94083",
+      "gitBlob": "645e742bc7ba0da0cd7404beabe5b9d65d075f38",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "042ed4df7ab677c8ee0a0e403392e9f25660e66bf0e8727b05345031a1074c4f",
-      "sizeBytes": 40757
+      "sha256": "8d0879c749601b15add162a6711ba102f2953490e1f7a5ab0fb110d7ea024ddc",
+      "sizeBytes": 41046
     },
     {
       "gitBlob": "ce6986e98ed5ed8d8dcfd1aaad0ba40135c4826a",
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "d4f182ba5d5ad28031fdc6adfd5813072a1960e7",
-  "subjectTree": "34ff6293d90ed42e5c6e9e981ca9e9bf603eae7a"
+  "subjectCommit": "4c255238e4a20ef8d46f936e36c1b92742e20f65",
+  "subjectTree": "fbef20aeac9671d7901bc4ab53a95cb3b12da52c"
 }

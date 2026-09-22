@@ -16,6 +16,12 @@ license, and notice terms; the root Apache-2.0 license does not relicense them.
 Distributions must preserve all applicable third-party attributions and notices
 identified by the repository supply-chain records.
 
+The optional alignment image integrates VALIS (MIT; license text in
+deploy/third_party/VALIS_LICENSE.txt). HISAlign declares MIT at its pinned
+source revision, but that revision omits the linked license file; private
+evaluation is allowed by project policy while distribution remains blocked
+until the notice text is resolved.
+
 RECORDED COMPONENTS
 -------------------
 
@@ -6022,7 +6028,7 @@ Notice files: NONE RECORDED
 
 ID: asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons
 Name: npm:@phosphor-icons/react@2.1.10#imported-svg-icons
-Version: aad76bf66a9b8262
+Version: b8f7bafac3221732
 License: MIT
 Admission: ADMITTED
 Source: Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.
