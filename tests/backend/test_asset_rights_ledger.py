@@ -103,8 +103,8 @@ def test_changed_asset_hash_is_rejected() -> None:
 def test_imported_icon_subset_is_individually_hash_bound() -> None:
     ledger = json.loads(DEFAULT_OUTPUT.read_text())
     icon_set = next(record for record in ledger["records"] if record["kind"] == "package-icon-set")
-    assert len(icon_set["embeddedAssets"]) == 150
-    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 150
+    assert len(icon_set["embeddedAssets"]) == 152
+    assert len({item["name"] for item in icon_set["embeddedAssets"]}) == 152
     assert all(len(item["contentSha256"]) == 64 for item in icon_set["embeddedAssets"])
 
 
