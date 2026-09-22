@@ -185,8 +185,8 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
     warped: np.ndarray[Any, Any] = cv2.warpAffine(moving.mask, transform, (width, height))
     dice = (
         2
-        * np.count_nonzero((warped > 0) & (reference.mask > 0))
-        / max(1, np.count_nonzero(warped) + np.count_nonzero(reference.mask))
+        * int(np.count_nonzero((warped > 0) & (reference.mask > 0)))
+        / max(1, int(np.count_nonzero(warped)) + int(np.count_nonzero(reference.mask)))
     )
     if dice < 0.65 or np.linalg.det(np.asarray(transform[:, :2], dtype=np.float64)) <= 0:
         raise AlignmentRejected("Needs refinement: coarse map has insufficient tissue support")

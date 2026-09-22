@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import os
 import re
@@ -237,12 +238,12 @@ def materialize_local_openslide_tile_from_root(
         source = Path(settings["source"])
         if not source.is_absolute() or not source.is_file():
             raise ValueError("Local WSI source is unavailable")
-        import openslide
-        from openslide.deepzoom import DeepZoomGenerator
+        openslide = importlib.import_module("openslide")
+        deepzoom = importlib.import_module("openslide.deepzoom")
 
         slide = openslide.OpenSlide(str(source))
         try:
-            generator = DeepZoomGenerator(
+            generator = deepzoom.DeepZoomGenerator(
                 slide,
                 tile_size=int(settings.get("tileSize", 1024)),
                 overlap=1,
