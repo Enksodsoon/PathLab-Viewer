@@ -257,7 +257,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63",
+      "contentSha256": "b8f7bafac3221732addfdceba9d0df76de1da95294ba3f6432afbfb1473ea1a6",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -635,6 +635,10 @@
           "name": "LinkBreak"
         },
         {
+          "contentSha256": "2c5f9218d9c8dec2f452fd8e8c3a9b345b236796b4de3040f783be3127677b21",
+          "name": "LinkSimple"
+        },
+        {
           "contentSha256": "450db6d260cbc58a8937ad8198e232dc247abd75bb0a26391cb8d77389f4f9c6",
           "name": "List"
         },
@@ -775,6 +779,10 @@
           "name": "SquaresFour"
         },
         {
+          "contentSha256": "2cf6663628f086ddc1731c9722bee3c960b54acaaf1235829a032d703cab5031",
+          "name": "Stack"
+        },
+        {
           "contentSha256": "d039e9a0c3405f862ff3102c9b14115076ee7625a934502545f27577b18146d1",
           "name": "Stethoscope"
         },
@@ -871,7 +879,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 470995,
+      "sizeBytes": 477818,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -941,5 +949,5 @@
   "releaseAdmission": "ADMITTED",
   "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "0f733bc140fbfc093a2d620f91d0e233296e39a6"
+  "subjectCommit": "cd272573e7621e20efe51b1df0e312083413932e"
 }
