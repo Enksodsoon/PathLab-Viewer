@@ -2082,6 +2082,8 @@ button.library-storage-meter:focus-visible {
   position: fixed;
   z-index: 1000;
   width: min(248px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
   display: grid;
   gap: 3px;
   padding: 7px;

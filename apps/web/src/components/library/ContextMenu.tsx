@@ -86,6 +86,7 @@ export function ContextMenu({
     } else return
     event.preventDefault()
     items[next]?.focus({ preventScroll: true })
+    items[next]?.scrollIntoView({ block: 'nearest' })
   }
 
   return (
