@@ -1,0 +1,9 @@
+{
+  "scope": "Synthetic paired Desktop content, actual uvicorn/h11 loopback TCP and native FileResponse",
+  "regression": "tests/backend/test_desktop_content_disconnect.py",
+  "result": "1 passed",
+  "fixture": {"diskBytes": 8388608, "writeChunkBytes": 1048576},
+  "observations": {"httpStatus": 200, "actualSourceOpened": true, "closedAfterEarlyDisconnectBeforeGarbageCollection": true},
+  "controls": ["cyclic garbage collection disabled and prior state restored in finally", "actual builtin.open descriptor observed without wrapping or faking file backend", "bounded server startup, disconnect and shutdown waits", "existing range/auth/cache/hash contract suite remains authoritative"],
+  "qualification": "Deterministic disconnect cleanup hardening locally repaired; no permanent FD leak or production outage demonstrated; no deployed or all-CI claim"
+}

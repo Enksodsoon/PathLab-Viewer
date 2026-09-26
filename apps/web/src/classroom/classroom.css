@@ -1865,3 +1865,11 @@
 @media(max-width:640px){.classroom-activity-tray{top:82px;max-height:calc(100svh - 164px)}.classroom-hud-label{font-size:11px}.classroom-teaching-tools button{padding:8px}.classroom-shell .classroom-topbar{position:relative;gap:8px}}
 
 .classroom-question-composer{overflow:auto}
+
+@media (max-width: 640px) {
+  .classroom-shell--teacher .classroom-activity-tray {
+    top: auto;
+    bottom: 16px;
+    max-height: calc(100svh - 240px);
+  }
+}

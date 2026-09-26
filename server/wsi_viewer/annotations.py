@@ -238,7 +238,7 @@ AnnotationOperation = Annotated[
 class EnsuredLayerInput(AnnotationModel):
     id: UUID
     name: str = Field(min_length=1, max_length=160)
-    sort_order: StrictInt = Field(default=0, alias="sortOrder", ge=0)
+    sort_order: StrictInt = Field(default=0, alias="sortOrder", ge=0, le=2**31 - 1)
     visible: StrictBool = True
     locked: StrictBool = False
     opacity: StrictFiniteFloat = Field(default=1.0, ge=0, le=1)
@@ -270,7 +270,7 @@ class LayerMutationRequest(AnnotationModel):
     mutation_id: UUID = Field(alias="mutationId")
     base_version: StrictInt = Field(alias="baseVersion", ge=0)
     name: str = Field(min_length=1, max_length=160)
-    sort_order: StrictInt = Field(default=0, alias="sortOrder", ge=0)
+    sort_order: StrictInt = Field(default=0, alias="sortOrder", ge=0, le=2**31 - 1)
     visible: StrictBool = True
     locked: StrictBool = False
     opacity: StrictFiniteFloat = Field(default=1.0, ge=0, le=1)
@@ -282,7 +282,7 @@ class LayerUpdateRequest(AnnotationModel):
     mutation_id: UUID = Field(alias="mutationId")
     base_version: StrictInt = Field(alias="baseVersion", ge=0)
     name: str | None = Field(default=None, min_length=1, max_length=160)
-    sort_order: StrictInt | None = Field(default=None, alias="sortOrder", ge=0)
+    sort_order: StrictInt | None = Field(default=None, alias="sortOrder", ge=0, le=2**31 - 1)
     visible: StrictBool | None = None
     locked: StrictBool | None = None
     opacity: StrictFiniteFloat | None = Field(default=None, ge=0, le=1)
@@ -421,7 +421,7 @@ class PathLabSlide(AnnotationModel):
 class PathLabLayer(AnnotationModel):
     id: UUID
     name: str = Field(min_length=1, max_length=160)
-    sort_order: StrictInt = Field(alias="sortOrder", ge=0)
+    sort_order: StrictInt = Field(alias="sortOrder", ge=0, le=2**31 - 1)
     visible: StrictBool
     locked: StrictBool
     opacity: StrictFiniteFloat = Field(ge=0, le=1)

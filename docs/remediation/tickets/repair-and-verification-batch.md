@@ -2,7 +2,7 @@
 
 Parent: ../MAP.md
 Labels: wayfinder:task
-Status: in progress
+Status: merged; production qualification pending
 Assignee: Codex
 
 ## Evidence-backed scope
@@ -11,16 +11,20 @@ Current-code reproductions cover upload commit rollback and renewal identity, fo
 
 Four journeys reuse existing components and routes: Library commands/QuickLook/client navigation, a persistent authenticated upload dock, Classroom stage/tray/anchored questions, and Study invitation/task/confidence controls. Publication and feedback policy remain authoritative.
 
-## Validation so far
+## Historical validation checkpoints
 
 Focused backend and frontend regressions pass. Classroom/Study browser campaign passed 12 scenarios across Chromium, Firefox, WebKit and mobile Chromium; 72 synthetic screenshots retained in ignored var/remediation-evidence/classroom-study-matrix. Notebook persistence passed four engines, including 105 competing writes against the existing 100-record limit. Library/upload matrix passed twelve scenarios across the same four browser targets (eleven together, then one bounded WebKit retry), including real streamed TUS bytes and processing acknowledgment. Fresh frontend lint/build and backend mypy pass; scoped Ruff checks pass. Native loopback full-stack passed with synthetic OME/TUS/worker/tiles. These checks precede the remaining edits and require final exact-head verification.
 
 The first broad backend and frontend runs overlapped repairs and are diagnostic receipts, not a pristine baseline. Do not label targeted checks, routed synthetic browser fixtures, or build success as production qualification.
 
-## Remaining gates
+## Historical remaining gates
 
 Finish report reconciliation and independent regressions, fresh full suites, native full-stack, PostgreSQL, lint/type checks, inventories, protected required checks and review. No PR, merge, deployment or production verification is complete.
 
 Local Docker daemon is unavailable; real PostgreSQL integration awaits required CI. Native full-stack passed using an ignored wrapper for pinned pnpm11.9.0. The broad backend diagnostic had six failures: three commit-bound inventory gates await regenerated receipts, the navigation query regression and existing-share trash regression were repaired and scoped checks pass, and the Windows capacity harness deadline still fails locally during setup. The existing resource deadline remains unchanged; required Linux CI must pass. The broad frontend run loaded older modules during edits; its four failures have passing focused regressions. Neither broad run is a final green suite.
 
 Recent repairs also cover saved metadata/date/tag filters and manual cursor paging, post-trim identity/display-name validation, bounded legacy username streaming, deletion sync events, optional notebook failures, acknowledgment-only Student pins, drawing scope on guided slide changes, serialized invitation polling, and progress CSV download/404. Future sharing additions remain unavailable in the UI: only currently reviewed slides are published.
+
+## Current release state
+
+PR #267 merged as `3a46ad525465fc49dc2edd2b50243a9dec430cc4` after all nine deployment-required checks succeeded on `bd3ab41d16cb5387b4f86f0899067467aa615e4b`. Later main CI exposed an unavailable immutable asset subject after squash; the integrity follow-up restores all inventory subject objects before strict validation. Earlier diagnostic counts and unfinished-PR statements above are historical checkpoints. The follow-up also closes reconciled defects and current browser regressions. No protected production deployment or authenticated live qualification is claimed.

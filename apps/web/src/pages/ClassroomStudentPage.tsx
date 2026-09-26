@@ -43,6 +43,7 @@ import {
 import {
   applyClassroomStreamEvent,
   createClassroomStreamCursor,
+  createClassroomEphemeralBuffer,
   noteClassroomSnapshot,
 } from '../classroom/streamSync'
 import { Brand } from '../components/Brand'
@@ -118,6 +119,8 @@ export function ClassroomStudentPage() {
   const csrfRef = useRef(csrfToken)
   const streamCursor = useRef(createClassroomStreamCursor(0))
   const snapshotReconciler = useRef<ClassroomSnapshotReconciler | null>(null)
+  const ephemeralBuffer = useRef(createClassroomEphemeralBuffer())
+  const replayingEphemeral = useRef(false)
   const snapshotSession = useRef('')
   const guideSwitchTimer = useRef<number | null>(null)
   const pendingGuideSlideId = useRef<string | null>(null)
@@ -192,6 +195,7 @@ export function ClassroomStudentPage() {
   const refresh = useCallback((id: string, minimumVersion = 0): Promise<void> => {
     if (!snapshotReconciler.current || snapshotSession.current !== id) {
       snapshotReconciler.current?.dispose()
+      if (snapshotSession.current && snapshotSession.current !== id) ephemeralBuffer.current.clear()
       snapshotSession.current = id
       snapshotReconciler.current = createClassroomSnapshotReconciler(
         () => studentState(id),
@@ -205,6 +209,8 @@ export function ClassroomStudentPage() {
           if (followRef.current && !drawingModeRef.current && next.presenter.slideId) {
             selectSlide(next.presenter.slideId)
           }
+          replayingEphemeral.current = true
+          try { ephemeralBuffer.current.drain() } finally { replayingEphemeral.current = false }
         },
       )
     }
@@ -224,6 +230,14 @@ export function ClassroomStudentPage() {
     const recover = (minimumVersion = 0) => {
       void refresh(sessionId, minimumVersion).catch(() => undefined)
     }
+    const buffered = ephemeralBuffer.current
+    let activeReplay: (() => void) | null = null
+    const listen = (source: EventSource, type: string, handler: (event: Event) => void) => {
+      source.addEventListener(type, (event) => {
+        activeReplay = () => handler(event)
+        try { handler(event) } finally { activeReplay = null }
+      })
+    }
     const sequence = (
       event: Event,
       coalescible = false,
@@ -231,6 +245,10 @@ export function ClassroomStudentPage() {
     ): Record<string, unknown> | null => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
+        if (replayingEphemeral.current) {
+          return payload.hubEpoch === streamCursor.current.hubEpoch ? payload : null
+        }
+        const waitingForSnapshot = Boolean(streamCursor.current.needsSnapshot)
         const decision = applyClassroomStreamEvent(
           streamCursor.current,
           event.type,
@@ -238,6 +256,8 @@ export function ClassroomStudentPage() {
           { coalescible, terminal },
         )
         if (decision === 'resync') {
+          if (activeReplay && buffered.hold(event.type, activeReplay)
+            && waitingForSnapshot) return null
           recover(typeof payload.stateVersion === 'number' ? payload.stateVersion : 0)
           return null
         }
@@ -251,15 +271,16 @@ export function ClassroomStudentPage() {
       if (cancelled) return
       const source = new EventSource(`/api/v1/classroom/sessions/${sessionId}/events`)
       events = source
-      source.addEventListener('stream-ready', (event) => {
+      listen(source, 'stream-ready', (event) => {
         sequence(event)
         if (stableTimer !== null) window.clearTimeout(stableTimer)
         stableTimer = window.setTimeout(() => { attempt = 0 }, 5000)
       })
-      source.addEventListener('presenter', (event) => {
+      listen(source, 'presenter', (event) => {
         const payload = sequence(event, true)
         if (!payload || typeof payload.presenterSequence !== 'number'
           || typeof payload.slideId !== 'string' || !payload.viewport) return
+        if (payload.presenterSequence < (presenterRef.current?.sequence ?? 0)) return
         const nextPresenter: StudentState['presenter'] = {
           sequence: payload.presenterSequence as number,
           slideId: payload.slideId as string,
@@ -290,8 +311,8 @@ export function ClassroomStudentPage() {
         applyPresenterViewport(target, slide, nextPresenter.viewport)
         window.setTimeout(() => { suppressPublish.current = false }, 0)
       })
-      source.addEventListener('control', (event) => { if (sequence(event)) recover() })
-      source.addEventListener('pointer', (event) => {
+      listen(source, 'control', (event) => { if (sequence(event)) recover() })
+      listen(source, 'pointer', (event) => {
         const payload = sequence(event, true)
         if (!payload || typeof payload.slideId !== 'string'
           || typeof payload.style !== 'string' || typeof payload.x !== 'number'
@@ -300,12 +321,12 @@ export function ClassroomStudentPage() {
         teachingOverlayRef.current?.setPointer(nextPointer)
         if (stateRef.current) stateRef.current.teacherPointer = nextPointer
       })
-      source.addEventListener('pointer-removed', (event) => {
+      listen(source, 'pointer-removed', (event) => {
         if (!sequence(event)) return
         teachingOverlayRef.current?.setPointer(null)
         if (stateRef.current) stateRef.current.teacherPointer = null
       })
-      source.addEventListener('teaching-annotation-added', (event) => {
+      listen(source, 'teaching-annotation-added', (event) => {
         const payload = sequence(event)
         const annotation = payload?.annotation as StudentState['teachingAnnotations'][number] | undefined
         if (!annotation?.id) return
@@ -317,7 +338,7 @@ export function ClassroomStudentPage() {
           ].slice(-40),
         } : current)
       })
-      source.addEventListener('teaching-annotation-removed', (event) => {
+      listen(source, 'teaching-annotation-removed', (event) => {
         const payload = sequence(event)
         if (!payload || typeof payload.annotationId !== 'string') return
         setState((current) => current ? {
@@ -327,13 +348,14 @@ export function ClassroomStudentPage() {
           ),
         } : current)
       })
-      source.addEventListener('teaching-annotations-cleared', (event) => {
+      listen(source, 'teaching-annotations-cleared', (event) => {
         if (!sequence(event)) return
         setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
       })
-      source.addEventListener('session-ended', (event) => {
+      listen(source, 'session-ended', (event) => {
         const payload = sequence(event, false, true)
         if (!payload) return
+        buffered.clear()
         const inviteId = stateRef.current?.session.publicId
         if (payload.phase === 'revoked') {
           setState(null)
@@ -345,7 +367,7 @@ export function ClassroomStudentPage() {
         setMessage('The live class ended. Independent review remains available.')
         navigate(inviteId ? `/classroom/invite/${inviteId}` : '/classroom', { replace: true })
       })
-      source.addEventListener('question-removed', (event) => {
+      listen(source, 'question-removed', (event) => {
         const payload = sequence(event)
         if (!payload || typeof payload.questionId !== 'string') return
         setState((current) => current ? {
@@ -355,7 +377,7 @@ export function ClassroomStudentPage() {
           ),
         } : current)
       })
-      source.addEventListener('error', () => {
+      listen(source, 'error', () => {
         source.close()
         if (events === source) events = null
         if (cancelled || retryTimer !== null) return
@@ -369,6 +391,7 @@ export function ClassroomStudentPage() {
     }
     connect()
     return () => {
+      buffered.clear()
       cancelled = true
       events?.close()
       if (retryTimer !== null) window.clearTimeout(retryTimer)

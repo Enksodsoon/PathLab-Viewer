@@ -3,12 +3,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import os
 import shutil
 import uuid
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as OrmSession
 
 from .desktop_sync import record_sync_event, revision_for
@@ -17,6 +19,8 @@ from .models import AuditEvent, DesktopCredential, DesktopIngest, Slide
 from .ome import OmeMetadata, validate_ome_tiff
 from .ome_tile_index import OmeTileIndex, OmeTileIndexError, build_ome_tile_index
 from .storage import StorageLayout
+
+logger = logging.getLogger(__name__)
 
 
 class OmeIngestError(RuntimeError):
@@ -47,9 +51,7 @@ def desktop_quarantine_path(storage: StorageLayout, ingest_id: str) -> Path:
     return storage.root / "desktop-ingest" / "quarantine" / f"{ingest_id}.ome.tif.failed"
 
 
-def serialize_ome_tile_index(
-    index: OmeTileIndex, *, jpeg_quality: int | None = None
-) -> bytes:
+def serialize_ome_tile_index(index: OmeTileIndex, *, jpeg_quality: int | None = None) -> bytes:
     quality = index.jpeg_quality if jpeg_quality is None else jpeg_quality
     if not 1 <= quality <= 100:
         raise OmeIngestError("OME_JPEG_QUALITY_INVALID")
@@ -122,9 +124,7 @@ def _validate_profile(ingest: DesktopIngest, index: OmeTileIndex) -> None:
     if ingest.ome_width != index.width or ingest.ome_height != index.height:
         raise OmeIngestError("OME_GEOMETRY_MISMATCH")
     pyramid_factor = 2
-    if index.pyramid_factors != tuple(
-        pyramid_factor**level for level in range(len(index.levels))
-    ):
+    if index.pyramid_factors != tuple(pyramid_factor**level for level in range(len(index.levels))):
         raise OmeIngestError("OME_PYRAMID_FACTOR_UNSUPPORTED")
     if index.tile_width != 512 or index.tile_height != 512:
         raise OmeIngestError("OME_TILE_SIZE_UNSUPPORTED")
@@ -164,7 +164,10 @@ def install_ome_ingest(
     database: OrmSession,
     storage: StorageLayout,
 ) -> None:
+    ingest_id = ingest.id
+    slide_id: str | None = None
     destination: Path | None = None
+    owned_directory = False
     try:
         if source.stat().st_size != ingest.package_length:
             raise OmeIngestError("OME_LENGTH_MISMATCH")
@@ -175,6 +178,7 @@ def install_ome_ingest(
             raise OmeIngestError("OME_METADATA_GEOMETRY_MISMATCH")
 
         slide = Slide(
+            id=str(uuid.uuid4()),
             display_name=ingest.display_name,
             original_filename=f"{ingest.display_name}.ome.tif",
             source_bytes=ingest.package_length,
@@ -187,20 +191,21 @@ def install_ome_ingest(
             sha256=index.source_sha256,
             slide_metadata=_metadata_json(ingest, metadata, index),
         )
-        database.add(slide)
-        database.flush()
-        paths = storage.for_slide(slide.id)
+        slide_id = slide.id
+        paths = storage.for_slide(slide_id)
         destination = paths.original
         destination.parent.mkdir(parents=True, exist_ok=False)
+        owned_directory = True
         os.replace(source, destination)
         if _stable_file_sha256(destination) != index.source_sha256:
             raise OmeIngestError("OME_PERSISTED_SHA_MISMATCH")
         _write_index_atomic(
             paths.ome_index,
-            serialize_ome_tile_index(
-                index, jpeg_quality=ingest.ome_jpeg_quality or 75
-            ),
+            serialize_ome_tile_index(index, jpeg_quality=ingest.ome_jpeg_quality or 75),
         )
+        # File verification can read gigabytes; acquire the writer only after it finishes.
+        database.add(slide)
+        database.flush()
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
         ingest.error_code = None
@@ -216,19 +221,52 @@ def install_ome_ingest(
             )
         )
         database.commit()
-    except (OSError, OmeTileIndexError, OmeIngestError, ValueError) as error:
+    except (OSError, OmeTileIndexError, OmeIngestError, ValueError, SQLAlchemyError) as error:
         database.rollback()
-        quarantine = desktop_quarantine_path(storage, ingest.id)
-        quarantine.parent.mkdir(parents=True, exist_ok=True)
-        candidate = destination if destination is not None and destination.exists() else source
+        # COMMIT can succeed while its acknowledgement fails. Query durable state
+        # in a fresh transaction before touching any installed bytes.
+        if (
+            slide_id is not None
+            and database.get(Slide, slide_id, populate_existing=True) is not None
+        ):
+            logger.warning(
+                "DESKTOP_OME_COMMIT_ACK_FAILED ingest_id=%s error_type=%s; "
+                "installed slide retained",
+                ingest_id,
+                type(error).__name__,
+            )
+            return
+        quarantine = desktop_quarantine_path(storage, ingest_id)
+        candidate = (
+            destination
+            if owned_directory and destination is not None and destination.exists()
+            else source
+        )
         if candidate.exists():
             try:
+                quarantine.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(candidate, quarantine)
-            except OSError:
-                candidate.unlink(missing_ok=True)
-        if destination is not None:
-            shutil.rmtree(destination.parent, ignore_errors=True)
-        failed = database.get(DesktopIngest, ingest.id)
+            except OSError as quarantine_error:
+                logger.warning(
+                    "DESKTOP_OME_QUARANTINE_FAILED ingest_id=%s error_type=%s; source retained",
+                    ingest_id,
+                    type(quarantine_error).__name__,
+                )
+        if owned_directory and destination is not None:
+            if destination.exists():
+                # Quarantine failed: retain the only source copy in its private
+                # UUID directory, removing only the generated uncommitted index.
+                try:
+                    destination.with_name("tile-index.json").unlink(missing_ok=True)
+                except OSError as cleanup_error:
+                    logger.warning(
+                        "DESKTOP_OME_INDEX_CLEANUP_FAILED ingest_id=%s error_type=%s",
+                        ingest_id,
+                        type(cleanup_error).__name__,
+                    )
+            else:
+                shutil.rmtree(destination.parent, ignore_errors=True)
+        failed = database.get(DesktopIngest, ingest_id, populate_existing=True)
         if failed is not None:
             failed.status = "failed"
             failed.error_code = str(error)[:80] or "OME_INGEST_FAILED"

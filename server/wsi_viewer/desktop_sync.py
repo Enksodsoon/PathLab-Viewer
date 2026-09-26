@@ -17,9 +17,9 @@ def revision_for(value: datetime) -> int:
 
 
 def encode_library_cursor(slide: Slide) -> str:
-    payload = json.dumps(
-        [slide.updated_at.isoformat(), slide.id], separators=(",", ":")
-    ).encode("utf-8")
+    payload = json.dumps([slide.updated_at.isoformat(), slide.id], separators=(",", ":")).encode(
+        "utf-8"
+    )
     return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
 
 
@@ -31,6 +31,30 @@ def decode_library_cursor(value: str) -> tuple[datetime, str]:
             raise ValueError
         return as_utc(datetime.fromisoformat(str(decoded[0]))), str(decoded[1])
     except (ValueError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("DESKTOP_SYNC_CURSOR_INVALID") from error
+
+
+def encode_library_page_cursor(slide_cursor: str, folder_cursor: str) -> str:
+    payload = json.dumps(
+        {"items": slide_cursor, "folders": folder_cursor}, separators=(",", ":")
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+
+
+def decode_library_page_cursor(value: str) -> tuple[str, str]:
+    try:
+        decoded = json.loads(base64.urlsafe_b64decode(value + "=" * (-len(value) % 4)))
+        if isinstance(decoded, dict):
+            items, folders = decoded["items"], decoded["folders"]
+            if not isinstance(items, str) or not isinstance(folders, str) or len(folders) > 64:
+                raise ValueError
+            if items:
+                decode_library_cursor(items)
+            return items, folders
+        # Existing opaque slide cursors remain valid during rolling upgrades.
+        decode_library_cursor(value)
+        return value, ""
+    except (ValueError, TypeError, KeyError) as error:
         raise ValueError("DESKTOP_SYNC_CURSOR_INVALID") from error
 
 

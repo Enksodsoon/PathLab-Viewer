@@ -14,6 +14,7 @@ import { useParams } from 'react-router-dom'
 
 import { getSharedManifest } from '../api'
 import { Loader } from '../components/Loader'
+import { ignoresShortcut } from '../components/library/viewerNavigation'
 import { OpenSeadragonViewer, type ViewerHandle } from '../components/OpenSeadragonViewer'
 import { ThemeControl } from '../theme/ThemeControl'
 import type { SharedManifest, SharedSlide } from '../types'
@@ -150,13 +151,14 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
 
   useLayoutEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      const target = event.target
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
+      if (event.defaultPrevented || ignoresShortcut(event.target) || event.altKey || event.ctrlKey || event.metaKey) return
       if (event.key === 'ArrowRight') select(position + 1)
-      if (event.key === 'ArrowLeft') select(position - 1)
-      if (event.key === '+' || event.key === '=') controls.current?.zoomIn()
-      if (event.key === '-') controls.current?.zoomOut()
-      if (event.key === 'Escape') setDrawerOpen(false)
+      else if (event.key === 'ArrowLeft') select(position - 1)
+      else if (event.key === '+' || event.key === '=') controls.current?.zoomIn()
+      else if (event.key === '-') controls.current?.zoomOut()
+      else if (event.key === 'Escape') setDrawerOpen(false)
+      else return
+      event.preventDefault()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)

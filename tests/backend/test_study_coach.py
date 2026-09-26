@@ -32,9 +32,10 @@ def _client(
     ai_enabled: bool = False,
     pilot_enabled: bool = False,
     study_enabled: bool = True,
+    database_url: str | None = None,
 ) -> TestClient:
     settings = Settings(
-        database_url=f"sqlite:///{tmp_path / 'study.sqlite3'}",
+        database_url=database_url or f"sqlite:///{tmp_path / 'study.sqlite3'}",
         data_root=tmp_path / "data",
         secret_key="study-test-secret-that-is-long-enough",
         secure_cookies=False,

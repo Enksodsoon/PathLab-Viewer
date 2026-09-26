@@ -301,3 +301,20 @@ test('keeps mobile offline status clear of the loading control', async ({ page }
     expect(statusBox.y + statusBox.height).toBeLessThanOrEqual(844)
   }
 })
+
+
+test('starts a newly selected shared slide at its native rotation', async ({ page }) => {
+  const rotation = page.getByRole('button', { name: /Open rotation controls/ })
+  await rotation.click()
+  await page.getByRole('button', { name: 'Rotate to 90 degrees' }).click()
+  await expect(rotation).toHaveAccessibleName('Open rotation controls. Current rotation 90 degrees')
+  await page.getByRole('button', { name: 'Next slide' }).click()
+  await expect(page.getByRole('heading', { name: 'Normal colon' })).toBeVisible()
+  const actualRotation = await page.evaluate(async () => {
+    const resource = performance.getEntriesByType('resource').find((entry) => entry.name.includes('/openseadragon.js'))!
+    const { default: OpenSeadragon } = await import(resource.name)
+    return OpenSeadragon.getViewer(document.querySelector('.openseadragon-container')!.parentElement).viewport.getRotation()
+  })
+  expect(actualRotation).toBe(0)
+  await expect(rotation).toHaveAccessibleName('Open rotation controls. Current rotation 0 degrees')
+})

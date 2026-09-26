@@ -828,6 +828,10 @@ export function AnnotationWorkspace({
         autosaveRef.current = saver
         unsubscribe = store.subscribe((next) => {
           if (!active) return
+          if ([...(latestStateRef.current?.selection ?? [])][0] !== [...next.selection][0]) {
+            setRevisions([])
+            setSelectedRevisionId('')
+          }
           latestStateRef.current = next
           setStoreState(next)
           const signature = JSON.stringify(next.pendingMutationBatches)
@@ -1409,8 +1413,10 @@ export function AnnotationWorkspace({
       requireCurrentWorkspace(generation, expectedStore)
       const current = expectedStore?.getState().annotations.get(primary.id)
       if (!current) throw new Error('Selected annotation is no longer available')
+      if ([...(expectedStore?.getState().selection ?? [])][0] !== current.id) return
       const history = await services.revisions(current.id)
       requireCurrentWorkspace(generation, expectedStore)
+      if ([...(expectedStore?.getState().selection ?? [])][0] !== current.id) return
       const bounded = history.items.slice(0, 25)
       setRevisions(bounded)
       setSelectedRevisionId('')
@@ -1437,6 +1443,7 @@ export function AnnotationWorkspace({
       requireCurrentWorkspace(generation, expectedStore)
       const current = expectedStore?.getState().annotations.get(primary.id)
       if (!current) throw new Error('Selected annotation is no longer available')
+      if ([...(expectedStore?.getState().selection ?? [])][0] !== current.id) return
       await services.restoreRevision(current.id, selectedRevisionId, {
         mutationId: crypto.randomUUID(),
         baseVersion,

@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
+from math import isfinite
 from time import perf_counter
 from typing import Any, Literal
 from uuid import UUID
@@ -393,6 +394,15 @@ def register_annotation_routes(
             assert min_y is not None
             assert max_x is not None
             assert max_y is not None
+            if (
+                not all(isfinite(value) for value in (min_x, min_y, max_x, max_y))
+                or min_x > max_x
+                or min_y > max_y
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "ANNOTATION_INVALID_VIEWPORT"},
+                )
             predicates = (
                 Annotation.bbox_max_x >= min_x,
                 Annotation.bbox_max_y >= min_y,

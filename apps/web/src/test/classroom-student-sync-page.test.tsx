@@ -6,6 +6,7 @@ import { ClassroomStudentPage } from '../pages/ClassroomStudentPage'
 import { classroomGuideDelay } from '../classroom/reconnect'
 import { ThemeProvider } from '../theme/ThemeProvider'
 
+const teachingOverlay = vi.hoisted(() => ({ setPointer: vi.fn() }))
 const classroomApi = vi.hoisted(() => ({ studentState: vi.fn() }))
 const notebook = vi.hoisted(() => ({
   listEntries: vi.fn(),
@@ -23,6 +24,14 @@ vi.mock('../classroom/notebook', async (importOriginal) => ({
 vi.mock('../components/OpenSeadragonViewer', () => ({
   OpenSeadragonViewer: () => <div data-testid="classroom-viewer" />,
 }))
+
+vi.mock('../classroom/ClassroomTeachingOverlays', async () => {
+  const React = await import('react')
+  return { ClassroomTeachingOverlays: React.forwardRef((_, ref) => {
+    React.useImperativeHandle(ref, () => teachingOverlay)
+    return <div data-testid="teaching-overlay" />
+  }) }
+})
 
 class EventSourceStub {
   static current: EventSourceStub | null = null
@@ -148,6 +157,115 @@ describe('student initial snapshot stream sync', () => {
     expect(classroomApi.studentState).toHaveBeenCalledTimes(1)
   })
 
+  it('buffers bounded continuous ephemeral traffic without starving the gap snapshot', async () => {
+    render(<MemoryRouter initialEntries={['/classroom/session-1']}>
+      <ThemeProvider><Routes>
+        <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
+      </Routes></ThemeProvider>
+    </MemoryRouter>)
+    expect(await screen.findByText('AMBER-00000001')).toBeVisible()
+    await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
+    act(() => EventSourceStub.current?.emit('stream-ready', {
+      hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4,
+    }))
+    let finish!: (value: typeof state) => void
+    classroomApi.studentState.mockImplementationOnce(() => new Promise<typeof state>((resolve) => { finish = resolve }))
+    classroomApi.studentState.mockResolvedValue({
+      ...state, stateVersion: 5, presenter: { sequence: 2, slideId: 'slide-2', viewport: null },
+    })
+    act(() => EventSourceStub.current?.emit('control', {
+      hubEpoch: 'epoch-a', eventSequence: 2, stateVersion: 5,
+    }))
+    await waitFor(() => expect(classroomApi.studentState).toHaveBeenCalledTimes(2))
+    vi.useFakeTimers()
+    act(() => EventSourceStub.current?.emit('presenter', {
+      hubEpoch: 'epoch-a', eventSequence: 3, presenterSequence: 2,
+      slideId: 'slide-2', viewport: { x: .7, y: .3, zoom: 2, zoomSpace: 'image' },
+    }))
+    act(() => {
+      for (let sequence = 4; sequence <= 1003; sequence += 1) {
+        EventSourceStub.current?.emit('pointer', {
+          hubEpoch: 'epoch-a', eventSequence: sequence, slideId: 'slide-2',
+          style: 'green-arrow', x: sequence / 2000, y: .3,
+        })
+      }
+      vi.advanceTimersByTime(5000)
+    })
+    expect(screen.getByRole('button', { name: '1. Teaching slide' })).toBeVisible()
+    await act(async () => { finish({ ...state, stateVersion: 5 }); await Promise.resolve() })
+    expect(classroomApi.studentState).toHaveBeenCalledTimes(2)
+    expect(teachingOverlay.setPointer).toHaveBeenLastCalledWith(expect.objectContaining({
+      slideId: 'slide-2', x: 1003 / 2000, y: .3,
+    }))
+    act(() => { vi.advanceTimersByTime(5000) })
+    vi.useRealTimers()
+    expect(await screen.findByRole('button', { name: '2. Second slide' })).toBeVisible()
+  })
+
+  it('does not replay an older buffered presenter over a newer authoritative snapshot', async () => {
+    render(<MemoryRouter initialEntries={['/classroom/session-1']}>
+      <ThemeProvider><Routes>
+        <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
+      </Routes></ThemeProvider>
+    </MemoryRouter>)
+    expect(await screen.findByText('AMBER-00000001')).toBeVisible()
+    await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
+    act(() => EventSourceStub.current?.emit('stream-ready', {
+      hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4,
+    }))
+    let finish!: (value: typeof state) => void
+    classroomApi.studentState.mockImplementationOnce(() => new Promise<typeof state>((resolve) => { finish = resolve }))
+    act(() => EventSourceStub.current?.emit('control', {
+      hubEpoch: 'epoch-a', eventSequence: 2, stateVersion: 5,
+    }))
+    await waitFor(() => expect(classroomApi.studentState).toHaveBeenCalledTimes(2))
+    act(() => EventSourceStub.current?.emit('presenter', {
+      hubEpoch: 'epoch-a', eventSequence: 3, presenterSequence: 2,
+      slideId: 'slide-2', viewport: { x: .7, y: .3, zoom: 2, zoomSpace: 'image' },
+    }))
+    vi.useFakeTimers()
+    await act(async () => {
+      finish({ ...state, stateVersion: 5, presenter: { sequence: 3, slideId: 'slide-1', viewport: null } })
+      await Promise.resolve()
+    })
+    act(() => { vi.advanceTimersByTime(5000) })
+    vi.useRealTimers()
+    expect(screen.getByRole('button', { name: '1. Teaching slide' })).toBeVisible()
+    expect(classroomApi.studentState).toHaveBeenCalledTimes(2)
+  })
+
+  it('clears buffered live fields when terminal access arrives before the snapshot acknowledgment', async () => {
+    render(<MemoryRouter initialEntries={['/classroom/session-1']}>
+      <ThemeProvider><Routes>
+        <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
+        <Route path="/classroom/invite/:publicId" element={<p>Independent review</p>} />
+      </Routes></ThemeProvider>
+    </MemoryRouter>)
+    expect(await screen.findByText('AMBER-00000001')).toBeVisible()
+    await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
+    act(() => EventSourceStub.current?.emit('stream-ready', {
+      hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4,
+    }))
+    let finish!: (value: typeof state) => void
+    classroomApi.studentState.mockImplementationOnce(() => new Promise<typeof state>((resolve) => { finish = resolve }))
+    act(() => EventSourceStub.current?.emit('control', {
+      hubEpoch: 'epoch-a', eventSequence: 2, stateVersion: 5,
+    }))
+    await waitFor(() => expect(classroomApi.studentState).toHaveBeenCalledTimes(2))
+    act(() => EventSourceStub.current?.emit('presenter', {
+      hubEpoch: 'epoch-a', eventSequence: 3, presenterSequence: 2,
+      slideId: 'slide-2', viewport: { x: .7, y: .3, zoom: 2, zoomSpace: 'image' },
+    }))
+    act(() => EventSourceStub.current?.emit('session-ended', {
+      hubEpoch: 'epoch-a', eventSequence: 4, stateVersion: 6, phase: 'review',
+    }))
+    expect(await screen.findByText('Independent review')).toBeVisible()
+    await act(async () => { finish({ ...state, stateVersion: 5 }); await Promise.resolve() })
+    expect(screen.getByText('Independent review')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '2. Second slide' })).not.toBeInTheDocument()
+    expect(classroomApi.studentState).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps the first guide deadline when updates continue for the same target slide', async () => {
     render(<MemoryRouter initialEntries={['/classroom/session-1']}>
       <ThemeProvider><Routes>
@@ -178,4 +296,22 @@ describe('student initial snapshot stream sync', () => {
 
     expect(screen.getByRole('button', { name: '2. Second slide' })).toBeVisible()
   })
+  it('fetches a new snapshot when reconnect ready reports a missed teaching mutation', async () => {
+    render(<MemoryRouter initialEntries={['/classroom/session-1']}>
+      <ThemeProvider><Routes>
+        <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
+      </Routes></ThemeProvider>
+    </MemoryRouter>)
+    await screen.findByText('AMBER-00000001')
+    await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
+    act(() => EventSourceStub.current?.emit('stream-ready', {
+      hubEpoch: 'epoch', eventSequence: 10, stateVersion: 4,
+    }))
+    classroomApi.studentState.mockResolvedValue({ ...state, stateVersion: 5 })
+    act(() => EventSourceStub.current?.emit('stream-ready', {
+      hubEpoch: 'epoch', eventSequence: 11, stateVersion: 5,
+    }))
+    await waitFor(() => expect(classroomApi.studentState).toHaveBeenCalledTimes(2))
+  })
+
 })

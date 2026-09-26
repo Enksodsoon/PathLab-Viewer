@@ -19,6 +19,8 @@ from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Re
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
@@ -1031,6 +1033,13 @@ def register_study_routes(
         stored: StudyLearnerSession = Depends(learner_csrf),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        session_id = stored.id
+        database.rollback()
+        lock_admission(database, f"study-session:{session_id}")
+        fresh = database.get(StudyLearnerSession, session_id)
+        if fresh is None or fresh.status != "active" or as_utc(fresh.expires_at) <= _now():
+            raise HTTPException(status_code=401, detail={"code": "STUDY_SESSION_EXPIRED"})
+        stored = fresh
         course = database.get(StudyCourse, stored.course_id)
         pack = database.get(StudyPack, course.pack_id) if course else None
         if course is None or pack is None or course.status != "active":
@@ -1072,8 +1081,10 @@ def register_study_routes(
             progress.latest_correctness = correct
             if correct:
                 progress.status = "completed"
-        database.commit()
         with rate_lock:
+            # Publish the throttle timestamp before a waiting submission can
+            # observe the newly committed progress and reuse the same window.
+            database.commit()
             submission_times[stored.id] = now_mono
         result = {
             "taskId": task_id,
@@ -1264,24 +1275,33 @@ def register_study_routes(
             )
         return {"aiEligible": eligible, "manifest": manifest if eligible else None}
 
+    def increment_readiness_aggregate(database: OrmSession, course_id: str, counter: str) -> None:
+        # One database statement serializes both first insertion and increments;
+        # no aggregate read can become stale between concurrent learner reports.
+        dialect = database.get_bind().dialect.name
+        if dialect not in {"sqlite", "postgresql"}:
+            raise RuntimeError("Study aggregates require SQLite or PostgreSQL")
+        statement = (
+            sqlite_insert(StudyReadinessAggregate) if dialect == "sqlite"
+            else postgres_insert(StudyReadinessAggregate)
+        )
+        column = getattr(StudyReadinessAggregate, counter)
+        statement = statement.values(course_id=course_id, **{counter: 1})
+        database.execute(statement.on_conflict_do_update(
+            index_elements=[StudyReadinessAggregate.course_id],
+            set_={counter: column + 1, "updated_at": utc_now()},
+        ))
+
     @app.post("/api/v1/study/readiness", status_code=status.HTTP_204_NO_CONTENT)
     def report_readiness(
         payload: ReadinessReport,
         stored: StudyLearnerSession = Depends(learner_csrf),
         database: OrmSession = Depends(database_dependency),
     ) -> None:
-        aggregate = database.scalar(
-            select(StudyReadinessAggregate).where(
-                StudyReadinessAggregate.course_id == stored.course_id
-            )
+        increment_readiness_aggregate(
+            database, stored.course_id,
+            "ready_count" if payload.outcome == "ready" else "fallback_count",
         )
-        if aggregate is None:
-            aggregate = StudyReadinessAggregate(course_id=stored.course_id)
-            database.add(aggregate)
-        if payload.outcome == "ready":
-            aggregate.ready_count = (aggregate.ready_count or 0) + 1
-        else:
-            aggregate.fallback_count = (aggregate.fallback_count or 0) + 1
         database.commit()
 
     @app.post("/api/v1/study/ai-events", status_code=status.HTTP_204_NO_CONTENT)
@@ -1304,22 +1324,7 @@ def register_study_routes(
         last_ai_event = current_rate_time(ai_event_times, stored.id, now_mono, 1)
         if progress is None or now_mono - last_ai_event < 1:
             raise HTTPException(status_code=409, detail={"code": "STUDY_AI_EVENT_INVALID"})
-        aggregate = database.scalar(
-            select(StudyReadinessAggregate).where(
-                StudyReadinessAggregate.course_id == stored.course_id
-            )
-        )
-        if aggregate is None:
-            aggregate = StudyReadinessAggregate(course_id=stored.course_id)
-            database.add(aggregate)
-        if payload.outcome == "fallback":
-            aggregate.fallback_count = (aggregate.fallback_count or 0) + 1
-        else:
-            setattr(
-                aggregate,
-                f"{payload.outcome}_count",
-                (getattr(aggregate, f"{payload.outcome}_count") or 0) + 1,
-            )
+        increment_readiness_aggregate(database, stored.course_id, f"{payload.outcome}_count")
         database.commit()
         with rate_lock:
             ai_event_times[stored.id] = now_mono
