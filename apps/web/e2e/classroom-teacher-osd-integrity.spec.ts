@@ -69,6 +69,7 @@ test('real OSD teacher slide opening reaches guided student and remote control d
     if (path.endsWith('/presenter') && route.request().method() === 'POST') {
       const viewport = route.request().postDataJSON()
       receipts.push({ ...viewport, controller, at: Date.now() })
+      if (controller) return route.fulfill({ status: 403, json: { detail: 'CLASSROOM_CONTROL_HELD' } })
       presenter = { sequence: presenter.sequence + 1, slideId: viewport.slideId, viewport }
       await route.fulfill({ status: 204 })
       const event = { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: viewport.slideId, viewport }
@@ -96,8 +97,25 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await expect(student.getByRole('button', { name: '2. Synthetic slide 2', exact: true })).toBeVisible({ timeout: 5000 })
   const baseline = receipts.length
   controller = 'learner'; version += 1
-  await emit(page, 'control', { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version })
+  snapshotGate = new Promise<void>((resolve) => { releaseSnapshot = resolve })
+  // Queue a real OSD animation callback and hand off in the same browser task.
+  // The timer cannot dispatch before the authoritative snapshot barrier starts.
+  await page.evaluate(async (payload) => {
+    const url = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))!.name
+    const OSD = (await import(/* @vite-ignore */ url)).default
+    let element: Element | null = document.querySelector('.openseadragon-canvas')
+    let viewer = element ? OSD.getViewer(element) : null
+    while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
+    viewer.raiseEvent('animation-finish', {})
+    ;(window as unknown as { qaEmit: (type: string, payload: unknown) => void }).qaEmit('control', payload)
+  }, { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version })
+  await expect.poll(() => heldSnapshots).toBe(1)
   await page.waitForTimeout(300)
+  await info.attach('handoff-publication-receipts', { body: JSON.stringify(receipts, null, 2), contentType: 'application/json' })
+  expect(receipts.length).toBe(baseline)
+  snapshotGate = null
+  releaseSnapshot!()
+  heldSnapshots = 0
   presenter = { sequence: presenter.sequence + 1, slideId: 'slide-2', viewport: { x: .7, y: .3, zoom: 2, zoomSpace: 'image' } }
   await emit(page, 'presenter', { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: 'slide-2', viewport: presenter.viewport })
   await expect.poll(async () => (await sample(page)).x).toBeCloseTo(.7, 2)

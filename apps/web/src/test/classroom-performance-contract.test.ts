@@ -43,7 +43,12 @@ describe('classroom disabled-mode resource contract', () => {
     const streamSync = readFileSync(resolve('src/classroom/streamSync.ts'), 'utf8')
 
     expect(teacher).toContain('const [guideMode, setGuideMode] = useState(false)')
-    expect(teacher).toContain('if (adminAuthFailed.current || !guideModeRef.current')
+    const publicationGuard = teacher.match(/const canPublishViewport = \(\) => \{[\s\S]*?\n {4}\}/)?.[0] ?? ''
+    expect(publicationGuard).toContain('!adminAuthFailed.current')
+    expect(publicationGuard).toContain('guideModeRef.current')
+    expect(publicationGuard).toContain('!streamCursor.current.needsSnapshot')
+    expect(publicationGuard).toContain('!current.controller.participantId')
+    expect(teacher).toContain('if (!canPublishViewport()) return Promise.resolve()')
     expect(teacher).toContain('sequence(event, true)')
     expect(student).toContain('sequence(event, true)')
     expect(streamSync).toContain('!options.coalescible && eventSequence !== cursor.eventSequence + 1')
@@ -102,7 +107,12 @@ describe('classroom disabled-mode resource contract', () => {
     expect(teacher).toContain('const adminAuthFailed = useRef(false)')
     expect(teacher).toContain('adminAuthFailed.current = true')
     expect(teacher).toContain("navigate('/admin', { replace: true })")
-    expect(teacher).toContain('if (adminAuthFailed.current || !guideModeRef.current')
+    const publicationGuard = teacher.match(/const canPublishViewport = \(\) => \{[\s\S]*?\n {4}\}/)?.[0] ?? ''
+    expect(publicationGuard).toContain('!adminAuthFailed.current')
+    expect(publicationGuard).toContain('guideModeRef.current')
+    expect(publicationGuard).toContain('!streamCursor.current.needsSnapshot')
+    expect(publicationGuard).toContain('!current.controller.participantId')
+    expect(teacher).toContain('if (!canPublishViewport()) return Promise.resolve()')
     expect(teacher).toContain('classroom-local-pointer')
     expect(teacher).toContain('viewer.container.append(localPointer)')
     expect(teacher).not.toContain('viewer.updateOverlay(localPointer')
