@@ -905,28 +905,34 @@ export function ClassroomTeacherPage() {
     localPointer.className = 'classroom-local-pointer'
     localPointerElementRef.current = localPointer
     viewer.container.append(localPointer)
-    const sender = createLatestSender(() => (
-      publishTeacherViewport(classroom!.id, readPresenterViewport(viewer, currentSlide!.id))
+    const canPublishViewport = () => {
+      const current = stateRef.current
+      return !adminAuthFailed.current && !streamCursor.current.needsSnapshot
+        && guideModeRef.current && current?.session.phase === 'live'
+        && current.session.id === classroom?.id && !current.controller.participantId
+        && Boolean(currentSlide)
+    }
+    const sender = createLatestSender(() => {
+      if (!canPublishViewport()) return Promise.resolve()
+      return publishTeacherViewport(classroom!.id, readPresenterViewport(viewer, currentSlide!.id))
         .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
         .catch((caught: unknown) => {
           handleAdminFailure(caught, 'The live field could not be shared.')
         })
-    ))
+    })
     const publish = () => {
       if (suppressPublish.current) {
         suppressPublish.current = false
         return
       }
-      if (adminAuthFailed.current || !guideModeRef.current || stateRef.current?.controller.participantId
-        || !classroom || !currentSlide) return
+      if (!canPublishViewport()) return
       sender.push(0)
     }
     const opened = () => {
       applyRemote(viewer)
       // Opening an equally sized slide need not animate. Share its initial field
       // explicitly so guided students follow navigation on every viewer engine.
-      if (!adminAuthFailed.current && guideModeRef.current
-        && !stateRef.current?.controller.participantId && classroom && currentSlide
+      if (canPublishViewport() && currentSlide
         && presenterRef.current?.slideId !== currentSlide.id) {
         sender.push(0)
       }
@@ -941,7 +947,11 @@ export function ClassroomTeacherPage() {
     pointerBoundsObserver.observe(viewer.canvas)
     const pointerSender = createLatestSender((sample: NonNullable<typeof pendingPointer>) => {
       const item = viewer.world.getItemAt(0)
-      if (!item || !classroom || !currentSlide) return Promise.resolve()
+      const current = stateRef.current
+      if (!item || !classroom || !currentSlide || !pointerVisible
+        || adminAuthFailed.current || streamCursor.current.needsSnapshot
+        || teachingToolRef.current !== 'pointer' || current?.session.phase !== 'live'
+        || current.session.id !== classroom.id) return Promise.resolve()
       const viewportPoint = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(
         sample.clientX - pointerBounds.left,
         sample.clientY - pointerBounds.top,
@@ -1327,7 +1337,10 @@ export function ClassroomTeacherPage() {
           onClick={() => {
             const next = !guideMode
             setGuideMode(next)
-            if (next && viewer && currentSlide && !state?.controller.participantId) {
+            const current = stateRef.current
+            if (next && viewer && currentSlide && !adminAuthFailed.current
+              && !streamCursor.current.needsSnapshot && current?.session.phase === 'live'
+              && current.session.id === classroom.id && !current.controller.participantId) {
               void publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
                 .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
                 .catch((caught: unknown) => {
