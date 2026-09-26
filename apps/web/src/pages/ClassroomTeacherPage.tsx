@@ -515,7 +515,8 @@ export function ClassroomTeacherPage() {
       streamReadySeen = true
     })
     events.addEventListener('session-ended', (event) => {
-      if (!sequence(event, false, true)) return
+      const payload = sequence(event, false, true)
+      if (!payload) return
       cancelled = true
       snapshotReconciler.current?.dispose()
       snapshotReconciler.current = null
@@ -525,6 +526,14 @@ export function ClassroomTeacherPage() {
       events.close()
       rosterRequest.current += 1
       pendingControlRequest.current += 1
+      if (payload.phase === 'review') {
+        const review = { ...classroom, phase: 'review' as const }
+        rememberClassroom(review)
+        setClassroom(review)
+        setState(null)
+        setError('')
+        return
+      }
       rememberClassroom(null)
       setClassroom(null)
       setState(null)

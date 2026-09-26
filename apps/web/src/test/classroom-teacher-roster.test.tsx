@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -266,6 +266,30 @@ describe('teacher paginated roster', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'End class' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('The live class could not end.')
     expect(screen.getByRole('button', { name: 'End class' })).toBeVisible()
+  })
+
+  it('retains acknowledged independent review when terminal SSE arrives before effect cleanup', async () => {
+    classroomApi.finishLiveClassroom.mockResolvedValueOnce(undefined)
+    await renderResumedTeacher()
+    const stream = EventSourceStub.current!
+    act(() => stream.emit('stream-ready', { hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4 }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'End class' }))
+      await Promise.resolve()
+      await Promise.resolve()
+      stream.emit('session-ended', { hubEpoch: 'epoch-a', eventSequence: 1, stateVersion: 5, phase: 'review' })
+    })
+    expect(await screen.findByText('Review remains open')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'End class' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Revoke review access' })).toBeVisible()
+  })
+  it('retains independent review when another teacher ends the live phase', async () => {
+    await renderResumedTeacher()
+    const stream = EventSourceStub.current!
+    act(() => stream.emit('stream-ready', { hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4 }))
+    act(() => stream.emit('session-ended', { hubEpoch: 'epoch-a', eventSequence: 1, stateVersion: 5, phase: 'review' }))
+    expect(await screen.findByText('Review remains open')).toBeVisible()
+    expect(stream.close).toHaveBeenCalled()
   })
 
 })

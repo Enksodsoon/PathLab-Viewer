@@ -1113,7 +1113,7 @@ def register_classroom_routes(
         db.commit()
         presenter_runtime.forget(session_id)
         prewarmer.clear()
-        hub.terminate_session(session_id, state_version=classroom.state_version)
+        hub.terminate_session(session_id, state_version=classroom.state_version, phase="review")
 
     @app.delete(
         "/api/v1/admin/classroom/sessions/active",
@@ -1140,7 +1140,7 @@ def register_classroom_routes(
         db.commit()
         presenter_runtime.forget(session_id)
         prewarmer.clear()
-        hub.terminate_session(session_id, state_version=next_state_version)
+        hub.terminate_session(session_id, state_version=next_state_version, phase="revoked")
 
     def reserve_live_seats(
         session_id: str, db: OrmSession
@@ -1297,7 +1297,9 @@ def register_classroom_routes(
             db.commit()
             presenter_runtime.forget(classroom.id)
             prewarmer.clear()
-            hub.terminate_session(classroom.id, state_version=classroom.state_version)
+            hub.terminate_session(
+                classroom.id, state_version=classroom.state_version, phase="review"
+            )
         if (
             classroom is None
             or classroom.phase == "revoked"
@@ -2565,7 +2567,7 @@ def register_classroom_routes(
             db.commit()
             presenter_runtime.forget(session_id)
             prewarmer.clear()
-            hub.terminate_session(session_id, state_version=final_state_version)
+            hub.terminate_session(session_id, state_version=final_state_version, phase="revoked")
             return
         was_live = classroom.phase == "live"
         classroom.status = "ended"
@@ -2577,7 +2579,7 @@ def register_classroom_routes(
         db.commit()
         presenter_runtime.forget(session_id)
         prewarmer.clear()
-        hub.terminate_session(session_id, state_version=classroom.state_version)
+        hub.terminate_session(session_id, state_version=classroom.state_version, phase="revoked")
 
     @app.post(
         "/api/v1/admin/classroom/sessions/{session_id}/synthetic-reset",

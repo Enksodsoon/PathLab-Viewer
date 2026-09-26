@@ -127,6 +127,27 @@ describe('student initial snapshot stream sync', () => {
     expect(classroomApi.studentState).toHaveBeenCalledTimes(1)
   })
 
+  it('returns to joining when access is explicitly revoked', async () => {
+    render(<MemoryRouter initialEntries={['/classroom/session-1']}>
+      <ThemeProvider><Routes>
+        <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
+        <Route path="/classroom" element={<p>Join a current classroom</p>} />
+        <Route path="/classroom/invite/:publicId" element={<p>Independent review</p>} />
+      </Routes></ThemeProvider>
+    </MemoryRouter>)
+    expect(await screen.findByText('AMBER-00000001')).toBeVisible()
+    await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
+    act(() => EventSourceStub.current?.emit('stream-ready', {
+      hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4,
+    }))
+    act(() => EventSourceStub.current?.emit('session-ended', {
+      hubEpoch: 'epoch-a', eventSequence: 1, stateVersion: 5, phase: 'revoked',
+    }))
+    expect(await screen.findByText('Join a current classroom')).toBeVisible()
+    expect(screen.queryByText('Independent review')).not.toBeInTheDocument()
+    expect(classroomApi.studentState).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps the first guide deadline when updates continue for the same target slide', async () => {
     render(<MemoryRouter initialEntries={['/classroom/session-1']}>
       <ThemeProvider><Routes>

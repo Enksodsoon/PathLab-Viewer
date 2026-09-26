@@ -449,3 +449,18 @@ def test_hub_bounds_transient_teaching_tools_and_clears_them_with_session() -> N
     hub.clear_session("session")
     assert hub.teacher_pointer("session") is None
     assert hub.teaching_annotations("session") == []
+
+
+def test_terminal_event_distinguishes_review_from_revoked_access() -> None:
+    async def scenario() -> None:
+        for phase in ("review", "revoked"):
+            hub = ClassroomHub()
+            hub.start()
+            async with hub.subscribe("session", "teacher") as subscriber:
+                hub.terminate_session("session", state_version=9, phase=phase)
+                terminal = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+                assert terminal is not None
+                assert terminal["phase"] == phase
+                assert terminal["stateVersion"] == 9
+                assert await asyncio.wait_for(subscriber.next_event(), timeout=1) is None
+    asyncio.run(scenario())

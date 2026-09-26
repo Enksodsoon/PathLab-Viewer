@@ -18,6 +18,9 @@
 .library-journey-tools kbd { color:var(--muted); font-size:.75rem; }
 @media (max-width:640px) { .viewer-shell .viewer-header { flex-wrap:wrap; height:auto; min-height:72px; gap:.5rem; padding:.65rem; } .viewer-adjacent { margin-left:auto; } .viewer-title { flex:1 1 calc(100% - 150px); order:3; } .viewer-theme-control { order:4; margin-left:auto; } .viewer-help { display:none; } .library-quicklook-stage { height:50vh; } }
 .library-slide-grid .library-slide-card--immersive .card-content { pointer-events:auto; }
+.library-slide-grid .library-slide-card--immersive { height:auto; }
+.library-slide-grid .library-slide-card--immersive .card-preview { position:relative; inset:auto; height:auto; }
+.library-slide-grid .library-slide-card--immersive .card-content { position:relative; }
 .library-slide-grid .library-slide-card--immersive:hover .card-content,
 .library-slide-grid .library-slide-card--immersive:focus-within .card-content { transform:none; }
 

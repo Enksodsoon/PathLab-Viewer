@@ -193,7 +193,9 @@ class ClassroomHub:
             self._publish, session_id, event_type, payload, critical, audience
         )
 
-    def terminate_session(self, session_id: str, *, state_version: int) -> None:
+    def terminate_session(
+        self, session_id: str, *, state_version: int, phase: str | None = None
+    ) -> None:
         """Deliver the terminal event, retire streams, and clear in-memory state."""
 
         with self._presence_lock:
@@ -202,13 +204,18 @@ class ClassroomHub:
         if loop is None:
             self.clear_session(session_id)
             return
-        loop.call_soon_threadsafe(self._terminate_session, session_id, state_version)
+        loop.call_soon_threadsafe(self._terminate_session, session_id, state_version, phase)
 
-    def _terminate_session(self, session_id: str, state_version: int) -> None:
+    def _terminate_session(
+        self, session_id: str, state_version: int, phase: str | None = None
+    ) -> None:
+        payload: dict[str, Any] = {"stateVersion": state_version}
+        if phase is not None:
+            payload["phase"] = phase
         self._publish(
             session_id,
             "session-ended",
-            {"stateVersion": state_version},
+            payload,
             True,
             "all",
         )

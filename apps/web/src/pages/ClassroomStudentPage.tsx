@@ -332,8 +332,15 @@ export function ClassroomStudentPage() {
         setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
       })
       source.addEventListener('session-ended', (event) => {
-        if (!sequence(event, false, true)) return
+        const payload = sequence(event, false, true)
+        if (!payload) return
         const inviteId = stateRef.current?.session.publicId
+        if (payload.phase === 'revoked') {
+          setState(null)
+          setMessage('Classroom access was revoked. Join a current classroom to continue.')
+          navigate('/classroom', { replace: true })
+          return
+        }
         setState(null)
         setMessage('The live class ended. Independent review remains available.')
         navigate(inviteId ? `/classroom/invite/${inviteId}` : '/classroom', { replace: true })

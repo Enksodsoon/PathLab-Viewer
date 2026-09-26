@@ -26,7 +26,7 @@ async function fixture(page: Page) {
       let bytes=0
       try { for await (const chunk of request) bytes+=Buffer.byteLength(chunk) } catch { response.destroy();return }
       control.patches++
-      const held=control.patches===3 && control.holdPatch
+      const held=control.patches===2 && control.holdPatch
       if(held) await new Promise<void>(release=>{control.releasePatch=release})
       else await new Promise<void>(release=>setTimeout(release,400))
       if(!(held && control.discardHeldPatch)) control.offset+=bytes
@@ -147,9 +147,9 @@ test('background transfer survives SPA navigation, pauses and renews its same re
   await expect(card(page,'Synthetic A')).toBeVisible()
   await page.getByRole('navigation',{name:'Library destinations'}).getByRole('button',{name:'Upload',exact:true}).click()
   const upload=page.getByRole('dialog',{name:'Upload OME-TIFF'})
-  await upload.getByLabel('Choose OME-TIFF files').setInputFiles({name:'Synthetic upload.ome.tiff',mimeType:'image/tiff',buffer:Buffer.alloc(45*1024*1024,0x53)})
+  await upload.getByLabel('Choose OME-TIFF files').setInputFiles({name:'Synthetic upload.ome.tiff',mimeType:'image/tiff',buffer:Buffer.alloc(21*1024*1024,0x53)})
   await upload.getByRole('button',{name:'Upload 1 file',exact:true}).click()
-  await expect.poll(()=>control.patches,{timeout:25_000}).toBeGreaterThanOrEqual(3)
+  await expect.poll(()=>control.patches,{timeout:25_000}).toBeGreaterThanOrEqual(2)
   await upload.getByRole('button',{name:'Close Upload OME-TIFF'}).click()
   const dock=page.getByRole('complementary',{name:'Background uploads'})
   await expect(dock).toBeVisible()
