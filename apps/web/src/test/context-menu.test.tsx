@@ -18,5 +18,7 @@ it('keeps a menu open when focusing an item would otherwise scroll the page', as
   await act(async () => { fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' }) })
   expect(screen.getByRole('menuitem', { name: 'Preview' })).toHaveFocus()
   fireEvent.scroll(window)
+  expect(screen.getByRole('menu')).toBeVisible()
+  fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()
 })

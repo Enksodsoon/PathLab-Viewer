@@ -32,19 +32,29 @@ export function ContextMenu({
   }
 
   useLayoutEffect(() => {
-    if (!open || !triggerRef.current || !menuRef.current) return
-    const trigger = triggerRef.current.getBoundingClientRect()
-    const menu = menuRef.current.getBoundingClientRect()
-    const gap = 6
-    const left = Math.max(8, Math.min(
-      trigger.right - menu.width,
-      window.innerWidth - menu.width - 8,
-    ))
-    const top = trigger.bottom + gap + menu.height <= window.innerHeight
-      ? trigger.bottom + gap
-      : Math.max(8, trigger.top - menu.height - gap)
-    setPosition({ left, top })
-    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true })
+    if (!open) return
+    const reposition = () => {
+      if (!triggerRef.current || !menuRef.current) return
+      const trigger = triggerRef.current.getBoundingClientRect()
+      const menu = menuRef.current.getBoundingClientRect()
+      const gap = 6
+      const left = Math.max(8, Math.min(
+        trigger.right - menu.width,
+        window.innerWidth - menu.width - 8,
+      ))
+      const top = trigger.bottom + gap + menu.height <= window.innerHeight
+        ? trigger.bottom + gap
+        : Math.max(8, trigger.top - menu.height - gap)
+      setPosition({ left, top })
+    }
+    reposition()
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true })
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
+    return () => {
+      window.removeEventListener('resize', reposition)
+      window.removeEventListener('scroll', reposition, true)
+    }
   }, [open])
 
   useEffect(() => {
@@ -53,14 +63,9 @@ export function ContextMenu({
       const target = event.target as Node
       if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) close()
     }
-    const onResize = () => setOpen(false)
     document.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('resize', onResize)
-    window.addEventListener('scroll', onResize, true)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('resize', onResize)
-      window.removeEventListener('scroll', onResize, true)
     }
   }, [open])
 
