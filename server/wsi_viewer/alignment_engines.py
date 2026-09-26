@@ -37,7 +37,7 @@ ENGINE_NATIVE = "native-v12"
 ENGINE_HISALIGN = "hisalign-0.2.1"
 ENGINE_VALIS = "valis-1.2.0"
 ENGINE_VERSIONS = {
-    ENGINE_NATIVE: "piecewise-affine-components-v14",
+    ENGINE_NATIVE: "piecewise-affine-components-v15",
     ENGINE_HISALIGN: "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
     ENGINE_VALIS: "325828c1dec444e6bb672a78e875537436dd3c20",
 }

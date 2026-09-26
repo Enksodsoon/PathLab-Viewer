@@ -74,6 +74,21 @@ def test_thin_tissue_mask_retains_walls_without_retaining_scanner_strip():
     assert not thin[:11].any()
 
 
+def test_feature_only_crop_accepts_full_tissue_but_still_rejects_blank():
+    pixels = np.random.default_rng(75).integers(
+        [150, 65, 110], [230, 180, 210], size=(256, 320, 3), dtype=np.uint8
+    )
+    crop = Image.fromarray(pixels)
+    with pytest.raises(AlignmentRejected, match="insufficient tissue"):
+        _structure(pixels)
+    result = register_pair(crop, crop, max_dimension=320, feature_only=True)
+    assert result.status == "ready" and result.triangles
+    assert result.inlier_count >= 10
+    np.testing.assert_allclose(result.moving_to_reference, [[1, 0, 0], [0, 1, 0]], atol=1e-6)
+    with pytest.raises(AlignmentRejected):
+        register_pair(crop, Image.new("RGB", crop.size, "white"), feature_only=True)
+
+
 def test_structure_keeps_faint_tissue_clipped_by_slide_edge_and_rejects_scanner_strip() -> None:
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)

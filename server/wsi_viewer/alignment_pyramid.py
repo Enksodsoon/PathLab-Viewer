@@ -228,26 +228,8 @@ def _approximate_component_map(
     reference_rgb = np.asarray(reference.convert("RGB"))
     moving_rgb = np.asarray(moving.convert("RGB"))
 
-    def cropped_structure(image: Image.Image) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
-        # Whole-slide segmentation rejects edge-touching components to suppress
-        # scanner borders. A deliberately cropped component can validly touch
-        # its crop edge, so surround it with known white context first.
-        rgb = np.asarray(image.convert("RGB"))
-        padding = max(24, min(rgb.shape[:2]) // 40)
-        padded = np.pad(
-            rgb,
-            ((padding, padding), (padding, padding), (0, 0)),
-            mode="constant",
-            constant_values=255,
-        )
-        structure, mask = _structure(padded)
-        return (
-            structure[padding:-padding, padding:-padding],
-            mask[padding:-padding, padding:-padding],
-        )
-
-    reference_structure, reference_mask = cropped_structure(reference)
-    moving_structure, moving_mask = cropped_structure(moving)
+    reference_structure, reference_mask = _structure(reference_rgb, cropped=True)
+    moving_structure, moving_mask = _structure(moving_rgb, cropped=True)
     seed, initial_overlap = _mask_seed(reference_mask, moving_mask)
 
     def ecc_candidate(
@@ -1028,7 +1010,7 @@ def refine_supported_patches(
             ):
                 continue
             key = hashlib.sha256(
-                repr((bounds, reference_bounds, coarse, cv2.__version__, "patch-v2")).encode()
+                repr((bounds, reference_bounds, coarse, cv2.__version__, "patch-v4")).encode()
             ).hexdigest()
             receipt = checkpoint_dir / f"patch-{key}.json" if checkpoint_dir else None
             attempted += 1

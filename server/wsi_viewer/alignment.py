@@ -255,8 +255,22 @@ def _bounded_rgb(image: Image.Image, maximum: int) -> tuple[np.ndarray, float]:
 
 
 def _structure(
-    rgb: np.ndarray, *, preserve_thin_tissue: bool = False
+    rgb: np.ndarray, *, preserve_thin_tissue: bool = False, cropped: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
+    if cropped:
+        # A known tissue crop may fill its frame or touch its edges. White
+        # context keeps whole-slide flood and scanner-edge checks meaningful.
+        padding = max(24, min(rgb.shape[:2]) // 40)
+        padded = np.pad(
+            rgb,
+            ((padding, padding), (padding, padding), (0, 0)),
+            mode="constant",
+            constant_values=255,
+        )
+        structure, mask = _structure(padded, preserve_thin_tissue=preserve_thin_tissue)
+        return structure[padding:-padding, padding:-padding], mask[
+            padding:-padding, padding:-padding
+        ]
     # Optical-density proxy is invariant to RGB channel order and therefore to
     # many broad stain hue changes while retaining nuclei and tissue edges.
     density = 255 - np.min(rgb, axis=2)
@@ -839,8 +853,8 @@ def register_pair(
         raise ValueError("max_dimension must be between 256 and 4096")
     reference_rgb, reference_scale = _bounded_rgb(reference, max_dimension)
     moving_rgb, moving_scale = _bounded_rgb(moving, max_dimension)
-    reference_structure, reference_mask = _structure(reference_rgb)
-    moving_structure, moving_mask = _structure(moving_rgb)
+    reference_structure, reference_mask = _structure(reference_rgb, cropped=feature_only)
+    moving_structure, moving_mask = _structure(moving_rgb, cropped=feature_only)
 
     def fallback() -> RegistrationResult:
         if feature_only:
