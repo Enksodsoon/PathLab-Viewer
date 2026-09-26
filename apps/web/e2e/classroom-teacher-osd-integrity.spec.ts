@@ -69,9 +69,16 @@ test('real OSD teacher slide opening reaches guided student and remote control d
     if (path.endsWith('/presenter') && route.request().method() === 'POST') {
       const viewport = route.request().postDataJSON()
       receipts.push({ ...viewport, controller, at: Date.now() })
-      if (controller) return route.fulfill({ status: 403, json: { detail: 'CLASSROOM_CONTROL_HELD' } })
+      // The real owner presenter endpoint takes control back when publishing.
+      const tookControl = controller !== null
+      if (tookControl) { controller = null; version += 1 }
       presenter = { sequence: presenter.sequence + 1, slideId: viewport.slideId, viewport }
-      await route.fulfill({ status: 204 })
+      await route.fulfill({ status: 200, json: { presenterSequence: presenter.sequence } })
+      if (tookControl) {
+        const control = { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version, participantId: null, leaseId: null, controlEpoch: version, expiresAt: null }
+        await emit(page, 'control', control)
+        await emit(student, 'control', control)
+      }
       const event = { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: viewport.slideId, viewport }
       await emit(page, 'presenter', event)
       await emit(student, 'presenter', event)
