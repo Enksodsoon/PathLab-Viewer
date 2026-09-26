@@ -54,6 +54,10 @@ jobs:
           fi
       - name: Install tests with the production SQLAlchemy version
         run: pip install -e .[dev] "$(sed -n 's/^\(sqlalchemy==[0-9.]*\).*/\1/p' deploy/backend-requirements.txt)"
+      - name: Install native image runtime for backend regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libvips-tools
       - name: Validate dependency inventory
         run: |
           # Squash merges can remove the branch holding this immutable subject.
