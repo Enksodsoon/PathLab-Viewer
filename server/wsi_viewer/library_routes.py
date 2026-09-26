@@ -662,6 +662,15 @@ def register_library_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         value = slide_json(_get_slide(database, slide_id), include_details=True)
+        memberships = database.execute(
+            select(Collection.id, Collection.name)
+            .join(CollectionSlide, CollectionSlide.collection_id == Collection.id)
+            .where(CollectionSlide.slide_id == slide_id)
+            .order_by(Collection.name, Collection.id)
+        ).tuples().all()
+        value["collections"] = [
+            {"id": identifier, "name": name} for identifier, name in memberships
+        ]
         if app.state.settings.alignment_enabled:
             value["stackCount"] = int(
                 database.scalar(

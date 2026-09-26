@@ -610,6 +610,23 @@ it('autosaves a local edit once without treating the server acknowledgement as a
   expect(api.saveAssessmentDraft).toHaveBeenCalledTimes(1)
 })
 
+it('keeps newer edits pending when an older save finishes', async () => {
+  vi.useFakeTimers()
+  let finishSave!: (value: Awaited<ReturnType<typeof import('../assessment/api').saveAssessmentDraft>>) => void
+  api.saveAssessmentDraft.mockImplementationOnce(() => new Promise((resolve) => { finishSave = resolve }))
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes><Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} /></Routes></MemoryRouter>)
+  await act(async () => { await Promise.resolve() })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Assessment name' }), { target: { value: 'First edit' } })
+  await act(async () => { await vi.advanceTimersByTimeAsync(750) })
+  const submitted = api.saveAssessmentDraft.mock.calls[0][2]
+  fireEvent.change(screen.getByRole('textbox', { name: 'Assessment name' }), { target: { value: 'Newer edit' } })
+  await act(async () => { finishSave({ id: 'draft-1', revision: 2, document: submitted } as Awaited<ReturnType<typeof import('../assessment/api').saveAssessmentDraft>>) })
+  expect(screen.getByText('Saving…')).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Assessment name' })).toHaveValue('Newer edit')
+  await act(async () => { await vi.advanceTimersByTimeAsync(750) })
+  expect(api.saveAssessmentDraft).toHaveBeenLastCalledWith('draft-1', 2, expect.objectContaining({ title: 'Newer edit' }))
+})
+
 it('keeps created links pending until responses open and allows retry without republishing', async () => {
   api.publishAssessmentDraft.mockResolvedValueOnce({ publicId: 'qa-public', administrations: [{ id: 'qa-admin', publicId: 'qa-public', classId: null, accessCode: null }] })
   api.setAssessmentAdministrationStatus.mockRejectedValueOnce(new Error('busy')).mockResolvedValueOnce({ id: 'qa-admin', status: 'open' })

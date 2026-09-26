@@ -5,9 +5,10 @@ import path from 'node:path'
 const publicId = process.env.ASSESSMENT_CANARY_PUBLIC_ID
 const accessCode = process.env.ASSESSMENT_CANARY_ACCESS_CODE
 const identifier = process.env.ASSESSMENT_CANARY_IDENTIFIER
-if (!publicId || !accessCode || !identifier) throw new Error('canary fixture inputs required')
+test.skip(!publicId || !accessCode || !identifier, 'Explicit synthetic canary fixture inputs required')
 
 test('restores an offline queued answer after a simulated response-service outage', async ({ page, context }) => {
+  if (!publicId || !accessCode || !identifier) throw new Error('canary fixture inputs required')
   let releaseStart!: () => void
   const startGate = new Promise<void>((resolve) => { releaseStart = resolve })
   await page.route('**/api/v2/assessment/attempts', async (route) => {

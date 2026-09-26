@@ -397,6 +397,7 @@ def isolated_environment(directory: Path) -> dict[str, str]:
             "PATHLAB_SERVICE_ROLE": "all",
             "PATHLAB_SERVE_PUBLIC_TILES": "true",
             "PATHLAB_CLASSROOM_ENABLED": "true",
+            "PATHLAB_ASSESSMENT_ENABLED": "true",
             "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED": "true",
             "PATHLAB_WORKER_HEARTBEAT_PATH": str(directory / "worker-heartbeat.json"),
             "PATHLAB_TILE_CACHE_ROOT": str(directory / "tile-cache"),
@@ -404,6 +405,7 @@ def isolated_environment(directory: Path) -> dict[str, str]:
             "XDG_DATA_HOME": str(directory / "xdg-data"),
             "XDG_CONFIG_HOME": str(directory / "xdg-config"),
             "PATHLAB_E2E_USERNAME": "fixture-admin",
+            "PATHLAB_E2E_PYTHON": sys.executable,
             "PATHLAB_E2E_PASSWORD": secrets.token_urlsafe(24),
         }
     )
@@ -431,6 +433,7 @@ def local_caddyfile(
     body = body.replace("tusd:8080", f"127.0.0.1:{tus_port}")
     body = body.replace("tile-service:8090", f"127.0.0.1:{tile_port}")
     body = body.replace("{$PATHLAB_CLASSROOM_SERVICE_URL}", f"http://127.0.0.1:{api_port}")
+    body = body.replace("{$PATHLAB_ASSESSMENT_SERVICE_URL}", f"http://127.0.0.1:{api_port}")
     delivery = (directory / "data/delivery/individual").as_posix()
     body = body.replace("/pathlab-individual", f'"{delivery}"')
     return (
@@ -461,12 +464,27 @@ def main() -> int:
     parser.add_argument("--tusd", default=shutil.which("tusd"))
     parser.add_argument("--pnpm", default=shutil.which("pnpm"))
     parser.add_argument("--caddy", default=shutil.which("caddy"))
+    parser.add_argument(
+        "--browser", choices=("chromium", "firefox", "webkit", "mobile-chromium"),
+        default="chromium",
+    )
+    parser.add_argument(
+        "--report-dir", type=Path, help="Keep browser evidence outside the repository",
+    )
+    parser.add_argument("--grep", help="Run only matching browser journeys")
     args = parser.parse_args()
     if not args.tusd or not args.pnpm or not args.caddy:
         parser.error("tusd, pnpm and caddy must be installed or supplied by absolute path")
     with tempfile.TemporaryDirectory(prefix="pathlab-fullstack-") as temporary:
         directory = Path(temporary)
         env = isolated_environment(directory)
+        report_dir = args.report_dir.resolve() if args.report_dir else directory / "browser-results"
+        if report_dir.is_relative_to(ROOT):
+            parser.error("--report-dir must be outside the repository")
+        report_dir.mkdir(parents=True, exist_ok=True)
+        env["PATHLAB_E2E_BROWSER"] = args.browser
+        env["PATHLAB_E2E_OUTPUT_DIR"] = str(report_dir / "results")
+        env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(report_dir / "results.json")
         api_port, tus_port, web_port, tile_port, edge_port = reserve_ports(5)
         api_url = f"http://127.0.0.1:{api_port}"
         env["PATHLAB_DEV_API_URL"] = api_url
@@ -620,6 +638,8 @@ def main() -> int:
                     "test",
                     "--config",
                     "playwright.fullstack.config.ts",
+                    "--reporter=line,json",
+                    *(["--grep", args.grep] if args.grep else []),
                 ],
                 timeout=600,
             )

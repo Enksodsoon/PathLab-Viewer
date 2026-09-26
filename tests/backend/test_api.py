@@ -1811,6 +1811,10 @@ def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> 
         )
         assert response.status_code == 400
         assert response.json()["detail"]["code"] == "INVALID_TIFF_SIGNATURE"
+        failed = client.get(f"/api/v1/admin/slides/{created['slide']['id']}").json()
+        assert failed["state"] == "failed"
+        assert failed["errorCode"] == "INVALID_TIFF_SIGNATURE"
+        assert upload.exists()
 
 
 def test_completed_upload_reduces_hook_path_to_a_safe_tus_id(tmp_path: Path) -> None:

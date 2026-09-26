@@ -246,6 +246,8 @@ function uploadSlide(slide: AdminSlide, folderId: string | null): LibrarySlide {
 export function AdminPage() {
   const navigate = useNavigate()
   const [url, setUrl] = useSearchParams()
+  const latestUrl = useRef(url)
+  latestUrl.current = url
   const returnTo = safeAdminReturnPath(url.get('returnTo'))
   const location = url.get('location') || 'all'
   const storageOpen = location === 'storage'
@@ -297,6 +299,8 @@ export function AdminPage() {
   const [publishBusy, setPublishBusy] = useState(false)
   const [visible, setVisible] = useState(() => document.visibilityState !== 'hidden')
   const [formName, setFormName] = useState('')
+  const [actionBusy, setActionBusy] = useState(false)
+  const actionInFlight = useRef(false)
   const [formDescription, setFormDescription] = useState('')
   const [moveTarget, setMoveTarget] = useState('')
   const [folderTarget, setFolderTarget] = useState<LibraryFolder | null>(null)
@@ -338,14 +342,14 @@ export function AdminPage() {
     values: Record<string, string | null>,
     replace = true,
   ) => {
-    setUrl((current) => {
-      const next = new URLSearchParams(current)
-      for (const [key, value] of Object.entries(values)) {
-        if (!value) next.delete(key)
-        else next.set(key, value)
-      }
-      return next
-    }, { replace })
+    // Router updates do not queue like state updates; preserve same-turn navigation.
+    const next = new URLSearchParams(latestUrl.current)
+    for (const [key, value] of Object.entries(values)) {
+      if (!value) next.delete(key)
+      else next.set(key, value)
+    }
+    latestUrl.current = next
+    setUrl(next, { replace })
   }, [setUrl])
 
   const loadNavigation = useCallback(async () => {
@@ -426,12 +430,13 @@ export function AdminPage() {
   }, [authorized, navigation.folderPath])
 
   useEffect(() => {
+    if ((url.get('q') || '') === searchDraft.trim()) return
     const timer = window.setTimeout(() => {
       setSearch(searchDraft.trim())
       setUrlValues({ q: searchDraft.trim() || null })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [searchDraft, setUrlValues])
+  }, [searchDraft, setUrlValues, url])
 
   const query = useMemo(() => ({
     location: storageOpen ? 'all' : location,
@@ -697,8 +702,16 @@ export function AdminPage() {
   }
 
   function runAction(task: () => Promise<unknown>, failure: string) {
+    if (actionInFlight.current) return
+    actionInFlight.current = true
+    setActionBusy(true)
     setError('')
-    void task().catch(() => setError(`${failure} failed. Try again.`))
+    void Promise.resolve().then(task)
+      .catch(() => setError(`${failure} failed. Try again.`))
+      .finally(() => {
+        actionInFlight.current = false
+        setActionBusy(false)
+      })
   }
 
   async function expandFolder(folder: LibraryFolder) {
@@ -1235,7 +1248,7 @@ export function AdminPage() {
           const completed = uploadQueueRef.current.filter(
             (entry) => entry.phase === 'complete',
           ).length
-          setNotice(`${completed} ${completed === 1 ? 'file' : 'files'} uploaded. Processing is queued.`)
+          setNotice(`${completed} ${completed === 1 ? 'file' : 'files'} uploaded. Check processing status in the library.`)
         } catch (caught) {
           updateUploadItem(item.id, {
             phase: 'error',
@@ -1717,7 +1730,9 @@ export function AdminPage() {
             folderName={details.folderId
               ? foldersById.get(details.folderId)?.name
               : undefined}
-            collectionNames={location.startsWith('collection:')
+            collectionNames={'collections' in details && details.collections
+              ? details.collections.map((collection) => collection.name)
+              : location.startsWith('collection:')
               ? [navigation.collections.find(
                 (collection) => collection.id === location.slice('collection:'.length),
               )?.name].filter((name): name is string => Boolean(name))
@@ -1785,7 +1800,7 @@ export function AdminPage() {
           {dialog !== 'saved' ? (
             <label>Description<textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} /></label>
           ) : <p>Current search and filters will be saved.</p>}
-          <button type="submit" className="primary">Create</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Create</button>
         </form>
       </LibraryDialog>
 
@@ -1857,7 +1872,7 @@ export function AdminPage() {
               }))}
             />
           </label>
-          <button type="submit" className="primary">Save details</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save details</button>
         </form>
       </LibraryDialog>
 
@@ -1876,7 +1891,7 @@ export function AdminPage() {
           <label>Description
             <textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} />
           </label>
-          <button type="submit" className="primary">Save folder</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save folder</button>
         </form>
       </LibraryDialog>
 
@@ -1897,7 +1912,7 @@ export function AdminPage() {
                 .map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
           </label>
-          <button type="submit" className="primary">Move folder</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Move folder</button>
         </form>
       </LibraryDialog>
 
@@ -1918,7 +1933,7 @@ export function AdminPage() {
               <textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} />
             </label>
           ) : null}
-          <button type="submit" className="primary">Save name</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save name</button>
         </form>
       </LibraryDialog>
 
@@ -2014,7 +2029,7 @@ export function AdminPage() {
               {[...foldersById.values()].map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
           </label>
-          <button type="submit" className="primary">Move</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Move</button>
         </form>
       </LibraryDialog>
 
@@ -2034,7 +2049,7 @@ export function AdminPage() {
               {navigation.collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
             </select>
           </label>
-          <button type="submit" className="primary">Add slides</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Add slides</button>
         </form>
       </LibraryDialog>
 
@@ -2049,7 +2064,7 @@ export function AdminPage() {
           runAction(submitSimpleDialog, 'Save tags')
         }}>
           <label>Tags<input value={tagValue} onChange={(event) => setTagValue(event.target.value)} placeholder="Teaching, Adenocarcinoma" /></label>
-          <button type="submit" className="primary">Save tags</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save tags</button>
         </form>
       </LibraryDialog>
 

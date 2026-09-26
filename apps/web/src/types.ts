@@ -70,6 +70,7 @@ export interface LibrarySlide {
 }
 
 export interface LibrarySlideDetails extends LibrarySlide {
+  collections?: Array<{ id: string; name: string }>
   filename: string
   adminNotes: string
   metadata: SlideMetadata | null

@@ -893,6 +893,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         with source.open("rb") as uploaded:
             signature = uploaded.read(4)
         if signature not in {b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"}:
+            slide.state = transition(slide.state, SlideState.FAILED)
+            slide.error_code = "INVALID_TIFF_SIGNATURE"
+            slide.error_message = "The uploaded file is not a TIFF. Upload a valid OME-TIFF file."
+            db.add(AuditEvent(action="upload.failed", target_id=slide.id))
+            db.commit()
             raise HTTPException(status_code=400, detail={"code": "INVALID_TIFF_SIGNATURE"})
         destination = storage.for_slide(slide.id).original
         destination.parent.mkdir(parents=True, exist_ok=True)
