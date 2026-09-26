@@ -905,13 +905,15 @@ export function ClassroomTeacherPage() {
     localPointer.className = 'classroom-local-pointer'
     localPointerElementRef.current = localPointer
     viewer.container.append(localPointer)
-    const sender = createLatestSender(() => (
-      publishTeacherViewport(classroom!.id, readPresenterViewport(viewer, currentSlide!.id))
+    const sender = createLatestSender(() => {
+      if (adminAuthFailed.current || !guideModeRef.current || streamCursor.current.needsSnapshot
+        || stateRef.current?.controller.participantId || !classroom || !currentSlide) return Promise.resolve()
+      return publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
         .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
         .catch((caught: unknown) => {
           handleAdminFailure(caught, 'The live field could not be shared.')
         })
-    ))
+    })
     const publish = () => {
       if (suppressPublish.current) {
         suppressPublish.current = false
@@ -1327,7 +1329,8 @@ export function ClassroomTeacherPage() {
           onClick={() => {
             const next = !guideMode
             setGuideMode(next)
-            if (next && viewer && currentSlide && !state?.controller.participantId) {
+            if (next && viewer && currentSlide && !streamCursor.current.needsSnapshot
+              && !stateRef.current?.controller.participantId) {
               void publishTeacherViewport(classroom.id, readPresenterViewport(viewer, currentSlide.id))
                 .then(() => setError((current) => current === 'The live field could not be shared.' ? '' : current))
                 .catch((caught: unknown) => {

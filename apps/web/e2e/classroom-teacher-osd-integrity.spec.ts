@@ -95,8 +95,17 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await expect.poll(() => receipts.some((receipt) => receipt.slideId === 'slide-2'), { timeout: 5000 }).toBe(true)
   await expect(student.getByRole('button', { name: '2. Synthetic slide 2', exact: true })).toBeVisible({ timeout: 5000 })
   const baseline = receipts.length
+  snapshotGate = new Promise<void>((resolve) => { releaseSnapshot = resolve })
   controller = 'learner'; version += 1
   await emit(page, 'control', { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version })
+  await expect.poll(() => heldSnapshots).toBe(1)
+  await page.locator('.openseadragon-canvas').first().hover()
+  await page.mouse.wheel(0, -200)
+  await page.waitForTimeout(700)
+  expect(receipts.length).toBe(baseline)
+  snapshotGate = null
+  releaseSnapshot!()
+  heldSnapshots = 0
   await page.waitForTimeout(300)
   presenter = { sequence: presenter.sequence + 1, slideId: 'slide-2', viewport: { x: .7, y: .3, zoom: 2, zoomSpace: 'image' } }
   await emit(page, 'presenter', { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: 'slide-2', viewport: presenter.viewport })

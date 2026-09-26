@@ -439,7 +439,8 @@ export function ClassroomStudentPage() {
     setViewer(viewer)
     const sender = createLatestSender(() => {
       const current = stateRef.current
-      if (!current?.control.leaseId || !sessionId) return Promise.resolve()
+      if (streamCursor.current.needsSnapshot || !current?.control.isController
+        || !current.control.leaseId || !sessionId) return Promise.resolve()
       return publishStudentViewport(
         sessionId,
         csrfRef.current,
