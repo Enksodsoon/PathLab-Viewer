@@ -167,8 +167,7 @@ export async function uploadSyntheticSlide(
   syntheticPath: string,
   displayName: string,
 ): Promise<string> {
-  await page.getByLabel('Library command bar', { exact: true })
-    .getByRole('button', { name: 'Upload', exact: true }).click()
+  await page.getByRole('button', { name: 'Upload', exact: true }).first().click()
   const dialog = capacityUploadDialog(page)
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('Choose OME-TIFF files', { exact: true }).setInputFiles(syntheticPath)
