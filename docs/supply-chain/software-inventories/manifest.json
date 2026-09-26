@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "c79db4714c8cd3a29962c67ad22dc1e62878de89c945ea6ea758250fe57c31f5",
+      "sha256": "9bad2dea6a97b14e386ccdb66ee798bd7195eb13d4243440e5232dae25e91754",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "b7a47553244bb64744d971fce57447a6c7368603ef8522a2a6e89906de5d7ca8",
+      "sha256": "5039d39a50bac0fda3025afe1fe3c6869e0c024495cf08bfd361f4c15729f3c9",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "f9bcceb0dc861982e16de103529b770a89760716922c41c4e2ec8f3804a65aed",
+      "sha256": "26377692e07d67402c4d53aa9af33524d87d8599df5953fee50da9d54200c537",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "d9b1a90fc1fead5f0e8ec15fd0319fda6d7fe7b1119430ea8e02a37c924a8b2e",
+      "sha256": "35ec22f7f5821eb9fc4dd03be3874b313cb5c609eb6536d66bcfe3e2014684ce",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T18:20:39Z",
+  "generatedAt": "2026-09-26T18:30:41Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "37cb3ff5b1ba9b7ee6a55f76f9169aeea8a0299e",
+      "gitBlob": "bfbe66da6ba11238e72e5c8dc733b27bf53a741f",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "7bf4014824d1f0553317b7466a881779032b92853775e7771b277b38e981aa12",
+      "sha256": "435c27c69b9e2f03037b79c9cb0867cc63afedd42d9e77c496b72d8e56fc90c2",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "37e38aeac1295f8677808e56fa9a390baad3151b",
-  "subjectTree": "03b5ea6063e5a29fef03cd834a4ad0b0a048e14c"
+  "subjectCommit": "842828673c8c3e3ee0c14e39c0c4ad5784a6013d",
+  "subjectTree": "efd2c599ffddf8ab15f2e5966f95bae160c8d501"
 }
