@@ -28,7 +28,7 @@ export function ContextMenu({
 
   const close = () => {
     setOpen(false)
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
+    window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }))
   }
 
   useLayoutEffect(() => {
@@ -44,7 +44,7 @@ export function ContextMenu({
       ? trigger.bottom + gap
       : Math.max(8, trigger.top - menu.height - gap)
     setPosition({ left, top })
-    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true })
   }, [open])
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export function ContextMenu({
       return
     } else return
     event.preventDefault()
-    items[next]?.focus()
+    items[next]?.focus({ preventScroll: true })
   }
 
   return (
