@@ -12,6 +12,7 @@ import { useMemo, useRef, useState } from 'react'
 
 import type { LibraryFolder } from '../../types'
 import { ContextMenu } from './ContextMenu'
+import { canMoveFolder, FOLDER_DRAG_TYPE } from './folderDrag'
 
 interface FolderTreeProps {
   roots: LibraryFolder[]
@@ -21,6 +22,7 @@ interface FolderTreeProps {
   onExpand: (folder: LibraryFolder) => void
   onSelect: (folder: LibraryFolder) => void
   onDropSlides: (folderId: string, slideIds: string[]) => void
+  onDropFolder?: (folder: LibraryFolder, parentId: string | null) => void
   onAction: (folder: LibraryFolder, action: 'rename' | 'move' | 'trash') => void
 }
 
@@ -51,6 +53,7 @@ export function FolderTree({
   onExpand,
   onSelect,
   onDropSlides,
+  onDropFolder,
   onAction,
 }: FolderTreeProps) {
   const flattened = useMemo(
@@ -59,6 +62,18 @@ export function FolderTree({
   )
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const refs = useRef(new Map<string, HTMLDivElement>())
+  const folders = new Map([...roots, ...[...children.values()].flat()].map((folder) => [folder.id, folder]))
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+
+  function dropFolder(event: React.DragEvent, parentId: string | null) {
+    const source = folders.get(event.dataTransfer.getData(FOLDER_DRAG_TYPE))
+    if (!source) return false
+    event.preventDefault()
+    event.stopPropagation()
+    if (canMoveFolder(source, parentId, folders)) onDropFolder?.(source, parentId)
+    setDraggedId(null)
+    return true
+  }
 
   function focusAt(index: number) {
     const item = flattened[Math.max(0, Math.min(index, flattened.length - 1))]
@@ -69,6 +84,7 @@ export function FolderTree({
 
   return (
     <div className="folder-tree" role="tree" aria-label="Folders">
+      {onDropFolder && draggedId ? <div role="presentation" className="folder-tree-row" onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }} onDrop={(event) => dropFolder(event, null)}>Move to top level</div> : null}
       {flattened.map(({ folder, level }, index) => {
         const isExpanded = expanded.has(folder.id)
         const isSelected = selectedId === folder.id
@@ -90,12 +106,25 @@ export function FolderTree({
             tabIndex={focusedId === folder.id || (!focusedId && index === 0) ? 0 : -1}
             className={`folder-tree-row ${isSelected ? 'selected' : ''}`}
             style={{ paddingInlineStart: `${8 + (level - 1) * 16}px` }}
-            draggable
+            draggable={Boolean(onDropFolder) && !folder.trashedAt}
+            onDragStart={(event) => {
+              if ((event.target as HTMLElement).closest('button')) { event.preventDefault(); return }
+              event.dataTransfer.setData(FOLDER_DRAG_TYPE, folder.id)
+              event.dataTransfer.effectAllowed = 'move'
+              setDraggedId(folder.id)
+            }}
+            onDragEnd={() => setDraggedId(null)}
             onClick={() => onSelect(folder)}
             onFocus={() => setFocusedId(folder.id)}
-            onDragOver={(event) => event.preventDefault()}
+            onDragOver={(event) => {
+              if (event.dataTransfer.types.includes('application/x-pathlab-slide-ids') || (onDropFolder && event.dataTransfer.types.includes(FOLDER_DRAG_TYPE))) {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+              }
+            }}
             onDrop={(event) => {
               event.preventDefault()
+              if (dropFolder(event, folder.id)) return
               const ids = event.dataTransfer.getData('application/x-pathlab-slide-ids')
               if (ids) onDropSlides(folder.id, ids.split(',').filter(Boolean))
             }}

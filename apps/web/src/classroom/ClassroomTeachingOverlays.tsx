@@ -73,18 +73,9 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
     if (!viewer || !canvas) return
     let frame: number | null = null
     const render = () => {
-      if (!visibleAnnotations.length && pointerRef.current?.slideId !== slideId) return
       if (frame !== null) return
       frame = window.requestAnimationFrame(() => {
         frame = null
-        const item = viewer.world.getItemAt(0)
-        if (!item) return
-        const dimensions = item.source.dimensions
-        const project = (point: { x: number; y: number }) => (
-          viewer.viewport.viewportToViewerElementCoordinates(
-            item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
-          )
-        )
         const bounds = canvas.getBoundingClientRect()
         const scale = Math.min(window.devicePixelRatio || 1, 2)
         canvas.width = Math.max(1, Math.round(bounds.width * scale))
@@ -92,6 +83,14 @@ export const ClassroomTeachingOverlays = forwardRef<ClassroomTeachingOverlayHand
         const context = canvas.getContext('2d')
         context?.setTransform(scale, 0, 0, scale, 0, 0)
         context?.clearRect(0, 0, bounds.width, bounds.height)
+        const item = viewer.world.getItemAt(0)
+        if (!item) { projectPointer(); return }
+        const dimensions = item.source.dimensions
+        const project = (point: { x: number; y: number }) => (
+          viewer.viewport.viewportToViewerElementCoordinates(
+            item.imageToViewportCoordinates(point.x * dimensions.x, point.y * dimensions.y),
+          )
+        )
         if (context) for (const annotation of visibleAnnotations) {
           const points = annotation.points.map(project)
           const first = points[0]

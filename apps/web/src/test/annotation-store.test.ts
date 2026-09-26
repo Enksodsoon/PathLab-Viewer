@@ -42,6 +42,36 @@ const annotation: AnnotationRecord = {
 }
 
 describe('framework-neutral annotation editing store', () => {
+  it('bulk patches preserve each record properties and undo the selection in one command', () => {
+    const second: AnnotationRecord = {
+      ...structuredClone(annotation), id: 'a-2',
+      metadata: { ...annotation.metadata, title: 'Stroma', notes: 'Keep this note', tags: ['second'] },
+      style: { ...annotation.style, strokeColor: '#123456', fillColor: '#654321' },
+    }
+    const store = createAnnotationStore({ slideId: 'slide-1' })
+    store.load({ version: 1, layers: [layer], annotations: [annotation, second] })
+    store.bulkUpdate([annotation.id, second.id], {
+      metadata: { classification: 'Updated' }, style: { strokeWidth: 5 },
+    })
+    for (const original of [annotation, second]) {
+      const edited = store.getState().annotations.get(original.id)!
+      expect(edited.metadata).toEqual({ ...original.metadata, classification: 'Updated' })
+      expect(edited.style).toEqual({ ...original.style, strokeWidth: 5 })
+      expect(store.getState().pendingMutations.find((mutation) => mutation.type === 'update' && mutation.id === original.id))
+        .toMatchObject({ metadata: edited.metadata, style: edited.style })
+    }
+    expect(store.getState().pendingMutations).toHaveLength(2)
+    store.undo()
+    for (const original of [annotation, second]) {
+      expect(store.getState().annotations.get(original.id)?.metadata).toEqual(original.metadata)
+      expect(store.getState().annotations.get(original.id)?.style).toEqual(original.style)
+    }
+    expect(store.canUndo()).toBe(false)
+    store.redo()
+    expect(store.getState().annotations.get(second.id)?.metadata.notes).toBe(second.metadata.notes)
+    expect(store.getState().annotations.get(second.id)?.style.strokeWidth).toBe(5)
+  })
+
   it('supports tool, selection, layer/filter, bulk editing, delete/restore, and history', () => {
     const store = createAnnotationStore({ slideId: 'slide-1' })
     store.load({ version: 1, layers: [layer], annotations: [annotation] })

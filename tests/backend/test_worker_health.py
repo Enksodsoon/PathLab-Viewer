@@ -49,3 +49,23 @@ def test_heartbeat_write_atomically_replaces_existing_file(tmp_path: Path) -> No
     assert float(heartbeat.read_text(encoding="ascii")) > 1
     if os.name != "nt":
         assert heartbeat.stat().st_ino != previous_inode
+
+
+def test_heartbeat_recovers_after_transient_storage_denial(tmp_path: Path, monkeypatch) -> None:
+    heartbeat = tmp_path / "worker-heartbeat"
+    writer = HeartbeatWriter(heartbeat, interval_seconds=0)
+    refresh = writer.refresh
+    attempts = 0
+
+    def temporary_failure():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise PermissionError("injected temporary storage denial")
+        refresh()
+        writer._stop.set()
+
+    monkeypatch.setattr(writer, "refresh", temporary_failure)
+    writer._run()
+    assert attempts == 2
+    assert check_heartbeat(heartbeat, stale_after_seconds=1)

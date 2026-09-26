@@ -7,6 +7,7 @@ import json
 import tarfile
 import time
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -1394,6 +1395,25 @@ def test_recovery_rejects_invalid_password_without_consuming_code(tmp_path: Path
         assert recovered.status_code == 204
 
 
+def test_recovery_password_validation_does_not_reveal_code_validity(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        with session_factory(client.app.state.settings)() as database:
+            user = database.scalar(select(User).where(User.username == "admin"))
+            assert user is not None
+            code = issue_recovery_code(database, user)
+            database.commit()
+        responses = [
+            client.post(
+                "/api/v1/auth/password/recover",
+                json={"username": "admin", "recoveryCode": candidate, "newPassword": "short"},
+            )
+            for candidate in ("wrong-code", code)
+        ]
+        assert [response.status_code for response in responses] == [400, 400]
+        assert responses[0].json() == responses[1].json()
+        assert _has_error(responses[0], 400, "INVALID_PASSWORD")
+
+
 def test_recovery_throttle_is_shared_across_api_workers(tmp_path: Path) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'shared.sqlite3'}",
@@ -1781,12 +1801,104 @@ def test_tusd_hooks_authorize_and_finalize_reserved_upload(tmp_path: Path) -> No
             json={"Type": "pre-create", "Event": {"Upload": upload_info}},
         )
         assert authorized.json()["RejectUpload"] is False
+        with session_factory(settings)() as database:
+            reserved = database.get(Slide, created["slide"]["id"])
+            reserved.trashed_at = datetime.now(UTC)
+            database.commit()
+        trashed_finish = client.post(
+            "/api/v1/internal/tus/hooks",
+            json={"Type": "post-finish", "Event": {"Upload": upload_info}},
+        )
+        assert trashed_finish.status_code == 500
+        assert trashed_finish.json()["detail"]["code"] == "TUS_FINALIZE_FAILED"
+        assert upload.exists()
+        with session_factory(settings)() as database:
+            reserved = database.get(Slide, created["slide"]["id"])
+            reserved.trashed_at = None
+            database.commit()
         finished = client.post(
             "/api/v1/internal/tus/hooks",
             json={"Type": "post-finish", "Event": {"Upload": upload_info}},
         )
         assert finished.status_code == 200
+        repeated = client.post(
+            "/api/v1/internal/tus/hooks",
+            json={"Type": "post-finish", "Event": {"Upload": upload_info}},
+        )
+        assert repeated.status_code == 200
+        with session_factory(settings)() as database:
+            assert len(database.scalars(select(Job)).all()) == 1
         assert client.get("/api/v1/admin/slides").json()[0]["state"] == "queued"
+
+
+def test_upload_commit_failure_preserves_spool_for_retry(tmp_path: Path, monkeypatch) -> None:
+    from sqlalchemy.orm import Session as DatabaseSession
+
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        settings = client.app.state.settings
+        upload = settings.tus_internal_upload_dir / "commit-retry"
+        upload.parent.mkdir(parents=True, exist_ok=True)
+        original = b"II*\x00payload"
+        upload.write_bytes(original)
+        created = client.post(
+            "/api/v1/admin/slides", headers={"X-CSRF-Token": csrf},
+            json={"displayName": "Retry", "filename": "x.ome.tif", "length": len(original)},
+        ).json()
+        payload = {"token": created["uploadToken"], "path": str(upload), "length": len(original)}
+        original_commit = DatabaseSession.commit
+
+        def fail_commit(_database):
+            raise RuntimeError("injected commit failure")
+
+        monkeypatch.setattr(DatabaseSession, "commit", fail_commit)
+        with pytest.raises(RuntimeError, match="injected commit failure"):
+            client.post("/api/v1/internal/uploads/complete", json=payload)
+        assert upload.read_bytes() == original
+        monkeypatch.setattr(DatabaseSession, "commit", original_commit)
+        with session_factory(settings)() as database:
+            assert database.get(Slide, created["slide"]["id"]).state is SlideState.UPLOADING
+            assert not database.scalars(select(Job)).all()
+        assert client.post("/api/v1/internal/uploads/complete", json=payload).status_code == 202
+        assert not upload.exists()
+
+
+def test_upload_token_renewal_preserves_reservation_and_authorization(tmp_path: Path) -> None:
+    from datetime import timedelta
+
+    from wsi_viewer.security import UploadGrant, issue_upload_token
+
+    with _client(tmp_path) as client:
+        assert client.post("/api/v1/admin/slides/missing/upload-token").status_code == 401
+        csrf = _login(client)
+        headers = {"X-CSRF-Token": csrf}
+        created = client.post(
+            "/api/v1/admin/slides", headers=headers,
+            json={"displayName": "Renew", "filename": "x.ome.tif", "length": 10},
+        ).json()
+        settings = client.app.state.settings
+        slide_id = created["slide"]["id"]
+        endpoint = f"/api/v1/admin/slides/{slide_id}/upload-token"
+        expired = issue_upload_token(
+            UploadGrant(slide_id, 10), settings.secret_key, ttl=timedelta(seconds=-1),
+        )
+        hook = {"Type": "pre-create", "Event": {"Upload": {
+            "Size": 10, "MetaData": {"uploadToken": expired},
+        }}}
+        assert client.post("/api/v1/internal/tus/hooks", json=hook).json()["RejectUpload"]
+        assert client.post(endpoint).status_code == 403
+        renewed = client.post(endpoint, headers=headers)
+        assert renewed.status_code == 200
+        assert renewed.json()["slide"]["id"] == slide_id
+        hook["Event"]["Upload"]["MetaData"]["uploadToken"] = renewed.json()["uploadToken"]
+        assert not client.post("/api/v1/internal/tus/hooks", json=hook).json()["RejectUpload"]
+        with session_factory(settings)() as database:
+            slides = database.scalars(select(Slide)).all()
+            assert len(slides) == 1
+            assert slides[0].source_bytes == 10
+            slides[0].state = SlideState.QUEUED
+            database.commit()
+        assert client.post(endpoint, headers=headers).status_code == 409
 
 
 def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> None:

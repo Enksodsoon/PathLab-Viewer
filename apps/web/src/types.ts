@@ -108,6 +108,7 @@ export interface SavedView {
 }
 
 export interface LibraryNavigation {
+  trashedFolders?: LibraryFolder[]
   capabilities?: {
     classroom: boolean
     study?: boolean

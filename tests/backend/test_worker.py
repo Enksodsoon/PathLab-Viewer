@@ -369,6 +369,22 @@ def test_incomplete_tus_uploads_expire_after_24_hours(tmp_path: Path) -> None:
     assert not data.exists()
 
 
+def test_upload_removed_during_expiry_scan_does_not_stop_worker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    info = tmp_path / "upload-1.info"
+    info.write_text("{}", encoding="utf-8")
+    original_stat = Path.stat
+
+    def raced_stat(path: Path, *args, **kwargs):
+        if path == info:
+            path.unlink()
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", raced_stat)
+    assert expire_incomplete_uploads(tmp_path, older_than=timedelta(hours=24)) == 0
+
+
 def test_expired_upload_releases_database_reservation(tmp_path: Path) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'expired-upload.sqlite3'}",

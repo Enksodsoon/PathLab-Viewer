@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AdminPage as CanvasFocusAdminPage } from '../pages/AdminPage'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import type { LibraryItemsPage, LibraryNavigation, StorageInventory } from '../types'
+import { resetUploadQueue } from '../uploadQueue'
 
 const api = vi.hoisted(() => ({
   getLibraryNavigation: vi.fn(),
@@ -25,6 +26,7 @@ const api = vi.hoisted(() => ({
   listSlides: vi.fn(),
   reserveUpload: vi.fn(),
   getStorageInventory: vi.fn(),
+  getPrivateSlide: vi.fn(),
 }))
 
 vi.mock('../api', async (importOriginal) => ({
@@ -158,6 +160,7 @@ const storageInventory: StorageInventory = {
 }
 
 beforeEach(() => {
+  resetUploadQueue()
   localStorage.clear()
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
     matches: false,
@@ -170,6 +173,7 @@ beforeEach(() => {
     dispatchEvent: vi.fn(),
   })))
   api.getLibraryNavigation.mockResolvedValue(navigation)
+  api.getPrivateSlide.mockResolvedValue({ state: 'queued' })
   api.getLibraryItems.mockResolvedValue(items)
   api.getFolderChildren.mockResolvedValue([{
     ...navigation.folders[0],
@@ -259,6 +263,63 @@ function AdminPage() {
 }
 
 describe('Canvas Focus library explorer', () => {
+  it('refreshes filtered results after a reservation without inserting excluded uploads or changing the total', async () => {
+    const matching = {...items.items[0], state: 'published' as const}
+    api.getLibraryItems.mockResolvedValue({items: [matching], nextCursor: null, total: 1})
+    tusUpload.startTusUpload.mockImplementation(() => new Promise(() => {}))
+    renderCanvasFocusAdmin('/admin?state=published&organ=Colon&tag=Teaching&createdFrom=2026-09-01&sort=name_asc')
+    await screen.findAllByText('Colon adenocarcinoma')
+    await userEvent.click(within(screen.getByRole('complementary', {name: 'Product navigation'})).getByRole('button', {name: 'Upload'}))
+    await userEvent.upload(screen.getByLabelText('Choose OME-TIFF files'), new File(['source'], 'excluded.ome.tiff', {type: 'image/tiff'}))
+    await userEvent.click(screen.getByRole('button', {name: 'Upload 1 file'}))
+    await waitFor(() => expect(api.reserveUpload).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenCalledTimes(2))
+    expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({state: 'published', organ: 'Colon', tags: ['Teaching'], createdFrom: '2026-09-01T00:00:00Z', sort: 'name_asc', limit: 48}))
+    expect(screen.queryByRole('checkbox', {name: 'Select excluded'})).not.toBeInTheDocument()
+    expect(screen.getByText('1 slide')).toBeVisible()
+  })
+
+  it('restores a saved query title, search, sort, state, dates and every tag on direct navigation', async () => {
+    api.getLibraryNavigation.mockResolvedValue({...navigation, savedViews: [{id: 'renal', name: 'Renal teaching', sort: 'name_asc', updatedAt: 'now', definition: {version: 1, filters: {q: 'kidney', tags: ['Teaching', 'Renal'], state: 'published', createdFrom: '2026-09-01', updatedTo: '2026-09-20'}}}]})
+    renderCanvasFocusAdmin('/admin?location=saved%3Arenal&q=old&state=failed&tag=old&sort=size_desc')
+    await screen.findByRole('heading', {name: 'Renal teaching'})
+    expect(screen.getByRole('searchbox', {name: 'Search slides'})).toHaveValue('kidney')
+    await waitFor(() => expect(screen.getByRole('combobox', {name: 'Sort slides'})).toHaveValue('name_asc'))
+    expect(screen.getByLabelText('Active tags')).toHaveTextContent('Teaching, Renal')
+    await userEvent.click(screen.getByRole('button', {name: 'Filters'}))
+    expect(screen.getByRole('combobox', {name: 'Processing state'})).toHaveValue('published')
+    expect(screen.getByLabelText('Created from')).toHaveValue('2026-09-01')
+    expect(screen.getByLabelText('Updated to')).toHaveValue('2026-09-20')
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'saved:renal', q: 'kidney', tags: ['Teaching', 'Renal'], sort: 'name_asc'})))
+    await userEvent.click(screen.getByRole('button', {name: 'Clear filters'}))
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'all', state: '', tags: undefined, createdFrom: undefined, updatedTo: undefined})))
+    expect(screen.getByRole('heading', {name: 'All slides'})).toBeVisible()
+  })
+
+  it('applies edits outside saved server filters while retaining all tags for unrelated edits', async () => {
+    api.getLibraryNavigation.mockResolvedValue({...navigation, savedViews: [{id: 'renal', name: 'Renal teaching', sort: 'name_asc', updatedAt: 'now', definition: {version: 1, filters: {q: 'kidney', tags: ['Teaching', 'Renal'], state: 'published'}}}]})
+    renderCanvasFocusAdmin()
+    await screen.findAllByText('Colon adenocarcinoma')
+    await userEvent.click(screen.getByRole('button', {name: 'Slide library'}))
+    await userEvent.click(screen.getAllByRole('button', {name: 'Renal teaching'})[0])
+    await screen.findByRole('heading', {name: 'Renal teaching'})
+    fireEvent.change(screen.getByRole('searchbox', {name: 'Search slides'}), {target: {value: 'changed'}})
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'all', q: 'changed', tags: ['Teaching', 'Renal']})))
+    await userEvent.click(screen.getByRole('button', {name: 'Filters'}))
+    fireEvent.change(screen.getByRole('textbox', {name: 'Tag'}), {target: {value: 'Replacement'}})
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'all', tags: ['Replacement']})))
+  })
+
+  it('exits saved filters when sort changes and shows stored multi-value metadata truthfully', async () => {
+    api.getLibraryNavigation.mockResolvedValue({...navigation, savedViews: [{id: 'renal', name: 'Renal teaching', sort: 'name_asc', updatedAt: 'now', definition: {version: 1, filters: {q: 'kidney', organ: ['Kidney', 'Liver'], tags: ['Teaching', 'Renal']}}}]})
+    renderCanvasFocusAdmin('/admin?location=saved%3Arenal')
+    await screen.findByRole('heading', {name: 'Renal teaching'})
+    expect(screen.getByLabelText('Saved organ values')).toHaveTextContent('Kidney, Liver. Applied value: Kidney')
+    await waitFor(() => expect(screen.getByRole('combobox', {name: 'Sort slides'})).toHaveValue('name_asc'))
+    fireEvent.change(screen.getByRole('combobox', {name: 'Sort slides'}), {target: {value: 'name_desc'}})
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenLastCalledWith(expect.objectContaining({location: 'all', q: 'kidney', tags: ['Teaching', 'Renal'], sort: 'name_desc'})))
+  })
+
   it('uses a compact rail with two destinations and account utilities', async () => {
     renderCanvasFocusAdmin()
 
@@ -369,6 +430,20 @@ describe('Canvas Focus library explorer', () => {
     await userEvent.click(within(rail).getByRole('button', { name: /^classroom$/i }))
 
     expect(screen.getByRole('heading', { name: 'Classroom workspace' })).toBeVisible()
+  })
+
+  it('restores a trashed folder and refreshes the saved library state', async () => {
+    api.getLibraryNavigation.mockResolvedValueOnce({
+      ...navigation, trashedFolders: [{ ...navigation.folders[0], trashedAt: '2026-09-26T00:00:00Z' }],
+    })
+    api.mutateFolder.mockResolvedValue(undefined)
+    renderCanvasFocusAdmin('/admin?location=trash')
+    const restore = await screen.findByRole('button', { name: 'Restore Organ systems' })
+    await userEvent.click(restore)
+    await waitFor(() => expect(api.mutateFolder).toHaveBeenCalledWith('folder-organs', 'restore'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Restore Organ systems' })).not.toBeInTheDocument())
+    expect(api.getLibraryItems).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Folder restored with its remaining contents.')).toBeVisible()
   })
 
   it('leaves absent card metadata blank instead of showing placeholder copy', async () => {
@@ -811,7 +886,8 @@ describe('Canvas Focus library explorer', () => {
       expect(tusUpload.startTusUpload).toHaveBeenCalledTimes(2)
       expect(api.reserveUpload).toHaveBeenCalledTimes(2)
     })
-    expect(await screen.findAllByText(/Upload complete/)).toHaveLength(2)
+    expect(await screen.findAllByText(/Processing: queued/)).toHaveLength(2)
+    expect(screen.queryByText(/Upload complete/)).not.toBeInTheDocument()
   })
 
   it('shows only functional destinations and lazily expands folders', async () => {

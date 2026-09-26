@@ -1,9 +1,11 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
-import { afterEach, expect, it, vi } from 'vitest'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { DesktopConnectPage } from '../pages/DesktopConnectPage'
+import { AdminPage } from '../pages/AdminPage'
+import { ThemeProvider } from '../theme/ThemeProvider'
 
 function renderPage(code: string) {
   return render(
@@ -15,9 +17,18 @@ function renderPage(code: string) {
   )
 }
 
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+    matches: false, media: query, onchange: null,
+    addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+  })))
+})
+
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   sessionStorage.clear()
 })
 
@@ -67,7 +78,58 @@ it('shows sign-in-required state when approval has no administrator session', as
   await userEvent.click(screen.getByRole('button', { name: 'Approve this Forge device' }))
 
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(
-    'Sign in to Viewer, then reopen this verification link.',
+    'Sign in to Viewer to return to this verification code.',
   ))
+  expect(screen.getByRole('link', {name: 'Sign in to Viewer'})).toHaveAttribute('href', '/admin?returnTo=%2Fadmin%2Fconnect%3Fcode%3DABCD-EFGH')
   expect(screen.getByRole('button', { name: 'Approve this Forge device' })).toBeEnabled()
+})
+
+function CodeNavigation() {
+  const navigate = useNavigate()
+  return <><DesktopConnectPage /><button onClick={() => navigate('/admin/connect?code=JKLM-NPQR')}>Change code</button></>
+}
+
+it.each([204, 400])('resets completed approval state when the query code changes (%s)', async (status) => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, {status}))
+  render(<MemoryRouter initialEntries={['/admin/connect?code=ABCD-EFGH']}><CodeNavigation /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', {name: 'Approve this Forge device'}))
+  await screen.findByRole(status === 204 ? 'status' : 'alert')
+  fireEvent.click(screen.getByRole('button', {name: 'Change code'}))
+  expect(screen.getByText('JKLM-NPQR')).toBeVisible()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', {name: 'Approve this Forge device'})).toBeEnabled()
+})
+
+it('ignores an old pending approval after changing the query code', async () => {
+  let resolve!: (response: Response) => void
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((done) => {resolve = done}))
+  render(<MemoryRouter initialEntries={['/admin/connect?code=ABCD-EFGH']}><CodeNavigation /></MemoryRouter>)
+  await userEvent.click(screen.getByRole('button', {name: 'Approve this Forge device'}))
+  fireEvent.click(screen.getByRole('button', {name: 'Change code'}))
+  await act(async () => {resolve(new Response(null, {status: 204}))})
+  expect(screen.getByText('JKLM-NPQR')).toBeVisible()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', {name: 'Approve this Forge device'})).toBeEnabled()
+})
+
+it('returns through actual sign in to the original pairing query without auto-approval', async () => {
+  const requests = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    if (String(input) === '/api/v1/auth/session' && init?.method === 'POST') return new Response(JSON.stringify({csrfToken: 'synthetic-csrf'}), {status: 200})
+    return new Response(JSON.stringify({detail: {code: 'AUTHENTICATION_REQUIRED'}}), {status: 401})
+  })
+  render(<ThemeProvider><MemoryRouter initialEntries={['/admin/connect?code=abcd-efgh&source=forge']}><Routes>
+    <Route path="/admin/connect" element={<DesktopConnectPage />} />
+    <Route path="/admin" element={<AdminPage />} />
+  </Routes></MemoryRouter></ThemeProvider>)
+  await userEvent.click(screen.getByRole('button', {name: 'Approve this Forge device'}))
+  const link = await screen.findByRole('link', {name: 'Sign in to Viewer'})
+  expect(link).toHaveAttribute('href', '/admin?returnTo=%2Fadmin%2Fconnect%3Fcode%3Dabcd-efgh%26source%3Dforge')
+  await userEvent.click(link)
+  await userEvent.type(await screen.findByLabelText('Username'), 'synthetic-admin')
+  await userEvent.type(screen.getByLabelText('Password', {selector: 'input'}), 'synthetic-password')
+  await userEvent.click(screen.getByRole('button', {name: 'Enter workspace'}))
+  expect(await screen.findByText('ABCD-EFGH')).toBeVisible()
+  expect(screen.getByRole('button', {name: 'Approve this Forge device'})).toBeEnabled()
+  expect(requests.mock.calls.filter(([input]) => String(input) === '/api/v1/desktop/pairings/approve')).toHaveLength(1)
 })

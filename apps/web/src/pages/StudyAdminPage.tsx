@@ -64,11 +64,24 @@ export function StudyAdminPage() {
     finally { setBusy('') }
   }
 
+  const remainingInvitations = (course: StudyCourseSummary) => Math.max(0, course.learnerLimit - course.invitations)
+  const selectedInvitations = (course: StudyCourseSummary) => Math.max(0, Math.min(inviteCount[course.id] ?? 20, remainingInvitations(course)))
   const invitations = async (course: StudyCourseSummary) => {
-    const count = inviteCount[course.id] ?? Math.min(20, course.learnerLimit - course.invitations)
+    const count = selectedInvitations(course)
+    if (!Number.isInteger(count) || count < 1) {
+      setError('No valid invitation slots are available for this request.')
+      return
+    }
     setBusy(`${course.id}:invites`); setError('')
     try { await downloadStudyInvitations(course.id, count); await refresh() }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Invitation export failed.') }
+    finally { setBusy('') }
+  }
+
+  const progress = async (course: StudyCourseSummary) => {
+    setBusy(`${course.id}:progress`); setError('')
+    try { await downloadStudyProgress(course.id) }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Progress export failed.') }
     finally { setBusy('') }
   }
 
@@ -92,12 +105,12 @@ export function StudyAdminPage() {
       <section className="study-admin-courses" aria-labelledby="courses-heading"><h2 id="courses-heading">Courses</h2>{courses.length ? courses.map((course) => <article key={course.id}>
         <div><span className={`study-course-state ${course.status}`}>{course.status}</span><h3>{course.title}</h3><p>{course.redeemed} redeemed · {course.invitations} invitations · {course.retentionDays}-day retention</p><p>{course.aiMode === 'closed_pilot_trace_sim' ? 'Closed pilot — unapproved model trained on simulated learners' : 'Deterministic faculty guidance'}</p><p>Device checks: {course.readiness.ready} ready, {course.readiness.fallback} deterministic fallback</p>{course.aiMode === 'closed_pilot_trace_sim' ? <p>Aggregate local-AI actions: {Object.entries(course.aiActions).map(([action, count]) => `${action} ${count}`).join(' · ')}</p> : null}</div>
         <div className="study-course-controls">
-          {course.status === 'draft' || course.status === 'preparation' ? <><label>New codes<input type="number" min="1" max={course.learnerLimit - course.invitations} value={inviteCount[course.id] ?? Math.min(20, course.learnerLimit - course.invitations)} onChange={(event) => setInviteCount((current) => ({ ...current, [course.id]: Number(event.target.value) }))} /></label><button type="button" disabled={busy !== '' || course.invitations >= course.learnerLimit} onClick={() => void invitations(course)}><DownloadSimple aria-hidden="true" /> Export one-time codes</button></> : null}
+          {course.status === 'draft' || course.status === 'preparation' ? <><label>New codes<input type="number" min={remainingInvitations(course) ? 1 : 0} max={remainingInvitations(course)} disabled={busy !== '' || remainingInvitations(course) === 0} value={selectedInvitations(course)} onChange={(event) => setInviteCount((current) => ({ ...current, [course.id]: Number(event.target.value) }))} /></label><button type="button" disabled={busy !== '' || selectedInvitations(course) < 1 || !Number.isInteger(selectedInvitations(course))} onClick={() => void invitations(course)}><DownloadSimple aria-hidden="true" /> Export one-time codes</button><p>{remainingInvitations(course)} invitation slots remaining.</p></> : null}
           {course.status === 'draft' ? <button type="button" disabled={busy !== ''} onClick={() => void transition(course, 'prepare')}><Play aria-hidden="true" /> Start preparation</button> : null}
           {course.status === 'preparation' ? <button type="button" disabled={busy !== '' || course.invitations < 1} onClick={() => void transition(course, 'activate')}><Play aria-hidden="true" /> Activate {course.aiMode === 'closed_pilot_trace_sim' ? 'closed pilot' : 'deterministic course'}</button> : null}
           {course.status === 'preparation' || course.status === 'active' ? <button type="button" disabled={busy !== ''} onClick={() => void transition(course, 'end')}><Stop aria-hidden="true" /> End course</button> : null}
           {course.status === 'ended' ? <button type="button" disabled={busy !== ''} onClick={() => void transition(course, 'purge')}><Trash aria-hidden="true" /> Purge now</button> : null}
-          {course.redeemed > 0 ? <button type="button" onClick={() => downloadStudyProgress(course.id)}><DownloadSimple aria-hidden="true" /> Export pseudonymous progress</button> : null}
+          {course.redeemed > 0 ? <button type="button" disabled={busy !== ''} onClick={() => void progress(course)}><DownloadSimple aria-hidden="true" /> Export pseudonymous progress</button> : null}
         </div>
       </article>) : <p>No courses yet.</p>}</section>
     </>}

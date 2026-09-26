@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearch
 import { ApplicationErrorBoundary } from './components/ApplicationErrorBoundary'
 import { Loader } from './components/Loader'
 
+const UploadDock = lazy(() => import('./components/library/UploadDock').then((module) => ({ default: module.UploadDock })))
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })))
 const ViewerPage = lazy(() => import('./pages/ViewerPage').then((module) => ({ default: module.ViewerPage })))
 const SharedViewerPage = lazy(() => import('./pages/SharedViewerPage').then((module) => ({ default: module.SharedViewerPage })))
@@ -75,5 +76,5 @@ export function App() {
     <Route path="/f/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="folder" /></Suspense>} />
     <Route path="/c/:publicId" element={<Suspense fallback={<Loader label="Opening shared library…" size="large" fullscreen />}><SharedViewerPage targetType="collection" /></Suspense>} />
     <Route path="*" element={<AdminRedirect />} />
-  </Routes></ApplicationErrorBoundary>
+  </Routes>{location.pathname.startsWith('/admin') ? <Suspense fallback={null}><UploadDock /></Suspense> : null}</ApplicationErrorBoundary>
 }

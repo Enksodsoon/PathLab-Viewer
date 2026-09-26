@@ -1,13 +1,24 @@
 import { CheckCircle, Desktop, ShieldCheck } from '@phosphor-icons/react'
-import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 
 import { ApiError, approveDesktopPairing } from '../api'
+import { adminSignInPath } from '../authReturnPath'
 import './DesktopConnectPage.css'
 
 export function DesktopConnectPage() {
   const [params] = useSearchParams()
   const code = (params.get('code') ?? '').toUpperCase()
+  const location = useLocation()
+  return <PairingApproval key={code} code={code} signInPath={adminSignInPath(`${location.pathname}${location.search}${location.hash}`)} />
+}
+
+function PairingApproval({ code, signInPath }: { code: string; signInPath: string }) {
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   const [state, setState] = useState<'ready' | 'working' | 'approved' | 'signin' | 'error'>(
     /^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(code) ? 'ready' : 'error',
   )
@@ -16,8 +27,10 @@ export function DesktopConnectPage() {
     setState('working')
     try {
       await approveDesktopPairing(code)
+      if (!mounted.current) return
       setState('approved')
     } catch (caught) {
+      if (!mounted.current) return
       if (caught instanceof ApiError && caught.status === 401) {
         setState('signin')
       } else {
@@ -51,7 +64,8 @@ export function DesktopConnectPage() {
         : null}
       {state === 'signin'
         ? <div className="desktop-connect-message" role="alert">
-          Sign in to Viewer, then reopen this verification link.
+          Sign in to Viewer to return to this verification code.
+          <Link to={signInPath}>Sign in to Viewer</Link>
         </div>
         : null}
       {state === 'error'

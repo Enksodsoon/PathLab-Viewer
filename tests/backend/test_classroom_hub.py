@@ -277,6 +277,27 @@ def test_hub_disconnects_instead_of_silently_dropping_critical_overflow() -> Non
     asyncio.run(scenario())
 
 
+def test_transient_update_admission_is_atomic_and_bounded(monkeypatch) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from types import SimpleNamespace
+
+    import wsi_viewer.classroom_hub as module
+
+    clock = [100.0]
+    monkeypatch.setattr(module, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    hub = ClassroomHub()
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        accepted = list(executor.map(
+            lambda _: hub.allow_transient_update("pin:learner", interval_seconds=0.5), range(20),
+        ))
+    assert sum(accepted) == 1
+    clock[0] += 0.5
+    assert hub.allow_transient_update("pin:learner", interval_seconds=0.5)
+    for actor in range(1000):
+        hub.allow_transient_update(f"actor:{actor}")
+    assert len(hub._transient_last_at) == SUBSCRIBER_QUEUE_SIZE
+
+
 def test_hub_assigns_sequences_and_removes_subscriber() -> None:
     async def scenario() -> None:
         hub = ClassroomHub()
@@ -428,3 +449,18 @@ def test_hub_bounds_transient_teaching_tools_and_clears_them_with_session() -> N
     hub.clear_session("session")
     assert hub.teacher_pointer("session") is None
     assert hub.teaching_annotations("session") == []
+
+
+def test_terminal_event_distinguishes_review_from_revoked_access() -> None:
+    async def scenario() -> None:
+        for phase in ("review", "revoked"):
+            hub = ClassroomHub()
+            hub.start()
+            async with hub.subscribe("session", "teacher") as subscriber:
+                hub.terminate_session("session", state_version=9, phase=phase)
+                terminal = await asyncio.wait_for(subscriber.next_event(), timeout=1)
+                assert terminal is not None
+                assert terminal["phase"] == phase
+                assert terminal["stateVersion"] == 9
+                assert await asyncio.wait_for(subscriber.next_event(), timeout=1) is None
+    asyncio.run(scenario())

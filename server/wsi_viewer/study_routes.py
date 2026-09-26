@@ -12,6 +12,7 @@ from collections.abc import Callable, Iterator
 from contextlib import suppress
 from datetime import datetime, timedelta
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
@@ -22,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
+from .admission import lock_admission
 from .delivery import deliver_file
 from .domain import SlideState
 from .knowledge_pack_contract import (
@@ -228,6 +230,16 @@ def register_study_routes(
     purger = StudyPurger(factory)
     submission_times: dict[str, float] = {}
     ai_event_times: dict[str, float] = {}
+    rate_lock = Lock()
+
+    def current_rate_time(
+        timestamps: dict[str, float], session_id: str, now: float, interval: float,
+    ) -> float:
+        with rate_lock:
+            for key, timestamp in list(timestamps.items()):
+                if now - timestamp >= interval:
+                    timestamps.pop(key, None)
+            return timestamps.get(session_id, float("-inf"))
 
     def require_enabled() -> None:
         if not enabled:
@@ -847,6 +859,8 @@ def register_study_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> StreamingResponse:
         require_enabled()
+        database.rollback()
+        lock_admission(database, f"study-course:{course_id}")
         course = database.get(StudyCourse, course_id)
         existing = (
             database.scalar(
@@ -892,6 +906,9 @@ def register_study_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> StreamingResponse:
         require_enabled()
+        course = database.get(StudyCourse, course_id)
+        if course is None:
+            raise HTTPException(status_code=404, detail={"code": "STUDY_COURSE_NOT_FOUND"})
         rows = database.execute(
             select(StudyLearnerSession.pseudonym, StudyProgress)
             .join(StudyProgress, StudyProgress.session_id == StudyLearnerSession.id)
@@ -924,7 +941,13 @@ def register_study_routes(
                     item.updated_at.isoformat(),
                 ]
             )
-        return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8")
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="study-progress-{course.id}.csv"'
+            },
+        )
 
     @app.post("/api/v1/study/redeem", status_code=status.HTTP_201_CREATED)
     def redeem(
@@ -940,8 +963,20 @@ def register_study_routes(
         )
         if invitation is None or invitation.status != "issued":
             raise HTTPException(status_code=404, detail={"code": "STUDY_INVITATION_INVALID"})
+        course_id = invitation.course_id
+        database.rollback()
+        lock_admission(database, f"study-course:{course_id}")
+        invitation = database.scalar(
+            select(StudyInvitation).where(StudyInvitation.code_hash == _hash(payload.code))
+        )
+        if invitation is None or invitation.status != "issued":
+            raise HTTPException(status_code=404, detail={"code": "STUDY_INVITATION_INVALID"})
         course = database.get(StudyCourse, invitation.course_id)
-        if course is None or course.status not in {"preparation", "active"}:
+        if (
+            course is None
+            or course.status not in {"preparation", "active"}
+            or (course.ends_at is not None and as_utc(course.ends_at) <= _now())
+        ):
             raise HTTPException(status_code=409, detail={"code": "STUDY_COURSE_UNAVAILABLE"})
         current_count = (
             database.scalar(
@@ -1001,7 +1036,7 @@ def register_study_routes(
         if course is None or pack is None or course.status != "active":
             raise HTTPException(status_code=409, detail={"code": "STUDY_NOT_ACTIVE"})
         now_mono = time.monotonic()
-        last = submission_times.get(stored.id)
+        last = current_rate_time(submission_times, stored.id, now_mono, SUBMISSION_INTERVAL_SECONDS)
         if last is not None and now_mono - last < SUBMISSION_INTERVAL_SECONDS:
             retry = max(1, int(SUBMISSION_INTERVAL_SECONDS - (now_mono - last)))
             raise HTTPException(
@@ -1038,7 +1073,8 @@ def register_study_routes(
             if correct:
                 progress.status = "completed"
         database.commit()
-        submission_times[stored.id] = now_mono
+        with rate_lock:
+            submission_times[stored.id] = now_mono
         result = {
             "taskId": task_id,
             "correct": correct,
@@ -1265,7 +1301,8 @@ def register_study_routes(
             )
         )
         now_mono = time.monotonic()
-        if progress is None or now_mono - ai_event_times.get(stored.id, float("-inf")) < 1:
+        last_ai_event = current_rate_time(ai_event_times, stored.id, now_mono, 1)
+        if progress is None or now_mono - last_ai_event < 1:
             raise HTTPException(status_code=409, detail={"code": "STUDY_AI_EVENT_INVALID"})
         aggregate = database.scalar(
             select(StudyReadinessAggregate).where(
@@ -1284,7 +1321,8 @@ def register_study_routes(
                 (getattr(aggregate, f"{payload.outcome}_count") or 0) + 1,
             )
         database.commit()
-        ai_event_times[stored.id] = now_mono
+        with rate_lock:
+            ai_event_times[stored.id] = now_mono
 
     @app.post("/api/v1/study/withdraw", status_code=status.HTTP_204_NO_CONTENT)
     def withdraw(
@@ -1292,8 +1330,9 @@ def register_study_routes(
         stored: StudyLearnerSession = Depends(learner_csrf),
         database: OrmSession = Depends(database_dependency),
     ) -> None:
-        submission_times.pop(stored.id, None)
-        ai_event_times.pop(stored.id, None)
+        with rate_lock:
+            submission_times.pop(stored.id, None)
+            ai_event_times.pop(stored.id, None)
         database.delete(stored)
         database.commit()
         response.delete_cookie(STUDY_COOKIE, path="/api/v1/study")

@@ -16,6 +16,8 @@ import {
   WarningCircle as CircleAlert,
 } from '@phosphor-icons/react'
 import { memo } from 'react'
+import { Link } from 'react-router-dom'
+import { canPreview, isNestedControl } from './viewerNavigation'
 
 import type { LibrarySlide } from '../../types'
 import { ContextMenu } from './ContextMenu'
@@ -78,6 +80,8 @@ interface CommonProps {
   activeUploadId?: string | null
   uploadProgress?: number | null
   onSelect: (slideId: string, index: number, shift: boolean) => void
+  onPreview?: (slide: LibrarySlide) => void
+  onQuickLook?: (slide: LibrarySlide) => void
   onOpen: (slide: LibrarySlide) => void
   onAction: (slide: LibrarySlide, action: SlideAction) => void
 }
@@ -197,10 +201,12 @@ function SlideActions({
   slide,
   onOpen,
   onAction,
+  onPreview,
 }: {
   slide: LibrarySlide
   onOpen: CommonProps['onOpen']
   onAction: CommonProps['onAction']
+  onPreview?: CommonProps['onPreview']
 }) {
   const ready = slide.state === 'ready_private'
   const published = slide.state === 'published'
@@ -221,10 +227,10 @@ function SlideActions({
             <button type="button" role="menuitem" onClick={() => { close(); onOpen(slide) }}>
               <Eye /> Details
             </button>
-            {(ready || published) ? (
-              <a role="menuitem" href={`/admin/preview/${slide.id}`} onClick={close}>
+            {canPreview(slide) ? (
+              onPreview ? <button type="button" role="menuitem" onClick={() => { close(); onPreview(slide) }}><Eye /> Preview</button> : <Link role="menuitem" to={`/admin/preview/${encodeURIComponent(slide.id)}`} onClick={close}>
                 <Eye /> Preview
-              </a>
+              </Link>
             ) : null}
             {published ? (
               <>
@@ -292,6 +298,8 @@ function SlideCard({
   showProcessingProgress,
   activeUploadId,
   uploadProgress,
+  onPreview,
+  onQuickLook,
 }: {
   slide: LibrarySlide
   index: number
@@ -300,6 +308,8 @@ function SlideCard({
   onSelect: CommonProps['onSelect']
   onOpen: CommonProps['onOpen']
   onAction: CommonProps['onAction']
+  onPreview?: CommonProps['onPreview']
+  onQuickLook?: CommonProps['onQuickLook']
   showProcessingProgress?: boolean
   activeUploadId?: string | null
   uploadProgress?: number | null
@@ -316,7 +326,21 @@ function SlideCard({
         const ids = selected ? Array.from(selectedIds) : [slide.id]
         event.dataTransfer.setData('application/x-pathlab-slide-ids', ids.join(','))
       }}
-      onDoubleClick={() => onOpen(slide)}
+      tabIndex={0}
+      aria-label={slide.displayName}
+      onDoubleClick={(event) => {
+        if (!isNestedControl(event.target, event.currentTarget)) (canPreview(slide) && onPreview ? onPreview : onOpen)(slide)
+      }}
+      onKeyDown={(event) => {
+        if (isNestedControl(event.target, event.currentTarget)) return
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          ;(canPreview(slide) && onPreview ? onPreview : onOpen)(slide)
+        } else if (event.key === ' ' && onQuickLook && canPreview(slide)) {
+          event.preventDefault()
+          onQuickLook(slide)
+        }
+      }}
     >
       <div className="card-actions">
         <label>
@@ -333,13 +357,18 @@ function SlideCard({
           />
           <span><Check /></span>
         </label>
-        <SlideActions slide={slide} onOpen={onOpen} onAction={onAction} />
+        <SlideActions slide={slide} onOpen={onOpen} onAction={onAction} onPreview={onPreview} />
       </div>
       <button
         type="button"
         className="card-preview"
         aria-label={`Open details for ${slide.displayName}`}
         onClick={() => onOpen(slide)}
+        onDoubleClick={(event) => { event.stopPropagation(); if (canPreview(slide) && onPreview) onPreview(slide) }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && canPreview(slide) && onPreview) { event.preventDefault(); event.stopPropagation(); onPreview(slide) }
+          if (event.key === ' ' && canPreview(slide) && onQuickLook) { event.preventDefault(); event.stopPropagation(); onQuickLook(slide) }
+        }}
       >
         <Thumbnail slide={slide} />
       </button>
@@ -355,6 +384,8 @@ function SlideCard({
               <span key={tag}>{tag}</span>
             ))}
           </div>
+          {canPreview(slide) && onPreview ? <button type="button" className="card-open-viewer" onClick={() => onPreview(slide)}>Open viewer</button> : null}
+          {canPreview(slide) && onQuickLook ? <button type="button" className="card-quick-look" onClick={() => onQuickLook(slide)}>Quick look</button> : null}
           <div className="card-facts">
             {slide.caseId ? <span>Case {slide.caseId}</span> : null}
             <span>{formatBytes(slide.sourceBytes)}</span>
@@ -378,6 +409,8 @@ function SlideTable(props: CommonProps) {
     onAction,
     onOpen,
     onSelect,
+    onPreview,
+    onQuickLook,
     selected,
     showProcessingProgress,
     slides,
@@ -396,7 +429,14 @@ function SlideTable(props: CommonProps) {
         </thead>
         <tbody>
           {slides.map((slide, index) => (
-            <tr key={slide.id} className={selected.has(slide.id) ? 'selected' : ''}>
+            <tr key={slide.id} className={selected.has(slide.id) ? 'selected' : ''} tabIndex={0}
+              onDoubleClick={(event) => { if (!isNestedControl(event.target, event.currentTarget)) (canPreview(slide) && onPreview ? onPreview : onOpen)(slide) }}
+              onKeyDown={(event) => {
+                if (isNestedControl(event.target, event.currentTarget)) return
+                if (event.key === 'Enter') { event.preventDefault(); (canPreview(slide) && onPreview ? onPreview : onOpen)(slide) }
+                if (event.key === ' ' && canPreview(slide) && onQuickLook) { event.preventDefault(); onQuickLook(slide) }
+              }}>
+
               <td>
                 <input
                   type="checkbox"
@@ -411,7 +451,12 @@ function SlideTable(props: CommonProps) {
                 />
               </td>
               <td>
-                <button type="button" onClick={() => onOpen(slide)}>
+                <button type="button" onClick={() => onOpen(slide)}
+                  onDoubleClick={(event) => { event.stopPropagation(); if (canPreview(slide) && onPreview) onPreview(slide) }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && canPreview(slide) && onPreview) { event.preventDefault(); event.stopPropagation(); onPreview(slide) }
+                    if (event.key === ' ' && canPreview(slide) && onQuickLook) { event.preventDefault(); event.stopPropagation(); onQuickLook(slide) }
+                  }}>
                   <span className="table-mini-thumb"><Thumbnail slide={slide} /></span>
                   <span className="table-slide-name">{slide.displayName}</span>
                 </button>
@@ -430,7 +475,7 @@ function SlideTable(props: CommonProps) {
                 <FailureReason slide={slide} />
               </td>
               <td>{new Date(slide.updatedAt).toLocaleDateString()}</td>
-              <td><SlideActions slide={slide} onOpen={onOpen} onAction={onAction} /></td>
+              <td>{canPreview(slide) && onPreview ? <button type="button" onClick={() => onPreview(slide)}>Open viewer</button> : null}{canPreview(slide) && onQuickLook ? <button type="button" onClick={() => onQuickLook(slide)}>Quick look</button> : null}<SlideActions slide={slide} onOpen={onOpen} onAction={onAction} onPreview={onPreview} /></td>
             </tr>
           ))}
         </tbody>
@@ -449,6 +494,8 @@ export const SlideViews = memo(function SlideViews({
   onSelect,
   onOpen,
   onAction,
+  onPreview,
+  onQuickLook,
 }: CommonProps & { view: LibraryViewMode }) {
   if (view === 'table') {
     return (
@@ -457,6 +504,8 @@ export const SlideViews = memo(function SlideViews({
         onAction,
         onOpen,
         onSelect,
+        onPreview,
+        onQuickLook,
         selected,
         showProcessingProgress,
         slides,
@@ -482,6 +531,8 @@ export const SlideViews = memo(function SlideViews({
           onSelect={onSelect}
           onOpen={onOpen}
           onAction={onAction}
+          onPreview={onPreview}
+          onQuickLook={onQuickLook}
           showProcessingProgress={showProcessingProgress}
           activeUploadId={activeUploadId}
           uploadProgress={uploadProgress}

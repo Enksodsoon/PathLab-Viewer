@@ -1,7 +1,7 @@
 """Bounded metadata-only storage probes, isolated from all existing PG schemas."""
 
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import UTC, datetime, timedelta
 from threading import Event
 from uuid import uuid4
@@ -9,15 +9,20 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import BigInteger, create_engine, event, inspect, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
+from wsi_viewer import main as api_main
 from wsi_viewer import storage_accounting as accounting
 from wsi_viewer.admission import lock_admission
+from wsi_viewer.config import Settings
 from wsi_viewer.domain import SlideState
 from wsi_viewer.models import Base, DesktopCredential, DesktopIngest, Slide, User
 from wsi_viewer.readiness import ALEMBIC_HEAD, schema_is_current
+from wsi_viewer.security import UploadGrant, issue_upload_token
 from wsi_viewer.storage import InsufficientStorage, StorageLayout, admission_required
+from wsi_viewer.worker import expire_incomplete_uploads
 
 PG_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
 OLD_HEAD = "20260905_0036"
@@ -26,6 +31,74 @@ BYTE_COLUMNS = {
     "desktop_ingests": ("package_length", "received_bytes", "derivative_bytes"),
 }
 LARGE = 3 * 1024**3 + 123
+
+
+def test_upload_finalization_serializes_with_expiry(storage_engine, tmp_path, monkeypatch):
+    Base.metadata.create_all(storage_engine)
+    factory = sessionmaker(storage_engine, expire_on_commit=False)
+    settings = Settings(
+        data_root=tmp_path / "data", tus_internal_upload_dir=tmp_path / "tus",
+        secret_key="synthetic-upload-concurrency-key-32",
+    )
+    settings.tus_internal_upload_dir.mkdir()
+    upload = settings.tus_internal_upload_dir / "racing-upload"
+    upload.write_bytes(b"MM\x00*" + b"synthetic")
+    info = upload.with_suffix(".info")
+    info.write_text("{}", encoding="utf-8")
+    old = (datetime.now(UTC) - timedelta(hours=25)).timestamp()
+    os.utime(info, (old, old))
+    with factory() as database:
+        database.add(Slide(
+            id=upload.name, display_name="Synthetic", original_filename="synthetic.tif",
+            source_bytes=upload.stat().st_size, state=SlideState.UPLOADING,
+        ))
+        database.commit()
+    monkeypatch.setattr(api_main, "session_factory", lambda _: factory)
+    copying, release, expiring = Event(), Event(), Event()
+    original_link = os.link
+
+    def paused_link(source, destination):
+        copying.set()
+        assert release.wait(5)
+        return original_link(source, destination)
+
+    monkeypatch.setattr(api_main.os, "link", paused_link)
+    client = TestClient(api_main.create_app(settings))
+    token = issue_upload_token(
+        UploadGrant(upload.name, upload.stat().st_size), settings.secret_key,
+        ttl=timedelta(hours=1),
+    )
+    body = {"Type": "post-finish", "Event": {"Upload": {
+        "Size": upload.stat().st_size, "Offset": upload.stat().st_size,
+        "MetaData": {"uploadToken": token}, "Storage": {"Path": str(upload)},
+    }}}
+
+    def expire():
+        expiring.set()
+        return expire_incomplete_uploads(
+            settings.tus_internal_upload_dir, older_than=timedelta(hours=24), factory=factory,
+        )
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            finalizing = pool.submit(client.post, "/api/v1/internal/tus/hooks", json=body)
+            assert copying.wait(5)
+            expiring_future = pool.submit(expire)
+            assert expiring.wait(5)
+            try:
+                with pytest.raises(TimeoutError):
+                    expiring_future.result(timeout=0.2)
+                assert upload.exists()
+            finally:
+                release.set()
+            assert finalizing.result(timeout=5).status_code == 200
+            assert expiring_future.result(timeout=5) == 0
+    finally:
+        release.set()
+        client.close()
+    with factory() as database:
+        assert database.get(Slide, upload.name).state is SlideState.QUEUED
+    assert StorageLayout(settings.data_root).for_slide(upload.name).original.is_file()
 
 
 @pytest.fixture(params=["sqlite", "postgresql"])

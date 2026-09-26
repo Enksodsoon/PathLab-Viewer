@@ -13,6 +13,7 @@ import {
   submitQuestion,
   type StudentState,
 } from '../classroom/api'
+import { ClassroomQuestionComposer } from '../classroom/ClassroomQuestionComposer'
 import { ClassroomPinOverlays } from '../classroom/ClassroomPinOverlays'
 import { ClassroomSlideNavigator } from '../classroom/ClassroomSlideNavigator'
 import { ClassroomTeachingOverlays, type ClassroomTeachingOverlayHandle } from '../classroom/ClassroomTeachingOverlays'
@@ -90,6 +91,15 @@ export function ClassroomStudentPage() {
   const [pinMode, setPinMode] = useState(false)
   const [pinTarget, setPinTarget] = useState<{ x: number; y: number } | null>(null)
   const [pin, setPin] = useState<Pin | null>(null)
+  const pinPublishGeneration = useRef(0)
+  const pinPendingRef = useRef(false)
+  const [pinPending, setPinPending] = useState(false)
+  const exportBusyRef = useRef(false)
+  const [exportBusy, setExportBusy] = useState(false)
+  const [failedPin, setFailedPin] = useState<Pin | null>(null)
+  const pinAtCenter = useRef<(() => void) | null>(null)
+  const [questionBusy, setQuestionBusy] = useState(false)
+  const questionBusyRef = useRef(false)
   const [question, setQuestion] = useState('')
   const [note, setNote] = useState('')
   const [entries, setEntries] = useState<NotebookEntry[]>([])
@@ -113,6 +123,44 @@ export function ClassroomStudentPage() {
   const pendingGuideSlideId = useRef<string | null>(null)
   const wasController = useRef(false)
 
+  const selectSlide = useCallback((nextSlideId: string) => {
+    if (slideIdRef.current !== nextSlideId) {
+      if (drawingRef.current?.hasDrawing()) {
+        drawingRef.current.clear()
+        setMessage('Unsaved drawing cleared when the slide changed. Your text note and saved notebook entries are kept.')
+      }
+      setDrawing(false)
+      drawingModeRef.current = false
+      setFailedPin(null)
+      pinPublishGeneration.current += 1
+      pinPendingRef.current = false; setPinPending(false)
+    }
+    slideIdRef.current = nextSlideId
+    setSlideId(nextSlideId)
+  }, [])
+
+  const publishSelectedPin = useCallback((nextPin: Pin) => {
+    if (!sessionId || nextPin.slideId !== slideIdRef.current) return
+    const generation = ++pinPublishGeneration.current
+    pinPendingRef.current = true; setPinPending(true)
+    setFailedPin(null)
+    setPinMode(false)
+    setPinTarget(null)
+    void publishPin(sessionId, csrfRef.current, nextPin).then(() => {
+      if (generation === pinPublishGeneration.current) {
+        setPin(nextPin)
+        setMessage('Pin sent to the teacher.')
+      }
+    }).catch(() => {
+      if (generation !== pinPublishGeneration.current) return
+      setFailedPin(nextPin)
+      setPinMode(true)
+      setMessage('The teacher could not receive this pin. Your previous marker is kept; retry or choose another point.')
+    }).finally(() => {
+      if (generation === pinPublishGeneration.current) { pinPendingRef.current = false; setPinPending(false) }
+    })
+  }, [sessionId])
+
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { followRef.current = follow }, [follow])
   useEffect(() => { slideIdRef.current = slideId }, [slideId])
@@ -126,7 +174,7 @@ export function ClassroomStudentPage() {
   useEffect(() => { void storageCapability().then(setStorage) }, [])
   useEffect(() => {
     if (!sessionId || csrfToken) return
-    void Promise.all([studentState(sessionId), listEntries(sessionId)]).then(([next, savedEntries]) => {
+    void Promise.all([studentState(sessionId), listEntries(sessionId).catch(() => null)]).then(([next, savedEntries]) => {
       noteClassroomSnapshot(streamCursor.current, next.stateVersion)
       presenterRef.current = next.presenter
       stateRef.current = next
@@ -135,10 +183,11 @@ export function ClassroomStudentPage() {
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
       setPin(next.activePin)
-      if (next.presenter.slideId) setSlideId(next.presenter.slideId)
-      setEntries(savedEntries)
+      if (next.presenter.slideId) selectSlide(next.presenter.slideId)
+      setEntries(savedEntries ?? [])
+      if (savedEntries === null) setMessage('Local notebook could not be loaded. Classroom access is active; your saved notes have not been cleared.')
     }).catch(() => setMessage('Rejoin with the classroom code to continue.'))
-  }, [csrfToken, sessionId])
+  }, [csrfToken, selectSlide, sessionId])
 
   const refresh = useCallback((id: string, minimumVersion = 0): Promise<void> => {
     if (!snapshotReconciler.current || snapshotSession.current !== id) {
@@ -154,14 +203,13 @@ export function ClassroomStudentPage() {
           teachingOverlayRef.current?.setPointer(next.teacherPointer)
           setPin(next.activePin)
           if (followRef.current && !drawingModeRef.current && next.presenter.slideId) {
-            slideIdRef.current = next.presenter.slideId
-            setSlideId(next.presenter.slideId)
+            selectSlide(next.presenter.slideId)
           }
         },
       )
     }
     return snapshotReconciler.current.request(minimumVersion)
-  }, [])
+  }, [selectSlide])
 
   useEffect(() => () => snapshotReconciler.current?.dispose(), [])
 
@@ -231,8 +279,7 @@ export function ClassroomStudentPage() {
             pendingGuideSlideId.current = null
             if (!followRef.current || drawingModeRef.current
               || presenterRef.current?.slideId !== nextSlideId) return
-            slideIdRef.current = nextSlideId
-            setSlideId(nextSlideId)
+            selectSlide(nextSlideId)
           }, delay)
           return
         }
@@ -285,8 +332,15 @@ export function ClassroomStudentPage() {
         setState((current) => current ? { ...current, teachingAnnotations: [] } : current)
       })
       source.addEventListener('session-ended', (event) => {
-        if (!sequence(event, false, true)) return
+        const payload = sequence(event, false, true)
+        if (!payload) return
         const inviteId = stateRef.current?.session.publicId
+        if (payload.phase === 'revoked') {
+          setState(null)
+          setMessage('Classroom access was revoked. Join a current classroom to continue.')
+          navigate('/classroom', { replace: true })
+          return
+        }
         setState(null)
         setMessage('The live class ended. Independent review remains available.')
         navigate(inviteId ? `/classroom/invite/${inviteId}` : '/classroom', { replace: true })
@@ -323,7 +377,7 @@ export function ClassroomStudentPage() {
       guideSwitchTimer.current = null
       pendingGuideSlideId.current = null
     }
-  }, [csrfToken, navigate, refresh, sessionId, state?.participant.id])
+  }, [csrfToken, navigate, refresh, selectSlide, sessionId, state?.participant.id])
 
   const currentSlide = useMemo(
     () => state?.slides.find((slide) => slide.id === slideId) ?? state?.slides[0],
@@ -377,8 +431,9 @@ export function ClassroomStudentPage() {
         || !current.control.leaseId || !sessionId) return
       sender.push(0)
     }
-    const clicked = (event: { position: OpenSeadragon.Point }) => {
-      if (drawingModeRef.current || !pinMode || !currentSlide) return
+    const clicked = (event: { position: OpenSeadragon.Point; quick?: boolean; originalEvent?: Event; preventDefaultAction?: boolean }, fromKeyboard = false) => {
+      if (drawingModeRef.current || questionBusyRef.current || !currentSlide || (!fromKeyboard && ((!pinMode && !(event.originalEvent instanceof MouseEvent && event.originalEvent.altKey)) || event.quick === false))) return
+      event.preventDefaultAction = true
       const image = viewer.viewport.viewportToImageCoordinates(
         viewer.viewport.pointFromPixel(event.position, true),
       )
@@ -388,18 +443,14 @@ export function ClassroomStudentPage() {
         y: Math.max(0, Math.min(1, image.y / currentSlide.height)),
         zoom: viewer.viewport.getZoom(true),
       }
-      setPin(nextPin)
-      setPinMode(false)
-      setPinTarget(null)
-      if (sessionId) {
-        void publishPin(sessionId, csrfRef.current, {
-          slideId: currentSlide.id,
-          x: nextPin.x,
-          y: nextPin.y,
-          zoom: nextPin.zoom,
-        }).catch(() => setMessage('The teacher could not receive this pin.'))
-      }
+      publishSelectedPin(nextPin)
     }
+    pinAtCenter.current = () => clicked({ position: viewer.viewport.pixelFromPoint(viewer.viewport.getCenter(true), true) }, true)
+    const shortcut = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'p' || event.ctrlKey || event.metaKey || event.altKey || event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return
+      event.preventDefault(); pinAtCenter.current?.()
+    }
+    window.addEventListener('keydown', shortcut)
     let pinFrame: number | null = null
     const trackPin = (event: globalThis.PointerEvent) => {
       if (!pinMode || drawingModeRef.current) return
@@ -424,11 +475,13 @@ export function ClassroomStudentPage() {
       viewer.canvas.removeEventListener('pointermove', trackPin)
       viewer.canvas.removeEventListener('pointerleave', hidePinTarget)
       if (pinFrame !== null) window.cancelAnimationFrame(pinFrame)
+      window.removeEventListener('keydown', shortcut)
+      pinAtCenter.current = null
       sender.dispose()
       viewerRef.current = null
       setViewer(null)
     }
-  }, [applyRemote, currentSlide, pinMode, sessionId])
+  }, [applyRemote, currentSlide, pinMode, publishSelectedPin, sessionId])
 
   const join = async () => {
     setMessage('')
@@ -436,7 +489,7 @@ export function ClassroomStudentPage() {
       const joined = await joinClassroom(joinCode.trim().toUpperCase(), displayName)
       const [next, savedEntries] = await Promise.all([
         studentState(joined.sessionId),
-        listEntries(joined.sessionId),
+        listEntries(joined.sessionId).catch(() => null),
       ])
       noteClassroomSnapshot(streamCursor.current, next.stateVersion)
       stateRef.current = next
@@ -444,8 +497,9 @@ export function ClassroomStudentPage() {
       setCsrfToken(next.csrfToken)
       setAlias(next.participant.alias)
       setPin(next.activePin)
-      if (next.presenter.slideId) setSlideId(next.presenter.slideId)
-      setEntries(savedEntries)
+      if (next.presenter.slideId) selectSlide(next.presenter.slideId)
+      setEntries(savedEntries ?? [])
+      if (savedEntries === null) setMessage('Local notebook could not be loaded. Classroom access is active; your saved notes have not been cleared.')
       navigate(`/classroom/${joined.sessionId}`, { replace: true })
     } catch {
       setMessage('That classroom is unavailable or the code is incorrect.')
@@ -453,17 +507,19 @@ export function ClassroomStudentPage() {
   }
 
   const ask = async () => {
-    if (!sessionId || !currentSlide || !pin || !question.trim()) return
-    await submitQuestion(sessionId, csrfToken, {
-      slideId: currentSlide.id,
-      text: question.trim(),
-      x: pin.x,
-      y: pin.y,
-      zoom: pin.zoom,
-    })
-    setQuestion('')
-    setPin(null)
-    setMessage('Question sent to the teacher.')
+    if (!sessionId || !currentSlide || !pin || pin.slideId !== currentSlide.id || !question.trim() || questionBusyRef.current || pinPendingRef.current) return
+    const submittedText = question
+    const submittedPin = pin
+    questionBusyRef.current = true; setQuestionBusy(true)
+    try {
+      await submitQuestion(sessionId, csrfToken, {
+        slideId: pin.slideId, text: question.trim(), x: pin.x, y: pin.y, zoom: pin.zoom,
+      })
+      setQuestion((current) => current === submittedText ? '' : current)
+      setPin((current) => current === submittedPin ? null : current)
+      setMessage('Question sent to the teacher.')
+    } catch { setMessage('Question could not be sent. Your question and pin are kept; try again.') }
+    finally { questionBusyRef.current = false; setQuestionBusy(false) }
   }
 
   const toggleControlRequest = async () => {
@@ -484,6 +540,9 @@ export function ClassroomStudentPage() {
 
   const removePin = async () => {
     if (!sessionId) return
+    pinPublishGeneration.current += 1
+    pinPendingRef.current = false; setPinPending(false)
+    setFailedPin(null)
     setPin(null)
     setPinMode(false)
     try {
@@ -522,7 +581,12 @@ export function ClassroomStudentPage() {
       viewport: { x: field.x, y: field.y, zoom: field.zoom },
       hasDrawing: drawingRef.current?.hasDrawing() ?? false,
     }
-    await saveEntry(entry)
+    try {
+      await saveEntry(entry)
+    } catch (error) {
+      setMessage(`Notebook save failed. Your note and drawing are kept. ${error instanceof Error ? error.message : 'Try again or export existing notes to free storage.'}`)
+      return
+    }
     setEntries((current) => [...current, entry])
     setNote('')
     drawingRef.current?.clear()
@@ -540,34 +604,48 @@ export function ClassroomStudentPage() {
   }
 
   const shareLocal = async () => {
-    const file = await notebookFile('PathLab classroom notebook', entries)
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({
-          title: 'PathLab classroom notebook',
-          text: 'My private PathLab field notes',
-          files: [file],
-        })
-        return
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return
+    if (exportBusyRef.current) return
+    exportBusyRef.current = true; setExportBusy(true)
+    try {
+      const file = await notebookFile('PathLab classroom notebook', entries)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: 'PathLab classroom notebook',
+            text: 'My private PathLab field notes',
+            files: [file],
+          })
+          return
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') return
+        }
       }
-    }
-    downloadLocal(file)
-    setMessage('Notebook exported as an offline file.')
+      downloadLocal(file)
+      setMessage('Notebook exported as an offline file.')
+    } catch { setMessage('Notebook export failed. Your saved notes are kept; try again.') }
+    finally { exportBusyRef.current = false; setExportBusy(false) }
   }
 
   const printLocal = async () => {
+    if (exportBusyRef.current) return
+    exportBusyRef.current = true; setExportBusy(true)
     const preview = window.open('', '_blank')
     if (!preview) {
       setMessage('Allow pop-ups to print or save this notebook as PDF.')
+      exportBusyRef.current = false; setExportBusy(false)
       return
     }
-    preview.document.open()
-    preview.document.write(await notebookHtml('PathLab classroom notebook', entries))
-    preview.document.close()
-    preview.focus()
-    window.setTimeout(() => preview.print(), 250)
+    try {
+      const html = await notebookHtml('PathLab classroom notebook', entries)
+      preview.document.open()
+      preview.document.write(html)
+      preview.document.close()
+      preview.focus()
+      window.setTimeout(() => preview.print(), 250)
+    } catch {
+      preview.close()
+      setMessage('Notebook print preparation failed. Your saved notes are kept; try again.')
+    } finally { exportBusyRef.current = false; setExportBusy(false) }
   }
 
   if (!sessionId || !csrfToken) return <main className="classroom-entry classroom-join">
@@ -615,6 +693,7 @@ export function ClassroomStudentPage() {
         onViewerAttach={attachViewer}
         networkProfile={CLASSROOM_VIEWER_NETWORK_PROFILE}
       />}
+      {pin && viewer && pin.slideId === currentSlide?.id ? <ClassroomQuestionComposer viewer={viewer} pin={pin} question={question} busy={questionBusy || pinPending} onQuestion={setQuestion} onSubmit={() => void ask()} onCancel={() => void removePin()} /> : null}
       <ClassroomPinOverlays
         pins={pin ? [{
           participantId: state?.participant.id ?? 'student',
@@ -640,6 +719,7 @@ export function ClassroomStudentPage() {
         aria-hidden="true"
       ><span /><i /></div> : null}
       <StudentDrawingOverlay
+        key={currentSlide?.id ?? ''}
         ref={drawingRef}
         active={drawing}
         onDone={() => setDrawing(false)}
@@ -653,11 +733,12 @@ export function ClassroomStudentPage() {
             return
           }
           setFollow(false)
-          setSlideId(nextSlideId)
+          selectSlide(nextSlideId)
           if (pin) void removePin()
         }}
       />
     </main>
+    <details className="classroom-activity-tray" open><summary>Classroom activity</summary>
     <aside className="classroom-panel">
       <section className="classroom-control-request">
         <div>
@@ -681,8 +762,11 @@ export function ClassroomStudentPage() {
           <button className={pinMode ? 'is-active' : ''} type="button" onClick={() => setPinMode(true)}>{pin ? 'Choose another point' : 'Pin a point on the slide'}</button>
           {pin ? <button type="button" onClick={() => void removePin()}>Clear pin</button> : null}
         </div>
-        <textarea value={question} maxLength={500} placeholder="What do you notice or want to ask?" onChange={(event) => setQuestion(event.target.value)} />
-        <button className="primary" type="button" disabled={!pin || !question.trim()} onClick={() => void ask()}>Send question</button>
+        <p className="classroom-pin-help">Alt-click tissue or press P to pin the visible centre and ask. Touch: choose a point or use the centre button.</p>
+        <button type="button" disabled={!viewer || questionBusy} onClick={() => pinAtCenter.current?.()}>Ask at visible centre (P)</button>
+        {failedPin && failedPin.slideId === currentSlide?.id ? <button type="button" onClick={() => publishSelectedPin(failedPin)}>Retry publishing pin</button> : null}
+        {!pin || !viewer ? <><label htmlFor="classroom-question">Question</label><textarea id="classroom-question" value={question} maxLength={500} placeholder="What do you notice or want to ask?" onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void ask() } }} />
+        <button className="primary" type="button" disabled={questionBusy || pinPending || !pin || !question.trim()} onClick={() => void ask()}>Send question</button></> : null}
       </section>
       <section>
         <h2>My private notebook</h2>
@@ -700,17 +784,17 @@ export function ClassroomStudentPage() {
         <button type="button" disabled={!storage.indexedDb} onClick={() => void capture()}>Save capture + note</button>
         <p className="classroom-storage-note">{entries.length}/100 entries · stored only in this browser</p>
         <div className="classroom-row">
-          <button type="button" disabled={!entries.length} onClick={() => void shareLocal()}>Share / export</button>
-          <button type="button" disabled={!entries.length} onClick={() => void printLocal()}>Print / PDF</button>
+          <button type="button" disabled={!entries.length || exportBusy} onClick={() => void shareLocal()}>Share / export</button>
+          <button type="button" disabled={!entries.length || exportBusy} onClick={() => void printLocal()}>Print / PDF</button>
           <button type="button" disabled={!entries.length} onClick={() => {
             if (window.confirm('Delete this classroom notebook from this device?')) {
-              void deleteSessionEntries(sessionId).then(() => setEntries([]))
+              void deleteSessionEntries(sessionId).then(() => setEntries([])).catch(() => setMessage('Local notes could not be deleted. Your saved notes are kept; try again.'))
             }
           }}>Delete local notes</button>
         </div>
         <p className="classroom-storage-note">Responsive offline notebook · share to Files or AirDrop on iPhone and iPad.</p>
       </section>
       {message && <p className="classroom-message" role="status">{message}</p>}
-    </aside>
+    </aside></details>
   </div>
 }

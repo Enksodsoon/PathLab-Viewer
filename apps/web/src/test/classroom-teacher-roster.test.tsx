@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,7 @@ import { ThemeProvider } from '../theme/ThemeProvider'
 
 const classroomApi = vi.hoisted(() => ({
   classroomSetupFolders: vi.fn(),
+  finishLiveClassroom: vi.fn(),
   listClassrooms: vi.fn(),
   teacherParticipants: vi.fn(),
   teacherState: vi.fn(),
@@ -126,6 +127,24 @@ describe('teacher paginated roster', () => {
     vi.unstubAllGlobals()
   })
 
+  it('retires live controls after a terminal event from another admin despite an event gap', async () => {
+    await renderResumedTeacher()
+    await waitFor(() => expect(EventSourceStub.current).not.toBeNull())
+    const stream = EventSourceStub.current!
+    act(() => stream.emit('stream-ready', { hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4 }))
+    const requests = classroomApi.teacherState.mock.calls.length
+    act(() => stream.emit('session-ended', { hubEpoch: 'epoch-a', eventSequence: 3, stateVersion: 5 }))
+    expect(await screen.findByText('This live classroom has ended or been revoked. Open a current classroom to continue.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'End class' })).not.toBeInTheDocument()
+    expect(sessionStorage.getItem('pathlab-active-classroom:v1')).toBeNull()
+    expect(stream.close).toHaveBeenCalled()
+    expect(classroomApi.teacherState).toHaveBeenCalledTimes(requests)
+    const previous = await classroomApi.teacherState.mock.results[0].value
+    classroomApi.teacherState.mockResolvedValue({ ...previous, session: { ...previous.session, phase: 'review', status: 'ended' }, stateVersion: 5 })
+    await userEvent.click(screen.getByRole('button', { name: 'Resume classroom ABC234DEFG' }))
+    expect(await screen.findByText('Review remains open')).toBeVisible()
+  })
+
   it('renders one bounded page, loads the next page, and searches server-side', async () => {
     await renderResumedTeacher()
 
@@ -241,4 +260,36 @@ describe('teacher paginated roster', () => {
       after: 'AMBER-00001099', limit: 100, requested: true,
     })
   })
+  it('keeps the live class available and reports a failed end request', async () => {
+    classroomApi.finishLiveClassroom.mockRejectedValueOnce(new Error('Synthetic failure'))
+    await renderResumedTeacher()
+    await userEvent.click(await screen.findByRole('button', { name: 'End class' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The live class could not end.')
+    expect(screen.getByRole('button', { name: 'End class' })).toBeVisible()
+  })
+
+  it('retains acknowledged independent review when terminal SSE arrives before effect cleanup', async () => {
+    classroomApi.finishLiveClassroom.mockResolvedValueOnce(undefined)
+    await renderResumedTeacher()
+    const stream = EventSourceStub.current!
+    act(() => stream.emit('stream-ready', { hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4 }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'End class' }))
+      await Promise.resolve()
+      await Promise.resolve()
+      stream.emit('session-ended', { hubEpoch: 'epoch-a', eventSequence: 1, stateVersion: 5, phase: 'review' })
+    })
+    expect(await screen.findByText('Review remains open')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'End class' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Revoke review access' })).toBeVisible()
+  })
+  it('retains independent review when another teacher ends the live phase', async () => {
+    await renderResumedTeacher()
+    const stream = EventSourceStub.current!
+    act(() => stream.emit('stream-ready', { hubEpoch: 'epoch-a', eventSequence: 0, stateVersion: 4 }))
+    act(() => stream.emit('session-ended', { hubEpoch: 'epoch-a', eventSequence: 1, stateVersion: 5, phase: 'review' }))
+    expect(await screen.findByText('Review remains open')).toBeVisible()
+    expect(stream.close).toHaveBeenCalled()
+  })
+
 })

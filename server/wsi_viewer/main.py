@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 import os
 import re
 import shutil
@@ -20,7 +21,7 @@ from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
 from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session as OrmSession
 
-from .admission import SharedAdmission
+from .admission import SharedAdmission, lock_admission
 from .annotation_routes import register_annotation_routes
 from .assessment_admission import AssessmentAdmissionMiddleware
 from .assessment_assets import assessment_assets_ready
@@ -66,7 +67,9 @@ from .readiness import CachedReadiness, tile_service_is_ready
 from .request_limits import AuthBodyLimitMiddleware
 from .runtime_protection import read_protection_snapshot
 from .security import (
+    MAX_PASSWORD_LENGTH,
     MAX_VERIFICATION_PASSWORD_LENGTH,
+    MIN_PASSWORD_LENGTH,
     InvalidToken,
     UploadGrant,
     issue_upload_token,
@@ -146,7 +149,9 @@ class PasswordRecoveryRequest(BaseModel):
 
     username: str = Field(min_length=1, max_length=100)
     recovery_code: str = Field(alias="recoveryCode", min_length=1, max_length=256)
-    new_password: str = Field(alias="newPassword", min_length=1, max_length=128)
+    new_password: str = Field(
+        alias="newPassword", min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH
+    )
 
 
 class SlideRequest(BaseModel):
@@ -843,6 +848,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "expiresIn": 3600,
         }
 
+    @app.post("/api/v1/admin/slides/{slide_id}/upload-token")
+    def renew_upload_token(
+        slide_id: str, authenticated: LegacyCsrfSession, db: Database,
+    ) -> dict[str, Any]:
+        slide = db.get(Slide, slide_id)
+        if slide is None:
+            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        if slide.state is not SlideState.UPLOADING or slide.trashed_at is not None:
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
+        return {
+            "slide": _slide_json(slide, annotations_enabled=current.admin_annotations_enabled),
+            "uploadUrl": current.tus_public_url,
+            "uploadToken": issue_upload_token(
+                UploadGrant(slide.id, slide.source_bytes), current.secret_key,
+            ),
+            "expiresIn": 3600,
+        }
+
     def finalize_upload(
         grant: UploadGrant, upload_path: Path, reported_length: int, db: OrmSession
     ) -> dict[str, str]:
@@ -850,15 +873,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         upload_id = upload_path.name
         if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", upload_id) is None:
             raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
+
+        def discard_spool() -> None:
+            try:
+                (upload_root / upload_id).unlink(missing_ok=True)
+            except OSError:
+                logging.getLogger(__name__).warning("Finalized upload spool cleanup failed")
+
+        lock_admission(db, f"upload:{grant.slide_id}")
+        slide = db.get(Slide, grant.slide_id, with_for_update=True)
+        if slide is None or slide.trashed_at is not None or reported_length != grant.length:
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
+        completed = db.scalar(select(AuditEvent).where(
+            AuditEvent.action == "upload.complete", AuditEvent.target_id == slide.id,
+        ))
+        if completed and completed.detail == {"uploadId": upload_id, "length": grant.length}:
+            discard_spool()
+            return {"slideId": slide.id, "state": slide.state.value}
+        if slide.state is not SlideState.UPLOADING:
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
         try:
             source = (upload_root / upload_id).resolve(strict=True)
         except OSError as error:
             raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"}) from error
         if source.parent != upload_root or not source.is_file():
             raise HTTPException(status_code=400, detail={"code": "INVALID_UPLOAD_PATH"})
-        slide = db.get(Slide, grant.slide_id)
-        if slide is None or slide.state is not SlideState.UPLOADING:
-            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"})
         actual_length = source.stat().st_size
         if reported_length != grant.length or actual_length != grant.length:
             raise HTTPException(status_code=400, detail={"code": "UPLOAD_LENGTH_MISMATCH"})
@@ -869,16 +908,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         destination = storage.for_slide(slide.id).original
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = destination.with_suffix(".partial")
+        temporary.unlink(missing_ok=True)
         try:
-            os.replace(source, temporary)
+            os.link(source, temporary)
         except OSError:
             shutil.copy2(source, temporary)
-            source.unlink()
         temporary.replace(destination)
         slide.state = transition(slide.state, SlideState.QUEUED)
         db.add(Job(slide_id=slide.id))
-        db.add(AuditEvent(action="upload.complete", target_id=slide.id))
+        db.add(AuditEvent(action="upload.complete", target_id=slide.id,
+                          detail={"uploadId": upload_id, "length": grant.length}))
         db.commit()
+        # The spool remains recoverable until the database has acknowledged the job.
+        discard_spool()
         return {"slideId": slide.id, "state": slide.state.value}
 
     @app.post("/api/v1/internal/uploads/complete", status_code=status.HTTP_202_ACCEPTED)

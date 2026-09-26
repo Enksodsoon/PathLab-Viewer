@@ -29,14 +29,14 @@ async function transaction<T>(
   operation: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
   const database = await openDatabase()
-  return new Promise((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     const tx = database.transaction(STORE, mode)
     const request = operation(tx.objectStore(STORE))
-    request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
-    tx.oncomplete = () => database.close()
+    tx.oncomplete = () => resolve(request.result)
     tx.onerror = () => reject(tx.error)
-  })
+    tx.onabort = () => reject(tx.error ?? new Error('Study transaction aborted'))
+  }).finally(() => database.close())
 }
 
 export async function loadLocalStudy(courseId: string): Promise<LocalDocument> {

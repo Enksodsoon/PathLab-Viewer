@@ -15,10 +15,12 @@ from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, engine_for, session_factory
 from wsi_viewer.domain import SlideState
 from wsi_viewer.identity import ensure_default_owner_membership
+from wsi_viewer.library import encode_cursor
 from wsi_viewer.main import create_app
 from wsi_viewer.models import (
     AuditEvent,
     Collection,
+    DesktopSyncEvent,
     Folder,
     Job,
     LibraryShare,
@@ -126,7 +128,10 @@ def test_v2_navigation_requires_auth_and_returns_bounded_sections(tmp_path: Path
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"counts", "folders", "collections", "savedViews", "storage"}
+    assert set(payload) == {
+        "counts", "folders", "collections", "savedViews", "storage", "trashedFolders",
+    }
+    assert payload["trashedFolders"] == []
     assert payload["counts"]["all"] == 0
     assert payload["storage"]["usedBytes"] == 0
     assert payload["storage"]["usableBytes"] > 0
@@ -203,6 +208,13 @@ def test_folder_children_are_lazy_and_trash_restore_preserves_subtree(tmp_path: 
 
         trashed = client.post(f"/api/v2/admin/folders/{root['id']}/trash", headers=headers)
         assert trashed.status_code == 200
+        assert [folder["id"] for folder in client.get(
+            "/api/v2/admin/library/navigation",
+        ).json()["trashedFolders"]] == [root["id"]]
+        trash_items = client.get(
+            "/api/v2/admin/library/items", params={"location": "trash"},
+        ).json()["items"]
+        assert [item["id"] for item in trash_items] == ["slide-lung"]
         assert (
             client.get(
                 "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
@@ -216,6 +228,75 @@ def test_folder_children_are_lazy_and_trash_restore_preserves_subtree(tmp_path: 
             "/api/v2/admin/library/items", params={"location": f"folder:{child['id']}"}
         ).json()["items"]
         assert [item["id"] for item in items] == ["slide-lung"]
+
+
+def test_folder_restore_keeps_previously_removed_contents_trashed(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        root = _create_folder(client, headers, "Synthetic root")
+        old_child = _create_folder(client, headers, "Already removed", root["id"])
+        _seed_slide(client, slide_id="old", display_name="Old", folder_id=old_child["id"])
+        _seed_slide(client, slide_id="current", display_name="Current", folder_id=root["id"])
+        assert client.post(
+            f"/api/v2/admin/folders/{old_child['id']}/trash", headers=headers,
+        ).status_code == 200
+        with session_factory(client.app.state.settings)() as database:
+            prior_stamp = datetime.now(UTC) - timedelta(days=1)
+            database.get(Folder, old_child["id"]).trashed_at = prior_stamp
+            database.get(Slide, "old").trashed_at = prior_stamp
+            database.commit()
+        assert client.post(
+            f"/api/v2/admin/folders/{root['id']}/trash", headers=headers,
+        ).status_code == 200
+        assert client.post(
+            f"/api/v2/admin/folders/{root['id']}/restore", headers=headers,
+        ).status_code == 200
+        with session_factory(client.app.state.settings)() as database:
+            folder = database.get(Folder, old_child["id"])
+            assert folder.trashed_at == prior_stamp.replace(tzinfo=None)
+            assert database.get(Slide, "old").trashed_at == prior_stamp.replace(tzinfo=None)
+            assert database.get(Slide, "current").trashed_at is None
+        trash_ids = {item["id"] for item in client.get(
+            "/api/v2/admin/library/items", params={"location": "trash"},
+        ).json()["items"]}
+        assert trash_ids == {"old"}
+
+
+def test_literal_tag_filter_does_not_expand_sql_wildcards(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        _headers(client)
+        for slide_id in ("literal", "other"):
+            _seed_slide(client, slide_id=slide_id, display_name=slide_id)
+        with session_factory(client.app.state.settings)() as database:
+            database.get(Slide, "literal").tags = ["100%_complete"]
+            database.get(Slide, "other").tags = ["10000xcomplete"]
+            database.commit()
+        response = client.get(
+            "/api/v2/admin/library/items", params={"tags": "100%_complete"},
+        )
+        assert response.status_code == 200
+        assert [item["id"] for item in response.json()["items"]] == ["literal"]
+
+
+def test_folder_restore_collision_returns_conflict_without_partial_restore(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        parent = _create_folder(client, headers, "Parent")
+        folder = _create_folder(client, headers, "Course", parent["id"])
+        child = _create_folder(client, headers, "Child", folder["id"])
+        _create_folder(client, headers, "Course")
+        assert client.post(
+            f"/api/v2/admin/folders/{folder['id']}/trash", headers=headers,
+        ).status_code == 200
+        assert client.post(
+            f"/api/v2/admin/folders/{parent['id']}/trash", headers=headers,
+        ).status_code == 200
+        response = client.post(f"/api/v2/admin/folders/{folder['id']}/restore", headers=headers)
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "FOLDER_NAME_CONFLICT"
+        with session_factory(client.app.state.settings)() as database:
+            assert database.get(Folder, folder["id"]).trashed_at is not None
+            assert database.get(Folder, child["id"]).trashed_at is not None
 
 
 def test_private_admin_slide_contract_includes_folder_id(tmp_path: Path) -> None:
@@ -261,6 +342,10 @@ def test_permanent_folder_delete_never_flattens_or_orphans_content(
         with session_factory(client.app.state.settings)() as database:
             assert database.get(Folder, empty["id"]) is None
             assert database.get(Folder, empty_child["id"]) is None
+            deleted_ids = set(database.scalars(select(DesktopSyncEvent.entity_id).where(
+                DesktopSyncEvent.entity_type == "folder", DesktopSyncEvent.operation == "delete",
+            )))
+            assert deleted_ids == {empty["id"], empty_child["id"]}
 
 
 def test_collections_are_many_to_many_and_keep_manual_order(tmp_path: Path) -> None:
@@ -288,6 +373,90 @@ def test_collections_are_many_to_many_and_keep_manual_order(tmp_path: Path) -> N
             params={"location": f"collection:{collection_id}", "sort": "manual"},
         ).json()["items"]
         assert [item["id"] for item in items] == ["slide-b", "slide-a"]
+
+
+@pytest.mark.parametrize("filters", [
+    {"tags": ["literal"]}, {"state": "ready_private"},
+    {"createdFrom": "2026-09-01", "createdTo": "2026-09-30"},
+    {"updatedFrom": "2026-09-01", "updatedTo": "2026-09-30"},
+])
+def test_saved_view_replays_all_supported_filters(tmp_path: Path, filters) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        for slide_id in ("wanted", "other"):
+            _seed_slide(client, slide_id=slide_id, display_name=slide_id)
+        with session_factory(client.app.state.settings)() as database:
+            wanted, other = database.get(Slide, "wanted"), database.get(Slide, "other")
+            wanted.tags, other.tags = ["literal"], ["different"]
+            other.state = SlideState.FAILED
+            wanted.created_at = wanted.updated_at = datetime(2026, 9, 30, 12, tzinfo=UTC)
+            other.created_at = other.updated_at = datetime(2026, 8, 1, tzinfo=UTC)
+            database.commit()
+        created = client.post("/api/v2/admin/saved-views", headers=headers, json={
+            "name": "Synthetic filter", "definition": {"version": 1, "filters": filters},
+            "sort": "updated_desc",
+        })
+        assert created.status_code == 201
+        items = client.get("/api/v2/admin/library/items", params={
+            "location": f"saved:{created.json()['id']}",
+        })
+        assert items.status_code == 200
+        assert [item["id"] for item in items.json()["items"]] == ["wanted"]
+
+
+def test_library_rejects_invalid_sort_and_cursor_and_pages_manual_collection(
+    tmp_path: Path,
+) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        for slide_id in ("a", "b", "c"):
+            _seed_slide(client, slide_id=slide_id, display_name=slide_id)
+        invalid = client.get("/api/v2/admin/library/items", params={"sort": "manual"})
+        assert invalid.status_code == 409
+        assert invalid.json()["detail"]["code"] == "INVALID_SORT"
+        invalid = client.get("/api/v2/admin/library/items", params={
+            "cursor": encode_cursor("not-a-date", "a"),
+        })
+        assert invalid.status_code == 409
+        assert invalid.json()["detail"]["code"] == "INVALID_CURSOR"
+        collection = client.post("/api/v2/admin/collections", headers=headers, json={
+            "name": "Synthetic manual",
+        }).json()
+        added = client.post(
+            f"/api/v2/admin/collections/{collection['id']}/items", headers=headers,
+            json={"slideIds": ["c", "a", "b"]},
+        )
+        assert added.status_code == 200
+        params = {"location": f"collection:{collection['id']}", "sort": "manual", "limit": 1}
+        ids = []
+        for _ in range(3):
+            page = client.get("/api/v2/admin/library/items", params=params)
+            assert page.status_code == 200
+            ids.extend(item["id"] for item in page.json()["items"])
+            cursor = page.json()["nextCursor"]
+            if cursor:
+                params["cursor"] = cursor
+        assert ids == ["c", "a", "b"]
+        assert cursor is None
+
+
+def test_blank_metadata_name_rejected_and_saved_date_validated(tmp_path: Path) -> None:
+    with _client(tmp_path) as client:
+        headers = _headers(client)
+        _seed_slide(client, slide_id="named", display_name="Preserved")
+        for name in ("", "   "):
+            response = client.post("/api/v2/admin/slides/batch-metadata", headers=headers, json={
+                "slideIds": ["named"], "displayName": name,
+            })
+            assert response.status_code == 422
+        response = client.post("/api/v2/admin/saved-views", headers=headers, json={
+            "name": "Invalid date", "definition": {
+                "version": 1, "filters": {"createdFrom": "not-a-date"},
+            }, "sort": "updated_desc",
+        })
+        assert response.status_code == 422
+        with session_factory(client.app.state.settings)() as database:
+            assert database.get(Slide, "named").display_name == "Preserved"
 
 
 def test_saved_views_reject_unknown_filters_and_drive_item_queries(tmp_path: Path) -> None:

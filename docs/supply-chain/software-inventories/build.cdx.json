@@ -25532,7 +25532,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63"
+          "content": "cc36f33f585bb025e97fdf770a377916aa9d9ba67372c21160a50fe86283528d"
         }
       ],
       "licenses": [
@@ -25564,7 +25564,7 @@
         }
       ],
       "type": "file",
-      "version": "aad76bf66a9b8262"
+      "version": "cc36f33f585bb025"
     },
     {
       "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -26227,7 +26227,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+      "ref": "pathlab:build:1e0c3ebec31d9a3d51291eeeac61d1d34925577d"
     },
     {
       "dependsOn": [],
@@ -28528,15 +28528,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:d21b61e8223a5e9e8c25b965801771f92e20a3cb",
+      "bom-ref": "pathlab:build:1e0c3ebec31d9a3d51291eeeac61d1d34925577d",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/1e0c3ebec31d9a3d51291eeeac61d1d34925577d"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/1e0c3ebec31d9a3d51291eeeac61d1d34925577d"
         }
       ],
       "licenses": [
@@ -28567,13 +28567,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@d21b61e8223a5e9e8c25b965801771f92e20a3cb",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@1e0c3ebec31d9a3d51291eeeac61d1d34925577d",
       "type": "application",
-      "version": "d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+      "version": "1e0c3ebec31d9a3d51291eeeac61d1d34925577d"
     },
-    "timestamp": "2026-09-13T02:23:20Z"
+    "timestamp": "2026-09-26T18:53:36Z"
   },
-  "serialNumber": "urn:uuid:d21b61e8-223a-4e9e-ac25-b965801771f9",
+  "serialNumber": "urn:uuid:1e0c3ebe-c31d-4a3d-a129-1eeeac61d1d3",
   "specVersion": "1.6",
   "version": 1
 }

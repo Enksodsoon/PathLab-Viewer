@@ -126,6 +126,27 @@ def test_create_organization_is_audited_and_owner_scoped(tmp_path: Path) -> None
         assert audit.detail == {"sourceOrganizationId": source_organization_id}
 
 
+def test_organization_normalization_validates_trimmed_lengths(tmp_path: Path) -> None:
+    client, settings, organization_id = _client(tmp_path)
+    csrf = _login(client)
+    for body in (
+        {"slug": " a ", "displayName": "Valid"},
+        {"slug": "synthetic-valid", "displayName": "   "},
+    ):
+        response = client.post(
+            "/api/v2/admin/identity/organizations",
+            headers={"X-CSRF-Token": csrf, "X-PathLab-Organization": organization_id},
+            json=body,
+        )
+        assert response.status_code == 422
+    with session_factory(settings)() as database:
+        assert database.scalar(select(func.count(Organization.id))) == 1
+        assert database.scalar(select(func.count(AuditEvent.id)).where(
+            AuditEvent.action == "identity.organization_created",
+        )) == 0
+    client.close()
+
+
 def test_membership_mutations_fail_closed_across_organizations(tmp_path: Path) -> None:
     client, settings, source_organization_id = _client(tmp_path)
     csrf = _login(client)

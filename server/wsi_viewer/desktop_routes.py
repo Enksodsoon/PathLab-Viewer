@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
@@ -1140,6 +1141,16 @@ def register_desktop_routes(
                     failed.status = "failed"
                     failed.error_code = "RESULT_BUNDLE_INVALID"
                     database.commit()
+            else:
+                try:
+                    target.unlink(missing_ok=True)
+                except OSError as error:
+                    logging.getLogger(__name__).warning(
+                        "DESKTOP_RESULTS_ARCHIVE_CLEANUP_FAILED delivery_id=%s error_type=%s; "
+                        "results remain complete; source archive retained",
+                        delivery.id,
+                        type(error).__name__,
+                    )
         database.refresh(delivery)
         return result_json(delivery)
 
