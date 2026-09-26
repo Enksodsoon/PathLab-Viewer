@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "1226c5f987aac6a6528650bef69f1aac8131de624dfbb52236b5bb45e22c914f",
+      "sha256": "a415bfef5c21ad04eb974e690e001d31320948bca57ec6c51a3a2a43a2d78fb7",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "8ac32f6a1dd6db45c421661ae097f19d19b563a4bd21ecbb7f6a7bc74853ad75",
+      "sha256": "b7de5e4ae6373a402dc8e126f0e954335f4428e63918d73de7fe3ed9aa2d2c4e",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "37780678f44cc2ec04f4b7367a302c654e650b7171d08e053aeb130029e895b4",
+      "sha256": "168706bdd375ced51b2604825c7087aae5c21f684db78dcd4694011724f46778",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "9f8c51a324611cbb8fe0f45242b2e51802f393d8aac30f630b4c9d4d466b58de",
+      "sha256": "a47e1175535592c1661ba8590babc6c96aa19d4af4b252909b3f3e10d797437b",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T21:23:31Z",
+  "generatedAt": "2026-09-26T21:26:40Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "adf2f335b3a98923aaaf03ff99d24b14c0b73fe3",
+      "gitBlob": "b01ab34c837b2f5dc4c4ed167b2a24953499b0f9",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "22d68f49a56698795c99c4145891074eacd6ae8b207ae7715a6582a4de4ebf5f",
+      "sha256": "775aee2d6d9abc7b6e279cde10d2e3bcef3b463c6592061497ab944fb0d12bb7",
       "sizeBytes": 41188
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "2cf034f3cc0f9784907cc4ffdc2bf3b8d883f606",
-  "subjectTree": "6f5070dfa0502b80ce7e91f8e8788d1c482d62bd"
+  "subjectCommit": "fc268cbf6866543f60a5618ed258a4ec9e8056a0",
+  "subjectTree": "adb1d896dd4f4464b66f808ede0e5cc6dcd50943"
 }
