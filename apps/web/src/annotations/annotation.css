@@ -1354,6 +1354,10 @@
   left:96px;
 }
 
+.viewer-stage--annotations .viewer-rotation {
+  left:176px;
+}
+
 @keyframes annotation-draft-march {
   to { stroke-dashoffset:-12; }
 }
@@ -1531,6 +1535,17 @@
   .annotation-failure,
   .annotation-conflict {
     top:66px;
+  }
+
+  .viewer-stage--annotations .viewer-rotation {
+    left:auto;
+    right:8px;
+    bottom:76px;
+  }
+
+  .viewer-stage--annotations .viewer-rotation-popover {
+    left:auto;
+    right:0;
   }
 
   .viewer-stage--annotations .viewer-tools {

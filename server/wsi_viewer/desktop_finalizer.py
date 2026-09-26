@@ -6,8 +6,10 @@ import threading
 from collections.abc import Callable, Iterator
 from datetime import timedelta
 from pathlib import Path
+from uuid import uuid4
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as OrmSession
 
 from .desktop_sync import record_sync_event, revision_for
@@ -100,7 +102,13 @@ class PreparedIngestFinalizer:
             try:
                 self._finalize(ingest_id)
             except Exception:
-                self._mark_failed(ingest_id, "PREPARED_INGEST_FINALIZER_FAILED")
+                try:
+                    self._mark_failed(ingest_id, "PREPARED_INGEST_FINALIZER_FAILED")
+                except Exception as error:
+                    logger.error(
+                        "DESKTOP_INGEST_FAILURE_RECORD_FAILED ingest_id=%s error_type=%s",
+                        ingest_id, type(error).__name__,
+                    )
 
     def _finalize(self, ingest_id: str) -> None:
         with self._database() as database:
@@ -138,18 +146,27 @@ class PreparedIngestFinalizer:
         with self._database() as database:
             ingest = database.get(DesktopIngest, ingest_id)
             if ingest is not None and ingest.status in {"finalizing", "installing"}:
-                if ingest.ingest_mode == "ome_dynamic_v1":
-                    source = desktop_upload_path(self.storage, ingest)
-                    if source.exists():
-                        quarantine = desktop_quarantine_path(self.storage, ingest.id)
-                        quarantine.parent.mkdir(parents=True, exist_ok=True)
-                        try:
-                            os.replace(source, quarantine)
-                        except OSError:
-                            source.unlink(missing_ok=True)
+                source = (
+                    desktop_upload_path(self.storage, ingest)
+                    if ingest.ingest_mode == "ome_dynamic_v1" else None
+                )
+                quarantine = desktop_quarantine_path(self.storage, ingest_id)
                 ingest.status = "failed"
                 ingest.error_code = code
+                # Failed or uncertain commits leave the original upload in place
+                # so startup recovery can resume the durable installing record.
                 database.commit()
+                if source is not None:
+                    try:
+                        if source.exists():
+                            quarantine.parent.mkdir(parents=True, exist_ok=True)
+                            os.replace(source, quarantine)
+                    except OSError as error:
+                        logger.warning(
+                            "DESKTOP_OME_QUARANTINE_FAILED ingest_id=%s error_type=%s; "
+                            "source retained",
+                            ingest_id, type(error).__name__,
+                        )
 
     def _database(self) -> "_DatabaseContext":
         return _DatabaseContext(self.database_dependency)
@@ -176,7 +193,10 @@ def _install(
     database: OrmSession,
     storage: StorageLayout,
 ) -> None:
+    ingest_id = ingest.id
+    slide_id = str(uuid4())
     slide = Slide(
+        id=slide_id,
         display_name=ingest.display_name,
         original_filename=f"{ingest.display_name}.plslide",
         source_bytes=ingest.package_length,
@@ -184,9 +204,7 @@ def _install(
         state=SlideState.READY_PRIVATE,
         privacy_status="private",
     )
-    database.add(slide)
-    database.flush()
-    destination = storage.for_slide(slide.id).private_derivative
+    destination = storage.for_slide(slide_id).private_derivative
     try:
         result = install_prepared_package(
             package,
@@ -221,6 +239,9 @@ def _install(
             "coordinateTransform": provenance["coordinateTransform"],
             "encoding": slide_info.get("encoding"),
         }
+        # Extraction/validation finishes before taking a database writer lock.
+        database.add(slide)
+        database.flush()
         ingest.slide_id = slide.id
         ingest.status = "ready_private"
         ingest.error_code = None
@@ -236,13 +257,27 @@ def _install(
             )
         )
         database.commit()
-    except (OSError, PreparedIngestError, KeyError, TypeError) as error:
+    except (OSError, PreparedIngestError, KeyError, TypeError, SQLAlchemyError) as error:
         database.rollback()
+        # A COMMIT acknowledgment can fail after the transaction became durable.
+        # Force a fresh read before deleting anything, including with sessions
+        # configured not to expire identity-map objects after successful commits.
+        persisted = database.get(Slide, slide_id, populate_existing=True)
+        if persisted is not None:
+            logger.warning(
+                "DESKTOP_PREPARED_COMMIT_ACK_FAILED ingest_id=%s error_type=%s; "
+                "committed slide and source archive retained",
+                ingest_id, type(error).__name__,
+            )
+            return
         shutil.rmtree(destination, ignore_errors=True)
-        failed = database.get(DesktopIngest, ingest.id)
+        failed = database.get(DesktopIngest, ingest_id)
         if failed is not None:
             failed.status = "failed"
-            failed.error_code = str(error)[:80] or "PREPARED_INGEST_FAILED"
+            failed.error_code = (
+                "PREPARED_INGEST_FINALIZER_FAILED" if isinstance(error, SQLAlchemyError)
+                else str(error)[:80] or "PREPARED_INGEST_FAILED"
+            )
             database.commit()
     else:
         try:

@@ -2,10 +2,12 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
+from wsi_viewer.desktop_sync import encode_library_cursor
 from wsi_viewer.domain import SlideState
 from wsi_viewer.identity import ensure_default_owner_membership
 from wsi_viewer.main import create_app
@@ -141,9 +143,7 @@ def test_sync_event_sequence_is_monotonic(tmp_path: Path) -> None:
     )
     create_schema(settings)
     with session_factory(settings)() as database:
-        first = DesktopSyncEvent(
-            entity_type="slide", entity_id="a", operation="upsert", revision=1
-        )
+        first = DesktopSyncEvent(entity_type="slide", entity_id="a", operation="upsert", revision=1)
         second = DesktopSyncEvent(
             entity_type="slide", entity_id="b", operation="upsert", revision=1
         )
@@ -230,8 +230,7 @@ def test_changes_resume_after_durable_cursor(tmp_path: Path) -> None:
     assert len(first.json()["changes"]) == 1
     assert second.status_code == 200
     assert all(
-        change["sequence"] > int(first.json()["nextCursor"])
-        for change in second.json()["changes"]
+        change["sequence"] > int(first.json()["nextCursor"]) for change in second.json()["changes"]
     )
 
 
@@ -410,3 +409,86 @@ def test_offline_head_exposes_exact_length_digest_and_private_cache_policy(
     assert response.headers["content-length"] == str(len(payload))
     assert response.headers["accept-ranges"] == "bytes"
     assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.parametrize("more_slides", [False, True])
+def test_desktop_folder_pages_cover_late_slide_parent_without_expanding_limits(
+    tmp_path, more_slides
+):
+    # Forge ViewerSyncService follows only nextCursor, treating it as opaque.
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        slide = _ready_slide(client)
+        settings = client.app.state.settings
+        with session_factory(settings)() as database:
+            folders = [
+                Folder(id=f"folder-{i:03}", name=f"Folder {i:03}", normalized_name=f"folder {i:03}")
+                for i in range(101)
+            ]
+            database.add_all(folders)
+            stored = database.get(Slide, slide.id)
+            stored.folder_id = folders[-1].id
+            if more_slides:
+                database.add_all(
+                    [
+                        Slide(
+                            display_name=f"Slide {i}",
+                            original_filename="synthetic.tif",
+                            source_bytes=0,
+                            state=SlideState.READY_PRIVATE,
+                        )
+                        for i in range(100)
+                    ]
+                )
+            database.commit()
+        cursor = ""
+        seen_folders, seen_slides = [], []
+        for _ in range(3):
+            response = client.get(
+                "/api/v2/desktop/library/items",
+                params={"limit": 100, "cursor": cursor},
+                headers=_authorization(exchanged),
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert len(body["items"]) <= 100
+            assert len(body["folders"]) <= 100
+            seen_folders.extend(folder["id"] for folder in body["folders"])
+            seen_slides.extend(item["id"] for item in body["items"])
+            cursor = body["nextCursor"]
+            if cursor is None:
+                break
+        assert cursor is None
+        assert len(seen_folders) == len(set(seen_folders)) == 102
+        assert len(seen_slides) == len(set(seen_slides)) == (101 if more_slides else 1)
+        assert "folder-100" in seen_folders
+        legacy = client.get(
+            "/api/v2/desktop/library/items",
+            params={"cursor": encode_library_cursor(slide)},
+            headers=_authorization(exchanged),
+        )
+        assert legacy.status_code == 200
+        invalid = client.get(
+            "/api/v2/desktop/library/items",
+            params={"cursor": "invalid"},
+            headers=_authorization(exchanged),
+        )
+        assert invalid.status_code == 400
+        assert invalid.json()["detail"]["code"] == "DESKTOP_SYNC_CURSOR_INVALID"
+
+
+@pytest.mark.parametrize(
+    "range_value",
+    ["bytes=-1", "bytes=0-2", "bytes=0-,1-", "bytes=" + "9" * 5000 + "-"],
+    ids=["suffix", "bounded-end", "multiple", "oversized-int"],
+)
+def test_offline_invalid_ranges_fail_closed(tmp_path, range_value):
+    with _client(tmp_path) as client:
+        exchanged = _pair(client)
+        slide = _ready_slide_with_content(client, b"synthetic")
+        response = client.get(
+            f"/api/v2/desktop/slides/{slide.id}/content",
+            headers={**_authorization(exchanged), "Range": range_value},
+        )
+        assert response.status_code == 416
+        assert response.json()["detail"]["code"] == "RANGE_NOT_SATISFIABLE"

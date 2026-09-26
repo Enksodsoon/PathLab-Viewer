@@ -31,7 +31,7 @@ def test_current_security_baseline_reconciles() -> None:
     assert result == {
         "backendRoutes": 240,
         "frontendRoutes": 27,
-        "egressFiles": 84,
+        "egressFiles": 85,
         "findingResult": "SUCCESS",
     }
 

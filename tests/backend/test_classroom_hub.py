@@ -451,6 +451,51 @@ def test_hub_bounds_transient_teaching_tools_and_clears_them_with_session() -> N
     assert hub.teaching_annotations("session") == []
 
 
+def test_worker_reset_and_loop_disconnect_preserve_other_room_capacity() -> None:
+    async def scenario() -> None:
+        hub = ClassroomHub()
+        hub.start()
+        owner_thread = threading.get_ident()
+        entered = threading.Event()
+        release = threading.Event()
+
+        class PausingSubscribers(set):
+            def discard(self, subscriber) -> None:
+                if threading.get_ident() != owner_thread:
+                    entered.set()
+                    assert release.wait(timeout=2)
+                super().discard(subscriber)
+
+        room = hub.subscribe("reset-room")
+        subscriber = await room.__aenter__()
+        async with hub.subscribe("other-room") as other:
+            hub._subscribers["reset-room"] = PausingSubscribers([subscriber])
+            worker = threading.Thread(target=hub.reset_session, args=("reset-room",))
+            worker.start()
+            try:
+                # Before dispatch, pause the worker after it reads registered=True.
+                # With dispatch the reset executes wholly on the owning loop.
+                await asyncio.to_thread(entered.wait, 0.1)
+                await room.__aexit__(None, None, None)
+            finally:
+                release.set()
+                await asyncio.to_thread(worker.join, 1)
+            await asyncio.sleep(0)
+            assert not worker.is_alive()
+            assert subscriber.closed and not subscriber.registered
+            assert other.registered and not other.closed
+            assert hub.current_connections == 1
+            assert hub.metrics()["currentSseConnections"] == 1
+            # Reset closes the old streams without permanently retiring admission.
+            async with hub.subscribe("reset-room") as replacement:
+                assert replacement.registered and not replacement.closed
+                assert hub.current_connections == 2
+        assert hub.current_connections == 0
+        hub.close()
+
+    asyncio.run(scenario())
+
+
 def test_terminal_event_distinguishes_review_from_revoked_access() -> None:
     async def scenario() -> None:
         for phase in ("review", "revoked"):

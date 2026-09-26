@@ -283,7 +283,8 @@ describe('Canvas Focus library explorer', () => {
     api.getLibraryNavigation.mockResolvedValue({...navigation, savedViews: [{id: 'renal', name: 'Renal teaching', sort: 'name_asc', updatedAt: 'now', definition: {version: 1, filters: {q: 'kidney', tags: ['Teaching', 'Renal'], state: 'published', createdFrom: '2026-09-01', updatedTo: '2026-09-20'}}}]})
     renderCanvasFocusAdmin('/admin?location=saved%3Arenal&q=old&state=failed&tag=old&sort=size_desc')
     await screen.findByRole('heading', {name: 'Renal teaching'})
-    expect(screen.getByRole('searchbox', {name: 'Search slides'})).toHaveValue('kidney')
+    // Navigation metadata renders the title before the saved-query restoration effect.
+    await waitFor(() => expect(screen.getByRole('searchbox', {name: 'Search slides'})).toHaveValue('kidney'))
     await waitFor(() => expect(screen.getByRole('combobox', {name: 'Sort slides'})).toHaveValue('name_asc'))
     expect(screen.getByLabelText('Active tags')).toHaveTextContent('Teaching, Renal')
     await userEvent.click(screen.getByRole('button', {name: 'Filters'}))
@@ -632,9 +633,13 @@ describe('Canvas Focus library explorer', () => {
     expect(screen.getByText('Generating viewer tiles')).toBeVisible()
     expect(screen.getAllByRole('progressbar')).toHaveLength(4)
 
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Converting slide' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Queued slide' }))
+    expect(screen.getAllByText('2 selected')[0]).toBeVisible()
     await act(async () => vi.advanceTimersByTimeAsync(4000))
 
     expect(screen.queryByText('Converting slide')).not.toBeInTheDocument()
+    expect(screen.getAllByText('1 selected')[0]).toBeVisible()
     expect(screen.getByText('3 slides')).toBeVisible()
   })
 
@@ -985,11 +990,11 @@ describe('Canvas Focus library explorer', () => {
     expect(screen.getByRole('button', { name: /processing 0/i })).toBeVisible()
   })
 
-  it('provides forward navigation and all creation actions from the toolbar', async () => {
+  it('disables unavailable forward navigation and provides all creation actions from the toolbar', async () => {
     render(<AdminPage />, { wrapper: MemoryRouter })
     await screen.findAllByText('Colon adenocarcinoma')
 
-    expect(screen.getByRole('button', { name: /^forward$/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^forward$/i })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: /^create$/i }))
     expect(screen.getByRole('menuitem', { name: /new folder/i })).toBeVisible()
     expect(screen.getByRole('menuitem', { name: /new collection/i })).toBeVisible()
@@ -1268,4 +1273,80 @@ describe('Canvas Focus library explorer', () => {
       name: /more actions for colon adenocarcinoma/i,
     })).toBeEnabled()
   })
+})
+
+
+it('disables library navigation at its boundaries and restores forward after Back', async () => {
+  renderCanvasFocusAdmin('/admin')
+  await screen.findByRole('checkbox', { name: 'Select Colon adenocarcinoma' })
+  expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Forward' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Up one level' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Slide library' }))
+  await userEvent.click(screen.getByRole('treeitem', { name: 'Organ systems' }))
+  expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Forward' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Up one level' })).toBeEnabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+  expect(screen.getByRole('button', { name: 'Forward' })).toBeEnabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Forward' }))
+  expect(screen.getByRole('heading', { name: 'Organ systems' })).toBeVisible()
+})
+
+it('bounds editable slide fields to the existing API limits', async () => {
+  renderCanvasFocusAdmin('/admin')
+  await screen.findByRole('checkbox', { name: 'Select Colon adenocarcinoma' })
+  await userEvent.click(screen.getByRole('button', { name: /more actions for colon adenocarcinoma/i }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Edit details' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Edit slide details' })
+  for (const [label, maximum] of [['Display name', 200], ['Description', 4000], ['Case ID', 120], ['Organ / site', 120], ['Stain', 80], ['Diagnosis', 300], ['Course', 160], ['Teaching note', 8000], ['Administrator note', 16000]] as const) {
+    expect(within(dialog).getByLabelText(label)).toHaveAttribute('maxlength', String(maximum))
+  }
+  fireEvent.change(within(dialog).getByLabelText('Display name'), { target: { value: 'A'.repeat(201) } })
+  expect(within(dialog).getByLabelText('Display name')).toHaveValue('A'.repeat(200))
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save details' }))
+  await waitFor(() => expect(api.batchUpdateSlides).toHaveBeenCalledWith(['slide-1'], expect.objectContaining({ displayName: 'A'.repeat(200) })))
+})
+
+it('preserves unrelated bulk selection across a card edit cancel and card trash', async () => {
+  renderCanvasFocusAdmin('/admin')
+  await userEvent.click(await screen.findByRole('checkbox', { name: 'Select HER2 gastric IHC' }))
+  await userEvent.click(screen.getByRole('button', { name: /more actions for colon adenocarcinoma/i }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Edit details' }))
+  await screen.findByRole('dialog', { name: 'Edit slide details' })
+  await userEvent.click(screen.getByRole('button', { name: 'Close Edit slide details' }))
+  expect(screen.getByRole('checkbox', { name: 'Select HER2 gastric IHC' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Select Colon adenocarcinoma' })).not.toBeChecked()
+  await userEvent.click(screen.getByRole('button', { name: /more actions for colon adenocarcinoma/i }))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Edit details' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Save details' }))
+  await waitFor(() => expect(api.batchUpdateSlides).toHaveBeenCalledWith(['slide-1'], expect.any(Object)))
+  expect(screen.getByRole('checkbox', { name: 'Select HER2 gastric IHC' })).toBeChecked()
+  await userEvent.click(screen.getByRole('button', { name: /more actions for colon adenocarcinoma/i }))
+  await userEvent.click(screen.getByRole('menuitem', { name: /move to trash/i }))
+  await waitFor(() => expect(api.mutateLibrarySlide).toHaveBeenCalledWith('slide-1', 'trash'))
+  expect(screen.getByRole('checkbox', { name: 'Select HER2 gastric IHC' })).toBeChecked()
+})
+
+
+it('retains a card edit target when processing polling removes its visible row', async () => {
+  vi.useFakeTimers()
+  api.getLibraryItems.mockResolvedValue({ ...items, items: items.items.map((slide) => ({ ...slide, state: 'converting' })) })
+  api.getSlideStatuses.mockResolvedValue([
+    { id: 'slide-1', state: 'ready_private', errorCode: null },
+    { id: 'slide-2', state: 'converting', errorCode: null },
+  ])
+  renderCanvasFocusAdmin('/admin?location=processing')
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select HER2 gastric IHC' }))
+  fireEvent.click(screen.getByRole('button', { name: /more actions for colon adenocarcinoma/i }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Edit details' }))
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  const dialog = screen.getByRole('dialog', { name: 'Edit slide details' })
+  await act(async () => vi.advanceTimersByTimeAsync(4000))
+  expect(screen.queryByRole('checkbox', { name: 'Select Colon adenocarcinoma' })).not.toBeInTheDocument()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save details' }))
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(api.batchUpdateSlides).toHaveBeenCalledWith(['slide-1'], expect.any(Object))
+  expect(screen.getByRole('checkbox', { name: 'Select HER2 gastric IHC' })).toBeChecked()
 })

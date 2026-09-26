@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -40,18 +39,22 @@ class PresenterRuntime:
         self._task: asyncio.Task[None] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._wake = asyncio.Event()
+        self._closing = False
         self.persistence_writes = 0
 
     def start(self) -> None:
         if self._task is None:
+            self._closing = False
             self._loop = asyncio.get_running_loop()
             self._task = asyncio.create_task(self._run())
 
     async def close(self) -> None:
         if self._task is not None:
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._task
+            # A to_thread write continues after coroutine cancellation. Let its
+            # bookkeeping finish before flushing a newer dirty snapshot.
+            self._closing = True
+            self._wake.set()
+            await self._task
             self._task = None
         await self.flush(force=True)
         self._loop = None
@@ -119,10 +122,7 @@ class PresenterRuntime:
                 self._states[session_id]
                 for session_id in tuple(self._dirty)
                 if session_id not in self._in_flight
-                and (
-                    force
-                    or now - self._last_persisted_at.get(session_id, now) >= self._interval
-                )
+                and (force or now - self._last_persisted_at.get(session_id, now) >= self._interval)
             ]
             self._in_flight.update(item.session_id for item in snapshots)
         if not snapshots:
@@ -144,7 +144,7 @@ class PresenterRuntime:
                     self._dirty.discard(snapshot.session_id)
 
     async def _run(self) -> None:
-        while True:
+        while not self._closing:
             self._wake.clear()
             now = self._clock()
             with self._lock:

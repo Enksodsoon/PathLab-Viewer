@@ -1189,6 +1189,14 @@ app = create_app()
 
 
 def run() -> None:
+    import argparse
+
     import uvicorn
 
-    uvicorn.run("wsi_viewer.main:app", host="0.0.0.0", port=8000)
+    parser = argparse.ArgumentParser(description="Run the PathLab API.")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error("--port must be between 1 and 65535")
+    uvicorn.run("wsi_viewer.main:app", host=args.host, port=args.port)

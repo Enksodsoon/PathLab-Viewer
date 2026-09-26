@@ -2406,7 +2406,7 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(
+        classroom = require_live_classroom(
             session_id,
             db,
             authenticated=authenticated,
@@ -2428,11 +2428,13 @@ def register_classroom_routes(
             "width": payload.width,
             "points": [point.model_dump() for point in payload.points],
         }
+        classroom.state_version += 1
+        db.commit()
         hub.add_teaching_annotation(session_id, annotation)
         hub.publish(
             session_id,
             "teaching-annotation-added",
-            {"annotation": annotation},
+            {"stateVersion": classroom.state_version, "annotation": annotation},
             critical=True,
         )
 
@@ -2447,17 +2449,20 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(
+        classroom = require_live_classroom(
             session_id,
             db,
             authenticated=authenticated,
             code="ANNOTATION_NOT_ACCEPTED",
         )
-        if hub.remove_teaching_annotation(session_id, annotation_id):
+        if any(item.get("id") == annotation_id for item in hub.teaching_annotations(session_id)):
+            classroom.state_version += 1
+            db.commit()
+            hub.remove_teaching_annotation(session_id, annotation_id)
             hub.publish(
                 session_id,
                 "teaching-annotation-removed",
-                {"annotationId": annotation_id},
+                {"stateVersion": classroom.state_version, "annotationId": annotation_id},
                 critical=True,
             )
 
@@ -2471,14 +2476,20 @@ def register_classroom_routes(
         _guard: MutationGuard,
         db: Database,
     ) -> None:
-        require_live_classroom(
+        classroom = require_live_classroom(
             session_id,
             db,
             authenticated=authenticated,
             code="ANNOTATION_NOT_ACCEPTED",
         )
-        if hub.clear_teaching_annotations(session_id):
-            hub.publish(session_id, "teaching-annotations-cleared", {}, critical=True)
+        if hub.teaching_annotations(session_id):
+            classroom.state_version += 1
+            db.commit()
+            hub.clear_teaching_annotations(session_id)
+            hub.publish(
+                session_id, "teaching-annotations-cleared",
+                {"stateVersion": classroom.state_version}, critical=True,
+            )
 
     @app.post("/api/v1/admin/classroom/sessions/{session_id}/questions/{question_id}/open")
     def open_question(

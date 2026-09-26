@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "scope": "Library and annotation residual regressions",
+  "frontend": {
+    "command": "pnpm --dir apps/web exec vitest run src/test/library-explorer.test.tsx src/test/annotation-workspace.test.tsx --maxWorkers=1",
+    "files": 2,
+    "passed": 52,
+    "failed": 0,
+    "duration_seconds": 50.91,
+    "typescript": "passed",
+    "eslint": "passed",
+    "coverage": [
+      "Mounted library route history disables unavailable Back/Forward/Up and restores Forward after Back",
+      "Nine API field limits and programmatic display-name clipping",
+      "Card edit cancel/save and trash preserve unrelated bulk selection; retained card target survives processing removal",
+      "Immediate and deferred revision history cannot follow a changed selection"
+    ]
+  },
+  "backend": {
+    "coverage": "Actual HTTP inverted X/Y and nonfinite NaN/Infinity viewport requests",
+    "before": "4 cases returned 200",
+    "after": "4 cases return 422 ANNOTATION_INVALID_VIEWPORT",
+    "scoped_passed": 5,
+    "existing_crud": "passed",
+    "ruff": "passed"
+  },
+  "limitations": [
+    "Frontend regression evidence is rendered scoped coverage, not a claimed failing-before run",
+    "This receipt does not replace protected CI or deployment verification"
+  ],
+  "browser": {
+    "passed": 8,
+    "failed": 0,
+    "duration_seconds": 45.6,
+    "projects": [
+      "chromium",
+      "firefox",
+      "webkit",
+      "mobile-chromium"
+    ],
+    "command": "playwright test e2e/library-upload-remediation.spec.ts e2e/annotation-responsive.spec.ts --grep residual --workers=1",
+    "output": "var/evidence/residual-controls-playwright-receipt",
+    "screenshots": "var/evidence/library-upload-remediation/{project}/residual-library-controls.png",
+    "navigation_viewport": "760x740",
+    "native_fields_and_card_actions_viewport": "320x740",
+    "annotation_revision_viewport": "760x650",
+    "coverage": [
+      "Back/Forward/Up actual route boundaries",
+      "Nine native maxlength attributes and actual browser clipping",
+      "Card cancel/save/trash preserve unrelated bulk selection and mutation API IDs target only the card",
+      "Immediate revision choice clears after selection change; awaited delayed response cannot repopulate revision controls"
+    ],
+    "harness": "Visible inspector close/disclosure controls used; no forced pointer clicks or bypassed product controls"
+  }
+}

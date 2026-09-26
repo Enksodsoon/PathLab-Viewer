@@ -12,10 +12,11 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, st
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import and_, case, func, or_, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
+from .admission import lock_admission
 from .delivery import deliver_file
 from .desktop_sync import record_sync_event, revision_for
 from .domain import InvalidTransition, SlideState, transition
@@ -88,7 +89,7 @@ class FolderUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     parent_id: str | None = Field(default=None, alias="parentId")
     description: str | None = Field(default=None, max_length=2000)
-    sort_order: int | None = Field(default=None, alias="sortOrder", ge=0)
+    sort_order: int | None = Field(default=None, alias="sortOrder", ge=0, le=2**31 - 1)
 
 
 class CollectionRequest(BaseModel):
@@ -101,7 +102,7 @@ class CollectionUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=4000)
-    sort_order: int | None = Field(default=None, alias="sortOrder", ge=0)
+    sort_order: int | None = Field(default=None, alias="sortOrder", ge=0, le=2**31 - 1)
 
 
 class SlideIdsRequest(BaseModel):
@@ -160,6 +161,17 @@ def _conflict(error: LibraryConflict) -> HTTPException:
         status.HTTP_404_NOT_FOUND if error.code.endswith("_NOT_FOUND") else status.HTTP_409_CONFLICT
     )
     return HTTPException(status_code=status_code, detail={"code": error.code})
+
+
+def _lock_folder_topology(database: OrmSession) -> None:
+    # Dependency authentication may have read through this Session. Start fresh
+    # before taking the shared lock, then read topology and acquire target rows.
+    database.rollback()
+    try:
+        lock_admission(database, "folder-topology")
+    except SQLAlchemyError:
+        database.rollback()
+        raise
 
 
 def _folder_counts(
@@ -672,6 +684,7 @@ def register_library_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
         try:
+            _lock_folder_topology(database)
             name, normalized = normalize_name(payload.name)
             validate_folder_parent(database, folder_id=None, parent_id=payload.parent_id)
             existing = database.scalar(
@@ -716,6 +729,7 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        _lock_folder_topology(database)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is not None:
             raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
@@ -760,6 +774,7 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        _lock_folder_topology(database)
         lock_share_target(database, "folder", folder_id)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is not None:
@@ -808,6 +823,7 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        _lock_folder_topology(database)
         lock_share_target(database, "folder", folder_id)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is None:
@@ -824,6 +840,7 @@ def register_library_routes(
                     if previous is not None and previous.trashed_at is None
                     else None
                 )
+            validate_folder_parent(database, folder_id=folder.id, parent_id=folder.parent_id)
             database.execute(update(Folder).where(Folder.id.in_(subtree)).values(trashed_at=None))
             folder.previous_parent_id = None
             now = utcnow()
@@ -839,6 +856,9 @@ def register_library_routes(
             for changed_id in slide_ids:
                 record_sync_event(database, "slide", changed_id, "restore", revision_for(now))
             database.commit()
+        except LibraryConflict as error:
+            database.rollback()
+            raise _conflict(error) from error
         except IntegrityError as error:
             database.rollback()
             raise HTTPException(status_code=409, detail={"code": "FOLDER_NAME_CONFLICT"}) from error
@@ -855,6 +875,7 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
+        _lock_folder_topology(database)
         lock_share_target(database, "folder", folder_id)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is None:

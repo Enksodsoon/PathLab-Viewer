@@ -14,6 +14,7 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 - [Establish current-code scope](tickets/current-code-scope.md): upstream base, report contradictions, selected design and delivery defaults.
 - [Repair and verification batch](tickets/repair-and-verification-batch.md): reproduced repairs, browser evidence and remaining release gates.
+- [Integrity follow-up](tickets/integrity-followup.md): newly reproduced concurrency and durability repairs, separate from the first reviewed release candidate.
 
 ## Not yet specified
 
