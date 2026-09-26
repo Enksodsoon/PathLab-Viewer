@@ -12016,6 +12016,12 @@
       "status": "confirmed",
       "repairState": "local",
       "evidence": "Actual authorized content request with 5000-digit Range start returned500 during integer conversion. Shared range parser now returns416 for invalid integer conversion; all18 desktop contract checks pass."
+    },
+    {
+      "key": "campaign-classroom-queued-dispatch",
+      "status": "confirmed",
+      "repairState": "local",
+      "evidence": "Merged-main9fa4a66 mobile native OSD trace and deterministic pre-fix actual OSD animation/control task reproduce queued local viewport POST during held control snapshot. Three Teacher page regressions, a Student queued lease regression and pointer-leave regression reproduce stale dispatch; current-ref/live/snapshot/tool guards block it while positive Teacher pointer with participant control remains allowed. Final focused page/performance16pass and native OSD4pass across Chromium/Firefox/WebKit/mobile Chromium. Remote viewport arrived after original extraPOST; source remote-echo counterexample remains valid. Fresh protected PR/main/deployment and authenticated production qualification pending. Final source tracing confirms Teacher POST intentionally reclaims control, so stale dispatch can unexpectedly revoke participant control. Corrected accepting/reclaim/200JSON synthetic transport passed native4projects and3mobile repeats; full Classroom96tests pass. Earlier403fixture qualifies attempted-request evidence only; no server authorization claim."
     }
   ]
 }
