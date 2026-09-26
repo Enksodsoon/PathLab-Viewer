@@ -1781,3 +1781,20 @@ def test_wal_reads_remain_available_and_atomically_visible_during_50_op_save(
                 {"slide_id": slide.id},
             ).one()
         assert tuple(final) == (3, 50)
+
+
+@pytest.mark.parametrize("bounds", [
+    {"minX": 30, "minY": 0, "maxX": 10, "maxY": 10},
+    {"minX": 0, "minY": 30, "maxX": 10, "maxY": 10},
+    {"minX": "nan", "minY": 0, "maxX": 10, "maxY": 10},
+    {"minX": 0, "minY": 0, "maxX": "inf", "maxY": 10},
+])
+def test_annotation_viewport_rejects_nonfinite_and_inverted_bounds(tmp_path, bounds):
+    with _client(tmp_path, enabled=True) as client:
+        _login(client)
+        slide = _slide(client)
+        response = client.get(
+            f"/api/v2/admin/annotations/slides/{slide.id}/items", params=bounds,
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["detail"] == {"code": "ANNOTATION_INVALID_VIEWPORT"}

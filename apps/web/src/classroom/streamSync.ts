@@ -2,6 +2,7 @@ export interface ClassroomStreamCursor {
   hubEpoch: string
   eventSequence: number
   stateVersion: number
+  needsSnapshot?: boolean
 }
 
 export type ClassroomStreamDecision = 'apply' | 'ignore' | 'resync'
@@ -15,6 +16,7 @@ export function noteClassroomSnapshot(
   stateVersion: number,
 ): void {
   cursor.stateVersion = stateVersion
+  delete cursor.needsSnapshot
 }
 
 export function applyClassroomStreamEvent(
@@ -29,7 +31,11 @@ export function applyClassroomStreamEvent(
     && payload.eventSequence >= 0
     ? payload.eventSequence
     : -1
-  if (!hubEpoch || eventSequence < 0) return 'resync'
+  const resync = (): ClassroomStreamDecision => {
+    cursor.needsSnapshot = true
+    return 'resync'
+  }
+  if (!hubEpoch || eventSequence < 0) return resync()
 
   if (eventType === 'stream-ready') {
     const stateVersion = typeof payload.stateVersion === 'number'
@@ -39,7 +45,7 @@ export function applyClassroomStreamEvent(
       : -1
     cursor.hubEpoch = hubEpoch
     cursor.eventSequence = eventSequence
-    return stateVersion === cursor.stateVersion ? 'apply' : 'resync'
+    return stateVersion === cursor.stateVersion && !cursor.needsSnapshot ? 'apply' : resync()
   }
 
   if (hubEpoch === cursor.hubEpoch && eventSequence <= cursor.eventSequence) return 'ignore'
@@ -52,11 +58,33 @@ export function applyClassroomStreamEvent(
   if (typeof payload.stateVersion === 'number' && Number.isSafeInteger(payload.stateVersion)) {
     if (options.terminal && payload.stateVersion >= cursor.stateVersion) {
       cursor.stateVersion = payload.stateVersion
+      delete cursor.needsSnapshot
       return 'apply'
     }
-    if (hasGap) return 'resync'
-    if (payload.stateVersion !== cursor.stateVersion) return 'resync'
+    if (hasGap || cursor.needsSnapshot) return resync()
+    if (payload.stateVersion !== cursor.stateVersion) return resync()
   }
-  if (hasGap) return 'resync'
+  if (hasGap || cursor.needsSnapshot) return resync()
   return 'apply'
+}
+
+export function createClassroomEphemeralBuffer() {
+  // ponytail: two latest fields; add an explicit field if the protocol gains another.
+  const latest = new Map<string, () => void>()
+  return {
+    hold(type: string, replay: () => void): boolean {
+      const field = type === 'presenter' ? 'presenter'
+        : type === 'pointer' || type === 'pointer-removed' ? 'pointer' : null
+      if (!field) return false
+      latest.delete(field)
+      latest.set(field, replay)
+      return true
+    },
+    drain(): void {
+      const callbacks = [...latest.values()]
+      latest.clear()
+      for (const replay of callbacks) replay()
+    },
+    clear(): void { latest.clear() },
+  }
 }

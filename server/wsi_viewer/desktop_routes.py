@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import CursorResult
@@ -31,6 +31,7 @@ from .annotations import (
     layer_json,
     slide_bounds,
 )
+from .classroom_runtime import ClassroomSingletonLock
 from .desktop_finalizer import PreparedIngestFinalizer, desktop_upload_path
 from .desktop_sync import (
     SCHEMA as DESKTOP_SYNC_SCHEMA,
@@ -38,7 +39,9 @@ from .desktop_sync import (
 from .desktop_sync import (
     change_json,
     decode_library_cursor,
+    decode_library_page_cursor,
     encode_library_cursor,
+    encode_library_page_cursor,
     record_sync_event,
     remote_folder_json,
     remote_slide_json,
@@ -229,6 +232,76 @@ def register_desktop_routes(
 
     def upload_path(ingest: DesktopIngest) -> Path:
         return desktop_upload_path(storage, ingest)
+
+    def lock_ingest_transfer(
+        ingest_id: str,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> Iterator[None]:
+        require_scope(authenticated, "desktop:ingest")
+        ingest = database.get(DesktopIngest, ingest_id)
+        if ingest is None or ingest.credential_id != authenticated.id:
+            raise HTTPException(status_code=404, detail={"code": "INGEST_NOT_FOUND"})
+        transfer_lock = ClassroomSingletonLock(
+            storage.root / "desktop-transfer-locks" / f"ingest-{ingest.id}.lock"
+        )
+        if not transfer_lock.acquire():
+            raise HTTPException(status_code=409, detail={"code": "UPLOAD_OFFSET_MISMATCH"})
+        try:
+            # Authentication/ownership reads happened before the lock. Start a
+            # fresh transaction so the endpoint sees the latest committed offset.
+            database.rollback()
+            yield
+        finally:
+            transfer_lock.release()
+
+    def lock_result_transfer(
+        slide_id: str,
+        delivery_id: str,
+        authenticated: DesktopCredential = Depends(credential),
+        database: OrmSession = Depends(database_dependency),
+    ) -> Iterator[None]:
+        require_scope(authenticated, "results:sync")
+        delivery = database.get(ResultDelivery, delivery_id)
+        if (delivery is None or delivery.slide_id != slide_id
+                or delivery.credential_id != authenticated.id):
+            raise HTTPException(status_code=404, detail={"code": "RESULT_DELIVERY_NOT_FOUND"})
+        transfer_lock = ClassroomSingletonLock(
+            storage.root / "desktop-transfer-locks" / f"result-{delivery.id}.lock"
+        )
+        if not transfer_lock.acquire():
+            raise HTTPException(status_code=409, detail={"code": "UPLOAD_OFFSET_MISMATCH"})
+        try:
+            database.rollback()
+            yield
+        finally:
+            transfer_lock.release()
+
+    def create_transfer_spool(
+        target: Path, database: OrmSession, transfer: DesktopIngest | ResultDelivery,
+    ) -> None:
+        transfer_id = transfer.id
+        created = False
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open("xb"):
+                created = True
+            database.commit()
+        except Exception:
+            database.rollback()
+            if created:
+                # A lost commit acknowledgement must not remove a durable
+                # transfer's spool. A failed lookup also leaves the bytes intact.
+                if database.get(type(transfer), transfer_id, populate_existing=True) is not None:
+                    return
+                try:
+                    target.unlink(missing_ok=True)
+                except OSError as error:
+                    logging.getLogger(__name__).warning(
+                        "DESKTOP_SPOOL_ROLLBACK_CLEANUP_FAILED error_type=%s; source retained",
+                        type(error).__name__,
+                    )
+            raise
 
     def ingest_json(ingest: DesktopIngest, database: OrmSession) -> dict[str, Any]:
         document = {
@@ -670,18 +743,24 @@ def register_desktop_routes(
             Slide.state.in_([SlideState.READY_PRIVATE, SlideState.PUBLISHED]),
             Slide.trashed_at.is_(None),
         )
+        slide_cursor = ""
+        folder_cursor = ""
         if cursor_value:
             try:
-                cursor_time, cursor_id = decode_library_cursor(cursor_value)
+                slide_cursor, folder_cursor = decode_library_page_cursor(cursor_value)
+                cursor_time, cursor_id = (
+                    decode_library_cursor(slide_cursor) if slide_cursor else (None, "")
+                )
             except ValueError as error:
                 raise HTTPException(
                     status_code=400,
                     detail={"code": str(error)},
                 ) from error
-            statement = statement.where(
-                (Slide.updated_at > cursor_time)
-                | ((Slide.updated_at == cursor_time) & (Slide.id > cursor_id))
-            )
+            if cursor_time is not None:
+                statement = statement.where(
+                    (Slide.updated_at > cursor_time)
+                    | ((Slide.updated_at == cursor_time) & (Slide.id > cursor_id))
+                )
         slides = list(
             database.scalars(statement.order_by(Slide.updated_at, Slide.id).limit(limit + 1))
         )
@@ -689,17 +768,21 @@ def register_desktop_routes(
         folders = list(
             database.scalars(
                 select(Folder)
-                .where(Folder.trashed_at.is_(None))
-                .order_by(Folder.parent_id, Folder.sort_order, Folder.normalized_name)
-                .limit(100)
+                .where(Folder.trashed_at.is_(None), Folder.id > folder_cursor)
+                .order_by(Folder.id)
+                .limit(101)
             )
         )
         return {
             "schema": DESKTOP_SYNC_SCHEMA,
             "items": [remote_slide_json(slide) for slide in page],
-            "folders": [remote_folder_json(folder) for folder in folders],
+            "folders": [remote_folder_json(folder) for folder in folders[:100]],
             "nextCursor": (
-                encode_library_cursor(page[-1]) if len(slides) > limit and page else None
+                encode_library_page_cursor(
+                    encode_library_cursor(page[-1]) if page else slide_cursor,
+                    folders[min(len(folders), 100) - 1].id if folders else folder_cursor,
+                )
+                if len(slides) > limit or len(folders) > 100 else None
             ),
         }
 
@@ -771,8 +854,6 @@ def register_desktop_routes(
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
         slide, target = offline_slide(slide_id, authenticated, database)
-        start = 0
-        status_code = status.HTTP_200_OK
         headers = offline_headers(slide, slide.source_bytes)
         if range_value:
             if (
@@ -784,27 +865,15 @@ def register_desktop_routes(
             raw_start = range_value.removeprefix("bytes=")[:-1]
             if not raw_start.isdigit():
                 raise HTTPException(status_code=416, detail={"code": "RANGE_NOT_SATISFIABLE"})
-            start = int(raw_start)
+            try:
+                start = int(raw_start)
+            except ValueError:
+                raise HTTPException(
+                    status_code=416, detail={"code": "RANGE_NOT_SATISFIABLE"}
+                ) from None
             if start >= slide.source_bytes:
                 raise HTTPException(status_code=416, detail={"code": "RANGE_NOT_SATISFIABLE"})
-            status_code = status.HTTP_206_PARTIAL_CONTENT
-            headers["Content-Length"] = str(slide.source_bytes - start)
-            headers["Content-Range"] = (
-                f"bytes {start}-{slide.source_bytes - 1}/{slide.source_bytes}"
-            )
-
-        def blocks() -> Iterator[bytes]:
-            with target.open("rb") as source:
-                source.seek(start)
-                while block := source.read(MAX_REQUEST_BUFFER_BYTES):
-                    yield block
-
-        return StreamingResponse(
-            blocks(),
-            status_code=status_code,
-            media_type="image/tiff",
-            headers=headers,
-        )
+        return FileResponse(target, media_type="image/tiff", headers=headers)
 
     @app.patch("/api/v2/desktop/slides/{slide_id}")
     def patch_desktop_slide(
@@ -920,12 +989,8 @@ def register_desktop_routes(
             status="uploading",
         )
         database.add(ingest)
-        database.commit()
-        database.refresh(ingest)
-        target = upload_path(ingest)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("xb"):
-            pass
+        database.flush()
+        create_transfer_spool(upload_path(ingest), database, ingest)
         return ingest_json(ingest, database)
 
     @app.post("/api/v1/desktop/ome-ingests", status_code=status.HTTP_201_CREATED)
@@ -967,12 +1032,8 @@ def register_desktop_routes(
             status="uploading",
         )
         database.add(ingest)
-        database.commit()
-        database.refresh(ingest)
-        target = upload_path(ingest)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("xb"):
-            pass
+        database.flush()
+        create_transfer_spool(upload_path(ingest), database, ingest)
         return ingest_json(ingest, database)
 
     @app.head("/api/v1/desktop/ingests/{ingest_id}/content")
@@ -999,6 +1060,7 @@ def register_desktop_routes(
         ingest_id: str,
         authenticated: DesktopCredential = Depends(credential),
         database: OrmSession = Depends(database_dependency),
+        _transfer_guard: None = Depends(lock_ingest_transfer),
     ) -> None:
         require_scope(authenticated, "desktop:ingest")
         ingest = database.get(DesktopIngest, ingest_id)
@@ -1007,10 +1069,16 @@ def register_desktop_routes(
         if ingest.status != "uploading":
             raise HTTPException(status_code=409, detail={"code": "INGEST_NOT_CANCELLABLE"})
         target = upload_path(ingest)
-        target.unlink(missing_ok=True)
         ingest.status = "cancelled"
         ingest.error_code = None
         database.commit()
+        try:
+            target.unlink(missing_ok=True)
+        except OSError as error:
+            logging.getLogger(__name__).warning(
+                "DESKTOP_CANCEL_SPOOL_CLEANUP_FAILED ingest_id=%s error_type=%s; source retained",
+                ingest_id, type(error).__name__,
+            )
 
     @app.post(
         "/api/v2/desktop/slides/{slide_id}/result-deliveries",
@@ -1063,11 +1131,8 @@ def register_desktop_routes(
             status="uploading",
         )
         database.add(delivery)
-        database.commit()
-        database.refresh(delivery)
-        target = result_path(delivery.id)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.touch(exist_ok=False)
+        database.flush()
+        create_transfer_spool(result_path(delivery.id), database, delivery)
         return result_json(delivery)
 
     @app.head("/api/v2/desktop/slides/{slide_id}/result-deliveries/{delivery_id}/content")
@@ -1100,6 +1165,7 @@ def register_desktop_routes(
         upload_offset: int = Header(alias="Upload-Offset", ge=0),
         authenticated: DesktopCredential = Depends(credential),
         database: OrmSession = Depends(database_dependency),
+        _transfer_guard: None = Depends(lock_result_transfer),
     ) -> dict[str, Any]:
         require_scope(authenticated, "results:sync")
         delivery = database.get(ResultDelivery, delivery_id)
@@ -1180,6 +1246,7 @@ def register_desktop_routes(
         delivery_id: str,
         authenticated: DesktopCredential = Depends(credential),
         database: OrmSession = Depends(database_dependency),
+        _transfer_guard: None = Depends(lock_result_transfer),
     ) -> None:
         require_scope(authenticated, "results:sync")
         delivery = database.get(ResultDelivery, delivery_id)
@@ -1191,9 +1258,16 @@ def register_desktop_routes(
             raise HTTPException(status_code=404, detail={"code": "RESULT_DELIVERY_NOT_FOUND"})
         if delivery.status == "complete":
             raise HTTPException(status_code=409, detail={"code": "RESULT_DELIVERY_NOT_CANCELLABLE"})
-        result_path(delivery.id).unlink(missing_ok=True)
+        target = result_path(delivery.id)
         database.delete(delivery)
         database.commit()
+        try:
+            target.unlink(missing_ok=True)
+        except OSError as error:
+            logging.getLogger(__name__).warning(
+                "DESKTOP_CANCEL_SPOOL_CLEANUP_FAILED delivery_id=%s error_type=%s; source retained",
+                delivery_id, type(error).__name__,
+            )
 
     @app.patch(
         "/api/v1/desktop/ingests/{ingest_id}/content",
@@ -1205,6 +1279,7 @@ def register_desktop_routes(
         upload_offset: int = Header(alias="Upload-Offset", ge=0),
         authenticated: DesktopCredential = Depends(credential),
         database: OrmSession = Depends(database_dependency),
+        _transfer_guard: None = Depends(lock_ingest_transfer),
     ) -> dict[str, Any]:
         require_scope(authenticated, "desktop:ingest")
         ingest = database.get(DesktopIngest, ingest_id)

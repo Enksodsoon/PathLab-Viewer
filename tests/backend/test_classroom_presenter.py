@@ -64,9 +64,7 @@ def test_presenter_shutdown_flushes_latest_dirty_state() -> None:
     async def scenario() -> None:
         persisted: list[PresenterSnapshot] = []
         runtime = PresenterRuntime(lambda snapshots: persisted.extend(snapshots))
-        runtime.update(
-            "session", 10, 10, "slide-1", "slide-1", {"x": 0.8, "y": 0.2, "zoom": 5}
-        )
+        runtime.update("session", 10, 10, "slide-1", "slide-1", {"x": 0.8, "y": 0.2, "zoom": 5})
         await runtime.close()
         assert len(persisted) == 1
         assert persisted[0].sequence == 11
@@ -99,3 +97,69 @@ def test_reserved_sequence_prevents_reuse_after_abrupt_restart() -> None:
     )
     assert after_restart.sequence == 1025
     assert reservations[-1] == 2048
+
+
+def test_shutdown_waits_for_inflight_write_then_persists_newest_viewport() -> None:
+    import threading
+
+    async def scenario() -> None:
+        entered, release = threading.Event(), threading.Event()
+        persisted: list[PresenterSnapshot] = []
+
+        def persist(snapshots):
+            if not persisted:
+                entered.set()
+                assert release.wait(5), "test did not release persistence"
+            persisted.extend(snapshots)
+
+        runtime = PresenterRuntime(persist, interval_seconds=0.001)
+        runtime.start()
+        runtime.update("room", 1024, 1024, "slide", "slide", {"x": 0.1, "y": 0.5, "zoom": 2})
+        assert await asyncio.to_thread(entered.wait, 2)
+        runtime.update("room", 1024, 1024, "slide", "slide", {"x": 0.9, "y": 0.5, "zoom": 3})
+        closing = asyncio.create_task(runtime.close())
+        try:
+            await asyncio.sleep(0.01)
+            assert not closing.done(), "shutdown returned before the in-flight write completed"
+        finally:
+            release.set()
+            await closing
+        assert [item.sequence for item in persisted] == [1025, 1026]
+        assert persisted[-1].viewport["x"] == 0.9
+        assert not runtime._dirty
+        assert not runtime._in_flight
+
+    asyncio.run(scenario())
+
+
+def test_shutdown_retries_failed_inflight_persistence_without_losing_latest() -> None:
+    import threading
+
+    async def scenario() -> None:
+        entered, release = threading.Event(), threading.Event()
+        attempts = []
+        persisted = []
+
+        def persist(snapshots):
+            attempts.append(snapshots[0].sequence)
+            if len(attempts) == 1:
+                entered.set()
+                assert release.wait(5)
+                raise OSError("synthetic persistence failure")
+            persisted.extend(snapshots)
+
+        runtime = PresenterRuntime(persist, interval_seconds=0.001)
+        runtime.start()
+        runtime.update("room", 0, 0, "slide", "slide", {"x": 0.1, "y": 0.5, "zoom": 2})
+        assert await asyncio.to_thread(entered.wait, 2)
+        runtime.update("room", 0, 0, "slide", "slide", {"x": 0.9, "y": 0.5, "zoom": 3})
+        closing = asyncio.create_task(runtime.close())
+        await asyncio.sleep(0)
+        release.set()
+        await closing
+        assert attempts == [1, 2]
+        assert [item.sequence for item in persisted] == [2]
+        assert not runtime._dirty
+        assert not runtime._in_flight
+
+    asyncio.run(scenario())

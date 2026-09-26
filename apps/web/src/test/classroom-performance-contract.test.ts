@@ -76,7 +76,8 @@ describe('classroom disabled-mode resource contract', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
     const styles = readFileSync(resolve('src/classroom/classroom.css'), 'utf8')
 
-    expect(teacher).toContain("events.addEventListener('roster-changed'")
+    expect(teacher).toContain("listen(events, 'roster-changed'")
+    expect(teacher).toContain('source.addEventListener(type, (event) => {')
     expect(teacher).toContain('teacherParticipants(')
     expect(teacher).not.toMatch(/'participant-(?:joined|left|reconnected)'/)
     expect(teacher).toContain('type="search"')
@@ -90,7 +91,7 @@ describe('classroom disabled-mode resource contract', () => {
 
     expect(student).toContain('createClassroomStreamCursor')
     expect(student).toContain("decision === 'resync'")
-    expect(student).not.toContain("source.addEventListener('stream-ready', (event) => {\n        sequence(event)\n        recover()")
+    expect(student).not.toContain("listen(source, 'stream-ready', (event) => {\n        sequence(event)\n        recover()")
     expect(student).not.toContain('void refresh(sessionId)\n    let events')
   })
 
@@ -117,8 +118,8 @@ describe('classroom disabled-mode resource contract', () => {
   it('projects presenter movement directly without a React render per event', () => {
     const teacher = readFileSync(resolve('src/pages/ClassroomTeacherPage.tsx'), 'utf8')
     const student = readFileSync(resolve('src/pages/ClassroomStudentPage.tsx'), 'utf8')
-    const teacherHandler = teacher.match(/events\.addEventListener\('presenter',[\s\S]*?events\.addEventListener\('pointer'/)?.[0] ?? ''
-    const studentHandler = student.match(/source\.addEventListener\('presenter',[\s\S]*?source\.addEventListener\('control'/)?.[0] ?? ''
+    const teacherHandler = teacher.match(/listen\(events, 'presenter',[\s\S]*?listen\(events, 'pointer'/)?.[0] ?? ''
+    const studentHandler = student.match(/listen\(source, 'presenter',[\s\S]*?listen\(source, 'control'/)?.[0] ?? ''
 
     expect(teacherHandler).toContain('presenterRef.current = nextPresenter')
     expect(studentHandler).toContain('presenterRef.current = nextPresenter')

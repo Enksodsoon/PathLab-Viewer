@@ -39,18 +39,43 @@ async function transaction<T>(
   }).finally(() => database.close())
 }
 
+async function readAndUpdateLocalStudy(
+  courseId: string,
+  update?: (document: LocalDocument) => LocalDocument,
+): Promise<LocalDocument> {
+  const database = await openDatabase()
+  return new Promise<LocalDocument>((resolve, reject) => {
+    // Readwrite transactions on this store serialize across connections/tabs.
+    const tx = database.transaction(STORE, 'readwrite')
+    const store = tx.objectStore(STORE)
+    const request = store.get(courseId)
+    let result: LocalDocument
+    request.onsuccess = () => {
+      try {
+        const stored = request.result as LocalDocument | undefined
+        const expired = stored?.expiresAt && Date.parse(stored.expiresAt) <= Date.now()
+        const invalid = !stored || expired || stored.revoked
+        const current: LocalDocument = invalid
+          ? { courseId, records: [], outbox: [], expiresAt: null, revoked: false }
+          : stored
+        const next = update ? update(current) : current
+        result = { ...next, records: next.records.slice(-MAX_RECORDS), outbox: next.outbox.slice(-MAX_OUTBOX) }
+        if (update) store.put(result, courseId)
+        else if (stored && invalid) store.delete(courseId)
+      } catch (error) {
+        tx.abort()
+        reject(error)
+      }
+    }
+    request.onerror = () => reject(request.error)
+    tx.oncomplete = () => resolve(result)
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error ?? new Error('Study transaction aborted'))
+  }).finally(() => database.close())
+}
+
 export async function loadLocalStudy(courseId: string): Promise<LocalDocument> {
-  const stored = await transaction<LocalDocument | undefined>('readonly', (store) => store.get(courseId))
-  const expired = stored?.expiresAt && Date.parse(stored.expiresAt) <= Date.now()
-  if (!stored || expired || stored.revoked) {
-    if (stored) await clearLocalStudy(courseId)
-    return { courseId, records: [], outbox: [], expiresAt: null, revoked: false }
-  }
-  return {
-    ...stored,
-    records: stored.records.slice(-MAX_RECORDS),
-    outbox: stored.outbox.slice(-MAX_OUTBOX),
-  }
+  return readAndUpdateLocalStudy(courseId)
 }
 
 export async function saveLocalStudy(document: LocalDocument): Promise<void> {
@@ -67,10 +92,10 @@ export async function appendLocalRecord(
   record: LocalStudyRecord,
   expiresAt: string | null,
 ): Promise<LocalStudyRecord[]> {
-  const document = await loadLocalStudy(courseId)
-  const records = [...document.records, record].slice(-MAX_RECORDS)
-  await saveLocalStudy({ ...document, expiresAt, records })
-  return records
+  const document = await readAndUpdateLocalStudy(courseId, (current) => ({
+    ...current, expiresAt, records: [...current.records, record],
+  }))
+  return document.records
 }
 
 export async function clearLocalStudy(courseId?: string): Promise<void> {
@@ -82,8 +107,7 @@ export async function clearLocalStudy(courseId?: string): Promise<void> {
 }
 
 export async function verifyCachePersistence(courseId: string): Promise<boolean> {
-  const existing = await loadLocalStudy(courseId)
-  await saveLocalStudy(existing)
+  const existing = await readAndUpdateLocalStudy(courseId, (current) => current)
   const loaded = await loadLocalStudy(courseId)
-  return loaded.courseId === courseId && loaded.records.length === existing.records.length
+  return loaded.courseId === courseId && loaded.records.length >= existing.records.length
 }

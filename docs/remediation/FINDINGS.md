@@ -1,17 +1,16 @@
 # Findings register
 
-954 source sections retain report aliases and source hashes. Counts are section dispositions, not distinct bugs. Confirmed findings may be repaired locally; see evidence. Unresolved claims remain open. Release and production verification are incomplete.
+954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Confirmed repairs remain local until verified release. Two of29separate security subclaims need external credential/sync evidence.
 
-The machine-readable [findings.json](findings.json) contains full evidence, canonical grouping and aggregate security subclaims.
+[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks current repair coverage. The campaign also records a reproduced post-squash inventory gate failure. Production verification is pending.
 
 | Disposition | Source sections |
 | --- | ---: |
-| confirmed | 264 |
+| confirmed | 300 |
 | duplicate | 26 |
-| false positive | 96 |
-| fixed upstream | 186 |
-| hardening | 296 |
-| unresolved | 86 |
+| false positive | 111 |
+| fixed upstream | 189 |
+| hardening | 328 |
 
 | Source | Line | Alias | Claim | Disposition |
 | --- | ---: | --- | --- | --- |
@@ -35,7 +34,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 883 | FE-02 | [FE-02] Session Expiration Discards Private Slide Destination (returnTo) | fixed upstream |
 | BUG_REPORT.md | 907 | FE-03 | [FE-03] Indistinguishable Slide Loading Errors & Missing Retry | fixed upstream |
 | BUG_REPORT.md | 928 | FE-04 | [FE-04] Direct Exposure of Internal Docker Commands in Recovery UI | hardening |
-| BUG_REPORT.md | 943 | FE-05 | [FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation | confirmed |
+| BUG_REPORT.md | 943 | FE-05 | [FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation | fixed upstream |
 | BUG_REPORT.md | 955 | FE-06 | [FE-06] Unhandled localStorage & sessionStorage Exceptions in Private Browsing | confirmed |
 | BUG_REPORT.md | 987 | FE-07 | [FE-07] Missing Login Return URL in Desktop Connect Workflow | confirmed |
 | BUG_REPORT.md | 1001 | FE-08 | [FE-08] IndexedDB Connection Leak on Transaction Error in authoringStore.ts | confirmed |
@@ -64,12 +63,12 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 1788 | SEC-13 | [SEC-13] Revoked Classroom Sessions Retain Individual Derivative Tiles on Disk & Caddy Edge | confirmed |
 | BUG_REPORT.md | 1823 | SEC-14 | [SEC-14] Trashed Slide OME-TIFF File Download & Tile Viewing Authorization Leak | fixed upstream |
 | BUG_REPORT.md | 1864 | SEC-15 | [SEC-15] Caddy Internal Reverse Proxy Global Root (/) Exposure Risk | hardening |
-| BUG_REPORT.md | 1900 | CONC-05 | [CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates | unresolved |
+| BUG_REPORT.md | 1900 | CONC-05 | [CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates | confirmed |
 | BUG_REPORT.md | 1958 | CONC-06 | [CONC-06] Study Course Learner Limit Admission Race Condition on Concurrent Redemption | confirmed |
 | BUG_REPORT.md | 1999 | PERF-03 | [PERF-03] Synchronous Unbounded os.walk() in Desktop Ingest Storage Admission Freezes Event Loop | false positive |
 | BUG_REPORT.md | 2036 | TIME-02 | [TIME-02] Unsafe .replace(tzinfo=UTC) in Study Pack & Desktop Serializers Corrupting Timestamp Offsets | fixed upstream |
 | BUG_REPORT.md | 2063 | FE-14 | [FE-14] Unwrapped localStorage and sessionStorage in Theme, Shell Preferences, and API Client Crashes Web App in Private Browsing | confirmed |
-| BUG_REPORT.md | 2114 | DATA-02 | [DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions | unresolved |
+| BUG_REPORT.md | 2114 | DATA-02 | [DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions | confirmed |
 | BUG_REPORT.md | 2166 | SEC-16 | [SEC-16] Unauthenticated Global Account Lockout Denial-of-Service via In-Memory Username Throttling | hardening |
 | BUG_REPORT.md | 2200 | REL-02 | [REL-02] Classroom Teaching Annotations Exceed Hardcoded 4 KiB SSE Event Buffer Limit | false positive |
 | BUG_REPORT.md | 2248 | SEC-17 | [SEC-17] Unauthenticated & Unthrottled Global Classroom Join Queue Lock Starvation Denial-of-Service | hardening |
@@ -83,7 +82,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 2600 | SEC-20 | [SEC-20] Uninitialized & Deadlocked Runtime Protection Mode Bricks Background Processing and All Slide Uploads | confirmed |
 | BUG_REPORT.md | 2635 | SEC-21 | [SEC-21] Unauthenticated & Unbounded Desktop Pairing Code Flooding Database Denial-of-Service | fixed upstream |
 | BUG_REPORT.md | 2673 | CONC-07 | [CONC-07] Desktop Pairing Exchange Concurrency Race Issues Multiple Tokens for Single-Use Code | fixed upstream |
-| BUG_REPORT.md | 2731 | CONC-08 | [CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates | unresolved |
+| BUG_REPORT.md | 2731 | CONC-08 | [CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates | confirmed |
 | BUG_REPORT.md | 2775 | DATA-05 | [DATA-05] Slide Deletion Fails to Purge Published Derivative Directory (delivery/individual/{public_id}) Causing Permanent Storage Leak | confirmed |
 | BUG_REPORT.md | 2808 | DATA-06 | [DATA-06] Desktop Library Synchronization Truncates Folders at 100 with No Pagination or Cursor | confirmed |
 | BUG_REPORT.md | 2834 | DATA-07 | [DATA-07] Desktop Annotation Batch Silently Bypasses Optimistic Concurrency Control with Fake Auto-Merge | false positive |
@@ -96,7 +95,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 3082 | SEC-24 | [SEC-24] disable_membership Leaves Legacy-Admin Session Fully Valid | fixed upstream |
 | BUG_REPORT.md | 3097 | SEC-25 | [SEC-25] TUS post-finish allow_expired=True Bypasses 1h Upload TTL | hardening |
 | BUG_REPORT.md | 3112 | CONC-09 | [CONC-09] Conversion Staging PID-Only + Unconditional Stale-Wipe (TOCTOU / Data Loss) | hardening |
-| BUG_REPORT.md | 3127 | CONC-10 | [CONC-10] Desktop Resumable Chunk Has No Lock + Trusts DB Offset + Unbounded Retry Flood | unresolved |
+| BUG_REPORT.md | 3127 | CONC-10 | [CONC-10] Desktop Resumable Chunk Has No Lock + Trusts DB Offset + Unbounded Retry Flood | confirmed |
 | BUG_REPORT.md | 3142 | CONC-11 | [CONC-11] Study Invitation Single-Use Double-Spend Race | confirmed |
 | BUG_REPORT.md | 3157 | SEC-26 | [SEC-26] Public Share Manifest Leaks Trashed-Slide Metadata | fixed upstream |
 | BUG_REPORT.md | 3172 | DATA-08 | [DATA-08] Share Publish / Rotate Commit-Then-Write Crash Window + Downtime | fixed upstream |
@@ -104,9 +103,9 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 3201 | SEC-27 | [SEC-27] Internal Tile-Service /_pathlab_ome/* Zero-Auth + No Trashed Check | hardening |
 | BUG_REPORT.md | 3216 | SEC-28 | [SEC-28] Trashed-Slide Metadata / Annotation Read + Sync Bypass | hardening |
 | BUG_REPORT.md | 3231 | SEC-29 | [SEC-29] Conversion Derivative Sanitize / Measure Symlink-Blind (Escape + TOCTOU) | fixed upstream |
-| BUG_REPORT.md | 3245 | PERF-06 | [PERF-06] GET .../content Streaming FD Held Across Yield (Slow-Loris Leak) | unresolved |
+| BUG_REPORT.md | 3245 | PERF-06 | [PERF-06] GET .../content Streaming FD Held Across Yield (Slow-Loris Leak) | hardening |
 | BUG_REPORT.md | 3259 | SEC-30 | [SEC-30] Config Fail-Open: extra="ignore" + Placeholder Secret + Prod-Only Validation | hardening |
-| BUG_REPORT.md | 3273 | OPS-04 | [OPS-04] Sticky CachedReadiness: /readyz Never Recovers Without Restart | confirmed |
+| BUG_REPORT.md | 3273 | OPS-04 | [OPS-04] Sticky CachedReadiness: /readyz Never Recovers Without Restart | false positive |
 | BUG_REPORT.md | 3288 | BUG-12 | [BUG-12] read_protection_snapshot vs protection_snapshot Divergence (Uploads Open, Jobs Starved) | hardening |
 | BUG_REPORT.md | 3304 | FE-18 | [FE-18] Unabortable TUS Upload + Unscoped resumeFromPreviousUpload | confirmed |
 | BUG_REPORT.md | 3319 | FE-19 | [FE-19] Premature URL.revokeObjectURL + Detached Anchor Truncates Downloads | hardening |
@@ -124,12 +123,12 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 3488 | REL-05 | [REL-05] expire_incomplete_uploads .stat() Race Kills Worker Loop | confirmed |
 | BUG_REPORT.md | 3498 | BUG-13 | [BUG-13] Classroom Auto-Expiry Skips Hub/Presenter/Prewarm Cleanup | confirmed |
 | BUG_REPORT.md | 3508 | PERF-07 | [PERF-07] ClassroomHub Unbounded Per-Session Leak on Singleton | hardening |
-| BUG_REPORT.md | 3518 | CONC-14 | [CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS | unresolved |
-| BUG_REPORT.md | 3530 | DATA-09 | [DATA-09] Unbounded sortOrder Overflows PG Integer | unresolved |
+| BUG_REPORT.md | 3518 | CONC-14 | [CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS | confirmed |
+| BUG_REPORT.md | 3530 | DATA-09 | [DATA-09] Unbounded sortOrder Overflows PG Integer | confirmed |
 | BUG_REPORT.md | 3542 | FE-23 | [FE-23] OpenSeadragon open-failed Infinite Reconnect Storm | hardening |
 | BUG_REPORT.md | 3552 | FE-24 | [FE-24] Freehand Unbounded Construction + Spread Stack Overflow | hardening |
 | BUG_REPORT.md | 3564 | FE-25 | [FE-25] Upload Transport-Complete Lied as Slide-Complete + NaN Progress | confirmed |
-| BUG_REPORT.md | 3576 | FE-26 | [FE-26] InviteDialog False Modal — No Trap/Inert/Restore | unresolved |
+| BUG_REPORT.md | 3576 | FE-26 | [FE-26] InviteDialog False Modal — No Trap/Inert/Restore | hardening |
 | BUG_REPORT.md | 3586 | OPS-07 | [OPS-07] tusd + caddy Zero Healthcheck — Silent Upload Blackhole | hardening |
 | BUG_REPORT.md | 3596 | SEC-34 | [SEC-34] Backups Plaintext — Zero Encryption (PHI Exfiltration) | hardening |
 | BUG_REPORT.md | 3608 | SEC-35 | [SEC-35] Argon2 CPU-DoS on Impossible 129..1024-char Passwords | hardening |
@@ -138,11 +137,11 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 3638 | OPS-08 | [OPS-08] Migration Full-Table RAM Load + Non-Atomic Batches | hardening |
 | BUG_REPORT.md | 3648 | FE-27 | [FE-27] persist() vs persisted() Confusion (Unsolicited Prompt) | hardening |
 | BUG_REPORT.md | 3658 | FE-28 | [FE-28] capture() Drops Blob on Save Failure (No Feedback) | confirmed |
-| BUG_REPORT.md | 3668 | FE-29 | [FE-29] Autosave Debounce Lost on Close (No Unload Flush) | unresolved |
+| BUG_REPORT.md | 3668 | FE-29 | [FE-29] Autosave Debounce Lost on Close (No Unload Flush) | hardening |
 | BUG_REPORT.md | 3678 | FE-30 | [FE-30] Teacher SSE No error Handler (Stale Roster) | hardening |
 | BUG_REPORT.md | 3688 | SEC-36 | [SEC-36] Caddy Security-Headers Gaps | hardening |
 | BUG_REPORT.md | 3698 | OPS-09 | [OPS-09] Mutable :live Fallback Tag (No Digest Pin) | hardening |
-| BUG_REPORT.md | 3708 | SEC-37 | [SEC-37] restore.sh World-Readable Staging + No Lock | unresolved |
+| BUG_REPORT.md | 3708 | SEC-37 | [SEC-37] restore.sh World-Readable Staging + No Lock | hardening |
 | BUG_REPORT.md | 3718 | OPS-10 | [OPS-10] Watchdog Unbounded Diagnostics (No Retention) | hardening |
 | BUG_REPORT.md | 3728 | BUG-14 | [BUG-14] Uncaught SQLite FTS5 Query Syntax Errors Crash Library Search API with HTTP 500 | fixed upstream |
 | BUG_REPORT.md | 3760 | CONC-15 | [CONC-15] LoginThrottle Lacks Mutex Synchronization Causing RuntimeError and Race Conditions | fixed upstream |
@@ -154,7 +153,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 3983 | SEC-40 | [SEC-40] CSV Formula Injection (CWE-1236) in Annotation Measurements Export API | fixed upstream |
 | BUG_REPORT.md | 4033 | BUG-15 | [BUG-15] Missing Initial RuntimeGuard Row Causes Permanent Upload Blockade with HTTP 423 | hardening |
 | BUG_REPORT.md | 4084 | BUG-16 | [BUG-16] Uncaught ValueError in Library Cursor Pagination Datetime Deserialization Returns HTTP 500 | confirmed |
-| BUG_REPORT.md | 4127 | CONC-16 | [CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint | unresolved |
+| BUG_REPORT.md | 4127 | CONC-16 | [CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint | confirmed |
 | BUG_REPORT.md | 4182 | FE-33 | [FE-33] Permanent SPA Robots Meta Tag Pollution in ViewerPage Blocks Search Engine Indexing | hardening |
 | BUG_REPORT.md | 4224 | FE-34 | [FE-34] Uncaught DOMException in SharedViewerPage.select Crashes Shared Viewer on Safari Private Browsing | confirmed |
 | BUG_REPORT.md | 4266 | REL-07 | [REL-07] Worker Missing Heartbeat During generate_dzi Causes Stale Recovery Race Condition & Dual-Worker Derivative Corruption | hardening |
@@ -162,7 +161,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 4343 | REL-08 | [REL-08] Unhandled Windows File Locking / PermissionError in remove_slide Crashes Worker Process in Infinite Loop | confirmed |
 | BUG_REPORT.md | 4397 | SEC-41 | [SEC-41] Missing Deletion Event in Desktop Sync Broadcast Leads to Zombie Local Slides & Folders | confirmed |
 | BUG_REPORT.md | 4424 | DATA-11 | [DATA-11] Published Slide Trashing & Restoring Leaves State Desynchronized and Causes Public Route 404 | false positive |
-| BUG_REPORT.md | 4457 | FE-35 | [FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict | unresolved |
+| BUG_REPORT.md | 4457 | FE-35 | [FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict | hardening |
 | BUG_REPORT.md | 4494 | SEC-42 | [SEC-42] Cross-Device / Cross-Filesystem Link Failure (EXDEV) in Desktop OME Ingest Aborts Ingestion and Quarantines Files | hardening |
 | BUG_REPORT.md | 4520 | FE-36 | [FE-36] Uncaught DOMException in OpenSeadragonViewer Crashes WSI Viewer in Safari Private Browsing | confirmed |
 | BUG_REPORT.md | 4568 | FE-37 | [FE-37] Unwrapped sessionStorage.setItem in Study API Burns Single-Use Invitation Codes and Permanently Locks Out Learners | confirmed |
@@ -183,7 +182,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 5419 | BUG-20 | [BUG-20] Shared JPEG Tables Stripping Omits DRI Marker Breaking Restart Interval Decoding in Native OME-TIFF Tiles | confirmed |
 | BUG_REPORT.md | 5477 | TIME-05 | [TIME-05] Unhandled Offset-Naive Datetime Comparison in Share Delivery Manifest Route Causes TypeError Crash Resulting in 404 for All Expiring Shared Slides | fixed upstream |
 | BUG_REPORT.md | 5525 | FE-41 | [FE-41] Premature Sequence Advancement on Stream Gap in Classroom Stream Sync Applies Out-of-Order Events During Background Resync | confirmed |
-| BUG_REPORT.md | 5591 | CONC-18 | [CONC-18] Concurrent Task Submissions Race Past Monotonic Throttle Check Causing Unhandled Unique Constraint 500 Crash on uq_study_progress_task | unresolved |
+| BUG_REPORT.md | 5591 | CONC-18 | [CONC-18] Concurrent Task Submissions Race Past Monotonic Throttle Check Causing Unhandled Unique Constraint 500 Crash on uq_study_progress_task | confirmed |
 | BUG_REPORT.md | 5659 | DATA-16 | [DATA-16] Expired Shares Remain Marked is_active=True Deadlocking Target Folder and Collection Re-Sharing with HTTP 409 SHARE_ALREADY_ACTIVE | fixed upstream |
 | BUG_REPORT.md | 5705 | DATA-17 | [DATA-17] Deleted Collections and Trashed Folders Fail to Cascade Revoke Shares and Delivery Manifests Leaking Proprietary Slides | false positive |
 | BUG_REPORT.md | 5742 | BUG-21 | [BUG-21] Event Sequences and Presence Expiry Handles Not Purged on Session Reset or Termination Causes Event Sequence Skew and Memory Leak | hardening |
@@ -193,7 +192,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 5885 | FE-42 | [FE-42] Tight-Loop Unbacked Retry in createClassroomSnapshotReconciler Spams API on Transient Version Lag and Aborts with Unrecoverable Rejection | hardening |
 | BUG_REPORT.md | 5914 | FE-43 | [FE-43] Unhandled Promise Rejection and Lost Version on Roster Reconciliation Failure Freezes Teacher Roster Synchronization | hardening |
 | BUG_REPORT.md | 5940 | PERF-09 | [PERF-09] Unbounded Recursive Directory Walk in storage.usage() Blocks ASGI Worker and Crashes with FileNotFoundError on Concurrent Ingest/Eviction | confirmed |
-| BUG_REPORT.md | 5994 | CONC-20 | [CONC-20] Uncommitted Database Transaction Held During Multi-Minute Desktop Slide Archive Extraction Blocks Global Database Access and Triggers SQLite Lock Timeouts | unresolved |
+| BUG_REPORT.md | 5994 | CONC-20 | [CONC-20] Uncommitted Database Transaction Held During Multi-Minute Desktop Slide Archive Extraction Blocks Global Database Access and Triggers SQLite Lock Timeouts | confirmed |
 | BUG_REPORT.md | 6100 | SEC-46 | [SEC-46] Missing Formula Sanitization in Annotation CSV Export Enables Client-Side CSV Injection and Remote Command Execution | fixed upstream |
 | BUG_REPORT.md | 6148 | DATA-18 | [DATA-18] Study Progress CSV Export Omits Course Existence Check and Streams In-Memory Dataset Without Attachment Header | confirmed |
 | BUG_REPORT.md | 6238 | BUG-22 | [BUG-22] Missing Thumbnail Requirement in Prepared Ingest Results in Orphaned Thumbnail References and Broken Gallery Images | fixed upstream |
@@ -214,7 +213,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 6732 | SEC-48 | [SEC-48] Migration FK Check Identifier Injection via f-string | hardening |
 | BUG_REPORT.md | 6742 | DATA-22 | [DATA-22] Migration Manifest Unbounded PK List → OOM | hardening |
 | BUG_REPORT.md | 6752 | CONC-22 | [CONC-22] Reconcile Holds Write Lock Across FS Walks | hardening |
-| BUG_REPORT.md | 6762 | SEC-49 | [SEC-49] Manual Classroom Accepts Trashed-Folder Slides | unresolved |
+| BUG_REPORT.md | 6762 | SEC-49 | [SEC-49] Manual Classroom Accepts Trashed-Folder Slides | false positive |
 | BUG_REPORT.md | 6772 | BUG-27 | [BUG-27] sort=manual Outside Collection → 500 | confirmed |
 | BUG_REPORT.md | 6782 | BUG-28 | [BUG-28] Saved-View Tags/State/Dates Silently Dropped | confirmed |
 | BUG_REPORT.md | 6792 | BUG-29 | [BUG-29] Redeem Ignores ends_at — Burns Single-Use Code | confirmed |
@@ -232,7 +231,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 7247 | PERF-15 | [PERF-15] ClassroomPrewarmer and restore_prewarm() Reject Dynamic OME Slides and Silently Discard Multi-Classroom Sessions | hardening |
 | BUG_REPORT.md | 7312 | BUG-32 | [BUG-32] purge_due_study_data() Hard Deletes StudyLearnerSession Without Cascading StudyProgress Resulting in Orphaned Rows and Foreign Key Inconsistencies | false positive |
 | BUG_REPORT.md | 7359 | BUG-33 | [BUG-33] StudyRoutes.withdraw() Hard-Deletes Learner Session Violating Schema Status Invariants and Destroying Research Participation Audits | false positive |
-| BUG_REPORT.md | 7411 | FE-49 | [FE-49] AnnotationAutosave.drain() Leaves inFlight Batch Wedged on 4xx Client Errors Permanently Freezing User Workspace | unresolved |
+| BUG_REPORT.md | 7411 | FE-49 | [FE-49] AnnotationAutosave.drain() Leaves inFlight Batch Wedged on 4xx Client Errors Permanently Freezing User Workspace | hardening |
 | BUG_REPORT.md | 7455 | FE-50 | [FE-50] Concurrent Base64 Data URL Conversion of 100 Offline Notebook Entries Crashes Mobile WebKit Tab With OOM | confirmed |
 | BUG_REPORT.md | 7497 | BUG-34 | [BUG-34] PreparedIngest Modulo Sampling Uses Constant expected_count Instead of Loop Counter file_count Skipping Verification or Freezing Unpack | false positive |
 | BUG_REPORT.md | 7534 | BUG-35 | [BUG-35] StudyPackContract.score_task() Collapses Spatial Target Rectangles to Center Points Scoring Valid Tissue Hits as False | confirmed |
@@ -245,11 +244,11 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 7927 | DATA-26 | [DATA-26] apply_result_bundle() Exception Handler Wipes Out Entire Slide Results Directory Destroying Previous Successful Deliveries | false positive |
 | BUG_REPORT.md | 7971 | BUG-37 | [BUG-37] upload_prepared_ingest() Exception Handler Only Catches HTTPException Leaking Partial Stream Bytes on Client Disconnect | hardening |
 | BUG_REPORT.md | 8026 | FE-53 | [FE-53] stitchHoles() in booleanCore.ts Injects undefined into Coordinate Array on Degenerate Outer Ring Crashing Canvas Renderer | hardening |
-| BUG_REPORT.md | 8095 | FE-54 | [FE-54] Synchronous URL.revokeObjectURL() in downloadStudyInvitations() Immediately Aborts Asynchronous File Downloads in Safari & Firefox | unresolved |
+| BUG_REPORT.md | 8095 | FE-54 | [FE-54] Synchronous URL.revokeObjectURL() in downloadStudyInvitations() Immediately Aborts Asynchronous File Downloads in Safari & Firefox | false positive |
 | BUG_REPORT.md | 8144 | BUG-38 | [BUG-38] study_tile() Unconditionally Forbids Dynamic OME-TIFF Slides Returning 404 for All Modern Study Pack Slides | hardening |
 | BUG_REPORT.md | 8209 | SEC-52 | [SEC-52] get_admin_slide() Returns Trashed Slides as Ready with Active Tile Sources Causing Immediate 404s and Metadata Leaks | hardening |
 | BUG_REPORT.md | 8256 | BUG-39 | [BUG-39] folder_subtree_ids() Omission of trashed_at Filter Causes Share Generation to Crash with ShareConflict or Leak Trashed Hierarchies | fixed upstream |
-| BUG_REPORT.md | 8310 | CONC-24 | [CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift | unresolved |
+| BUG_REPORT.md | 8310 | CONC-24 | [CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift | confirmed |
 | BUG_REPORT.md | 8357 | FE-55 | [FE-55] ClassroomStudentPage.ask() Clears Local Pin State Without Calling Backend clearPin() Causing Ghost Pin Desynchronization | confirmed |
 | BUG_REPORT.md | 8412 | FE-56 | [FE-56] Uncaught Taint SecurityError in captureVisibleTissue() Bypasses Exception Handler Crashing Student Screenshot Pipeline | false positive |
 | BUG_REPORT.md | 8472 | BUG-40 | [BUG-40] Classroom Teaching Annotation Mutations Omit state_version Increments Breaking Snapshot Reconciler Recovery on Stream Reconnect | confirmed |
@@ -258,19 +257,19 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 8621 | DATA-27 | [DATA-27] remove_slide() Fails to Remove individual_delivery_for(public_id) Directory Leaving Derivative Hardlinks Stranded Permanently | confirmed |
 | BUG_REPORT.md | 8660 | BUG-41 | [BUG-41] _reconcile() Traps RuntimeGuard in Indefinite DRAINING Deadlock When Active Classroom Session Ends or Cancels Before Live Phase | confirmed |
 | BUG_REPORT.md | 8733 | CONC-26 | [CONC-26] Unheartbeated Long generate_dzi() Runs Cause recover_stale_jobs() to Requeue Running Jobs Resulting in Concurrent Overwriting Workers | hardening |
-| BUG_REPORT.md | 8777 | FE-58 | [FE-58] AnnotationAutosave Abandons In-Flight Queue and Freezes Version Advancement on onAcknowledged Failure Locking 409 Conflict | unresolved |
+| BUG_REPORT.md | 8777 | FE-58 | [FE-58] AnnotationAutosave Abandons In-Flight Queue and Freezes Version Advancement on onAcknowledged Failure Locking 409 Conflict | hardening |
 | BUG_REPORT.md | 8812 | BUG-42 | [BUG-42] delete_layer Blocks Deletion of Visually Empty Layers Containing Soft-Deleted Tombstones with 409 | hardening |
-| BUG_REPORT.md | 8843 | DATA-28 | [DATA-28] finalize_upload() Leaves Storage Reservation Stranded for 24 Hours on Corrupt or Invalid Uploads | unresolved |
-| BUG_REPORT.md | 8875 | BUG-43 | [BUG-43] validate_folder_parent() Missing Cycle Guard Causes Infinite Loop and Worker Hang on Cyclic Ancestry | unresolved |
+| BUG_REPORT.md | 8843 | DATA-28 | [DATA-28] finalize_upload() Leaves Storage Reservation Stranded for 24 Hours on Corrupt or Invalid Uploads | hardening |
+| BUG_REPORT.md | 8875 | BUG-43 | [BUG-43] validate_folder_parent() Missing Cycle Guard Causes Infinite Loop and Worker Hang on Cyclic Ancestry | confirmed |
 | BUG_REPORT.md | 8894 | DATA-29 | [DATA-29] upload_result_delivery Never Unlinks Extracted .plresults Staging Archives Leaking Up to 2 GB per Delivery | confirmed |
 | BUG_REPORT.md | 8921 | BUG-44 | [BUG-44] create_result_delivery Rejects Valid Analysis Result Delivery with 409 RESULT_CONFLICT Due to Unfiltered Soft-Deleted Annotations | hardening |
 | BUG_REPORT.md | 8949 | PERF-16 | [PERF-16] apply_result_bundle() Per-Object database.flush() and Unbatched ORM Allocation Causes Container OOM on Result Imports | hardening |
 | BUG_REPORT.md | 9002 | BUG-45 | [BUG-45] StudyRoutes.withdraw() Hard-Deletes Session Violating Clinical Audit Trail and Leaving Orphaned Records on SQLite | false positive |
-| BUG_REPORT.md | 9030 | DEV-02 | [DEV-02] Standalone / Local Development Missing Fallback Route for /tiles/{public_id}/{version}/{tile_path} Returns 404 | unresolved |
+| BUG_REPORT.md | 9030 | DEV-02 | [DEV-02] Standalone / Local Development Missing Fallback Route for /tiles/{public_id}/{version}/{tile_path} Returns 404 | false positive |
 | BUG_REPORT.md | 9056 | FE-59 | [FE-59] SharedFolderBranch and SharedFolderNode Fail to Escape Special JSON Characters in Folder Paths Breaking Tree Construction | false positive |
 | BUG_REPORT.md | 9071 | CONC-27 | [CONC-27] StudyCourse Activation Race Condition Allows Concurrent Creation of Multiple Active Courses | false positive |
 | BUG_REPORT.md | 9097 | BUG-46 | [BUG-46] build_ome_tile_index() Hardcodes tif.series[0] Triggering Ingestion Failure When Slide Pyramid Is In Secondary Series | confirmed |
-| BUG_REPORT.md | 9126 | CONC-28 | [CONC-28] ClassroomTeacherPage Premature suppressPublish Clearance Creates Animation Frame Feedback Loop | unresolved |
+| BUG_REPORT.md | 9126 | CONC-28 | [CONC-28] ClassroomTeacherPage Premature suppressPublish Clearance Creates Animation Frame Feedback Loop | false positive |
 | BUG_REPORT.md | 9156 | SEC-53 | [SEC-53] SQLite FTS _search_ids Unescaped Wildcard Syntax Triggers Unhandled OperationalError and 500 DoS | fixed upstream |
 | BUG_REPORT.md | 9209 | BUG-47 | [BUG-47] trash_folder() Permits Trashing Folders with Active Slides Creating Invisible Ghost Slides and Unresolvable State | confirmed |
 | BUG_REPORT.md | 9249 | BUG-48 | [BUG-48] delete_collection() and trash_folder() Bypass _has_active_share Check Corrupting Public Links | false positive |
@@ -279,7 +278,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 9329 | SEC-54 | [SEC-54] revoke_share() Omits Deletion of Public Delivery Manifest Allowing Continued Tile Access | fixed upstream |
 | BUG_REPORT.md | 9369 | BUG-49 | [BUG-49] share_delivery_public_id() Off-by-Timezone Naive vs Aware Comparison Raises TypeError and Rejects Valid Shares | fixed upstream |
 | BUG_REPORT.md | 9390 | CONC-29 | [CONC-29] TileCache.get_or_create() Leader Coalescing Indefinite Hang on Worker Thread Cancellation | hardening |
-| BUG_REPORT.md | 9420 | BUG-50 | [BUG-50] create_ome_ingest and create_result_delivery Commit Database Records Before File Creation Leaving Ingests in Deadlock State | unresolved |
+| BUG_REPORT.md | 9420 | BUG-50 | [BUG-50] create_ome_ingest and create_result_delivery Commit Database Records Before File Creation Leaving Ingests in Deadlock State | confirmed |
 | BUG_REPORT.md | 9463 | PERF-18 | [PERF-18] StorageLayout.usage() Unindexed Synchronous os.walk() on 500,000+ Files Freezes Worker Thread During Upload Admission | hardening |
 | BUG_REPORT.md | 9489 | DATA-31 | [DATA-31] rotate_share() Fails to Migrate Staging Manifest Leaving Old Public Link Functional and New Link Broken | fixed upstream |
 | BUG_REPORT.md | 9522 | PERF-19 | [PERF-19] _publish_derivative_to Redundant Per-Tile mkdir() Syscalls Severely Throttle Slide Publication | hardening |
@@ -287,16 +286,16 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 9590 | DATA-32 | [DATA-32] desktop_finalizer.py Abandons Failed prepared_package Archives on Disk Leaking Up to 10 GB per Ingest | fixed upstream |
 | BUG_REPORT.md | 9611 | CONC-30 | [CONC-30] worker.py Delete Job Strands "running" Job on SQLite for 5 Minutes Due to Disabled FK Cascades | confirmed |
 | BUG_REPORT.md | 9638 | DATA-33 | [DATA-33] worker.py Conversion Failure Abandons Incomplete Pyramid Tiles on Disk Leaking Storage Indefinitely | fixed upstream |
-| BUG_REPORT.md | 9665 | DATA-34 | [DATA-34] main.py TUS finalize_upload() Copy Failure Leaves Orphaned .partial Files on Cross-Device Moves | unresolved |
+| BUG_REPORT.md | 9665 | DATA-34 | [DATA-34] main.py TUS finalize_upload() Copy Failure Leaves Orphaned .partial Files on Cross-Device Moves | hardening |
 | BUG_REPORT.md | 9698 | FE-60 | [FE-60] snapshotReconciler.ts Zero-Delay Retry Burst Causes False-Positive Reconciler Failures | hardening |
 | BUG_REPORT.md | 9730 | PERF-20 | [PERF-20] notebook.ts saveEntry() Deserializes All Blobs into RAM to Check Entry Count Triggering WebKit OOM Crash | confirmed |
 | BUG_REPORT.md | 9767 | FE-61 | [FE-61] ClassroomTeacherPage "Show pinned field" Omission of Local Slide Transition & Viewport Navigation Desynchronizes Presenter from Students | false positive |
-| BUG_REPORT.md | 9816 | FE-62 | [FE-62] ClassroomTeacherPage Slide Navigator Selection Omits Viewport Broadcast Leaving Students Stranded on Prior Slide in Guide Mode | unresolved |
+| BUG_REPORT.md | 9816 | FE-62 | [FE-62] ClassroomTeacherPage Slide Navigator Selection Omits Viewport Broadcast Leaving Students Stranded on Prior Slide in Guide Mode | confirmed |
 | BUG_REPORT.md | 9849 | BUG-52 | [BUG-52] teacher_state Endpoint Omits expire_control() Leaving Presenter UI Locked with Stale Expired Student Controller Lease | confirmed |
 | BUG_REPORT.md | 9890 | FE-63 | [FE-63] ClassroomTeacherPage Missing session-ended SSE Event Listener Leaves Teacher in Zombie Session State on Administrative Revocation | confirmed |
 | BUG_REPORT.md | 9915 | FE-64 | [FE-64] ClassroomStudentPage Missing Slide-Scoped Key / Reset on StudentDrawingOverlay Bleeds Drawings Across Guided Slide Switches | confirmed |
 | BUG_REPORT.md | 9955 | SEC-55 | [SEC-55] get_slide_details() and Static thumbnail() in library_routes.py Omit Trashed Slide Checks Permitting Data Exfiltration of Soft-Deleted Pathology Slides | hardening |
-| BUG_REPORT.md | 10003 | CONC-31 | [CONC-31] ClassroomRoutes.stream_response() Event Sequence Race Condition Seeds Subscriber with Stale eventSequence Desynchronizing Client Stream Recovery | unresolved |
+| BUG_REPORT.md | 10003 | CONC-31 | [CONC-31] ClassroomRoutes.stream_response() Event Sequence Race Condition Seeds Subscriber with Stale eventSequence Desynchronizing Client Stream Recovery | false positive |
 | BUG_REPORT.md | 10064 | PERF-21 | [PERF-21] apply_result_bundle Executes Per-Object database.flush() and Iterates 2,000,000 ORM Instances into Python RAM Triggering Worker OOM Crash | hardening |
 | BUG_REPORT.md | 10123 | DATA-35 | [DATA-35] desktop_annotation_batch Blindly Overrides candidate.base_version to Current Slide Version Silently Destroying Concurrent Web Annotations | false positive |
 | BUG_REPORT.md | 10187 | DATA-36 | [DATA-36] purge_due_study_data in study_routes.py Omits StudyProgress Deletion Permanently Stranding Orphaned Student Progress Records | false positive |
@@ -307,7 +306,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 10382 | BUG-53 | [BUG-53] score_task in study_pack_contract.py Evaluates Center Point Chebyshev Distance Rejecting Valid User Selections on Large Target Regions | confirmed |
 | BUG_REPORT.md | 10407 | DATA-37 | [DATA-37] upload_result_delivery Deletes Entire Slide Results Directory on Single Bundle Validation Failure Wiping Previous Runs | false positive |
 | BUG_REPORT.md | 10449 | CONC-33 | [CONC-33] Multi-Worker Startup Race in PreparedIngestFinalizer._recover Re-finalizes Active Ingests Causing File Extraction Collisions | hardening |
-| BUG_REPORT.md | 10490 | CONC-34 | [CONC-34] Concurrent Desktop Chunk Uploads Double-Increment received_bytes Permanently Freezing Ingest in Uploading State | unresolved |
+| BUG_REPORT.md | 10490 | CONC-34 | [CONC-34] Concurrent Desktop Chunk Uploads Double-Increment received_bytes Permanently Freezing Ingest in Uploading State | confirmed |
 | BUG_REPORT.md | 10528 | CONC-35 | [CONC-35] Non-Atomic exchange_pairing Allows Issuance of Multiple Active Credentials from a Single Pairing Code | fixed upstream |
 | BUG_REPORT.md | 10570 | FE-65 | [FE-65] StudyPage Spatial Selection Omits Canvas Visual Target Indicator Confusing Students on Click Accuracy | confirmed |
 | BUG_REPORT.md | 10608 | DATA-38 | [DATA-38] localStore.ts Resolves appendLocalRecord Before IndexedDB Transaction Commits Causing Silent Data Loss on Tab Close | confirmed |
@@ -315,8 +314,8 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 10691 | BUG-54 | [BUG-54] Missing Invitation Revocation Route Prevents Invalidation of Lost or Exposed Study Codes | hardening |
 | BUG_REPORT.md | 10739 | FE-66 | [FE-66] Uncaught SecurityError on caches.open in Firefox/Safari Private Browsing Completely Breaks Local AI Initialization | hardening |
 | BUG_REPORT.md | 10783 | PERF-22 | [PERF-22] Coarse Course-Wide Submission Throttling Blocks Answering Different Practice Tasks Forcing 30-Second Wait Per Question | hardening |
-| BUG_REPORT.md | 10821 | CONC-36 | [CONC-36] Read-Route Concurrency Stampede on Course Expiration Triggers Lock Contention in learner_session | unresolved |
-| BUG_REPORT.md | 10856 | DATA-39 | [DATA-39] Duplicate Feature Index in StudyPage.tsx Distorts Local AI Neural Network Input Vector | unresolved |
+| BUG_REPORT.md | 10821 | CONC-36 | [CONC-36] Read-Route Concurrency Stampede on Course Expiration Triggers Lock Contention in learner_session | hardening |
+| BUG_REPORT.md | 10856 | DATA-39 | [DATA-39] Duplicate Feature Index in StudyPage.tsx Distorts Local AI Neural Network Input Vector | hardening |
 | BUG_REPORT.md | 10891 | PERF-23 | [PERF-23] get_desktop_slide_content Mandates Open-Ended Byte Ranges Disabling Chunked HTTP Download Managers | hardening |
 | BUG_REPORT.md | 10930 | SEC-60 | [SEC-60] export_csv() in annotations.py Omits Formula Sanitization on metadata.title and layer Allowing CSV Formula Injection | fixed upstream |
 | BUG_REPORT.md | 10976 | BUG-55 | [BUG-55] Unhandled KeyError on Missing Layer ID in export_csv Crashes Measurement Export with HTTP 500 | hardening |
@@ -331,14 +330,14 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 11375 | BUG-57 | [BUG-57] add_collection_items Omits Soft-Delete Check Allowing Trashed Slides to be Added to Collections | hardening |
 | BUG_REPORT.md | 11406 | CONC-37 | [CONC-37] Time-of-Check Race Condition in activate_share Permits Duplicate Active Shares for Same Target | fixed upstream |
 | BUG_REPORT.md | 11450 | PERF-26 | [PERF-26] public_manifest Fetches Entire Folder Slide Subtree into Memory Merely to Read Name and Description | fixed upstream |
-| BUG_REPORT.md | 11500 | BUG-58 | [BUG-58] validate_folder_parent Lacks Loop Cycle Detection Causing Infinite While Loop on Corrupt Hierarchies | unresolved |
+| BUG_REPORT.md | 11500 | BUG-58 | [BUG-58] validate_folder_parent Lacks Loop Cycle Detection Causing Infinite While Loop on Corrupt Hierarchies | confirmed |
 | BUG_REPORT.md | 11538 | SEC-63 | [SEC-63] logout() in main.py Omits secure, httponly, and samesite in delete_cookie Leaving Admin Cookie on HTTPS | false positive |
 | BUG_REPORT.md | 11579 | PERF-27 | [PERF-27] recover_password() Fetches All Database Users into Memory to Normalize Username | confirmed |
 | BUG_REPORT.md | 11609 | BUG-59 | [BUG-59] streamSync.ts Advances Cursor Sequence on Gap Causing Silent Desync on Subsequent Events | confirmed |
-| BUG_REPORT.md | 11646 | BUG-60 | [BUG-60] autosave.ts Skips In-Flight Cleanup and Version Advancement on Acknowledgement Failure | unresolved |
+| BUG_REPORT.md | 11646 | BUG-60 | [BUG-60] autosave.ts Skips In-Flight Cleanup and Version Advancement on Acknowledgement Failure | hardening |
 | BUG_REPORT.md | 11695 | PERF-28 | [PERF-28] OpenSeadragonViewer Uses buffered: true in PerformanceObserver Replaying Obsolete Resource Timings | hardening |
 | BUG_REPORT.md | 11730 | DATA-43 | [DATA-43] saveEntry in notebook.ts Uses add() Instead of put() Failing on Existing Note Updates | confirmed |
-| BUG_REPORT.md | 11756 | BUG-61 | [BUG-61] FolderTree.tsx flatten Lacks Visited Guard Crashing Browser Tab on Cyclic Hierarchies | unresolved |
+| BUG_REPORT.md | 11756 | BUG-61 | [BUG-61] FolderTree.tsx flatten Lacks Visited Guard Crashing Browser Tab on Cyclic Hierarchies | hardening |
 | BUG_REPORT.md | 11803 | SEC-64 | [SEC-64] ensure_grant Overwrites flagged Clinical Privacy Status to passed Bypassing PHI Gate | hardening |
 | BUG_REPORT.md | 11835 | DATA-44 | [DATA-44] delete_all_slide_grants Leaves Slide in PUBLISHED State After Unpublishing Derivatives | fixed upstream |
 | BUG_REPORT.md | 11869 | SEC-65 | [SEC-65] offline_slide Omits Soft-Delete Check Allowing Trashed Slide Download via Desktop Offline API | fixed upstream |
@@ -362,33 +361,33 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | BUG_REPORT.md | 12424 | BUG-69 | [BUG-69] Classroom Question Deletion Leaves Orphaned Receipt Records | false positive |
 | BUG_REPORT.md | 12446 | SEC-68 | [SEC-68] Missing nosniff on Tile/Thumbnail Delivery (Sniff → Stored XSS) | false positive |
 | BUG_REPORT.md | 12456 | REL-09 | [REL-09] Presenter Flush Loss on CancelledError + Leaked in_flight | confirmed |
-| BUG_REPORT.md | 12466 | OPS-14 | [OPS-14] Capacity Monitor Non-Atomic + Advisory-Only Window | unresolved |
+| BUG_REPORT.md | 12466 | OPS-14 | [OPS-14] Capacity Monitor Non-Atomic + Advisory-Only Window | hardening |
 | BUG_REPORT.md | 12476 | FE-67 | [FE-67] Study Withdraw Leaves ONNX Worker/Course State (Cross-Course Contamination) | confirmed |
 | BUG_REPORT.md | 12486 | FE-68 | [FE-68] Invite Phase Poll Overlap + Post-Unmount Write | confirmed |
-| BUG_REPORT.md | 12496 | FE-69 | [FE-69] OSD Rotation Persists Across Slide Change | unresolved |
+| BUG_REPORT.md | 12496 | FE-69 | [FE-69] OSD Rotation Persists Across Slide Change | confirmed |
 | BUG_REPORT.md | 12506 | BUG-70 | [BUG-70] Prepared Ingest Rejects Valid JPEG Tile Filenames in DeepZoom Pyramids | fixed upstream |
 | BUG_REPORT.md | 12536 | SEC-69 | [SEC-69] DB Pool No Pre-Ping + Inverted Classroom Timeout | hardening |
-| BUG_REPORT.md | 12546 | REL-10 | [REL-10] 413 Without Drain Poisons Keep-Alive | unresolved |
-| BUG_REPORT.md | 12556 | CONC-40 | [CONC-40] Prewarm Shutdown Race (_loop Unsynchronized) | unresolved |
+| BUG_REPORT.md | 12546 | REL-10 | [REL-10] 413 Without Drain Poisons Keep-Alive | false positive |
+| BUG_REPORT.md | 12556 | CONC-40 | [CONC-40] Prewarm Shutdown Race (_loop Unsynchronized) | hardening |
 | BUG_REPORT.md | 12566 | FE-70 | [FE-70] Study Invite Count Unclamped | confirmed |
-| BUG_REPORT.md | 12576 | FE-71 | [FE-71] Select-Visible Ghost Count | unresolved |
-| BUG_REPORT.md | 12586 | FE-72 | [FE-72] Shared Tree Keyboard Hijack + Forced Open | unresolved |
-| BUG_REPORT.md | 12596 | FE-73 | [FE-73] Unhandled API 409 Derivative Error Freezes Publish Dialog | unresolved |
-| BUG_REPORT.md | 12610 | FE-74 | [FE-74] Floating Annotation Workspace Occludes Micron Scale Bar & Rotation Controls | unresolved |
+| BUG_REPORT.md | 12576 | FE-71 | [FE-71] Select-Visible Ghost Count | confirmed |
+| BUG_REPORT.md | 12586 | FE-72 | [FE-72] Shared Tree Keyboard Hijack + Forced Open | confirmed |
+| BUG_REPORT.md | 12596 | FE-73 | [FE-73] Unhandled API 409 Derivative Error Freezes Publish Dialog | confirmed |
+| BUG_REPORT.md | 12610 | FE-74 | [FE-74] Floating Annotation Workspace Occludes Micron Scale Bar & Rotation Controls | confirmed |
 | BUG_REPORT.md | 12626 | FE-75 | [FE-75] OpenSeadragon Missing showErrorBox: false Injects Unstyled Raw DOM Error | hardening |
 | BUG_REPORT.md | 12638 | FE-76 | [FE-76] Raw Uppercase Error Code Enums Leaked to Study Mode Learners & Authors | hardening |
-| BUG_REPORT.md | 12654 | FE-77 | [FE-77] Dev Server Launcher Default Excludes Classroom API Routes (HTTP 404) | unresolved |
+| BUG_REPORT.md | 12654 | FE-77 | [FE-77] Dev Server Launcher Default Excludes Classroom API Routes (HTTP 404) | hardening |
 | BUG_REPORT.md | 12675 | FE-78 | [FE-78] Password Change Form Wipes All Inputs on Confirmation Mismatch | hardening |
 | BUG_REPORT.md | 12695 | FE-79 | [FE-79] Search Input Lacks Client-Side Length Limit, Crashing UI on Queries > 300 Chars | hardening |
 | BUG_REPORT.md | 12710 | FE-80 | [FE-80] Edit Slide Details Accepts Empty / Whitespace Display Name, Breaking Accessible UI | confirmed |
 | BUG_REPORT.md | 12729 | FE-81 | [FE-81] Private Preview Traps Admin in Dead-End View Without Exit Controls, Causing Full SPA Reloads | confirmed |
-| BUG_REPORT.md | 12747 | FE-82 | [FE-82] Saved Views Route Omits Canonical Breadcrumb Handling and View State Rehydration | unresolved |
+| BUG_REPORT.md | 12747 | FE-82 | [FE-82] Saved Views Route Omits Canonical Breadcrumb Handling and View State Rehydration | confirmed |
 | BUG_REPORT.md | 12764 | FE-83 | [FE-83] Redundant and Duplicated Navigation Surfaces in Library Navigator and Command Toolbar | hardening |
 | BUG_REPORT.md | 12781 | FE-84 | [FE-84] Single-Slide Action Context Menu Silently Destroys Multi-Slide Selection Set | confirmed |
 | BUG_REPORT.md | 12799 | FE-85 | [FE-85] Folder Cards in Main Workspace Lack Management Context Actions Available in Drawer | hardening |
 | BUG_REPORT.md | 12815 | FE-86 | [FE-86] Toolbar Navigation Buttons Lack Disabled States and Up-Button Root Boundaries | confirmed |
 | BUG_REPORT.md | 12834 | FE-87 | [FE-87] Stale Annotation Revision History Applies Across Different Annotations, Corrupting Geometry | confirmed |
-| BUG_REPORT.md | 12862 | FE-88 | [FE-88] Service Role Capability Header Mismatch Exposes Dead Classroom Route on General Workers | confirmed |
+| BUG_REPORT.md | 12862 | FE-88 | [FE-88] Service Role Capability Header Mismatch Exposes Dead Classroom Route on General Workers | false positive |
 | BUG_REPORT.md | 12888 | FE-89 | [FE-89] Public and Learner Error Pages Render Dead-End Screens Without Navigation Escape | confirmed |
 | BUG_REPORT.md | 12909 | FE-90 | [FE-90] Study Pack Authoring Allows Blank Task Creation and Specifies Inverted Version Limits | confirmed |
 | BUG_REPORT.md | 12927 | FE-91 | [FE-91] Annotation Revision History Button Misleading Scope and Missing Idle Disabled State | hardening |
@@ -428,7 +427,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 849 | FE-02 | [FE-02] Session Expiration Discards Private Slide Destination (returnTo) | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 873 | FE-03 | [FE-03] Indistinguishable Slide Loading Errors & Missing Retry | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 894 | FE-04 | [FE-04] Direct Exposure of Internal Docker Commands in Recovery UI | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 909 | FE-05 | [FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation | confirmed |
+| docs/reports/BUG_REPORT_CODEX.md | 909 | FE-05 | [FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 921 | FE-06 | [FE-06] Unhandled localStorage & sessionStorage Exceptions in Private Browsing | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 953 | FE-07 | [FE-07] Missing Login Return URL in Desktop Connect Workflow | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 967 | FE-08 | [FE-08] IndexedDB Connection Leak on Transaction Error in authoringStore.ts | confirmed |
@@ -457,12 +456,12 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 1754 | SEC-13 | [SEC-13] Revoked Classroom Sessions Retain Individual Derivative Tiles on Disk & Caddy Edge | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 1789 | SEC-14 | [SEC-14] Trashed Slide OME-TIFF File Download & Tile Viewing Authorization Leak | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 1830 | SEC-15 | [SEC-15] Caddy Internal Reverse Proxy Global Root (/) Exposure Risk | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 1866 | CONC-05 | [CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 1866 | CONC-05 | [CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 1924 | CONC-06 | [CONC-06] Study Course Learner Limit Admission Race Condition on Concurrent Redemption | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 1965 | PERF-03 | [PERF-03] Synchronous Unbounded os.walk() in Desktop Ingest Storage Admission Freezes Event Loop | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 2002 | TIME-02 | [TIME-02] Unsafe .replace(tzinfo=UTC) in Study Pack & Desktop Serializers Corrupting Timestamp Offsets | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 2029 | FE-14 | [FE-14] Unwrapped localStorage and sessionStorage in Theme, Shell Preferences, and API Client Crashes Web App in Private Browsing | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 2080 | DATA-02 | [DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 2080 | DATA-02 | [DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 2132 | SEC-16 | [SEC-16] Unauthenticated Global Account Lockout Denial-of-Service via In-Memory Username Throttling | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 2166 | REL-02 | [REL-02] Classroom Teaching Annotations Exceed Hardcoded 4 KiB SSE Event Buffer Limit | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 2214 | SEC-17 | [SEC-17] Unauthenticated & Unthrottled Global Classroom Join Queue Lock Starvation Denial-of-Service | hardening |
@@ -476,7 +475,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 2566 | SEC-20 | [SEC-20] Uninitialized & Deadlocked Runtime Protection Mode Bricks Background Processing and All Slide Uploads | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 2601 | SEC-21 | [SEC-21] Unauthenticated & Unbounded Desktop Pairing Code Flooding Database Denial-of-Service | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 2639 | CONC-07 | [CONC-07] Desktop Pairing Exchange Concurrency Race Issues Multiple Tokens for Single-Use Code | fixed upstream |
-| docs/reports/BUG_REPORT_CODEX.md | 2697 | CONC-08 | [CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 2697 | CONC-08 | [CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 2741 | DATA-05 | [DATA-05] Slide Deletion Fails to Purge Published Derivative Directory (delivery/individual/{public_id}) Causing Permanent Storage Leak | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 2774 | DATA-06 | [DATA-06] Desktop Library Synchronization Truncates Folders at 100 with No Pagination or Cursor | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 2800 | DATA-07 | [DATA-07] Desktop Annotation Batch Silently Bypasses Optimistic Concurrency Control with Fake Auto-Merge | false positive |
@@ -489,7 +488,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 3048 | SEC-24 | [SEC-24] disable_membership Leaves Legacy-Admin Session Fully Valid | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 3063 | SEC-25 | [SEC-25] TUS post-finish allow_expired=True Bypasses 1h Upload TTL | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3078 | CONC-09 | [CONC-09] Conversion Staging PID-Only + Unconditional Stale-Wipe (TOCTOU / Data Loss) | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 3093 | CONC-10 | [CONC-10] Desktop Resumable Chunk Has No Lock + Trusts DB Offset + Unbounded Retry Flood | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 3093 | CONC-10 | [CONC-10] Desktop Resumable Chunk Has No Lock + Trusts DB Offset + Unbounded Retry Flood | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 3108 | CONC-11 | [CONC-11] Study Invitation Single-Use Double-Spend Race | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 3123 | SEC-26 | [SEC-26] Public Share Manifest Leaks Trashed-Slide Metadata | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 3138 | DATA-08 | [DATA-08] Share Publish / Rotate Commit-Then-Write Crash Window + Downtime | fixed upstream |
@@ -497,9 +496,9 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 3167 | SEC-27 | [SEC-27] Internal Tile-Service /_pathlab_ome/* Zero-Auth + No Trashed Check | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3182 | SEC-28 | [SEC-28] Trashed-Slide Metadata / Annotation Read + Sync Bypass | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3197 | SEC-29 | [SEC-29] Conversion Derivative Sanitize / Measure Symlink-Blind (Escape + TOCTOU) | fixed upstream |
-| docs/reports/BUG_REPORT_CODEX.md | 3211 | PERF-06 | [PERF-06] GET .../content Streaming FD Held Across Yield (Slow-Loris Leak) | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 3211 | PERF-06 | [PERF-06] GET .../content Streaming FD Held Across Yield (Slow-Loris Leak) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3225 | SEC-30 | [SEC-30] Config Fail-Open: extra="ignore" + Placeholder Secret + Prod-Only Validation | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 3239 | OPS-04 | [OPS-04] Sticky CachedReadiness: /readyz Never Recovers Without Restart | confirmed |
+| docs/reports/BUG_REPORT_CODEX.md | 3239 | OPS-04 | [OPS-04] Sticky CachedReadiness: /readyz Never Recovers Without Restart | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 3254 | BUG-12 | [BUG-12] read_protection_snapshot vs protection_snapshot Divergence (Uploads Open, Jobs Starved) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3270 | FE-18 | [FE-18] Unabortable TUS Upload + Unscoped resumeFromPreviousUpload | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 3285 | FE-19 | [FE-19] Premature URL.revokeObjectURL + Detached Anchor Truncates Downloads | hardening |
@@ -517,12 +516,12 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 3454 | REL-05 | [REL-05] expire_incomplete_uploads .stat() Race Kills Worker Loop | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 3464 | BUG-13 | [BUG-13] Classroom Auto-Expiry Skips Hub/Presenter/Prewarm Cleanup | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 3474 | PERF-07 | [PERF-07] ClassroomHub Unbounded Per-Session Leak on Singleton | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 3484 | CONC-14 | [CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS | unresolved |
-| docs/reports/BUG_REPORT_CODEX.md | 3496 | DATA-09 | [DATA-09] Unbounded sortOrder Overflows PG Integer | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 3484 | CONC-14 | [CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS | confirmed |
+| docs/reports/BUG_REPORT_CODEX.md | 3496 | DATA-09 | [DATA-09] Unbounded sortOrder Overflows PG Integer | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 3508 | FE-23 | [FE-23] OpenSeadragon open-failed Infinite Reconnect Storm | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3518 | FE-24 | [FE-24] Freehand Unbounded Construction + Spread Stack Overflow | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3530 | FE-25 | [FE-25] Upload Transport-Complete Lied as Slide-Complete + NaN Progress | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 3542 | FE-26 | [FE-26] InviteDialog False Modal — No Trap/Inert/Restore | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 3542 | FE-26 | [FE-26] InviteDialog False Modal — No Trap/Inert/Restore | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3552 | OPS-07 | [OPS-07] tusd + caddy Zero Healthcheck — Silent Upload Blackhole | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3562 | SEC-34 | [SEC-34] Backups Plaintext — Zero Encryption (PHI Exfiltration) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3574 | SEC-35 | [SEC-35] Argon2 CPU-DoS on Impossible 129..1024-char Passwords | hardening |
@@ -531,11 +530,11 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 3604 | OPS-08 | [OPS-08] Migration Full-Table RAM Load + Non-Atomic Batches | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3614 | FE-27 | [FE-27] persist() vs persisted() Confusion (Unsolicited Prompt) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3624 | FE-28 | [FE-28] capture() Drops Blob on Save Failure (No Feedback) | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 3634 | FE-29 | [FE-29] Autosave Debounce Lost on Close (No Unload Flush) | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 3634 | FE-29 | [FE-29] Autosave Debounce Lost on Close (No Unload Flush) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3644 | FE-30 | [FE-30] Teacher SSE No error Handler (Stale Roster) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3654 | SEC-36 | [SEC-36] Caddy Security-Headers Gaps | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3664 | OPS-09 | [OPS-09] Mutable :live Fallback Tag (No Digest Pin) | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 3674 | SEC-37 | [SEC-37] restore.sh World-Readable Staging + No Lock | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 3674 | SEC-37 | [SEC-37] restore.sh World-Readable Staging + No Lock | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3684 | OPS-10 | [OPS-10] Watchdog Unbounded Diagnostics (No Retention) | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 3694 | BUG-14 | [BUG-14] Uncaught SQLite FTS5 Query Syntax Errors Crash Library Search API with HTTP 500 | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 3726 | CONC-15 | [CONC-15] LoginThrottle Lacks Mutex Synchronization Causing RuntimeError and Race Conditions | fixed upstream |
@@ -547,7 +546,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 3949 | SEC-40 | [SEC-40] CSV Formula Injection (CWE-1236) in Annotation Measurements Export API | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 3999 | BUG-15 | [BUG-15] Missing Initial RuntimeGuard Row Causes Permanent Upload Blockade with HTTP 423 | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 4050 | BUG-16 | [BUG-16] Uncaught ValueError in Library Cursor Pagination Datetime Deserialization Returns HTTP 500 | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 4093 | CONC-16 | [CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 4093 | CONC-16 | [CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 4148 | FE-33 | [FE-33] Permanent SPA Robots Meta Tag Pollution in ViewerPage Blocks Search Engine Indexing | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 4190 | FE-34 | [FE-34] Uncaught DOMException in SharedViewerPage.select Crashes Shared Viewer on Safari Private Browsing | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 4232 | REL-07 | [REL-07] Worker Missing Heartbeat During generate_dzi Causes Stale Recovery Race Condition & Dual-Worker Derivative Corruption | hardening |
@@ -555,7 +554,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 4309 | REL-08 | [REL-08] Unhandled Windows File Locking / PermissionError in remove_slide Crashes Worker Process in Infinite Loop | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 4363 | SEC-41 | [SEC-41] Missing Deletion Event in Desktop Sync Broadcast Leads to Zombie Local Slides & Folders | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 4390 | DATA-11 | [DATA-11] Published Slide Trashing & Restoring Leaves State Desynchronized and Causes Public Route 404 | false positive |
-| docs/reports/BUG_REPORT_CODEX.md | 4423 | FE-35 | [FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 4423 | FE-35 | [FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 4460 | SEC-42 | [SEC-42] Cross-Device / Cross-Filesystem Link Failure (EXDEV) in Desktop OME Ingest Aborts Ingestion and Quarantines Files | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 4486 | FE-36 | [FE-36] Uncaught DOMException in OpenSeadragonViewer Crashes WSI Viewer in Safari Private Browsing | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 4534 | FE-37 | [FE-37] Unwrapped sessionStorage.setItem in Study API Burns Single-Use Invitation Codes and Permanently Locks Out Learners | confirmed |
@@ -576,7 +575,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 5385 | BUG-20 | [BUG-20] Shared JPEG Tables Stripping Omits DRI Marker Breaking Restart Interval Decoding in Native OME-TIFF Tiles | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 5443 | TIME-05 | [TIME-05] Unhandled Offset-Naive Datetime Comparison in Share Delivery Manifest Route Causes TypeError Crash Resulting in 404 for All Expiring Shared Slides | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 5491 | FE-41 | [FE-41] Premature Sequence Advancement on Stream Gap in Classroom Stream Sync Applies Out-of-Order Events During Background Resync | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 5557 | CONC-18 | [CONC-18] Concurrent Task Submissions Race Past Monotonic Throttle Check Causing Unhandled Unique Constraint 500 Crash on uq_study_progress_task | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 5557 | CONC-18 | [CONC-18] Concurrent Task Submissions Race Past Monotonic Throttle Check Causing Unhandled Unique Constraint 500 Crash on uq_study_progress_task | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 5625 | DATA-16 | [DATA-16] Expired Shares Remain Marked is_active=True Deadlocking Target Folder and Collection Re-Sharing with HTTP 409 SHARE_ALREADY_ACTIVE | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 5671 | DATA-17 | [DATA-17] Deleted Collections and Trashed Folders Fail to Cascade Revoke Shares and Delivery Manifests Leaking Proprietary Slides | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 5708 | BUG-21 | [BUG-21] Event Sequences and Presence Expiry Handles Not Purged on Session Reset or Termination Causes Event Sequence Skew and Memory Leak | hardening |
@@ -586,7 +585,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 5851 | FE-42 | [FE-42] Tight-Loop Unbacked Retry in createClassroomSnapshotReconciler Spams API on Transient Version Lag and Aborts with Unrecoverable Rejection | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 5880 | FE-43 | [FE-43] Unhandled Promise Rejection and Lost Version on Roster Reconciliation Failure Freezes Teacher Roster Synchronization | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 5906 | PERF-09 | [PERF-09] Unbounded Recursive Directory Walk in storage.usage() Blocks ASGI Worker and Crashes with FileNotFoundError on Concurrent Ingest/Eviction | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 5960 | CONC-20 | [CONC-20] Uncommitted Database Transaction Held During Multi-Minute Desktop Slide Archive Extraction Blocks Global Database Access and Triggers SQLite Lock Timeouts | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 5960 | CONC-20 | [CONC-20] Uncommitted Database Transaction Held During Multi-Minute Desktop Slide Archive Extraction Blocks Global Database Access and Triggers SQLite Lock Timeouts | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 6066 | SEC-46 | [SEC-46] Missing Formula Sanitization in Annotation CSV Export Enables Client-Side CSV Injection and Remote Command Execution | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 6114 | DATA-18 | [DATA-18] Study Progress CSV Export Omits Course Existence Check and Streams In-Memory Dataset Without Attachment Header | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 6204 | BUG-22 | [BUG-22] Missing Thumbnail Requirement in Prepared Ingest Results in Orphaned Thumbnail References and Broken Gallery Images | fixed upstream |
@@ -607,7 +606,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 6698 | SEC-48 | [SEC-48] Migration FK Check Identifier Injection via f-string | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 6708 | DATA-22 | [DATA-22] Migration Manifest Unbounded PK List → OOM | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 6718 | CONC-22 | [CONC-22] Reconcile Holds Write Lock Across FS Walks | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 6728 | SEC-49 | [SEC-49] Manual Classroom Accepts Trashed-Folder Slides | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 6728 | SEC-49 | [SEC-49] Manual Classroom Accepts Trashed-Folder Slides | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 6738 | BUG-27 | [BUG-27] sort=manual Outside Collection → 500 | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 6748 | BUG-28 | [BUG-28] Saved-View Tags/State/Dates Silently Dropped | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 6758 | BUG-29 | [BUG-29] Redeem Ignores ends_at — Burns Single-Use Code | confirmed |
@@ -625,7 +624,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 7213 | PERF-15 | [PERF-15] ClassroomPrewarmer and restore_prewarm() Reject Dynamic OME Slides and Silently Discard Multi-Classroom Sessions | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 7278 | BUG-32 | [BUG-32] purge_due_study_data() Hard Deletes StudyLearnerSession Without Cascading StudyProgress Resulting in Orphaned Rows and Foreign Key Inconsistencies | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 7325 | BUG-33 | [BUG-33] StudyRoutes.withdraw() Hard-Deletes Learner Session Violating Schema Status Invariants and Destroying Research Participation Audits | false positive |
-| docs/reports/BUG_REPORT_CODEX.md | 7377 | FE-49 | [FE-49] AnnotationAutosave.drain() Leaves inFlight Batch Wedged on 4xx Client Errors Permanently Freezing User Workspace | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 7377 | FE-49 | [FE-49] AnnotationAutosave.drain() Leaves inFlight Batch Wedged on 4xx Client Errors Permanently Freezing User Workspace | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 7421 | FE-50 | [FE-50] Concurrent Base64 Data URL Conversion of 100 Offline Notebook Entries Crashes Mobile WebKit Tab With OOM | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 7463 | BUG-34 | [BUG-34] PreparedIngest Modulo Sampling Uses Constant expected_count Instead of Loop Counter file_count Skipping Verification or Freezing Unpack | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 7500 | BUG-35 | [BUG-35] StudyPackContract.score_task() Collapses Spatial Target Rectangles to Center Points Scoring Valid Tissue Hits as False | confirmed |
@@ -638,11 +637,11 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 7893 | DATA-26 | [DATA-26] apply_result_bundle() Exception Handler Wipes Out Entire Slide Results Directory Destroying Previous Successful Deliveries | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 7937 | BUG-37 | [BUG-37] upload_prepared_ingest() Exception Handler Only Catches HTTPException Leaking Partial Stream Bytes on Client Disconnect | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 7992 | FE-53 | [FE-53] stitchHoles() in booleanCore.ts Injects undefined into Coordinate Array on Degenerate Outer Ring Crashing Canvas Renderer | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 8061 | FE-54 | [FE-54] Synchronous URL.revokeObjectURL() in downloadStudyInvitations() Immediately Aborts Asynchronous File Downloads in Safari & Firefox | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 8061 | FE-54 | [FE-54] Synchronous URL.revokeObjectURL() in downloadStudyInvitations() Immediately Aborts Asynchronous File Downloads in Safari & Firefox | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 8110 | BUG-38 | [BUG-38] study_tile() Unconditionally Forbids Dynamic OME-TIFF Slides Returning 404 for All Modern Study Pack Slides | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 8175 | SEC-52 | [SEC-52] get_admin_slide() Returns Trashed Slides as Ready with Active Tile Sources Causing Immediate 404s and Metadata Leaks | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 8222 | BUG-39 | [BUG-39] folder_subtree_ids() Omission of trashed_at Filter Causes Share Generation to Crash with ShareConflict or Leak Trashed Hierarchies | fixed upstream |
-| docs/reports/BUG_REPORT_CODEX.md | 8276 | CONC-24 | [CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 8276 | CONC-24 | [CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 8323 | FE-55 | [FE-55] ClassroomStudentPage.ask() Clears Local Pin State Without Calling Backend clearPin() Causing Ghost Pin Desynchronization | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 8378 | FE-56 | [FE-56] Uncaught Taint SecurityError in captureVisibleTissue() Bypasses Exception Handler Crashing Student Screenshot Pipeline | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 8438 | BUG-40 | [BUG-40] Classroom Teaching Annotation Mutations Omit state_version Increments Breaking Snapshot Reconciler Recovery on Stream Reconnect | confirmed |
@@ -651,19 +650,19 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 8587 | DATA-27 | [DATA-27] remove_slide() Fails to Remove individual_delivery_for(public_id) Directory Leaving Derivative Hardlinks Stranded Permanently | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 8626 | BUG-41 | [BUG-41] _reconcile() Traps RuntimeGuard in Indefinite DRAINING Deadlock When Active Classroom Session Ends or Cancels Before Live Phase | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 8699 | CONC-26 | [CONC-26] Unheartbeated Long generate_dzi() Runs Cause recover_stale_jobs() to Requeue Running Jobs Resulting in Concurrent Overwriting Workers | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 8743 | FE-58 | [FE-58] AnnotationAutosave Abandons In-Flight Queue and Freezes Version Advancement on onAcknowledged Failure Locking 409 Conflict | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 8743 | FE-58 | [FE-58] AnnotationAutosave Abandons In-Flight Queue and Freezes Version Advancement on onAcknowledged Failure Locking 409 Conflict | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 8778 | BUG-42 | [BUG-42] delete_layer Blocks Deletion of Visually Empty Layers Containing Soft-Deleted Tombstones with 409 | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 8809 | DATA-28 | [DATA-28] finalize_upload() Leaves Storage Reservation Stranded for 24 Hours on Corrupt or Invalid Uploads | unresolved |
-| docs/reports/BUG_REPORT_CODEX.md | 8841 | BUG-43 | [BUG-43] validate_folder_parent() Missing Cycle Guard Causes Infinite Loop and Worker Hang on Cyclic Ancestry | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 8809 | DATA-28 | [DATA-28] finalize_upload() Leaves Storage Reservation Stranded for 24 Hours on Corrupt or Invalid Uploads | hardening |
+| docs/reports/BUG_REPORT_CODEX.md | 8841 | BUG-43 | [BUG-43] validate_folder_parent() Missing Cycle Guard Causes Infinite Loop and Worker Hang on Cyclic Ancestry | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 8860 | DATA-29 | [DATA-29] upload_result_delivery Never Unlinks Extracted .plresults Staging Archives Leaking Up to 2 GB per Delivery | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 8887 | BUG-44 | [BUG-44] create_result_delivery Rejects Valid Analysis Result Delivery with 409 RESULT_CONFLICT Due to Unfiltered Soft-Deleted Annotations | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 8915 | PERF-16 | [PERF-16] apply_result_bundle() Per-Object database.flush() and Unbatched ORM Allocation Causes Container OOM on Result Imports | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 8968 | BUG-45 | [BUG-45] StudyRoutes.withdraw() Hard-Deletes Session Violating Clinical Audit Trail and Leaving Orphaned Records on SQLite | false positive |
-| docs/reports/BUG_REPORT_CODEX.md | 8996 | DEV-02 | [DEV-02] Standalone / Local Development Missing Fallback Route for /tiles/{public_id}/{version}/{tile_path} Returns 404 | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 8996 | DEV-02 | [DEV-02] Standalone / Local Development Missing Fallback Route for /tiles/{public_id}/{version}/{tile_path} Returns 404 | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 9022 | FE-59 | [FE-59] SharedFolderBranch and SharedFolderNode Fail to Escape Special JSON Characters in Folder Paths Breaking Tree Construction | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 9037 | CONC-27 | [CONC-27] StudyCourse Activation Race Condition Allows Concurrent Creation of Multiple Active Courses | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 9063 | BUG-46 | [BUG-46] build_ome_tile_index() Hardcodes tif.series[0] Triggering Ingestion Failure When Slide Pyramid Is In Secondary Series | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 9092 | CONC-28 | [CONC-28] ClassroomTeacherPage Premature suppressPublish Clearance Creates Animation Frame Feedback Loop | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 9092 | CONC-28 | [CONC-28] ClassroomTeacherPage Premature suppressPublish Clearance Creates Animation Frame Feedback Loop | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 9122 | SEC-53 | [SEC-53] SQLite FTS _search_ids Unescaped Wildcard Syntax Triggers Unhandled OperationalError and 500 DoS | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 9175 | BUG-47 | [BUG-47] trash_folder() Permits Trashing Folders with Active Slides Creating Invisible Ghost Slides and Unresolvable State | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9215 | BUG-48 | [BUG-48] delete_collection() and trash_folder() Bypass _has_active_share Check Corrupting Public Links | false positive |
@@ -672,7 +671,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 9295 | SEC-54 | [SEC-54] revoke_share() Omits Deletion of Public Delivery Manifest Allowing Continued Tile Access | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 9335 | BUG-49 | [BUG-49] share_delivery_public_id() Off-by-Timezone Naive vs Aware Comparison Raises TypeError and Rejects Valid Shares | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 9356 | CONC-29 | [CONC-29] TileCache.get_or_create() Leader Coalescing Indefinite Hang on Worker Thread Cancellation | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 9386 | BUG-50 | [BUG-50] create_ome_ingest and create_result_delivery Commit Database Records Before File Creation Leaving Ingests in Deadlock State | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 9386 | BUG-50 | [BUG-50] create_ome_ingest and create_result_delivery Commit Database Records Before File Creation Leaving Ingests in Deadlock State | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9429 | PERF-18 | [PERF-18] StorageLayout.usage() Unindexed Synchronous os.walk() on 500,000+ Files Freezes Worker Thread During Upload Admission | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 9455 | DATA-31 | [DATA-31] rotate_share() Fails to Migrate Staging Manifest Leaving Old Public Link Functional and New Link Broken | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 9488 | PERF-19 | [PERF-19] _publish_derivative_to Redundant Per-Tile mkdir() Syscalls Severely Throttle Slide Publication | hardening |
@@ -680,16 +679,16 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 9556 | DATA-32 | [DATA-32] desktop_finalizer.py Abandons Failed prepared_package Archives on Disk Leaking Up to 10 GB per Ingest | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 9577 | CONC-30 | [CONC-30] worker.py Delete Job Strands "running" Job on SQLite for 5 Minutes Due to Disabled FK Cascades | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9604 | DATA-33 | [DATA-33] worker.py Conversion Failure Abandons Incomplete Pyramid Tiles on Disk Leaking Storage Indefinitely | fixed upstream |
-| docs/reports/BUG_REPORT_CODEX.md | 9631 | DATA-34 | [DATA-34] main.py TUS finalize_upload() Copy Failure Leaves Orphaned .partial Files on Cross-Device Moves | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 9631 | DATA-34 | [DATA-34] main.py TUS finalize_upload() Copy Failure Leaves Orphaned .partial Files on Cross-Device Moves | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 9664 | FE-60 | [FE-60] snapshotReconciler.ts Zero-Delay Retry Burst Causes False-Positive Reconciler Failures | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 9696 | PERF-20 | [PERF-20] notebook.ts saveEntry() Deserializes All Blobs into RAM to Check Entry Count Triggering WebKit OOM Crash | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9733 | FE-61 | [FE-61] ClassroomTeacherPage "Show pinned field" Omission of Local Slide Transition & Viewport Navigation Desynchronizes Presenter from Students | false positive |
-| docs/reports/BUG_REPORT_CODEX.md | 9782 | FE-62 | [FE-62] ClassroomTeacherPage Slide Navigator Selection Omits Viewport Broadcast Leaving Students Stranded on Prior Slide in Guide Mode | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 9782 | FE-62 | [FE-62] ClassroomTeacherPage Slide Navigator Selection Omits Viewport Broadcast Leaving Students Stranded on Prior Slide in Guide Mode | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9815 | BUG-52 | [BUG-52] teacher_state Endpoint Omits expire_control() Leaving Presenter UI Locked with Stale Expired Student Controller Lease | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9856 | FE-63 | [FE-63] ClassroomTeacherPage Missing session-ended SSE Event Listener Leaves Teacher in Zombie Session State on Administrative Revocation | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9881 | FE-64 | [FE-64] ClassroomStudentPage Missing Slide-Scoped Key / Reset on StudentDrawingOverlay Bleeds Drawings Across Guided Slide Switches | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 9921 | SEC-55 | [SEC-55] get_slide_details() and Static thumbnail() in library_routes.py Omit Trashed Slide Checks Permitting Data Exfiltration of Soft-Deleted Pathology Slides | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 9969 | CONC-31 | [CONC-31] ClassroomRoutes.stream_response() Event Sequence Race Condition Seeds Subscriber with Stale eventSequence Desynchronizing Client Stream Recovery | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 9969 | CONC-31 | [CONC-31] ClassroomRoutes.stream_response() Event Sequence Race Condition Seeds Subscriber with Stale eventSequence Desynchronizing Client Stream Recovery | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 10030 | PERF-21 | [PERF-21] apply_result_bundle Executes Per-Object database.flush() and Iterates 2,000,000 ORM Instances into Python RAM Triggering Worker OOM Crash | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 10089 | DATA-35 | [DATA-35] desktop_annotation_batch Blindly Overrides candidate.base_version to Current Slide Version Silently Destroying Concurrent Web Annotations | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 10153 | DATA-36 | [DATA-36] purge_due_study_data in study_routes.py Omits StudyProgress Deletion Permanently Stranding Orphaned Student Progress Records | false positive |
@@ -700,7 +699,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 10348 | BUG-53 | [BUG-53] score_task in study_pack_contract.py Evaluates Center Point Chebyshev Distance Rejecting Valid User Selections on Large Target Regions | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 10373 | DATA-37 | [DATA-37] upload_result_delivery Deletes Entire Slide Results Directory on Single Bundle Validation Failure Wiping Previous Runs | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 10415 | CONC-33 | [CONC-33] Multi-Worker Startup Race in PreparedIngestFinalizer._recover Re-finalizes Active Ingests Causing File Extraction Collisions | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 10456 | CONC-34 | [CONC-34] Concurrent Desktop Chunk Uploads Double-Increment received_bytes Permanently Freezing Ingest in Uploading State | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 10456 | CONC-34 | [CONC-34] Concurrent Desktop Chunk Uploads Double-Increment received_bytes Permanently Freezing Ingest in Uploading State | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 10494 | CONC-35 | [CONC-35] Non-Atomic exchange_pairing Allows Issuance of Multiple Active Credentials from a Single Pairing Code | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 10536 | FE-65 | [FE-65] StudyPage Spatial Selection Omits Canvas Visual Target Indicator Confusing Students on Click Accuracy | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 10574 | DATA-38 | [DATA-38] localStore.ts Resolves appendLocalRecord Before IndexedDB Transaction Commits Causing Silent Data Loss on Tab Close | confirmed |
@@ -708,8 +707,8 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 10657 | BUG-54 | [BUG-54] Missing Invitation Revocation Route Prevents Invalidation of Lost or Exposed Study Codes | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 10705 | FE-66 | [FE-66] Uncaught SecurityError on caches.open in Firefox/Safari Private Browsing Completely Breaks Local AI Initialization | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 10749 | PERF-22 | [PERF-22] Coarse Course-Wide Submission Throttling Blocks Answering Different Practice Tasks Forcing 30-Second Wait Per Question | hardening |
-| docs/reports/BUG_REPORT_CODEX.md | 10787 | CONC-36 | [CONC-36] Read-Route Concurrency Stampede on Course Expiration Triggers Lock Contention in learner_session | unresolved |
-| docs/reports/BUG_REPORT_CODEX.md | 10822 | DATA-39 | [DATA-39] Duplicate Feature Index in StudyPage.tsx Distorts Local AI Neural Network Input Vector | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 10787 | CONC-36 | [CONC-36] Read-Route Concurrency Stampede on Course Expiration Triggers Lock Contention in learner_session | hardening |
+| docs/reports/BUG_REPORT_CODEX.md | 10822 | DATA-39 | [DATA-39] Duplicate Feature Index in StudyPage.tsx Distorts Local AI Neural Network Input Vector | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 10857 | PERF-23 | [PERF-23] get_desktop_slide_content Mandates Open-Ended Byte Ranges Disabling Chunked HTTP Download Managers | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 10896 | SEC-60 | [SEC-60] export_csv() in annotations.py Omits Formula Sanitization on metadata.title and layer Allowing CSV Formula Injection | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 10942 | BUG-55 | [BUG-55] Unhandled KeyError on Missing Layer ID in export_csv Crashes Measurement Export with HTTP 500 | hardening |
@@ -724,14 +723,14 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 11341 | BUG-57 | [BUG-57] add_collection_items Omits Soft-Delete Check Allowing Trashed Slides to be Added to Collections | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 11372 | CONC-37 | [CONC-37] Time-of-Check Race Condition in activate_share Permits Duplicate Active Shares for Same Target | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 11416 | PERF-26 | [PERF-26] public_manifest Fetches Entire Folder Slide Subtree into Memory Merely to Read Name and Description | fixed upstream |
-| docs/reports/BUG_REPORT_CODEX.md | 11466 | BUG-58 | [BUG-58] validate_folder_parent Lacks Loop Cycle Detection Causing Infinite While Loop on Corrupt Hierarchies | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 11466 | BUG-58 | [BUG-58] validate_folder_parent Lacks Loop Cycle Detection Causing Infinite While Loop on Corrupt Hierarchies | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 11504 | SEC-63 | [SEC-63] logout() in main.py Omits secure, httponly, and samesite in delete_cookie Leaving Admin Cookie on HTTPS | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 11545 | PERF-27 | [PERF-27] recover_password() Fetches All Database Users into Memory to Normalize Username | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 11575 | BUG-59 | [BUG-59] streamSync.ts Advances Cursor Sequence on Gap Causing Silent Desync on Subsequent Events | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 11612 | BUG-60 | [BUG-60] autosave.ts Skips In-Flight Cleanup and Version Advancement on Acknowledgement Failure | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 11612 | BUG-60 | [BUG-60] autosave.ts Skips In-Flight Cleanup and Version Advancement on Acknowledgement Failure | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 11661 | PERF-28 | [PERF-28] OpenSeadragonViewer Uses buffered: true in PerformanceObserver Replaying Obsolete Resource Timings | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 11696 | DATA-43 | [DATA-43] saveEntry in notebook.ts Uses add() Instead of put() Failing on Existing Note Updates | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 11722 | BUG-61 | [BUG-61] FolderTree.tsx flatten Lacks Visited Guard Crashing Browser Tab on Cyclic Hierarchies | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 11722 | BUG-61 | [BUG-61] FolderTree.tsx flatten Lacks Visited Guard Crashing Browser Tab on Cyclic Hierarchies | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 11769 | SEC-64 | [SEC-64] ensure_grant Overwrites flagged Clinical Privacy Status to passed Bypassing PHI Gate | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 11801 | DATA-44 | [DATA-44] delete_all_slide_grants Leaves Slide in PUBLISHED State After Unpublishing Derivatives | fixed upstream |
 | docs/reports/BUG_REPORT_CODEX.md | 11835 | SEC-65 | [SEC-65] offline_slide Omits Soft-Delete Check Allowing Trashed Slide Download via Desktop Offline API | fixed upstream |
@@ -755,10 +754,10 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/BUG_REPORT_CODEX.md | 12390 | BUG-69 | [BUG-69] Classroom Question Deletion Leaves Orphaned Receipt Records | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 12412 | SEC-68 | [SEC-68] Missing nosniff on Tile/Thumbnail Delivery (Sniff → Stored XSS) | false positive |
 | docs/reports/BUG_REPORT_CODEX.md | 12422 | REL-09 | [REL-09] Presenter Flush Loss on CancelledError + Leaked in_flight | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 12432 | OPS-14 | [OPS-14] Capacity Monitor Non-Atomic + Advisory-Only Window | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 12432 | OPS-14 | [OPS-14] Capacity Monitor Non-Atomic + Advisory-Only Window | hardening |
 | docs/reports/BUG_REPORT_CODEX.md | 12442 | FE-67 | [FE-67] Study Withdraw Leaves ONNX Worker/Course State (Cross-Course Contamination) | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 12452 | FE-68 | [FE-68] Invite Phase Poll Overlap + Post-Unmount Write | confirmed |
-| docs/reports/BUG_REPORT_CODEX.md | 12462 | FE-69 | [FE-69] OSD Rotation Persists Across Slide Change | unresolved |
+| docs/reports/BUG_REPORT_CODEX.md | 12462 | FE-69 | [FE-69] OSD Rotation Persists Across Slide Change | confirmed |
 | docs/reports/BUG_REPORT_CODEX.md | 12472 | BUG-70 | [BUG-70] Prepared Ingest Rejects Valid JPEG Tile Filenames in DeepZoom Pyramids | fixed upstream |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 45 | BUG-NEW-01 | BUG-NEW-01: Slide Deletion Worker Infinite Crash Loop on Classroom References | confirmed |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 107 | BUG-NEW-02 | BUG-NEW-02: Sibling Conversion Workspace Deletion Race Condition in generate_dzi | hardening |
@@ -767,7 +766,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 254 | BUG-NEW-05 | BUG-NEW-05: Global Unauthenticated Account Lockout & Thread-Unsafe Iteration in LoginThrottle | hardening |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 308 | BUG-NEW-06 | BUG-NEW-06: Global Single-Mutex Starvation in ClassroomMutationGate | hardening |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 351 | BUG-NEW-07 | BUG-NEW-07: Unthrottled Student Actions Forcibly Disconnect Presenter SSE | confirmed |
-| docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 386 | BUG-NEW-08 | BUG-NEW-08: ClassroomHub._retire_subscriber Mutates Presence State Outside Lock | unresolved |
+| docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 386 | BUG-NEW-08 | BUG-NEW-08: ClassroomHub._retire_subscriber Mutates Presence State Outside Lock | confirmed |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 428 | BUG-NEW-09 | BUG-NEW-09: Uncaught IndexError in Subscriber.next_event | false positive |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 459 | BUG-NEW-10 | BUG-NEW-10: score_task() Collapses Spatial Bounding Box to Center Point | confirmed |
 | docs/reports/DEEP_SYSTEM_BUG_AUDIT.md | 488 | BUG-NEW-11 | BUG-NEW-11: Silent Overwrite of Web Annotations in Desktop Batch Sync | false positive |
@@ -791,7 +790,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/FULL_SYSTEM_QA_REPORT.md | 234 | BUG-05 | BUG-05: pathlab-api Entrypoint Ignores All CLI Arguments and Flags | confirmed |
 | docs/reports/FULL_SYSTEM_QA_REPORT.md | 255 | section-255 | P3 — Low Severity | duplicate |
 | docs/reports/FULL_SYSTEM_QA_REPORT.md | 257 | BUG-06 | BUG-06: Tile Cache Error Handler Unconditionally Unlinks Target File on Replace Exception | hardening |
-| docs/reports/FULL_SYSTEM_QA_REPORT.md | 276 | BUG-07 | BUG-07: Playwright Suite Cold-Start Timing Flakes Under Parallel Execution | unresolved |
+| docs/reports/FULL_SYSTEM_QA_REPORT.md | 276 | BUG-07 | BUG-07: Playwright Suite Cold-Start Timing Flakes Under Parallel Execution | hardening |
 | docs/reports/FULL_SYSTEM_QA_REPORT.md | 304 | section-304 | 7. Security Findings | duplicate |
 | docs/reports/FULL_SYSTEM_QA_REPORT.md | 306 | section-306 | Confirmed Vulnerabilities | duplicate |
 | docs/reports/FULL_SYSTEM_QA_REPORT.md | 321 | section-321 | 8. Reliability / Recovery Findings | duplicate |
@@ -806,7 +805,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 132 | FE-85 | Finding 5: Folder Cards in Main Workspace Lack Management Context Actions (FE-85) | hardening |
 | docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 146 | FE-86 | Finding 6: Toolbar Navigation Buttons Lack Disabled States and Up-Button Root Boundaries (FE-86) | confirmed |
 | docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 161 | FE-87 | Finding 7: Stale Annotation Revision History Swaps Revisions Across Distinct Annotations (FE-87) | confirmed |
-| docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 187 | FE-88 | Finding 8: Service Role Capability Header Mismatch Exposes Dead Classroom Route on General Workers (FE-88) | confirmed |
+| docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 187 | FE-88 | Finding 8: Service Role Capability Header Mismatch Exposes Dead Classroom Route on General Workers (FE-88) | false positive |
 | docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 211 | FE-89 | Finding 9: Public and Learner Error Pages Render Dead-End Screens Without Navigation Escape (FE-89) | confirmed |
 | docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 230 | FE-90 | Finding 10: Study Pack Authoring Allows Blank Task Creation and Specifies Inverted Version Limits (FE-90) | confirmed |
 | docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md | 246 | FE-91 | Finding 11: Annotation Revision History Button Misleading Scope and Missing Idle Disabled State (FE-91) | hardening |
@@ -844,7 +843,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 122 | FE-02 | [FE-02] Session Expiration Discards Private Slide Destination (returnTo) | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 129 | FE-03 | [FE-03] Indistinguishable Slide Loading Errors & Missing Retry | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 136 | FE-04 | [FE-04] Direct Exposure of Internal Docker Commands in Recovery UI | hardening |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 143 | FE-05 | [FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation | confirmed |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 143 | FE-05 | [FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 150 | FE-08 | [FE-08] IndexedDB Connection Leak on Transaction Error in authoringStore.ts | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 157 | OPS-01 | [OPS-01] Deployment Script Failures on noexec Filesystems & Unbounded Capacity Controller Recovery | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 164 | OPS-02 | [OPS-02] Missing Deterministic Software Inventories (SBOM) & Security Baseline Drift | fixed upstream |
@@ -862,11 +861,11 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 248 | SEC-11 | [SEC-11] Unauthenticated & Unthrottled Study Invitation Code Brute-Force | hardening |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 255 | SEC-13 | [SEC-13] Revoked Classroom Sessions Retain Individual Derivative Tiles on Disk & Caddy Edge | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 262 | SEC-14 | [SEC-14] Trashed Slide OME-TIFF File Download & Tile Viewing Authorization Leak | fixed upstream |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 269 | CONC-05 | [CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates | unresolved |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 269 | CONC-05 | [CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 276 | CONC-06 | [CONC-06] Study Course Learner Limit Admission Race Condition on Concurrent Redemption | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 283 | PERF-03 | [PERF-03] Synchronous Unbounded os.walk() in Desktop Ingest Storage Admission Freezes Event Loop | false positive |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 290 | TIME-02 | [TIME-02] Unsafe .replace(tzinfo=UTC) in Study Pack & Desktop Serializers Corrupting Timestamp Offsets | fixed upstream |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 297 | DATA-02 | [DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions | unresolved |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 297 | DATA-02 | [DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 304 | SEC-16 | [SEC-16] Unauthenticated Global Account Lockout Denial-of-Service via In-Memory Username Throttling | hardening |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 311 | REL-02 | [REL-02] Classroom Teaching Annotations Exceed Hardcoded 4 KiB SSE Event Buffer Limit | false positive |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 318 | SEC-18 | [SEC-18] Unthrottled Student Pin & Control-Request Queue Flooding Forces Teacher SSE Disconnection (Remote DoS) | confirmed |
@@ -876,7 +875,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 346 | SEC-20 | [SEC-20] Uninitialized & Deadlocked Runtime Protection Mode Bricks Background Processing and All Slide Uploads | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 353 | SEC-21 | [SEC-21] Unauthenticated & Unbounded Desktop Pairing Code Flooding Database Denial-of-Service | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 360 | CONC-07 | [CONC-07] Desktop Pairing Exchange Concurrency Race Issues Multiple Tokens for Single-Use Code | fixed upstream |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 367 | CONC-08 | [CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates | unresolved |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 367 | CONC-08 | [CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 374 | DATA-05 | [DATA-05] Slide Deletion Fails to Purge Published Derivative Directory (delivery/individual/{public_id}) Causing Permanent Storage Leak | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 381 | DATA-06 | [DATA-06] Desktop Library Synchronization Truncates Folders at 100 with No Pagination or Cursor | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 388 | DATA-07 | [DATA-07] Desktop Annotation Batch Silently Bypasses Optimistic Concurrency Control with Fake Auto-Merge | false positive |
@@ -891,7 +890,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 451 | OPS-05 | [OPS-05] reconcile_storage Single-Slide Raise Aborts Entire Run + Bricks Boot | hardening |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 458 | CONC-15 | [CONC-15] LoginThrottle Lacks Mutex Synchronization Causing RuntimeError and Race Conditions | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 465 | SEC-39 | [SEC-39] Windows Backslash & Drive-Letter Path Traversal in Prepared Ingest Unpacking Zero-Day | fixed upstream |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 472 | CONC-16 | [CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint | unresolved |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 472 | CONC-16 | [CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 479 | DATA-11 | [DATA-11] Published Slide Trashing & Restoring Leaves State Desynchronized and Causes Public Route 404 | false positive |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 486 | SEC-44 | [SEC-44] CLI Admin Creation and Password Reset Uncaught ValueError Traceback and Unvalidated Username | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 493 | SEC-45 | [SEC-45] Annotation Endpoints Omit Trashed Slide Check Permitting Mutation and Data Leakage on Trashed Clinical Slides | hardening |
@@ -912,7 +911,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 598 | DATA-23 | [DATA-23] Desktop Library Items Query Hardcodes 100-Folder Limit Without Pagination Silently Truncating Folder Trees for Paired Clients | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 605 | BUG-34 | [BUG-34] PreparedIngest Modulo Sampling Uses Constant expected_count Instead of Loop Counter file_count Skipping Verification or Freezing Unpack | false positive |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 612 | BUG-37 | [BUG-37] upload_prepared_ingest() Exception Handler Only Catches HTTPException Leaking Partial Stream Bytes on Client Disconnect | hardening |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 619 | CONC-24 | [CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift | unresolved |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 619 | CONC-24 | [CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 631 | SEC-04 | [SEC-04] Caddy Directive Ordering Bypassing Internal Route Denials | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 637 | AUTH-01 | [AUTH-01] Missing Teacher Ownership on Classroom Sessions | fixed upstream |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 643 | FE-06 | [FE-06] Unhandled localStorage & sessionStorage Exceptions in Private Browsing | confirmed |
@@ -963,7 +962,7 @@ The machine-readable [findings.json](findings.json) contains full evidence, cano
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 926 | OPS-09 | [OPS-09] Mutable :live Fallback Tag (No Digest Pin) | hardening |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 932 | OPS-10 | [OPS-10] Watchdog Unbounded Diagnostics (No Retention) | hardening |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 938 | REL-08 | [REL-08] Unhandled Windows File Locking / PermissionError in remove_slide Crashes Worker Process in Infinite Loop | confirmed |
-| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 944 | FE-35 | [FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict | unresolved |
+| docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 944 | FE-35 | [FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict | hardening |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 950 | DATA-12 | [DATA-12] IndexedDB Connection Leak on Transaction Error in Study Local Store | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 956 | DATA-14 | [DATA-14] Trashing a Folder Leaves Child Slides in Invisible Orphaned State Deadlocking Permanent Deletion with HTTP 409 FOLDER_NOT_EMPTY | confirmed |
 | docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md | 962 | DATA-21 | [DATA-21] Uncaught IntegrityError During Folder Restore Crashes with HTTP 500 on Name Collision Instead of 409 Conflict | confirmed |

@@ -39,6 +39,9 @@ export function createClassroomSnapshotReconciler<T extends VersionedClassroomSn
           continue
         }
         staleResponses = 0
+        // An event arrived after this request began. Fetch its current snapshot
+        // before releasing the stream barrier or applying an older field.
+        if (pending) continue
         apply(snapshot)
         if (requiredVersion <= snapshot.stateVersion) requiredVersion = 0
       }

@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "scope": "Synthetic browser fixtures in follow-up worktree; actual download files, actual OpenSeadragon viewport, rendered hit tests",
+  "findings": {
+    "FE-54": {
+      "disposition": "not_reproduced_current_browsers",
+      "projects": [
+        "firefox",
+        "webkit"
+      ],
+      "downloads": [
+        "invitations",
+        "progress"
+      ],
+      "passed": 4,
+      "evidence": "Native browser downloads completed with exact CSV contents despite existing synchronous object URL revocation",
+      "product_change": false
+    },
+    "FE-69": {
+      "disposition": "confirmed_fixed",
+      "before": "Actual OpenSeadragon viewport rotation remained90 degrees after selecting next shared slide",
+      "after": "Source identity change resets viewport and UI rotation0; same-source reconnect path unchanged",
+      "projects": [
+        "chromium",
+        "firefox",
+        "webkit",
+        "mobile-chromium"
+      ],
+      "passed": 4
+    },
+    "FE-74": {
+      "disposition": "confirmed_fixed",
+      "before": [
+        "Annotation bottom dock intercepts rotation center at320x568",
+        "Desktop annotation tool strip intercepts rotation in844x390 shortlandscape"
+      ],
+      "after": "Rotation positioned clear of annotation toolstrip/dock; mobile popup anchored inward",
+      "projects": [
+        "chromium",
+        "firefox",
+        "webkit",
+        "mobile-chromium"
+      ],
+      "viewports": [
+        {
+          "width": 1584,
+          "height": 992
+        },
+        {
+          "width": 320,
+          "height": 568
+        },
+        {
+          "width": 760,
+          "height": 650
+        },
+        {
+          "width": 844,
+          "height": 390
+        }
+      ],
+      "passed": 4,
+      "assertions": [
+        "Rotation center hit targets actual button",
+        "Micron scale and rotation bounds do not intersect",
+        "Rotation popup opens and90 degree preset responds"
+      ]
+    }
+  },
+  "validation": {
+    "viewer_unit_cases": 41,
+    "targeted_eslint": "passed"
+  },
+  "suites": [
+    "apps/web/e2e/study-download-audit.spec.ts",
+    "apps/web/e2e/shared-viewer-responsive.spec.ts",
+    "apps/web/e2e/annotation-responsive.spec.ts"
+  ],
+  "limits": [
+    "Current automated browser engines; no older Safari or physical device qualification"
+  ]
+}

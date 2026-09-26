@@ -30,6 +30,9 @@ interface LibraryToolbarProps {
   sort: string
   view: LibraryViewMode
   filtersOpen: boolean
+  canGoBack?: boolean
+  canGoForward?: boolean
+  canGoUp?: boolean
   onBack: () => void
   onForward: () => void
   onUp: () => void
@@ -51,6 +54,9 @@ export function LibraryToolbar({
   sort,
   view,
   filtersOpen,
+  canGoBack = true,
+  canGoForward = true,
+  canGoUp = true,
   onBack,
   onForward,
   onUp,
@@ -72,9 +78,9 @@ export function LibraryToolbar({
       data-canvas-region="command-bar"
     >
       <div className="library-breadcrumb-row">
-        <button type="button" aria-label="Back" onClick={onBack}><ArrowLeft /></button>
-        <button type="button" aria-label="Forward" onClick={onForward}><ArrowRight /></button>
-        <button type="button" aria-label="Up one level" onClick={onUp}><ArrowUp /></button>
+        <button type="button" aria-label="Back" disabled={!canGoBack} onClick={onBack}><ArrowLeft /></button>
+        <button type="button" aria-label="Forward" disabled={!canGoForward} onClick={onForward}><ArrowRight /></button>
+        <button type="button" aria-label="Up one level" disabled={!canGoUp} onClick={onUp}><ArrowUp /></button>
         <nav aria-label="Breadcrumb">
           {breadcrumbs.map((crumb, index) => (
             <span key={`${crumb.location}-${index}`}>

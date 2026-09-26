@@ -197,6 +197,9 @@ export function OpenSeadragonViewer({
       setPosterVisible(Boolean(posterUrl))
       setLoadingError(false)
       detachViewerAttachment()
+      applyRotation(0)
+      setRotationOpen(false)
+      rotationPointer.current = null
       viewerRef.current.open(tileSource as unknown as OpenSeadragon.TileSourceSpecifier)
       attachViewerAttachment(viewerRef.current)
       if (reconnectTimer.current !== null) {
@@ -206,6 +209,7 @@ export function OpenSeadragonViewer({
       reconnectAttempt.current = 0
     }
   }, [
+    applyRotation,
     attachViewerAttachment,
     detachViewerAttachment,
     micronsPerPixel,
@@ -453,7 +457,7 @@ export function OpenSeadragonViewer({
       if (typeof PerformanceObserver !== 'undefined') {
         performanceObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries() as PerformanceResourceTiming[]) {
-            if (!entry.name.includes('/tiles/') || entry.transferSize === 0) continue
+            if ((!entry.name.includes('/tiles/') && !entry.name.includes('/_pathlab_ome/')) || entry.transferSize === 0) continue
             durations.push(entry.duration)
           }
         })

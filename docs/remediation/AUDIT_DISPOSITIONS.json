@@ -5,16 +5,15 @@
     "954 source sections are not954 bugs.",
     "Unresolved entries were not independently validated; report/canonical ID equality is not proof.",
     "29 cybersecurity aggregate subclaims extracted separately; severity-heading identities preserved as duplicate overviews.",
-    "No heavy suites or production actions performed.",
+    "Broad local suites and first-batch reviewed merge completed; follow-up CI and production qualification remain pending.",
     "Canonical grouping applies only behavior-specific manually reviewed rules. duplicateOf preserves claim status; counting must use distinct canonicalKey."
   ],
   "counts": {
+    "confirmed": 300,
     "duplicate": 26,
-    "fixed upstream": 186,
-    "hardening": 296,
-    "false positive": 96,
-    "confirmed": 264,
-    "unresolved": 86
+    "false positive": 111,
+    "fixed upstream": 189,
+    "hardening": 328
   },
   "findings": [
     {
@@ -253,10 +252,10 @@
       "line": 943,
       "alias": "FE-05",
       "title": "[FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation",
-      "status": "confirmed",
-      "canonicalKey": "desktop.folder-limit",
+      "status": "fixed upstream",
+      "canonicalKey": "classroom.setup-folder-pagination",
       "duplicateOf": null,
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "evidence": "Current classroom_routes.py:714 setup folders accepts q/cursor and returns bounded nextCursor/readiness; ClassroomTeacherPage.tsx:268,981-988 stores/loads setup cursor; search input at1120. Existing actual HTTP test tests/backend/test_classroom.py:2208 test_setup_folder_search_is_cursor_bounded_and_finds_deep_late_slides covers late/deep folders, search, cursor and blocked delivery. This is separate from Desktop folder snapshot and must not share that canonical key."
     },
     {
       "sourceKey": "BUG_REPORT.md:955",
@@ -596,12 +595,10 @@
       "line": 1900,
       "alias": "CONC-05",
       "title": "[CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates",
-      "status": "unresolved",
-      "canonicalKey": "study.aggregate-concurrency",
+      "status": "confirmed",
+      "canonicalKey": "study.readiness-aggregate-race",
       "duplicateOf": null,
-      "evidence": [
-        "study_routes.py:1248-1260 and1283-1297 still select/create aggregate then increment ORM fields without admission lock. Exact concurrent supported learner reproduction required; SQL race inferred alone is not accepted as proof."
-      ]
+      "evidence": "Current follow-up test_study_aggregate_concurrency.py actualHTTP creates valid closed_pilot_trace_sim acknowledged course, prepares/issues/activates/redeems allowed learners and completes task. Registered AI/readiness routes run concurrent realSQLite sessions for first/existing/mixed counters; root scoped native regressions green after shared increment_readiness_aggregate SQLite/PostgreSQL on_conflict_do_update repair. Same aggregate firstrow/lostincrement mechanism was reproduced by actual readiness route earlier. Eligible AI caller now explicitly exercised, no gate bypass. This is confirmed/repaired locally; not upstream, deployed or model/clinical qualified."
     },
     {
       "sourceKey": "BUG_REPORT.md:1958",
@@ -657,10 +654,10 @@
       "line": 2114,
       "alias": "DATA-02",
       "title": "[DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:2114",
+      "status": "confirmed",
+      "canonicalKey": "desktop.finalizer-commit-orphan",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual valid prepared package + real SQLite finalizer evidence var/remediation-evidence/desktop_finalizer_commit_fault.py injects SQLAlchemy OperationalError only at post-install ready_private commit. _finalize propagates; actual _mark_failed produces failed ingest, zero Slide rows, one orphan descriptor, retained archive. _install catches only OSError/PreparedIngestError/KeyError/TypeError; session-close rolls back Slide without cleaning installed UUID directory. Cleanup must distinguish rollback from uncertain committed acknowledgement."
     },
     {
       "sourceKey": "BUG_REPORT.md:2166",
@@ -831,12 +828,10 @@
       "line": 2731,
       "alias": "CONC-08",
       "title": "[CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates",
-      "status": "unresolved",
-      "canonicalKey": "study.aggregate-concurrency",
+      "status": "confirmed",
+      "canonicalKey": "study.readiness-aggregate-race",
       "duplicateOf": "BUG_REPORT.md:1900",
-      "evidence": [
-        "study_routes.py:1248-1260 and1283-1297 still select/create aggregate then increment ORM fields without admission lock. Exact concurrent supported learner reproduction required; SQL race inferred alone is not accepted as proof."
-      ]
+      "evidence": "Current follow-up test_study_aggregate_concurrency.py actualHTTP creates valid closed_pilot_trace_sim acknowledged course, prepares/issues/activates/redeems allowed learners and completes task. Registered AI/readiness routes run concurrent realSQLite sessions for first/existing/mixed counters; root scoped native regressions green after shared increment_readiness_aggregate SQLite/PostgreSQL on_conflict_do_update repair. Same aggregate firstrow/lostincrement mechanism was reproduced by actual readiness route earlier. Eligible AI caller now explicitly exercised, no gate bypass. This is confirmed/repaired locally; not upstream, deployed or model/clinical qualified."
     },
     {
       "sourceKey": "BUG_REPORT.md:2775",
@@ -859,8 +854,8 @@
       "title": "[DATA-06] Desktop Library Synchronization Truncates Folders at 100 with No Pagination or Cursor",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": null,
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "BUG_REPORT.md:2834",
@@ -984,10 +979,12 @@
       "line": 3127,
       "alias": "CONC-10",
       "title": "[CONC-10] Desktop Resumable Chunk Has No Lock + Trusts DB Offset + Unbounded Retry Flood",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:3127",
+      "status": "confirmed",
+      "canonicalKey": "desktop.chunk-offset-serialization",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual registered upload_prepared_ingest PATCH closures with two real SQLite sessions and async stream barriers both admit offset0. Request B commits six BBBBBB bytes, request A then commits four AAAA bytes. Responses acknowledge[6,4]; durable offset regresses4; spool becomes AAAABB. Ignored var/remediation-evidence/desktop_chunk_race.py preserves reproduction. Hash finalization still rejects corruption; no hash bypass or doubled increment claimed. OME/prepared share this route; result delivery has same static pattern. Root owns follow-on repair; preserve source64MiB chunk/1MiB buffer bounds."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:3142",
@@ -1084,12 +1081,10 @@
       "line": 3245,
       "alias": "PERF-06",
       "title": "[PERF-06] GET .../content Streaming FD Held Across Yield (Slow-Loris Leak)",
-      "status": "unresolved",
-      "canonicalKey": "desktop.content-disconnect-close",
+      "status": "hardening",
+      "canonicalKey": "desktop.disconnect-deterministic-close",
       "duplicateOf": null,
-      "evidence": [
-        "desktop_routes.py:796-806 streams an authenticated bounded source using a with-open synchronous generator. Holding one descriptor during an active download is expected. The report does not reproduce post-disconnect retention or establish framework generator finalization behavior. Unresolved: run actual early-disconnect ASGI/server test with a file-close receipt before calling it a leak or replacing range semantics."
-      ]
+      "evidence": "Actual paired desktop content32MiB through real uvicorn/h11 loopback TCP, client closes after200headers339bytes. Exact var/remediation-evidence/desktop_content_disconnect.py tracks real opened source: descriptor remains open after2seconds, closes after forced gc.collect. Existing bounded1MiB chunks/with block ultimately close; deterministic disconnect cleanup is GC-dependent. Permanent leak, unlimited FD accumulation and supported slow-loris outage not reproduced. Narrow lifecycle hardening rather than asserted permanent leak. Follow-up local FileResponse repair verified by desktop_content_disconnect_fileresponse.py: real uvicorn/h11 TCP earlydisconnect after200headers384bytes, builtin.open observes actualsourceopened1/closed beforeanyGC. Bounded8MiB diskfixture writes1MiBchunks; Range last8bytes206/exactcontent/rangeheader; X-PathLab-SHA256 andETag exactnonempty equalHEAD; private no-store andbadcredential401 preserved. Framework closes source deterministically, no permanentoutage claim. Runnable tests/backend/test_desktop_content_disconnect.py nativepytest1passed withGCdisabled/restoredfinally, realbuiltin sourceopened/closed beforecollection andboundedserverlifecycle. Sanitized docs/remediation/evidence/desktop-content-disconnect.json. Ruffcheckclean."
     },
     {
       "sourceKey": "BUG_REPORT.md:3259",
@@ -1110,10 +1105,10 @@
       "line": 3273,
       "alias": "OPS-04",
       "title": "[OPS-04] Sticky CachedReadiness: /readyz Never Recovers Without Restart",
-      "status": "confirmed",
+      "status": "false positive",
       "canonicalKey": "health.schema-sticky",
       "duplicateOf": null,
-      "evidence": "readiness.py54-56 false schema_ready never retried; only validate_startup mutates. Startup schema later fixed needs restart; connectionprobe recovers."
+      "evidence": "CachedReadiness explicitly validates schema once and fails closed; startup starts background services only after validation. Supported deployment migrates and restarts services. Clearing the readiness bit after an unsupported hot migration would omit required background startup. Optional hot-migration recovery is separate hardening."
     },
     {
       "sourceKey": "BUG_REPORT.md:3288",
@@ -1342,10 +1337,12 @@
       "line": 3518,
       "alias": "CONC-14",
       "title": "[CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:3518",
+      "status": "confirmed",
+      "canonicalKey": "library.folder-topology-serialization",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual registered folder PATCH closures and separate SQLite sessions: barrier after both existing validate_folder_parent checks completes; concurrent A->B and B->A both succeed, leaving parents{a:b,b:a}. var/remediation-evidence/folder_move_cycle.py preserves exact reproduction. Supported concurrent moves can create a cycle; ancestry reads and mutation must share topology admission before validation. Library agent owns follow-on repair."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:3530",
@@ -1353,12 +1350,10 @@
       "line": 3530,
       "alias": "DATA-09",
       "title": "[DATA-09] Unbounded sortOrder Overflows PG Integer",
-      "status": "unresolved",
-      "canonicalKey": "library.sort-order-pg-bound",
+      "status": "confirmed",
+      "canonicalKey": "library.portable-sort-order-bounds",
       "duplicateOf": null,
-      "evidence": [
-        "library_routes.py:90/103 andannotations.py:241/273 StrictIntge0 lack2147483647 cap whilemodelInteger isPgint4. SQLiteacceptslargerint; actualPostgreSQL routecase required beforeconfirmed, noPgtestendpoint available in this scoped audit."
-      ]
+      "evidence": "Root actual authorized Folder/Collection PATCH reproduced SQLite OverflowError atcommit for2**63; SQLite accepted2**31 beforefix. Follow-up local input repair bounds library and annotation sortOrder to portable int4maximum2**31-1; tests/backend/test_sort_order_bounds.py two actualHTTP cases acceptmax and reject2**63/2**31. PostgreSQL execution remains unverified. Supported SQLite failure is proven; local repair not released."
     },
     {
       "sourceKey": "BUG_REPORT.md:3542",
@@ -1405,10 +1400,12 @@
       "line": 3576,
       "alias": "FE-26",
       "title": "[FE-26] InviteDialog False Modal — No Trap/Inert/Restore",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:3576",
+      "status": "hardening",
+      "canonicalKey": "classroom.invite-modal-focus",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "ClassroomTeacherPage.tsx:95-119 InviteDialog uses a div with role=dialog/aria-modal and autofocus Close, without native showModal/inert/focus-trap/restore effects. This is a concrete accessibility hardening candidate; browser Tab/background activation receipt against the full teacher page has not been obtained. No browser focus qualification is claimed."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:3586",
@@ -1521,10 +1518,12 @@
       "line": 3668,
       "alias": "FE-29",
       "title": "[FE-29] Autosave Debounce Lost on Close (No Unload Flush)",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:3668",
+      "status": "hardening",
+      "canonicalKey": "annotations.close-durability-window",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "AnnotationWorkspace subscription debounces local recovery persistence250ms, autosave separately debounces server writes, and cleanup cancels timer. Unsaved count remains visible until acknowledged; browser termination before durable completion cannot promise every keystroke retention. A qualified immediate draft or navigation-guard contract would improve this window; no falsely Saved state or committed server data loss is shown."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:3678",
@@ -1569,10 +1568,12 @@
       "line": 3708,
       "alias": "SEC-37",
       "title": "[SEC-37] restore.sh World-Readable Staging + No Lock",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:3708",
+      "status": "hardening",
+      "canonicalKey": "operations.restore-local-permissions",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "deploy/scripts/restore.sh:24-39 creates staging then chowns10001. Restrictive umask and an operator lock would improve local restore hygiene, but current staging permissions depend on the deployment parent directory/umask; no unprivileged read or overlapping authorized restore was reproduced. Snapshot rollback preserves originals on activation failure. No secrets or world-readable contents are inferred."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:3718",
@@ -1711,10 +1712,12 @@
       "line": 4127,
       "alias": "CONC-16",
       "title": "[CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:4127",
+      "status": "confirmed",
+      "canonicalKey": "study.aggregate-concurrency",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual valid HTTP pack/course prepare/issue/activate/redeem(two learners), then concurrent real SQLite POST readiness route closures with aggregate-read barriers. First write yields204 plus UNIQUE course_id IntegrityError/count1; next pair both204 but count1->2 instead of3. var/remediation-evidence/study_readiness_race.py preserves red. AI event caller updates same aggregate but requires separately qualified pilot; its gating was not bypassed. Root currently owns follow-on repair; no release claimed."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:4182",
@@ -1809,11 +1812,11 @@
       "line": 4457,
       "alias": "FE-35",
       "title": "[FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": null,
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Same deliberate callback failure retention as BUG60. Current callback/two-batch reproduction confirms paused error, not an automatic conflicting resend. Workspace Retry/reload recreates saver using current manifest and replayDraft; no actual transient storage failure plus full retry/two-batch permanent conflict has been established. Dropping queue or advancing version before ACK would weaken recovery guarantees."
       ]
     },
     {
@@ -2060,7 +2063,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": null,
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "BUG_REPORT.md:5591",
@@ -2068,10 +2071,10 @@
       "line": 5591,
       "alias": "CONC-18",
       "title": "[CONC-18] Concurrent Task Submissions Race Past Monotonic Throttle Check Causing Unhandled Unique Constraint 500 Crash on uq_study_progress_task",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:5591",
+      "status": "confirmed",
+      "canonicalKey": "study.task-submission-serialization",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Real HTTP valid pack/course/invitations/activation/redemption then actual submit_task endpoint with two real SQLite sessions for same learner/task. Barrier after real StudyProgress reads permits both initial throttle checks. var/remediation-evidence/study_task_submission_race.py: one200 attemptCount1, one unhandled IntegrityError UNIQUE(session_id,task_id), durable attemptCount1. Rate timestamp recorded only after commit, so admission does not serialize supported simultaneous requests. No product repair yet. Follow-up local repair now wraps throttle/read/write in per-learner shared admission lock. Reviewed test_study_submission_concurrency.py uses valid HTTP lifecycle then two actual endpoint/SQLite sessions, seeded and first progress; root green result200/429 with one preserved increment, no unique error. Current local repair not released."
     },
     {
       "sourceKey": "BUG_REPORT.md:5659",
@@ -2191,10 +2194,10 @@
       "line": 5994,
       "alias": "CONC-20",
       "title": "[CONC-20] Uncommitted Database Transaction Held During Multi-Minute Desktop Slide Archive Extraction Blocks Global Database Access and Triggers SQLite Lock Timeouts",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:5994",
+      "status": "confirmed",
+      "canonicalKey": "desktop.install-sqlite-write-lock",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual valid package finalizer and real SQLite, pause install_prepared_package after _install Slide.flush. Independent unrelated Folder commit fails sqlite OperationalError database is locked; releasing installer completes finalization. var/remediation-evidence/desktop_finalizer_write_lock.py bounds SQLite timeout at0.2seconds for proof. Production outage frequency/duration unmeasured and PostgreSQL global lock not claimed; installer retains SQLite write transaction across extraction."
     },
     {
       "sourceKey": "BUG_REPORT.md:6100",
@@ -2242,7 +2245,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": "BUG_REPORT.md:5525",
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "BUG_REPORT.md:6340",
@@ -2460,10 +2463,10 @@
       "line": 6762,
       "alias": "SEC-49",
       "title": "[SEC-49] Manual Classroom Accepts Trashed-Folder Slides",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:6762",
+      "status": "false positive",
+      "canonicalKey": "classroom.retained-publication-folder-trash",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Manual create selects explicit slide IDs at classroom_routes.py:950 then applies slide_readiness:423 requiring PUBLISHED, passed privacy, static delivery, SHA and active individual PublicationGrant. Folder trash is organizational and intentionally preserves granted published slides/snapshots (tests/backend/test_sharing_lifecycle.py preserved snapshot contract; root folder-trash repair). An approved published slide retained in a trashed folder does not bypass publication; private/ungranted slides fail readiness. No outsider access or revoke requirement is established."
     },
     {
       "sourceKey": "BUG_REPORT.md:6772",
@@ -2595,8 +2598,8 @@
       "title": "[DATA-23] Desktop Library Items Query Hardcodes 100-Folder Limit Without Pagination Silently Truncating Folder Trees for Paired Clients",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": "BUG_REPORT.md:2808",
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "BUG_REPORT.md:7078",
@@ -2682,10 +2685,12 @@
       "line": 7411,
       "alias": "FE-49",
       "title": "[FE-49] AnnotationAutosave.drain() Leaves inFlight Batch Wedged on 4xx Client Errors Permanently Freezing User Workspace",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:7411",
+      "status": "hardening",
+      "canonicalKey": "annotations.client-error-recovery",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "autosave.ts:467-473 intentionally stops on nonretryable4xx and retains inFlight work. Authentication, layer locks and invalid operations must be resolved before retrying; removing rejected batch silently would discard edits. Workspace supports reload/reset and visible unsaved counts. A normal valid mutation permanently wedged after correcting its actual4xx cause remains unproved."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:7455",
@@ -2746,9 +2751,7 @@
       "status": "confirmed",
       "canonicalKey": "viewer.dynamic-resource-telemetry",
       "duplicateOf": null,
-      "evidence": [
-        "OpenSeadragonViewer.tsx:334 filters resource timing only by /tiles/, excluding supported dynamic /_pathlab_ome/ responses. This omits dynamic duration samples. Tile-load-failed still feeds independent failure sampling, so total network throttling disablement is overstated; the proven residual is missing dynamic latency telemetry."
-      ]
+      "evidence": "PerformanceObserver accepts supported /_pathlab_ome/ alongside /tiles/. Viewer regression feeds12slow resource samples through actual observer callback and network timer; both paths reduce jobLimit to2 under existing auto policy.39viewer/networktests pass. Failure sampling independent; no clinical/performance qualification inferred."
     },
     {
       "sourceKey": "BUG_REPORT.md:7669",
@@ -2845,10 +2848,10 @@
       "line": 8095,
       "alias": "FE-54",
       "title": "[FE-54] Synchronous URL.revokeObjectURL() in downloadStudyInvitations() Immediately Aborts Asynchronous File Downloads in Safari & Firefox",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:8095",
+      "status": "false positive",
+      "canonicalKey": "study.blob-download-current-browser",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual Firefox and WebKit invitation/progress download events complete and downloaded files equal exact synthetic CSV contents despite immediate URL revoke;4passes, productunchanged. docs/remediation/evidence/viewer-download-browser-audit.json and apps/web/e2e/study-download-audit.spec.ts. Claimed current asynchronous download abort counterexample; older Safari/physicaldevices not qualified."
     },
     {
       "sourceKey": "BUG_REPORT.md:8144",
@@ -2895,10 +2898,12 @@
       "line": 8310,
       "alias": "CONC-24",
       "title": "[CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:8310",
+      "status": "confirmed",
+      "canonicalKey": "classroom.synthetic-reset-retirement-race",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Narrow supported race: publish and terminate marshal retirement to event loop, but synchronous synthetic-reset route calls hub.reset_session directly in worker thread. Actual two-room subscriptions plus reset/disconnect overlap, with scheduling barrier in real set.discard after registered check: reportedConnections0 while other-room subscriber remains registered and actualRemaining1. var/remediation-evidence/hub_synthetic_reset_count.py preserves proof. General arbitrary-thread publish race is overstated; telemetry/capacity drift under synthetic reset is confirmed."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:8357",
@@ -3008,11 +3013,11 @@
       "line": 8777,
       "alias": "FE-58",
       "title": "[FE-58] AnnotationAutosave Abandons In-Flight Queue and Freezes Version Advancement on onAcknowledged Failure Locking 409 Conflict",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": "BUG_REPORT.md:4457",
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Same qualified fail-closed ACK boundary as BUG60/FE35: error retains original inFlight and all later work. A generic injected callback error is reproduced, but supported Workspace ACK invariant failure and failed recovery have not been. Better explicit retry UX is hardening; perpetual server conflict claim is unproved."
       ]
     },
     {
@@ -3034,10 +3039,12 @@
       "line": 8843,
       "alias": "DATA-28",
       "title": "[DATA-28] finalize_upload() Leaves Storage Reservation Stranded for 24 Hours on Corrupt or Invalid Uploads",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:8843",
+      "status": "hardening",
+      "canonicalKey": "upload.invalid-spool-retry-retention",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "main.py shared finalizer checks token/reservation state, exact length and TIFF signature before installation. Invalid spool leaves UPLOADING reservation for retry/cancel and expiry worker cleanup; quota remains charged. Immediate release on validation failure would require a failed-upload recovery policy. No unbounded reservation bypass or lost valid installed data is established."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:8875",
@@ -3045,11 +3052,11 @@
       "line": 8875,
       "alias": "BUG-43",
       "title": "[BUG-43] validate_folder_parent() Missing Cycle Guard Causes Infinite Loop and Worker Hang on Cyclic Ancestry",
-      "status": "unresolved",
-      "canonicalKey": "library.folder-cycle",
-      "duplicateOf": null,
+      "status": "confirmed",
+      "canonicalKey": "library.folder-topology-serialization",
+      "duplicateOf": "BUG_REPORT.md:3518",
       "evidence": [
-        "library.py:89-104 first ancestrywalk has no seen set; folder_depth later usesseen. A cyclic ancestry notcontaining movedfolder can hang, but supported writer producingcycle needs real concurrent fixture; malformed DBcycle alone is corrupt-data hardening."
+        "The ancestry while loop has no visited guard in library.py:82-96. Concurrent actual folder PATCH reproduction creates A->B->A from valid initial roots, proving cyclic persisted data is reachable through supported callers. Subsequent ancestry validation through that cycle has no terminating branch. Infinite traversal was not run; the creation race is reproduced in var/remediation-evidence/folder_move_cycle.py. Follow-on topology repair is owned by Library agent."
       ]
     },
     {
@@ -3111,10 +3118,12 @@
       "line": 9030,
       "alias": "DEV-02",
       "title": "[DEV-02] Standalone / Local Development Missing Fallback Route for /tiles/{public_id}/{version}/{tile_path} Returns 404",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:9030",
+      "status": "false positive",
+      "canonicalKey": "development.versioned-tile-proxy",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "apps/web/vite.config.ts:29-33 rewrites versioned /tiles/{publicId}/{version}/{path} to existing /api/v1/public/slides/{publicId}/tiles/{path}. main.py:1124 serves that public tile fallback. The fullstack Caddy path is separately configured. Claimed missing local browser tile route ignores existing development proxy rewrite."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:9056",
@@ -3161,10 +3170,10 @@
       "line": 9126,
       "alias": "CONC-28",
       "title": "[CONC-28] ClassroomTeacherPage Premature suppressPublish Clearance Creates Animation Frame Feedback Loop",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:9126",
+      "status": "false positive",
+      "canonicalKey": "classroom.osd-remote-controller-no-echo",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual native OpenSeadragon two-page syntheticDZI browser fixture classroom-teacher-osd-integrity.spec.ts, Chromium PLAYWRIGHT_PORT5191 workers1:1passed9.9seconds/session57342 exit0. Baseline ignored var/remediation-evidence/classroom-teacher-osd-baseline with actual-osd-receipts JSON andteacher/student screenshots. Slide2 button generates presenterPOST without extra motion andstudent follows; remote learner controller viewport update applies without teacherPOST; reclaim staysquiet across1000+700ms. Transport/events mocked but OSD/render/callback execution actual. No teacherproductchange, no productiontransportqualification claim."
     },
     {
       "sourceKey": "BUG_REPORT.md:9156",
@@ -3274,10 +3283,12 @@
       "line": 9420,
       "alias": "BUG-50",
       "title": "[BUG-50] create_ome_ingest and create_result_delivery Commit Database Records Before File Creation Leaving Ingests in Deadlock State",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:9420",
+      "status": "confirmed",
+      "canonicalKey": "desktop.reservation-spool-creation",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual registered create_ome_ingest closure: inject PermissionError only generated spool Path.open(xb) after DB commit. Durable row remains uploading, spool absent, and legitimate next create returns409 INGEST_ALREADY_ACTIVE. Failure response never returns created identity. var/remediation-evidence/desktop_create_file_fault.py preserves proof. Prepared create has same commit-before-open order; result retry returns existing row despite missing spool (static sibling trace). Root owns follow-on desktop repair."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:9463",
@@ -3376,10 +3387,12 @@
       "line": 9665,
       "alias": "DATA-34",
       "title": "[DATA-34] main.py TUS finalize_upload() Copy Failure Leaves Orphaned .partial Files on Cross-Device Moves",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:9665",
+      "status": "hardening",
+      "canonicalKey": "upload.partial-copy-recovery",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "First-batch main.py:908-921 preserves source spool until commit and removes previous .partial before every retry. A failed fallback copy can leave a temporary destination, bounded by the already charged reservation; retry replaces it and deletion removes slide storage. Immediate staging cleanup would improve fault hygiene, but claimed source loss/unbounded cross-device storage leak is not demonstrated against current durability repair."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:9698",
@@ -3424,10 +3437,10 @@
       "line": 9816,
       "alias": "FE-62",
       "title": "[FE-62] ClassroomTeacherPage Slide Navigator Selection Omits Viewport Broadcast Leaving Students Stranded on Prior Slide in Guide Mode",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:9816",
+      "status": "confirmed",
+      "canonicalKey": "classroom.osd-slide-open-publish",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual native OSD two-page WebKit regression: guided slide2 with identical geometry emits no presenter POST when publication depends solely on animation events. Teacher open handler now publishes under existing guide/controller authorization gates. Actual native OSD matrix passes Chromium, Firefox, WebKit and mobile Chromium; transport remains synthetic. Local repair, not deployed."
     },
     {
       "sourceKey": "BUG_REPORT.md:9849",
@@ -3487,10 +3500,12 @@
       "line": 10003,
       "alias": "CONC-31",
       "title": "[CONC-31] ClassroomRoutes.stream_response() Event Sequence Race Condition Seeds Subscriber with Stale eventSequence Desynchronizing Client Stream Recovery",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:10003",
+      "status": "false positive",
+      "canonicalKey": "classroom.stream-bootstrap-queue",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "stream_response subscribes before sampling initial event sequence and asynchronous state version. Events published during bootstrap remain queued. Old initial sequence followed by queued next sequence is contiguous; skipped critical sequence or version mismatch triggers client resync in streamSync.ts:34-60. subscription_is_current revalidates admission before ready. Report treats intentionally retained bootstrap queue as stale desynchronization; no lost event mechanism is established."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:10064",
@@ -3626,10 +3641,12 @@
       "line": 10490,
       "alias": "CONC-34",
       "title": "[CONC-34] Concurrent Desktop Chunk Uploads Double-Increment received_bytes Permanently Freezing Ingest in Uploading State",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:10490",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.chunk-offset-serialization",
+      "duplicateOf": "BUG_REPORT.md:3127",
+      "evidence": [
+        "Same proved overlapping PATCH mechanism as CONC10. Actual SQLite route reproduction yields acknowledged[6,4], durable received_bytes4, six-byte mixed spool AAAABB. The report double-increment explanation is incorrect: ORM writes stale in-memory offsets, which regress rather than atomically increment. Native finalization independently checks hash/size. Root owns follow-on repair; no release claimed."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:10528",
@@ -3724,10 +3741,12 @@
       "line": 10821,
       "alias": "CONC-36",
       "title": "[CONC-36] Read-Route Concurrency Stampede on Course Expiration Triggers Lock Contention in learner_session",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:10821",
+      "status": "hardening",
+      "canonicalKey": "study.lazy-expiration-pressure",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "learner_session checks session expiry before course expiry; ordinary sessions expire with original course end. Supported admin update_course can shorten end after issuance, making lazy course-ending write reachable. This short idempotent transaction may face simultaneous clients; no actual read stampede/lock timeout was reproduced. Conditional atomic end or scheduler cleanup is a performance/operational qualification, not a demonstrated data corruption bug."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:10856",
@@ -3735,10 +3754,10 @@
       "line": 10856,
       "alias": "DATA-39",
       "title": "[DATA-39] Duplicate Feature Index in StudyPage.tsx Distorts Local AI Neural Network Input Vector",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:10856",
+      "status": "hardening",
+      "canonicalKey": "study.feature-schema-qualification",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "StudyPage.tsx:229-231 deliberately/currently supplies identical active duration values at positions1 and5; traceSim.worker.ts infer uses qualified manifest/session tensor input. No training-feature semantic schema establishes that position5 must differ, so neural distortion is not proven. reasonForAction traceSim.ts:65-75 reads position1 for break and never position5; duplicate does not distort this deterministic reason path. Feature-semantic contract validation belongs to pilot/model qualification before activation."
     },
     {
       "sourceKey": "BUG_REPORT.md:10891",
@@ -3823,9 +3842,7 @@
       "status": "confirmed",
       "canonicalKey": "annotation.viewport-bounds",
       "duplicateOf": null,
-      "evidence": [
-        "annotation_routes.py:385-402 requires allfourbounds but never min<=max; invertedfinitequery silentlyempty200. Narrowinputvalidation defect, notcorruption; shouldreturn422."
-      ]
+      "evidence": "Annotation list rejects incomplete, nonfinite or inverted viewport bounds with422 ANNOTATION_INVALID_VIEWPORT. Four actual HTTP regressions returned200 before repair,422 after; existing CRUD passes. Local input-boundary repair."
     },
     {
       "sourceKey": "BUG_REPORT.md:11197",
@@ -3924,11 +3941,11 @@
       "line": 11500,
       "alias": "BUG-58",
       "title": "[BUG-58] validate_folder_parent Lacks Loop Cycle Detection Causing Infinite While Loop on Corrupt Hierarchies",
-      "status": "unresolved",
-      "canonicalKey": "library.folder-cycle",
-      "duplicateOf": "BUG_REPORT.md:8875",
+      "status": "confirmed",
+      "canonicalKey": "library.folder-topology-serialization",
+      "duplicateOf": "BUG_REPORT.md:3518",
       "evidence": [
-        "library.py:89-104 first ancestrywalk has no seen set; folder_depth later usesseen. A cyclic ancestry notcontaining movedfolder can hang, but supported writer producingcycle needs real concurrent fixture; malformed DBcycle alone is corrupt-data hardening."
+        "Same unguarded ancestry traversal and proved concurrent folder move cycle as BUG43/CONC14. This is not limited to invented corrupt legacy data: actual registered SQLite PATCH callers both commit A->B and B->A. No infinite loop was executed; finite cycle creation and current loop source establish reachability. Library agent owns repair."
       ]
     },
     {
@@ -3964,7 +3981,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": "BUG_REPORT.md:5525",
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "BUG_REPORT.md:11646",
@@ -3972,11 +3989,11 @@
       "line": 11646,
       "alias": "BUG-60",
       "title": "[BUG-60] autosave.ts Skips In-Flight Cleanup and Version Advancement on Acknowledgement Failure",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": "BUG_REPORT.md:4457",
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Current actual AnnotationAutosave callback-failure/two-batch reproduction deliberately stays error with inFlight and second mutation retained; flush does not bypass error. Workspace uses store.autosaveHooks for validated in-memory ACK, with reload/reset and draft replay recovery; asynchronous draft persistence reports its own failure. Retaining unacknowledged work is fail-closed, not proof of perpetual409. A supported callback/invariant failure followed by full Workspace retry is still needed before declaring deadlock."
       ]
     },
     {
@@ -4011,10 +4028,12 @@
       "line": 11756,
       "alias": "BUG-61",
       "title": "[BUG-61] FolderTree.tsx flatten Lacks Visited Guard Crashing Browser Tab on Cyclic Hierarchies",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:11756",
+      "status": "hardening",
+      "canonicalKey": "library.client-cycle-defense",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "FolderTree.tsx:33-45 recursively expands cached child lists without visited IDs. Backend concurrent topology corruption is separately confirmed, but a cycle has no root and ordinary fresh navigation does not necessarily deliver it as an expanded rooted tree. Defensive visited filtering is useful; browser crash after actual cache refresh/reparent ordering remains unproved."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:11803",
@@ -4311,10 +4330,12 @@
       "line": 12466,
       "alias": "OPS-14",
       "title": "[OPS-14] Capacity Monitor Non-Atomic + Advisory-Only Window",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12466",
+      "status": "hardening",
+      "canonicalKey": "worker.serial-capacity-monitor",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual report targets StorageCapacityMonitor worker.py:65-101, not signed capacity override files. WorkerScheduler calls report_capacity synchronously in its single worker loop; current deployed worker is one process. Advisory threshold logs complement separate storage admission limits. Concurrent check callers, hysteresis and tighter warning intervals are additional qualification; no supported lost transition or capacity bypass is reproduced."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12476",
@@ -4346,10 +4367,10 @@
       "line": 12496,
       "alias": "FE-69",
       "title": "[FE-69] OSD Rotation Persists Across Slide Change",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12496",
+      "status": "confirmed",
+      "canonicalKey": "viewer.rotation-source-reset",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual OpenSeadragon API viewport.getRotation=90 survivesNext beforefix. Follow-up sourceidentity switch resets viewport/UI angle0 and closes dial, same-source reconnect preserved. Fourengine actualangle regression passes in shared-viewer-responsive.spec.ts; docs/remediation/evidence/viewer-download-browser-audit.json. Confirmed/localrepair, not upstream or deployed."
     },
     {
       "sourceKey": "BUG_REPORT.md:12506",
@@ -4383,10 +4404,10 @@
       "line": 12546,
       "alias": "REL-10",
       "title": "[REL-10] 413 Without Drain Poisons Keep-Alive",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12546",
+      "status": "false positive",
+      "canonicalKey": "request-limit-keepalive-discard",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual request_limits AuthBodyLimitMiddleware under uvicorn h11 on real loopback TCP: pipelined oversizedPOST receives413 and subsequent GET on same socket receives200/bodyOK. Both Content-Length and chunked body exercised in ignored request_limit_keepalive.py and request_limit_keepalive_chunked.py. Middleware lacks explicit drain but supported server discards remaining request correctly; asserted keepalive poisoning counterexample. Other proxy/server combinations unqualified."
     },
     {
       "sourceKey": "BUG_REPORT.md:12556",
@@ -4394,10 +4415,12 @@
       "line": 12556,
       "alias": "CONC-40",
       "title": "[CONC-40] Prewarm Shutdown Race (_loop Unsynchronized)",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12556",
+      "status": "hardening",
+      "canonicalKey": "classroom.prewarm-shutdown-contract",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "classroom_prewarm.py request captures loop and schedules wake; close clears pending work, cancels/awaits task, and removes loop. A new request after event-loop shutdown could raise RuntimeError, but normal server lifecycle drains routes before lifespan close. No supported late caller was shown to survive that shutdown order. Defensive closed-loop handling is hardening, not established live prewarm loss."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12566",
@@ -4418,10 +4441,12 @@
       "line": 12576,
       "alias": "FE-71",
       "title": "[FE-71] Select-Visible Ghost Count",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12576",
+      "status": "confirmed",
+      "canonicalKey": "library.processing-selection-ghost",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual current AdminPage processing poll callback extracted via TypeScript AST and executed: selected A/B, A becomes ready and is removed, page now[B], selected.size2, actualSelectedVisible1, Select-visible checked=false. Poll setPage at506-539 does not prune selection; counts/dialogs use selected.size while mutations derive visible selectedSlides. Narrow ghost count reproduced, not unauthorized mutation. Follow-on UI repair pending."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12586",
@@ -4429,10 +4454,12 @@
       "line": 12586,
       "alias": "FE-72",
       "title": "[FE-72] Shared Tree Keyboard Hijack + Forced Open",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12586",
+      "status": "confirmed",
+      "canonicalKey": "sharing.keyboard-editable-guard",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Actual current SharedViewerPage keyboard handler extracted and dispatched against jsdom contenteditable div and select: ArrowRight triggers select(1) for both, while default behavior is not prevented. Current guard excludes only HTMLInputElement/HTMLTextAreaElement. Hardcoded details open is real, but React unchanged open prop alone does not prove collapse reopens every render; that report part remains overstated. Follow-on keyboard repair pending."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12596",
@@ -4440,10 +4467,12 @@
       "line": 12596,
       "alias": "FE-73",
       "title": "[FE-73] Unhandled API 409 Derivative Error Freezes Publish Dialog",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12596",
+      "status": "confirmed",
+      "canonicalKey": "library.publish-dialog-failure",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Repaired locally in first batch, not released: AdminPage.tsx:1728-1734 sets publishBusy, awaits publishSelected with catch message and finally resets busy, keeping review dialog available on409/failure. Current local diff confirms previous unhandled promise path replaced. Parent owns frontend test/release evidence."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12610",
@@ -4451,10 +4480,10 @@
       "line": 12610,
       "alias": "FE-74",
       "title": "[FE-74] Floating Annotation Workspace Occludes Micron Scale Bar & Rotation Controls",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12610",
+      "status": "confirmed",
+      "canonicalKey": "annotation.rotation-control-occlusion",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": "Actual elementFromPoint rendered defaultannotationdock covers rotation at320x568 and toolstrip at844x390. Narrowfollowup CSS moves rotation above mobile dock/clear of shortlandscape strip and anchorspopupinward. Fourbrowser×fourviewport16 reachability/scale-separation/preset checks pass, docs/remediation/evidence/viewer-download-browser-audit.json. Confirmed localrepair; no physicaldevice/oldbrowser claim."
     },
     {
       "sourceKey": "BUG_REPORT.md:12626",
@@ -4488,10 +4517,12 @@
       "line": 12654,
       "alias": "FE-77",
       "title": "[FE-77] Dev Server Launcher Default Excludes Classroom API Routes (HTTP 404)",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12654",
+      "status": "hardening",
+      "canonicalKey": "development.local-launcher-flags",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Original checkout contains untracked dev.ps1, but git ls-files dev.ps1 is empty and the clean current/follow-on worktree has no such launcher. Its original api case omits role/feature flags, so users of that private script must configure them. Tracked scripts/run_fullstack_tests.py:399 explicitly enables all role/Classroom and public tiles. Qualify private local launch setup, not a demonstrated current tracked product route defect."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12675",
@@ -4551,10 +4582,12 @@
       "line": 12747,
       "alias": "FE-82",
       "title": "[FE-82] Saved Views Route Omits Canonical Breadcrumb Handling and View State Rehydration",
-      "status": "unresolved",
-      "canonicalKey": "BUG_REPORT.md:12747",
+      "status": "confirmed",
+      "canonicalKey": "library.saved-view-rehydration",
       "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "evidence": [
+        "Repaired locally in first batch, not released: AdminPage.tsx:306-328 maps saved filters, all tags, search/date fields and sort into URL/UI state; saved location resolves a canonical titled breadcrumb at656-669. Root UI agent owns regression and release evidence."
+      ]
     },
     {
       "sourceKey": "BUG_REPORT.md:12764",
@@ -4578,7 +4611,7 @@
       "status": "confirmed",
       "canonicalKey": "library.single-action-selection",
       "duplicateOf": null,
-      "evidence": "apps/web/src/pages/AdminPage.tsx:753,787 resets selected to one slide for editor/actions. Existing multiselection cleared; intended UX decision required."
+      "evidence": "Single-card edit/move/collection/delete/publication actions retain separate target IDs; cancel, success, retry and trash preserve unrelated bulk selection.52scoped Library/annotation tests pass, including processing-removal and cardtarget guards. Local repair."
     },
     {
       "sourceKey": "BUG_REPORT.md:12799",
@@ -4600,7 +4633,7 @@
       "status": "confirmed",
       "canonicalKey": "library.navigation-boundaries",
       "duplicateOf": null,
-      "evidence": "apps/web/src/components/library/LibraryToolbar.tsx:75-77 back/forward/up enabled without boundary props. Browser-stack exit reproducible with empty app history; no history-length heuristic proposed."
+      "evidence": "Library toolbar availability follows mounted library route keys and installed Router PUSH/POP/REPLACE navigation. Unavailable Back/Forward/Up disable; Back preserves known Forward. Scope is the observed library trail, not unobservable global browser history.52scoped tests pass. Local repair."
     },
     {
       "sourceKey": "BUG_REPORT.md:12834",
@@ -4611,7 +4644,7 @@
       "status": "confirmed",
       "canonicalKey": "annotation.revision-selection",
       "duplicateOf": null,
-      "evidence": "apps/web/src/annotations/AnnotationWorkspace.tsx:688 clears only workspace reset; selection change not cleared. Stale revision UI confirmed. Claimed cross-annotation corruption false: server annotations.py:1156-1157 rejects mismatched revision.annotation_id404."
+      "evidence": "AnnotationWorkspace clears selected revision on primary-selection changes and checks current selected ID before applying asynchronous history/restores. Immediate/deferred selection regressions pass in52-test Library/annotation scope; server mismatched revision remains404. Local repair."
     },
     {
       "sourceKey": "BUG_REPORT.md:12862",
@@ -4619,10 +4652,10 @@
       "line": 12862,
       "alias": "FE-88",
       "title": "[FE-88] Service Role Capability Header Mismatch Exposes Dead Classroom Route on General Workers",
-      "status": "confirmed",
+      "status": "false positive",
       "canonicalKey": "library.capability-role",
       "duplicateOf": null,
-      "evidence": "server/wsi_viewer/library_routes.py:310-312 header only flag; main.py:359 general role blocks classroom paths. Role general + classroom_enabled true exposes unusable launcher absent correct edge proxy routing."
+      "evidence": "The supported reverse proxy routes Classroom APIs to the dedicated service and retains the general service capability flag for frontend discovery. Caddy dedicated routing is the deployment contract; probing the general service directly does not demonstrate a supported-path capability bug."
     },
     {
       "sourceKey": "BUG_REPORT.md:12888",
@@ -4736,7 +4769,7 @@
       "status": "confirmed",
       "canonicalKey": "library.form-length",
       "duplicateOf": null,
-      "evidence": "apps/web/src/components/library/UploadWorkspace.tsx and AdminPage edit dialog lack matching maxLength; API validates, so rejected overlong form is UX failure not trust-boundary bypass."
+      "evidence": "Admin edit fields use the nine existing API limits and programmatic display-name clipping. Native form remains accessible;52Library/annotation tests and TypeScript/ESLint pass. Local repair."
     },
     {
       "sourceKey": "CYBERSECURITY_REPORT.md:22",
@@ -5073,10 +5106,10 @@
       "line": 909,
       "alias": "FE-05",
       "title": "[FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation",
-      "status": "confirmed",
-      "canonicalKey": "desktop.folder-limit",
+      "status": "fixed upstream",
+      "canonicalKey": "classroom.setup-folder-pagination",
       "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "evidence": "Current classroom_routes.py:714 setup folders accepts q/cursor and returns bounded nextCursor/readiness; ClassroomTeacherPage.tsx:268,981-988 stores/loads setup cursor; search input at1120. Existing actual HTTP test tests/backend/test_classroom.py:2208 test_setup_folder_search_is_cursor_bounded_and_finds_deep_late_slides covers late/deep folders, search, cursor and blocked delivery. This is separate from Desktop folder snapshot and must not share that canonical key."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:921",
@@ -5416,12 +5449,10 @@
       "line": 1866,
       "alias": "CONC-05",
       "title": "[CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates",
-      "status": "unresolved",
-      "canonicalKey": "study.aggregate-concurrency",
+      "status": "confirmed",
+      "canonicalKey": "study.readiness-aggregate-race",
       "duplicateOf": "BUG_REPORT.md:1900",
-      "evidence": [
-        "study_routes.py:1248-1260 and1283-1297 still select/create aggregate then increment ORM fields without admission lock. Exact concurrent supported learner reproduction required; SQL race inferred alone is not accepted as proof."
-      ]
+      "evidence": "Current follow-up test_study_aggregate_concurrency.py actualHTTP creates valid closed_pilot_trace_sim acknowledged course, prepares/issues/activates/redeems allowed learners and completes task. Registered AI/readiness routes run concurrent realSQLite sessions for first/existing/mixed counters; root scoped native regressions green after shared increment_readiness_aggregate SQLite/PostgreSQL on_conflict_do_update repair. Same aggregate firstrow/lostincrement mechanism was reproduced by actual readiness route earlier. Eligible AI caller now explicitly exercised, no gate bypass. This is confirmed/repaired locally; not upstream, deployed or model/clinical qualified."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:1924",
@@ -5477,10 +5508,10 @@
       "line": 2080,
       "alias": "DATA-02",
       "title": "[DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:2080",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.finalizer-commit-orphan",
+      "duplicateOf": "BUG_REPORT.md:2114",
+      "evidence": "Actual valid prepared package + real SQLite finalizer evidence var/remediation-evidence/desktop_finalizer_commit_fault.py injects SQLAlchemy OperationalError only at post-install ready_private commit. _finalize propagates; actual _mark_failed produces failed ingest, zero Slide rows, one orphan descriptor, retained archive. _install catches only OSError/PreparedIngestError/KeyError/TypeError; session-close rolls back Slide without cleaning installed UUID directory. Cleanup must distinguish rollback from uncertain committed acknowledgement."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:2132",
@@ -5651,12 +5682,10 @@
       "line": 2697,
       "alias": "CONC-08",
       "title": "[CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates",
-      "status": "unresolved",
-      "canonicalKey": "study.aggregate-concurrency",
+      "status": "confirmed",
+      "canonicalKey": "study.readiness-aggregate-race",
       "duplicateOf": "BUG_REPORT.md:1900",
-      "evidence": [
-        "study_routes.py:1248-1260 and1283-1297 still select/create aggregate then increment ORM fields without admission lock. Exact concurrent supported learner reproduction required; SQL race inferred alone is not accepted as proof."
-      ]
+      "evidence": "Current follow-up test_study_aggregate_concurrency.py actualHTTP creates valid closed_pilot_trace_sim acknowledged course, prepares/issues/activates/redeems allowed learners and completes task. Registered AI/readiness routes run concurrent realSQLite sessions for first/existing/mixed counters; root scoped native regressions green after shared increment_readiness_aggregate SQLite/PostgreSQL on_conflict_do_update repair. Same aggregate firstrow/lostincrement mechanism was reproduced by actual readiness route earlier. Eligible AI caller now explicitly exercised, no gate bypass. This is confirmed/repaired locally; not upstream, deployed or model/clinical qualified."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:2741",
@@ -5679,8 +5708,8 @@
       "title": "[DATA-06] Desktop Library Synchronization Truncates Folders at 100 with No Pagination or Cursor",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": "BUG_REPORT.md:2808",
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:2800",
@@ -5804,10 +5833,12 @@
       "line": 3093,
       "alias": "CONC-10",
       "title": "[CONC-10] Desktop Resumable Chunk Has No Lock + Trusts DB Offset + Unbounded Retry Flood",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:3093",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.chunk-offset-serialization",
+      "duplicateOf": "BUG_REPORT.md:3127",
+      "evidence": [
+        "Actual registered upload_prepared_ingest PATCH closures with two real SQLite sessions and async stream barriers both admit offset0. Request B commits six BBBBBB bytes, request A then commits four AAAA bytes. Responses acknowledge[6,4]; durable offset regresses4; spool becomes AAAABB. Ignored var/remediation-evidence/desktop_chunk_race.py preserves reproduction. Hash finalization still rejects corruption; no hash bypass or doubled increment claimed. OME/prepared share this route; result delivery has same static pattern. Root owns follow-on repair; preserve source64MiB chunk/1MiB buffer bounds."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3108",
@@ -5904,12 +5935,10 @@
       "line": 3211,
       "alias": "PERF-06",
       "title": "[PERF-06] GET .../content Streaming FD Held Across Yield (Slow-Loris Leak)",
-      "status": "unresolved",
-      "canonicalKey": "desktop.content-disconnect-close",
+      "status": "hardening",
+      "canonicalKey": "desktop.disconnect-deterministic-close",
       "duplicateOf": "BUG_REPORT.md:3245",
-      "evidence": [
-        "desktop_routes.py:796-806 streams an authenticated bounded source using a with-open synchronous generator. Holding one descriptor during an active download is expected. The report does not reproduce post-disconnect retention or establish framework generator finalization behavior. Unresolved: run actual early-disconnect ASGI/server test with a file-close receipt before calling it a leak or replacing range semantics."
-      ]
+      "evidence": "Actual paired desktop content32MiB through real uvicorn/h11 loopback TCP, client closes after200headers339bytes. Exact var/remediation-evidence/desktop_content_disconnect.py tracks real opened source: descriptor remains open after2seconds, closes after forced gc.collect. Existing bounded1MiB chunks/with block ultimately close; deterministic disconnect cleanup is GC-dependent. Permanent leak, unlimited FD accumulation and supported slow-loris outage not reproduced. Narrow lifecycle hardening rather than asserted permanent leak. Follow-up local FileResponse repair verified by desktop_content_disconnect_fileresponse.py: real uvicorn/h11 TCP earlydisconnect after200headers384bytes, builtin.open observes actualsourceopened1/closed beforeanyGC. Bounded8MiB diskfixture writes1MiBchunks; Range last8bytes206/exactcontent/rangeheader; X-PathLab-SHA256 andETag exactnonempty equalHEAD; private no-store andbadcredential401 preserved. Framework closes source deterministically, no permanentoutage claim. Runnable tests/backend/test_desktop_content_disconnect.py nativepytest1passed withGCdisabled/restoredfinally, realbuiltin sourceopened/closed beforecollection andboundedserverlifecycle. Sanitized docs/remediation/evidence/desktop-content-disconnect.json. Ruffcheckclean."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3225",
@@ -5930,10 +5959,10 @@
       "line": 3239,
       "alias": "OPS-04",
       "title": "[OPS-04] Sticky CachedReadiness: /readyz Never Recovers Without Restart",
-      "status": "confirmed",
+      "status": "false positive",
       "canonicalKey": "health.schema-sticky",
       "duplicateOf": "BUG_REPORT.md:3273",
-      "evidence": "readiness.py54-56 false schema_ready never retried; only validate_startup mutates. Startup schema later fixed needs restart; connectionprobe recovers."
+      "evidence": "CachedReadiness explicitly validates schema once and fails closed; startup starts background services only after validation. Supported deployment migrates and restarts services. Clearing the readiness bit after an unsupported hot migration would omit required background startup. Optional hot-migration recovery is separate hardening."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3254",
@@ -6162,10 +6191,12 @@
       "line": 3484,
       "alias": "CONC-14",
       "title": "[CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:3484",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "library.folder-topology-serialization",
+      "duplicateOf": "BUG_REPORT.md:3518",
+      "evidence": [
+        "Actual registered folder PATCH closures and separate SQLite sessions: barrier after both existing validate_folder_parent checks completes; concurrent A->B and B->A both succeed, leaving parents{a:b,b:a}. var/remediation-evidence/folder_move_cycle.py preserves exact reproduction. Supported concurrent moves can create a cycle; ancestry reads and mutation must share topology admission before validation. Library agent owns follow-on repair."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3496",
@@ -6173,12 +6204,10 @@
       "line": 3496,
       "alias": "DATA-09",
       "title": "[DATA-09] Unbounded sortOrder Overflows PG Integer",
-      "status": "unresolved",
-      "canonicalKey": "library.sort-order-pg-bound",
+      "status": "confirmed",
+      "canonicalKey": "library.portable-sort-order-bounds",
       "duplicateOf": "BUG_REPORT.md:3530",
-      "evidence": [
-        "library_routes.py:90/103 andannotations.py:241/273 StrictIntge0 lack2147483647 cap whilemodelInteger isPgint4. SQLiteacceptslargerint; actualPostgreSQL routecase required beforeconfirmed, noPgtestendpoint available in this scoped audit."
-      ]
+      "evidence": "Root actual authorized Folder/Collection PATCH reproduced SQLite OverflowError atcommit for2**63; SQLite accepted2**31 beforefix. Follow-up local input repair bounds library and annotation sortOrder to portable int4maximum2**31-1; tests/backend/test_sort_order_bounds.py two actualHTTP cases acceptmax and reject2**63/2**31. PostgreSQL execution remains unverified. Supported SQLite failure is proven; local repair not released."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3508",
@@ -6225,10 +6254,12 @@
       "line": 3542,
       "alias": "FE-26",
       "title": "[FE-26] InviteDialog False Modal — No Trap/Inert/Restore",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:3542",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "classroom.invite-modal-focus",
+      "duplicateOf": "BUG_REPORT.md:3576",
+      "evidence": [
+        "ClassroomTeacherPage.tsx:95-119 InviteDialog uses a div with role=dialog/aria-modal and autofocus Close, without native showModal/inert/focus-trap/restore effects. This is a concrete accessibility hardening candidate; browser Tab/background activation receipt against the full teacher page has not been obtained. No browser focus qualification is claimed."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3552",
@@ -6341,10 +6372,12 @@
       "line": 3634,
       "alias": "FE-29",
       "title": "[FE-29] Autosave Debounce Lost on Close (No Unload Flush)",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:3634",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "annotations.close-durability-window",
+      "duplicateOf": "BUG_REPORT.md:3668",
+      "evidence": [
+        "AnnotationWorkspace subscription debounces local recovery persistence250ms, autosave separately debounces server writes, and cleanup cancels timer. Unsaved count remains visible until acknowledged; browser termination before durable completion cannot promise every keystroke retention. A qualified immediate draft or navigation-guard contract would improve this window; no falsely Saved state or committed server data loss is shown."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3644",
@@ -6389,10 +6422,12 @@
       "line": 3674,
       "alias": "SEC-37",
       "title": "[SEC-37] restore.sh World-Readable Staging + No Lock",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:3674",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "operations.restore-local-permissions",
+      "duplicateOf": "BUG_REPORT.md:3708",
+      "evidence": [
+        "deploy/scripts/restore.sh:24-39 creates staging then chowns10001. Restrictive umask and an operator lock would improve local restore hygiene, but current staging permissions depend on the deployment parent directory/umask; no unprivileged read or overlapping authorized restore was reproduced. Snapshot rollback preserves originals on activation failure. No secrets or world-readable contents are inferred."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:3684",
@@ -6531,10 +6566,12 @@
       "line": 4093,
       "alias": "CONC-16",
       "title": "[CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:4093",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "study.aggregate-concurrency",
+      "duplicateOf": "BUG_REPORT.md:4127",
+      "evidence": [
+        "Actual valid HTTP pack/course prepare/issue/activate/redeem(two learners), then concurrent real SQLite POST readiness route closures with aggregate-read barriers. First write yields204 plus UNIQUE course_id IntegrityError/count1; next pair both204 but count1->2 instead of3. var/remediation-evidence/study_readiness_race.py preserves red. AI event caller updates same aggregate but requires separately qualified pilot; its gating was not bypassed. Root currently owns follow-on repair; no release claimed."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:4148",
@@ -6629,11 +6666,11 @@
       "line": 4423,
       "alias": "FE-35",
       "title": "[FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": "BUG_REPORT.md:4457",
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Same deliberate callback failure retention as BUG60. Current callback/two-batch reproduction confirms paused error, not an automatic conflicting resend. Workspace Retry/reload recreates saver using current manifest and replayDraft; no actual transient storage failure plus full retry/two-batch permanent conflict has been established. Dropping queue or advancing version before ACK would weaken recovery guarantees."
       ]
     },
     {
@@ -6880,7 +6917,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": "BUG_REPORT.md:5525",
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:5557",
@@ -6888,10 +6925,10 @@
       "line": 5557,
       "alias": "CONC-18",
       "title": "[CONC-18] Concurrent Task Submissions Race Past Monotonic Throttle Check Causing Unhandled Unique Constraint 500 Crash on uq_study_progress_task",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:5557",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "study.task-submission-serialization",
+      "duplicateOf": "BUG_REPORT.md:5591",
+      "evidence": "Real HTTP valid pack/course/invitations/activation/redemption then actual submit_task endpoint with two real SQLite sessions for same learner/task. Barrier after real StudyProgress reads permits both initial throttle checks. var/remediation-evidence/study_task_submission_race.py: one200 attemptCount1, one unhandled IntegrityError UNIQUE(session_id,task_id), durable attemptCount1. Rate timestamp recorded only after commit, so admission does not serialize supported simultaneous requests. No product repair yet. Follow-up local repair now wraps throttle/read/write in per-learner shared admission lock. Reviewed test_study_submission_concurrency.py uses valid HTTP lifecycle then two actual endpoint/SQLite sessions, seeded and first progress; root green result200/429 with one preserved increment, no unique error. Current local repair not released."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:5625",
@@ -7011,10 +7048,10 @@
       "line": 5960,
       "alias": "CONC-20",
       "title": "[CONC-20] Uncommitted Database Transaction Held During Multi-Minute Desktop Slide Archive Extraction Blocks Global Database Access and Triggers SQLite Lock Timeouts",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:5960",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.install-sqlite-write-lock",
+      "duplicateOf": "BUG_REPORT.md:5994",
+      "evidence": "Actual valid package finalizer and real SQLite, pause install_prepared_package after _install Slide.flush. Independent unrelated Folder commit fails sqlite OperationalError database is locked; releasing installer completes finalization. var/remediation-evidence/desktop_finalizer_write_lock.py bounds SQLite timeout at0.2seconds for proof. Production outage frequency/duration unmeasured and PostgreSQL global lock not claimed; installer retains SQLite write transaction across extraction."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:6066",
@@ -7062,7 +7099,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": "BUG_REPORT.md:5525",
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:6306",
@@ -7280,10 +7317,10 @@
       "line": 6728,
       "alias": "SEC-49",
       "title": "[SEC-49] Manual Classroom Accepts Trashed-Folder Slides",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:6728",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "false positive",
+      "canonicalKey": "classroom.retained-publication-folder-trash",
+      "duplicateOf": "BUG_REPORT.md:6762",
+      "evidence": "Manual create selects explicit slide IDs at classroom_routes.py:950 then applies slide_readiness:423 requiring PUBLISHED, passed privacy, static delivery, SHA and active individual PublicationGrant. Folder trash is organizational and intentionally preserves granted published slides/snapshots (tests/backend/test_sharing_lifecycle.py preserved snapshot contract; root folder-trash repair). An approved published slide retained in a trashed folder does not bypass publication; private/ungranted slides fail readiness. No outsider access or revoke requirement is established."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:6738",
@@ -7415,8 +7452,8 @@
       "title": "[DATA-23] Desktop Library Items Query Hardcodes 100-Folder Limit Without Pagination Silently Truncating Folder Trees for Paired Clients",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": "BUG_REPORT.md:2808",
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:7044",
@@ -7502,10 +7539,12 @@
       "line": 7377,
       "alias": "FE-49",
       "title": "[FE-49] AnnotationAutosave.drain() Leaves inFlight Batch Wedged on 4xx Client Errors Permanently Freezing User Workspace",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:7377",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "annotations.client-error-recovery",
+      "duplicateOf": "BUG_REPORT.md:7411",
+      "evidence": [
+        "autosave.ts:467-473 intentionally stops on nonretryable4xx and retains inFlight work. Authentication, layer locks and invalid operations must be resolved before retrying; removing rejected batch silently would discard edits. Workspace supports reload/reset and visible unsaved counts. A normal valid mutation permanently wedged after correcting its actual4xx cause remains unproved."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:7421",
@@ -7566,9 +7605,7 @@
       "status": "confirmed",
       "canonicalKey": "viewer.dynamic-resource-telemetry",
       "duplicateOf": "BUG_REPORT.md:7625",
-      "evidence": [
-        "OpenSeadragonViewer.tsx:334 filters resource timing only by /tiles/, excluding supported dynamic /_pathlab_ome/ responses. This omits dynamic duration samples. Tile-load-failed still feeds independent failure sampling, so total network throttling disablement is overstated; the proven residual is missing dynamic latency telemetry."
-      ]
+      "evidence": "PerformanceObserver accepts supported /_pathlab_ome/ alongside /tiles/. Viewer regression feeds12slow resource samples through actual observer callback and network timer; both paths reduce jobLimit to2 under existing auto policy.39viewer/networktests pass. Failure sampling independent; no clinical/performance qualification inferred."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:7635",
@@ -7665,10 +7702,10 @@
       "line": 8061,
       "alias": "FE-54",
       "title": "[FE-54] Synchronous URL.revokeObjectURL() in downloadStudyInvitations() Immediately Aborts Asynchronous File Downloads in Safari & Firefox",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:8061",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "false positive",
+      "canonicalKey": "study.blob-download-current-browser",
+      "duplicateOf": "BUG_REPORT.md:8095",
+      "evidence": "Actual Firefox and WebKit invitation/progress download events complete and downloaded files equal exact synthetic CSV contents despite immediate URL revoke;4passes, productunchanged. docs/remediation/evidence/viewer-download-browser-audit.json and apps/web/e2e/study-download-audit.spec.ts. Claimed current asynchronous download abort counterexample; older Safari/physicaldevices not qualified."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:8110",
@@ -7715,10 +7752,12 @@
       "line": 8276,
       "alias": "CONC-24",
       "title": "[CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:8276",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "classroom.synthetic-reset-retirement-race",
+      "duplicateOf": "BUG_REPORT.md:8310",
+      "evidence": [
+        "Narrow supported race: publish and terminate marshal retirement to event loop, but synchronous synthetic-reset route calls hub.reset_session directly in worker thread. Actual two-room subscriptions plus reset/disconnect overlap, with scheduling barrier in real set.discard after registered check: reportedConnections0 while other-room subscriber remains registered and actualRemaining1. var/remediation-evidence/hub_synthetic_reset_count.py preserves proof. General arbitrary-thread publish race is overstated; telemetry/capacity drift under synthetic reset is confirmed."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:8323",
@@ -7828,11 +7867,11 @@
       "line": 8743,
       "alias": "FE-58",
       "title": "[FE-58] AnnotationAutosave Abandons In-Flight Queue and Freezes Version Advancement on onAcknowledged Failure Locking 409 Conflict",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": "BUG_REPORT.md:4457",
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Same qualified fail-closed ACK boundary as BUG60/FE35: error retains original inFlight and all later work. A generic injected callback error is reproduced, but supported Workspace ACK invariant failure and failed recovery have not been. Better explicit retry UX is hardening; perpetual server conflict claim is unproved."
       ]
     },
     {
@@ -7854,10 +7893,12 @@
       "line": 8809,
       "alias": "DATA-28",
       "title": "[DATA-28] finalize_upload() Leaves Storage Reservation Stranded for 24 Hours on Corrupt or Invalid Uploads",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:8809",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "upload.invalid-spool-retry-retention",
+      "duplicateOf": "BUG_REPORT.md:8843",
+      "evidence": [
+        "main.py shared finalizer checks token/reservation state, exact length and TIFF signature before installation. Invalid spool leaves UPLOADING reservation for retry/cancel and expiry worker cleanup; quota remains charged. Immediate release on validation failure would require a failed-upload recovery policy. No unbounded reservation bypass or lost valid installed data is established."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:8841",
@@ -7865,11 +7906,11 @@
       "line": 8841,
       "alias": "BUG-43",
       "title": "[BUG-43] validate_folder_parent() Missing Cycle Guard Causes Infinite Loop and Worker Hang on Cyclic Ancestry",
-      "status": "unresolved",
-      "canonicalKey": "library.folder-cycle",
-      "duplicateOf": "BUG_REPORT.md:8875",
+      "status": "confirmed",
+      "canonicalKey": "library.folder-topology-serialization",
+      "duplicateOf": "BUG_REPORT.md:3518",
       "evidence": [
-        "library.py:89-104 first ancestrywalk has no seen set; folder_depth later usesseen. A cyclic ancestry notcontaining movedfolder can hang, but supported writer producingcycle needs real concurrent fixture; malformed DBcycle alone is corrupt-data hardening."
+        "The ancestry while loop has no visited guard in library.py:82-96. Concurrent actual folder PATCH reproduction creates A->B->A from valid initial roots, proving cyclic persisted data is reachable through supported callers. Subsequent ancestry validation through that cycle has no terminating branch. Infinite traversal was not run; the creation race is reproduced in var/remediation-evidence/folder_move_cycle.py. Follow-on topology repair is owned by Library agent."
       ]
     },
     {
@@ -7931,10 +7972,12 @@
       "line": 8996,
       "alias": "DEV-02",
       "title": "[DEV-02] Standalone / Local Development Missing Fallback Route for /tiles/{public_id}/{version}/{tile_path} Returns 404",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:8996",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "false positive",
+      "canonicalKey": "development.versioned-tile-proxy",
+      "duplicateOf": "BUG_REPORT.md:9030",
+      "evidence": [
+        "apps/web/vite.config.ts:29-33 rewrites versioned /tiles/{publicId}/{version}/{path} to existing /api/v1/public/slides/{publicId}/tiles/{path}. main.py:1124 serves that public tile fallback. The fullstack Caddy path is separately configured. Claimed missing local browser tile route ignores existing development proxy rewrite."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:9022",
@@ -7981,10 +8024,10 @@
       "line": 9092,
       "alias": "CONC-28",
       "title": "[CONC-28] ClassroomTeacherPage Premature suppressPublish Clearance Creates Animation Frame Feedback Loop",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:9092",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "false positive",
+      "canonicalKey": "classroom.osd-remote-controller-no-echo",
+      "duplicateOf": "BUG_REPORT.md:9126",
+      "evidence": "Actual native OpenSeadragon two-page syntheticDZI browser fixture classroom-teacher-osd-integrity.spec.ts, Chromium PLAYWRIGHT_PORT5191 workers1:1passed9.9seconds/session57342 exit0. Baseline ignored var/remediation-evidence/classroom-teacher-osd-baseline with actual-osd-receipts JSON andteacher/student screenshots. Slide2 button generates presenterPOST without extra motion andstudent follows; remote learner controller viewport update applies without teacherPOST; reclaim staysquiet across1000+700ms. Transport/events mocked but OSD/render/callback execution actual. No teacherproductchange, no productiontransportqualification claim."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:9122",
@@ -8094,10 +8137,12 @@
       "line": 9386,
       "alias": "BUG-50",
       "title": "[BUG-50] create_ome_ingest and create_result_delivery Commit Database Records Before File Creation Leaving Ingests in Deadlock State",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:9386",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.reservation-spool-creation",
+      "duplicateOf": "BUG_REPORT.md:9420",
+      "evidence": [
+        "Actual registered create_ome_ingest closure: inject PermissionError only generated spool Path.open(xb) after DB commit. Durable row remains uploading, spool absent, and legitimate next create returns409 INGEST_ALREADY_ACTIVE. Failure response never returns created identity. var/remediation-evidence/desktop_create_file_fault.py preserves proof. Prepared create has same commit-before-open order; result retry returns existing row despite missing spool (static sibling trace). Root owns follow-on desktop repair."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:9429",
@@ -8196,10 +8241,12 @@
       "line": 9631,
       "alias": "DATA-34",
       "title": "[DATA-34] main.py TUS finalize_upload() Copy Failure Leaves Orphaned .partial Files on Cross-Device Moves",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:9631",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "upload.partial-copy-recovery",
+      "duplicateOf": "BUG_REPORT.md:9665",
+      "evidence": [
+        "First-batch main.py:908-921 preserves source spool until commit and removes previous .partial before every retry. A failed fallback copy can leave a temporary destination, bounded by the already charged reservation; retry replaces it and deletion removes slide storage. Immediate staging cleanup would improve fault hygiene, but claimed source loss/unbounded cross-device storage leak is not demonstrated against current durability repair."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:9664",
@@ -8244,10 +8291,10 @@
       "line": 9782,
       "alias": "FE-62",
       "title": "[FE-62] ClassroomTeacherPage Slide Navigator Selection Omits Viewport Broadcast Leaving Students Stranded on Prior Slide in Guide Mode",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:9782",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "classroom.osd-slide-open-publish",
+      "duplicateOf": "BUG_REPORT.md:9816",
+      "evidence": "Actual native OSD two-page WebKit regression: guided slide2 with identical geometry emits no presenter POST when publication depends solely on animation events. Teacher open handler now publishes under existing guide/controller authorization gates. Actual native OSD matrix passes Chromium, Firefox, WebKit and mobile Chromium; transport remains synthetic. Local repair, not deployed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:9815",
@@ -8307,10 +8354,12 @@
       "line": 9969,
       "alias": "CONC-31",
       "title": "[CONC-31] ClassroomRoutes.stream_response() Event Sequence Race Condition Seeds Subscriber with Stale eventSequence Desynchronizing Client Stream Recovery",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:9969",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "false positive",
+      "canonicalKey": "classroom.stream-bootstrap-queue",
+      "duplicateOf": "BUG_REPORT.md:10003",
+      "evidence": [
+        "stream_response subscribes before sampling initial event sequence and asynchronous state version. Events published during bootstrap remain queued. Old initial sequence followed by queued next sequence is contiguous; skipped critical sequence or version mismatch triggers client resync in streamSync.ts:34-60. subscription_is_current revalidates admission before ready. Report treats intentionally retained bootstrap queue as stale desynchronization; no lost event mechanism is established."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:10030",
@@ -8446,10 +8495,12 @@
       "line": 10456,
       "alias": "CONC-34",
       "title": "[CONC-34] Concurrent Desktop Chunk Uploads Double-Increment received_bytes Permanently Freezing Ingest in Uploading State",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:10456",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.chunk-offset-serialization",
+      "duplicateOf": "BUG_REPORT.md:3127",
+      "evidence": [
+        "Same proved overlapping PATCH mechanism as CONC10. Actual SQLite route reproduction yields acknowledged[6,4], durable received_bytes4, six-byte mixed spool AAAABB. The report double-increment explanation is incorrect: ORM writes stale in-memory offsets, which regress rather than atomically increment. Native finalization independently checks hash/size. Root owns follow-on repair; no release claimed."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:10494",
@@ -8544,10 +8595,12 @@
       "line": 10787,
       "alias": "CONC-36",
       "title": "[CONC-36] Read-Route Concurrency Stampede on Course Expiration Triggers Lock Contention in learner_session",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:10787",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "study.lazy-expiration-pressure",
+      "duplicateOf": "BUG_REPORT.md:10821",
+      "evidence": [
+        "learner_session checks session expiry before course expiry; ordinary sessions expire with original course end. Supported admin update_course can shorten end after issuance, making lazy course-ending write reachable. This short idempotent transaction may face simultaneous clients; no actual read stampede/lock timeout was reproduced. Conditional atomic end or scheduler cleanup is a performance/operational qualification, not a demonstrated data corruption bug."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:10822",
@@ -8555,10 +8608,10 @@
       "line": 10822,
       "alias": "DATA-39",
       "title": "[DATA-39] Duplicate Feature Index in StudyPage.tsx Distorts Local AI Neural Network Input Vector",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:10822",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "study.feature-schema-qualification",
+      "duplicateOf": "BUG_REPORT.md:10856",
+      "evidence": "StudyPage.tsx:229-231 deliberately/currently supplies identical active duration values at positions1 and5; traceSim.worker.ts infer uses qualified manifest/session tensor input. No training-feature semantic schema establishes that position5 must differ, so neural distortion is not proven. reasonForAction traceSim.ts:65-75 reads position1 for break and never position5; duplicate does not distort this deterministic reason path. Feature-semantic contract validation belongs to pilot/model qualification before activation."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:10857",
@@ -8643,9 +8696,7 @@
       "status": "confirmed",
       "canonicalKey": "annotation.viewport-bounds",
       "duplicateOf": "BUG_REPORT.md:11155",
-      "evidence": [
-        "annotation_routes.py:385-402 requires allfourbounds but never min<=max; invertedfinitequery silentlyempty200. Narrowinputvalidation defect, notcorruption; shouldreturn422."
-      ]
+      "evidence": "Annotation list rejects incomplete, nonfinite or inverted viewport bounds with422 ANNOTATION_INVALID_VIEWPORT. Four actual HTTP regressions returned200 before repair,422 after; existing CRUD passes. Local input-boundary repair."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:11163",
@@ -8744,11 +8795,11 @@
       "line": 11466,
       "alias": "BUG-58",
       "title": "[BUG-58] validate_folder_parent Lacks Loop Cycle Detection Causing Infinite While Loop on Corrupt Hierarchies",
-      "status": "unresolved",
-      "canonicalKey": "library.folder-cycle",
-      "duplicateOf": "BUG_REPORT.md:8875",
+      "status": "confirmed",
+      "canonicalKey": "library.folder-topology-serialization",
+      "duplicateOf": "BUG_REPORT.md:3518",
       "evidence": [
-        "library.py:89-104 first ancestrywalk has no seen set; folder_depth later usesseen. A cyclic ancestry notcontaining movedfolder can hang, but supported writer producingcycle needs real concurrent fixture; malformed DBcycle alone is corrupt-data hardening."
+        "Same unguarded ancestry traversal and proved concurrent folder move cycle as BUG43/CONC14. This is not limited to invented corrupt legacy data: actual registered SQLite PATCH callers both commit A->B and B->A. No infinite loop was executed; finite cycle creation and current loop source establish reachability. Library agent owns repair."
       ]
     },
     {
@@ -8784,7 +8835,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": "BUG_REPORT.md:5525",
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:11612",
@@ -8792,11 +8843,11 @@
       "line": 11612,
       "alias": "BUG-60",
       "title": "[BUG-60] autosave.ts Skips In-Flight Cleanup and Version Advancement on Acknowledgement Failure",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": "BUG_REPORT.md:4457",
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Current actual AnnotationAutosave callback-failure/two-batch reproduction deliberately stays error with inFlight and second mutation retained; flush does not bypass error. Workspace uses store.autosaveHooks for validated in-memory ACK, with reload/reset and draft replay recovery; asynchronous draft persistence reports its own failure. Retaining unacknowledged work is fail-closed, not proof of perpetual409. A supported callback/invariant failure followed by full Workspace retry is still needed before declaring deadlock."
       ]
     },
     {
@@ -8831,10 +8882,12 @@
       "line": 11722,
       "alias": "BUG-61",
       "title": "[BUG-61] FolderTree.tsx flatten Lacks Visited Guard Crashing Browser Tab on Cyclic Hierarchies",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:11722",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "library.client-cycle-defense",
+      "duplicateOf": "BUG_REPORT.md:11756",
+      "evidence": [
+        "FolderTree.tsx:33-45 recursively expands cached child lists without visited IDs. Backend concurrent topology corruption is separately confirmed, but a cycle has no root and ordinary fresh navigation does not necessarily deliver it as an expanded rooted tree. Defensive visited filtering is useful; browser crash after actual cache refresh/reparent ordering remains unproved."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:11769",
@@ -9131,10 +9184,12 @@
       "line": 12432,
       "alias": "OPS-14",
       "title": "[OPS-14] Capacity Monitor Non-Atomic + Advisory-Only Window",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:12432",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "hardening",
+      "canonicalKey": "worker.serial-capacity-monitor",
+      "duplicateOf": "BUG_REPORT.md:12466",
+      "evidence": [
+        "Actual report targets StorageCapacityMonitor worker.py:65-101, not signed capacity override files. WorkerScheduler calls report_capacity synchronously in its single worker loop; current deployed worker is one process. Advisory threshold logs complement separate storage admission limits. Concurrent check callers, hysteresis and tighter warning intervals are additional qualification; no supported lost transition or capacity bypass is reproduced."
+      ]
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:12442",
@@ -9166,10 +9221,10 @@
       "line": 12462,
       "alias": "FE-69",
       "title": "[FE-69] OSD Rotation Persists Across Slide Change",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/BUG_REPORT_CODEX.md:12462",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "viewer.rotation-source-reset",
+      "duplicateOf": "BUG_REPORT.md:12496",
+      "evidence": "Actual OpenSeadragon API viewport.getRotation=90 survivesNext beforefix. Follow-up sourceidentity switch resets viewport/UI angle0 and closes dial, same-source reconnect preserved. Fourengine actualangle regression passes in shared-viewer-responsive.spec.ts; docs/remediation/evidence/viewer-download-browser-audit.json. Confirmed/localrepair, not upstream or deployed."
     },
     {
       "sourceKey": "docs/reports/BUG_REPORT_CODEX.md:12472",
@@ -9267,10 +9322,12 @@
       "line": 386,
       "alias": "BUG-NEW-08",
       "title": "BUG-NEW-08: ClassroomHub._retire_subscriber Mutates Presence State Outside Lock",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/DEEP_SYSTEM_BUG_AUDIT.md:386",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "classroom.synthetic-reset-retirement-race",
+      "duplicateOf": "BUG_REPORT.md:8310",
+      "evidence": [
+        "Actual synchronous synthetic reset versus event-loop disconnect double retirement reproduces connection count0 with another room still registered1. publish/terminate normally marshal onto loop, so general thread race is overstated. See var/remediation-evidence/hub_synthetic_reset_count.py; follow-on repair pending."
+      ]
     },
     {
       "sourceKey": "docs/reports/DEEP_SYSTEM_BUG_AUDIT.md:428",
@@ -9315,8 +9372,8 @@
       "title": "BUG-NEW-12: Desktop Library Folder Sync Hardcoded 100-Folder Limit",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": "BUG_REPORT.md:2808",
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "docs/reports/DEEP_SYSTEM_BUG_AUDIT.md:548",
@@ -9513,9 +9570,7 @@
       "status": "confirmed",
       "canonicalKey": "ops.api-cli-arguments",
       "duplicateOf": null,
-      "evidence": [
-        "pyproject.toml pathlab-api targets main.run; main.py:1191-1194 ignores argv and unconditionally starts0.0.0.0:8000, including --help/unknownflags. Developer CLI surprise; Compose uses explicit Uvicorn."
-      ]
+      "evidence": "main.run now parses --host/--port with native argparse, preserves default0.0.0.0:8000, validates ports and exits for help/unknown arguments. test_api_cli.py4passes verifies no server starts for help/invalid input. Local repair."
     },
     {
       "sourceKey": "docs/reports/FULL_SYSTEM_QA_REPORT.md:255",
@@ -9547,12 +9602,10 @@
       "line": 276,
       "alias": "BUG-07",
       "title": "BUG-07: Playwright Suite Cold-Start Timing Flakes Under Parallel Execution",
-      "status": "unresolved",
-      "canonicalKey": "tests.playwright-cold-start",
+      "status": "hardening",
+      "canonicalKey": "qa.parallel-cold-start-qualification",
       "duplicateOf": null,
-      "evidence": [
-        "playwright.config.ts retains fullyParallel:true/retries:0 with120s web-server readiness. A zero-retry test policy is intentional failure visibility, not itself a product bug. Unresolved: need current cold-start parallel receipt identifying an actual locator timeout and confirming server readiness/prewarm behavior; older report timing alone is insufficient."
-      ]
+      "evidence": "Actual root c61browserCI168passed/3skip/5failed traced fourengine cardcontent intercepting Details andWebKit realTUS45MiBchunk25second limit, not Vite coldstart or startup locator. Root narrow cardnormalflow/21MiBtwochunkpause-resume regression8passes across4engines withouttimeoutincrease. Generalconfig retries0/fullyParalleltrue is deliberate; extra repeatcoldstartstress qualification remains optional operational hardening, not confirmed currentproductfailure. No allCI/deployment claim."
     },
     {
       "sourceKey": "docs/reports/FULL_SYSTEM_QA_REPORT.md:304",
@@ -9649,9 +9702,11 @@
       "alias": "FE-82",
       "title": "Finding 2: Saved Views Missing Canonical Breadcrumb & View State Rehydration (FE-82)",
       "status": "confirmed",
-      "canonicalKey": "library.saved-view-ui",
-      "duplicateOf": null,
-      "evidence": "apps/web/src/pages/AdminPage.tsx:640-668 breadcrumb lacks saved: branch; rg saved: finds no definition rehydration in page. Server filtering semantics not asserted."
+      "canonicalKey": "library.saved-view-rehydration",
+      "duplicateOf": "BUG_REPORT.md:12747",
+      "evidence": [
+        "Repaired locally in first batch, not released: AdminPage.tsx:306-328 maps saved filters, all tags, search/date fields and sort into URL/UI state; saved location resolves a canonical titled breadcrumb at656-669. Root UI agent owns regression and release evidence."
+      ]
     },
     {
       "sourceKey": "docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md:90",
@@ -9675,7 +9730,7 @@
       "status": "confirmed",
       "canonicalKey": "library.single-action-selection",
       "duplicateOf": "BUG_REPORT.md:12781",
-      "evidence": "apps/web/src/pages/AdminPage.tsx:753,787 resets selected to one slide for editor/actions. Existing multiselection cleared; intended UX decision required."
+      "evidence": "Single-card edit/move/collection/delete/publication actions retain separate target IDs; cancel, success, retry and trash preserve unrelated bulk selection.52scoped Library/annotation tests pass, including processing-removal and cardtarget guards. Local repair."
     },
     {
       "sourceKey": "docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md:132",
@@ -9697,7 +9752,7 @@
       "status": "confirmed",
       "canonicalKey": "library.navigation-boundaries",
       "duplicateOf": "BUG_REPORT.md:12815",
-      "evidence": "apps/web/src/components/library/LibraryToolbar.tsx:75-77 back/forward/up enabled without boundary props. Browser-stack exit reproducible with empty app history; no history-length heuristic proposed."
+      "evidence": "Library toolbar availability follows mounted library route keys and installed Router PUSH/POP/REPLACE navigation. Unavailable Back/Forward/Up disable; Back preserves known Forward. Scope is the observed library trail, not unobservable global browser history.52scoped tests pass. Local repair."
     },
     {
       "sourceKey": "docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md:161",
@@ -9708,7 +9763,7 @@
       "status": "confirmed",
       "canonicalKey": "annotation.revision-selection",
       "duplicateOf": "BUG_REPORT.md:12834",
-      "evidence": "apps/web/src/annotations/AnnotationWorkspace.tsx:688 clears only workspace reset; selection change not cleared. Stale revision UI confirmed. Claimed cross-annotation corruption false: server annotations.py:1156-1157 rejects mismatched revision.annotation_id404."
+      "evidence": "AnnotationWorkspace clears selected revision on primary-selection changes and checks current selected ID before applying asynchronous history/restores. Immediate/deferred selection regressions pass in52-test Library/annotation scope; server mismatched revision remains404. Local repair."
     },
     {
       "sourceKey": "docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md:187",
@@ -9716,10 +9771,10 @@
       "line": 187,
       "alias": "FE-88",
       "title": "Finding 8: Service Role Capability Header Mismatch Exposes Dead Classroom Route on General Workers (FE-88)",
-      "status": "confirmed",
+      "status": "false positive",
       "canonicalKey": "library.capability-role",
       "duplicateOf": "BUG_REPORT.md:12862",
-      "evidence": "server/wsi_viewer/library_routes.py:310-312 header only flag; main.py:359 general role blocks classroom paths. Role general + classroom_enabled true exposes unusable launcher absent correct edge proxy routing."
+      "evidence": "The supported reverse proxy routes Classroom APIs to the dedicated service and retains the general service capability flag for frontend discovery. Caddy dedicated routing is the deployment contract; probing the general service directly does not demonstrate a supported-path capability bug."
     },
     {
       "sourceKey": "docs/reports/ROUTE_AND_MENU_WIRING_AUDIT.md:211",
@@ -9833,7 +9888,7 @@
       "status": "confirmed",
       "canonicalKey": "library.form-length",
       "duplicateOf": "BUG_REPORT.md:13122",
-      "evidence": "apps/web/src/components/library/UploadWorkspace.tsx and AdminPage edit dialog lack matching maxLength; API validates, so rejected overlong form is UX failure not trust-boundary bypass."
+      "evidence": "Admin edit fields use the nine existing API limits and programmatic display-name clipping. Native form remains accessible;52Library/annotation tests and TypeScript/ESLint pass. Local repair."
     },
     {
       "sourceKey": "docs/reports/SYSTEM_VULNERABILITY_AND_BUG_AUDIT.md:22",
@@ -10150,10 +10205,10 @@
       "line": 143,
       "alias": "FE-05",
       "title": "[FE-05] Classroom Setup Lacks Folder Search, Pagination, & State Validation",
-      "status": "confirmed",
-      "canonicalKey": "desktop.folder-limit",
+      "status": "fixed upstream",
+      "canonicalKey": "classroom.setup-folder-pagination",
       "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "evidence": "Current classroom_routes.py:714 setup folders accepts q/cursor and returns bounded nextCursor/readiness; ClassroomTeacherPage.tsx:268,981-988 stores/loads setup cursor; search input at1120. Existing actual HTTP test tests/backend/test_classroom.py:2208 test_setup_folder_search_is_cursor_bounded_and_finds_deep_late_slides covers late/deep folders, search, cursor and blocked delivery. This is separate from Desktop folder snapshot and must not share that canonical key."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:150",
@@ -10364,12 +10419,10 @@
       "line": 269,
       "alias": "CONC-05",
       "title": "[CONC-05] Concurrent Study AI Event Reporting Triggers Unique Constraint Crashes & Lost Updates",
-      "status": "unresolved",
-      "canonicalKey": "study.aggregate-concurrency",
+      "status": "confirmed",
+      "canonicalKey": "study.readiness-aggregate-race",
       "duplicateOf": "BUG_REPORT.md:1900",
-      "evidence": [
-        "study_routes.py:1248-1260 and1283-1297 still select/create aggregate then increment ORM fields without admission lock. Exact concurrent supported learner reproduction required; SQL race inferred alone is not accepted as proof."
-      ]
+      "evidence": "Current follow-up test_study_aggregate_concurrency.py actualHTTP creates valid closed_pilot_trace_sim acknowledged course, prepares/issues/activates/redeems allowed learners and completes task. Registered AI/readiness routes run concurrent realSQLite sessions for first/existing/mixed counters; root scoped native regressions green after shared increment_readiness_aggregate SQLite/PostgreSQL on_conflict_do_update repair. Same aggregate firstrow/lostincrement mechanism was reproduced by actual readiness route earlier. Eligible AI caller now explicitly exercised, no gate bypass. This is confirmed/repaired locally; not upstream, deployed or model/clinical qualified."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:276",
@@ -10414,10 +10467,10 @@
       "line": 297,
       "alias": "DATA-02",
       "title": "[DATA-02] Orphaned Derivative Directories Leaking Disk Storage on Unexpected Ingest Finalizer Exceptions",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:297",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "desktop.finalizer-commit-orphan",
+      "duplicateOf": "BUG_REPORT.md:2114",
+      "evidence": "Actual valid prepared package + real SQLite finalizer evidence var/remediation-evidence/desktop_finalizer_commit_fault.py injects SQLAlchemy OperationalError only at post-install ready_private commit. _finalize propagates; actual _mark_failed produces failed ingest, zero Slide rows, one orphan descriptor, retained archive. _install catches only OSError/PreparedIngestError/KeyError/TypeError; session-close rolls back Slide without cleaning installed UUID directory. Cleanup must distinguish rollback from uncertain committed acknowledgement."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:304",
@@ -10536,12 +10589,10 @@
       "line": 367,
       "alias": "CONC-08",
       "title": "[CONC-08] Concurrent First AI-Event Submissions Crash with Unique Constraint Violation & Cause Lost Updates",
-      "status": "unresolved",
-      "canonicalKey": "study.aggregate-concurrency",
+      "status": "confirmed",
+      "canonicalKey": "study.readiness-aggregate-race",
       "duplicateOf": "BUG_REPORT.md:1900",
-      "evidence": [
-        "study_routes.py:1248-1260 and1283-1297 still select/create aggregate then increment ORM fields without admission lock. Exact concurrent supported learner reproduction required; SQL race inferred alone is not accepted as proof."
-      ]
+      "evidence": "Current follow-up test_study_aggregate_concurrency.py actualHTTP creates valid closed_pilot_trace_sim acknowledged course, prepares/issues/activates/redeems allowed learners and completes task. Registered AI/readiness routes run concurrent realSQLite sessions for first/existing/mixed counters; root scoped native regressions green after shared increment_readiness_aggregate SQLite/PostgreSQL on_conflict_do_update repair. Same aggregate firstrow/lostincrement mechanism was reproduced by actual readiness route earlier. Eligible AI caller now explicitly exercised, no gate bypass. This is confirmed/repaired locally; not upstream, deployed or model/clinical qualified."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:374",
@@ -10564,8 +10615,8 @@
       "title": "[DATA-06] Desktop Library Synchronization Truncates Folders at 100 with No Pagination or Cursor",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": "BUG_REPORT.md:2808",
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:388",
@@ -10713,10 +10764,12 @@
       "line": 472,
       "alias": "CONC-16",
       "title": "[CONC-16] Concurrency Race Condition on Study Readiness and AI Event Reporting Unique Constraint",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:472",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "study.aggregate-concurrency",
+      "duplicateOf": "BUG_REPORT.md:4127",
+      "evidence": [
+        "Actual valid HTTP pack/course prepare/issue/activate/redeem(two learners), then concurrent real SQLite POST readiness route closures with aggregate-read barriers. First write yields204 plus UNIQUE course_id IntegrityError/count1; next pair both204 but count1->2 instead of3. var/remediation-evidence/study_readiness_race.py preserves red. AI event caller updates same aggregate but requires separately qualified pilot; its gating was not bypassed. Root currently owns follow-on repair; no release claimed."
+      ]
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:479",
@@ -10884,7 +10937,7 @@
       "status": "confirmed",
       "canonicalKey": "classroom.stream-gap-cursor",
       "duplicateOf": "BUG_REPORT.md:5525",
-      "evidence": "classroom/streamSync.ts44-49 advances cursor before resync. Subsequent contiguous event without stateVersion can apply while snapshot pending."
+      "evidence": "Shared cursor retains needsSnapshot until an authoritative snapshot applies. Presenter/pointer fields buffer at most2latest values during gap recovery; replay respects epoch and presenter sequence. Actual Student1000pointer test completes with2HTTPloads;24unit tests pass including terminal-before-ACK and newer snapshot. Native OSD negative/reconnect checks pass inall4engines with heldTeacher/Student snapshot ACKs, noearly fieldapply, correctlatestfields andnoecho. Local repair, not deployed."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:577",
@@ -10931,8 +10984,8 @@
       "title": "[DATA-23] Desktop Library Items Query Hardcodes 100-Folder Limit Without Pagination Silently Truncating Folder Trees for Paired Clients",
       "status": "confirmed",
       "canonicalKey": "desktop.folder-limit",
-      "duplicateOf": "BUG_REPORT.md:943",
-      "evidence": "server/wsi_viewer/desktop_routes.py:688-703 fetches first100 folders each page, nextCursor is slides only. Seed101 folders and a slide in omitted folder; no library folder cursor can retrieve it."
+      "duplicateOf": "BUG_REPORT.md:2808",
+      "evidence": "Actual paired API regression follows existing opaque nextCursor with102activefolders and1/101slides; both folder/slide identities complete without duplicates at100responsebounds. Legacy slide cursors remain accepted. Current Forge ViewerSyncService at7de0d9159ee0c999c52de51670b21c86609cf790 follows that cursor and accumulates folders before replaceFolders; no new consumer field required. Native API green; Forge source traced but no Forge runtime execution or deployment claimed."
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:605",
@@ -10966,10 +11019,12 @@
       "line": 619,
       "alias": "CONC-24",
       "title": "[CONC-24] ClassroomHub._retire_subscriber() Mutates _subscribers and current_connections Outside _presence_lock Causing Lost Updates and Connection Count Drift",
-      "status": "unresolved",
-      "canonicalKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:619",
-      "duplicateOf": null,
-      "evidence": "Current campaign has not traced this source claim end to end. Historical report status/code snippets are not proof; retained for explicit follow-up, not counted as confirmed bug."
+      "status": "confirmed",
+      "canonicalKey": "classroom.synthetic-reset-retirement-race",
+      "duplicateOf": "BUG_REPORT.md:8310",
+      "evidence": [
+        "Narrow supported race: publish and terminate marshal retirement to event loop, but synchronous synthetic-reset route calls hub.reset_session directly in worker thread. Actual two-room subscriptions plus reset/disconnect overlap, with scheduling barrier in real set.discard after registered check: reportedConnections0 while other-room subscriber remains registered and actualRemaining1. var/remediation-evidence/hub_synthetic_reset_count.py preserves proof. General arbitrary-thread publish race is overstated; telemetry/capacity drift under synthetic reset is confirmed."
+      ]
     },
     {
       "sourceKey": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md:631",
@@ -11576,11 +11631,11 @@
       "line": 944,
       "alias": "FE-35",
       "title": "[FE-35] Client Autosave Acknowledgement Failure Deadlocks Mutation Queue in Perpetual Conflict",
-      "status": "unresolved",
-      "canonicalKey": "annotations.ack-retry-contract",
+      "status": "hardening",
+      "canonicalKey": "annotations.ack-fail-closed",
       "duplicateOf": "BUG_REPORT.md:4457",
       "evidence": [
-        "autosave.ts:489-497 retainsinFlight untildurablelocalonAcknowledged finishes; annotations.py:930/819 firstchecksbaseversion andnoidempotentbatchreceipt. Subsequentretry/twobatchactualreproduction stillrequired. Currentfailclosedcacheprotocol intentional; cannotmarkconfirmed fromcallbackthrow alone."
+        "Same deliberate callback failure retention as BUG60. Current callback/two-batch reproduction confirms paused error, not an automatic conflicting resend. Workspace Retry/reload recreates saver using current manifest and replayDraft; no actual transient storage failure plus full retry/two-batch permanent conflict has been established. Dropping queue or advancing version before ACK would weaken recovery guarantees."
       ]
     },
     {
@@ -11935,6 +11990,32 @@
       "status": "duplicate",
       "canonicalKey": "study.ai-action-overview",
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
+    }
+  ],
+  "campaignFindings": [
+    {
+      "key": "campaign-ci-inventory-subject",
+      "status": "confirmed",
+      "repairState": "local",
+      "evidence": "Post-squash main3a46ad5 backend check fails because asset ledger immutable subject is unavailable in normal checkout. Existing dependency subject fetch now restores all3inventory subjects before strict validation. Fresh follow-up/main CI required; no validator waiver."
+    },
+    {
+      "key": "campaign-ome-failure-quarantine",
+      "status": "confirmed",
+      "repairState": "local",
+      "evidence": "Actual valid tiled JPEG-OME worker path reproduced raw deletion on quarantine rename denial and unrecorded failure on mkdir denial. Commit failure state before best-effort quarantine; retain original bytes on either denial. Dedicated native outer-worker regressions pass."
+    },
+    {
+      "key": "campaign-worker-failure-record",
+      "status": "confirmed",
+      "repairState": "local",
+      "evidence": "A one-shot failure-record database commit error stopped queued OME work. Nested guard preserves source and continues existing bounded queue; native second-job and startup recovery checks pass, including commit-success acknowledgment failure. No retry or TTL expansion."
+    },
+    {
+      "key": "campaign-desktop-range-overflow",
+      "status": "confirmed",
+      "repairState": "local",
+      "evidence": "Actual authorized content request with 5000-digit Range start returned500 during integer conversion. Shared range parser now returns416 for invalid integer conversion; all18 desktop contract checks pass."
     }
   ]
 }

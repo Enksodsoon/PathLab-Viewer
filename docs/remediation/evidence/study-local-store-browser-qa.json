@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "suite": "apps/web/e2e/study-local-store-concurrency.spec.ts",
+  "scope": "Synthetic same-origin browser contexts; actual IndexedDB storage and Vite source module",
+  "before_fix": {
+    "browser": "chromium",
+    "successful_append_calls": 50,
+    "retained_after_reload": 2,
+    "result": "failed"
+  },
+  "after_fix": {
+    "projects": [
+      "chromium",
+      "firefox",
+      "webkit",
+      "mobile-chromium"
+    ],
+    "cases_per_project": 2,
+    "passed": 8,
+    "concurrent_append_records": 50,
+    "bounded_records": 256,
+    "latest_batch_records_retained": 250,
+    "outbox_retained": 200,
+    "expired_and_revoked_contexts_reset": true,
+    "native_transaction_abort_rejected": true,
+    "original_record_survives_abort": true
+  },
+  "validation": {
+    "targeted_eslint": "passed",
+    "typescript_build": "passed"
+  },
+  "limits": [
+    "Synthetic local browser checks; no deployment or physical device qualification"
+  ]
+}

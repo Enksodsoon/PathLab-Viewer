@@ -11,6 +11,7 @@ const osd = vi.hoisted(() => {
     viewport: {
       zoomBy: vi.fn(),
       goHome: vi.fn(),
+      setRotation: vi.fn(),
       viewportToImageZoom: vi.fn(() => 1),
       getZoom: vi.fn(() => 1),
     },
@@ -112,6 +113,22 @@ afterEach(() => {
 })
 
 describe('shared library viewer', () => {
+  it('leaves editor keys alone and prevents default for slide navigation', async () => {
+    const { container } = renderShare()
+    await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })
+    for (const markup of ['<select><option>One</option></select>', '<div contenteditable="true"><span>Text</span></div>']) {
+      const wrapper = document.createElement('div')
+      wrapper.innerHTML = markup
+      container.append(wrapper)
+      const editor = wrapper.querySelector('span, select')!
+      expect(fireEvent.keyDown(editor, { key: 'ArrowRight' })).toBe(true)
+      expect(screen.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+      wrapper.remove()
+    }
+    expect(fireEvent.keyDown(window, { key: 'ArrowRight' })).toBe(false)
+    expect(await screen.findByRole('heading', { name: 'Normal colon' })).toBeVisible()
+  })
+
   it('loads and switches slides when position storage is denied', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })

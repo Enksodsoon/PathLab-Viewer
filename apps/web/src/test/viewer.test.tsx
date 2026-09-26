@@ -717,3 +717,25 @@ it('avoids a filter stacking context for neutral display while retaining request
   expect(surface.style.filter).toContain('brightness(1.2)')
   expect(surface.style.filter).toContain('url(#slide-gamma-')
 })
+
+it.each(['/tiles/s/0/0_0.jpg', '/_pathlab_ome/7/0_0.jpg'])('samples slow tile resources from %s', async (path) => {
+  vi.useFakeTimers()
+  let receive: PerformanceObserverCallback | undefined
+  const Observer = vi.fn(function (callback: PerformanceObserverCallback) {
+    receive = callback
+    return { observe: vi.fn(), disconnect: vi.fn() }
+  })
+  const previous = globalThis.PerformanceObserver
+  Object.defineProperty(globalThis, 'PerformanceObserver', { configurable: true, value: Observer })
+  try {
+    renderViewer()
+    expect(receive).toBeDefined()
+    const entries = Array.from({ length: 12 }, () => ({ name: path, transferSize: 100, duration: 2500 }))
+    act(() => receive!({ getEntries: () => entries } as unknown as PerformanceObserverEntryList, {} as PerformanceObserver))
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
+  } finally {
+    cleanup()
+    Object.defineProperty(globalThis, 'PerformanceObserver', { configurable: true, value: previous })
+  }
+})

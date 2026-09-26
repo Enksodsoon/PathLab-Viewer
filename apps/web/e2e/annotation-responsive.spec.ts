@@ -776,3 +776,68 @@ for (const publicRoute of [
     expect(JSON.stringify(payload)).not.toContain('"annotationVersion"')
   })
 }
+
+
+test('keeps micron scale and rotation controls clear of annotation chrome', async ({ page }) => {
+  for (const viewport of [{ width: 1584, height: 992 }, { width: 320, height: 568 }, { width: 760, height: 650 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/admin/preview/private-1')
+    await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+    await expect(page.locator('.scale-bar')).toBeVisible()
+    const rotation = page.getByRole('button', { name: /Open rotation controls/ })
+    const box = (await rotation.boundingBox())!
+    const reachable = await rotation.evaluate((button) => {
+      const rect = button.getBoundingClientRect()
+      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+    })
+    expect(reachable, `rotation reachable at ${viewport.width}x${viewport.height}`).toBe(true)
+    const scale = (await page.locator('.scale-bar').boundingBox())!
+    expect(box.x + box.width <= scale.x || scale.x + scale.width <= box.x || box.y + box.height <= scale.y || scale.y + scale.height <= box.y, `scale and rotation separated at ${viewport.width}x${viewport.height}`).toBe(true)
+    await rotation.click()
+    await expect(page.getByRole('dialog', { name: 'Slide rotation' })).toBeVisible()
+    await page.getByRole('button', { name: 'Rotate to 90 degrees' }).click()
+    await expect(rotation).toHaveAccessibleName('Open rotation controls. Current rotation 90 degrees')
+  }
+})
+
+
+test('residual revision history clears on selection and ignores a delayed response',async({page})=>{
+  const second={...touchPolygon,id:'33333333-3333-4333-8333-333333333333',metadata:{...touchPolygon.metadata,title:'Second ROI'}}
+  await page.route('**/api/v2/admin/annotations/slides/private-1/items?**',route=>route.fulfill({json:{items:[touchPolygon,second],total:2,nextOffset:null}}))
+  let release!:()=>void
+  let started=0
+  const pending=new Promise<void>(resolve=>{release=resolve})
+  await page.route('**/items/*/revisions',async route=>{
+    started++
+    if(started===2)await pending
+    await route.fulfill({json:{items:[{...touchPolygon,id:'revision-first'}]}})
+  })
+  let restores=0
+  await page.route('**/revisions/*/restore',route=>{restores++;return route.fulfill({status:404,json:{detail:'unexpected restore'}})})
+  await page.setViewportSize({width:760,height:650})
+  await page.goto('/admin/preview/private-1')
+  await page.getByRole('button',{name:'Open annotations'}).click()
+  await page.getByRole('button',{name:/Touch polygon/}).click()
+  await page.getByRole('button',{name:'Show advanced annotation details'}).click()
+  await page.getByRole('button',{name:'Browse annotation revisions'}).click()
+  await page.getByRole('combobox',{name:'Annotation revisions'}).selectOption('revision-first')
+  await page.getByRole('button',{name:'Close annotation inspector',exact:true}).last().click()
+  await page.getByRole('button',{name:/Second ROI/}).click()
+  await expect(page.getByRole('combobox',{name:'Annotation revisions'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Restore selected revision'})).toHaveCount(0)
+  await page.getByRole('button',{name:'Close annotation inspector',exact:true}).last().click()
+  await page.getByRole('button',{name:/Touch polygon/}).click()
+  await page.getByRole('button',{name:'Show advanced annotation details'}).click()
+  await page.getByRole('button',{name:'Browse annotation revisions'}).click()
+  await expect.poll(()=>started).toBe(2)
+  await page.getByRole('button',{name:'Close annotation inspector',exact:true}).last().click()
+  await page.getByRole('button',{name:/Second ROI/}).click()
+  const response=page.waitForResponse(response=>response.url().endsWith('/revisions'))
+  release()
+  await response
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
+  await expect(page.getByText(/Loaded .* revisions/)).toHaveCount(0)
+  await expect(page.getByRole('combobox',{name:'Annotation revisions'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Restore selected revision'})).toHaveCount(0)
+  expect(restores).toBe(0)
+})

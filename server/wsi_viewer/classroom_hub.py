@@ -920,6 +920,13 @@ class ClassroomHub:
 
     def reset_session(self, session_id: str) -> None:
         """Close every stream and clear transient state without retiring the room."""
+        loop = self._loop
+        if loop is None:
+            self._reset_session(session_id)
+            return
+        loop.call_soon_threadsafe(self._reset_session, session_id)
+
+    def _reset_session(self, session_id: str) -> None:
         for subscriber in tuple(self._subscribers.get(session_id, ())):
             self._retire_subscriber(session_id, subscriber)
         self._subscribers.pop(session_id, None)

@@ -1,7 +1,7 @@
 import type OpenSeadragon from 'openseadragon'
 import { readFileSync } from 'node:fs'
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import {
@@ -404,4 +404,36 @@ it('keeps touch targets, responsive dock, theme tokens, and reduced motion in th
   expect(css).toMatch(/\.annotation-inspector[\s\S]*position:fixed/)
   expect(css).toMatch(/@media\s*\(prefers-reduced-motion:reduce\)/)
   expect(css).toContain("[data-theme='dark']")
+})
+
+
+it.each([false, true])('clears revision history on selection change and ignores a late response (%s)', async (delayed) => {
+  const first = {
+    id: '22222222-2222-4222-8222-222222222222', layerId,
+    geometry: { type: 'rectangle' as const, x: 10, y: 20, width: 80, height: 60 },
+    style: { strokeColor: '#bf3c32', fillColor: '#bf3c32', strokeWidth: 2, opacity: 0.8, labelVisible: true },
+    metadata: { title: 'First ROI', classification: '', tags: [], notes: '' },
+    version: 1, deletedAt: null, createdAt: '2026-07-26T00:00:00Z', updatedAt: '2026-07-26T00:00:00Z',
+    bounds: { minX: 10, minY: 20, maxX: 90, maxY: 80 }, measurements: {},
+  }
+  const second = { ...first, id: '33333333-3333-4333-8333-333333333333', metadata: { ...first.metadata, title: 'Second ROI' } }
+  const history = { items: [{ ...first, id: 'revision-first' }] }
+  let resolveHistory!: (value: typeof history) => void
+  const revisions = vi.fn(() => delayed ? new Promise<typeof history>((resolve) => { resolveHistory = resolve }) : Promise.resolve(history))
+  const restoreRevision = vi.fn()
+  render(<AnnotationWorkspace slideId="slide-1" slideName="Private slide" onAttachmentChange={vi.fn()} services={services({
+    getItems: async () => ({ items: [first, second], total: 2, nextOffset: null }), revisions, restoreRevision,
+  })} />)
+  await screen.findByRole('button', { name: 'Open annotations' })
+  fireEvent.click(screen.getByRole('button', { name: 'Open annotations' }))
+  fireEvent.click(await screen.findByRole('button', { name: /First ROI/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Show advanced annotation details' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Browse annotation revisions' }))
+  await waitFor(() => expect(revisions).toHaveBeenCalledWith(first.id))
+  if (!delayed) fireEvent.change(await screen.findByRole('combobox', { name: 'Annotation revisions' }), { target: { value: 'revision-first' } })
+  fireEvent.click(screen.getByRole('button', { name: /Second ROI/ }))
+  if (delayed) await act(async () => resolveHistory(history))
+  expect(screen.queryByRole('combobox', { name: 'Annotation revisions' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Restore selected revision' })).not.toBeInTheDocument()
+  expect(restoreRevision).not.toHaveBeenCalled()
 })

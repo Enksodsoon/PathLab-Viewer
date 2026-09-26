@@ -18,7 +18,7 @@ import {
   useState,
   Suspense,
 } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 
 import { StatusMessage } from '../components/StatusMessage'
 import { safeAdminReturnPath } from '../authReturnPath'
@@ -166,6 +166,11 @@ interface SlideEditForm {
   adminNotes: string
 }
 
+const EDIT_FIELD_LIMITS = {
+  displayName: 200, description: 4000, caseId: 120, organSite: 120, stain: 80,
+  diagnosis: 300, course: 160, teachingNote: 8000, adminNotes: 16000, tags: undefined,
+}
+
 const EMPTY_EDIT_FORM: SlideEditForm = {
   displayName: '',
   description: '',
@@ -197,6 +202,25 @@ export function AdminPage() {
   const [url, setUrl] = useSearchParams()
   const latestUrl = useRef(url)
   latestUrl.current = url
+  const routerLocation = useLocation()
+  const navigationType = useNavigationType()
+  const [libraryTrail, setLibraryTrail] = useState(() => ({ keys: [routerLocation.key], index: 0 }))
+  useEffect(() => {
+    setLibraryTrail((current) => {
+      if (current.keys[current.index] === routerLocation.key) return current
+      if (navigationType === 'REPLACE') {
+        const keys = [...current.keys]
+        keys[current.index] = routerLocation.key
+        return { keys, index: current.index }
+      }
+      if (navigationType === 'PUSH') {
+        const keys = [...current.keys.slice(0, current.index + 1), routerLocation.key]
+        return { keys, index: keys.length - 1 }
+      }
+      const index = current.keys.indexOf(routerLocation.key)
+      return index >= 0 ? { ...current, index } : { keys: [routerLocation.key], index: 0 }
+    })
+  }, [routerLocation.key, navigationType])
   const returnTo = safeAdminReturnPath(url.get('returnTo'))
   const location = url.get('location') || 'all'
   const storageOpen = location === 'storage'
@@ -242,6 +266,8 @@ export function AdminPage() {
   const [details, setDetails] = useState<LibrarySlideDetails | LibrarySlide | null>(null)
   const [quickLook, setQuickLook] = useState<LibrarySlide | null>(null)
   const [dialog, setDialog] = useState<DialogName>(null)
+  const [singleActionSlide, setSingleActionSlide] = useState<LibrarySlide | null>(null)
+  useEffect(() => { if (dialog === null) setSingleActionSlide(null) }, [dialog])
   const [securityOpen, setSecurityOpen] = useState(false)
   const [navigatorOpen, setNavigatorOpen] = useState(false)
   const [railExpanded, setRailExpanded] = useState(getStoredRailExpanded)
@@ -510,6 +536,13 @@ export function AdminPage() {
         const statuses = await getSlideStatuses(activeIds)
         if (cancelled) return
         const byId = new Map(statuses.map((item) => [item.id, item]))
+        if (location === 'processing') {
+          const removedIds = new Set(statuses.filter((item) => !ACTIVE_STATES.has(item.state)).map((item) => item.id))
+          if (removedIds.size) setSelected((current) => {
+            const remaining = new Set([...current].filter((id) => !removedIds.has(id)))
+            return remaining.size === current.size ? current : remaining
+          })
+        }
         setPage((current) => {
           let changed = false
           const items = current.items.flatMap((slide) => {
@@ -695,6 +728,15 @@ export function AdminPage() {
   }, [currentTitle, location])
   const selectedSlides = page.items.filter((slide) => selected.has(slide.id))
   const selectedIds = selectedSlides.map((slide) => slide.id)
+  const actionSlides = singleActionSlide
+    ? [page.items.find((slide) => slide.id === singleActionSlide.id) ?? singleActionSlide]
+    : selectedSlides
+  const actionIds = actionSlides.map((slide) => slide.id)
+  const removeSelection = (ids: string[]) => setSelected((current) => {
+    const remaining = new Set(current)
+    ids.forEach((id) => remaining.delete(id))
+    return remaining
+  })
 
   function chooseLocation(nextLocation: string) {
     setUrlValues({ location: nextLocation === 'all' ? null : nextLocation }, false)
@@ -766,7 +808,7 @@ export function AdminPage() {
     } catch {
       full = { ...slide, filename: '', adminNotes: '', metadata: null }
     }
-    setSelected(new Set([slide.id]))
+    setSingleActionSlide(slide)
     setDetails(full)
     setEditForm({
       displayName: full.displayName,
@@ -800,7 +842,7 @@ export function AdminPage() {
         setNotice('Public link copied.')
         return
       }
-      setSelected(new Set([slide.id]))
+      if (['move', 'collection', 'delete', 'publish'].includes(action)) setSingleActionSlide(slide)
       if (action === 'move') setDialog('move')
       else if (action === 'collection') setDialog('add-collection')
       else if (action === 'delete') setDialog('delete')
@@ -820,7 +862,7 @@ export function AdminPage() {
             ? Math.max(0, current.total - 1)
             : current.total,
         }))
-        setSelected(new Set())
+        removeSelection([slide.id])
         setNotice(action === 'retry'
           ? 'Conversion queued again.'
           : 'Slide is now private.')
@@ -832,7 +874,7 @@ export function AdminPage() {
           items: current.items.filter((item) => item.id !== slide.id),
           total: Math.max(0, current.total - 1),
         }))
-        setSelected(new Set())
+        removeSelection([slide.id])
         await refreshNavigation()
       }
     } catch {
@@ -887,7 +929,7 @@ export function AdminPage() {
         items: current.items.map((slide) => changedById.get(slide.id) ?? slide),
       }))
     }
-    setSelected(new Set())
+    removeSelection(ids)
     setDialog(null)
     await refreshNavigation()
   }
@@ -917,14 +959,14 @@ export function AdminPage() {
   }
 
   async function permanentlyDeleteSelected() {
-    if (!selectedIds.length) return
-    await Promise.all(selectedIds.map((id) => deleteLibrarySlide(id)))
+    if (!actionIds.length) return
+    await Promise.all(actionIds.map((id) => deleteLibrarySlide(id)))
     setPage((current) => ({
       ...current,
-      items: current.items.filter((slide) => !selected.has(slide.id)),
-      total: Math.max(0, current.total - selected.size),
+      items: current.items.filter((slide) => !actionIds.includes(slide.id)),
+      total: Math.max(0, current.total - actionIds.length),
     }))
-    setSelected(new Set())
+    removeSelection(actionIds)
     setDialog(null)
     await refreshNavigation()
   }
@@ -985,7 +1027,7 @@ export function AdminPage() {
     action: 'publish' | 'unpublish' | 'retry',
     eligibleState: SlideState,
   ) {
-    const eligible = selectedSlides.filter((slide) => slide.state === eligibleState)
+    const eligible = actionSlides.filter((slide) => slide.state === eligibleState)
     const changed = await Promise.all(
       eligible.map((slide) => action === 'publish'
         ? publishSlide(slide.id)
@@ -1005,8 +1047,8 @@ export function AdminPage() {
         ? Math.max(0, current.total - changedById.size)
         : current.total,
     }))
-    setSelected(new Set())
-    const skipped = selectedSlides.length - eligible.length
+    removeSelection(actionIds)
+    const skipped = actionSlides.length - eligible.length
     const result = action === 'retry'
       ? 'queued'
       : action === 'publish'
@@ -1114,23 +1156,23 @@ export function AdminPage() {
       })
       await refreshNavigation()
     } else if (dialog === 'move') {
-      await moveSlides(selectedIds, moveTarget || null)
+      await moveSlides(actionIds, moveTarget || null)
       return
     } else if (dialog === 'add-collection') {
       if (collectionTarget) {
-        await addCollectionSlides(collectionTarget, selectedIds)
+        await addCollectionSlides(collectionTarget, actionIds)
         await refreshNavigation()
       }
     } else if (dialog === 'tags') {
       const tags = tagValue.split(',').map((tag) => tag.trim()).filter(Boolean)
-      const changed = await batchUpdateSlides(selectedIds, { tags })
+      const changed = await batchUpdateSlides(actionIds, { tags })
       const changedById = new Map(changed.map((slide) => [slide.id, slide]))
       setPage((current) => ({
         ...current,
         items: current.items.map((slide) => changedById.get(slide.id) ?? slide),
       }))
     } else if (dialog === 'edit') {
-      const changed = await batchUpdateSlides(selectedIds, {
+      const changed = await batchUpdateSlides(actionIds, {
         displayName: editForm.displayName.trim(),
         description: editForm.description.trim(),
         caseId: editForm.caseId.trim(),
@@ -1171,7 +1213,7 @@ export function AdminPage() {
     setDialog(null)
     setFormName('')
     setFormDescription('')
-    setSelected(new Set())
+    if (singleActionSlide === null) setSelected(new Set())
   }
 
   function addUploadFiles(files: File[]) {
@@ -1380,6 +1422,9 @@ export function AdminPage() {
           sort={sort}
           view={view}
           filtersOpen={filtersOpen}
+          canGoBack={libraryTrail.index > 0}
+          canGoForward={libraryTrail.index < libraryTrail.keys.length - 1}
+          canGoUp={location !== 'all'}
           onBack={() => navigate(-1)}
           onForward={() => navigate(1)}
           onUp={() => {
@@ -1734,7 +1779,7 @@ export function AdminPage() {
 
       <PublishConfirmationDialog
         open={dialog === 'publish'}
-        count={selected.size}
+        count={actionIds.length}
         busy={publishBusy}
         onClose={() => setDialog(null)}
         onConfirm={() => {
@@ -1801,19 +1846,21 @@ export function AdminPage() {
           <label>Display name
             <input
               required
+              maxLength={EDIT_FIELD_LIMITS.displayName}
               value={editForm.displayName}
               onChange={(event) => setEditForm((current) => ({
                 ...current,
-                displayName: event.target.value,
+                displayName: event.target.value.slice(0, EDIT_FIELD_LIMITS.displayName),
               }))}
             />
           </label>
           <label>Description
             <textarea
+              maxLength={EDIT_FIELD_LIMITS.description}
               value={editForm.description}
               onChange={(event) => setEditForm((current) => ({
                 ...current,
-                description: event.target.value,
+                description: event.target.value.slice(0, EDIT_FIELD_LIMITS.description),
               }))}
             />
           </label>
@@ -1828,10 +1875,11 @@ export function AdminPage() {
             ] as const).map(([label, field]) => (
               <label key={field}>{label}
                 <input
+                  maxLength={EDIT_FIELD_LIMITS[field]}
                   value={editForm[field]}
                   onChange={(event) => setEditForm((current) => ({
                     ...current,
-                    [field]: event.target.value,
+                    [field]: event.target.value.slice(0, EDIT_FIELD_LIMITS[field]),
                   }))}
                 />
               </label>
@@ -1839,19 +1887,21 @@ export function AdminPage() {
           </div>
           <label>Teaching note
             <textarea
+              maxLength={EDIT_FIELD_LIMITS.teachingNote}
               value={editForm.teachingNote}
               onChange={(event) => setEditForm((current) => ({
                 ...current,
-                teachingNote: event.target.value,
+                teachingNote: event.target.value.slice(0, EDIT_FIELD_LIMITS.teachingNote),
               }))}
             />
           </label>
           <label>Administrator note
             <textarea
+              maxLength={EDIT_FIELD_LIMITS.adminNotes}
               value={editForm.adminNotes}
               onChange={(event) => setEditForm((current) => ({
                 ...current,
-                adminNotes: event.target.value,
+                adminNotes: event.target.value.slice(0, EDIT_FIELD_LIMITS.adminNotes),
               }))}
             />
           </label>
@@ -1967,7 +2017,7 @@ export function AdminPage() {
         onClose={() => setDialog(null)}
       >
         <div className="library-dialog-form">
-          <p>{selected.size} slide{selected.size === 1 ? '' : 's'} selected.</p>
+          <p>{actionIds.length} slide{actionIds.length === 1 ? '' : 's'} selected.</p>
           <button
             type="button"
             className="primary danger"
@@ -2001,7 +2051,7 @@ export function AdminPage() {
       <LibraryDialog
         open={dialog === 'move'}
         title="Move slides"
-        description={`${selected.size} selected`}
+        description={`${actionIds.length} selected`}
         onClose={() => setDialog(null)}
       >
         <form className="library-dialog-form" onSubmit={(event) => {
@@ -2021,7 +2071,7 @@ export function AdminPage() {
       <LibraryDialog
         open={dialog === 'add-collection'}
         title="Add to collection"
-        description={`${selected.size} selected`}
+        description={`${actionIds.length} selected`}
         onClose={() => setDialog(null)}
       >
         <form className="library-dialog-form" onSubmit={(event) => {
@@ -2041,7 +2091,7 @@ export function AdminPage() {
       <LibraryDialog
         open={dialog === 'tags'}
         title="Edit tags"
-        description={`${selected.size} selected`}
+        description={`${actionIds.length} selected`}
         onClose={() => setDialog(null)}
       >
         <form className="library-dialog-form" onSubmit={(event) => {

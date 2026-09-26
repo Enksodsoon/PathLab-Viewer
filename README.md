@@ -73,7 +73,7 @@ Start the services in separate terminals:
 
 ```bash
 pathlab-admin create-admin
-pathlab-api
+pathlab-api  # --host and --port are optional; --help lists options
 pathlab-worker
 pnpm --dir apps/web dev
 ```
