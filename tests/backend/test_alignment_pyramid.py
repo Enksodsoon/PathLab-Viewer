@@ -651,6 +651,14 @@ def test_component_batches_reuse_decodes_and_resume_completed_attempts(tmp_path,
     reads = []
     attempts = []
     structures = []
+    overview_attempts = []
+    original_ecc = pyramid.cv2.findTransformECC
+
+    def overview_ecc(*args, **kwargs):
+        overview_attempts.append(True)
+        return original_ecc(*args, **kwargs)
+
+    monkeypatch.setattr(pyramid.cv2, "findTransformECC", overview_ecc)
     boxes = [(40, 40, 250, 250), (350, 330, 650, 570)]
     monkeypatch.setattr(pyramid, "component_bounds", lambda *_: boxes)
     monkeypatch.setattr(pyramid, "_flow_cell_evidence", lambda *_: ([], -1.0, -1.0))
@@ -670,6 +678,7 @@ def test_component_batches_reuse_decodes_and_resume_completed_attempts(tmp_path,
     monkeypatch.setattr(pyramid, "read_region", read)
     monkeypatch.setattr(pyramid, "register_pair", reject)
     monkeypatch.setattr(pyramid, "_approximate_component_map", no_structure)
+    overview_counts = []
     for _ in range(2):
         reads.clear()
         with pytest.raises(AlignmentRejected):
@@ -683,5 +692,20 @@ def test_component_batches_reuse_decodes_and_resume_completed_attempts(tmp_path,
                 checkpoint_dir=tmp_path / "batches",
             )
         assert len(reads) == len(set(reads)) == 4
+        overview_counts.append(len(overview_attempts))
     assert len(attempts) == 4
     assert len(structures) == 2
+    assert overview_counts[0] > 0
+    assert overview_counts[1] == overview_counts[0]
+    image.putpixel((0, 0), (0, 0, 0))
+    with pytest.raises(AlignmentRejected):
+        pyramid.register_components(
+            tmp_path / "ref",
+            tmp_path / "mov",
+            image,
+            image,
+            image.size,
+            image.size,
+            checkpoint_dir=tmp_path / "batches",
+        )
+    assert len(overview_attempts) > overview_counts[1]

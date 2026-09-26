@@ -1190,7 +1190,35 @@ def register_components(
     # Capture the scanner-frame proposal before feature extraction advances
     # OpenCV detector state across component crops. It remains a fallback;
     # feature-backed component registrations below still take precedence.
-    whole_proposal = whole_overview_registration()
+    overview_key = hashlib.sha256(
+        repr((reference_size, moving_size, cv2.__version__, "overview-v1")).encode()
+        + reference_overview.tobytes()
+        + moving_overview.tobytes()
+        + repr((reference_overview.size, moving_overview.size)).encode()
+    ).hexdigest()
+    overview_receipt = checkpoint_dir / f"overview-{overview_key}.json" if checkpoint_dir else None
+    cached_overview = None
+    if overview_receipt and overview_receipt.is_file():
+        with suppress(OSError, ValueError, TypeError, KeyError):
+            record = json.loads(overview_receipt.read_text())
+            if record["result"] is not None:
+                RegistrationResult(**record["result"])
+            cached_overview = record
+    if cached_overview is None:
+        whole_proposal = whole_overview_registration()
+        if overview_receipt:
+            overview_receipt.parent.mkdir(parents=True, exist_ok=True)
+            temporary = overview_receipt.with_suffix(".tmp")
+            temporary.write_text(
+                json.dumps({"result": asdict(whole_proposal) if whole_proposal else None})
+            )
+            temporary.replace(overview_receipt)
+    else:
+        whole_proposal = (
+            RegistrationResult(**cached_overview["result"])
+            if cached_overview["result"] is not None
+            else None
+        )
     frame_size_delta = max(
         abs(reference_size[0] / moving_size[0] - 1),
         abs(reference_size[1] / moving_size[1] - 1),
