@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "1b7b0d91b9e5462790fc1b919f7c995c14ab0aadbeb4212c0461b59022e8612e",
+      "sha256": "a9b7d2412808a45615730b48c2494ce98786b291573a72f6ddc3789f43dd5a11",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "b55b059771698527b87b9614769769df532a7b4da619d6638136cc9c175ed4b6",
+      "sha256": "b8875a7705eececd02ce1bd24d4c744bd1d24e2a04343e72a49bf7675196f88d",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "06468bfa81b8a6b154289fbc8fa509a93e872d46fb9d1245fdc6d377bc119038",
+      "sha256": "a4a8a052ec3450c6a72389d50d79e6146d445a985a920672fd463cae98cea102",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "0a67ba4c94a74ed2fa7e3d754746faf84d7e493f399fa62c1f1ee9884ddd1a98",
+      "sha256": "2d6e14366029a852697b02dc36146c8d311f9c3315f1808006c2332805a6f7fc",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T18:02:28Z",
+  "generatedAt": "2026-09-26T18:14:20Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "959f2dbf50b608877ed763eb6b919411e980d651",
+      "gitBlob": "2f63cc4b001dff360167bda54f15f28ed3b04dc9",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "eb25a607d2229848356e8b99e727d605f4314c6fc016de017fbbb6aa1dc04d74",
+      "sha256": "34fae9e1a74fcb2a893a7ec765bf3ec8e125ccc5436534b802e87d71d7a03b2c",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "e7f0319bb1c312186b7097c4c5cdd079961fd32b",
-  "subjectTree": "278220802bfa5eb8e6b05f14952dab13a0ccd861"
+  "subjectCommit": "c3376f32f7d396ea1a908dc82c7c0f725a43bf48",
+  "subjectTree": "87a1b2ac43d150ebd846ba9cac5930c97e4b5197"
 }
