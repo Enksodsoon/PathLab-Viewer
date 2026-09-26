@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "1e9b222a2fab8c202bddf6a7037da1650943d3f9f466086ccc697cfd2a85f419",
+      "sha256": "825940d3db679ab89142c3c28f4b00cbbe559335764f603318f40fc3434ef9c3",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "6fcb6ec3cca1278c47cc514abe614eb5e230b1222329bca252ca65a3fd79ac0e",
+      "sha256": "f136a0697e0aaac5c5ee55f0af2523284c2efbc231a801de5b55e5cc3f7e7145",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "fcb25cd70a4f2272ee574a80a3360e43a59697774770940179d1db5934e396bf",
+      "sha256": "0c8e57a50945dc8f14dd825abada59b8a4ee46b6905921c9788e747cb01bd3e6",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "60ce0bab398293ab727382551d355e45e2b5e5af91d16b1c24ac6d96a4c70648",
+      "sha256": "390bdd3593207326ef924b9f8018dcb070576c37c0b45a5c5012545f3a535767",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T20:13:45Z",
+  "generatedAt": "2026-09-26T20:15:36Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,10 +141,10 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "cda3e5e4709ae459a98252b54191f6e010d18515",
+      "gitBlob": "89e480b2d3e6c0d3fdea7ee77389fec6fb2d1cbe",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "bd4739b108b3bbde56bc900da74cbe804a360b0e44be705d7884436183d2bf65",
-      "sizeBytes": 41152
+      "sha256": "a05cba7fada1cfb671e4f1a6ebaa29300eb9677ffa2a90604f1b201749d18cf2",
+      "sizeBytes": 41188
     },
     {
       "gitBlob": "ce6986e98ed5ed8d8dcfd1aaad0ba40135c4826a",
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "e2f870f76751d5bed9c6deddb9a85b5470e39a91",
-  "subjectTree": "39829330692b74d4d2091efec32d1b5a6fb49514"
+  "subjectCommit": "5ce89c7fe61b46dcef911939a9bb40dc8869c8e2",
+  "subjectTree": "64818c18bb02d3e957ee36abf11dd5bd0ce6566c"
 }
