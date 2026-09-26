@@ -22,6 +22,7 @@ from .alignment_engines import (
     ENGINE_HISALIGN,
     ENGINE_NATIVE,
     ENGINE_VALIS,
+    ENGINE_VERSIONS,
     SUPPORTED_ENGINES,
     engine_availability,
     settings_digest,
@@ -758,7 +759,9 @@ def register_alignment_routes(
                     "engine": row.engine,
                     "engineVersion": row.engine_version,
                     "settingsDigest": row.settings_digest,
-                    "currentSettings": row.settings_digest == settings_digest(row.engine),
+                    "currentSettings": row.engine_version == ENGINE_VERSIONS[row.engine]
+                    and row.settings_digest
+                    == settings_digest(row.engine, row.registration.get("engineSettings") or {}),
                     "status": row.status,
                     "validationState": row.validation_state,
                     "registration": row.registration,
@@ -886,7 +889,11 @@ def register_alignment_routes(
             or item.source_versions.get(anchor.id) != anchor.sha256
         ):
             raise _error("ALIGNMENT_CANDIDATE_STALE", 409)
-        if candidate.settings_digest != settings_digest(candidate.engine):
+        if candidate.engine_version != ENGINE_VERSIONS[
+            candidate.engine
+        ] or candidate.settings_digest != settings_digest(
+            candidate.engine, candidate.registration.get("engineSettings") or {}
+        ):
             raise _error("ALIGNMENT_CANDIDATE_SETTINGS_STALE", 409)
         registration = {
             **candidate.registration,
@@ -894,6 +901,7 @@ def register_alignment_routes(
             "selectedCandidateId": candidate.id,
             "engine": candidate.engine,
             "engineVersion": candidate.engine_version,
+            "settingsDigest": candidate.settings_digest,
             "sourceVersion": candidate.source_version,
             "anchorVersion": candidate.anchor_version,
         }

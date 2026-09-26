@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 
+from .alignment_engines import ENGINE_VERSIONS, settings_digest
+from .alignment_fast import PREPARATION_VERSION
 from .alignment_policy import VALIDATION_POLICY, current_registration
 from .domain import SlideState
 from .models import ComparisonSet, ComparisonSetMember, Job, Slide
@@ -107,8 +110,16 @@ def queue_ready_registrations(
         if reference and reference.sha256:
             versions[reference.id] = reference.sha256
         item.source_versions = versions
+        registration_version = ":".join(
+            [PREPARATION_VERSION, *(settings_digest(engine) for engine in sorted(ENGINE_VERSIONS))]
+        )
+        stale_digest = (
+            hashlib.sha256(json.dumps(saved, sort_keys=True).encode()).hexdigest()
+            if saved and saved.get("status") == "stale"
+            else ""
+        )
         key = hashlib.sha256(
-            f"{item.id}:{item.version}:{slide.id}:{slide.sha256}:{anchor.id}:{anchor.sha256}:{VALIDATION_POLICY}".encode()
+            f"{item.id}:{item.version}:{slide.id}:{slide.sha256}:{anchor.id}:{anchor.sha256}:{VALIDATION_POLICY}:{registration_version}:{stale_digest}".encode()
         ).hexdigest()
         if (
             database.scalar(

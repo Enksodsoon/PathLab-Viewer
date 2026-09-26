@@ -16,9 +16,12 @@ test('large synthetic library paginates, survives offline recovery and isolates 
     else await expect(page.getByRole('heading', { name: 'Frontend QA 0000', exact: true })).toBeVisible()
   }
   const firstPage = await page.getByRole('heading', { name: /^Frontend QA/ }).allTextContents()
+  const nextPage = page.getByRole('button', { name: 'Next page', exact: true })
+  await nextPage.scrollIntoViewIfNeeded()
+  await expect(nextPage).toBeInViewport({ ratio: 1 })
   const paged = page.waitForResponse((response) => response.url().includes('/library/items')
     && new URL(response.url()).searchParams.has('cursor'))
-  await page.getByRole('button', { name: 'Next page', exact: true }).click()
+  await nextPage.click()
   expect((await paged).ok()).toBe(true)
   await expect(page.getByRole('heading', { name: 'Frontend QA 0000', exact: true })).not.toBeVisible()
   const secondPage = await page.getByRole('heading', { name: /^Frontend QA/ }).allTextContents()

@@ -326,3 +326,52 @@ def test_stacking_publishes_first_pass_before_refinement(tmp_path, expired, memb
                 and j.checkpoint.get("sourceVersion") == "mov-1"
             ]
             assert len(old) == 1 and old[0].status == "cancelled"
+
+
+@pytest.mark.parametrize(
+    "field", ["engine", "engineVersion", "settingsDigest", "preparationVersion"]
+)
+@pytest.mark.parametrize("obsolete", ["obsolete", None])
+def test_saved_automatic_map_rejects_obsolete_versions_without_mutating_revision(field, obsolete):
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
+    from wsi_viewer.alignment_fast import PREPARATION_VERSION
+    from wsi_viewer.alignment_policy import current_registration
+
+    saved = {
+        "status": "ready",
+        "provenance": "automatic",
+        "engine": ENGINE_NATIVE,
+        "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+        "settingsDigest": settings_digest(ENGINE_NATIVE),
+        "triangles": [{"supported": True}],
+        "evidence": {"phase": "preview", "preparationVersion": PREPARATION_VERSION},
+    }
+    assert current_registration(saved)["status"] == "ready"
+    if field == "preparationVersion":
+        saved["evidence"][field] = obsolete
+    else:
+        saved[field] = obsolete
+    stale = current_registration(saved)
+    assert stale["status"] == "stale" and not stale["triangles"]
+    assert _registration_quality(saved) == (0, 0.0, 0)
+    assert saved["status"] == "ready" and saved["triangles"]
+
+
+def test_saved_fallback_settings_are_bound_to_the_current_adapter_digest():
+    from wsi_viewer.alignment_engines import ENGINE_VALIS, ENGINE_VERSIONS, settings_digest
+    from wsi_viewer.alignment_policy import current_registration
+
+    settings = {"maxImageDimension": 768}
+    saved = {
+        "status": "ready",
+        "provenance": "automatic",
+        "triangles": [{}],
+        "engine": ENGINE_VALIS,
+        "engineVersion": ENGINE_VERSIONS[ENGINE_VALIS],
+        "engineSettings": settings,
+        "settingsDigest": settings_digest(ENGINE_VALIS, settings),
+        "evidence": {"valisLocalEvidenceQualified": True},
+    }
+    assert current_registration(saved)["status"] == "ready"
+    settings["maxImageDimension"] = 512
+    assert current_registration(saved)["status"] == "stale"

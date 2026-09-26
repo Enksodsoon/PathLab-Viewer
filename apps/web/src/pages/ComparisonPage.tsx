@@ -236,6 +236,13 @@ export function ComparisonPage() {
       const initialPanes = restored.length ? restored : availableMembers.slice(0, 2).map((member) => member.slideId)
       setUnlinkedPanes(new Set())
       setPanes(initialPanes)
+      if (!publicId && value.members.some((member) => member.tileSource && member.registration?.status === 'stale')) {
+        void registerComparisonSet(value.id).then(() => {
+          if (active) setComparison((current) => current?.id === value.id ? { ...current, status: 'queued' } : current)
+        }).catch(() => {
+          if (active) setNotice('Automatic alignment could not be queued. Try Run automatic alignment again.')
+        })
+      }
     }).catch((caught) => {
       if (!active) return
       if (!publicId && caught instanceof ApiError && caught.status === 401) {

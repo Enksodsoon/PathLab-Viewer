@@ -1432,6 +1432,7 @@
     top:8px;
     right:8px;
     left:8px;
+    max-width:calc(100% - 16px);
     min-height:50px;
   }
 

@@ -3,7 +3,10 @@
 from copy import deepcopy
 from typing import Any
 
-VALIDATION_POLICY = "distributed-support-v1"
+from .alignment_engines import ENGINE_VERSIONS, settings_digest
+from .alignment_fast import PREPARATION_VERSION
+
+VALIDATION_POLICY = "distributed-support-v2"
 
 
 def current_registration(
@@ -31,13 +34,28 @@ def current_registration(
         return value
     evidence = value.get("evidence") or {}
     engine = str(value.get("engine") or "")
+    incompatible_engine = (
+        (str(value.get("provenance", "")).startswith("automatic") and engine not in ENGINE_VERSIONS)
+        or engine in ENGINE_VERSIONS
+        and (
+            value.get("engineVersion") != ENGINE_VERSIONS[engine]
+            or value.get("settingsDigest")
+            != settings_digest(engine, value.get("engineSettings") or {})
+            or evidence.get("phase") == "preview"
+            and evidence.get("preparationVersion") != PREPARATION_VERSION
+        )
+    )
     legacy = (
         engine.startswith("hisalign")
         and not evidence.get("hisalignLocalEvidenceQualified")
         or engine.startswith("valis")
         and not evidence.get("valisLocalEvidenceQualified")
     )
-    if not incompatible_source and (value.get("status") != "ready" or not legacy):
+    if (
+        not incompatible_source
+        and not incompatible_engine
+        and (value.get("status") != "ready" or not legacy)
+    ):
         return value
     result = deepcopy(value)
     result.update(

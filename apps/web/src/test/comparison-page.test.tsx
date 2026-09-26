@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -401,4 +401,28 @@ it('lets an administrator save a direct serial-section anchor and queue registra
   const patchCall = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PATCH')
   expect(JSON.parse(String(patchCall?.[1]?.body))).toMatchObject({ version: 1, anchors: { 'slide-4': 'slide-3' } })
   expect(await screen.findByText('Registration queued with the updated reference groups.')).toBeVisible()
+})
+
+
+it.each([false, true])('requeues obsolete maps on admin opening only (public: %s)', async (shared) => {
+  const queued: string[] = []
+  vi.mocked(fetch).mockImplementation(async (input) => {
+    const url = String(input)
+    let payload: unknown = {
+      id: 'set-1', name: 'Obsolete map', referenceSlideId: 'slide-1', status: 'ready', version: 1,
+      members: [
+        { slideId: 'slide-1', displayName: 'Reference', stain: 'H&E', tileSource: '/tiles/1.dzi', registration: null },
+        { slideId: 'slide-2', displayName: 'Moving', stain: 'IHC', tileSource: '/tiles/2.dzi', registration: { status: 'stale', provenance: 'automatic', triangles: [] } },
+      ],
+    }
+    if (url.endsWith('/session')) payload = { csrfToken: 'fixture-token' }
+    if (url.endsWith('/jobs') || url.endsWith('/candidates')) payload = []
+    if (url.endsWith('/register')) { queued.push(url); payload = { queuedPairs: 1 } }
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
+  const route = shared ? '/shared/share-1/comparisons/set-1' : '/admin/comparisons/set-1'
+  render(<MemoryRouter initialEntries={[route]}><Routes><Route path={shared ? '/shared/:publicId/comparisons/:comparisonId' : '/admin/comparisons/:comparisonId'} element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Obsolete map')).toBeVisible()
+  if (shared) expect(queued).toHaveLength(0)
+  else await waitFor(() => expect(queued).toHaveLength(1))
 })

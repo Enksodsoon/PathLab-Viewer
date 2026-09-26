@@ -899,11 +899,13 @@ def _preview_alignment(
         coordinateReferenceId=reference.id,
         engine=ENGINE_NATIVE,
         engineVersion=ENGINE_VERSIONS[ENGINE_NATIVE],
+        settingsDigest=settings_digest(ENGINE_NATIVE),
     )
     payload["evidence"] = {
         **payload.get("evidence", {}),
         "validationPolicy": VALIDATION_POLICY,
         "phase": "preview",
+        "preparationVersion": PREPARATION_VERSION,
         "stackAcceptedAt": (deadline - timedelta(seconds=10)).isoformat(),
         "previewPublishedAt": datetime.now(UTC).isoformat(),
         "preparationSeconds": preparation_seconds,
@@ -1079,7 +1081,9 @@ def process_next(
             if slide is not None:
                 job_id = job.id
                 checkpoint: dict[str, Any] = {
-                    "phase": "delete-files", "slideId": slide.id, "publicId": slide.public_id,
+                    "phase": "delete-files",
+                    "slideId": slide.id,
+                    "publicId": slide.public_id,
                 }
                 # Retain this job across the slide's FK cascade so cleanup can resume.
                 job.slide = None
@@ -1148,6 +1152,7 @@ def process_next(
                 job.lease_expires_at = None
                 database.commit()
                 return True
+            applied_settings: dict[str, Any] = {}
             expected_version = checkpoint.get("setVersion", comparison.version)
             if comparison.version != expected_version or job.cancellation_requested_at is not None:
                 job.status = "cancelled"
@@ -1301,12 +1306,13 @@ def process_next(
                     )
                     job.checkpoint = dict(checkpoint)
                     database.commit()
+                    applied_settings = {"maxImageDimension": 768}
                     result_json = _run_alignment_bounded(
                         reference_derivative,
                         moving_derivative,
                         reference_full_size,
                         moving_full_size,
-                        engine_settings={"maxImageDimension": 768},
+                        engine_settings=applied_settings,
                         **run_options,
                     )
                     result_json["evidence"] = {
@@ -1314,6 +1320,7 @@ def process_next(
                         "adaptiveMemoryFallback": True,
                         "fallbackReason": str(error),
                     }
+                result_json["engineSettings"] = applied_settings
                 checkpoint.update(
                     {"progress": 80, "stage": "building-coordinate-map", "processedPatches": 0}
                 )
@@ -1364,7 +1371,7 @@ def process_next(
                             anchor_version=reference.sha256,
                             engine=engine_name,
                             engine_version=ENGINE_VERSIONS[engine_name],
-                            settings_digest=settings_digest(engine_name),
+                            settings_digest=settings_digest(engine_name, applied_settings),
                             status=str(result_json.get("status", "rejected")),
                             validation_state="engineering_passed"
                             if result_json.get("status") == "ready"
@@ -1403,7 +1410,8 @@ def process_next(
                     "coordinateReferenceId": coordinate_reference_id,
                     "engine": engine_name,
                     "engineVersion": ENGINE_VERSIONS[engine_name],
-                    "settingsDigest": settings_digest(engine_name),
+                    "engineSettings": applied_settings,
+                    "settingsDigest": settings_digest(engine_name, applied_settings),
                     "evidence": {
                         **result_json.get("evidence", {}),
                         "validationPolicy": VALIDATION_POLICY,
@@ -1482,10 +1490,10 @@ def process_next(
                             anchor_version=(reference.sha256 if reference else None),
                             engine=engine_name,
                             engine_version=ENGINE_VERSIONS[engine_name],
-                            settings_digest=settings_digest(engine_name),
+                            settings_digest=settings_digest(engine_name, applied_settings),
                             status="rejected",
                             validation_state="rejected",
-                            registration={},
+                            registration={"engineSettings": applied_settings},
                             evidence={},
                             failure_reason=str(error),
                         )

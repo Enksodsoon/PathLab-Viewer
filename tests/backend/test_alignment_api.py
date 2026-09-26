@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
-from wsi_viewer.alignment_engines import settings_digest
+from wsi_viewer.alignment_engines import ENGINE_VERSIONS, settings_digest
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -373,11 +373,12 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
                 source_version="sha-2",
                 anchor_version="sha-1",
                 engine="hisalign-0.2.1",
-                engine_version="commit",
-                settings_digest=settings_digest("hisalign-0.2.1"),
+                engine_version=ENGINE_VERSIONS["hisalign-0.2.1"],
+                settings_digest=settings_digest("hisalign-0.2.1", {"maxImageDimension": 768}),
                 status="ready",
                 validation_state="engineering_passed",
                 registration={
+                    "engineSettings": {"maxImageDimension": 768},
                     "status": "ready",
                     "movingToReference": [[1, 0, 10], [0, 1, 5]],
                     "triangles": [
@@ -426,7 +427,7 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
                 source_version="sha-2",
                 anchor_version="sha-1",
                 engine="hisalign-0.2.1",
-                engine_version="commit",
+                engine_version=ENGINE_VERSIONS["hisalign-0.2.1"],
                 settings_digest="c" * 64,
                 status="ready",
                 validation_state="engineering_passed",
@@ -461,6 +462,12 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         )
         assert promoted.status_code == 200, promoted.text
         assert promoted.json()["members"][1]["registration"]["engine"] == "hisalign-0.2.1"
+        with session_factory(client.app.state.settings)() as database:
+            saved = database.get(ComparisonSet, created["id"]).registrations["slide-2"]
+            assert saved["engineSettings"] == {"maxImageDimension": 768}
+            assert saved["settingsDigest"] == settings_digest(
+                "hisalign-0.2.1", saved["engineSettings"]
+            )
         with session_factory(client.app.state.settings)() as database:
             assert (
                 database.query(ComparisonRegistrationRevision)
@@ -675,3 +682,55 @@ def test_correction_rejects_collinear_and_out_of_bounds_points(tmp_path: Path) -
                 },
             )
             assert response.status_code == 422
+
+
+def test_engine_upgrade_invalidates_saved_map_and_requeues_completed_pair(tmp_path, monkeypatch):
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS
+    from wsi_viewer.alignment_fast import PREPARATION_VERSION
+
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Upgrade",
+                "slideIds": ["slide-1", "slide-2"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        endpoint = f"/api/v1/admin/comparison-sets/{created['id']}"
+        with session_factory(client.app.state.settings)() as database:
+            item = database.get(ComparisonSet, created["id"])
+            item.registrations = {
+                "slide-2": {
+                    "status": "ready",
+                    "provenance": "automatic",
+                    "triangles": [{}],
+                    "sourceVersion": "sha-2",
+                    "anchorVersion": "sha-1",
+                    "anchorSlideId": "slide-1",
+                    "engine": ENGINE_NATIVE,
+                    "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+                    "settingsDigest": settings_digest(ENGINE_NATIVE),
+                    "evidence": {"phase": "preview", "preparationVersion": PREPARATION_VERSION},
+                }
+            }
+            for job in database.scalars(select(Job)):
+                job.status = "succeeded"
+            database.commit()
+        assert client.get(endpoint).json()["members"][1]["registration"]["status"] == "ready"
+        with session_factory(client.app.state.settings)() as database:
+            item = database.get(ComparisonSet, created["id"])
+            saved = dict(item.registrations["slide-2"])
+            saved["engineVersion"] = "obsolete-engine"
+            item.registrations = {"slide-2": saved}
+            database.commit()
+        assert client.post(endpoint + "/register", headers=headers).json()["queuedPairs"] == 1
+        assert client.post(endpoint + "/register", headers=headers).json()["queuedPairs"] == 0
+        monkeypatch.setitem(ENGINE_VERSIONS, ENGINE_NATIVE, "upgraded-engine")
+        assert client.get(endpoint).json()["members"][1]["registration"]["status"] == "stale"
+        assert client.post(endpoint + "/register", headers=headers).json()["queuedPairs"] == 1
+        assert client.post(endpoint + "/register", headers=headers).json()["queuedPairs"] == 0
+        with session_factory(client.app.state.settings)() as database:
+            assert database.query(Job).filter(Job.kind == "align").count() == 3

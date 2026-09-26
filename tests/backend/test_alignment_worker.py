@@ -7,6 +7,7 @@ import pytest
 from PIL import Image, ImageDraw
 from sqlalchemy.orm import Session
 from wsi_viewer.alignment import AlignmentRejected
+from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
 from wsi_viewer.domain import SlideState
@@ -189,6 +190,9 @@ def test_failed_reregistration_preserves_previous_usable_map(
     previous = {
         "status": "approximate",
         "provenance": "automatic",
+        "engine": ENGINE_NATIVE,
+        "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+        "settingsDigest": settings_digest(ENGINE_NATIVE),
         "anchorSlideId": "reference",
         "sourceVersion": "m1",
         "anchorVersion": "r1",
@@ -287,6 +291,9 @@ def test_successful_reregistration_does_not_replace_stronger_existing_map(
     previous = {
         "status": "approximate",
         "provenance": "automatic",
+        "engine": ENGINE_NATIVE,
+        "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+        "settingsDigest": settings_digest(ENGINE_NATIVE),
         "anchorSlideId": "reference",
         "sourceVersion": "m1",
         "anchorVersion": "r1",
