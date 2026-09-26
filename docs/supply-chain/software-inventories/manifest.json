@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "572ef1a3f7a3f3cb15542045bba485f2ea4118ddcd369ca98f58a518d215b65d",
+      "sha256": "d763cb965a617c42f2c96053c6eb2caed1508589ca97cc93b95a5701b90e7f92",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "2bee6db702c9d42a4cf7d080cc532c736efc8bc8ac17fc1182246bbcd28bbab3",
+      "sha256": "17120390e3743e9515b56f4f8bed6653dab8168ea70144933b5c1f4fa63fa057",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "0aca259cb87489b800137ec4ad5f4578db8e11717e0b542090bac4af0ed121ef",
+      "sha256": "e0587c1d883883e88826af7f571a5e80654f071a5a9ddcc56992a4e7661be623",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "564d8cd500be87c418db398ad3cedfc220b6258d224af3cbbcb218a111a92d25",
+      "sha256": "2771ab67706535669b2d1cdbfdf862e785edd4fd7e359a26ff4bb0de02aa84f6",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T19:46:19Z",
+  "generatedAt": "2026-09-26T20:04:58Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "d19ee514713d346be1fff4b2200af4f8fe213f50",
+      "gitBlob": "a31f4e360eb882341153b1f3b46c58a0f89c07ed",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "29d00e87c70d7c9640f7eb8919213ef7c7a5d767d10bcd37be17eb001ec72a3b",
+      "sha256": "9f9c7a6c075dc685f889d395683a8d836e893fe887e1cffe54c0cd8e9b9a03c7",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "1154651b45be32539c461296af2d0307765e760a",
-  "subjectTree": "52f7346a6f2cdb05812312a5580d1c4e2e15801e"
+  "subjectCommit": "cb138540e79a630b36bd0c11214b57bac3c7c3cd",
+  "subjectTree": "eddc32610d928081e808264b3522591e8a509ae5"
 }
