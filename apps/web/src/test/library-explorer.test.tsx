@@ -283,7 +283,8 @@ describe('Canvas Focus library explorer', () => {
     api.getLibraryNavigation.mockResolvedValue({...navigation, savedViews: [{id: 'renal', name: 'Renal teaching', sort: 'name_asc', updatedAt: 'now', definition: {version: 1, filters: {q: 'kidney', tags: ['Teaching', 'Renal'], state: 'published', createdFrom: '2026-09-01', updatedTo: '2026-09-20'}}}]})
     renderCanvasFocusAdmin('/admin?location=saved%3Arenal&q=old&state=failed&tag=old&sort=size_desc')
     await screen.findByRole('heading', {name: 'Renal teaching'})
-    expect(screen.getByRole('searchbox', {name: 'Search slides'})).toHaveValue('kidney')
+    // Navigation metadata renders the title before the saved-query restoration effect.
+    await waitFor(() => expect(screen.getByRole('searchbox', {name: 'Search slides'})).toHaveValue('kidney'))
     await waitFor(() => expect(screen.getByRole('combobox', {name: 'Sort slides'})).toHaveValue('name_asc'))
     expect(screen.getByLabelText('Active tags')).toHaveTextContent('Teaching, Renal')
     await userEvent.click(screen.getByRole('button', {name: 'Filters'}))

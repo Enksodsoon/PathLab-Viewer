@@ -17,7 +17,7 @@ from wsi_viewer.study_routes import AiEventReport, ReadinessReport
 
 
 @pytest.fixture(params=["sqlite", "postgresql"])
-def study_database_url(request, tmp_path):
+def study_database_url(request, tmp_path, monkeypatch):
     if request.param == "sqlite":
         yield f"sqlite:///{tmp_path / 'study.sqlite3'}"
         return
@@ -29,9 +29,28 @@ def study_database_url(request, tmp_path):
     with engine.begin() as connection:
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     url = make_url(configured).update_query_dict({"options": f"-c search_path={schema}"})
+    from wsi_viewer import database as database_module
+
+    isolated_engines = []
+
+    def isolated_create_engine(target, **kwargs):
+        if make_url(target) != url:
+            return create_engine(target, **kwargs)
+        connect_args = dict(kwargs.pop("connect_args", {}))
+        existing_options = connect_args.get("options", "")
+        connect_args["options"] = f"{existing_options} -c search_path={schema}".strip()
+        isolated = create_engine(target, connect_args=connect_args, **kwargs)
+        isolated_engines.append(isolated)
+        with isolated.connect() as connection:
+            assert connection.scalar(text("SELECT current_schema()")) == schema
+        return isolated
+
+    monkeypatch.setattr(database_module, "create_engine", isolated_create_engine)
     try:
         yield url.render_as_string(hide_password=False)
     finally:
+        for isolated in isolated_engines:
+            isolated.dispose()
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         engine.dispose()
