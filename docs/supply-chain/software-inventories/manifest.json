@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "3773c8c354c01e5fb3201fa59edc2c98e5a50dfdd81e38f2657f4a24933896c2",
+      "sha256": "8bb21598239c1c853acd6920ea99f7aa9acd1ccd8fe100aba3d971ec4fc54f2f",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "108b763be4c008182657401d4642bd3c8b15f3f20173bf838847f841f7975515",
+      "sha256": "a28f4921a032b136a5d8b9c3906f903c0efd00e96ae148de32bc99ffc4d4e78e",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "e469bd56dd8771b0d4553ad582dcc7b7b7de011fd40856bb3c197ddadbccd394",
+      "sha256": "5d84476e69c6954135def376ca7f8061a8112d8e2aad9561ce61c509532d3539",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "d1575168e296b0837519f419520472516dd4c60f80d25523929b9322a4cb01fd",
+      "sha256": "0341fa15bffb295c2670ccc4a4987c98aa85ca898f7ceb999e82dacec4c48e30",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T17:23:20Z",
+  "generatedAt": "2026-09-26T17:28:02Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "21d1d45e61168bca120020327281692f53157402",
+      "gitBlob": "98dd832be6df4d5d5e1df0b483c8608e3d4a56a3",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "18eafbfb66f56309ab863cb830d31916ac650115c482e611c7a17f6008056094",
+      "sha256": "503b176d4928a9ff711629b2bf0caccc453854785ead01c1a499805d74af31bf",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "670bcdd3cb4d72d8483d93f33e628d67a728f995",
-  "subjectTree": "2c322db7d72c37077f33c007b68ec36b8a6eb12f"
+  "subjectCommit": "7d46eb44a2b9ad6191f645bb99968d73db3aab07",
+  "subjectTree": "9bb6f18c4ec4f0062e55c27be508da1d00269177"
 }
