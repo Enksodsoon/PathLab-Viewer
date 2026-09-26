@@ -7,7 +7,8 @@ describe('classroom notebook export', () => {
     let active = 0
     let peak = 0
     class Reader {
-      result = 'data:image/png;base64,cGl4ZWw='
+      // Synthetic text tests reader sequencing without embedding artwork.
+      result = 'data:text/plain;charset=utf-8,synthetic-test-payload'
       onload?: () => void
       readAsDataURL() {
         peak = Math.max(peak, ++active)
