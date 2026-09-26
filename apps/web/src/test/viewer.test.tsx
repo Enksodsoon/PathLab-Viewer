@@ -218,6 +218,20 @@ it('keeps the loaded canvas mounted and reports an offline connection', () => {
   expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
 })
 
+it('uses the canvas renderer when the optional offscreen context constructor is absent', () => {
+  vi.stubGlobal('OffscreenCanvasRenderingContext2D', undefined)
+  try {
+    renderViewer()
+    expect(latestViewerOptions().drawer).toBe('canvas')
+    cleanup()
+    vi.stubGlobal('OffscreenCanvasRenderingContext2D', class {})
+    renderViewer()
+    expect(latestViewerOptions().drawer).toEqual(['auto', 'webgl', 'canvas', 'html'])
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
 it('uses reduced loader and cache limits below 768 pixels', () => {
   setViewportWidth(500)
   renderViewer()

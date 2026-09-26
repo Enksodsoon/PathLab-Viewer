@@ -289,6 +289,9 @@ export function OpenSeadragonViewer({
       viewer = OpenSeadragon({
         element: element.current,
         tileSources: tileSourceRef.current,
+        // OSD's WebGL drawer references this optional constructor without a guard.
+        drawer: typeof OffscreenCanvasRenderingContext2D === 'undefined'
+          ? 'canvas' : ['auto', 'webgl', 'canvas', 'html'],
         showNavigationControl: false,
         preserveImageSizeOnResize: true,
         showNavigator: !mountedNarrowViewport,
