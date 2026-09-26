@@ -49,6 +49,7 @@ class OmeTileIndex:
     source_sha256: str
     jpeg_quality: int = 75
     quality_profile: str = "ome-dynamic-v1-q75"
+    primary_page: int = 0
 
 
 _JPEG_LUMA_BASE = (
@@ -158,7 +159,18 @@ def build_ome_tile_index(
         with path.open("rb") as stream, tifffile.TiffFile(path) as tif:
             if not tif.ome_metadata or not tif.series:
                 raise OmeTileIndexError("A valid OME pyramid is required")
-            series = tif.series[0]
+            # Match OME validation's highest-resolution primary series selection;
+            # auxiliary thumbnails need not be the first TIFF series.
+            candidates = [
+                series for series in tif.series if "X" in series.axes and "Y" in series.axes
+            ]
+            if not candidates:
+                raise OmeTileIndexError("An OME image with X and Y axes is required")
+            series = max(
+                candidates,
+                key=lambda item: int(item.shape[item.axes.index("X")])
+                * int(item.shape[item.axes.index("Y")]),
+            )
             if not series.levels:
                 raise OmeTileIndexError("An OME pyramid is required")
 
@@ -166,6 +178,8 @@ def build_ome_tile_index(
                 page = series_level.pages[0]
                 if page is None or not isinstance(page, tifffile.TiffPage):
                     raise OmeTileIndexError("OME pyramid page is invalid")
+                if not levels:
+                    primary_page = int(page.index)
                 if (
                     not page.is_tiled
                     or _enum_name(page.compression) != "JPEG"
@@ -288,6 +302,7 @@ def build_ome_tile_index(
         source_sha256=source_sha256,
         jpeg_quality=jpeg_quality,
         quality_profile=f"ome-dynamic-v1-q{jpeg_quality}",
+        primary_page=primary_page,
     )
 
 
@@ -497,7 +512,7 @@ def assemble_jpeg_tables(
     shared_tables = b"".join(
         b"\xff" + bytes((marker,)) + (len(data) + 2).to_bytes(2, "big") + data
         for marker, data in table_segments
-        if marker in {0xC4, 0xDB}
+        if marker in {0xC4, 0xDB, 0xDD}
     )
     result = b"\xff\xd8" + shared_tables + _without_outer_markers(payload)
     return _validated_jpeg(

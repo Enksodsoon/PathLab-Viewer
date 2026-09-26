@@ -6,6 +6,18 @@ import type {
 } from './types'
 
 const STUDY_CSRF_KEY = 'pathlab-study-csrf'
+let studyCsrf = ''
+function rememberStudyCsrf(token: string) {
+  studyCsrf = token
+  try {
+    if (token) sessionStorage.setItem(STUDY_CSRF_KEY, token)
+    else sessionStorage.removeItem(STUDY_CSRF_KEY)
+  } catch { /* Cookie and server-issued CSRF remain usable in this tab. */ }
+}
+function readStudyCsrf() {
+  if (studyCsrf) return studyCsrf
+  try { return sessionStorage.getItem(STUDY_CSRF_KEY) ?? '' } catch { return '' }
+}
 
 async function body<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -25,7 +37,7 @@ function studyFetch(input: RequestInfo | URL, init: RequestInit = {}) {
     credentials: 'same-origin',
     headers: {
       ...(init.headers as Record<string, string> | undefined),
-      'X-Study-CSRF': sessionStorage.getItem(STUDY_CSRF_KEY) ?? '',
+      'X-Study-CSRF': readStudyCsrf(),
     },
   })
 }
@@ -35,7 +47,7 @@ export async function redeemStudyInvitation(code: string): Promise<StudySession>
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code, noticeAccepted: true }),
   }))
-  sessionStorage.setItem(STUDY_CSRF_KEY, result.csrfToken)
+  rememberStudyCsrf(result.csrfToken)
   return result
 }
 
@@ -43,7 +55,7 @@ export async function getStudySession(): Promise<StudySession> {
   const result = await body<StudySession & { csrfToken: string }>(await fetch('/api/v1/study/session', {
     credentials: 'same-origin', cache: 'no-store',
   }))
-  sessionStorage.setItem(STUDY_CSRF_KEY, result.csrfToken)
+  rememberStudyCsrf(result.csrfToken)
   return result
 }
 
@@ -118,7 +130,7 @@ export async function reportStudyAiEvent(taskId: string, outcome: StudyAction | 
 export async function withdrawStudy(): Promise<void> {
   const response = await studyFetch('/api/v1/study/withdraw', { method: 'POST' })
   if (!response.ok) throw new ApiError(response.status, 'STUDY_WITHDRAW_FAILED')
-  sessionStorage.removeItem(STUDY_CSRF_KEY)
+  rememberStudyCsrf('')
 }
 
 export async function listStudyPacks(): Promise<StudyPackSummary[]> {
@@ -174,6 +186,11 @@ export async function downloadStudyInvitations(courseId: string, count: number):
   URL.revokeObjectURL(link.href)
 }
 
-export function downloadStudyProgress(courseId: string): void {
-  window.location.assign(`/api/v1/admin/study/courses/${encodeURIComponent(courseId)}/progress.csv`)
+export async function downloadStudyProgress(courseId: string): Promise<void> {
+  const response = await csrfFetch(`/api/v1/admin/study/courses/${encodeURIComponent(courseId)}/progress.csv`)
+  if (!response.ok) throw new ApiError(response.status, 'STUDY_PROGRESS_EXPORT_FAILED')
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(await response.blob())
+  link.download = `study-progress-${courseId}.csv`
+  try { link.click() } finally { URL.revokeObjectURL(link.href) }
 }

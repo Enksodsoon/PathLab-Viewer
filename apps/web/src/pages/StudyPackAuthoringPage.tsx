@@ -95,6 +95,11 @@ export function StudyPackAuthoringPage() {
   }
 
   const addTask = () => {
+    if (!draft.id.trim() || !draft.prompt.trim()) {
+      setError('Task ID and prompt are required.')
+      return
+    }
+    setError('')
     const task: StudyPackTaskDefinition = {
       ...draft,
       id: draft.id.trim(), prompt: draft.prompt.trim(),

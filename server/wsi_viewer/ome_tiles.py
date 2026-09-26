@@ -153,6 +153,7 @@ def load_ome_tile_index(path: Path) -> OmeTileIndex:
             quality_profile=str(
                 document.get("qualityProfile", "ome-dynamic-v1-q75")
             ),
+            primary_page=_integer(source.get("primaryPage", 0), "primary page"),
         )
     except OmeTileError:
         raise
@@ -335,7 +336,7 @@ class OmeTileRenderer:
         try:
             import pyvips  # type: ignore[import-untyped]
 
-            arguments: dict[str, Any] = {"access": "random"}
+            arguments: dict[str, Any] = {"access": "random", "page": index.primary_page}
             if level_index > 0:
                 arguments["subifd"] = level_index - 1
             image = pyvips.Image.tiffload(str(slide.source), **arguments)

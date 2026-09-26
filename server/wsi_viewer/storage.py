@@ -63,7 +63,11 @@ class StorageLayout:
         total = 0
         for directory, _, files in os.walk(self.root):
             for filename in files:
-                total += (Path(directory) / filename).stat().st_size
+                try:
+                    total += (Path(directory) / filename).stat().st_size
+                except FileNotFoundError:
+                    # Workers may evict an entry after os.walk enumerates it.
+                    continue
         return total
 
     def require_admission(

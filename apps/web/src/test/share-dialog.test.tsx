@@ -65,6 +65,9 @@ describe('share activation dialog', () => {
       expect(option.nextElementSibling).toHaveClass('share-checkbox-indicator')
     }
     expect(descendantOption).toBeChecked()
+    expect(futureOption).toBeDisabled()
+    expect(futureOption).not.toBeChecked()
+    expect(screen.getByText(/This link includes only the slides reviewed now/)).toBeVisible()
 
     const create = screen.getByRole('button', { name: 'Create shared link' })
     expect(create).toBeDisabled()

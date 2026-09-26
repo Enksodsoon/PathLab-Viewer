@@ -72,6 +72,41 @@ def _abbreviated_jpeg() -> tuple[bytes, bytes, bytes]:
     return standalone, bytes(tables), bytes(payload)
 
 
+def test_shared_tables_preserve_restart_interval_and_decoded_pixels() -> None:
+    output = io.BytesIO()
+    Image.new("RGB", (32, 32), (120, 30, 210)).save(
+        output, "JPEG", quality=82, restart_marker_blocks=1
+    )
+    original = output.getvalue()
+    tables = bytearray(b"\xff\xd8")
+    payload = bytearray(b"\xff\xd8")
+    cursor = 2
+    while cursor < len(original) - 2:
+        marker = original[cursor + 1]
+        length = int.from_bytes(original[cursor + 2 : cursor + 4], "big")
+        segment = original[cursor : cursor + 2 + length]
+        if marker in {0xDB, 0xC4, 0xDD}:
+            tables.extend(segment)
+        elif marker == 0xDA:
+            payload.extend(original[cursor:])
+            break
+        else:
+            payload.extend(segment)
+        cursor += len(segment)
+    tables.extend(b"\xff\xd9")
+    assert b"\xff\xdd" in tables
+    assert any(bytes((0xFF, marker)) in payload for marker in range(0xD0, 0xD8))
+    assembled = assemble_jpeg_tables(
+        bytes(tables), bytes(payload), expected_width=32, expected_height=32
+    )
+    assert b"\xff\xdd" in assembled
+    with (
+        Image.open(io.BytesIO(original)) as before,
+        Image.open(io.BytesIO(assembled)) as after,
+    ):
+        assert np.array_equal(np.asarray(before), np.asarray(after))
+
+
 def test_indexes_factor_two_jpeg_pyramid(tmp_path: Path) -> None:
     source = tmp_path / "factor-two.ome.tif"
     _write_jpeg_pyramid(source)
@@ -155,7 +190,7 @@ def test_assembles_shared_tables_into_a_decodable_jpeg() -> None:
     metadata_tables = (
         tables[:2]
         + b"\xff\xe0\x00\x04ok"
-        + b"\xff\xdd\x00\x04\x00\x08"
+        + b"\xff\xfe\x00\x04ok"
         + tables[2:]
     )
 

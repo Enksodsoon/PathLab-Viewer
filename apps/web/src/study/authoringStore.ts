@@ -18,11 +18,11 @@ async function operation<T>(mode: IDBTransactionMode, action: (store: IDBObjectS
   return new Promise<T>((resolve, reject) => {
     const transaction = connection.transaction(STORE, mode)
     const request = action(transaction.objectStore(STORE))
-    request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
-    transaction.oncomplete = () => connection.close()
+    transaction.oncomplete = () => resolve(request.result)
     transaction.onerror = () => reject(transaction.error)
-  })
+    transaction.onabort = () => reject(transaction.error ?? new Error('Draft transaction aborted'))
+  }).finally(() => connection.close())
 }
 
 export async function loadStudyPackDraft(): Promise<StudyPackDefinition | null> {

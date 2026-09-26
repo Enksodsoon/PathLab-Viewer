@@ -102,7 +102,7 @@ class ClassroomHub:
         self._roster_pending: dict[str, int] = {}
         self._roster_last_published_at: dict[str, float] = {}
         self._roster_handles: dict[str, asyncio.TimerHandle] = {}
-        self._presenter_last_at: dict[str, float] = {}
+        self._transient_last_at: dict[str, float] = {}
         self._transient_lock = threading.Lock()
         self._active_pins: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
         self._teacher_pointers: dict[str, dict[str, Any]] = {}
@@ -168,7 +168,7 @@ class ClassroomHub:
             self._seen_participants.clear()
             self._participant_retirements.clear()
             self._retired_participants.clear()
-        self._presenter_last_at.clear()
+        self._transient_last_at.clear()
         with self._transient_lock:
             self._active_pins.clear()
             self._teacher_pointers.clear()
@@ -193,7 +193,9 @@ class ClassroomHub:
             self._publish, session_id, event_type, payload, critical, audience
         )
 
-    def terminate_session(self, session_id: str, *, state_version: int) -> None:
+    def terminate_session(
+        self, session_id: str, *, state_version: int, phase: str | None = None
+    ) -> None:
         """Deliver the terminal event, retire streams, and clear in-memory state."""
 
         with self._presence_lock:
@@ -202,13 +204,18 @@ class ClassroomHub:
         if loop is None:
             self.clear_session(session_id)
             return
-        loop.call_soon_threadsafe(self._terminate_session, session_id, state_version)
+        loop.call_soon_threadsafe(self._terminate_session, session_id, state_version, phase)
 
-    def _terminate_session(self, session_id: str, state_version: int) -> None:
+    def _terminate_session(
+        self, session_id: str, state_version: int, phase: str | None = None
+    ) -> None:
+        payload: dict[str, Any] = {"stateVersion": state_version}
+        if phase is not None:
+            payload["phase"] = phase
         self._publish(
             session_id,
             "session-ended",
-            {"stateVersion": state_version},
+            payload,
             True,
             "all",
         )
@@ -731,13 +738,19 @@ class ClassroomHub:
             self.clear_pin(session_id, participant_id)
             self.cancel_control_request(session_id, participant_id)
 
-    def allow_presenter(self, actor_id: str, *, interval_seconds: float = 0.04) -> bool:
+    def allow_transient_update(self, actor_id: str, *, interval_seconds: float = 0.04) -> bool:
         now = time.monotonic()
-        previous = self._presenter_last_at.get(actor_id, 0.0)
-        if now - previous < interval_seconds:
-            return False
-        self._presenter_last_at[actor_id] = now
-        return True
+        with self._transient_lock:
+            previous = self._transient_last_at.get(actor_id)
+            if previous is not None and now - previous < interval_seconds:
+                return False
+            if (
+                actor_id not in self._transient_last_at
+                and len(self._transient_last_at) >= SUBSCRIBER_QUEUE_SIZE
+            ):
+                del self._transient_last_at[next(iter(self._transient_last_at))]
+            self._transient_last_at[actor_id] = now
+            return True
 
     def set_pin(
         self,

@@ -134,6 +134,23 @@ def validate_saved_view(definition: dict[str, Any], sort: str) -> None:
             raise LibraryConflict("INVALID_SAVED_VIEW")
     if sort not in SORTS - {"manual"}:
         raise LibraryConflict("INVALID_SAVED_VIEW")
+    for name in ("createdFrom", "createdTo", "updatedFrom", "updatedTo"):
+        _saved_datetime(filters.get(name), end_of_day=name.endswith("To"))
+
+
+def _saved_datetime(value: Any, *, end_of_day: bool = False) -> datetime | None:
+    value = _first(value)
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as error:
+        raise LibraryConflict("INVALID_SAVED_VIEW") from error
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    if end_of_day and len(value) == 10:
+        parsed = parsed.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return parsed
 
 
 def _search_ids(database: OrmSession, query: str) -> list[str] | None:
@@ -219,8 +236,8 @@ def _apply_filters(
             statement = statement.where(func.lower(column) == value.casefold())
     for tag in tags:
         statement = statement.where(
-            func.lower(func.cast(Slide.tags, String)).like(
-                f'%"{tag.casefold()}"%'
+            func.lower(func.cast(Slide.tags, String)).contains(
+                json.dumps(tag.casefold()), autoescape=True,
             )
         )
     if state:
@@ -304,6 +321,17 @@ def build_items_statement(
             stain = _first(saved_filters.get("stain")) or stain
             diagnosis = _first(saved_filters.get("diagnosis")) or diagnosis
             course = _first(saved_filters.get("course")) or course
+            saved_tags = saved_filters.get("tags")
+            tags = ([saved_tags] if isinstance(saved_tags, str) else saved_tags) or tags
+            state = _first(saved_filters.get("state")) or state
+            created_from = _saved_datetime(saved_filters.get("createdFrom")) or created_from
+            created_to = (
+                _saved_datetime(saved_filters.get("createdTo"), end_of_day=True) or created_to
+            )
+            updated_from = _saved_datetime(saved_filters.get("updatedFrom")) or updated_from
+            updated_to = (
+                _saved_datetime(saved_filters.get("updatedTo"), end_of_day=True) or updated_to
+            )
         elif location != "all":
             return statement.where(text("0 = 1"))
     statement = _apply_text_search(database, statement, query)
@@ -354,11 +382,16 @@ def apply_sort_and_cursor(
 ) -> Select[tuple[Slide]]:
     if sort not in SORTS:
         raise LibraryConflict("INVALID_SORT")
-    if sort == "manual":
-        return statement.order_by(CollectionSlide.sort_order.asc(), Slide.id.asc())
+    if sort == "manual" and not any(
+        source.is_derived_from(CollectionSlide.__table__)
+        for source in statement.get_final_froms()
+    ):
+        raise LibraryConflict("INVALID_SORT")
 
     column: Any
-    if sort.startswith("updated"):
+    if sort == "manual":
+        column = CollectionSlide.sort_order
+    elif sort.startswith("updated"):
         column = Slide.updated_at
     elif sort.startswith("created"):
         column = Slide.created_at
@@ -369,8 +402,13 @@ def apply_sort_and_cursor(
     if cursor:
         raw_value, slide_id = decode_cursor(cursor)
         value: Any = raw_value
-        if column in {Slide.updated_at, Slide.created_at}:
-            value = as_utc(datetime.fromisoformat(raw_value))
+        try:
+            if sort == "manual":
+                value = int(raw_value)
+            elif column in {Slide.updated_at, Slide.created_at}:
+                value = as_utc(datetime.fromisoformat(raw_value))
+        except ValueError as error:
+            raise LibraryConflict("INVALID_CURSOR") from error
         if descending:
             statement = statement.where(
                 or_(column < value, and_(column == value, Slide.id < slide_id))

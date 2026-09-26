@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import threading
@@ -36,7 +37,10 @@ class HeartbeatWriter:
 
     def _run(self) -> None:
         while not self._stop.is_set():
-            self.refresh()
+            try:
+                self.refresh()
+            except OSError:
+                logging.getLogger(__name__).warning("Worker heartbeat storage unavailable")
             self._stop.wait(self._interval_seconds)
 
     def start(self) -> None:

@@ -15,6 +15,9 @@ type Result = { status: string; released: boolean; score?: { points: string; max
 const mutationKey = () => globalThis.crypto?.randomUUID?.() ?? `assessment-${Date.now()}-${Math.random()}`
 const sessionKey = (publicId: string) => `pathlab-assessment-session:${publicId}`
 const practiceKey = (publicId: string) => `pathlab-assessment-practice:${publicId}`
+function storedSession(publicId: string) {
+  try { return sessionStorage.getItem(sessionKey(publicId)) ?? '' } catch { return '' }
+}
 const responseFor = (item: AssessmentItem, responses: ResponseMap) => responses[item.id] ?? {}
 
 function answered(item: AssessmentItem, responses: ResponseMap) {
@@ -33,7 +36,8 @@ export function AssessmentStudentPage() {
   const [assets, setAssets] = useState<Record<string, string>>({})
   const [mode, setMode] = useState<'practice' | 'formative' | 'quiz'>('practice')
   const [status, setStatus] = useState('Opening assessment…')
-  const [csrf, setCsrf] = useState(() => sessionStorage.getItem(sessionKey(publicId)) ?? '')
+  const [csrf, setCsrf] = useState(() => storedSession(publicId))
+  const [storageWarning, setStorageWarning] = useState('')
   const [attemptId, setAttemptId] = useState('')
   const [responses, setResponses] = useState<ResponseMap>({})
   const [revisions, setRevisions] = useState<Record<string, number>>({})
@@ -87,7 +91,7 @@ export function AssessmentStudentPage() {
 
   useEffect(() => {
     let cancelled = false
-    const storedToken = sessionStorage.getItem(sessionKey(publicId))
+    const storedToken = storedSession(publicId)
     void getAssessmentMetadata(publicId).then(async (metadata) => {
       if (cancelled) return
       setMode(metadata.mode)
@@ -103,17 +107,24 @@ export function AssessmentStudentPage() {
         if (cancelled) return
         setDocument(bundle.definition)
         setAssets(bundle.assets ?? {})
-        const cached = localStorage.getItem(practiceKey(publicId))
-        if (cached) {
-          const parsed = JSON.parse(cached) as { expiresAt: number; responses: ResponseMap }
-          if (parsed.expiresAt > Date.now()) setResponses(parsed.responses)
+        try {
+          const cached = localStorage.getItem(practiceKey(publicId))
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached) as { expiresAt: number; responses: ResponseMap }
+              if (parsed.expiresAt > Date.now() && parsed.responses && typeof parsed.responses === 'object') setResponses(parsed.responses)
+            } catch { /* Ignore malformed local practice data. */ }
+          }
+          setStatus('Stored only in this browser')
+        } catch {
+          setStorageWarning('Practice answers are kept only in memory for this tab and will be lost on reload.')
+          setStatus('Memory only — lost on reload')
         }
-        setStatus('Stored only in this browser')
       } else if (storedToken) {
         await restore(storedToken).catch((error: unknown) => {
           if (cancelled) return
           if (error instanceof AssessmentHttpError && (error.status === 401 || error.status === 403)) {
-            sessionStorage.removeItem(sessionKey(publicId))
+            try { sessionStorage.removeItem(sessionKey(publicId)) } catch { /* The rejected session remains unusable. */ }
             setCsrf('')
             setDocument(metadata.manifest)
           } else {
@@ -220,7 +231,8 @@ export function AssessmentStudentPage() {
     setEntering(true)
     try {
       const access = await accessAssessment({ kind, publicId, studentIdentifier: selectedLearner?.identifier, accessCode, takeover })
-      sessionStorage.setItem(sessionKey(publicId), access.csrfToken)
+      try { sessionStorage.setItem(sessionKey(publicId), access.csrfToken) }
+      catch { setStorageWarning('Session access is held only in this tab. Reloading may require re-entry; server-confirmed answers remain saved.') }
       setAccessError(false)
       await startAssessmentAttempt(access.csrfToken, mutationKey())
       await restore(access.csrfToken)
@@ -234,7 +246,13 @@ export function AssessmentStudentPage() {
     setResponses((currentResponses) => {
       const unpruned = { ...currentResponses, [item.id]: response }
       const next = document ? pruneUnreachableResponses(document, unpruned) : unpruned
-      if (mode === 'practice') localStorage.setItem(practiceKey(publicId), JSON.stringify({ responses: next, expiresAt: practiceExpiry }))
+      if (mode === 'practice') {
+        try { localStorage.setItem(practiceKey(publicId), JSON.stringify({ responses: next, expiresAt: practiceExpiry })) }
+        catch {
+          setStorageWarning('Practice answers are kept only in memory for this tab and will be lost on reload.')
+          setStatus('Memory only — lost on reload')
+        }
+      }
       return next
     })
     if (mode !== 'practice' && attemptId) {
@@ -287,14 +305,14 @@ export function AssessmentStudentPage() {
     {entering ? <p role="status">Starting assessment…</p> : null}
   </main>
   if (result) return <main className="assessment-result"><CheckCircle aria-hidden="true" /><h1>Assessment submitted</h1>{result.score ? <p className="assessment-result-score">{result.score.points} / {result.score.maximumPoints}</p> : <p>Results will appear after your teacher releases them.</p>}{result.needsGrading ? <p>Some answers are awaiting manual grading.</p> : null}</main>
-  if (reviewing) return <main className="assessment-final-review"><h1>Review before submitting</h1><ol>{items.filter((item) => item.type !== 'information' && item.type !== 'section-information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>
+  if (reviewing) return <main className="assessment-final-review">{storageWarning ? <p role="alert">{storageWarning}</p> : null}<h1>Review before submitting</h1><ol>{items.filter((item) => item.type !== 'information' && item.type !== 'section-information').map((item, index) => <li key={item.id}><button type="button" onClick={() => { setCurrent(items.indexOf(item)); setReviewing(false) }}>Question {index + 1}: {answered(item, responses) ? 'Answered' : 'Not answered'}{marked.has(item.id) ? ' · Marked' : ''}</button></li>)}</ol><button type="button" onClick={() => setReviewing(false)}>Back</button><button className="assessment-primary" type="button" disabled={!allAnswered} onClick={() => void submit()}>Submit assessment</button></main>
 
   const item = items[current]
   const value = responseFor(item, responses)
   return <div className="assessment-student">
     <header className="assessment-student-header"><div className="assessment-brand"><span aria-hidden="true">▦</span><strong>PathLab</strong><small>Assessment</small></div><div aria-live="polite">{online ? <Clock aria-hidden="true" /> : <WifiSlash aria-hidden="true" />} <span>{mode === 'practice' ? status : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} · ${status}`}</span></div></header>
     <aside className="assessment-student-nav" aria-label="Question navigator"><p>Questions</p>{items.map((question, index) => <button key={question.id} type="button" aria-current={index === current ? 'step' : undefined} onClick={() => setCurrent(index)}>{index + 1}</button>)}</aside>
-    <main className="assessment-student-main"><p className="assessment-kicker">Question {current + 1} of {items.length}</p><h1>{document.title}</h1>
+    <main className="assessment-student-main">{storageWarning ? <p role="alert">{storageWarning}</p> : null}<p className="assessment-kicker">Question {current + 1} of {items.length}</p><h1>{document.title}</h1>
       {item.type === 'diagnostic-field' ? <div className="assessment-mobile-tabs"><button type="button" aria-pressed={mobilePanel === 'slide'} onClick={() => setMobilePanel('slide')}>Slide</button><button type="button" aria-pressed={mobilePanel === 'answer'} onClick={() => setMobilePanel('answer')}>Answer</button></div> : null}
       <AssessmentLearnerQuestion item={item} value={value} assets={assets} mobilePanel={mobilePanel} onChange={(response) => update(item, response)} />
       <footer className="assessment-student-actions"><button type="button" aria-pressed={marked.has(item.id)} onClick={() => setMarked((currentMarked) => { const next = new Set(currentMarked); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })}><BookmarkSimple aria-hidden="true" />{marked.has(item.id) ? 'Marked for review' : 'Mark for review'}</button>{current > 0 ? <button type="button" onClick={() => setCurrent((index) => index - 1)}>Previous</button> : null}{current < items.length - 1 ? <button className="assessment-primary" type="button" onClick={() => setCurrent((index) => index + 1)}>Save & next</button> : <button className="assessment-primary" type="button" disabled={Boolean(item.required) && !answered(item, responses)} onClick={() => setReviewing(true)}><CheckCircle aria-hidden="true" /> Submit assessment</button>}</footer>

@@ -134,7 +134,8 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       .then((result) => {
         if (!active) return
         setManifest(result)
-        const saved = Number(sessionStorage.getItem(storageKey))
+        let saved = 0
+        try { saved = Number(sessionStorage.getItem(storageKey)) } catch { /* Position memory is optional. */ }
         setPosition(Number.isInteger(saved) && saved >= 0 && saved < result.slides.length ? saved : 0)
         if (targetType === 'collection') {
           void getSharedComparisons(publicId).then((items) => {
@@ -150,7 +151,7 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
     if (!manifest?.slides.length) return
     const bounded = Math.max(0, Math.min(next, manifest.slides.length - 1))
     setPosition(bounded)
-    sessionStorage.setItem(storageKey, String(bounded))
+    try { sessionStorage.setItem(storageKey, String(bounded)) } catch { /* Navigation remains available. */ }
     setDrawerOpen(false)
   }, [manifest, storageKey])
 

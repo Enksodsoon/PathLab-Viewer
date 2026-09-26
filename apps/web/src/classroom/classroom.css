@@ -608,7 +608,8 @@
 }
 
 .classroom-live-pin {
-  display: grid;
+  /* OSD writes display:flex inline; preserve the crosshair above its label. */
+  display: grid !important;
   justify-items: center;
   gap: 3px;
   pointer-events: none;
@@ -1851,3 +1852,19 @@
     transition-duration: .01ms;
   }
 }
+/* The stage keeps its width when the native activity tray is opened. */
+.classroom-shell.classroom-shell--teacher,.classroom-shell.classroom-shell--student{position:relative;height:100svh;min-height:0;grid-template:72px minmax(0,1fr)/minmax(0,1fr);overflow:hidden}
+.classroom-activity-tray{position:absolute;z-index:9;right:16px;top:88px;width:min(350px,calc(100% - 32px));max-height:calc(100svh - 112px);border:1px solid var(--border);border-radius:16px;background:var(--canvas);box-shadow:0 12px 36px color-mix(in srgb,var(--shadow-color) 14%,transparent);overflow:auto}
+.classroom-activity-tray:not([open]){width:auto}
+.classroom-activity-tray>summary{padding:14px 18px;min-height:48px;font-weight:700;cursor:pointer;color:var(--ink)}
+.classroom-activity-tray>.classroom-panel{min-height:0;border-left:0;padding:16px;overflow:visible}
+.classroom-activity-tray>summary:focus-visible,.classroom-question-composer :focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
+.classroom-teaching-tools{max-width:calc(100% - 24px);overflow-x:auto}
+.classroom-teaching-tools button{width:auto;min-width:44px;min-height:44px;padding:8px 12px;gap:6px}
+.classroom-teaching-tools .classroom-guide-toggle{width:auto}
+.classroom-hud-label{font-size:12px;font-weight:700;white-space:nowrap}
+.classroom-question-composer{z-index:12;width:min(290px,calc(100vw - 32px));padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--canvas);color:var(--ink);box-shadow:0 10px 28px color-mix(in srgb,var(--shadow-color) 18%,transparent);font-family:var(--font-ui)}
+.classroom-question-composer form{display:grid;gap:10px}.classroom-question-composer label{font-weight:700}.classroom-question-composer textarea{width:100%;min-height:84px;resize:vertical;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px}.classroom-question-composer small{color:var(--muted)}.classroom-question-composer form>div{display:flex;gap:8px}.classroom-question-composer button{min-height:44px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}.classroom-question-composer button[type=submit]{background:var(--primary);color:var(--on-primary)}.classroom-question-composer button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:640px){.classroom-activity-tray{top:82px;max-height:calc(100svh - 164px)}.classroom-hud-label{font-size:11px}.classroom-teaching-tools button{padding:8px}.classroom-shell .classroom-topbar{position:relative;gap:8px}}
+
+.classroom-question-composer{overflow:auto}

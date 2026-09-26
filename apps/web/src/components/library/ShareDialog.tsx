@@ -17,7 +17,6 @@ import {
   rotateLibraryShare,
 } from '../../api'
 import { Loader } from '../Loader'
-import { StatusMessage } from '../StatusMessage'
 import type { LibraryShare, SharePreview } from '../../types'
 import { LibraryDialog } from './LibraryDialog'
 
@@ -31,7 +30,6 @@ interface Props {
 
 export function ShareDialog({ open, targetType, targetId, targetName, onClose }: Props) {
   const [includeDescendants, setIncludeDescendants] = useState(targetType === 'folder')
-  const [autoIncludeNew, setAutoIncludeNew] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [expiresAt, setExpiresAt] = useState('')
   const [preview, setPreview] = useState<SharePreview | null>(null)
@@ -45,7 +43,6 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
   useEffect(() => {
     if (!open) return
     setIncludeDescendants(targetType === 'folder')
-    setAutoIncludeNew(false)
     setExpiresAt('')
     setConfirmed(false)
     setConfirmRevoke(false)
@@ -94,7 +91,7 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
         targetType,
         targetId,
         includeDescendants,
-        autoIncludeNew,
+        autoIncludeNew: false,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
         slideIds: preview.included.map((item) => item.id),
         deidentifiedConfirmed: confirmed,
@@ -184,16 +181,11 @@ export function ShareDialog({ open, targetType, targetId, targetName, onClose }:
             </label>
           ) : null}
           <label className="share-check">
-            <input className="share-checkbox-input" type="checkbox" checked={autoIncludeNew} onChange={(event) => setAutoIncludeNew(event.target.checked)} />
+            <input className="share-checkbox-input" type="checkbox" checked={false} disabled />
             <span className="share-checkbox-indicator" aria-hidden="true"><Check /></span>
             <span>Automatically include future additions</span>
-            <small>Off by default. Routine moves never publish silently.</small>
+            <small>Unavailable. This link includes only the slides reviewed now. Review and create a new link to include later additions.</small>
           </label>
-          {autoIncludeNew ? (
-            <StatusMessage tone="warning">
-              Future additions can only publish after an explicit shared-destination warning.
-            </StatusMessage>
-          ) : null}
           <label>Expiration (optional)<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
           <div className="share-preview-list">
             <strong>{preview?.included.length ?? 0} slides ready for review</strong>

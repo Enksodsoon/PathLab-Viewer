@@ -1,3 +1,4 @@
+import logging
 import os
 import queue
 import shutil
@@ -20,6 +21,8 @@ from .ome_ingest import (
 from .prepared_ingest import PreparedIngestError, install_prepared_package
 from .storage import StorageLayout
 from .time_support import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 def desktop_package_path(storage: StorageLayout, ingest_id: str) -> Path:
@@ -153,9 +156,7 @@ class PreparedIngestFinalizer:
 
 
 class _DatabaseContext:
-    def __init__(
-        self, database_dependency: Callable[[], Iterator[OrmSession]]
-    ) -> None:
+    def __init__(self, database_dependency: Callable[[], Iterator[OrmSession]]) -> None:
         self.iterator = database_dependency()
         self.database: OrmSession | None = None
 
@@ -235,7 +236,6 @@ def _install(
             )
         )
         database.commit()
-        package.unlink(missing_ok=True)
     except (OSError, PreparedIngestError, KeyError, TypeError) as error:
         database.rollback()
         shutil.rmtree(destination, ignore_errors=True)
@@ -244,6 +244,16 @@ def _install(
             failed.status = "failed"
             failed.error_code = str(error)[:80] or "PREPARED_INGEST_FAILED"
             database.commit()
+    else:
+        try:
+            package.unlink(missing_ok=True)
+        except OSError as error:
+            logger.warning(
+                "DESKTOP_PREPARED_PACKAGE_CLEANUP_FAILED ingest_id=%s error_type=%s; "
+                "installed slide remains ready; source archive retained",
+                ingest.id,
+                type(error).__name__,
+            )
 
 
 def _failed_package_ttl_hours() -> int:

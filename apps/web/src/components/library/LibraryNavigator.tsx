@@ -29,6 +29,7 @@ interface LibraryNavigatorProps {
   onNewCollection: () => void
   onNewSavedView: () => void
   onDropSlides: (folderId: string, slideIds: string[]) => void
+  onDropFolder?: (folder: LibraryFolder, parentId: string | null) => void
   onFolderAction: (
     folder: LibraryFolder,
     action: 'rename' | 'move' | 'trash',
@@ -76,6 +77,7 @@ export function LibraryNavigator({
   onNewCollection,
   onNewSavedView,
   onDropSlides,
+  onDropFolder,
   onFolderAction,
   onCollectionAction,
   onSavedViewAction,
@@ -117,6 +119,7 @@ export function LibraryNavigator({
         onExpand={onExpandFolder}
         onSelect={(folder) => onLocation(`folder:${folder.id}`)}
         onDropSlides={onDropSlides}
+        onDropFolder={onDropFolder}
         onAction={onFolderAction}
       />
 

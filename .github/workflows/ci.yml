@@ -52,7 +52,12 @@ jobs:
           else
             python scripts/check_public_repository.py
           fi
-      - run: pip install -e .[dev]
+      - name: Install tests with the production SQLAlchemy version
+        run: pip install -e .[dev] "$(sed -n 's/^\(sqlalchemy==[0-9.]*\).*/\1/p' deploy/backend-requirements.txt)"
+      - name: Install native image runtime for backend regressions
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libvips-tools
       - name: Validate dependency inventory
         run: |
           # Squash merges can remove the branch holding this immutable subject.
@@ -146,7 +151,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: "3.12" }
-      - run: pip install -e .[dev]
+      - name: Install tests with the production SQLAlchemy version
+        run: pip install -e .[dev] "$(sed -n 's/^\(sqlalchemy==[0-9.]*\).*/\1/p' deploy/backend-requirements.txt)"
       - run: >-
           pytest
           tests/backend/test_postgres_foundation.py
@@ -321,6 +327,9 @@ jobs:
           e2e/library-responsive.spec.ts
           e2e/classroom-disabled.spec.ts
           e2e/capacity-upload-dialog.spec.ts
+          e2e/notebook-persistence.spec.ts
+          e2e/classroom-study-remediation.spec.ts
+          e2e/library-upload-remediation.spec.ts
           --workers=2
       - name: Retain browser failure diagnostics
         if: failure()
@@ -351,7 +360,8 @@ jobs:
           go install github.com/tus/tusd/v2/cmd/tusd@v2.9.2
           go install github.com/caddyserver/caddy/v2/cmd/caddy@v2.11.4
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - run: pip install -e .[dev]
+      - name: Install tests with the production SQLAlchemy version
+        run: pip install -e .[dev] "$(sed -n 's/^\(sqlalchemy==[0-9.]*\).*/\1/p' deploy/backend-requirements.txt)"
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
       - name: Run disposable real imaging journey

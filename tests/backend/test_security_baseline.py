@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from scripts.validate_security_baseline import (
+    discover_egress_files,
     evaluate_findings,
     reconcile_egress,
     reconcile_routes,
@@ -28,9 +29,9 @@ def finding(**overrides: object) -> dict[str, object]:
 def test_current_security_baseline_reconciles() -> None:
     result = validate()
     assert result == {
-        "backendRoutes": 258,
+        "backendRoutes": 259,
         "frontendRoutes": 29,
-        "egressFiles": 84,
+        "egressFiles": 89,
         "findingResult": "SUCCESS",
     }
 
@@ -41,6 +42,16 @@ def test_seeded_unknown_route_is_rejected() -> None:
             ["GET|/seeded/undeclared|server/wsi_viewer/seeded.py|seeded"],
             [{"kind": "prefix", "value": "/api/"}],
         )
+
+
+def test_egress_discovery_excludes_generated_browser_evidence(tmp_path) -> None:
+    source = tmp_path / "apps/web/src/client.ts"
+    source.parent.mkdir(parents=True)
+    source.write_text("fetch('https://example.test')")
+    evidence = tmp_path / "apps/web/test-results/error-context.md"
+    evidence.parent.mkdir(parents=True)
+    evidence.write_text("Failed fixture https://example.test")
+    assert discover_egress_files(tmp_path, ["apps/web"]) == ["apps/web/src/client.ts"]
 
 
 def test_seeded_undeclared_egress_is_rejected() -> None:

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from '../api'
@@ -26,49 +26,75 @@ export function ClassroomInvitePage() {
   const [slideId, setSlideId] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const generationRef = useRef(0)
+  const loadRequestRef = useRef(0)
+  const hasInvite = invite !== null
 
   const load = useCallback(async () => {
+    const generation = generationRef.current
+    const request = ++loadRequestRef.current
     const next = await classroomInviteState(publicId)
+    if (generation !== generationRef.current || request !== loadRequestRef.current) return
     setInvite(next)
-    setSlideId((current) => current || next.slides[0]?.id || '')
+    setSlideId((current) => next.slides.some((slide) => slide.id === current) ? current : next.slides[0]?.id || '')
   }, [publicId])
 
   useEffect(() => {
+    generationRef.current += 1
+    setInvite(null)
+    setSlideId('')
+    setMessage('')
+    setBusy(false)
     void load().catch(() => undefined)
+    return () => { generationRef.current += 1 }
   }, [load])
 
   useEffect(() => {
-    if (!invite) return
-    let timer = 0
+    if (!hasInvite) return
+    const generation = generationRef.current
+    let cancelled = false
+    let inFlight = false
     const check = async () => {
-      if (document.visibilityState !== 'visible') return
+      if (document.visibilityState !== 'visible' || inFlight || cancelled) return
+      inFlight = true
       try {
         const next = await classroomInvitePhase(publicId)
+        if (cancelled || generation !== generationRef.current) return
         setInvite((current) => current ? { ...current, phase: next.phase } : current)
-      } catch {
-        setInvite(null)
-        setMessage('This classroom invitation is no longer available.')
-      }
+        setMessage((current) => current.startsWith('Review status could not be refreshed') ? '' : current)
+      } catch (caught) {
+        if (cancelled || generation !== generationRef.current) return
+        if (caught instanceof ApiError && (caught.status === 404 || caught.status === 410)) {
+          setInvite(null)
+          setMessage('This classroom invitation is no longer available.')
+        } else {
+          setMessage('Review status could not be refreshed. Your slides remain available; retrying automatically.')
+        }
+      } finally { inFlight = false }
     }
-    timer = window.setInterval(() => void check(), 15_000)
+    const timer = window.setInterval(() => void check(), 15_000)
     document.addEventListener('visibilitychange', check)
     return () => {
+      cancelled = true
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', check)
     }
-  }, [invite, publicId])
+  }, [hasInvite, publicId])
 
   const unlock = async () => {
+    const generation = generationRef.current
     setBusy(true)
     setMessage('')
     try {
       await unlockClassroomInvite(publicId, accessCode, displayName)
+      if (generation !== generationRef.current) return
       await load()
     } catch (caught) {
+      if (generation !== generationRef.current) return
       setMessage(caught instanceof ApiError && caught.status === 429
         ? 'Too many attempts. Wait a few minutes and try again.'
         : 'The invitation or access code is unavailable.')
-    } finally { setBusy(false) }
+    } finally { if (generation === generationRef.current) setBusy(false) }
   }
 
   if (!invite) return <main className="classroom-entry classroom-join">

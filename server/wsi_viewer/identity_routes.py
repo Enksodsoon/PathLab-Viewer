@@ -22,7 +22,7 @@ SLUG_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 class OrganizationCreate(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, str_strip_whitespace=True)
 
     slug: str = Field(min_length=2, max_length=80)
     display_name: str = Field(alias="displayName", min_length=1, max_length=160)

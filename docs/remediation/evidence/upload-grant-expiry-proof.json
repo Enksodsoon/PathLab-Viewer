@@ -1,0 +1,8 @@
+{
+  "expired_precreate": 401,
+  "reservation_count": 1,
+  "reservation_state": "uploading",
+  "same_identity_renewed_accepted": true,
+  "new_reservation_created": false,
+  "tokens_recorded": false
+}

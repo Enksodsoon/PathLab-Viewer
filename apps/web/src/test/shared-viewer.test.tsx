@@ -112,6 +112,14 @@ afterEach(() => {
 })
 
 describe('shared library viewer', () => {
+  it('loads and switches slides when position storage is denied', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+    renderShare()
+    await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })
+    await userEvent.click(screen.getByRole('button', { name: 'Next slide' }))
+    expect(await screen.findByRole('heading', { name: 'Normal colon' })).toBeVisible()
+  })
   it('makes light, dark, and system themes available without leaving the viewer', async () => {
     renderShare()
     await screen.findByRole('heading', { name: 'Colon adenocarcinoma' })

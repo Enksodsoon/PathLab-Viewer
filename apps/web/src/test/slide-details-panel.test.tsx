@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
 import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
@@ -30,18 +31,18 @@ const slide: LibrarySlide = {
 describe('slide publication details', () => {
   it('uses a closed lock for private slides and an open lock for published slides', () => {
     const { rerender } = render(
-      <SlideDetailsPanel slide={slide} onClose={vi.fn()} onEdit={vi.fn()} />,
+      <MemoryRouter><SlideDetailsPanel slide={slide} onClose={vi.fn()} onEdit={vi.fn()} /></MemoryRouter>,
     )
 
     expect(screen.getByText('Private').closest('dd')?.querySelector('[data-lock-state="closed"]')).not.toBeNull()
     expect(screen.getByText('Private').closest('dd')?.querySelector('[data-lock-state="open"]')).toBeNull()
 
     rerender(
-      <SlideDetailsPanel
+      <MemoryRouter><SlideDetailsPanel
         slide={{ ...slide, state: 'published' }}
         onClose={vi.fn()}
         onEdit={vi.fn()}
-      />,
+      /></MemoryRouter>,
     )
 
     expect(screen.getByText('Public').closest('dd')?.querySelector('[data-lock-state="open"]')).not.toBeNull()

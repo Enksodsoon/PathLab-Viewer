@@ -138,6 +138,13 @@ function ClassroomPanelIcon({ name }: { name: 'students' | 'questions' | 'marks'
   return <MouseSimple aria-hidden="true" size={18} />
 }
 
+function rememberClassroom(classroom: CreatedClassroom | null) {
+  try {
+    if (classroom) sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(classroom))
+    else sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+  } catch { /* Session is still usable when browser storage is unavailable. */ }
+}
+
 function savedClassroomId(): string {
   try {
     const value = sessionStorage.getItem(ACTIVE_CLASSROOM_KEY)
@@ -232,7 +239,7 @@ export function ClassroomTeacherPage() {
       adminAuthFailed.current = true
       guideModeRef.current = false
       setGuideMode(false)
-      sessionStorage.removeItem('pathlab-csrf')
+      try { sessionStorage.removeItem('pathlab-csrf') } catch { /* Browser storage can be unavailable. */ }
       navigate('/admin', { replace: true })
       return true
     }
@@ -451,7 +458,7 @@ export function ClassroomTeacherPage() {
     if (state?.session.id !== classroom.id) {
       void refresh(classroom.id).catch((loadError: unknown) => {
         if (loadError instanceof ApiError && loadError.status === 404) {
-          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          rememberClassroom(null)
           setClassroom(null)
           setError('The previous classroom is no longer active.')
           return
@@ -473,14 +480,16 @@ export function ClassroomTeacherPage() {
       }
     })
     let streamReadySeen = false
-    const sequence = (event: Event, coalescible = false): Record<string, unknown> | null => {
+    let cancelled = false
+    const sequence = (event: Event, coalescible = false, terminal = false): Record<string, unknown> | null => {
+      if (cancelled) return null
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as Record<string, unknown>
         const decision = applyClassroomStreamEvent(
           streamCursor.current,
           event.type,
           payload,
-          { coalescible },
+          { coalescible, terminal },
         )
         if (decision === 'resync') {
           void refresh(
@@ -504,6 +513,31 @@ export function ClassroomTeacherPage() {
         rosterReconciler.notify(rosterRef.current.rosterVersion + 1)
       }
       streamReadySeen = true
+    })
+    events.addEventListener('session-ended', (event) => {
+      const payload = sequence(event, false, true)
+      if (!payload) return
+      cancelled = true
+      snapshotReconciler.current?.dispose()
+      snapshotReconciler.current = null
+      snapshotSession.current = ''
+      stateRef.current = null
+      rosterReconciler.dispose()
+      events.close()
+      rosterRequest.current += 1
+      pendingControlRequest.current += 1
+      if (payload.phase === 'review') {
+        const review = { ...classroom, phase: 'review' as const }
+        rememberClassroom(review)
+        setClassroom(review)
+        setState(null)
+        setError('')
+        return
+      }
+      rememberClassroom(null)
+      setClassroom(null)
+      setState(null)
+      setError('This live classroom has ended or been revoked. Open a current classroom to continue.')
     })
     for (const name of ['question-added', 'question-removed', 'control']) {
       events.addEventListener(name, update)
@@ -687,6 +721,7 @@ export function ClassroomTeacherPage() {
     events.addEventListener('control-requested', (event) => updateControlRequest(event, true))
     events.addEventListener('control-request-cancelled', (event) => updateControlRequest(event, false))
     return () => {
+      cancelled = true
       rosterReconciler.dispose()
       events.close()
     }
@@ -1005,11 +1040,11 @@ export function ClassroomTeacherPage() {
       setState(nextState)
       setSlideId(nextState.presenter.slideId ?? nextState.slides[0].id)
       setClassroom(resumed)
-      sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(resumed))
+      rememberClassroom(resumed)
     } catch (resumeError) {
       if (resumeError instanceof ApiError && resumeError.status === 404) {
         setRecentClassrooms((current) => current.filter((item) => item.id !== sessionId))
-        if (cachedClassroomId === sessionId) sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        if (cachedClassroomId === sessionId) rememberClassroom(null)
         setError('That classroom has ended or expired and cannot be resumed.')
       } else {
         handleAdminFailure(resumeError, 'The classroom could not be resumed safely.')
@@ -1041,7 +1076,7 @@ export function ClassroomTeacherPage() {
       }
       const created = await createClassroom(selectedFolderId, new Date(reviewExpiry).toISOString())
       setClassroom(created)
-      sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(created))
+      rememberClassroom(created)
       setSlideId(created.slides[0].id)
       setShowCode(true)
     } catch (startError) {
@@ -1075,7 +1110,7 @@ export function ClassroomTeacherPage() {
       <p className="classroom-entry__intro">Create one protected link for review before, during, and after class.</p>
       {error && <p role="alert" className="classroom-error">{error}</p>}
       {activeConflict && <button className="classroom-entry__recovery" type="button" onClick={() => void endActiveClassroom().then(() => {
-        sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+        rememberClassroom(null)
         setActiveConflict(false)
         setError('The previous classroom ended. You can start a new one now.')
       }).catch((endError: unknown) => {
@@ -1166,7 +1201,7 @@ export function ClassroomTeacherPage() {
             {resumeBusy === item.id ? 'Resuming…' : 'Resume'}
           </button>
           <button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/classroom/invite/${item.publicId}`)}>Copy link</button>
-          <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id)))}>Revoke</button>
+          <button type="button" className="danger" onClick={() => void endClassroom(item.id).then(() => setRecentClassrooms((current) => current.filter((entry) => entry.id !== item.id))).catch((caught: unknown) => handleAdminFailure(caught, 'Review access could not be revoked.'))}>Revoke</button>
         </div>)}
       </section> : null}
     </section>
@@ -1189,7 +1224,7 @@ export function ClassroomTeacherPage() {
         {classroom.phase === 'preview' ? <button className="primary classroom-entry__primary" type="button" onClick={() => void startLiveClassroom(classroom.id).then(() => {
           const next = { ...classroom, phase: 'live' as const }
           setClassroom(next)
-          sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
+          rememberClassroom(next)
           setShowCode(true)
         }).catch((caught: unknown) => {
           if (caught instanceof ApiError && caught.code === 'CLASSROOM_DRAINING') {
@@ -1199,7 +1234,7 @@ export function ClassroomTeacherPage() {
           handleAdminFailure(caught, 'The live class could not start.')
         })}>Start live class</button> : null}
         <button className="classroom-danger-action" type="button" onClick={() => void endClassroom(classroom.id).then(() => {
-          sessionStorage.removeItem(ACTIVE_CLASSROOM_KEY)
+          rememberClassroom(null)
           setClassroom(null)
         }).catch((caught: unknown) => handleAdminFailure(caught, 'Review access could not be revoked.'))}>Revoke review access</button>
       </div>
@@ -1218,9 +1253,9 @@ export function ClassroomTeacherPage() {
         <ThemeControl compact />
         <button className="classroom-danger-action" type="button" onClick={() => void finishLiveClassroom(classroom.id).then(() => {
           const next = { ...classroom, phase: 'review' as const }
-          sessionStorage.setItem(ACTIVE_CLASSROOM_KEY, JSON.stringify(next))
+          rememberClassroom(next)
           setClassroom(next)
-        })}>
+        }).catch((caught: unknown) => handleAdminFailure(caught, 'The live class could not end.'))}>
           End class
         </button>
       </div>
@@ -1268,7 +1303,7 @@ export function ClassroomTeacherPage() {
                 })
             }
           }}
-        ><TeachingToolIcon name="guide" /><span className="classroom-tool-status" aria-hidden="true" /></button>
+        ><TeachingToolIcon name="guide" /><span className="classroom-hud-label">{guideMode ? 'Guiding' : 'Guide'}</span><span className="classroom-tool-status" aria-hidden="true" /></button>
         <span className="classroom-tool-separator" aria-hidden="true" />
         {([
           ['navigate', 'Navigate', 'navigate'],
@@ -1283,7 +1318,7 @@ export function ClassroomTeacherPage() {
           title={label}
           disabled={tool !== 'navigate' && Boolean(state?.controller.participantId)}
           onClick={() => setTeachingTool(tool)}
-        ><TeachingToolIcon name={icon} /></button>)}
+        ><TeachingToolIcon name={icon} /><span className="classroom-hud-label">{label}</span></button>)}
       </div>
       {teachingTool === 'pointer' ? <div className="classroom-pointer-options" role="toolbar" aria-label="Pointer color">
         {(['green', 'red'] as const).map((color) => <button
@@ -1305,6 +1340,7 @@ export function ClassroomTeacherPage() {
         }}
       />
     </main>
+    <details className="classroom-activity-tray" open><summary>Classroom activity · {activeParticipantCount} students · {state?.pendingQuestions.length ?? 0} questions</summary>
     <aside className="classroom-panel" aria-label="Classroom activity">
       {error && <p role="alert" className="classroom-error">{error}</p>}
       <section className="classroom-panel__section">
@@ -1398,7 +1434,7 @@ export function ClassroomTeacherPage() {
             </button>
             <button className="classroom-icon-action" type="button" aria-label="Mark question answered" title="Answered" onClick={() => void answerQuestion(classroom.id, question.id).then(() => {
               if (focusedQuestion?.id === question.id) setFocusedQuestion(null)
-            })}>
+            }).catch((caught: unknown) => handleAdminFailure(caught, 'The question could not be marked answered.'))}>
               <ClassroomPanelIcon name="check" />
             </button>
           </div>
@@ -1410,12 +1446,12 @@ export function ClassroomTeacherPage() {
           {[...(state?.teachingAnnotations ?? [])].reverse().map((annotation, index) => <li key={annotation.id}>
             <span style={{ background: annotation.color }} />
             <div><strong>{annotation.tool === 'highlight' ? 'Highlight' : annotation.tool === 'line' ? 'Line' : annotation.tool === 'rectangle' ? 'Rectangle' : annotation.tool === 'ellipse' ? 'Ellipse' : 'Pen mark'}</strong><small>Mark {(state?.teachingAnnotations.length ?? 0) - index}</small></div>
-            <button className="classroom-icon-action" type="button" aria-label={`Remove mark ${(state?.teachingAnnotations.length ?? 0) - index}`} title="Remove" onClick={() => void removeTeachingAnnotation(classroom.id, annotation.id)}><ClassroomPanelIcon name="remove" /></button>
+            <button className="classroom-icon-action" type="button" aria-label={`Remove mark ${(state?.teachingAnnotations.length ?? 0) - index}`} title="Remove" onClick={() => void removeTeachingAnnotation(classroom.id, annotation.id).catch((caught: unknown) => handleAdminFailure(caught, 'The teaching mark could not be removed.'))}><ClassroomPanelIcon name="remove" /></button>
           </li>)}
         </ul>}
-        {state?.teachingAnnotations.length ? <button className="classroom-clear-marks" type="button" onClick={() => void clearTeachingAnnotations(classroom.id)}><ClassroomPanelIcon name="clear" />Clear all</button> : null}
+        {state?.teachingAnnotations.length ? <button className="classroom-clear-marks" type="button" onClick={() => void clearTeachingAnnotations(classroom.id).catch((caught: unknown) => handleAdminFailure(caught, 'Teaching marks could not be cleared.'))}><ClassroomPanelIcon name="clear" />Clear all</button> : null}
       </section>
-    </aside>
+    </aside></details>
     {showCode && classroom.publicId ? <InviteDialog classroom={classroom} onClose={() => setShowCode(false)} /> : null}
   </div>
 }

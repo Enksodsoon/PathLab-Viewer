@@ -6,11 +6,11 @@ import shutil
 from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
@@ -25,6 +25,7 @@ from .library import (
     build_items_statement,
     collection_json,
     cursor_for_slide,
+    encode_cursor,
     folder_json,
     folder_subtree_ids,
     normalize_name,
@@ -117,7 +118,9 @@ class BatchMoveRequest(SlideIdsRequest):
 class BatchMetadataRequest(SlideIdsRequest):
     model_config = ConfigDict(populate_by_name=True)
 
-    display_name: str | None = Field(default=None, alias="displayName", max_length=200)
+    display_name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ] | None = Field(default=None, alias="displayName")
     description: str | None = Field(default=None, max_length=4000)
     case_id: str | None = Field(default=None, alias="caseId", max_length=120)
     organ_site: str | None = Field(default=None, alias="organSite", max_length=120)
@@ -281,11 +284,20 @@ def register_library_routes(
             )
             or 0
         )
-        roots = database.scalars(
+        navigation_folders = database.scalars(
             select(Folder)
-            .where(Folder.parent_id.is_(None), Folder.trashed_at.is_(None))
+            .where(or_(
+                and_(Folder.parent_id.is_(None), Folder.trashed_at.is_(None)),
+                and_(Folder.trashed_at.is_not(None), or_(
+                    Folder.parent_id.is_(None), Folder.parent_id.not_in(
+                        select(Folder.id).where(Folder.trashed_at.is_not(None)),
+                    ),
+                )),
+            ))
             .order_by(Folder.sort_order, Folder.normalized_name)
         ).all()
+        roots = [folder for folder in navigation_folders if folder.trashed_at is None]
+        trashed_roots = [folder for folder in navigation_folders if folder.trashed_at is not None]
         item_counts, child_counts = _folder_counts(database, list(roots))
         folder_path: list[Folder] = []
         if folder_id:
@@ -340,6 +352,7 @@ def register_library_routes(
             "collections": [
                 collection_json(collection, int(count)) for collection, count in collections
             ],
+            "trashedFolders": [folder_json(folder) for folder in trashed_roots],
             "savedViews": [saved_view_json(view) for view in views],
             "storage": {
                 "usedBytes": capacity.used_bytes,
@@ -557,9 +570,16 @@ def register_library_routes(
         slides = list(database.scalars(statement).all())
         has_more = len(slides) > limit
         page = slides[:limit]
-        next_cursor = (
-            cursor_for_slide(page[-1], sort) if has_more and page and sort != "manual" else None
-        )
+        next_cursor = None
+        if has_more and page:
+            if sort == "manual":
+                manual_order = database.scalar(select(CollectionSlide.sort_order).where(
+                    CollectionSlide.collection_id == location.split(":", 1)[1],
+                    CollectionSlide.slide_id == page[-1].id,
+                ))
+                next_cursor = encode_cursor(str(manual_order), page[-1].id)
+            else:
+                next_cursor = cursor_for_slide(page[-1], sort)
         counts: dict[str, int] = (
             dict(
                 database.execute(
@@ -782,11 +802,25 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        lock_share_target(database, "folder", folder_id)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is not None:
             raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
         subtree = folder_subtree_ids(database, folder_id)
+        for changed_id in sorted(subtree):
+            lock_share_target(database, "folder", changed_id)
+        subtree = list(database.scalars(select(Folder.id).where(
+            Folder.id.in_(subtree), Folder.trashed_at.is_(None),
+        )))
         now = utcnow()
+        slide_ids = list(database.scalars(select(Slide.id).where(
+            Slide.folder_id.in_(subtree), Slide.trashed_at.is_(None),
+            # Existing publication snapshots survive folder organization changes.
+            ~select(PublicationGrant.id).where(PublicationGrant.slide_id == Slide.id).exists(),
+        )))
+        database.execute(update(Slide).where(Slide.id.in_(slide_ids)).values(
+            trashed_at=now, previous_folder_id=Slide.folder_id, updated_at=now,
+        ))
         database.execute(
             update(Folder)
             .where(Folder.id.in_(subtree))
@@ -800,6 +834,8 @@ def register_library_routes(
         )
         for changed_id in subtree:
             record_sync_event(database, "folder", changed_id, "trash", revision_for(now))
+        for changed_id in slide_ids:
+            record_sync_event(database, "slide", changed_id, "trash", revision_for(now))
         database.commit()
         return {"id": folder_id, "trashedAt": now.isoformat(), "folderIds": subtree}
 
@@ -814,23 +850,40 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
+        lock_share_target(database, "folder", folder_id)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is None:
             raise HTTPException(status_code=404, detail={"code": "FOLDER_NOT_FOUND"})
-        subtree = folder_subtree_ids(database, folder_id)
-        if folder.previous_parent_id:
-            previous = database.get(Folder, folder.previous_parent_id)
-            folder.parent_id = (
-                folder.previous_parent_id
-                if previous is not None and previous.trashed_at is None
-                else None
-            )
-        database.execute(update(Folder).where(Folder.id.in_(subtree)).values(trashed_at=None))
-        folder.previous_parent_id = None
-        now = utcnow()
-        for changed_id in subtree:
-            record_sync_event(database, "folder", changed_id, "restore", revision_for(now))
-        database.commit()
+        trashed_at = folder.trashed_at
+        subtree = list(database.scalars(select(Folder.id).where(
+            Folder.id.in_(folder_subtree_ids(database, folder_id)), Folder.trashed_at == trashed_at,
+        )))
+        try:
+            if folder.previous_parent_id:
+                previous = database.get(Folder, folder.previous_parent_id)
+                folder.parent_id = (
+                    folder.previous_parent_id
+                    if previous is not None and previous.trashed_at is None
+                    else None
+                )
+            database.execute(update(Folder).where(Folder.id.in_(subtree)).values(trashed_at=None))
+            folder.previous_parent_id = None
+            now = utcnow()
+            slide_ids = list(database.scalars(select(Slide.id).where(
+                Slide.folder_id.in_(subtree), Slide.trashed_at == trashed_at,
+                Slide.state != SlideState.DELETING,
+            )))
+            database.execute(update(Slide).where(Slide.id.in_(slide_ids)).values(
+                trashed_at=None, previous_folder_id=None, updated_at=now,
+            ))
+            for changed_id in subtree:
+                record_sync_event(database, "folder", changed_id, "restore", revision_for(now))
+            for changed_id in slide_ids:
+                record_sync_event(database, "slide", changed_id, "restore", revision_for(now))
+            database.commit()
+        except IntegrityError as error:
+            database.rollback()
+            raise HTTPException(status_code=409, detail={"code": "FOLDER_NAME_CONFLICT"}) from error
         return {"id": folder_id, "trashedAt": None, "folderIds": subtree}
 
     app.add_api_route(
@@ -844,6 +897,7 @@ def register_library_routes(
         _: Any = Depends(csrf_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> Response:
+        lock_share_target(database, "folder", folder_id)
         folder = database.get(Folder, folder_id)
         if folder is None or folder.trashed_at is None:
             raise HTTPException(
@@ -851,6 +905,12 @@ def register_library_routes(
                 detail={"code": "TRASH_REQUIRED"},
             )
         subtree = folder_subtree_ids(database, folder_id)
+        for changed_id in sorted(subtree):
+            lock_share_target(database, "folder", changed_id)
+        if any(
+            _has_active_share(database, target_type="folder", target_id=item) for item in subtree
+        ):
+            raise HTTPException(status_code=409, detail={"code": "SHARE_ACTIVE"})
         occupied = database.scalar(select(func.count(Slide.id)).where(Slide.folder_id.in_(subtree)))
         if occupied:
             raise HTTPException(
@@ -869,6 +929,7 @@ def register_library_routes(
             return depth
 
         for item in sorted(folders, key=relative_depth, reverse=True):
+            record_sync_event(database, "folder", item.id, "delete", revision_for(utcnow()))
             database.delete(item)
             database.flush()
         database.commit()

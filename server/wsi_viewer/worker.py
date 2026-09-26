@@ -23,6 +23,7 @@ from typing import Any, Protocol, cast
 import cv2
 from PIL import Image
 from sqlalchemy import CursorResult, case, delete, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
@@ -45,6 +46,7 @@ from .alignment_pyramid import read_region, refine_supported_patches, register_c
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
+from .desktop_sync import record_sync_event, revision_for
 from .domain import SlideState
 from .models import (
     AuditEvent,
@@ -384,7 +386,10 @@ def expire_incomplete_uploads(
     cutoff = datetime.now(UTC).timestamp() - older_than.total_seconds()
     expired = 0
     for info in upload_root.glob("*.info"):
-        before = info.stat()
+        try:
+            before = info.stat()
+        except FileNotFoundError:
+            continue
         if before.st_mtime >= cutoff:
             continue
         upload_id = info.name.removesuffix(".info")
@@ -1070,6 +1075,59 @@ def process_next(
         job.heartbeat_at = now
         job.lease_expires_at = now + timedelta(seconds=60)
         slide = job.slide
+        if job.kind == "delete":
+            if slide is not None:
+                job_id = job.id
+                checkpoint = {
+                    "phase": "delete-files", "slideId": slide.id, "publicId": slide.public_id,
+                }
+                # Retain this job across the slide's FK cascade so cleanup can resume.
+                job.slide = None
+                job.checkpoint = checkpoint
+                record_sync_event(database, "slide", slide.id, "delete", revision_for(now))
+                database.delete(slide)
+                try:
+                    database.commit()
+                except IntegrityError:
+                    database.rollback()
+                    blocked = database.get(Job, job_id)
+                    if blocked is not None:
+                        blocked.status = "failed_terminal"
+                        blocked.failure_code = "SLIDE_IN_USE"
+                        blocked.error = "Slide deletion was rejected by a database reference"
+                        blocked.heartbeat_at = None
+                        blocked.lease_expires_at = None
+                        if blocked.slide is not None:
+                            blocked.slide.state = SlideState.FAILED
+                            blocked.slide.error_code = "SLIDE_IN_USE"
+                        database.commit()
+                    return True
+            checkpoint = job.checkpoint or {}
+            target_id, public_id = checkpoint.get("slideId"), checkpoint.get("publicId")
+            if (
+                checkpoint.get("phase") != "delete-files"
+                or not isinstance(target_id, str)
+                or not isinstance(public_id, str)
+            ):
+                job.status = "failed_terminal"
+                job.failure_code = "JOB_TARGET_MISSING"
+                job.error = "Delete job has no supported cleanup target"
+            else:
+                try:
+                    remove_slide(layout, target_id, public_id)
+                except (OSError, ValueError):
+                    job.status = "retry_wait" if job.attempts < 3 else "failed_terminal"
+                    job.failure_code = "DELETE_FILES_FAILED"
+                    job.error = "Slide file cleanup failed"
+                    job.next_attempt_at = now + timedelta(seconds=30)
+                else:
+                    job.status = "succeeded"
+                    job.failure_code = None
+                    job.error = None
+            job.heartbeat_at = None
+            job.lease_expires_at = None
+            database.commit()
+            return True
         if slide is None:
             job.status = "failed_terminal"
             job.failure_code = "JOB_TARGET_MISSING"
@@ -1583,6 +1641,7 @@ def remove_slide(layout: StorageLayout, slide_id: str, public_id: str) -> None:
         paths.derivative_staging,
         paths.private_derivative,
         layout.public_for(public_id),
+        layout.individual_delivery_for(public_id),
     }:
         if target.exists():
             shutil.rmtree(target)

@@ -225,3 +225,32 @@ it('explains that an unpublished learner session is not accepting responses inst
   expect(await screen.findByText(/Your teacher must open responses/)).toBeVisible()
   expect(screen.queryByLabelText('Access code')).not.toBeInTheDocument()
 })
+it('keeps practice answers in memory with an honest warning when browser storage is denied', async () => {
+  const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Storage denied', 'SecurityError') })
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Storage denied', 'SecurityError') })
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({ publicId: 'practice-denied', mode: 'practice', status: 'open', durationSeconds: 0, closesAt: null, assets: {}, manifest: { title: 'Practice', items: [], settings: {} } })
+  try {
+    render(<MemoryRouter initialEntries={['/assessment/practice-denied']}><Routes><Route path="/assessment/:publicId" element={<AssessmentStudentPage />} /></Routes></MemoryRouter>)
+    const answer = await screen.findByLabelText('Adenocarcinoma')
+    await userEvent.click(answer)
+    expect(answer).toBeChecked()
+    expect(screen.getByRole('alert')).toHaveTextContent('Practice answers are kept only in memory for this tab and will be lost on reload.')
+    expect(screen.queryByText('Stored only in this browser')).not.toBeInTheDocument()
+  } finally { read.mockRestore(); write.mockRestore() }
+})
+it('admits a formative learner after server acknowledgment when session caching is denied', async () => {
+  const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Denied') })
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Denied') })
+  const manifest: AssessmentDocument = { title: 'Memory session', settings: {}, items: [{ id: 'one', type: 'multiple-choice', prompt: 'Choose', points: '1', options: [{ id: 'a', label: 'Memory answer' }] }] }
+  vi.mocked(assessmentApi.getAssessmentMetadata).mockResolvedValueOnce({ publicId: 'memory-session', mode: 'formative', status: 'open', durationSeconds: 3600, closesAt: null, assets: {}, manifest })
+  vi.mocked(assessmentApi.accessAssessment).mockResolvedValueOnce({ csrfToken: 'server-issued-csrf', kind: 'anonymous', publicId: 'memory-session' })
+  vi.mocked(assessmentApi.startAssessmentAttempt).mockResolvedValueOnce({ id: 'memory-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString() })
+  vi.mocked(assessmentApi.restoreAssessmentSession).mockResolvedValueOnce({ kind: 'anonymous', publicId: 'memory-session', status: 'open', deviceGeneration: 1, manifest, attempt: { id: 'memory-attempt', ordinal: 1, status: 'active', startedAt: new Date().toISOString(), responses: [] } })
+  try {
+    render(<MemoryRouter initialEntries={['/assessment/memory-session']}><Routes><Route path="/assessment/:publicId" element={<AssessmentStudentPage />} /></Routes></MemoryRouter>)
+    await userEvent.click(await screen.findByRole('button', { name: 'Continue anonymously' }))
+    expect(await screen.findByLabelText('Memory answer')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('Reloading may require re-entry')
+    expect(assessmentApi.restoreAssessmentSession).toHaveBeenCalledWith('server-issued-csrf')
+  } finally { read.mockRestore(); write.mockRestore() }
+})

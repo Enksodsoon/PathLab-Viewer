@@ -11,7 +11,7 @@ import { useRef, useState, type DragEvent } from 'react'
 import { StatusMessage } from '../StatusMessage'
 import { formatBytes } from './format'
 
-export type UploadQueuePhase = 'queued' | 'preparing' | 'uploading' | 'complete' | 'error'
+export type UploadQueuePhase = 'queued' | 'preparing' | 'uploading' | 'complete' | 'error' | 'cancelled' | 'processing' | 'ready' | 'processing_failed'
 
 export interface UploadQueueItemView {
   id: string
@@ -20,6 +20,7 @@ export interface UploadQueueItemView {
   phase: UploadQueuePhase
   progress: number
   error: string
+  processingState?: string
 }
 
 interface UploadWorkspaceProps {
@@ -30,9 +31,14 @@ interface UploadWorkspaceProps {
   onRemove: (id: string) => void
   onRetry: (id: string) => void
   onStart: () => void
+  onCancel?: (id: string) => void
 }
 
 function itemStatus(item: UploadQueueItemView) {
+  if (item.phase === 'cancelled') return 'Transfer paused'
+  if (item.phase === 'processing') return `Processing: ${item.processingState ?? 'queued'}`
+  if (item.phase === 'ready') return 'Ready to view'
+  if (item.phase === 'processing_failed') return 'Processing stopped'
   if (item.phase === 'error') return 'Upload paused'
   if (item.phase === 'complete') return 'Upload complete'
   if (item.phase === 'preparing') return 'Preparing resumable upload'
@@ -48,6 +54,7 @@ export function UploadWorkspace({
   onRemove,
   onRetry,
   onStart,
+  onCancel,
 }: UploadWorkspaceProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -134,7 +141,7 @@ export function UploadWorkspace({
                   </span>
                 </div>
                 <div className="upload-workspace-file-actions">
-                  {item.phase === 'error' ? (
+                  {item.phase === 'error' || item.phase === 'cancelled' ? (
                     <button
                       type="button"
                       aria-label={`Retry ${item.file.name}`}
@@ -143,6 +150,7 @@ export function UploadWorkspace({
                       <ArrowClockwise />
                     </button>
                   ) : null}
+                  {active && onCancel ? <button type="button" aria-label={`Pause ${item.file.name}`} onClick={() => onCancel(item.id)}><X /></button> : null}
                   {!active ? (
                     <button
                       type="button"
@@ -156,6 +164,7 @@ export function UploadWorkspace({
                 <label className="upload-workspace-name">
                   <span>Display name</span>
                   <input
+                    maxLength={200}
                     value={item.displayName}
                     disabled={item.phase !== 'queued'}
                     onChange={(event) => onDisplayNameChange(item.id, event.target.value)}

@@ -136,6 +136,29 @@ def test_new_share_excludes_trashed_subtrees_but_existing_snapshot_survives_fold
         assert client.get(url).json() == before
 
 
+def test_folder_deletion_preserves_active_share_after_slides_move_out(tmp_path):
+    with _client(tmp_path, multi_share_enabled=True) as client:
+        headers = _headers(client)
+        root = _create_folder(client, headers, "Synthetic shared folder")
+        _seed_share_ready_slide(client, slide_id="moved", folder_id=root["id"])
+        created = _share(client, headers, root["id"])
+        assert created.status_code == 201
+        url = f"/api/v2/public/folders/{created.json()['publicId']}"
+        before = client.get(url).json()
+        moved = client.post(
+            "/api/v2/admin/slides/batch-move", headers=headers,
+            json={"slideIds": ["moved"], "folderId": None},
+        )
+        assert moved.status_code == 200
+        assert client.post(
+            f"/api/v2/admin/folders/{root['id']}/trash", headers=headers,
+        ).status_code == 200
+        deleted = client.delete(f"/api/v2/admin/folders/{root['id']}", headers=headers)
+        assert deleted.status_code == 409
+        assert deleted.json()["detail"]["code"] == "SHARE_ACTIVE"
+        assert client.get(url).json() == before
+
+
 def test_expired_share_can_be_replaced(tmp_path):
     with _client(tmp_path, multi_share_enabled=True) as client:
         headers = _headers(client)
