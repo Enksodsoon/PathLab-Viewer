@@ -44,6 +44,8 @@ The expanded Chromium full-stack suite passed all 18 journeys after repairing li
 
 Optional dense adapters now bound rounded mask indexes after checking continuous coordinates are inside the image. A fractional-edge regression reproduced the previous `IndexError`. VALIS also writes its final qualified payload to the artifact: an approximate result can no longer leave saved JSON marked ready. Nine adapter tests and mypy pass; adapter revisions invalidate prior settings digests. Neither repair establishes independently reviewed anatomical correspondence.
 
+Bounded VALIS probes on one difficult H&E/P40 development pair passed the existing engineering feature/geometry gates: the 896-pixel profile produced 145 local cells in 235.6 seconds with 4.31 GiB sampled process-tree RSS; the 768-pixel profile produced 143 cells in 172.8 seconds with 4.07 GiB. Both used two CPU cores, one numerical thread, a five-minute timeout, and the existing 7 GiB ceiling. The smaller profile had worse residual and round-trip metrics, so the default is unchanged. The 896 run used adapter v8; the 768 run used repaired v9 and its saved artifact matched the returned qualification. Single-pair engineering evidence does not establish anatomical accuracy, production quotas, or the foreground resource/latency target. [Exploratory fallback receipt](benchmarks/alignment-valis-development-2026-09-27.json).
+
 ## Remaining release gates
 
 - Qualify local correspondence after the overview sampling and thin-tissue repairs. Development stacks now produce approximate maps; independently reviewed local accuracy remains unproven. Existing local maps can be retained while difficult regions continue refinement.
