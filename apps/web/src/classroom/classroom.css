@@ -1488,6 +1488,8 @@
 
 .classroom-code-display > div {
   width: min(980px, 100%);
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
   display: grid;
   justify-items: center;
   gap: 18px;
@@ -1676,6 +1678,7 @@
 
 @media print {
   .classroom-code-display { position: static; color: #000; background: #fff; }
+  .classroom-code-display > div { max-height: none; overflow: visible; }
   .classroom-code-display h2,
   .classroom-code-display strong,
   .classroom-invite-link { color: #000; }

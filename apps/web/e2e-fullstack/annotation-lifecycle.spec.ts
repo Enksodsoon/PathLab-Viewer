@@ -8,6 +8,13 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await waitForSlideConversion(page, id)
   await page.goto(`/admin/preview/${id}`)
   await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+  if (isMobile) {
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 })
+      await expect.poll(() => page.locator('.annotation-commandbar').evaluate((bar) =>
+        bar.scrollWidth <= bar.clientWidth + 1)).toBe(true)
+    }
+  }
   const overlay = page.locator('.annotation-svg-overlay')
   const read = async () => (await (await page.request.get(`/api/v2/admin/annotations/slides/${id}/items?limit=1000`)).json())
   let count = 0
@@ -72,6 +79,7 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await inspector.getByLabel('Title', { exact: true }).fill('QA trash restore')
   await inspector.getByLabel('Classification', { exact: true }).focus()
   await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+  if (isMobile) await page.screenshot({ path: testInfo.outputPath('annotations-mobile-saved.png') })
   await page.getByRole('button', { name: 'Delete selected annotations', exact: true }).click()
   await expect.poll(async () => (await read()).total).toBe(count)
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
