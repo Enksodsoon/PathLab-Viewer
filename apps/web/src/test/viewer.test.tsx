@@ -707,3 +707,13 @@ it('does not promote an initial image load into a driving user gesture', () => {
   emitViewerEvent('animation-finish')
   expect(onViewportChange).not.toHaveBeenCalled()
 })
+
+
+it('avoids a filter stacking context for neutral display while retaining requested adjustments', () => {
+  const { container, rerender } = render(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={vi.fn()} />)
+  const surface = container.querySelector('.osd-surface > div') as HTMLElement
+  expect(surface.style.filter).toBe('none')
+  rerender(<OpenSeadragonViewer tileSource="/tiles/test.dzi" onReady={vi.fn()} displayAdjustments={{ brightness: 1.2, contrast: 1, gamma: 1 }} />)
+  expect(surface.style.filter).toContain('brightness(1.2)')
+  expect(surface.style.filter).toContain('url(#slide-gamma-')
+})

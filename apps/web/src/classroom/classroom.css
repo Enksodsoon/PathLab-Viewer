@@ -1868,3 +1868,6 @@
 @media(max-width:640px){.classroom-activity-tray{top:82px;max-height:calc(100svh - 164px)}.classroom-hud-label{font-size:11px}.classroom-teaching-tools button{padding:8px}.classroom-shell .classroom-topbar{position:relative;gap:8px}}
 
 .classroom-question-composer{overflow:auto}
+
+/* OSD rotates its wrapper, which owns the composer's stacking context. */
+.openseadragon-overlay-wrapper:has(> .classroom-question-composer){z-index:12}

@@ -39,7 +39,17 @@ test('all six authorable question types survive publication, learner save and su
   await publish.getByRole('button', { name: 'Publish assignment', exact: true }).click()
   const published = await publication
   expect(published.ok(), await published.text()).toBe(true)
-  await publish.getByRole('button', { name: 'Open responses', exact: true }).click()
+  // Stack refinement may still be draining; exercise the supported retry without bypassing admission.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const opening = page.waitForResponse((response) => response.request().method() === 'PATCH' && /\/administrations\/[^/]+\/status$/.test(new URL(response.url()).pathname))
+    await publish.getByRole('button', { name: 'Open responses', exact: true }).click()
+    const response = await opening
+    if (response.ok()) break
+    expect(response.status()).toBe(409)
+    expect((await response.json()).detail.code).toBe('ASSESSMENT_DRAINING')
+    await expect(publish.getByRole('alert')).toContainText('Responses could not be opened')
+    await page.waitForTimeout(Number(response.headers()['retry-after'] || 2) * 1000)
+  }
   await expect(publish.getByText('Accepting responses. You can share this link.', { exact: true })).toBeVisible()
   const href = await publish.locator('a[href*="/assessment/"]').last().getAttribute('href')
   const context = await browser.newContext()

@@ -523,7 +523,7 @@ export function OpenSeadragonViewer({
       fetchPriority="high"
       decoding="async"
     /> : null}
-    <div ref={element} style={{ position: 'absolute', inset: 0, filter: `url(#${gammaFilterId}) brightness(${displayAdjustments.brightness}) contrast(${displayAdjustments.contrast})` }} />
+    <div ref={element} style={{ position: 'absolute', inset: 0, filter: displayAdjustments.brightness === 1 && displayAdjustments.contrast === 1 && displayAdjustments.gamma === 1 ? 'none' : `url(#${gammaFilterId}) brightness(${displayAdjustments.brightness}) contrast(${displayAdjustments.contrast})` }} />
     {showLoadingMode ? <label className="viewer-loading-mode">
       <span>Tile detail</span>
       <select aria-label="Loading mode" value={mode} onChange={(event) => setMode(event.target.value as ViewerLoadingMode)}>
