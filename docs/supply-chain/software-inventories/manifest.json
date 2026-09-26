@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "2343eee8b89a6c5edb99d815538e7a584d924bbb7ca0e05c6fe01a424944cf60",
+      "sha256": "9d6ff238ff0b436f2664a19ebdb7bad1c1d11f977e287b6cbdf9d0998c537e5a",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "b9f6e914d23a226ec147758bac637c3aa01894731db3c8ee9c7b2f54e7e12db6",
+      "sha256": "4f881c3356e14479f614fbf061ccc11c3c6b7a0539a58aa641571cbfe1e37d08",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "e11e3f76823d4994cfd90e6c9f00a3c32b4d6270a3d9dd7801a824d48d5c32e6",
+      "sha256": "55b49de155c303322c0e3918841140ecd103bc945ed68d36692b62d85a88e017",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "f3d95ad2ed5bd86ffdef3196c068f2f7d11f87fb94759bd25d24459428e06bc9",
+      "sha256": "f62b919732c17083ea0dde371ddad5c6371d4b6027629a6a01a44b4a6beb465c",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T22:06:00Z",
+  "generatedAt": "2026-09-26T22:10:35Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "69a0fd07197fa135f3dbba159f1c823de3a63cbd",
+      "gitBlob": "6aa1289e2713cb02b0730bddb29cf37222e0815f",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "16539321b6068959da746f4ddd0c079580e7d69d44893d2f7b3999bba5678be8",
+      "sha256": "c3882dee0d27012c2c7b48f30e39817d6eb39ddcf1a61778dfac6efc7c7f69f3",
       "sizeBytes": 41188
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "99fabee97f8ab3cc2d6505189234beb1092fa579",
-  "subjectTree": "b7755a07c92de4a254f9d66e9f2cfd49bd194004"
+  "subjectCommit": "dbbe6669cf0e9dad9e601aca4178ab83487f6275",
+  "subjectTree": "4e53d14c29bc861bf2ba81974634dac10ddb21c4"
 }
