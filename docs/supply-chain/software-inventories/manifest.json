@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "b3c35b5ec859f4b471cf4429da098f6ca241adf4b128f25d80f4d221f48f4cd8",
+      "sha256": "b94a414e2650c1992dd4db3e5d79000aa9217790c5432c4456be127a28f2c102",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "32d61a6746d3aafcb8f75e6d416580fed3f8da4eee3e3f13f3b6a35cc83c6b93",
+      "sha256": "df6fea31606bd32108f8536534b491513a73531a4f3f2851cad2054a1977c92c",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "c12901c47d6baf9c03cbfd59616e3001ccf37fb7c647894a147e72a2765e1931",
+      "sha256": "5abc2dd361dcce1523c5c621df3b7eaadd065761e29e207fc3a572819cec4ae9",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "9c14ea8e2dc72c73161a8a823d30546c3d94587391542885889299757469e5e7",
+      "sha256": "ae637fc932675b74eab8ae5965987e54994a6bce5323318756b4faaec2043d02",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T19:05:43Z",
+  "generatedAt": "2026-09-26T19:12:55Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "301aea31e8ce44f51593175b68f38001051e625c",
+      "gitBlob": "f46963536b8e4503fb5c3fb1dba3f5e82c81485a",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "d0bfcf69732ab58e5aebd719680001fc1d4577ae982c0457bba61b4efa0ca10c",
+      "sha256": "e273ecd9fa307b33060d8ebd855c8aa7dadfb1346fb1b746ea9ad27b792c3cee",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "8debbd439713e1fbf1ccbefc8283697818c4cd59",
-  "subjectTree": "0828be56808f42ff5b145023b45c4d8312dc084a"
+  "subjectCommit": "c846c283e5c512228f61e0eb939c282d8e1aa030",
+  "subjectTree": "85958fb981ee5c4b008c23f4b3988495bb0f8164"
 }
