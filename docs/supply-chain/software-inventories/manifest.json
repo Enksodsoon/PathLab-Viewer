@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "cbb6aaeae39053782d603bea8825ad4d7ef7b0ba23d98704c8710963b0c5a3e8",
+      "sha256": "da66ca9b27c9efee371f91e5f8c6709a6dce935c78da5be8b5124cd0631c36e9",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "a45a47a8aed33d5bf826f9ac045a11c0205044f2a8fc07743bf09c48e6112b22",
+      "sha256": "f5ffcab7df6cdd365c8dee2791ab68d4f952693c2579830bdd8971735646d3c2",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "ec72bb29046167f405c70a3cdc4afe1d5056f9fb277a750400c1dfc63af9b394",
+      "sha256": "de4b53b1bdc78d9632affe51fb97f5b0163f24655c243ae284c74faaac70d9d3",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "bd1267bddbaa4dbf7e0cfbb04075c077b397eb71ea236c82bdc4bc1a12210014",
+      "sha256": "de7885ea278dbdea56a37d694dbe73d21556eba4cb22851541b20b7904915a14",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T19:18:27Z",
+  "generatedAt": "2026-09-26T19:31:28Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "283bc8e0a7101af82c768bbfdb1e66bc87063d4a",
+      "gitBlob": "16e1ae7895057ccb62ad35ad3a9c44dcb762054f",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "38c2edf73f17710e22e494d4a533415280287a25155094478f0e54ef8fa09fba",
+      "sha256": "5240cb6e609decfb4feff3b01eee0e1e13d717581149d17559e745d3d47db513",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "97e770ec07612e1bf8a1a663295e5a9d29ddbc3d",
-  "subjectTree": "4bbe3af1030f43c55d38fd21f50a8c5ba6932c23"
+  "subjectCommit": "31216bbfa15d12b0faccbd7801e6f8bcc8dcd161",
+  "subjectTree": "048d4de46579bf8045ca075122d6e97222296fd3"
 }
