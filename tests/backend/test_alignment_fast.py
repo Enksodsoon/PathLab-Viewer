@@ -91,6 +91,8 @@ def test_fast_preparation_reuses_source_and_invalidates_geometry_and_version():
     changed, hit = cache.prepare("source-a", image, (6400, 4800))
     assert not hit and changed is not first
     assert cache.bytes_used <= 16 * 1024**2
+    assert first.thin_mask is not None
+    assert first.nbytes >= first.mask.nbytes + first.thin_mask.nbytes
     sampled, hit = cache.prepare("source-a", image, (3200, 2400), sampling_scale=16)
     assert not hit
     assert sampled.full_size == (5120, 3840)
@@ -147,6 +149,39 @@ def test_fast_scale_gate_uses_level_zero_geometry(monkeypatch, reference_size, a
     result = fast.register_prepared(reference, moving)
     assert result.status == "approximate" and result.overview_triangles
     np.testing.assert_allclose(result.moving_to_reference, [[1, 0, 0], [0, 1, 0]], atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "first_rejected,second_rejected", [(False, False), (True, False), (True, True)]
+)
+def test_thin_mask_is_a_bounded_fallback_not_an_acceptance_override(
+    monkeypatch, first_rejected, second_rejected
+):
+    from wsi_viewer import alignment_fast as fast
+
+    mask = np.ones((64, 64), dtype=np.uint8)
+    thin = mask * 255
+    prepared = fast.PreparedSlide(mask, mask, np.empty((0, 2)), None, (64, 64), thin)
+    result = alignment.RegistrationResult(
+        "approximate", [[1, 0, 0], [0, 1, 0]], (0, 0, 64, 64), (0, 0, 64, 64), 0.4, 0, 0, -1
+    )
+    calls = []
+
+    def register(reference, moving, *, sigma):
+        calls.append(sigma)
+        assert reference.mask is (mask if sigma == 3 else thin)
+        if first_rejected and (sigma == 3 or second_rejected):
+            raise alignment.AlignmentRejected("insufficient evidence")
+        return result
+
+    monkeypatch.setattr(fast, "_register_prepared", register)
+    if first_rejected and second_rejected:
+        with pytest.raises(alignment.AlignmentRejected):
+            fast.register_prepared(prepared, prepared)
+    else:
+        registered = fast.register_prepared(prepared, prepared)
+        assert (registered.evidence.get("maskMode") == "thin-tissue-fallback") == first_rejected
+    assert calls == ([3, 5] if first_rejected else [3])
 
 
 def test_foreground_admission_precedes_older_refinement(tmp_path):

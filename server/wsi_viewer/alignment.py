@@ -254,7 +254,9 @@ def _bounded_rgb(image: Image.Image, maximum: int) -> tuple[np.ndarray, float]:
     return np.asarray(rgb, dtype=np.uint8), scale
 
 
-def _structure(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _structure(
+    rgb: np.ndarray, *, preserve_thin_tissue: bool = False
+) -> tuple[np.ndarray, np.ndarray]:
     # Optical-density proxy is invariant to RGB channel order and therefore to
     # many broad stain hue changes while retaining nuclei and tissue edges.
     density = 255 - np.min(rgb, axis=2)
@@ -264,7 +266,8 @@ def _structure(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     # deposits. This avoids scanner-bed edges and coverslip outlines becoming
     # the dominant structures in sparse biopsy sections.
     tissue = ((density >= 10) & ((hsv[:, :, 1] >= 6) | (gray < 235))).astype(np.uint8) * 255
-    tissue = cv2.morphologyEx(tissue, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    if not preserve_thin_tissue:
+        tissue = cv2.morphologyEx(tissue, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
     tissue = cv2.morphologyEx(tissue, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     component_count, labels, stats, _ = cv2.connectedComponentsWithStats(tissue)
     cleaned = np.zeros_like(tissue)

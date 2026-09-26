@@ -1,0 +1,107 @@
+{
+  "scope": "20 renal-versus-lung development overview challenges; not frozen specimen-separated landmark accuracy qualification",
+  "accepted": 0,
+  "attempts": 20,
+  "records": [
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.047418000001925975
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.03342350001912564
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.07326940004713833
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.06871959997806698
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.06497159996069968
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.05115650000516325
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.04402339999796823
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.037043999996967614
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.03809640003601089
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.0369473000173457
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.07648540002992377
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.07633059995714575
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.12991740001598373
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.040549099969211966
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.14797590003581718
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.12991519999923185
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.07405320001998916
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.18994199996814132
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.11296629998832941
+    },
+    {
+      "accepted": false,
+      "reason": "Needs refinement: weak coarse structural correspondence",
+      "seconds": 0.18292699998710304
+    }
+  ]
+}

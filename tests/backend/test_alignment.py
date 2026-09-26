@@ -61,6 +61,19 @@ def test_register_pair_rejects_blank_slide() -> None:
         register_pair(_tissue(), Image.new("RGB", (720, 520), "white"))
 
 
+def test_thin_tissue_mask_retains_walls_without_retaining_scanner_strip():
+    image = Image.new("RGB", (640, 480), "white")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 639, 10), fill=(180, 180, 180))
+    draw.ellipse((50, 80, 220, 300), fill=(180, 100, 130))
+    draw.rectangle((300, 100, 500, 350), outline=(205, 180, 200), width=2)
+    _, original = _structure(np.asarray(image))
+    _, thin = _structure(np.asarray(image), preserve_thin_tissue=True)
+    assert original[100, 400] == 0
+    assert thin[100, 400] == 255
+    assert not thin[:11].any()
+
+
 def test_structure_keeps_faint_tissue_clipped_by_slide_edge_and_rejects_scanner_strip() -> None:
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)

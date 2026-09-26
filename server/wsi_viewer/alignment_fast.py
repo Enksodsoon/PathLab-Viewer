@@ -26,7 +26,7 @@ from .alignment import (
     rescale_registration,
 )
 
-PREPARATION_VERSION = "overview-orb1536-v2"
+PREPARATION_VERSION = "overview-orb1536-v3"
 
 
 @dataclass(frozen=True)
@@ -36,12 +36,13 @@ class PreparedSlide:
     points: np.ndarray[Any, Any]
     descriptors: np.ndarray[Any, Any] | None
     full_size: tuple[int, int]
+    thin_mask: np.ndarray[Any, Any] | None = None
 
     @property
     def nbytes(self) -> int:
         return sum(
             x.nbytes
-            for x in (self.structure, self.mask, self.points, self.descriptors)
+            for x in (self.structure, self.mask, self.points, self.descriptors, self.thin_mask)
             if x is not None
         )
 
@@ -75,7 +76,13 @@ class PreparationCache:
             else full_size
         )
         bounded.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-        structure, mask = _structure(np.asarray(bounded.convert("RGB")))
+        rgb = np.asarray(bounded.convert("RGB"))
+        structure, mask = _structure(rgb)
+        # Cache the alternate support once; retain the original detector budget.
+        try:
+            _, thin_mask = _structure(rgb, preserve_thin_tissue=True)
+        except AlignmentRejected:
+            thin_mask = None
         # Per-cell quotas keep a large dark fragment from taking every feature.
         detector = cv2.ORB.create(nfeatures=1536, fastThreshold=8)
         keys = detector.detect(structure, mask)
@@ -94,6 +101,7 @@ class PreparationCache:
             np.asarray([p.pt for p in keys], dtype=np.float32).reshape(-1, 2),
             descriptors,
             coordinate_size,
+            thin_mask,
         )
         while self.entries and self.bytes_used + prepared.nbytes > self.max_bytes:
             _, removed = self.entries.popitem(last=False)
@@ -105,6 +113,22 @@ class PreparationCache:
 
 
 def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> RegistrationResult:
+    try:
+        return _register_prepared(reference, moving, sigma=3)
+    except AlignmentRejected:
+        if reference.thin_mask is None or moving.thin_mask is None:
+            raise
+        result = _register_prepared(
+            replace(reference, mask=reference.thin_mask),
+            replace(moving, mask=moving.thin_mask),
+            sigma=5,
+        )
+        return replace(result, evidence={**result.evidence, "maskMode": "thin-tissue-fallback"})
+
+
+def _register_prepared(
+    reference: PreparedSlide, moving: PreparedSlide, *, sigma: int
+) -> RegistrationResult:
     height, width = reference.mask.shape
     # Pyramid levels can differ; apply scale/shape gates to level-zero pixels.
     reference_to_full = np.diag([reference.full_size[0] / width, reference.full_size[1] / height])
@@ -155,8 +179,8 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
         divisor = max(1.0, max(width, height, *moving.mask.shape) / 512)
         fixed = cv2.resize(reference.structure, None, fx=1 / divisor, fy=1 / divisor)
         floating = cv2.resize(moving.structure, None, fx=1 / divisor, fy=1 / divisor)
-        fixed = cv2.GaussianBlur(fixed, (0, 0), 3).astype(np.float32) / 255
-        floating = cv2.GaussianBlur(floating, (0, 0), 3).astype(np.float32) / 255
+        fixed = cv2.GaussianBlur(fixed, (0, 0), sigma).astype(np.float32) / 255
+        floating = cv2.GaussianBlur(floating, (0, 0), sigma).astype(np.float32) / 255
         candidates = []
         for initial, motion in ((scanner, cv2.MOTION_TRANSLATION), (seed, cv2.MOTION_AFFINE)):
             small_seed = initial.copy()
