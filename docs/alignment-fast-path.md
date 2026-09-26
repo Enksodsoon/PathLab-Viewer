@@ -16,6 +16,8 @@ The worker records current RSS, process-lifetime peak RSS, Linux startup duratio
 
 ## Development measurements
 
+Foreground previews retain first queue priority; due ordinary jobs run before unpublished alignment refinement. Running refinement yields to either kind of interactive work, preserving existing maps and batch checkpoints. Worker admission is serialized through a SQLite write transaction or a nonblocking PostgreSQL transaction lock, committed before dispatch; active heavy-work exclusion remains in place. Thirty-three worker regressions pass. A real PostgreSQL contention check runs in CI and skips locally without an isolated service. The affected Firefox imaging journey now passes in 23.3 seconds; its earlier run spent approximately 150 seconds polling conversion behind queued refinement and hit the overall 180-second timeout. These are disposable synthetic workflow results, not production-load qualification.
+
 Local Windows/x64, one OpenCV thread, five cold/warm repetitions. These are compute-only measurements, not stack-acceptance-to-browser latency or ARM64 results.
 
 | Stack | P95 compute seconds | Accepted overview pair runs |

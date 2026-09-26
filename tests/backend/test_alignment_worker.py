@@ -1,7 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from pathlib import Path
+from threading import Barrier, BrokenBarrierError
 
 import pytest
 from PIL import Image, ImageDraw
+from sqlalchemy.orm import Session
 from wsi_viewer.alignment import AlignmentRejected
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
@@ -172,9 +176,9 @@ def test_alignment_job_persists_map_without_changing_slide_state(tmp_path: Path)
         assert database.get(Slide, "moving").state is SlideState.READY_PRIVATE
 
 
-@pytest.mark.parametrize("preempted", [False, True])
+@pytest.mark.parametrize("preempted", [False, True, "conversion"])
 def test_failed_reregistration_preserves_previous_usable_map(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, preempted: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, preempted: bool | str
 ) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'rerun.sqlite3'}", data_root=tmp_path / "data"
@@ -247,12 +251,16 @@ def test_failed_reregistration_preserves_previous_usable_map(
         database.commit()
         comparison_id = comparison.id
 
-    monkeypatch.setattr(
-        "wsi_viewer.worker._run_alignment_bounded",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            AlignmentPreempted() if preempted else AlignmentRejected("no replacement")
-        ),
-    )
+    def bounded(*args, **kwargs):
+        if preempted == "conversion":
+            with factory() as incoming:
+                incoming.add(Job(kind="convert", resource_class="background", status="queued"))
+                incoming.commit()
+            kwargs["heartbeat"]()
+            raise AlignmentRejected("conversion did not preempt refinement")
+        raise AlignmentPreempted() if preempted else AlignmentRejected("no replacement")
+
+    monkeypatch.setattr("wsi_viewer.worker._run_alignment_bounded", bounded)
 
     assert process_next(factory, layout) is True
 
@@ -261,7 +269,9 @@ def test_failed_reregistration_preserves_previous_usable_map(
         assert comparison is not None
         assert comparison.registrations["moving"] == previous
         assert comparison.status == ("running" if preempted else "partial")
-        assert database.query(Job).one().status == ("queued" if preempted else "failed_terminal")
+        assert database.query(Job).filter(Job.kind == "align").one().status == (
+            "queued" if preempted else "failed_terminal"
+        )
 
 
 def test_successful_reregistration_does_not_replace_stronger_existing_map(
@@ -372,7 +382,7 @@ def test_alignment_jobs_have_exclusive_heavy_work_admission(tmp_path: Path) -> N
     with factory() as database:
         database.add_all(
             [
-                Job(kind="align_benchmark", resource_class="isolated", status="queued"),
+                Job(kind="align_benchmark", resource_class="isolated", status="running"),
                 Job(kind="convert", resource_class="background", status="queued"),
             ]
         )
@@ -396,3 +406,66 @@ def test_alignment_jobs_have_exclusive_heavy_work_admission(tmp_path: Path) -> N
         )
         is False
     )
+
+
+@pytest.mark.parametrize("split_roles", [False, True])
+def test_queued_conversion_runs_before_background_alignment(tmp_path: Path, split_roles: bool):
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'priority.sqlite3'}", data_root=tmp_path / "data"
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        database.add_all(
+            [
+                Job(kind="align_benchmark", resource_class="isolated", status="queued"),
+                Job(kind="convert", resource_class="background", status="queued"),
+            ]
+        )
+        database.commit()
+    if split_roles:
+        assert (
+            process_next(
+                factory,
+                layout,
+                include_kinds=frozenset({"align", "align_benchmark"}),
+                exclusive_alignment=True,
+            )
+            is False
+        )
+    assert process_next(
+        factory,
+        layout,
+        exclude_kinds=frozenset({"align", "align_benchmark"}) if split_roles else None,
+        exclusive_alignment=False if split_roles else None,
+    )
+    with factory() as database:
+        assert database.query(Job).filter(Job.kind == "align_benchmark").one().status == "queued"
+        assert database.query(Job).filter(Job.kind == "convert").one().status == "failed_terminal"
+
+
+def test_worker_claim_is_serialized_before_dispatch(tmp_path: Path, monkeypatch):
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'claims.sqlite3'}", data_root=tmp_path / "data"
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        database.add(Job(kind="convert", resource_class="background", status="queued"))
+        database.commit()
+    barrier = Barrier(2, timeout=0.5)
+    original = Session.scalar
+
+    def simultaneous_claim(session, *args, **kwargs):
+        value = original(session, *args, **kwargs)
+        if isinstance(value, Job):
+            with suppress(BrokenBarrierError):
+                barrier.wait()
+        return value
+
+    monkeypatch.setattr(Session, "scalar", simultaneous_claim)
+    with ThreadPoolExecutor(max_workers=2) as threads:
+        results = list(threads.map(lambda _: process_next(factory, layout), range(2)))
+    assert sorted(results) == [False, True]

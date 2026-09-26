@@ -22,7 +22,7 @@ from typing import Any, Protocol, cast
 
 import cv2
 from PIL import Image
-from sqlalchemy import CursorResult, case, delete, or_, select
+from sqlalchemy import CursorResult, case, delete, func, or_, select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
@@ -164,6 +164,7 @@ def _next_job_statement(
         .order_by(
             case(
                 ((Job.kind == "align") & (Job.checkpoint["phase"].as_string() == "preview"), 0),
+                (Job.kind.in_({"align", "align_benchmark"}), 2),
                 else_=1,
             ),
             Job.created_at,
@@ -783,7 +784,7 @@ def _run_alignment_bounded(
 
 
 class AlignmentPreempted(Exception):
-    """A foreground stack takes admission priority over unpublished refinement."""
+    """Interactive foreground work takes priority over unpublished refinement."""
 
 
 def _map_bytes(value: Any) -> int:
@@ -999,6 +1000,13 @@ def process_next(
     with factory() as database:
         if shutdown_requested():
             return False
+        # ponytail: serialize admission only; shard if claim throughput becomes a measured limit.
+        dialect = database.get_bind().dialect.name
+        if dialect == "postgresql":
+            if not database.scalar(select(func.pg_try_advisory_xact_lock(0x504C41424A4F42))):
+                return False
+        elif dialect == "sqlite":
+            database.connection().exec_driver_sql("BEGIN IMMEDIATE")
         now = datetime.now(UTC)
         if protection_enabled:
             snapshot = protection_snapshot(database, now=now)
@@ -1022,7 +1030,12 @@ def process_next(
                 select(Job.id)
                 .where(
                     Job.kind.in_(alignment_kinds),
-                    Job.status.in_(active_statuses | {"queued", "retry_wait"}),
+                    or_(
+                        Job.status.in_(active_statuses),
+                        Job.status.in_({"queued", "retry_wait"})
+                        & (Job.checkpoint["phase"].as_string() == "preview")
+                        & or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
+                    ),
                 )
                 .limit(1)
             )
@@ -1037,6 +1050,21 @@ def process_next(
         job = database.scalar(statement)
         if job is None:
             return False
+        if (
+            exclusive_alignment is True
+            and (job.checkpoint or {}).get("phase") != "preview"
+            and database.scalar(
+                select(Job.id)
+                .where(
+                    Job.kind.not_in(alignment_kinds),
+                    Job.status.in_({"queued", "retry_wait"}),
+                    or_(Job.next_attempt_at.is_(None), Job.next_attempt_at <= now),
+                )
+                .limit(1)
+            )
+            is not None
+        ):
+            return False
         job.status = "running"
         job.attempts += 1
         job.heartbeat_at = now
@@ -1050,6 +1078,7 @@ def process_next(
             job.lease_expires_at = None
             database.commit()
             return True
+        database.commit()
         if job.kind in {"align", "align_benchmark"}:
             checkpoint = dict(job.checkpoint or {})
             comparison = database.get(ComparisonSet, checkpoint.get("comparisonSetId"))
@@ -1145,9 +1174,16 @@ def process_next(
                     if database.scalar(
                         select(Job.id)
                         .where(
-                            Job.kind == "align",
-                            Job.status == "queued",
-                            Job.checkpoint["phase"].as_string() == "preview",
+                            Job.status.in_({"queued", "retry_wait"}),
+                            or_(
+                                Job.next_attempt_at.is_(None),
+                                Job.next_attempt_at <= datetime.now(UTC),
+                            ),
+                            or_(
+                                Job.kind.not_in(alignment_kinds),
+                                (Job.kind == "align")
+                                & (Job.checkpoint["phase"].as_string() == "preview"),
+                            ),
                         )
                         .limit(1)
                     ):

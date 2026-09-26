@@ -15,9 +15,38 @@ from wsi_viewer.domain import SlideState
 from wsi_viewer.library import _search_ids
 from wsi_viewer.models import Job, Slide
 from wsi_viewer.readiness import ALEMBIC_HEAD
-from wsi_viewer.worker import _next_job_statement, expire_incomplete_uploads
+from wsi_viewer.storage import StorageLayout
+from wsi_viewer.worker import _next_job_statement, expire_incomplete_uploads, process_next
 
 POSTGRES_TEST_URL = os.getenv("PATHLAB_POSTGRES_TEST_URL")
+
+
+@pytest.mark.skipif(POSTGRES_TEST_URL is None, reason="isolated PostgreSQL required")
+def test_worker_admission_lock_defers_claim_until_released(tmp_path: Path, monkeypatch):
+    assert POSTGRES_TEST_URL is not None
+    monkeypatch.setenv("PATHLAB_DATABASE_URL", POSTGRES_TEST_URL)
+    command.upgrade(Config("alembic.ini"), "head")
+    settings = Settings(database_url=POSTGRES_TEST_URL, service_role="worker", data_root=tmp_path)
+    factory = session_factory(settings)
+    with factory() as database:
+        job = Job(kind="claim-probe", resource_class="background", status="queued")
+        database.add(job)
+        database.commit()
+        job_id = job.id
+    try:
+        with engine_for(settings).connect() as holder:
+            holder.execute(text("SELECT pg_advisory_xact_lock(22601841305603906)"))
+            assert not process_next(
+                factory, StorageLayout(tmp_path), include_kinds=frozenset({"claim-probe"})
+            )
+            holder.rollback()
+        assert process_next(
+            factory, StorageLayout(tmp_path), include_kinds=frozenset({"claim-probe"})
+        )
+    finally:
+        with factory() as database:
+            database.query(Job).filter(Job.id == job_id).delete()
+            database.commit()
 
 
 @pytest.mark.skipif(POSTGRES_TEST_URL is None, reason="isolated PostgreSQL required")
@@ -70,16 +99,17 @@ def test_postgres_migrations_constraints_and_round_trip(
     command.upgrade(config, "head")
 
     with engine.begin() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
-            ALEMBIC_HEAD
-        )
+        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (ALEMBIC_HEAD)
         assert "slide_search" not in inspect(connection).get_table_names()
-        assert connection.scalar(
-            text(
-                "SELECT source_type || ':' || source_id FROM publication_grants "
-                "WHERE slide_id = 'postgres-slide'"
+        assert (
+            connection.scalar(
+                text(
+                    "SELECT source_type || ':' || source_id FROM publication_grants "
+                    "WHERE slide_id = 'postgres-slide'"
+                )
             )
-        ) == "individual:postgres-slide"
+            == "individual:postgres-slide"
+        )
         index_rows = connection.execute(
             text(
                 "SELECT indexname, indexdef FROM pg_indexes "
@@ -90,15 +120,12 @@ def test_postgres_migrations_constraints_and_round_trip(
             )
         ).all()
         definitions = {str(name): str(definition) for name, definition in index_rows}
-        assert "WHERE (parent_id IS NULL)" in definitions[
-            "uq_folders_root_normalized_name"
-        ]
-        assert "WHERE ((status)::text = 'active'::text)" in definitions[
-            "uq_classroom_sessions_one_active"
-        ]
-        assert "WHERE ((status)::text = ANY" in definitions[
-            "uq_study_courses_one_live"
-        ]
+        assert "WHERE (parent_id IS NULL)" in definitions["uq_folders_root_normalized_name"]
+        assert (
+            "WHERE ((status)::text = 'active'::text)"
+            in definitions["uq_classroom_sessions_one_active"]
+        )
+        assert "WHERE ((status)::text = ANY" in definitions["uq_study_courses_one_live"]
 
     with Session(engine) as database:
         assert _search_ids(database, "bounded search") is None
@@ -189,10 +216,13 @@ def test_postgres_runtime_timeouts_and_worker_claims_are_isolated(
     stale = (datetime.now(UTC) - timedelta(hours=25)).timestamp()
     os.utime(info, (stale, stale))
 
-    assert expire_incomplete_uploads(
-        upload_root,
-        older_than=timedelta(hours=24),
-        factory=factory,
-    ) == 1
+    assert (
+        expire_incomplete_uploads(
+            upload_root,
+            older_than=timedelta(hours=24),
+            factory=factory,
+        )
+        == 1
+    )
     with factory() as database:
         assert database.get(Slide, slide_id) is None
