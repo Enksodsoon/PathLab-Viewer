@@ -27,6 +27,7 @@ def test_fullstack_discards_inherited_production_configuration(monkeypatch, tmp_
     assert env["PATHLAB_DATABASE_URL"] == f"sqlite:///{(tmp_path / 'database.sqlite3').as_posix()}"
     assert env["PATHLAB_ENVIRONMENT"] == "test"
     assert env["PATHLAB_SECURE_COOKIES"] == "false"
+    assert env["PATHLAB_ALIGNMENT_ENABLED"] == "true"
     assert "PATHLAB_IDENTITY_GOVERNANCE_ENABLED" not in env
     assert "LOAD_TEST_ADMIN_PASSWORD" not in env
     assert "CAPACITY_BASE_URL" not in env

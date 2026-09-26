@@ -399,6 +399,7 @@ def isolated_environment(directory: Path) -> dict[str, str]:
             "PATHLAB_CLASSROOM_ENABLED": "true",
             "PATHLAB_ASSESSMENT_ENABLED": "true",
             "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED": "true",
+            "PATHLAB_ALIGNMENT_ENABLED": "true",
             "PATHLAB_WORKER_HEARTBEAT_PATH": str(directory / "worker-heartbeat.json"),
             "PATHLAB_TILE_CACHE_ROOT": str(directory / "tile-cache"),
             "VIPS_CONCURRENCY": "1",
@@ -465,11 +466,14 @@ def main() -> int:
     parser.add_argument("--pnpm", default=shutil.which("pnpm"))
     parser.add_argument("--caddy", default=shutil.which("caddy"))
     parser.add_argument(
-        "--browser", choices=("chromium", "firefox", "webkit", "mobile-chromium"),
+        "--browser",
+        choices=("chromium", "firefox", "webkit", "mobile-chromium"),
         default="chromium",
     )
     parser.add_argument(
-        "--report-dir", type=Path, help="Keep browser evidence outside the repository",
+        "--report-dir",
+        type=Path,
+        help="Keep browser evidence outside the repository",
     )
     parser.add_argument("--grep", help="Run only matching browser journeys")
     args = parser.parse_args()
