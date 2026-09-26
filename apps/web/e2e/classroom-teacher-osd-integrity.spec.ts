@@ -24,6 +24,15 @@ async function sample(page: Page) {
 
 test('real OSD teacher slide opening reaches guided student and remote control does not echo', async ({ context, page }, info) => {
   await context.addInitScript(() => {
+    const publication = { sent: 0, controlBaseline: 0 }
+    const originalFetch = window.fetch.bind(window)
+    window.fetch = (input, init) => {
+      const url = String(input instanceof Request ? input.url : input)
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
+      if (url.endsWith('/presenter') && method === 'POST') publication.sent += 1
+      return originalFetch(input, init)
+    }
+    ;(window as unknown as { qaPublication: unknown }).qaPublication = publication
     const sources: Array<{ closed: boolean; listeners: Map<string, Array<(event: Event) => void>> }> = []
     window.EventSource = class {
       closed = false
@@ -33,6 +42,7 @@ test('real OSD teacher slide opening reaches guided student and remote control d
       close() { this.closed = true }
     } as unknown as typeof EventSource
     ;(window as unknown as { qaEmit: unknown }).qaEmit = (type: string, payload: unknown) => {
+      if (type === 'control') publication.controlBaseline = publication.sent
       for (const source of sources) if (!source.closed) for (const listener of source.listeners.get(type) ?? []) listener(new MessageEvent(type, { data: JSON.stringify(payload) }))
     }
     sessionStorage.setItem('pathlab-csrf', 'synthetic-csrf')
@@ -89,12 +99,12 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await page.locator('.classroom-activity-tray > summary').click()
   await page.getByRole('button', { name: 'Guide students', exact: true }).click()
   await expect.poll(() => receipts.length).toBeGreaterThan(0)
+  expect(await page.evaluate(() => (window as unknown as { qaPublication: { sent: number } }).qaPublication.sent)).toBeGreaterThan(0)
   await page.getByRole('button', { name: '1. Synthetic slide 1', exact: true }).click()
   await page.getByRole('button', { name: 'Slide 2 Synthetic slide 2' }).click()
   await expect(page.getByRole('button', { name: '2. Synthetic slide 2', exact: true })).toBeVisible()
   await expect.poll(() => receipts.some((receipt) => receipt.slideId === 'slide-2'), { timeout: 5000 }).toBe(true)
   await expect(student.getByRole('button', { name: '2. Synthetic slide 2', exact: true })).toBeVisible({ timeout: 5000 })
-  const baseline = receipts.length
   snapshotGate = new Promise<void>((resolve) => { releaseSnapshot = resolve })
   controller = 'learner'; version += 1
   await emit(page, 'control', { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version })
@@ -102,7 +112,10 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await page.locator('.openseadragon-canvas').first().hover()
   await page.mouse.wheel(0, -200)
   await page.waitForTimeout(700)
-  expect(receipts.length).toBe(baseline)
+  expect(await page.evaluate(() => {
+    const publication = (window as unknown as { qaPublication: { sent: number; controlBaseline: number } }).qaPublication
+    return publication.sent - publication.controlBaseline
+  })).toBe(0)
   snapshotGate = null
   releaseSnapshot!()
   heldSnapshots = 0
@@ -111,7 +124,10 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await emit(page, 'presenter', { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: 'slide-2', viewport: presenter.viewport })
   await expect.poll(async () => (await sample(page)).x).toBeCloseTo(.7, 2)
   await page.waitForTimeout(700)
-  expect(receipts.length).toBe(baseline)
+  expect(await page.evaluate(() => {
+    const publication = (window as unknown as { qaPublication: { sent: number; controlBaseline: number } }).qaPublication
+    return publication.sent - publication.controlBaseline
+  })).toBe(0)
   controller = null; version += 1
   await emit(page, 'control', { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version })
   await page.waitForTimeout(1000)
@@ -153,7 +169,7 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   }
   expect(heldSnapshots).toBe(2)
   expect(receipts.length).toBe(afterReclaim)
-  const receipt = JSON.stringify({ receipts, teacher: await sample(page), student: await sample(student), baseline, afterReclaim, heldSnapshots })
+  const receipt = JSON.stringify({ receipts, teacher: await sample(page), student: await sample(student), publication: await page.evaluate(() => (window as unknown as { qaPublication: unknown }).qaPublication), afterReclaim, heldSnapshots })
   await writeFile(info.outputPath('actual-osd-receipts.json'), receipt)
   await info.attach('actual-osd-receipts', { body: receipt, contentType: 'application/json' })
   await page.screenshot({ path: info.outputPath('teacher-osd.png') })
