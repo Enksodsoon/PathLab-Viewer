@@ -44,6 +44,37 @@ def test_alignment_overview_prefers_bounded_pyramid_for_external_engines(
     assert loaded.size == (4096, 1200)
 
 
+def test_native_child_routes_compatible_seed_to_patches_without_whole_pair(monkeypatch):
+    from wsi_viewer import worker
+
+    seed = {"status": "approximate", "overviewTriangles": [{"moving": [], "reference": []}]}
+    messages = []
+    image = Image.new("RGB", (512, 512))
+    monkeypatch.setattr(worker, "_load_alignment_overview", lambda _: image)
+    monkeypatch.setattr(worker.sys, "platform", "win32")
+
+    def patches(*args, **kwargs):
+        assert args[5] is seed
+        kwargs["progress"](1, 64)
+        return seed
+
+    def whole_pair(*args, **kwargs):
+        pytest.fail("Compatible seed must bypass whole-pair discovery")
+
+    monkeypatch.setattr(worker, "refine_supported_patches", patches)
+    monkeypatch.setattr(worker, "register_pair", whole_pair)
+
+    class Output:
+        def put(self, value):
+            messages.append(value)
+
+    worker._alignment_child(
+        "ref", "mov", (512, 512), (512, 512), worker.ENGINE_NATIVE, None, None, Output(), seed
+    )
+    assert messages[0]["progress"]["stage"] == "guided-patches"
+    assert messages[-1] == {"ok": True, "result": seed}
+
+
 def test_alignment_overview_falls_back_to_thumbnail(tmp_path: Path) -> None:
     thumbnail = Image.new("RGB", (320, 100), "blue")
     thumbnail.save(tmp_path / "thumbnail.jpg")

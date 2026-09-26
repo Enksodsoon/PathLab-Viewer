@@ -709,3 +709,96 @@ def test_component_batches_reuse_decodes_and_resume_completed_attempts(tmp_path,
             checkpoint_dir=tmp_path / "batches",
         )
     assert len(overview_attempts) > overview_counts[1]
+
+
+@pytest.mark.parametrize("mode", ["accept", "reject", "wrong-position"])
+def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monkeypatch, mode):
+    from copy import deepcopy
+
+    from wsi_viewer import alignment_pyramid as pyramid
+    from wsi_viewer.alignment import AlignmentRejected, RegistrationResult
+
+    cells = [
+        {"moving": [[0, 0], [512, 0], [0, 512]], "reference": [[0, 0], [512, 0], [0, 512]]},
+        {"moving": [[512, 0], [512, 512], [0, 512]], "reference": [[512, 0], [512, 512], [0, 512]]},
+    ]
+    seed = {
+        "status": "approximate",
+        "overviewTriangles": cells,
+        "triangles": [],
+        "controlPoints": [],
+        "evidence": {"source": "coarse"},
+    }
+    original = deepcopy(seed)
+    reads = []
+    monkeypatch.setattr(pyramid, "_structure", lambda *_: (None, np.full((512, 512), 255)))
+
+    def read(path, bounds, maximum):
+        assert maximum == 1024
+        reads.append((path, bounds))
+        return Image.new("RGB", (bounds[2] - bounds[0], bounds[3] - bounds[1])), (*bounds[:2], 1)
+
+    def register(reference, moving, **kwargs):
+        assert kwargs == {"max_dimension": 1024, "feature_only": True}
+        if mode == "reject":
+            raise AlignmentRejected("no correspondence")
+        rx, ry = reads[-2][1][:2]
+        mx, my = reads[-1][1][:2]
+        shift = 100 if mode == "wrong-position" else 0
+        points = [[4, 4], [50, 4], [4, 50]]
+        targets = [[x + mx - rx + shift, y + my - ry] for x, y in points]
+        return RegistrationResult(
+            "ready",
+            [[1, 0, mx - rx], [0, 1, my - ry]],
+            (0, 0, 64, 64),
+            (0, 0, 64, 64),
+            0.9,
+            20,
+            25,
+            0.0,
+            control_points=[
+                {"moving": point, "reference": target, "errorPixels": 0.0}
+                for point, target in zip(points, targets, strict=True)
+            ],
+            triangles=[{"moving": points, "reference": targets, "maxResidualPixels": 0.0}],
+        )
+
+    monkeypatch.setattr(pyramid, "read_region", read)
+    monkeypatch.setattr(pyramid, "register_pair", register)
+    options = {"checkpoint_dir": tmp_path / "batches"}
+    result = pyramid.refine_supported_patches(
+        tmp_path / "ref",
+        tmp_path / "mov",
+        Image.new("RGB", (512, 512)),
+        (512, 512),
+        (512, 512),
+        seed,
+        **options,
+    )
+    assert seed == original
+    assert result["overviewTriangles"] == cells
+    assert bool(result["triangles"]) == (mode == "accept")
+    assert result["status"] == ("ready" if mode == "accept" else "approximate")
+    assert len(reads) == 128
+    reads.clear()
+    resumed = pyramid.refine_supported_patches(
+        tmp_path / "ref",
+        tmp_path / "mov",
+        Image.new("RGB", (512, 512)),
+        (512, 512),
+        (512, 512),
+        seed,
+        **options,
+    )
+    assert resumed == result
+    assert reads == []
+    covered = {**seed, "status": "ready", "triangles": cells}
+    pyramid.refine_supported_patches(
+        tmp_path / "ref",
+        tmp_path / "mov",
+        Image.new("RGB", (512, 512)),
+        (512, 512),
+        (512, 512),
+        covered,
+    )
+    assert reads == []

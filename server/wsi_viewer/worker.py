@@ -41,7 +41,7 @@ from .alignment_engines import (
 )
 from .alignment_fast import PREPARATION_VERSION, PreparationCache, register_prepared
 from .alignment_policy import VALIDATION_POLICY, current_registration
-from .alignment_pyramid import read_region, register_components
+from .alignment_pyramid import read_region, refine_supported_patches, register_components
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
@@ -506,6 +506,7 @@ def _alignment_child(
     engine_settings: dict[str, Any] | None,
     artifact_dir: str | None,
     output: Any,
+    seed_registration: dict[str, Any] | None = None,
 ) -> None:
     # Give every native registration and any JVM it launches one process group
     # so the OCI supervisor can stop the complete tree on timeout/cancellation.
@@ -542,6 +543,29 @@ def _alignment_child(
                     "runtimeSeconds": engine_run.runtime_seconds,
                 }
             )
+            return
+        if seed_registration and (
+            seed_registration.get("overviewTriangles") or seed_registration.get("triangles")
+        ):
+            refined = refine_supported_patches(
+                Path(reference_derivative),
+                Path(moving_derivative),
+                moving_image,
+                reference_full_size,
+                moving_full_size,
+                seed_registration,
+                checkpoint_dir=Path(artifact_dir) / "native-batches" if artifact_dir else None,
+                progress=lambda done, total: output.put(
+                    {
+                        "progress": {
+                            "stage": "guided-patches",
+                            "processedPatches": done,
+                            "totalPatches": total,
+                        }
+                    }
+                ),
+            )
+            output.put({"ok": True, "result": refined})
             return
         result = None
         overview_error = None
@@ -681,6 +705,7 @@ def _run_alignment_bounded(
     *,
     engine_name: str = ENGINE_NATIVE,
     engine_settings: dict[str, Any] | None = None,
+    seed_registration: dict[str, Any] | None = None,
     artifact_dir: Path | None = None,
     timeout_seconds: int,
     memory_bytes: int,
@@ -702,6 +727,7 @@ def _run_alignment_bounded(
             engine_settings,
             str(artifact_dir) if artifact_dir else None,
             output,
+            seed_registration,
         ),
         daemon=True,
     )
@@ -1157,6 +1183,10 @@ def process_next(
                     "heartbeat": renew_alignment_lease,
                     "progress": record_alignment_progress,
                 }
+                if engine_name == ENGINE_NATIVE:
+                    run_options["seed_registration"] = _best_compatible_registration(
+                        database, comparison=comparison, slide=slide, reference=reference
+                    )
                 try:
                     result_json = _run_alignment_bounded(
                         reference_derivative,

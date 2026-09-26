@@ -39,11 +39,12 @@ def _affine_variant(reference: Image.Image) -> Image.Image:
     return Image.merge("RGB", (ImageEnhance.Contrast(blue).enhance(1.2), red, green))
 
 
-def test_register_pair_maps_corresponding_structure_across_stains() -> None:
+@pytest.mark.parametrize("feature_only", [False, True])
+def test_register_pair_maps_corresponding_structure_across_stains(feature_only) -> None:
     reference = _tissue()
     moving = _affine_variant(reference)
 
-    result = register_pair(reference, moving, max_dimension=900)
+    result = register_pair(reference, moving, max_dimension=900, feature_only=feature_only)
     mapped = map_point(result.moving_to_reference, 384.0, 243.0)
 
     assert result.status == "ready"

@@ -37,7 +37,7 @@ Reproduce with `PYTHONPATH=server python scripts/benchmark_alignment_preview.py 
 ## Remaining release gates
 
 - Resolve the renal and other H&E/P40 correspondence failures without weakening ambiguity gates. Existing local maps can be retained while difficult regions continue refinement.
-- Qualify sparse refinement of uncovered regions. Native work resumes at component batches; sub-component patch-only refinement and spatially restricted descriptor rematching are not complete.
+- Qualify sparse refinement of uncovered regions. Compatible supported maps now seed up to 64 tissue patches, restricted to coarse support and capped at 1024 pixels / 1,536 ORB descriptors. Unsupported windows shrink up to three times; rejected patches do not trigger whole-slide fallback. Completed patch receipts resume before decoding, while existing local cells remain intact. The development probe retained its approximate map with zero accepted local cells; independent accuracy qualification remains incomplete.
 - Measure cold and warm 2/4/8/12-member stack acceptance, worker startup, queue contention, first map availability, and actual browser application on production ARM64 hardware. Local synthetic timing is insufficient.
 - Freeze settings and evaluate a specimen-separated, independently reviewed landmark cohort: median error <=50 micrometers, p95 <=100 micrometers, eligible coverage >=80%, zero confident wrong-structure matches. The reviewed cohort has not been supplied.
 - Complete protected CI, dependency/asset receipts, ARM64 container checks, deployment, and authenticated production verification. The local Docker daemon was unavailable during implementation; the ARM64 native smoke job enforces 512 MiB and 1.75 CPUs.

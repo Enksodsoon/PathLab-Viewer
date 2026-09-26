@@ -830,6 +830,7 @@ def register_pair(
     moving: Image.Image,
     *,
     max_dimension: int = 2048,
+    feature_only: bool = False,
 ) -> RegistrationResult:
     if max_dimension < 256 or max_dimension > 4096:
         raise ValueError("max_dimension must be between 256 and 4096")
@@ -838,12 +839,9 @@ def register_pair(
     reference_structure, reference_mask = _structure(reference_rgb)
     moving_structure, moving_mask = _structure(moving_rgb)
 
-    detector = cv2.ORB_create(nfeatures=5000, scaleFactor=1.2, nlevels=8, fastThreshold=8)
-    reference_keys, reference_descriptors = detector.detectAndCompute(
-        reference_structure, reference_mask
-    )
-    moving_keys, moving_descriptors = detector.detectAndCompute(moving_structure, moving_mask)
-    if reference_descriptors is None or moving_descriptors is None:
+    def fallback() -> RegistrationResult:
+        if feature_only:
+            raise AlignmentRejected("No accepted local feature correspondence")
         return _coarse_refined_result(
             reference_structure,
             reference_mask,
@@ -853,16 +851,19 @@ def register_pair(
             moving_scale,
         )
 
+    detector = cv2.ORB_create(
+        nfeatures=1536 if feature_only else 5000, scaleFactor=1.2, nlevels=8, fastThreshold=8
+    )
+    reference_keys, reference_descriptors = detector.detectAndCompute(
+        reference_structure, reference_mask
+    )
+    moving_keys, moving_descriptors = detector.detectAndCompute(moving_structure, moving_mask)
+    if reference_descriptors is None or moving_descriptors is None:
+        return fallback()
+
     matches = _mutual_matches(moving_descriptors, reference_descriptors, 0.72)
     if len(matches) < 10:
-        return _coarse_refined_result(
-            reference_structure,
-            reference_mask,
-            moving_structure,
-            moving_mask,
-            reference_scale,
-            moving_scale,
-        )
+        return fallback()
 
     moving_points = np.float32([moving_keys[item.queryIdx].pt for item in matches])
     reference_points = np.float32([reference_keys[item.trainIdx].pt for item in matches])
@@ -876,14 +877,7 @@ def register_pair(
         refineIters=25,
     )
     if transform is None or inlier_mask is None:
-        return _coarse_refined_result(
-            reference_structure,
-            reference_mask,
-            moving_structure,
-            moving_mask,
-            reference_scale,
-            moving_scale,
-        )
+        return fallback()
     inliers = inlier_mask.ravel().astype(bool)
     inlier_count = int(np.count_nonzero(inliers))
     ratio = inlier_count / len(matches)
@@ -910,14 +904,7 @@ def register_pair(
         or coverage < 0.01
         or confidence < 0.55
     ):
-        return _coarse_refined_result(
-            reference_structure,
-            reference_mask,
-            moving_structure,
-            moving_mask,
-            reference_scale,
-            moving_scale,
-        )
+        return fallback()
 
     full = _full_resolution_transform(transform, moving_scale, reference_scale)
     controls = _registration_controls(
@@ -935,14 +922,7 @@ def register_pair(
         reference_scale=reference_scale,
     )
     if not triangles:
-        return _coarse_refined_result(
-            reference_structure,
-            reference_mask,
-            moving_structure,
-            moving_mask,
-            reference_scale,
-            moving_scale,
-        )
+        return fallback()
     return RegistrationResult(
         status="ready",
         moving_to_reference=full.round(10).tolist(),

@@ -23,6 +23,7 @@ from .alignment import (
     _mask_seed,
     _registration_triangles,
     _structure,
+    map_registration_point,
     register_pair,
     rescale_registration,
 )
@@ -941,6 +942,205 @@ def component_bounds(
             )
         )
     return boxes
+
+
+def refine_supported_patches(
+    reference_path: Path,
+    moving_path: Path,
+    moving_overview: Image.Image,
+    reference_size: tuple[int, int],
+    moving_size: tuple[int, int],
+    seed: dict[str, Any],
+    *,
+    checkpoint_dir: Path | None = None,
+    progress: Callable[[int, int], None] | None = None,
+) -> dict[str, Any]:
+    """Refine tissue inside supported coarse cells without repeating discovery."""
+    coarse = seed.get("overviewTriangles") or seed.get("triangles") or []
+    if not coarse:
+        raise AlignmentRejected("No supported cells for guided refinement")
+    result = {**seed, "triangles": list(seed.get("triangles") or [])}
+    controls = list(seed.get("controlPoints") or [])
+    _, mask = _structure(np.asarray(moving_overview.convert("RGB")))
+    width, height = moving_size
+    # ponytail: 8x8 spatial batches; finer levels need independent accuracy evidence.
+    total = 64
+    accepted = 0
+    attempted = 0
+    confidences = [float(seed.get("confidence") or 0)] if seed.get("status") == "ready" else []
+    for index in range(total):
+        column, row = index % 8, index // 8
+        bounds = (
+            column * width // 8,
+            row * height // 8,
+            (column + 1) * width // 8,
+            (row + 1) * height // 8,
+        )
+        left, top, right, bottom = bounds
+        corners = [(left, top), (right, top), (right, bottom), (left, bottom)]
+        try:
+            if left == right or top == bottom:
+                continue
+            x = min(mask.shape[1] - 1, (left + right) * mask.shape[1] // (2 * width))
+            y = min(mask.shape[0] - 1, (top + bottom) * mask.shape[0] // (2 * height))
+            if not mask[y, x]:
+                continue
+            if result["triangles"]:
+                try:
+                    for px, py in corners:
+                        map_registration_point({"triangles": result["triangles"]}, px, py)
+                    continue
+                except AlignmentRejected:
+                    pass
+            mapped = []
+            for _ in range(4):
+                try:
+                    mapped = [
+                        map_registration_point({"triangles": coarse}, px, py) for px, py in corners
+                    ]
+                    break
+                except AlignmentRejected:
+                    dx, dy = (right - left) // 4, (bottom - top) // 4
+                    if not dx or not dy:
+                        break
+                    left, top, right, bottom = left + dx, top + dy, right - dx, bottom - dy
+                    bounds = (left, top, right, bottom)
+                    corners = [(left, top), (right, top), (right, bottom), (left, bottom)]
+            if not mapped:
+                continue
+            if result["triangles"]:
+                try:
+                    for px, py in corners:
+                        map_registration_point({"triangles": result["triangles"]}, px, py)
+                    continue
+                except AlignmentRejected:
+                    pass
+            margin = max(right - left, bottom - top) * 0.15
+            reference_bounds = (
+                max(0, math.floor(min(point[0] for point in mapped) - margin)),
+                max(0, math.floor(min(point[1] for point in mapped) - margin)),
+                min(reference_size[0], math.ceil(max(point[0] for point in mapped) + margin)),
+                min(reference_size[1], math.ceil(max(point[1] for point in mapped) + margin)),
+            )
+            if (
+                reference_bounds[0] >= reference_bounds[2]
+                or reference_bounds[1] >= reference_bounds[3]
+            ):
+                continue
+            key = hashlib.sha256(
+                repr((bounds, reference_bounds, coarse, cv2.__version__, "patch-v2")).encode()
+            ).hexdigest()
+            receipt = checkpoint_dir / f"patch-{key}.json" if checkpoint_dir else None
+            attempted += 1
+            cached = None
+            if receipt and receipt.is_file():
+                with suppress(OSError, ValueError, TypeError, KeyError):
+                    record = json.loads(receipt.read_text())
+                    if isinstance(record["cells"], list) and isinstance(record["points"], list):
+                        cached = record
+            if cached is None:
+                reference, (rx, ry, rs) = read_region(reference_path, reference_bounds, 1024)
+                moving, (mx, my, ms) = read_region(moving_path, bounds, 1024)
+                cells: list[dict[str, Any]] = []
+                points: list[dict[str, Any]] = []
+                try:
+                    patch = register_pair(reference, moving, max_dimension=1024, feature_only=True)
+                    if patch.status == "ready" and patch.triangles:
+                        patch = rescale_registration(
+                            patch,
+                            reference_thumbnail_size=reference.size,
+                            moving_thumbnail_size=moving.size,
+                            reference_full_size=(reference.width * rs, reference.height * rs),
+                            moving_full_size=(moving.width * ms, moving.height * ms),
+                        )
+                        for cell in patch.triangles:
+                            moving_points = [[px + mx, py + my] for px, py in cell["moving"]]
+                            reference_points = [[px + rx, py + ry] for px, py in cell["reference"]]
+                            predicted = [
+                                map_registration_point({"triangles": coarse}, px, py)
+                                for px, py in moving_points
+                            ]
+                            if any(
+                                math.dist(actual, expected) > margin
+                                for actual, expected in zip(
+                                    reference_points, predicted, strict=True
+                                )
+                            ):
+                                continue
+                            cells.append(
+                                {
+                                    **cell,
+                                    "moving": moving_points,
+                                    "reference": reference_points,
+                                    "provenance": "pyramid-guided-feature",
+                                }
+                            )
+                        if cells:
+                            points = [
+                                {
+                                    **point,
+                                    "moving": [point["moving"][0] + mx, point["moving"][1] + my],
+                                    "reference": [
+                                        point["reference"][0] + rx,
+                                        point["reference"][1] + ry,
+                                    ],
+                                }
+                                for point in patch.control_points
+                            ]
+                            supported = []
+                            for point in points:
+                                try:
+                                    map_registration_point({"triangles": cells}, *point["moving"])
+                                    supported.append(point)
+                                except AlignmentRejected:
+                                    pass
+                            points = supported
+                except AlignmentRejected:
+                    pass
+                cached = {
+                    "cells": cells,
+                    "points": points,
+                    "confidence": patch.confidence if cells else 0.0,
+                }
+                if receipt:
+                    receipt.parent.mkdir(parents=True, exist_ok=True)
+                    temporary = receipt.with_suffix(".tmp")
+                    temporary.write_text(json.dumps(cached))
+                    temporary.replace(receipt)
+            result["triangles"].extend(cached["cells"])
+            controls.extend(cached["points"])
+            accepted += bool(cached["cells"])
+            if cached["cells"]:
+                confidences.append(cached["confidence"])
+        except AlignmentRejected:
+            pass
+        finally:
+            if progress:
+                progress(index + 1, total)
+    result["controlPoints"] = controls
+    if accepted:
+        result["status"] = "ready"
+        result["confidence"] = min(confidences)
+        result["inlierCount"] = len(controls)
+        result["matchCount"] = max(int(seed.get("matchCount") or 0), len(controls))
+        result["medianErrorPixels"] = (
+            float(np.median([point["errorPixels"] for point in controls])) if controls else -1.0
+        )
+    result["supportPolygons"] = {
+        side: [cell[side] for cell in result["triangles"]] for side in ("moving", "reference")
+    }
+    result["evidence"] = {
+        **seed.get("evidence", {}),
+        "guidedPatchCount": accepted,
+        "guidedPatchesAttempted": attempted,
+        "source": "bounded-pyramid-guided-patches"
+        if accepted
+        else seed.get("evidence", {}).get("source"),
+        "triangleCount": len(result["triangles"]),
+        "featureMatchCount": len(controls),
+        "withheldCheck": "pending-independent-landmarks",
+    }
+    return result
 
 
 def register_components(
