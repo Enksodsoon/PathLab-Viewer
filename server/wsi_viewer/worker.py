@@ -1078,7 +1078,7 @@ def process_next(
         if job.kind == "delete":
             if slide is not None:
                 job_id = job.id
-                checkpoint = {
+                checkpoint: dict[str, Any] = {
                     "phase": "delete-files", "slideId": slide.id, "publicId": slide.public_id,
                 }
                 # Retain this job across the slide's FK cascade so cleanup can resume.
