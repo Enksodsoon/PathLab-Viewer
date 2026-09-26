@@ -32,11 +32,13 @@ Maximum sampled RSS in these runs was approximately 221 MiB. This does not estab
 
 Detailed receipts: [synthetic](benchmarks/alignment-preview-2026-09-22-synthetic.json), [development](benchmarks/alignment-preview-2026-09-22-development.json).
 
+The September 27 sampling repair applies the unchanged scale and anisotropy gates in level-zero coordinates, including mesh cell area checks. Renal slides used 128- and 256-pixel pyramid sampling intervals; comparing their overview pixels directly incorrectly rejected strong fits. Five cold/warm repetitions now accepted 30/30 renal approximate pairs (four-slide compute p95 0.712 seconds), 0/10 H&E/P40 pairs, and 20/20 H&E/P40/TTF1 approximate pairs (three-slide p95 0.750 seconds). Maximum sampled RSS was 221 MiB. This remains local compute evidence, excludes startup/queue/browser costs, and establishes no independent anatomical accuracy. [Sampling repair receipt](benchmarks/alignment-preview-2026-09-27-sampling.json).
+
 Reproduce with `PYTHONPATH=server python scripts/benchmark_alignment_preview.py --output receipt.json`. Use `--manifest private-manifest.json` for development derivatives; the script documents its manifest format and omits paths and specimen identities from receipts. Private images and manifests must remain outside the repository.
 
 ## Remaining release gates
 
-- Resolve the renal and other H&E/P40 correspondence failures without weakening ambiguity gates. Existing local maps can be retained while difficult regions continue refinement.
+- Qualify renal local correspondence after the overview sampling repair and resolve the remaining H&E/P40 failure without weakening ambiguity gates. Existing local maps can be retained while difficult regions continue refinement.
 - Qualify sparse refinement of uncovered regions. Compatible supported maps now seed up to 64 tissue patches, restricted to coarse support and capped at 1024 pixels / 1,536 ORB descriptors. Unsupported windows shrink up to three times; rejected patches do not trigger whole-slide fallback. Completed patch receipts resume before decoding, while existing local cells remain intact. The development probe retained its approximate map with zero accepted local cells; independent accuracy qualification remains incomplete.
 - Measure cold and warm 2/4/8/12-member stack acceptance, worker startup, queue contention, first map availability, and actual browser application on production ARM64 hardware. Local synthetic timing is insufficient.
 - Freeze settings and evaluate a specimen-separated, independently reviewed landmark cohort: median error <=50 micrometers, p95 <=100 micrometers, eligible coverage >=80%, zero confident wrong-structure matches. The reviewed cohort has not been supplied.

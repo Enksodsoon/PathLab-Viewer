@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import cv2
@@ -26,7 +26,7 @@ from .alignment import (
     rescale_registration,
 )
 
-PREPARATION_VERSION = "overview-orb1536-v1"
+PREPARATION_VERSION = "overview-orb1536-v2"
 
 
 @dataclass(frozen=True)
@@ -106,6 +106,11 @@ class PreparationCache:
 
 def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> RegistrationResult:
     height, width = reference.mask.shape
+    # Pyramid levels can differ; apply scale/shape gates to level-zero pixels.
+    reference_to_full = np.diag([reference.full_size[0] / width, reference.full_size[1] / height])
+    moving_from_full = np.diag(
+        [moving.mask.shape[1] / moving.full_size[0], moving.mask.shape[0] / moving.full_size[1]]
+    )
     transform = None
     inlier_count = 0
     matches = []
@@ -130,7 +135,8 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
                 good = inliers.ravel().astype(bool)
                 inlier_count = int(good.sum())
                 spread = np.ptp(source[good], axis=0) if good.any() else [0, 0]
-                scale = np.sqrt(abs(np.linalg.det(np.asarray(fitted[:, :2], dtype=np.float64))))
+                full_linear = reference_to_full @ fitted[:, :2] @ moving_from_full
+                scale = np.sqrt(abs(np.linalg.det(full_linear)))
                 if (
                     inlier_count >= 10
                     and inlier_count / len(matches) >= 0.28
@@ -169,7 +175,9 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
             except cv2.error:
                 continue
             candidate = cv2.invertAffineTransform(inverse)
-            singular = np.linalg.svd(candidate[:, :2], compute_uv=False)
+            singular = np.linalg.svd(
+                reference_to_full @ candidate[:, :2] @ moving_from_full, compute_uv=False
+            )
             if (
                 score < 0.65
                 or singular[-1] < 0.5
@@ -208,15 +216,6 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
                         "errorPixels": 0.0,
                     }
                 )
-    cells = _registration_triangles(
-        controls,
-        moving_mask=moving.mask,
-        reference_mask=reference.mask,
-        moving_scale=1.0,
-        reference_scale=1.0,
-    )
-    if not cells:
-        raise AlignmentRejected("Needs refinement: no supported overview cells")
     result = RegistrationResult(
         status="approximate",
         moving_to_reference=transform.tolist(),
@@ -226,22 +225,36 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
         inlier_count=inlier_count,
         match_count=len(matches),
         median_error_pixels=-1,
-        overview_triangles=cells,
+        control_points=controls,
         evidence={
             "mode": "approximate-overview",
             "source": "bounded-sparse-overview",
             "featureMatchCount": inlier_count,
             "triangleCount": 0,
-            "overviewTriangleCount": len(cells),
             "tissueDice": round(dice, 6),
             "preparationVersion": PREPARATION_VERSION,
             "withheldCheck": "pending-independent-landmarks",
         },
     )
-    return rescale_registration(
+    result = rescale_registration(
         result,
         reference_thumbnail_size=(width, height),
         moving_thumbnail_size=(moving.mask.shape[1], moving.mask.shape[0]),
         reference_full_size=reference.full_size,
         moving_full_size=moving.full_size,
+    )
+    cells = _registration_triangles(
+        result.control_points,
+        moving_mask=moving.mask,
+        reference_mask=reference.mask,
+        moving_scale=moving.mask.shape[1] / moving.full_size[0],
+        reference_scale=width / reference.full_size[0],
+    )
+    if not cells:
+        raise AlignmentRejected("Needs refinement: no supported overview cells")
+    return replace(
+        result,
+        control_points=[],
+        overview_triangles=cells,
+        evidence={**result.evidence, "overviewTriangleCount": len(cells)},
     )

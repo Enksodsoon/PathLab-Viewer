@@ -120,6 +120,35 @@ def test_fast_pair_recovers_translation_without_local_anatomy_claim():
     assert len(ref.points) <= 1536
 
 
+@pytest.mark.parametrize(
+    "reference_size,accepted", [((512, 512), True), ((1536, 1536), False), ((512, 1536), False)]
+)
+def test_fast_scale_gate_uses_level_zero_geometry(monkeypatch, reference_size, accepted):
+    from wsi_viewer import alignment_fast as fast
+
+    def prepared(side, size):
+        return fast.PreparedSlide(
+            np.zeros((side, side), dtype=np.uint8),
+            np.full((side, side), 255, dtype=np.uint8),
+            np.empty((0, 2), dtype=np.float32),
+            None,
+            size,
+        )
+
+    monkeypatch.setattr(
+        fast.cv2, "findTransformECC", lambda *_: (0.9, np.float32([[4, 0, 0], [0, 4, 0]]))
+    )
+    reference = prepared(128, reference_size)
+    moving = prepared(512, (512, 512))
+    if not accepted:
+        with pytest.raises(alignment.AlignmentRejected, match="weak coarse"):
+            fast.register_prepared(reference, moving)
+        return
+    result = fast.register_prepared(reference, moving)
+    assert result.status == "approximate" and result.overview_triangles
+    np.testing.assert_allclose(result.moving_to_reference, [[1, 0, 0], [0, 1, 0]], atol=1e-6)
+
+
 def test_foreground_admission_precedes_older_refinement(tmp_path):
     from datetime import UTC, datetime
 
