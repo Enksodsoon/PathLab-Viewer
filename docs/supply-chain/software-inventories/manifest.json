@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "b94a414e2650c1992dd4db3e5d79000aa9217790c5432c4456be127a28f2c102",
+      "sha256": "cbb6aaeae39053782d603bea8825ad4d7ef7b0ba23d98704c8710963b0c5a3e8",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "df6fea31606bd32108f8536534b491513a73531a4f3f2851cad2054a1977c92c",
+      "sha256": "a45a47a8aed33d5bf826f9ac045a11c0205044f2a8fc07743bf09c48e6112b22",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "5abc2dd361dcce1523c5c621df3b7eaadd065761e29e207fc3a572819cec4ae9",
+      "sha256": "ec72bb29046167f405c70a3cdc4afe1d5056f9fb277a750400c1dfc63af9b394",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "ae637fc932675b74eab8ae5965987e54994a6bce5323318756b4faaec2043d02",
+      "sha256": "bd1267bddbaa4dbf7e0cfbb04075c077b397eb71ea236c82bdc4bc1a12210014",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T19:12:55Z",
+  "generatedAt": "2026-09-26T19:18:27Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "f46963536b8e4503fb5c3fb1dba3f5e82c81485a",
+      "gitBlob": "283bc8e0a7101af82c768bbfdb1e66bc87063d4a",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "e273ecd9fa307b33060d8ebd855c8aa7dadfb1346fb1b746ea9ad27b792c3cee",
+      "sha256": "38c2edf73f17710e22e494d4a533415280287a25155094478f0e54ef8fa09fba",
       "sizeBytes": 41046
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "c846c283e5c512228f61e0eb939c282d8e1aa030",
-  "subjectTree": "85958fb981ee5c4b008c23f4b3988495bb0f8164"
+  "subjectCommit": "97e770ec07612e1bf8a1a663295e5a9d29ddbc3d",
+  "subjectTree": "4bbe3af1030f43c55d38fd21f50a8c5ba6932c23"
 }
