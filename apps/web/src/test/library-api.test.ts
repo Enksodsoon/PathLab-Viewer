@@ -8,12 +8,108 @@ import {
   getLibraryNavigation,
   getSlideStatuses,
   reserveUpload,
+  login,
+  logout,
+  csrfFetch,
+  changePassword,
+  recoverPassword,
 } from '../api'
 
 describe('library v2 API contracts', () => {
   beforeEach(() => {
     sessionStorage.clear()
     vi.restoreAllMocks()
+  })
+
+  it('keeps server-authenticated mutations usable when session storage is denied', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'memory-token' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify([])))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({})))
+    for (const method of ['getItem', 'setItem', 'removeItem'] as const) {
+      vi.spyOn(Storage.prototype, method).mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+    }
+    await login('synthetic-owner', 'synthetic-password')
+    await batchMoveSlides(['slide-1'], 'folder-1')
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({ 'X-CSRF-Token': 'memory-token' })
+    await logout()
+    await csrfFetch('/synthetic')
+    expect(fetchMock.mock.calls[3]?.[1]?.headers).toMatchObject({ 'X-CSRF-Token': '' })
+  })
+
+  it('uses memory CSRF when storage reads work but writes and removal fail', async () => {
+    sessionStorage.setItem('pathlab-csrf', 'stale-token')
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'fresh-token' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({})))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({})))
+    for (const method of ['setItem', 'removeItem'] as const) {
+      vi.spyOn(Storage.prototype, method).mockImplementation(() => { throw new DOMException('Quota', 'QuotaExceededError') })
+    }
+    await login('owner', 'synthetic-password')
+    await csrfFetch('/synthetic')
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({ 'X-CSRF-Token': 'fresh-token' })
+    await logout()
+    await csrfFetch('/synthetic')
+    expect(fetchMock.mock.calls[3]?.[1]?.headers).toMatchObject({ 'X-CSRF-Token': '' })
+  })
+
+  it.each([200, 401])('does not end, overwrite or replay a prior session after a newer login (refresh %s)', async (status) => {
+    let finishRefresh!: (response: Response) => void
+    const refresh = new Promise<Response>((resolve) => { finishRefresh = resolve })
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: { code: 'CSRF_INVALID' } }), { status: 403 }))
+      .mockImplementationOnce(() => refresh)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'new-session' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({})))
+    const pending = csrfFetch('/prior-session-mutation', { method: 'POST' })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await login('new-owner', 'synthetic-password')
+    const dispatch = vi.spyOn(window, 'dispatchEvent')
+    finishRefresh(new Response(JSON.stringify({ csrfToken: 'old-session' }), { status }))
+    expect((await pending).status).toBe(403)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    await csrfFetch('/new-session-mutation')
+    expect(fetchMock.mock.calls[3]?.[1]?.headers).toMatchObject({ 'X-CSRF-Token': 'new-session' })
+  })
+
+  it('ignores a stale refresh denial whose body arrives after a newer login', async () => {
+    let finishBody!: (body: unknown) => void
+    const delayedBody = new Promise<unknown>((resolve) => { finishBody = resolve })
+    const denied = new Response(null, { status: 401 })
+    const parse = vi.spyOn(denied, 'json').mockImplementation(() => delayedBody)
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: { code: 'CSRF_INVALID' } }), { status: 403 }))
+      .mockResolvedValueOnce(denied)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrfToken: 'new-session' })))
+    const pending = csrfFetch('/prior-session-mutation', { method: 'POST' })
+    await vi.waitFor(() => expect(parse).toHaveBeenCalledOnce())
+    await login('new-owner', 'synthetic-password')
+    const dispatch = vi.spyOn(window, 'dispatchEvent')
+    finishBody({ detail: { code: 'UNAUTHENTICATED' } })
+    expect((await pending).status).toBe(403)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(sessionStorage.getItem('pathlab-csrf')).toBe('new-session')
+  })
+
+  it.each(['change', 'recover'])('ends upload ownership after successful password %s', async (action) => {
+    sessionStorage.setItem('pathlab-csrf', 'old-token')
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
+    const ended = vi.fn()
+    window.addEventListener('pathlab-session-ended', ended)
+    try {
+      if (action === 'change') await changePassword('old-password', 'new-password')
+      else await recoverPassword('owner', 'recovery-code', 'new-password')
+      expect(ended).toHaveBeenCalledTimes(1)
+      await csrfFetch('/synthetic')
+      expect(vi.mocked(fetch).mock.calls.at(-1)?.[1]?.headers).toMatchObject({ 'X-CSRF-Token': '' })
+    } finally {
+      window.removeEventListener('pathlab-session-ended', ended)
+    }
   })
 
   it('requests navigation separately from paginated items', async () => {

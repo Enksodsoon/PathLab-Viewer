@@ -17,6 +17,22 @@ import type {
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
+let memoryCsrf = ''
+let csrfStorageWriteFailed = false
+let csrfGeneration = 0
+function readCsrf() {
+  if (csrfStorageWriteFailed) return memoryCsrf
+  try { return sessionStorage.getItem(CSRF_KEY) ?? '' } catch { return memoryCsrf }
+}
+function storeCsrf(token: string) {
+  memoryCsrf = token
+  csrfGeneration += 1
+  try {
+    if (token) sessionStorage.setItem(CSRF_KEY, token)
+    else sessionStorage.removeItem(CSRF_KEY)
+    csrfStorageWriteFailed = false
+  } catch { csrfStorageWriteFailed = true }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -27,7 +43,7 @@ export class ApiError extends Error {
   }
 }
 
-async function json<T>(response: Response): Promise<T> {
+async function json<T>(response: Response, generation = csrfGeneration): Promise<T> {
   if (!response.ok) {
     let code = `HTTP_${response.status}`
     try {
@@ -35,6 +51,9 @@ async function json<T>(response: Response): Promise<T> {
       code = body.detail?.code ?? code
     } catch {
       // A proxy-generated response may not be JSON.
+    }
+    if (response.status === 401 && generation === csrfGeneration) {
+      window.dispatchEvent(new Event('pathlab-session-ended'))
     }
     throw new ApiError(response.status, code)
   }
@@ -45,26 +64,35 @@ async function expectOk(response: Response): Promise<void> {
   if (!response.ok) await json<never>(response)
 }
 
-async function refreshSession(): Promise<void> {
-  const body = await json<{ csrfToken: string }>(
-    await fetch('/api/v1/auth/session', {
-      credentials: 'same-origin',
-      cache: 'no-store',
-    }),
-  )
-  sessionStorage.setItem(CSRF_KEY, body.csrfToken)
+async function refreshSession(): Promise<boolean> {
+  const generation = csrfGeneration
+  const response = await fetch('/api/v1/auth/session', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (generation !== csrfGeneration) return false
+  try {
+    const body = await json<{ csrfToken: string }>(response, generation)
+    if (generation !== csrfGeneration) return false
+    storeCsrf(body.csrfToken)
+    return true
+  } catch (error) {
+    if (generation !== csrfGeneration) return false
+    throw error
+  }
 }
 
 export async function csrfFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
+  const generation = csrfGeneration
   const send = () => fetch(input, {
     ...init,
     credentials: 'same-origin',
     headers: {
       ...(init.headers as Record<string, string> | undefined),
-      'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
+      'X-CSRF-Token': readCsrf(),
     },
   })
   const response = await send()
@@ -79,7 +107,7 @@ export async function csrfFetch(
   }
   if (code !== 'CSRF_INVALID') return response
 
-  await refreshSession()
+  if (generation !== csrfGeneration || !await refreshSession()) return response
   return send()
 }
 
@@ -92,7 +120,8 @@ export async function login(username: string, password: string): Promise<void> {
       body: JSON.stringify({ username, password }),
     }),
   )
-  sessionStorage.setItem(CSRF_KEY, body.csrfToken)
+  window.dispatchEvent(new Event('pathlab-session-ended'))
+  storeCsrf(body.csrfToken)
 }
 
 export async function logout(): Promise<void> {
@@ -100,7 +129,8 @@ export async function logout(): Promise<void> {
     method: 'DELETE',
   })
   if (response.status !== 204) throw new ApiError(response.status, 'LOGOUT_FAILED')
-  sessionStorage.removeItem(CSRF_KEY)
+  storeCsrf('')
+  window.dispatchEvent(new Event('pathlab-session-ended'))
 }
 
 export async function approveDesktopPairing(userCode: string): Promise<void> {
@@ -122,7 +152,8 @@ export async function recoverPassword(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, recoveryCode, newPassword }),
   }))
-  sessionStorage.removeItem(CSRF_KEY)
+  storeCsrf('')
+  window.dispatchEvent(new Event('pathlab-session-ended'))
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -135,10 +166,11 @@ export async function changePassword(currentPassword: string, newPassword: strin
       body: JSON.stringify({ currentPassword, newPassword }),
     }))
   } catch (caught) {
-    if (caught instanceof ApiError && caught.status === 401) sessionStorage.removeItem(CSRF_KEY)
+    if (caught instanceof ApiError && caught.status === 401) storeCsrf('')
     throw caught
   }
-  sessionStorage.removeItem(CSRF_KEY)
+  storeCsrf('')
+  window.dispatchEvent(new Event('pathlab-session-ended'))
 }
 
 export async function listSlides(): Promise<AdminSlide[]> {
@@ -181,6 +213,12 @@ export async function reserveUpload(
   )
 }
 
+export async function renewUploadReservation(slideId: string): Promise<UploadReservation> {
+  return json<UploadReservation>(await csrfFetch(`/api/v1/admin/slides/${encodeURIComponent(slideId)}/upload-token`, {
+    method: 'POST',
+  }))
+}
+
 export async function mutateSlide(id: string, action: string): Promise<AdminSlide> {
   return json<AdminSlide>(
     await csrfFetch(`/api/v1/admin/slides/${id}/${action}`, {
@@ -213,7 +251,7 @@ export async function getPublicSlide(publicId: string): Promise<PublicSlide> {
 function csrfHeaders(jsonBody = false): Record<string, string> {
   return {
     ...(jsonBody ? { 'Content-Type': 'application/json' } : {}),
-    'X-CSRF-Token': sessionStorage.getItem(CSRF_KEY) ?? '',
+    'X-CSRF-Token': readCsrf(),
   }
 }
 

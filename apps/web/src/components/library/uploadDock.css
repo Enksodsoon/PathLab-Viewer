@@ -1,0 +1,15 @@
+.upload-dock { position:fixed; z-index:80; right:20px; bottom:max(20px,env(safe-area-inset-bottom)); width:min(380px,calc(100vw - 32px)); color:var(--ink); background:var(--surface-elevated); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 40px color-mix(in srgb,var(--ink) 16%,transparent); overflow:hidden; }
+.upload-dock > header { display:flex; align-items:center; gap:.5rem; min-height:56px; padding:.65rem 1rem; background:var(--surface); }
+.upload-dock > header > span { color:var(--muted); font-size:.85rem; margin-left:auto; }
+.upload-dock button, .upload-dock a { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; gap:.3rem; border:1px solid var(--border); border-radius:8px; padding:.35rem .6rem; color:var(--ink); background:var(--surface); text-decoration:none; }
+.upload-dock button:focus-visible, .upload-dock a:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.upload-dock button:disabled { opacity:.5; }
+.upload-dock-items { max-height:min(45vh,420px); overflow:auto; overscroll-behavior:contain; }
+.upload-dock-items article { padding:.8rem 1rem; border-top:1px solid var(--border); }
+.upload-dock-items strong, .upload-dock-items small { display:block; overflow-wrap:anywhere; }
+.upload-dock-items small { color:var(--muted); margin-block:.2rem; }
+.upload-dock-items progress { width:100%; accent-color:var(--primary); }
+.upload-dock-items p { font-size:.85rem; margin-block:.5rem; }
+.upload-dock-actions { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.4rem; }
+.upload-dock > footer { padding:.7rem 1rem; border-top:1px solid var(--border); font-size:.8rem; color:var(--muted); display:grid; gap:.5rem; }
+@media (max-width:600px) { .upload-dock { right:8px; bottom:max(8px,env(safe-area-inset-bottom)); width:calc(100vw - 16px); } .upload-dock-items { max-height:35vh; } }

@@ -1,5 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -28,6 +29,20 @@ function renderQueue(items: UploadQueueItemView[], running = false) {
 
 describe('UploadWorkspace', () => {
   afterEach(cleanup)
+
+  it('bounds typed display names to the API limit without changing the source filename', async () => {
+    function Queue() {
+      const [displayName, setName] = useState('')
+      return <UploadWorkspace items={[{id: 'one', file: files[0], displayName, phase: 'queued', progress: 0, error: ''}]} running={false} onFilesAdded={vi.fn()} onDisplayNameChange={(_, name) => setName(name)} onRemove={vi.fn()} onRetry={vi.fn()} onStart={vi.fn()} />
+    }
+    render(<Queue />)
+    const input = screen.getByRole('textbox', {name: 'Display name'})
+    expect(input).toHaveAttribute('maxlength', '200')
+    await userEvent.type(input, 'a'.repeat(201))
+    expect(input).toHaveValue('a'.repeat(200))
+    expect(screen.getByText('one.ome.tiff')).toBeVisible()
+    expect(files[0].name).toBe('one.ome.tiff')
+  })
 
   it('accepts multiple OME-TIFF files in one chooser', async () => {
     const props = renderQueue([])

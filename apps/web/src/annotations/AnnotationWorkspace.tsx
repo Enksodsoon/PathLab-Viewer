@@ -1247,7 +1247,7 @@ export function AnnotationWorkspace({
     const next = { ...(primary?.style ?? style), ...patch }
     setStyle(next)
     if (store && selected.length > 0) store.bulkUpdate(selected.map((record) => record.id), {
-      style: next,
+      style: patch,
     })
   }
 
@@ -1255,7 +1255,7 @@ export function AnnotationWorkspace({
     const next = { ...(primary?.metadata ?? metadata), ...patch }
     setMetadata(next)
     if (store && selected.length > 0) store.bulkUpdate(selected.map((record) => record.id), {
-      metadata: next,
+      metadata: patch,
     })
   }
 

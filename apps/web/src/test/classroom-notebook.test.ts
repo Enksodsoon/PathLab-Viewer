@@ -1,8 +1,29 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { notebookFile, notebookHtml } from '../classroom/notebook'
 
 describe('classroom notebook export', () => {
+  it('converts captured images one at a time in note order', async () => {
+    let active = 0
+    let peak = 0
+    class Reader {
+      result = 'data:image/png;base64,cGl4ZWw='
+      onload?: () => void
+      readAsDataURL() {
+        peak = Math.max(peak, ++active)
+        setTimeout(() => { active -= 1; this.onload?.() }, 0)
+      }
+    }
+    vi.stubGlobal('FileReader', Reader)
+    try {
+      const html = await notebookHtml('Notebook', [0, 1, 2].map((index) => ({
+        id: String(index), sessionId: 'session', slideId: 'slide', slideName: `Slide ${index}`,
+        note: '', createdAt: '', image: new Blob(['image']),
+      })))
+      expect(peak).toBe(1)
+      expect(html.indexOf('Slide 0')).toBeLessThan(html.indexOf('Slide 1'))
+    } finally { vi.unstubAllGlobals() }
+  })
   it('escapes note and slide text and has no external dependency', async () => {
     const html = await notebookHtml('Class <script>', [{
       id: 'one',

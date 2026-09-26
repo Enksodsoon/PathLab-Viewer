@@ -1,0 +1,119 @@
+{
+  "status": "all_scenarios_passed_across_runs",
+  "projects": [
+    "chromium",
+    "firefox",
+    "webkit",
+    "mobile-chromium"
+  ],
+  "scenarios_per_project": 3,
+  "final_all_project_run": {
+    "passed": 11,
+    "failed": 1,
+    "remaining_failure": "WebKit synthetic45MiB transfer exceeded5s polling wait"
+  },
+  "focused_webkit_upload_retest": {
+    "passed": 1,
+    "failed": 0,
+    "change": "bounded transfer polling wait25s;100s total case timeout"
+  },
+  "viewport_sizes": [
+    [
+      320,
+      740
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      900,
+      420
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "reduced_motion": true,
+  "test_workers": 1,
+  "network_fixture": "synthetic protected APIs plus stdlib Node HTTP TUS mock measuring real streamed browser request bytes; no real learners or pathology pixels",
+  "coverage": [
+    "permission gated current-item commands",
+    "QuickLook failed private API and retry to rendered synthetic tiles",
+    "private preview adjacent navigation and library folder/query return",
+    "850ms lazy import against250ms pending search debounce",
+    "SPA persistent upload dock",
+    "measured byte/rate telemetry; duplicate byte samples",
+    "minimize and responsive touch targets",
+    "pause keeps source/reservation; renewal uses same reservation/resource",
+    "actual processing status API gates ready-only Open",
+    "viewer header and stage do not overlap"
+  ],
+  "screenshots": {
+    "chromium": [
+      "var/evidence/library-upload-remediation/chromium/dock-320x740-dark.png",
+      "var/evidence/library-upload-remediation/chromium/dock-320x740-light.png",
+      "var/evidence/library-upload-remediation/chromium/dock-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/chromium/dock-768x1024-light.png",
+      "var/evidence/library-upload-remediation/chromium/dock-900x420-dark.png",
+      "var/evidence/library-upload-remediation/chromium/dock-900x420-light.png",
+      "var/evidence/library-upload-remediation/chromium/library-320x740-dark.png",
+      "var/evidence/library-upload-remediation/chromium/library-320x740-light.png",
+      "var/evidence/library-upload-remediation/chromium/library-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/chromium/library-768x1024-light.png",
+      "var/evidence/library-upload-remediation/chromium/library-900x420-dark.png",
+      "var/evidence/library-upload-remediation/chromium/library-900x420-light.png",
+      "var/evidence/library-upload-remediation/chromium/quicklook-short-landscape.png",
+      "var/evidence/library-upload-remediation/chromium/viewer-short-landscape.png"
+    ],
+    "firefox": [
+      "var/evidence/library-upload-remediation/firefox/dock-320x740-dark.png",
+      "var/evidence/library-upload-remediation/firefox/dock-320x740-light.png",
+      "var/evidence/library-upload-remediation/firefox/dock-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/firefox/dock-768x1024-light.png",
+      "var/evidence/library-upload-remediation/firefox/dock-900x420-dark.png",
+      "var/evidence/library-upload-remediation/firefox/dock-900x420-light.png",
+      "var/evidence/library-upload-remediation/firefox/library-320x740-dark.png",
+      "var/evidence/library-upload-remediation/firefox/library-320x740-light.png",
+      "var/evidence/library-upload-remediation/firefox/library-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/firefox/library-768x1024-light.png",
+      "var/evidence/library-upload-remediation/firefox/library-900x420-dark.png",
+      "var/evidence/library-upload-remediation/firefox/library-900x420-light.png",
+      "var/evidence/library-upload-remediation/firefox/quicklook-short-landscape.png",
+      "var/evidence/library-upload-remediation/firefox/viewer-short-landscape.png"
+    ],
+    "webkit": [
+      "var/evidence/library-upload-remediation/webkit/dock-320x740-dark.png",
+      "var/evidence/library-upload-remediation/webkit/dock-320x740-light.png",
+      "var/evidence/library-upload-remediation/webkit/dock-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/webkit/dock-768x1024-light.png",
+      "var/evidence/library-upload-remediation/webkit/dock-900x420-dark.png",
+      "var/evidence/library-upload-remediation/webkit/dock-900x420-light.png",
+      "var/evidence/library-upload-remediation/webkit/library-320x740-dark.png",
+      "var/evidence/library-upload-remediation/webkit/library-320x740-light.png",
+      "var/evidence/library-upload-remediation/webkit/library-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/webkit/library-768x1024-light.png",
+      "var/evidence/library-upload-remediation/webkit/library-900x420-dark.png",
+      "var/evidence/library-upload-remediation/webkit/library-900x420-light.png",
+      "var/evidence/library-upload-remediation/webkit/quicklook-short-landscape.png",
+      "var/evidence/library-upload-remediation/webkit/viewer-short-landscape.png"
+    ],
+    "mobile-chromium": [
+      "var/evidence/library-upload-remediation/mobile-chromium/dock-320x740-dark.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/dock-320x740-light.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/dock-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/dock-768x1024-light.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/dock-900x420-dark.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/dock-900x420-light.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/library-320x740-dark.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/library-320x740-light.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/library-768x1024-dark.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/library-768x1024-light.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/library-900x420-dark.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/library-900x420-light.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/quicklook-short-landscape.png",
+      "var/evidence/library-upload-remediation/mobile-chromium/viewer-short-landscape.png"
+    ]
+  }
+}

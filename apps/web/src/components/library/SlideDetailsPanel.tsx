@@ -1,12 +1,15 @@
-import { Eye, Lock, LockOpen, PencilSimple as Edit3, X } from '@phosphor-icons/react'
+import { Lock, LockOpen, PencilSimple as Edit3, X } from '@phosphor-icons/react'
 
 import type { LibrarySlide, LibrarySlideDetails } from '../../types'
+import { Link } from 'react-router-dom'
+import { canPreview } from './viewerNavigation'
 import { formatBytes } from './format'
 
 interface SlideDetailsPanelProps {
   slide: LibrarySlideDetails | LibrarySlide | null
   onClose: () => void
   onEdit: () => void
+  onPreview?: (slide: LibrarySlide) => void
   folderName?: string
   collectionNames?: string[]
 }
@@ -15,6 +18,7 @@ export function SlideDetailsPanel({
   slide,
   onClose,
   onEdit,
+  onPreview,
   folderName,
   collectionNames = [],
 }: SlideDetailsPanelProps) {
@@ -67,8 +71,8 @@ export function SlideDetailsPanel({
         <p className="admin-note">{adminNote || 'No administrator note.'}</p>
       </section>
       <div className="details-actions">
-        {slide.state === 'ready_private' || slide.state === 'published' ? (
-          <a href={`/admin/preview/${slide.id}`}><Eye /> Preview</a>
+        {canPreview(slide) ? (
+          <>{onPreview ? <button type="button" onClick={() => onPreview(slide)}>Open viewer</button> : <Link to={`/admin/preview/${encodeURIComponent(slide.id)}`}>Open viewer</Link>}</>
         ) : null}
         <button type="button" onClick={onEdit}><Edit3 /> Edit details</button>
       </div>

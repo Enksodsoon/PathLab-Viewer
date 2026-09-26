@@ -1478,6 +1478,7 @@ def register_classroom_routes(
         )
         if not resumable:
             raise HTTPException(status_code=404, detail={"code": "CLASSROOM_NOT_FOUND"})
+        expire_control(classroom, db)
         slides = list(
             db.scalars(
                 select(ClassroomSessionSlide)
@@ -1882,6 +1883,9 @@ def register_classroom_routes(
         )
         if slide_exists is None:
             raise HTTPException(status_code=409, detail={"code": "PIN_NOT_ACCEPTED"})
+        if not hub.allow_transient_update(f"pin:{participant.id}", interval_seconds=0.5):
+            raise HTTPException(status_code=429, detail={"code": "PIN_RATE_LIMITED"},
+                                headers={"Retry-After": "1"})
         pin = {
             "participantId": participant.id,
             "alias": participant.public_alias,
@@ -2065,6 +2069,20 @@ def register_classroom_routes(
             critical=True,
             audience="teacher",
         )
+        if hub.clear_pin_if(
+            session_id,
+            participant.id,
+            slide_id=payload.slide_id,
+            x=payload.x,
+            y=payload.y,
+        ):
+            hub.publish(
+                session_id,
+                "pin-removed",
+                {"participantId": participant.id},
+                critical=True,
+                audience="teacher",
+            )
         return {"status": "created", "questionId": question.id}
 
     @app.delete(
@@ -2213,7 +2231,7 @@ def register_classroom_routes(
         )
         if not secrets.compare_digest(payload.csrf_token, raw_token):
             raise HTTPException(status_code=403, detail={"code": "CSRF_INVALID"})
-        if not hub.allow_presenter(participant.id):
+        if not hub.allow_transient_update(participant.id):
             raise HTTPException(status_code=429, detail={"code": "PRESENTER_RATE_LIMITED"})
         if (
             classroom.controller_participant_id != participant.id

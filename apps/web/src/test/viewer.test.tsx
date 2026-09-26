@@ -89,6 +89,29 @@ function publicSlideResponse() {
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
+it.each([false, true])('renders a usable escape while metadata is still loading (private=%s)', async (privateRoute) => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}))
+  render(<MemoryRouter initialEntries={[{pathname: privateRoute ? '/admin/preview/private-1' : '/s/public-1', state: {library: {returnTo: '/admin?location=folder%3Aone&q=kidney', slides: []}}}]}><Routes>
+    <Route path="/s/:publicId" element={<ViewerPage />} />
+    <Route path="/admin/preview/:slideId" element={<ViewerPage />} />
+    <Route path="/admin" element={<h1>Returned library</h1>} />
+    <Route path="/" element={<h1>Returned home</h1>} />
+  </Routes></MemoryRouter>)
+  expect(screen.getByRole('status')).toHaveTextContent('Opening slide')
+  const exit = screen.getByRole('link', {name: privateRoute ? 'Library' : 'Home'})
+  expect(exit).toHaveAttribute('href', privateRoute ? '/admin?location=folder%3Aone&q=kidney' : '/')
+  fireEvent.click(exit)
+  expect(screen.getByRole('heading', {name: privateRoute ? 'Returned library' : 'Returned home'})).toBeVisible()
+})
+
+it.each([404, 503])('public metadata error %s offers Home without exposing Library', async (status) => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, {status}))
+  renderViewerPage()
+  await screen.findByRole('heading', {name: status === 404 ? 'This slide is unavailable' : 'This slide could not be opened'})
+  expect(screen.getByRole('link', {name: 'Home'})).toHaveAttribute('href', '/')
+  expect(screen.queryByRole('link', {name: 'Library'})).not.toBeInTheDocument()
+})
+
 beforeEach(() => {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -130,6 +153,14 @@ it('uses bounded desktop loader and cache limits', () => {
     animationTime: 0.45,
     blendTime: 0.05,
   })
+})
+
+it('keeps viewing and loading controls working when local storage is blocked', () => {
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError') })
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError') })
+  renderViewer()
+  fireEvent.change(screen.getByRole('combobox', { name: 'Loading mode' }), { target: { value: 'data-saver' } })
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
 })
 
 it('offers a circular dial with cardinal and fine local rotation controls', () => {

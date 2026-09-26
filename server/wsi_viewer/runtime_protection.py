@@ -127,7 +127,18 @@ def _reconcile(database: OrmSession, guard: RuntimeGuard, now: datetime) -> Runt
         if preparing is not None:
             _block_waiting_jobs(database)
             return guard
-    if guard.mode == LIVE:
+    abandoned_classroom_drain = False
+    if guard.mode == DRAINING and guard.classroom_session_id is not None:
+        pending = database.scalar(
+            select(ClassroomSession.id).where(
+                ClassroomSession.id == guard.classroom_session_id,
+                ClassroomSession.status == "active",
+                ClassroomSession.phase == "preview",
+                ClassroomSession.expires_at > now,
+            )
+        )
+        abandoned_classroom_drain = pending is None
+    if guard.mode == LIVE or abandoned_classroom_drain:
         guard.mode = COOLDOWN
         guard.classroom_session_id = None
         guard.cooldown_until = now + CLASSROOM_COOLDOWN

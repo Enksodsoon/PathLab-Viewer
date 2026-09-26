@@ -277,10 +277,12 @@ def score_task(task: dict[str, Any], submission: dict[str, Any]) -> bool:
         or not isinstance(y, (int, float))
     ):
         raise ValueError("STUDY_SUBMISSION_INVALID")
-    center_x = task["targetX"] + task["targetWidth"] / 2
-    center_y = task["targetY"] + task["targetHeight"] / 2
     tolerance = task["tolerance"]
-    return bool(abs(float(x) - center_x) <= tolerance and abs(float(y) - center_y) <= tolerance)
+    return bool(
+        task["targetX"] - tolerance <= float(x) <= task["targetX"] + task["targetWidth"] + tolerance
+        and task["targetY"] - tolerance <= float(y)
+        <= task["targetY"] + task["targetHeight"] + tolerance
+    )
 
 
 def normalized_spatial_error(task: dict[str, Any], submission: dict[str, Any]) -> float | None:

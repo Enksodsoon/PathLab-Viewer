@@ -149,7 +149,7 @@ export interface AnnotationStore {
   ): void
   bulkUpdate(
     ids: Iterable<string>,
-    patch: Partial<Pick<AnnotationInput, 'layerId' | 'style' | 'metadata'>>,
+    patch: { layerId?: string; style?: Partial<AnnotationStyle>; metadata?: Partial<AnnotationMetadata> },
   ): void
   move(ids: Iterable<string>, deltaX: number, deltaY: number): void
   resize(id: string, bounds: AnnotationBounds): void
@@ -667,10 +667,11 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
 
   const updateRecords = (
     ids: Iterable<string>,
-    patch: Partial<Pick<AnnotationInput, 'layerId' | 'geometry' | 'style' | 'metadata'>>,
+    patchOrFactory: Partial<Pick<AnnotationInput, 'layerId' | 'geometry' | 'style' | 'metadata'>>
+      | ((record: AnnotationRecord) => Partial<Pick<AnnotationInput, 'layerId' | 'geometry' | 'style' | 'metadata'>>),
   ) => {
-    if (patch.layerId && internal.layers.get(patch.layerId)?.locked) return
-    if (patch.geometry && geometryVertexCount(patch.geometry) > MAX_VERTICES_PER_SHAPE) {
+    if (typeof patchOrFactory !== 'function' && patchOrFactory.layerId && internal.layers.get(patchOrFactory.layerId)?.locked) return
+    if (typeof patchOrFactory !== 'function' && patchOrFactory.geometry && geometryVertexCount(patchOrFactory.geometry) > MAX_VERTICES_PER_SHAPE) {
       throw new RangeError('Annotation shapes cannot exceed 8,192 vertices')
     }
     const records = [...new Set(ids)]
@@ -678,17 +679,30 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       .filter((record): record is AnnotationRecord => Boolean(
         record && !record.deletedAt && layerEditable(record),
       ))
-    const mutations: AnnotationMutation[] = records.map((record) => ({
-      type: 'update',
-      id: record.id,
-      version: Math.max(1, record.version),
-      ...(patch.layerId === undefined ? {} : { layerId: patch.layerId }),
-      ...(patch.geometry === undefined ? {} : { geometry: structuredClone(patch.geometry) }),
-      ...(patch.style === undefined ? {} : { style: structuredClone(patch.style) }),
-      ...(patch.metadata === undefined ? {} : { metadata: structuredClone(patch.metadata) }),
-    }))
+    const patches = new Map(records.map((record) => [record.id,
+      typeof patchOrFactory === 'function' ? patchOrFactory(record) : patchOrFactory,
+    ]))
+    for (const patch of patches.values()) {
+      if (patch.layerId && internal.layers.get(patch.layerId)?.locked) return
+      if (patch.geometry && geometryVertexCount(patch.geometry) > MAX_VERTICES_PER_SHAPE) {
+        throw new RangeError('Annotation shapes cannot exceed 8,192 vertices')
+      }
+    }
+    const mutations: AnnotationMutation[] = records.map((record) => {
+      const patch = patches.get(record.id)!
+      return {
+        type: 'update',
+        id: record.id,
+        version: Math.max(1, record.version),
+        ...(patch.layerId === undefined ? {} : { layerId: patch.layerId }),
+        ...(patch.geometry === undefined ? {} : { geometry: structuredClone(patch.geometry) }),
+        ...(patch.style === undefined ? {} : { style: structuredClone(patch.style) }),
+        ...(patch.metadata === undefined ? {} : { metadata: structuredClone(patch.metadata) }),
+      }
+    })
     recordCommand(records.map((record) => record.id), mutations, () => {
       for (const record of records) {
+        const patch = patches.get(record.id)!
         const geometry = patch.geometry
           ? structuredClone(patch.geometry)
           : structuredClone(record.geometry)
@@ -947,7 +961,12 @@ export function createAnnotationStore(options: AnnotationStoreOptions): Annotati
       updateRecords([id], patch)
     },
     bulkUpdate(ids, patch) {
-      updateRecords(ids, patch)
+      if (patch.layerId && internal.layers.get(patch.layerId)?.locked) return
+      updateRecords(ids, (record) => ({
+        ...(patch.layerId === undefined ? {} : { layerId: patch.layerId }),
+        ...(patch.style === undefined ? {} : { style: { ...record.style, ...patch.style } }),
+        ...(patch.metadata === undefined ? {} : { metadata: { ...record.metadata, ...patch.metadata } }),
+      }))
     },
     move(ids, deltaX, deltaY) {
       const records = [...ids]

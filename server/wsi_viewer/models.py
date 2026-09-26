@@ -1715,6 +1715,7 @@ class StudyCourse(Base):
             "status",
             unique=True,
             sqlite_where=text("status IN ('preparation', 'active')"),
+            postgresql_where=text("status IN ('preparation', 'active')"),
         ),
     )
 

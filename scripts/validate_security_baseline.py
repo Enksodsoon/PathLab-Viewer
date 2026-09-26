@@ -130,7 +130,10 @@ def discover_egress_files(root: Path, discovery_roots: list[str]) -> list[str]:
         base = root / relative_root
         for path in sorted(base.rglob("*")):
             if not path.is_file() or any(
-                part in {"node_modules", "dist", "__pycache__"} for part in path.parts
+                part in {
+                    "node_modules", "dist", "__pycache__", "test-results",
+                    "playwright-report", "coverage",
+                } for part in path.parts
             ):
                 continue
             try:

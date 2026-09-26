@@ -43,8 +43,12 @@ interface NavigatorWithConnection extends Navigator {
 }
 
 function savedLoadingMode(): ViewerLoadingMode {
-  const saved = localStorage.getItem(NETWORK_MODE_KEY)
-  return saved === 'data-saver' || saved === 'full' ? saved : 'auto'
+  try {
+    const saved = localStorage.getItem(NETWORK_MODE_KEY)
+    return saved === 'data-saver' || saved === 'full' ? saved : 'auto'
+  } catch {
+    return 'auto'
+  }
 }
 
 function niceScale(value: number) {
@@ -189,7 +193,11 @@ export function OpenSeadragonViewer({
   useEffect(() => {
     modeRef.current = mode
     networkProfileRef.current = networkProfile
-    localStorage.setItem(NETWORK_MODE_KEY, mode)
+    try {
+      localStorage.setItem(NETWORK_MODE_KEY, mode)
+    } catch {
+      // Storage restrictions must not prevent changing the current loading mode.
+    }
     const next = initialViewerNetworkState(
       mode,
       narrowViewport,

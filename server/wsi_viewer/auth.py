@@ -77,9 +77,10 @@ def resolve_user_by_username(database: OrmSession, username: str) -> User | None
     if exact is not None:
         return exact
     normalized = normalize_username(username)
+    # ponytail: legacy normalization still scans; stream rows until indexed normalization exists.
     matches = [
         user
-        for user in database.scalars(select(User))
+        for user in database.scalars(select(User)).yield_per(100)
         if normalize_username(user.username) == normalized
     ]
     if len(matches) > 1:

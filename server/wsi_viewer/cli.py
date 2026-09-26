@@ -2,6 +2,7 @@ import argparse
 import getpass
 import hashlib
 import json
+import logging
 import os
 import shutil
 import sys
@@ -146,11 +147,24 @@ def main() -> None:
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / manifest["assetFile"]
         temporary = target.with_suffix(target.suffix + ".installing")
-        with args.artifact.open("rb") as source, temporary.open("wb") as destination:
-            shutil.copyfileobj(source, destination)
-            destination.flush()
-            os.fsync(destination.fileno())
-        os.replace(temporary, target)
+        if args.artifact.resolve() == temporary.resolve() or (
+            temporary.exists() and args.artifact.samefile(temporary)
+        ):
+            raise SystemExit("Source artifact must not be the installation staging path")
+        try:
+            with args.artifact.open("rb") as source, temporary.open("wb") as destination:
+                shutil.copyfileobj(source, destination)
+                destination.flush()
+                os.fsync(destination.fileno())
+            os.replace(temporary, target)
+        finally:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError as error:
+                logging.getLogger(__name__).warning(
+                    "STUDY_MODEL_STAGING_CLEANUP_FAILED error_type=%s; staging file retained",
+                    type(error).__name__,
+                )
         print(f"Installed {target.name} ({digest})")
         return
     if args.command == "reconcile-storage":

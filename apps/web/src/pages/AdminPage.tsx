@@ -45,12 +45,10 @@ import {
   mutateFolder,
   mutateSlide,
   publishSlide,
-  reserveUpload,
   removeCollectionSlides,
   updateCollection,
   updateFolder,
   updateSavedView,
-  type UploadReservation,
 } from '../api'
 import { AccountSecurityDialog } from '../components/AccountSecurityDialog'
 import { Loader } from '../components/Loader'
@@ -65,6 +63,9 @@ import {
 } from '../components/library/FilterPanel'
 import { LibraryDialog } from '../components/library/LibraryDialog'
 import { LibraryNavigator } from '../components/library/LibraryNavigator'
+import { canMoveFolder } from '../components/library/folderDrag'
+import { LibraryJourneyTools } from '../components/library/LibraryJourneyTools'
+import { canPreview } from '../components/library/viewerNavigation'
 import {
   LibraryToolbar,
   type LibraryViewMode,
@@ -77,10 +78,8 @@ import { SlideDetailsPanel } from '../components/library/SlideDetailsPanel'
 import { SlideViews, type SlideAction } from '../components/library/SlideViews'
 import {
   UploadWorkspace,
-  type UploadQueueItemView,
 } from '../components/library/UploadWorkspace'
 import type {
-  AdminSlide,
   LibraryFacets,
   LibraryCollection,
   LibraryFolder,
@@ -98,7 +97,7 @@ const AuthPanel = lazy(() => import('../components/AuthPanel').then((module) => 
 const StorageWorkspace = lazy(() => import('../components/storage/StorageWorkspace').then(
   (module) => ({ default: module.StorageWorkspace }),
 ))
-import { startTusUpload } from '../upload'
+import { addUploadFiles as enqueueFiles, authorizeUploadQueue, cancelUploadItem, removeUploadItem, renameUploadItem, resetUploadQueue, retryUploadItem, startUploadQueue, useUploadQueue } from '../uploadQueue'
 import '../library.css'
 
 const EMPTY_NAVIGATION: LibraryNavigation = {
@@ -129,31 +128,6 @@ const ACTIVE_STATES = new Set<SlideState>([
   'converting',
   'deleting',
 ])
-const MAX_UPLOAD_BYTES = 5 * 1024 ** 3
-let uploadQueueSequence = 0
-
-interface UploadQueueItem extends UploadQueueItemView {
-  folderId: string | null
-  reservation?: UploadReservation
-}
-
-function uploadFailureMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.code === 'STORAGE_CAPACITY_EXCEEDED' || error.status === 507) {
-      return 'Not enough usable storage remains for this file.'
-    }
-    return 'The upload could not be reserved. Review the file and try again.'
-  }
-  const raw = error instanceof Error ? error.message : String(error)
-  if (
-    /unexpected response while creating upload/i.test(raw)
-    || /failed to fetch|networkerror|econnrefused/i.test(raw)
-  ) {
-    return 'The upload service is temporarily unavailable. Try again in a moment. If it continues, contact your PathLab administrator.'
-  }
-  return 'Upload paused. Check the connection, then retry this file.'
-}
-
 type DialogName =
   | 'upload'
   | 'folder'
@@ -215,31 +189,6 @@ function safePage(value: LibraryItemsPage): LibraryItemsPage {
   return value
 }
 
-function uploadSlide(slide: AdminSlide, folderId: string | null): LibrarySlide {
-  return {
-    id: slide.id,
-    publicId: slide.publicId,
-    displayName: slide.displayName,
-    description: '',
-    folderId,
-    caseId: '',
-    organSite: '',
-    stain: '',
-    diagnosis: '',
-    course: '',
-    tags: [],
-    teachingNote: '',
-    sourceBytes: slide.sourceBytes,
-    derivativeBytes: 0,
-    state: slide.state,
-    errorCode: slide.errorCode,
-    createdAt: slide.createdAt,
-    updatedAt: slide.createdAt,
-    trashedAt: null,
-    thumbnailUrl: null,
-  }
-}
-
 export function AdminPage() {
   const navigate = useNavigate()
   const [url, setUrl] = useSearchParams()
@@ -257,6 +206,7 @@ export function AdminPage() {
   const [previousPages, setPreviousPages] = useState<LibraryItemsPage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [pageRefresh, setPageRefresh] = useState(0)
   const [error, setError] = useState('')
   const [searchDraft, setSearchDraft] = useState(url.get('q') || '')
   const [search, setSearch] = useState(url.get('q') || '')
@@ -273,6 +223,7 @@ export function AdminPage() {
     updatedTo: url.get('updatedTo') || '',
   })
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [additionalTags, setAdditionalTags] = useState(() => url.getAll('tag').slice(1))
   const [facets, setFacets] = useState<LibraryFacets | null>(null)
   const [facetsLoading, setFacetsLoading] = useState(false)
   const [folderChildren, setFolderChildren] = useState(
@@ -284,6 +235,7 @@ export function AdminPage() {
   const [expandedFolders, setExpandedFolders] = useState(() => new Set<string>())
   const [selected, setSelected] = useState(() => new Set<string>())
   const [details, setDetails] = useState<LibrarySlideDetails | LibrarySlide | null>(null)
+  const [quickLook, setQuickLook] = useState<LibrarySlide | null>(null)
   const [dialog, setDialog] = useState<DialogName>(null)
   const [securityOpen, setSecurityOpen] = useState(false)
   const [navigatorOpen, setNavigatorOpen] = useState(false)
@@ -302,12 +254,15 @@ export function AdminPage() {
   const [savedEditTarget, setSavedEditTarget] = useState<SavedView | null>(null)
   const [tagValue, setTagValue] = useState('')
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM)
-  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
-  const uploadQueueRef = useRef<UploadQueueItem[]>([])
-  const [uploadQueueRunning, setUploadQueueRunning] = useState(false)
-  const uploadQueueRunningRef = useRef(false)
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
-  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
+  const uploadState = useUploadQueue()
+  const { items: uploadQueue, running: uploadQueueRunning } = uploadState
+  const activeUpload = uploadQueue.find((item) => item.phase === 'uploading')
+  const activeUploadId = activeUpload?.reservation?.slide.id ?? null
+  const uploadProgress = activeUpload?.progress ?? null
+  const observedReservations = useRef(new Set<string>())
+  useEffect(() => {
+    if (authorized === true) authorizeUploadQueue()
+  }, [authorized])
   const selectionAnchor = useRef<number | null>(null)
   const authEpoch = useRef(0)
   const navigatorToggleRef = useRef<HTMLButtonElement>(null)
@@ -332,18 +287,45 @@ export function AdminPage() {
   }, [closeNavigator, navigatorOpen])
 
   const setUrlValues = useCallback((
-    values: Record<string, string | null>,
+    values: Record<string, string | string[] | null>,
     replace = true,
   ) => {
     setUrl((current) => {
       const next = new URLSearchParams(current)
       for (const [key, value] of Object.entries(values)) {
-        if (!value) next.delete(key)
+        if (Array.isArray(value)) {
+          next.delete(key)
+          value.forEach((item) => next.append(key, item))
+        } else if (!value) next.delete(key)
         else next.set(key, value)
       }
       return next
     }, { replace })
   }, [setUrl])
+
+  const savedView = location.startsWith('saved:')
+    ? navigation.savedViews.find((item) => item.id === location.slice('saved:'.length))
+    : undefined
+  useEffect(() => {
+    if (!savedView) return
+    const values = savedView.definition.filters
+    const first = (key: string) => {
+      const value = values[key]
+      return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+    }
+    const tags = values.tags ? (Array.isArray(values.tags) ? values.tags : [values.tags]) : []
+    const restored: LibraryFilters = {
+      organ: first('organ'), stain: first('stain'), diagnosis: first('diagnosis'), course: first('course'),
+      tag: tags[0] ?? '', state: first('state'),
+      createdFrom: first('createdFrom').slice(0, 10), createdTo: first('createdTo').slice(0, 10),
+      updatedFrom: first('updatedFrom').slice(0, 10), updatedTo: first('updatedTo').slice(0, 10),
+    }
+    setSearch(first('q'))
+    setSearchDraft(first('q'))
+    setFilters(restored)
+    setAdditionalTags(tags.slice(1))
+    setUrlValues({ ...restored, tag: tags, q: first('q'), sort: savedView.sort })
+  }, [savedView, setUrlValues])
 
   const loadNavigation = useCallback(async () => {
     const epoch = authEpoch.current
@@ -367,6 +349,15 @@ export function AdminPage() {
   useEffect(() => {
     void loadNavigation()
   }, [loadNavigation])
+
+  useEffect(() => {
+    if (authorized !== true) return
+    const fresh = uploadQueue.filter((item) => item.reservation && !observedReservations.current.has(item.reservation.slide.id))
+    if (!fresh.length) return
+    fresh.forEach((item) => observedReservations.current.add(item.reservation!.slide.id))
+    setPageRefresh((current) => current + 1)
+    void loadNavigation()
+  }, [authorized, loadNavigation, uploadQueue])
 
   useEffect(() => {
     if (!authorized || url.get('action') !== 'upload') return
@@ -423,12 +414,15 @@ export function AdminPage() {
   }, [authorized, navigation.folderPath])
 
   useEffect(() => {
+    if (searchDraft.trim() === search) return
+    const pathname = window.location.pathname
     const timer = window.setTimeout(() => {
+      if (window.location.pathname !== pathname) return
       setSearch(searchDraft.trim())
       setUrlValues({ q: searchDraft.trim() || null })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [searchDraft, setUrlValues])
+  }, [search, searchDraft, setUrlValues])
 
   const query = useMemo(() => ({
     location: storageOpen ? 'all' : location,
@@ -437,7 +431,7 @@ export function AdminPage() {
     stain: filters.stain,
     diagnosis: filters.diagnosis,
     course: filters.course,
-    tags: filters.tag ? [filters.tag] : undefined,
+    tags: filters.tag || additionalTags.length ? [filters.tag, ...additionalTags].filter(Boolean) : undefined,
     state: filters.state,
     createdFrom: filters.createdFrom ? `${filters.createdFrom}T00:00:00Z` : undefined,
     createdTo: filters.createdTo ? `${filters.createdTo}T23:59:59Z` : undefined,
@@ -445,7 +439,7 @@ export function AdminPage() {
     updatedTo: filters.updatedTo ? `${filters.updatedTo}T23:59:59Z` : undefined,
     sort,
     limit: 48,
-  }), [filters, location, search, sort, storageOpen])
+  }), [additionalTags, filters, location, search, sort, storageOpen])
 
   useEffect(() => {
     if (!authorized) return
@@ -454,16 +448,19 @@ export function AdminPage() {
       return
     }
     const controller = new AbortController()
+    const epoch = authEpoch.current
     setLoading(true)
     setError('')
     void getLibraryItems({ ...query, signal: controller.signal })
       .then((value) => {
+        if (controller.signal.aborted || epoch !== authEpoch.current) return
         setPage(safePage(value))
         setPreviousPages([])
         setSelected(new Set())
         selectionAnchor.current = null
       })
       .catch((caught) => {
+        if (controller.signal.aborted || epoch !== authEpoch.current) return
         if (caught instanceof DOMException && caught.name === 'AbortError') return
         if (caught instanceof ApiError && caught.status === 401) {
           authEpoch.current += 1
@@ -473,10 +470,10 @@ export function AdminPage() {
         setError('Slides could not load. Try again.')
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
+        if (!controller.signal.aborted && epoch === authEpoch.current) setLoading(false)
       })
     return () => controller.abort()
-  }, [authorized, query, storageOpen])
+  }, [authorized, pageRefresh, query, storageOpen])
 
   useEffect(() => {
     const handler = () => setVisible(document.visibilityState !== 'hidden')
@@ -656,6 +653,10 @@ export function AdminPage() {
         { label: collection?.name ?? 'Collection', location },
       ]
     }
+    if (location.startsWith('saved:')) {
+      const saved = navigation.savedViews.find((item) => item.id === location.slice('saved:'.length))
+      return [{ label: 'All slides', location: 'all' }, { label: saved?.name ?? 'Saved view', location }]
+    }
     const labels: Record<string, string> = {
       all: 'All slides',
       unfiled: 'Unfiled',
@@ -665,7 +666,7 @@ export function AdminPage() {
       trash: 'Trash',
     }
     return [{ label: labels[location] ?? 'Slides', location }]
-  }, [foldersById, location, navigation.collections])
+  }, [foldersById, location, navigation.collections, navigation.savedViews])
 
   const currentTitle = breadcrumbs.at(-1)?.label ?? 'Slides'
   const shareTarget = useMemo(() => {
@@ -826,7 +827,17 @@ export function AdminPage() {
   }
 
   async function refreshNavigation() {
-    setNavigation(safeNavigation(await getLibraryNavigation(navigationFolderId)))
+    const epoch = authEpoch.current
+    const nextNavigation = safeNavigation(await getLibraryNavigation(navigationFolderId))
+    const children = await Promise.all([...expandedFolders].map(async (id): Promise<[string, LibraryFolder[]]> => {
+      try { return [id, await getFolderChildren(id)] } catch (caught) {
+        if (caught instanceof ApiError && caught.status === 404) return [id, []]
+        throw caught
+      }
+    }))
+    if (epoch !== authEpoch.current) return
+    setNavigation(nextNavigation)
+    setFolderChildren(new Map(children))
   }
 
   async function handleFolderAction(
@@ -919,6 +930,16 @@ export function AdminPage() {
     (slide: LibrarySlide) => void openDetailsRef.current(slide),
     [],
   )
+  const handlePreview = (slide: LibrarySlide) => {
+    if (!canPreview(slide)) return
+    const returnTo = `/admin${url.size ? `?${url.toString()}` : ''}`
+    navigate(`/admin/preview/${encodeURIComponent(slide.id)}`, {
+      state: { library: {
+        returnTo,
+        slides: page.items.filter(canPreview).map(({ id, displayName }) => ({ id, displayName })),
+      } },
+    })
+  }
   const handleSlideAction = useCallback(
     (slide: LibrarySlide, action: SlideAction) => void actOnSlideRef.current(slide, action),
     [],
@@ -1066,7 +1087,7 @@ export function AdminPage() {
             ...(filters.stain ? { stain: [filters.stain] } : {}),
             ...(filters.diagnosis ? { diagnosis: [filters.diagnosis] } : {}),
             ...(filters.course ? { course: [filters.course] } : {}),
-            ...(filters.tag ? { tags: [filters.tag] } : {}),
+            ...(query.tags?.length ? { tags: query.tags } : {}),
             ...(filters.state ? { state: filters.state } : {}),
             ...(filters.createdFrom ? { createdFrom: filters.createdFrom } : {}),
             ...(filters.createdTo ? { createdTo: filters.createdTo } : {}),
@@ -1138,122 +1159,12 @@ export function AdminPage() {
     setSelected(new Set())
   }
 
-  function replaceUploadQueue(next: UploadQueueItem[]) {
-    uploadQueueRef.current = next
-    setUploadQueue(next)
-  }
-
-  function updateUploadItem(
-    id: string,
-    changes: Partial<Omit<UploadQueueItem, 'id' | 'file' | 'folderId'>>,
-  ) {
-    replaceUploadQueue(uploadQueueRef.current.map((item) => (
-      item.id === id ? { ...item, ...changes } : item
-    )))
-  }
-
   function addUploadFiles(files: File[]) {
-    const folderId = location.startsWith('folder:')
-      ? location.slice('folder:'.length)
-      : null
-    const existing = new Set(uploadQueueRef.current.map(
-      (item) => `${item.file.name}:${item.file.size}:${item.file.lastModified}`,
-    ))
-    const accepted: UploadQueueItem[] = []
-    let skipped = 0
-    files.forEach((next) => {
-      const fingerprint = `${next.name}:${next.size}:${next.lastModified}`
-      if (
-        !/\.ome\.tiff?$/i.test(next.name)
-        || next.size > MAX_UPLOAD_BYTES
-        || existing.has(fingerprint)
-      ) {
-        skipped += 1
-        return
-      }
-      existing.add(fingerprint)
-      accepted.push({
-        id: `upload-${Date.now()}-${uploadQueueSequence += 1}`,
-        file: next,
-        displayName: next.name.replace(/\.ome\.tiff?$/i, ''),
-        phase: 'queued',
-        progress: 0,
-        error: '',
-        folderId,
-      })
-    })
-    if (accepted.length) replaceUploadQueue([...uploadQueueRef.current, ...accepted])
-    setNotice(skipped
-      ? `${skipped} duplicate, unsupported, or oversized ${skipped === 1 ? 'file was' : 'files were'} skipped.`
-      : '')
-  }
-
-  async function startUploadQueue() {
-    if (uploadQueueRunningRef.current) return
-    uploadQueueRunningRef.current = true
-    setUploadQueueRunning(true)
-    setNotice('')
-    try {
-      while (true) {
-        const item = uploadQueueRef.current.find((entry) => entry.phase === 'queued')
-        if (!item) break
-        updateUploadItem(item.id, { phase: 'preparing', error: '' })
-        try {
-          let reservation = item.reservation
-          if (!reservation) {
-            reservation = await reserveUpload(
-              item.file,
-              item.displayName.trim() || item.file.name.replace(/\.ome\.tiff?$/i, ''),
-              item.folderId,
-            )
-            updateUploadItem(item.id, { reservation })
-            const reservedSlide = reservation.slide
-            setPage((current) => ({
-              ...current,
-              items: [uploadSlide(reservedSlide, item.folderId), ...current.items],
-              total: current.total + 1,
-            }))
-            void loadNavigation()
-          }
-          setActiveUploadId(reservation.slide.id)
-          setUploadProgress(0)
-          updateUploadItem(item.id, { phase: 'uploading', progress: 0 })
-          await startTusUpload(item.file, reservation.uploadUrl, reservation.uploadToken, {
-            progress: (progress) => {
-              setUploadProgress(progress)
-              updateUploadItem(item.id, { progress })
-            },
-            success: () => {
-              setUploadProgress(100)
-              updateUploadItem(item.id, { phase: 'complete', progress: 100, error: '' })
-            },
-            error: () => undefined,
-          })
-          const completed = uploadQueueRef.current.filter(
-            (entry) => entry.phase === 'complete',
-          ).length
-          setNotice(`${completed} ${completed === 1 ? 'file' : 'files'} uploaded. Processing is queued.`)
-        } catch (caught) {
-          updateUploadItem(item.id, {
-            phase: 'error',
-            error: uploadFailureMessage(caught),
-          })
-          setNotice('Upload queue paused. Retry the failed file when the service is available.')
-          break
-        }
-      }
-    } finally {
-      uploadQueueRunningRef.current = false
-      setUploadQueueRunning(false)
-    }
-  }
-
-  function retryUploadItem(id: string) {
-    updateUploadItem(id, { phase: 'queued', error: '', progress: 0 })
-    void startUploadQueue()
+    enqueueFiles(files, location.startsWith('folder:') ? location.slice('folder:'.length) : null)
   }
 
   function endSession(message = '') {
+    resetUploadQueue()
     authEpoch.current += 1
     setAuthNotice(message)
     setAuthorized(false)
@@ -1421,6 +1332,10 @@ export function AdminPage() {
             () => moveSlides(ids, folderId),
             'Move',
           )}
+          onDropFolder={(folder, parentId) => runAction(async () => {
+            await updateFolder(folder.id, { parentId })
+            await refreshNavigation()
+          }, 'Move folder')}
           onFolderAction={(folder, action) => runAction(
             () => handleFolderAction(folder, action),
             'Folder action',
@@ -1458,8 +1373,11 @@ export function AdminPage() {
             chooseLocation(current?.parentId ? `folder:${current.parentId}` : 'all')
           }}
           onBreadcrumb={chooseLocation}
-          onSearch={setSearchDraft}
-          onSort={(value) => setUrlValues({ sort: value === 'updated_desc' ? null : value })}
+          onSearch={(value) => {
+            setSearchDraft(value)
+            if (savedView) setUrlValues({ location: null })
+          }}
+          onSort={(value) => setUrlValues({ ...(savedView ? { location: null } : {}), sort: value === 'updated_desc' ? null : value })}
           onView={(value) => setUrlValues({ view: value === 'grid' ? null : value })}
           onToggleFilters={() => setFiltersOpen((current) => !current)}
           onNewFolder={() => openNamedDialog('folder')}
@@ -1468,6 +1386,38 @@ export function AdminPage() {
           onUpload={() => openNamedDialog('upload')}
           onShare={shareTarget ? () => openNamedDialog('share') : undefined}
         />
+        <LibraryJourneyTools
+          slides={page.items}
+          selected={selected}
+          quickLook={quickLook}
+          onQuickLook={setQuickLook}
+          onPreview={handlePreview}
+          commands={[
+            { id: 'upload', label: 'Upload slides', run: () => openNamedDialog('upload') },
+            { id: 'folder', label: 'New folder', run: () => openNamedDialog('folder') },
+            ...(navigation.capabilities?.classroom ? [{
+              id: 'classroom', label: currentFolderId ? 'Teach this folder' : 'Open Classroom',
+              run: () => navigate(currentFolderId
+                ? `/admin/classroom?folderId=${encodeURIComponent(currentFolderId)}`
+                : '/admin/classroom'),
+            }] : []),
+            ...(navigation.capabilities?.study ? [{
+              id: 'study', label: 'Open Study Coach', run: () => navigate('/admin/study'),
+            }] : []),
+          ]}
+        />
+        {currentFolderId && navigation.capabilities?.classroom ? (
+          <button type="button" className="load-more" onClick={() => navigate(
+            `/admin/classroom?folderId=${encodeURIComponent(currentFolderId)}`,
+          )}>Teach this folder</button>
+        ) : null}
+        {query.tags?.length ? <p aria-label="Active tags">Tags: {query.tags.join(', ')}{query.tags.length > 1 ? '. Changing the Tag field replaces this tag set.' : ''}</p> : null}
+        {savedView ? ['organ', 'stain', 'diagnosis', 'course', 'state'].map((key) => {
+          const values = savedView.definition.filters[key]
+          return Array.isArray(values) && values.length > 1
+            ? <p key={key} aria-label={`Saved ${key} values`}>Saved {key}: {values.join(', ')}. Applied value: {values[0]}.</p>
+            : null
+        }) : null}
         {filtersOpen ? (
           <FilterPanel
             filters={filters}
@@ -1475,12 +1425,15 @@ export function AdminPage() {
             loading={facetsLoading}
             onChange={(next) => {
               setFilters(next)
+              const tags = next.tag !== filters.tag ? (next.tag ? [next.tag] : []) : [next.tag, ...additionalTags].filter(Boolean)
+              if (next.tag !== filters.tag) setAdditionalTags([])
               setUrlValues({
+                ...(savedView ? { location: null } : {}),
                 organ: next.organ || null,
                 stain: next.stain || null,
                 diagnosis: next.diagnosis || null,
                 course: next.course || null,
-                tag: next.tag || null,
+                tag: tags,
                 state: next.state || null,
                 createdFrom: next.createdFrom || null,
                 createdTo: next.createdTo || null,
@@ -1490,7 +1443,9 @@ export function AdminPage() {
             }}
             onClear={() => {
               setFilters(EMPTY_FILTERS)
+              setAdditionalTags([])
               setUrlValues({
+                ...(savedView ? { location: null } : {}),
                 organ: null,
                 stain: null,
                 diagnosis: null,
@@ -1590,6 +1545,7 @@ export function AdminPage() {
           {!contentLoading
             && page.items.length === 0
             && currentFolderChildren.length === 0
+            && !(location === 'trash' && navigation.trashedFolders?.length)
             && !currentFolderChildrenFailed ? (
             <div className="library-empty">
               {location === 'trash' ? (
@@ -1628,6 +1584,32 @@ export function AdminPage() {
               )}
             </div>
           ) : null}
+          {!contentLoading && location === 'trash' && navigation.trashedFolders?.length ? (
+            <section className="library-folder-section" aria-label="Trashed folders">
+              <h3>Trashed folders</h3>
+              <p>Restore a folder with its remaining contents. Separately removed items stay in Trash.</p>
+              {navigation.trashedFolders.map((folder) => (
+                <div className="navigator-list-row" key={folder.id}>
+                  <span>{folder.name}</span>
+                  <button type="button" className="load-more" onClick={() => runAction(async () => {
+                    await mutateFolder(folder.id, 'restore')
+                    setNotice('Folder restored with its remaining contents.')
+                    try {
+                      const epoch = authEpoch.current
+                      const [, nextPage] = await Promise.all([
+                        refreshNavigation(), getLibraryItems(query),
+                      ])
+                      if (epoch !== authEpoch.current) return
+                      setPage(safePage(nextPage))
+                      setPreviousPages([])
+                    } catch {
+                      setError('Folder restored, but the library could not refresh. Reload to see the saved change.')
+                    }
+                  }, 'Restore folder')}>Restore {folder.name}</button>
+                </div>
+              ))}
+            </section>
+          ) : null}
           {!contentLoading && page.items.length ? (
             <SlideViews
               view={view}
@@ -1638,6 +1620,8 @@ export function AdminPage() {
               uploadProgress={uploadProgress}
               onSelect={handleSlideSelect}
               onOpen={handleSlideOpen}
+              onPreview={handlePreview}
+              onQuickLook={setQuickLook}
               onAction={handleSlideAction}
             />
           ) : null}
@@ -1688,6 +1672,7 @@ export function AdminPage() {
         {details ? (
           <SlideDetailsPanel
             slide={details}
+            onPreview={handlePreview}
             folderName={details.folderId
               ? foldersById.get(details.folderId)?.name
               : undefined}
@@ -1733,15 +1718,14 @@ export function AdminPage() {
           items={uploadQueue}
           running={uploadQueueRunning}
           onFilesAdded={addUploadFiles}
-          onDisplayNameChange={(id, displayName) => updateUploadItem(id, { displayName })}
-          onRemove={(id) => replaceUploadQueue(
-            uploadQueueRef.current.filter((item) => item.id !== id),
-          )}
+          onDisplayNameChange={renameUploadItem}
+          onRemove={removeUploadItem}
+          onCancel={cancelUploadItem}
           onRetry={retryUploadItem}
           onStart={() => void startUploadQueue()}
         />
-        {notice ? (
-          <StatusMessage tone="success" label="Queued">{notice}</StatusMessage>
+        {dialog === 'upload' && (uploadState.notice || notice) ? (
+          <StatusMessage tone="success" label="Queued">{uploadState.notice || notice}</StatusMessage>
         ) : null}
       </LibraryDialog>
 
@@ -1866,7 +1850,9 @@ export function AdminPage() {
             <select value={moveTarget} onChange={(event) => setMoveTarget(event.target.value)}>
               <option value="">Top level</option>
               {[...foldersById.values()]
-                .filter((folder) => folder.id !== folderTarget?.id)
+                .filter((folder) => folderTarget && (
+                  folder.id === folderTarget.parentId || canMoveFolder(folderTarget, folder.id, foldersById)
+                ))
                 .map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
           </label>

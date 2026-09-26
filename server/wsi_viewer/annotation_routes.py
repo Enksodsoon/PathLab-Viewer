@@ -42,6 +42,7 @@ from .annotations import (
     revision_json,
     slide_bounds,
 )
+from .desktop_sync import record_sync_event
 from .models import (
     Annotation,
     AnnotationLayer,
@@ -158,9 +159,7 @@ def register_annotation_routes(
             raise annotation_error(error) from error
         layer_count = int(
             database.scalar(
-                select(func.count(AnnotationLayer.id)).where(
-                    AnnotationLayer.slide_id == slide_id
-                )
+                select(func.count(AnnotationLayer.id)).where(AnnotationLayer.slide_id == slide_id)
             )
             or 0
         )
@@ -199,6 +198,7 @@ def register_annotation_routes(
                 },
             )
         )
+        record_sync_event(database, "annotation", slide.id, "upsert", slide.annotation_version)
         database.commit()
         database.refresh(layer)
         return layer_json(layer)
@@ -284,6 +284,7 @@ def register_annotation_routes(
                 },
             )
         )
+        record_sync_event(database, "annotation", slide.id, "upsert", slide.annotation_version)
         database.commit()
         return {
             "version": slide.annotation_version,
@@ -321,9 +322,7 @@ def register_annotation_routes(
                 status_code=404,
                 detail={"code": "ANNOTATION_LAYER_NOT_FOUND"},
             )
-        if database.scalar(
-            select(Annotation.id).where(Annotation.layer_id == layer_id).limit(1)
-        ):
+        if database.scalar(select(Annotation.id).where(Annotation.layer_id == layer_id).limit(1)):
             database.rollback()
             raise HTTPException(
                 status_code=409,
@@ -350,6 +349,7 @@ def register_annotation_routes(
                 },
             )
         )
+        record_sync_event(database, "annotation", slide.id, "upsert", slide.annotation_version)
         database.commit()
         return {"version": slide.annotation_version}
 
@@ -375,9 +375,7 @@ def register_annotation_routes(
     ) -> dict[str, Any]:
         slide = get_slide(database, slide_id)
         statement = select(Annotation).where(Annotation.slide_id == slide_id)
-        count_statement = select(func.count(Annotation.id)).where(
-            Annotation.slide_id == slide_id
-        )
+        count_statement = select(func.count(Annotation.id)).where(Annotation.slide_id == slide_id)
         if not include_deleted:
             statement = statement.where(Annotation.deleted_at.is_(None))
             count_statement = count_statement.where(Annotation.deleted_at.is_(None))
@@ -406,9 +404,7 @@ def register_annotation_routes(
         total = int(database.scalar(count_statement) or 0)
         page = list(
             database.scalars(
-                statement.order_by(Annotation.created_at, Annotation.id)
-                .offset(offset)
-                .limit(limit)
+                statement.order_by(Annotation.created_at, Annotation.id).offset(offset).limit(limit)
             )
         )
         next_offset = offset + len(page) if offset + len(page) < total else None

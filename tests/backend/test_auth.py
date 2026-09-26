@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Barrier, Event
 
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import event, insert, select
 from wsi_viewer.auth import (
     CredentialConflict,
     InvalidCurrentPassword,
@@ -18,6 +18,7 @@ from wsi_viewer.auth import (
     issue_recovery_code,
     recover_password,
     reset_password_by_cli,
+    resolve_user_by_username,
 )
 from wsi_viewer.config import Settings
 from wsi_viewer.database import create_schema, session_factory
@@ -431,6 +432,24 @@ def test_recovery_allows_unambiguous_normalized_legacy_username(tmp_path: Path) 
         )
 
         assert verify_password(mixed.password_hash, "mixed replacement password")
+
+
+def test_legacy_username_fallback_bounds_loaded_identity_rows(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    create_schema(settings)
+    with session_factory(settings)() as database:
+        database.execute(insert(User), [
+            {"username": f"synthetic-{index}", "password_hash": "not-a-real-password"}
+            for index in range(1000)
+        ])
+        database.commit()
+        observed: list[int] = []
+        event.listen(database, "loaded_as_persistent", lambda session, _: observed.append(
+            len(session.identity_map),
+        ))
+        assert resolve_user_by_username(database, "no-such-synthetic-user") is None
+        assert len(observed) == 1000
+        assert max(observed) <= 200
 
 
 def test_cli_password_reset_revokes_sessions_and_codes(tmp_path: Path) -> None:

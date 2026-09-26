@@ -1860,7 +1860,13 @@ def test_question_receipt_hashes_idempotency_key(tmp_path: Path) -> None:
     assert hashlib.sha256(b"retry-key").hexdigest() != "retry-key"
 
 
-def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: Path) -> None:
+def test_student_pin_and_control_request_are_bounded_transient_state(
+    tmp_path: Path, monkeypatch: MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    import wsi_viewer.classroom_hub as module
+
     with _client(tmp_path, enabled=True) as client:
         headers = _admin_headers(client)
         created = client.post(
@@ -1879,11 +1885,18 @@ def test_student_pin_and_control_request_are_bounded_transient_state(tmp_path: P
             "y": 0.5,
             "zoom": 4,
         }
+        monkeypatch.setattr(module, "time", SimpleNamespace(
+            monotonic=lambda: 10000.0, time=module.time.time,
+        ))
 
         assert (
             client.post(f"/api/v1/classroom/sessions/{created['id']}/pin", json=pin).status_code
             == 204
         )
+        throttled = client.post(f"/api/v1/classroom/sessions/{created['id']}/pin", json=pin)
+        assert throttled.status_code == 429
+        assert throttled.json()["detail"]["code"] == "PIN_RATE_LIMITED"
+        assert throttled.headers["Retry-After"] == "1"
         assert (
             client.post(
                 f"/api/v1/classroom/sessions/{created['id']}/control-request",

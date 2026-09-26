@@ -321,6 +321,9 @@ jobs:
           e2e/library-responsive.spec.ts
           e2e/classroom-disabled.spec.ts
           e2e/capacity-upload-dialog.spec.ts
+          e2e/notebook-persistence.spec.ts
+          e2e/classroom-study-remediation.spec.ts
+          e2e/library-upload-remediation.spec.ts
           --workers=2
       - name: Retain browser failure diagnostics
         if: failure()

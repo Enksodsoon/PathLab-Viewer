@@ -59,6 +59,7 @@ def serialize_ome_tile_index(
             "bytes": index.source_size,
             "mtimeNs": index.source_mtime_ns,
             "sha256": index.source_sha256,
+            "primaryPage": index.primary_page,
         },
         "width": index.width,
         "height": index.height,
