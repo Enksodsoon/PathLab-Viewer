@@ -1,0 +1,110 @@
+import { describe, expect, it } from 'vitest'
+
+import { alignmentViewDelta, continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
+
+describe('comparison coordinate mapping', () => {
+  it('maps bidirectionally through reference coordinates', () => {
+    const movingToReference = [[1, 0, 20], [0, 1, -10]]
+    expect(mapComparisonPoint([100, 80], movingToReference, null)).toEqual([120, 70])
+    expect(mapComparisonPoint([120, 70], null, movingToReference)).toEqual([100, 80])
+  })
+
+  it('derives bidirectional viewer rotation and scale from affine registration', () => {
+    const movingToReference = [[0.8459608705, 0.4885494475, -2975], [-0.4885885636, 0.845341361, 1935]]
+    const moving = alignmentViewDelta(null, movingToReference)
+    const reference = alignmentViewDelta(movingToReference, null)
+
+    expect(moving.rotation).toBeCloseTo(-30, 1)
+    expect(moving.zoomScale).toBeCloseTo(0.977, 2)
+    expect(reference.rotation).toBeCloseTo(30, 1)
+    expect(reference.zoomScale).toBeCloseTo(1 / 0.977, 2)
+    expect(normalizeRotation(-30)).toBe(330)
+  })
+
+  it('finds the common reference-space area covered by a rotated slide', () => {
+    const transform = [[0, -1, 100], [1, 0, 20]]
+    expect(mapSupportBounds([10, 20, 40, 60], transform)).toEqual([40, 30, 80, 60])
+    expect(intersectSupport([0, 0, 70, 70], [40, 30, 80, 60])).toEqual([40, 30, 70, 60])
+    expect(intersectSupport([0, 0, 10, 10], [20, 20, 30, 30])).toBeNull()
+    expect(mapComparisonBounds([40, 30, 80, 60], null, transform)).toEqual([10, 20, 40, 60])
+  })
+
+  it('rejects points outside a registration support region', () => {
+    expect(withinSupport([25, 25], [0, 0, 50, 50])).toBe(true)
+    expect(withinSupport([55, 25], [0, 0, 50, 50])).toBe(false)
+    expect(withinSupport([55, 25], null)).toBe(true)
+  })
+
+  it('uses the same accepted triangle for exact forward and reverse navigation', () => {
+    const registration = {
+      movingToReference: [[1, 0, 10], [0, 1, 0]],
+      controlPoints: [
+        { moving: [0, 0] as [number, number], reference: [12, 1] as [number, number], errorPixels: 1 },
+        { moving: [100, 0] as [number, number], reference: [108, -1] as [number, number], errorPixels: 1 },
+        { moving: [0, 100] as [number, number], reference: [14, 99] as [number, number], errorPixels: 1 },
+        { moving: [100, 100] as [number, number], reference: [106, 101] as [number, number], errorPixels: 1 },
+      ],
+      triangles: [{
+        moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+        reference: [[12, 1], [108, -1], [14, 99]] as [[number, number], [number, number], [number, number]],
+      }],
+    }
+    const mapped = mapLocalComparisonPoint([25, 20], registration, null)
+    expect(mapped).not.toBeNull()
+    expect(mapLocalComparisonPoint(mapped!, null, registration)?.[0]).toBeCloseTo(25, 10)
+    expect(mapLocalComparisonPoint(mapped!, null, registration)?.[1]).toBeCloseTo(20, 10)
+    expect(mapLocalComparisonPoint([100, 100], registration, null)).toBeNull()
+    expect(hasLocalEvidence(registration)).toBe(true)
+    expect(hasLocalEvidence({ movingToReference: registration.movingToReference })).toBe(false)
+  })
+
+  it('uses approximate component cells without treating them as anatomical evidence', () => {
+    const registration = {
+      movingToReference: [[1, 0, 50], [0, 1, 20]],
+      overviewTriangles: [{
+        moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+        reference: [[12, 8], [110, 5], [15, 112]] as [[number, number], [number, number], [number, number]],
+      }],
+    }
+    const mapped = mapOverviewComparisonPoint([20, 25], registration, null)
+    expect(mapped).not.toBeNull()
+    expect(mapOverviewComparisonPoint(mapped!, null, registration)?.[0]).toBeCloseTo(20, 10)
+    expect(mapOverviewComparisonPoint(mapped!, null, registration)?.[1]).toBeCloseTo(25, 10)
+    const delta = overviewAlignmentViewDelta([20, 25], registration, null)
+    expect(delta).not.toBeNull()
+    expect(hasLocalEvidence(registration)).toBe(false)
+    // A small margin keeps panning continuous around sparse component cells.
+    const nearby = mapOverviewComparisonPoint([110, 25], registration, null)
+    expect(nearby).toEqual([120.55, 30.7])
+    expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[0]).toBeCloseTo(110, 10)
+    expect(mapOverviewComparisonPoint(nearby!, null, registration)?.[1]).toBeCloseTo(25, 10)
+    // The closest component transform continues across surrounding glass. A
+    // registration with multiple components must not use an unrelated global affine.
+    const distant = mapOverviewComparisonPoint([500, 500], registration, null)
+    expect(distant).toEqual([517, 513])
+    expect(mapOverviewComparisonPoint(distant!, null, registration)?.[0]).toBeCloseTo(500, 10)
+    expect(mapOverviewComparisonPoint(distant!, null, registration)?.[1]).toBeCloseTo(500, 10)
+  })
+
+  it('does not extrapolate a validated component map into another fragment', () => {
+    const registration = {
+      movingToReference: [[0, -2, 1000], [2, 0, 200]],
+      triangles: [{
+        moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+        reference: [[1000, 200], [1000, 400], [800, 200]] as [[number, number], [number, number], [number, number]],
+      }],
+    }
+    // The point is outside the only local cell. Applying its affine here could
+    // jump into a different repeated core, so the map must be unavailable.
+    const mapped = mapContinuousComparisonPoint([400, 300], registration, null)
+    expect(mapped).toBeNull()
+    expect(continuousAlignmentViewDelta([400, 300], registration, null)).toBeNull()
+
+    // A short gap next to the verified cell remains navigable so sparse mesh
+    // sampling does not interrupt ordinary panning within one component.
+    const adjacent = mapContinuousComparisonPoint([150, 25], registration, null)
+    expect(adjacent).toEqual([950, 500])
+    expect(mapContinuousComparisonPoint(adjacent!, null, registration)?.[0]).toBeCloseTo(150, 10)
+    expect(mapContinuousComparisonPoint(adjacent!, null, registration)?.[1]).toBeCloseTo(25, 10)
+  })
+})

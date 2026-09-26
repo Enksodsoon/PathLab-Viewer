@@ -66,9 +66,11 @@ export interface LibrarySlide {
   updatedAt: string
   trashedAt: string | null
   thumbnailUrl: string | null
+  stackCount?: number
 }
 
 export interface LibrarySlideDetails extends LibrarySlide {
+  collections?: Array<{ id: string; name: string }>
   filename: string
   adminNotes: string
   metadata: SlideMetadata | null
@@ -112,6 +114,7 @@ export interface LibraryNavigation {
     classroom: boolean
     study?: boolean
     assessment?: boolean
+    alignment?: boolean
   }
   counts: {
     all: number
@@ -220,6 +223,170 @@ export interface SharedManifest {
   expiresAt: string | null
   folders: string[][]
   slides: SharedSlide[]
+}
+
+export interface SlideRegistration {
+  status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
+  provenance: 'automatic' | 'automatic-candidate' | 'manual'
+  engine?: string
+  engineVersion?: string
+  anchorSlideId?: string
+  coordinateReferenceId?: string
+  movingToReference?: number[][]
+  referenceSupport?: [number, number, number, number] | null
+  movingSupport?: [number, number, number, number] | null
+  confidence?: number
+  controlPoints?: Array<{
+    moving: [number, number]
+    reference: [number, number]
+    errorPixels: number
+  }>
+  triangles?: Array<{
+    moving: [[number, number], [number, number], [number, number]]
+    reference: [[number, number], [number, number], [number, number]]
+    maxResidualPixels?: number
+    provenance?: 'structural-feature' | 'structural-flow-patch' | 'structural-flow-neighbor' | 'manual-landmark' | 'approximate-intensity-shape' | 'approximate-structural-flow'
+  }>
+  overviewTriangles?: Array<{
+    moving: [[number, number], [number, number], [number, number]]
+    reference: [[number, number], [number, number], [number, number]]
+    provenance?: 'approximate-intensity-shape' | 'approximate-structural-flow'
+  }>
+  supportPolygons?: {
+    moving: Array<[[number, number], [number, number], [number, number]]>
+    reference: Array<[[number, number], [number, number], [number, number]]>
+  }
+  evidence?: {
+    stackAcceptedAt?: string
+    previewPublishedAt?: string
+    source?: string
+    mode?: 'matched-regions' | 'outline-proposal'
+    anatomicalMatchCount?: number
+    featureMatchCount?: number
+    triangleCount?: number
+    overviewTriangleCount?: number
+    flowControlCount?: number
+    flowCycleP95?: number
+    verifiedPatchCount?: number
+    supportExpansionCount?: number
+    patchNccMedian?: number
+    patchDiscriminationMedian?: number
+    structuralComponentPairsChecked?: number
+    acceptedStructuralComponents?: number
+    ambiguousStructuralComponents?: number
+    layoutConsistencyMedian?: number
+    opticalDensityKazeInliers?: number
+    opticalDensityKazeSpreadMedian?: number
+    componentOrderPreserved?: boolean
+    availabilityReason?: string
+    withheldCheck?: string
+  }
+  reason?: string
+}
+
+export interface ComparisonMember {
+  slideId: string
+  displayName: string
+  stain: string
+  tileSource: string | null
+  thumbnailUrl: string | null
+  metadata: SlideMetadata | null
+  registration: SlideRegistration | null
+  state?: SlideState
+  availabilityReason?: string | null
+  errorCode?: string | null
+  anchorSlideId?: string | null
+}
+
+export interface ComparisonSet {
+  id: string
+  name: string
+  referenceSlideId: string
+  status: 'draft' | 'queued' | 'running' | 'ready' | 'partial' | 'failed' | 'cancelled'
+  version: number
+  alignmentConfig?: {
+    anchors?: Record<string, string>
+    enginePolicy?: 'benchmark' | 'selected'
+    benchmarkEngines?: string[]
+    selectedEngines?: Record<string, string>
+  }
+  members: ComparisonMember[]
+}
+
+export interface ComparisonRegistrationJob {
+  phase?: 'preview' | 'refinement' | 'fallback'
+  resultStatus?: SlideRegistration['status']
+  runtimeSeconds?: number
+  queueSeconds?: number
+  id: string
+  kind: 'align' | 'align_benchmark'
+  engine?: string | null
+  memberId: string | null
+  setVersion: number | null
+  status: 'queued' | 'leased' | 'running' | 'retry_wait' | 'succeeded' | 'failed' | 'cancelled'
+  stage: string
+  progress: number
+  processedPatches: number
+  processedComponentPairs: number
+  totalComponentPairs: number
+  totalPatches: number
+  failureCode: string | null
+  createdAt: string
+  updatedAt?: string
+  heartbeatAt?: string | null
+}
+
+export interface RegistrationCandidate {
+  id: string
+  slideId: string
+  setVersion: number
+  anchorSlideId: string
+  engine: string
+  engineVersion: string
+  settingsDigest: string
+  currentSettings: boolean
+  status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
+  validationState: 'engineering_passed' | 'landmark_passed' | 'rejected'
+  registration: SlideRegistration | null
+  evidence: Record<string, unknown>
+  artifactSha256: string | null
+  failureReason: string | null
+  createdAt: string
+}
+
+export interface RegistrationCandidateManifest {
+  comparisonSetId: string
+  setVersion: number
+  engineAvailability: Record<string, { available: boolean, reason: string | null, buildVersion: string }>
+  candidates: RegistrationCandidate[]
+}
+
+export interface SharedComparisonSummary {
+  id: string
+  name: string
+  status: ComparisonSet['status']
+}
+
+export interface SlideStackSummary {
+  id: string
+  name: string
+  status: ComparisonSet['status']
+  version: number
+  referenceSlideId: string
+  role: 'reference' | 'member'
+  memberCount: number
+  stains: string[]
+}
+
+export interface StackSuggestion {
+  slideId: string
+  displayName: string
+  stain: string
+  caseId: string
+  organSite: string
+  folderId: string | null
+  thumbnailUrl: string | null
+  reasons: string[]
 }
 
 export interface SharePreviewItem {

@@ -1554,14 +1554,11 @@
 @media (max-width:420px) {
   .annotation-commandbar {
     gap:3px;
+    flex-wrap:wrap;
   }
 
   .annotation-commandbar button {
     padding-inline:7px;
-  }
-
-  .annotation-save-status {
-    display:none;
   }
 
   .annotation-list {

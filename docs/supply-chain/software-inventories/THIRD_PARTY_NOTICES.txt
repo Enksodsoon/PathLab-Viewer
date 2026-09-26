@@ -16,6 +16,12 @@ license, and notice terms; the root Apache-2.0 license does not relicense them.
 Distributions must preserve all applicable third-party attributions and notices
 identified by the repository supply-chain records.
 
+The optional alignment image integrates VALIS (MIT; license text in
+deploy/third_party/VALIS_LICENSE.txt). HISAlign declares MIT at its pinned
+source revision, but that revision omits the linked license file; private
+evaluation is allowed by project policy while distribution remains blocked
+until the notice text is resolved.
+
 RECORDED COMPONENTS
 -------------------
 
@@ -5081,6 +5087,21 @@ Blockers: NONE
 Notice files:
   - ome_types-0.6.3/LICENSE sha256:b4fabf9bc25d74808d21002a72eb5179cfc061a840d69275eea522119fadf669
 
+ID: pypi:opencv-python-headless@4.14.0.94
+Name: opencv-python-headless
+Version: 4.14.0.94
+License: Apache Software License
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/opencv-python-headless/4.14.0.94/json
+Blockers: NONE
+Notice files:
+  - opencv_python_headless-4.14.0.94/LICENSE-3RD-PARTY.txt sha256:36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c
+  - opencv_python_headless-4.14.0.94/LICENSE.txt sha256:09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c
+  - opencv_python_headless-4.14.0.94/opencv/COPYRIGHT sha256:854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58
+  - opencv_python_headless-4.14.0.94/opencv/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+  - opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_BSD.txt sha256:a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25
+  - opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_CHANGE_NOTICE.txt sha256:b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8
+
 ID: pypi:pillow@12.3.0
 Name: pillow
 Version: 12.3.0
@@ -5115,25 +5136,25 @@ Notice files:
   - propcache-0.5.2/LICENSE sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
   - propcache-0.5.2/NOTICE sha256:56d6ac6c8105c0a51304c21db060e361af9a8ea0af9a75c239c28b5d13693838
 
-ID: pypi:psycopg-binary@3.3.5
+ID: pypi:psycopg-binary@3.3.4
 Name: psycopg-binary
-Version: 3.3.5
+Version: 3.3.4
 License: LGPL-3.0-only
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/psycopg-binary/3.3.5/json
+Source: https://pypi.org/pypi/psycopg-binary/3.3.4/json
 Blockers: NONE
 Notice files:
-  - psycopg_binary-3.3.5.dist-info/licenses/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+  - psycopg_binary-3.3.4.dist-info/licenses/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
 
-ID: pypi:psycopg@3.3.5
+ID: pypi:psycopg@3.3.4
 Name: psycopg
-Version: 3.3.5
+Version: 3.3.4
 License: LGPL-3.0-only
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/psycopg/3.3.5/json
+Source: https://pypi.org/pypi/psycopg/3.3.4/json
 Blockers: NONE
 Notice files:
-  - psycopg-3.3.5/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
+  - psycopg-3.3.4/LICENSE.txt sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118
 
 ID: pypi:pycparser@3.0
 Name: pycparser
@@ -5360,6 +5381,17 @@ Notice files:
   - tzdata-2026.3/LICENSE sha256:df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46
   - tzdata-2026.3/licenses/LICENSE_APACHE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
+ID: pypi:tzdata@2026.4
+Name: tzdata
+Version: 2026.4
+License: Apache-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://pypi.org/pypi/tzdata/2026.4/json
+Blockers: NONE
+Notice files:
+  - tzdata-2026.4/LICENSE sha256:df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46
+  - tzdata-2026.4/licenses/LICENSE_APACHE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+
 ID: pypi:urllib3@2.7.0
 Name: urllib3
 Version: 2.7.0
@@ -5379,20 +5411,6 @@ Source: https://pypi.org/pypi/uvicorn/0.52.4/json
 Blockers: NONE
 Notice files:
   - uvicorn-0.52.4/LICENSE.md sha256:efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371
-
-ID: pypi:uvloop@0.22.1
-Name: uvloop
-Version: 0.22.1
-License: Apache Software License | MIT License
-Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/uvloop/0.22.1/json
-Blockers: NONE
-Notice files:
-  - uvloop-0.22.1/LICENSE-APACHE sha256:377025287798f9dcd819e1f826fa5fc5e2f382528691ab0528c5cf8c8c282c27
-  - uvloop-0.22.1/LICENSE-MIT sha256:6dd4c399f26de043d77a2ad7e31db4cb5bf08ea8368b0a42d6e158635cc8ab62
-  - uvloop-0.22.1/vendor/libuv/LICENSE sha256:16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c
-  - uvloop-0.22.1/vendor/libuv/LICENSE-docs sha256:cce5d01fa4a83b794271bd2c28cffdf99afd43c803e6ddefddae39b591ea7448
-  - uvloop-0.22.1/vendor/libuv/LICENSE-extra sha256:262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836
 
 ID: pypi:watchfiles@1.2.0
 Name: watchfiles
@@ -5918,6 +5936,15 @@ Source: docs/supply-chain/WARM_UI_ASSET_RECEIPT.json; exact audited source blob 
 Blockers: NONE
 Notice files: NONE RECORDED
 
+ID: asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
+Name: apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1
+Version: 52ab4f279f464062
+License: Apache-2.0 repository source; procedural mathematical filter
+Admission: ADMITTED
+Source: Functional gamma-transfer filter introduced in 199fa1f. Zero-size SVG contains only defs/filter/feComponentTransfer and RGB power functions; no artwork, imported media, patient pixels, or external source.
+Blockers: NONE
+Notice files: NONE RECORDED
+
 ID: asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Name: apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1
 Version: ca3e900abec497cc
@@ -6001,7 +6028,7 @@ Notice files: NONE RECORDED
 
 ID: asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons
 Name: npm:@phosphor-icons/react@2.1.10#imported-svg-icons
-Version: aad76bf66a9b8262
+Version: b8f7bafac3221732
 License: MIT
 Admission: ADMITTED
 Source: Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.

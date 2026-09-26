@@ -124,6 +124,22 @@
   "rules": [
     {
       "kind": "inline-svg",
+      "locatorGlob": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "contentSha256": "52ab4f279f4640622ba298097c4fc0fd919941039a34e75956b8ea9ffec2a3d4",
+      "metadata": {
+        "creator": "PathLab source contributors; tool-assisted functional code",
+        "provenance": "Functional gamma-transfer filter introduced in 199fa1f. Zero-size SVG contains only defs/filter/feComponentTransfer and RGB power functions; no artwork, imported media, patient pixels, or external source.",
+        "licensePermission": "Apache-2.0 repository source; procedural mathematical filter",
+        "attribution": "Preserve repository LICENSE and NOTICE.",
+        "permittedUse": "APPLICATION_IMAGE_DISPLAY_FILTER",
+        "privacyClass": "PUBLIC_NON_PERSONAL",
+        "distributionScope": "SHIPPED_RUNTIME",
+        "releaseDisposition": "ADMITTED",
+        "blockers": []
+      }
+    },
+    {
+      "kind": "inline-svg",
       "locatorGlob": "apps/web/src/pages/AssessmentReportPage.tsx#inline-svg-2",
       "contentSha256": "61808230429e92674b1fae24ec7e441150b2f1c47eb6905557b6c476d56b7909",
       "metadata": {

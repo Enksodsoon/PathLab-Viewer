@@ -1112,7 +1112,7 @@ def register_assessment_routes(
                     "id": attempt.id,
                     "ordinal": attempt.ordinal,
                     "status": attempt.status,
-                    "startedAt": attempt.started_at,
+                    "startedAt": as_utc(attempt.started_at).isoformat(),
                     "responses": responses,
                 }
                 if attempt is not None
@@ -1198,7 +1198,7 @@ def register_assessment_routes(
             "id": attempt.id,
             "ordinal": attempt.ordinal,
             "status": attempt.status,
-            "startedAt": attempt.started_at.isoformat(),
+            "startedAt": as_utc(attempt.started_at).isoformat(),
         }
         persist_receipt(
             database,

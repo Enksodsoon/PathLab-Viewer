@@ -310,7 +310,7 @@
 
 @media (max-width: 520px) {
   .assessment-studio-header { width: calc(100% - 20px); }
-  .assessment-studio-meta .assessment-save-state { display: none; }
+  .assessment-studio-meta { flex-wrap: wrap; row-gap: 4px; }
   .assessment-studio-header .assessment-tabs { gap: 18px; }
   .assessment-question-workspace { padding: 10px 10px 86px; }
   .assessment-authoring-actions .assessment-toolbar-add { display: none; }
@@ -2650,7 +2650,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .assessment-breadcrumb-row nav a,
   .assessment-breadcrumb-row nav > svg { display: none; }
   .assessment-toolbar-utilities { gap: 5px; }
-  .assessment-save-state { display: none; }
   .assessment-command-row { flex-wrap: wrap; }
   .assessment-search { min-width: 100%; flex-basis: 100%; }
   .assessment-status-filter { flex: 1 1 130px; }

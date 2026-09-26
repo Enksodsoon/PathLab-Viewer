@@ -1,0 +1,23 @@
+FROM python:3.12.13-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl libvips42 libvips-tools libopenslide0 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY pyproject.toml README.md LICENSE NOTICE alembic.ini ./
+COPY LICENSE NOTICE /usr/share/licenses/pathlab-viewer/
+COPY deploy/backend-requirements.txt ./deploy/backend-requirements.txt
+COPY migrations ./migrations
+COPY server ./server
+COPY scripts/alignment_image_smoke.py ./scripts/alignment_image_smoke.py
+RUN pip install --no-cache-dir --require-hashes -r deploy/backend-requirements.txt \
+    && pip install --no-cache-dir --no-deps .
+
+# HISAlign is excluded until its upstream license file is resolved.
+
+RUN python -c "from PIL import Image; import pyvips; import wsi_viewer.main, wsi_viewer.alignment_engines; payload = pyvips.Image.black(1, 1, bands=3).jpegsave_buffer(Q=75, strip=True, optimize_coding=True); assert payload.startswith(b'\\xff\\xd8') and payload.endswith(b'\\xff\\xd9')" \
+    && useradd --system --uid 10001 --create-home pathlab \
+    && install -d -o pathlab -g pathlab -m 700 /cache/ome-tiles
+USER pathlab
+CMD ["pathlab-worker"]

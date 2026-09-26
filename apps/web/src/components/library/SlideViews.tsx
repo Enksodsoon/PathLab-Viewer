@@ -85,6 +85,7 @@ interface CommonProps {
 function Thumbnail({ slide }: { slide: LibrarySlide }) {
   return (
     <div className="library-slide-thumbnail">
+      {slide.stackCount ? <span className="library-stack-badge">{slide.stackCount} stack{slide.stackCount === 1 ? '' : 's'}</span> : null}
       {slide.thumbnailUrl ? (
         <img src={slide.thumbnailUrl} alt="" loading="lazy" decoding="async" />
       ) : (

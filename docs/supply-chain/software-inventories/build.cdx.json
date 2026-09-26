@@ -22228,6 +22228,56 @@
       "version": "0.6.3"
     },
     {
+      "bom-ref": "dependency:pypi:opencv-python-headless@4.14.0.94",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/67/8a/51ff1c6287be0b6cd3070cf095875da4ff7d6eda38507e6ada5608786a78/opencv_python_headless-4.14.0.94.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/opencv-python-headless/4.14.0.94/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "opencv-python-headless",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:opencv-python-headless@4.14.0.94"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled-runtime"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/opencv-python-headless@4.14.0.94",
+      "type": "library",
+      "version": "4.14.0.94"
+    },
+    {
       "bom-ref": "dependency:pypi:pillow@12.3.0",
       "externalReferences": [
         {
@@ -22378,21 +22428,21 @@
       "version": "0.5.2"
     },
     {
-      "bom-ref": "dependency:pypi:psycopg-binary@3.3.5",
+      "bom-ref": "dependency:pypi:psycopg-binary@3.3.4",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/45/cf/f0577fe9c08b67c3c203506a99c69bbcb2b357e46e2f5f5705878c1e466f/psycopg_binary-3.3.5-cp310-cp310-macosx_10_9_x86_64.whl"
+          "url": "https://files.pythonhosted.org/packages/b7/bf/70d8a60488f9955cbbcd538beae44d56bb2f1d19e673b72788f2d343ff55/psycopg_binary-3.3.4-cp310-cp310-macosx_10_9_x86_64.whl"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/psycopg-binary/3.3.5/json"
+          "url": "https://pypi.org/pypi/psycopg-binary/3.3.4/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "cd0faa2475ab254ad1b507430131cf7f7f0be927ffdc03c32ad3b33d2ef63f42"
+          "content": "b7bfff1ca23732b488cbca3076fc11bc98d520ee122514fdb17a8e20d3338f5a"
         }
       ],
       "licenses": [
@@ -22404,7 +22454,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:psycopg-binary@3.3.5"
+          "value": "pypi:psycopg-binary@3.3.4"
         },
         {
           "name": "pathlab:role",
@@ -22423,26 +22473,26 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/psycopg-binary@3.3.5",
+      "purl": "pkg:pypi/psycopg-binary@3.3.4",
       "type": "library",
-      "version": "3.3.5"
+      "version": "3.3.4"
     },
     {
-      "bom-ref": "dependency:pypi:psycopg@3.3.5",
+      "bom-ref": "dependency:pypi:psycopg@3.3.4",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/72/73/8fb739d0f6bba247b9b93c9840c402a4f88545be5f1d4b02b23366371c00/psycopg-3.3.5.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/db/2f/cb91e5502ec9de1de6f1b76cfbf69531932725361168bb06963620c77e2e/psycopg-3.3.4.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/psycopg/3.3.5/json"
+          "url": "https://pypi.org/pypi/psycopg/3.3.4/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "d0a3d9ccf5788af054cbd745278cb02401b5c312aeaafbf2c6144460aec47da4"
+          "content": "e21207764952cff81b6b8bdacad9a3939f2793367fdac2987b3aac36a651b5bc"
         }
       ],
       "licenses": [
@@ -22454,7 +22504,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:psycopg@3.3.5"
+          "value": "pypi:psycopg@3.3.4"
         },
         {
           "name": "pathlab:role",
@@ -22473,9 +22523,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/psycopg@3.3.5",
+      "purl": "pkg:pypi/psycopg@3.3.4",
       "type": "library",
-      "version": "3.3.5"
+      "version": "3.3.4"
     },
     {
       "bom-ref": "dependency:pypi:pycparser@3.0",
@@ -23580,6 +23630,56 @@
       "version": "2026.3"
     },
     {
+      "bom-ref": "dependency:pypi:tzdata@2026.4",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7374323befcc0be5ab3bd94afd4096a0124e7379152c/tzdata-2026.4.tar.gz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://pypi.org/pypi/tzdata/2026.4/json"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "name": "tzdata",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "pypi:tzdata@2026.4"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "runtime-mandatory"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "bundled-runtime"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:pypi/tzdata@2026.4",
+      "type": "library",
+      "version": "2026.4"
+    },
+    {
       "bom-ref": "dependency:pypi:urllib3@2.7.0",
       "externalReferences": [
         {
@@ -23678,58 +23778,6 @@
       "purl": "pkg:pypi/uvicorn@0.52.4",
       "type": "library",
       "version": "0.52.4"
-    },
-    {
-      "bom-ref": "dependency:pypi:uvloop@0.22.1",
-      "externalReferences": [
-        {
-          "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/06/f0/18d39dbd1971d6d62c4629cc7fa67f74821b0dc1f5a77af43719de7936a7/uvloop-0.22.1.tar.gz"
-        },
-        {
-          "type": "vcs",
-          "url": "https://pypi.org/pypi/uvloop/0.22.1/json"
-        }
-      ],
-      "hashes": [
-        {
-          "alg": "SHA-256",
-          "content": "6c84bae345b9147082b17371e3dd5d42775bddce91f885499017f4607fdaf39f"
-        }
-      ],
-      "licenses": [
-        {
-          "license": {
-            "name": "Apache Software License | MIT License"
-          }
-        }
-      ],
-      "name": "uvloop",
-      "properties": [
-        {
-          "name": "pathlab:id",
-          "value": "pypi:uvloop@0.22.1"
-        },
-        {
-          "name": "pathlab:role",
-          "value": "runtime-mandatory"
-        },
-        {
-          "name": "pathlab:distribution",
-          "value": "bundled-runtime"
-        },
-        {
-          "name": "pathlab:admission",
-          "value": "RECORDED_UNREVIEWED"
-        },
-        {
-          "name": "pathlab:blockers",
-          "value": "[]"
-        }
-      ],
-      "purl": "pkg:pypi/uvloop@0.22.1",
-      "type": "library",
-      "version": "0.22.1"
     },
     {
       "bom-ref": "dependency:pypi:watchfiles@1.2.0",
@@ -25165,6 +25213,47 @@
       "version": "1e1b9a7762e2ac81"
     },
     {
+      "bom-ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "52ab4f279f4640622ba298097c4fc0fd919941039a34e75956b8ea9ffec2a3d4"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 repository source; procedural mathematical filter"
+          }
+        }
+      ],
+      "name": "apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "release-asset"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "SHIPPED_RUNTIME"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "ADMITTED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "type": "file",
+      "version": "52ab4f279f464062"
+    },
+    {
       "bom-ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
       "hashes": [
         {
@@ -25532,7 +25621,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "aad76bf66a9b826221282e3195e0a7f46070188eaab2889adc7766208876cf63"
+          "content": "b8f7bafac3221732addfdceba9d0df76de1da95294ba3f6432afbfb1473ea1a6"
         }
       ],
       "licenses": [
@@ -25564,7 +25653,7 @@
         }
       ],
       "type": "file",
-      "version": "aad76bf66a9b8262"
+      "version": "b8f7bafac3221732"
     },
     {
       "bom-ref": "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
@@ -26152,11 +26241,12 @@
         "dependency:pypi:oci-cli@3.92.0",
         "dependency:pypi:oci@2.185.1",
         "dependency:pypi:ome-types@0.6.3",
+        "dependency:pypi:opencv-python-headless@4.14.0.94",
         "dependency:pypi:pillow@12.3.0",
         "dependency:pypi:prompt-toolkit@3.0.43",
         "dependency:pypi:propcache@0.5.2",
-        "dependency:pypi:psycopg-binary@3.3.5",
-        "dependency:pypi:psycopg@3.3.5",
+        "dependency:pypi:psycopg-binary@3.3.4",
+        "dependency:pypi:psycopg@3.3.4",
         "dependency:pypi:pycparser@3.0",
         "dependency:pypi:pydantic-core@2.46.5",
         "dependency:pypi:pydantic-extra-types@2.11.1",
@@ -26179,9 +26269,9 @@
         "dependency:pypi:typing-extensions@4.16.0",
         "dependency:pypi:typing-inspection@0.4.4",
         "dependency:pypi:tzdata@2026.3",
+        "dependency:pypi:tzdata@2026.4",
         "dependency:pypi:urllib3@2.7.0",
         "dependency:pypi:uvicorn@0.52.4",
-        "dependency:pypi:uvloop@0.22.1",
         "dependency:pypi:watchfiles@1.2.0",
         "dependency:pypi:wcwidth@0.8.2",
         "dependency:pypi:websockets@17.1",
@@ -26214,6 +26304,7 @@
         "asset:asset:inline-data:apps/web/src/test/assessment-v2-authoring.test.tsx#data-image-2",
         "asset:asset:inline-svg:apps/web/src/components/Brand.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/Loader.tsx#inline-svg-1",
+        "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentQuestionCanvas.tsx#inline-svg-1",
         "asset:asset:inline-svg:apps/web/src/pages/AssessmentAdminPage.tsx#inline-svg-1",
@@ -26227,7 +26318,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+      "ref": "pathlab:build:f93ddd6ca0789206eef33c1f94637bbe1edcd6d7"
     },
     {
       "dependsOn": [],
@@ -28231,6 +28322,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:opencv-python-headless@4.14.0.94"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:pillow@12.3.0"
     },
     {
@@ -28243,11 +28338,11 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:psycopg-binary@3.3.5"
+      "ref": "dependency:pypi:psycopg-binary@3.3.4"
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:psycopg@3.3.5"
+      "ref": "dependency:pypi:psycopg@3.3.4"
     },
     {
       "dependsOn": [],
@@ -28339,15 +28434,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "dependency:pypi:tzdata@2026.4"
+    },
+    {
+      "dependsOn": [],
       "ref": "dependency:pypi:urllib3@2.7.0"
     },
     {
       "dependsOn": [],
       "ref": "dependency:pypi:uvicorn@0.52.4"
-    },
-    {
-      "dependsOn": [],
-      "ref": "dependency:pypi:uvloop@0.22.1"
     },
     {
       "dependsOn": [],
@@ -28479,6 +28574,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "asset:asset:inline-svg:apps/web/src/components/OpenSeadragonViewer.tsx#inline-svg-1"
+    },
+    {
+      "dependsOn": [],
       "ref": "asset:asset:inline-svg:apps/web/src/components/assessment/AssessmentLearnerQuestion.tsx#inline-svg-1"
     },
     {
@@ -28528,15 +28627,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:d21b61e8223a5e9e8c25b965801771f92e20a3cb",
+      "bom-ref": "pathlab:build:f93ddd6ca0789206eef33c1f94637bbe1edcd6d7",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/f93ddd6ca0789206eef33c1f94637bbe1edcd6d7"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/f93ddd6ca0789206eef33c1f94637bbe1edcd6d7"
         }
       ],
       "licenses": [
@@ -28567,13 +28666,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@d21b61e8223a5e9e8c25b965801771f92e20a3cb",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@f93ddd6ca0789206eef33c1f94637bbe1edcd6d7",
       "type": "application",
-      "version": "d21b61e8223a5e9e8c25b965801771f92e20a3cb"
+      "version": "f93ddd6ca0789206eef33c1f94637bbe1edcd6d7"
     },
-    "timestamp": "2026-09-13T02:23:20Z"
+    "timestamp": "2026-09-26T18:38:13Z"
   },
-  "serialNumber": "urn:uuid:d21b61e8-223a-4e9e-ac25-b965801771f9",
+  "serialNumber": "urn:uuid:f93ddd6c-a078-4206-aef3-3c1f94637bbe",
   "specVersion": "1.6",
   "version": 1
 }

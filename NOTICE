@@ -8,3 +8,9 @@ license, and notice terms; the root Apache-2.0 license does not relicense them.
 
 Distributions must preserve all applicable third-party attributions and notices
 identified by the repository supply-chain records.
+
+The optional alignment image integrates VALIS (MIT; license text in
+deploy/third_party/VALIS_LICENSE.txt). HISAlign declares MIT at its pinned
+source revision, but that revision omits the linked license file; private
+evaluation is allowed by project policy while distribution remains blocked
+until the notice text is resolved.

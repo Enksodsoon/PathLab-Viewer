@@ -172,13 +172,13 @@ def test_sqlite_noop_rollback_preserves_large_bytes_dependents_and_schema(tmp_pa
                 return rows, schema
 
         before = snapshot()
-        migrate(engine, "head")
+        migrate(engine, "20260907_0037")
         assert snapshot() == before
         migrate(engine, OLD_HEAD, downgrade=True)
         assert snapshot() == before
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT version_num FROM alembic_version")) == OLD_HEAD
-        migrate(engine, "head")
+        migrate(engine, "20260907_0037")
         assert snapshot() == before
     finally:
         engine.dispose()

@@ -17,7 +17,7 @@ class InvalidTransition(ValueError):
 
 
 _TRANSITIONS: dict[SlideState, frozenset[SlideState]] = {
-    SlideState.UPLOADING: frozenset({SlideState.QUEUED, SlideState.DELETING}),
+    SlideState.UPLOADING: frozenset({SlideState.QUEUED, SlideState.FAILED, SlideState.DELETING}),
     SlideState.QUEUED: frozenset({SlideState.VALIDATING, SlideState.FAILED, SlideState.DELETING}),
     SlideState.VALIDATING: frozenset({SlideState.CONVERTING, SlideState.FAILED}),
     SlideState.CONVERTING: frozenset({SlideState.READY_PRIVATE, SlideState.FAILED}),

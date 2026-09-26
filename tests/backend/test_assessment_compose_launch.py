@@ -66,6 +66,13 @@ def test_enabled_studio_launches_dedicated_service_with_postgres(tmp_path: Path)
     assert arguments[-2:] == ["up", "-d"]
 
 
+def test_alignment_flag_launches_its_worker_profile(tmp_path: Path) -> None:
+    result = launch(tmp_path, "PATHLAB_ALIGNMENT_ENABLED=true\n")
+    assert result.returncode == 0, result.stderr
+    arguments = result.stdout.splitlines()
+    assert arguments[arguments.index("--profile") + 1] == "alignment"
+
+
 @pytest.mark.parametrize("configuration", ["", "PATHLAB_ASSESSMENT_ENABLED=false\n"])
 def test_ordinary_release_keeps_studio_profile_absent(tmp_path: Path, configuration: str) -> None:
     result = launch(tmp_path, configuration)

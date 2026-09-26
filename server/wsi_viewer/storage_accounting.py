@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import stat
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -125,6 +126,7 @@ def reserve_new_slide(
     actor_user_id: str | None,
     folder_id: str | None = None,
     render_mode: str = "static_dzi",
+    after_flush: Callable[[OrmSession, Slide], None] | None = None,
 ) -> Slide:
     required = admission_required(source_bytes, render_mode=render_mode)
     _require_physical_space(layout.root, required)
@@ -146,6 +148,8 @@ def reserve_new_slide(
         )
         database.add(slide)
         database.flush()
+        if after_flush is not None:
+            after_flush(database, slide)
         database.add(
             AuditEvent(
                 actor_user_id=actor_user_id,

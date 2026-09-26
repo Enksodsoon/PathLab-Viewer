@@ -14,6 +14,12 @@ import type {
   SharePreview,
   LibraryShare,
   StorageInventory,
+  ComparisonSet,
+  ComparisonRegistrationJob,
+  SlideStackSummary,
+  StackSuggestion,
+  SharedComparisonSummary,
+  RegistrationCandidateManifest,
 } from './types'
 
 const CSRF_KEY = 'pathlab-csrf'
@@ -229,6 +235,7 @@ export async function getLibraryNavigation(folderId?: string): Promise<LibraryNa
       classroom: response.headers.get('X-PathLab-Classroom-Enabled') === 'true',
       study: response.headers.get('X-PathLab-Study-Enabled') === 'true',
       assessment: response.headers.get('X-PathLab-Assessment-Enabled') === 'true',
+      alignment: response.headers.get('X-PathLab-Alignment-Enabled') === 'true',
     },
   }
 }
@@ -550,6 +557,129 @@ export async function getSharedManifest(
   )
 }
 
+export async function createComparisonSet(name: string, slideIds: string[], referenceSlideId: string): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch('/api/v1/admin/comparison-sets', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, slideIds, referenceSlideId }),
+  }))
+}
+
+export async function registerComparisonSet(id: string): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/register`, { method: 'POST' }))
+}
+
+export async function reregisterComparisonSet(id: string): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/reregister`, { method: 'POST' }))
+}
+
+export async function listComparisonSets(): Promise<ComparisonSet[]> {
+  return json<ComparisonSet[]>(await fetch('/api/v1/admin/comparison-sets', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  }))
+}
+
+export async function getSlideStacks(slideId: string): Promise<SlideStackSummary[]> {
+  return json<SlideStackSummary[]>(await fetch(
+    `/api/v1/admin/slides/${encodeURIComponent(slideId)}/stacks`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function getStackSuggestions(slideId: string, query = ''): Promise<StackSuggestion[]> {
+  const parameters = new URLSearchParams()
+  if (query.trim()) parameters.set('q', query.trim())
+  return json<StackSuggestion[]>(await fetch(
+    `/api/v1/admin/slides/${encodeURIComponent(slideId)}/stack-suggestions?${parameters}`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function updateStackMembers(id: string, payload: {
+  version: number
+  add: Array<{ slideId: string; anchorSlideId: string }>
+  remove?: string[]
+  referenceSlideId?: string
+  order?: string[]
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/members`,
+    { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+  ))
+}
+
+export async function reserveStackUpload(id: string, file: File, payload: {
+  version: number
+  displayName: string
+  stain: string
+  anchorSlideId: string
+  folderId: string | null
+  caseId: string
+  organSite: string
+}): Promise<UploadReservation & { comparisonSetId: string }> {
+  return json<UploadReservation & { comparisonSetId: string }>(await csrfFetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/upload-reservations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, filename: file.name, length: file.size }),
+    },
+  ))
+}
+
+export async function cancelComparisonRegistration(id: string): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/register`, { method: 'DELETE' }))
+}
+
+export async function getComparisonSet(id: string): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await fetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, { credentials: 'same-origin', cache: 'no-store' }))
+}
+
+export async function getComparisonJobs(id: string): Promise<ComparisonRegistrationJob[]> {
+  return json<ComparisonRegistrationJob[]>(await fetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/jobs`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function benchmarkComparisonSet(id: string, version: number, engines: string[], rerun = false): Promise<void> {
+  await expectOk(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/benchmark`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version, engines, rerun }),
+  }))
+}
+
+export async function getComparisonCandidates(id: string): Promise<RegistrationCandidateManifest> {
+  return json<RegistrationCandidateManifest>(await fetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/candidates`,
+    { credentials: 'same-origin', cache: 'no-store' },
+  ))
+}
+
+export async function promoteComparisonCandidate(id: string, candidateId: string, version: number): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(
+    `/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/candidates/${encodeURIComponent(candidateId)}/promote`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) },
+  ))
+}
+
+export async function updateComparisonSet(id: string, payload: {
+  version: number
+  referenceSlideId: string
+  anchors: Record<string, string>
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }))
+}
+
+export async function getSharedComparisonSet(publicId: string, id: string): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await fetch(`/api/v2/public/collections/${encodeURIComponent(publicId)}/comparisons/${encodeURIComponent(id)}`, { credentials: 'omit', cache: 'no-store' }))
+}
+
+export async function getSharedComparisons(publicId: string): Promise<SharedComparisonSummary[]> {
+  return json<SharedComparisonSummary[]>(await fetch(`/api/v2/public/collections/${encodeURIComponent(publicId)}/comparisons`, { credentials: 'omit', cache: 'no-store' }))
+}
+
 export async function previewLibraryShare(
   targetType: 'folder' | 'collection',
   targetId: string,
@@ -611,4 +741,14 @@ export async function revokeLibraryShare(shareId: string): Promise<void> {
       headers: csrfHeaders(),
     }),
   )
+}
+
+
+export async function correctComparisonSet(id: string, slideId: string, payload: {
+  version: number; referenceSlideId: string; referencePoints: [number, number][];
+  movingPoints: [number, number][]; previewOnly: boolean
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/corrections/${encodeURIComponent(slideId)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }))
 }

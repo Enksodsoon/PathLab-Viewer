@@ -1811,6 +1811,10 @@ def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> 
         )
         assert response.status_code == 400
         assert response.json()["detail"]["code"] == "INVALID_TIFF_SIGNATURE"
+        failed = client.get(f"/api/v1/admin/slides/{created['slide']['id']}").json()
+        assert failed["state"] == "failed"
+        assert failed["errorCode"] == "INVALID_TIFF_SIGNATURE"
+        assert upload.exists()
 
 
 def test_completed_upload_reduces_hook_path_to_a_safe_tus_id(tmp_path: Path) -> None:
@@ -1867,8 +1871,10 @@ def test_private_preview_publish_and_delete_lifecycle(tmp_path: Path) -> None:
 
         preview = client.get(f"/api/v1/admin/slides/{slide_id}")
         assert preview.status_code == 200
-        assert preview.json()["tileSource"].endswith("/slide.dzi")
-        assert preview.json()["thumbnailUrl"].endswith("/preview/thumbnail.jpg")
+        assert preview.json()["tileSource"].split("?", 1)[0].endswith("/slide.dzi")
+        assert preview.json()["thumbnailUrl"].split("?", 1)[0].endswith(
+            "/preview/thumbnail.jpg"
+        )
         tile = client.get(f"/api/v1/admin/slides/{slide_id}/preview/slide_files/0/0_0.jpeg")
         assert tile.content == b"jpeg"
 

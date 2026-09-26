@@ -197,6 +197,8 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
     assert restored.status_code == 200
     assert restored.json()["attempt"]["id"] == attempt_id
     assert datetime.fromisoformat(restored.json()["serverTime"]).tzinfo is not None
+    started_at = datetime.fromisoformat(restored.json()["attempt"]["startedAt"])
+    assert started_at.utcoffset() == timedelta(0)
     assert restored.json()["attempt"]["status"] == "submitted"
     # Pre-upgrade receipts may still contain a score; replay must reapply
     # the current response boundary rather than expose those stored bytes.
