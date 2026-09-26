@@ -40,6 +40,10 @@ The disposable full-stack launcher now enables alignment and seeds generated, tr
 
 Reproduce with `PYTHONPATH=server python scripts/benchmark_alignment_preview.py --output receipt.json`. Use `--manifest private-manifest.json` for development derivatives; the script documents its manifest format and omits paths and specimen identities from receipts. Private images and manifests must remain outside the repository.
 
+The expanded Chromium full-stack suite passed all 18 journeys after repairing library menus that disappeared during delayed page scrolling. The shared menu now repositions beside its trigger; focus does not scroll the page. All 35 library unit tests pass. Earlier complete 17-journey runs across the other browser profiles remain historical evidence; final-head protected CI and current affected-profile checks remain separate gates.
+
+Optional dense adapters now bound rounded mask indexes after checking continuous coordinates are inside the image. A fractional-edge regression reproduced the previous `IndexError`. VALIS also writes its final qualified payload to the artifact: an approximate result can no longer leave saved JSON marked ready. Nine adapter tests and mypy pass; adapter revisions invalidate prior settings digests. Neither repair establishes independently reviewed anatomical correspondence.
+
 ## Remaining release gates
 
 - Qualify local correspondence after the overview sampling and thin-tissue repairs. Development stacks now produce approximate maps; independently reviewed local accuracy remains unproven. Existing local maps can be retained while difficult regions continue refinement.

@@ -43,8 +43,8 @@ ENGINE_VERSIONS = {
 }
 ADAPTER_VERSIONS = {
     ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
-    ENGINE_HISALIGN: "pathlab-adapter-v2-distributed-feature-gate",
-    ENGINE_VALIS: "pathlab-adapter-v8-adaptive-disk-lightglue",
+    ENGINE_HISALIGN: "pathlab-adapter-v3-bounded-mask-sampling",
+    ENGINE_VALIS: "pathlab-adapter-v9-qualified-artifact",
 }
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
 
@@ -254,8 +254,16 @@ def _sample_coordinate_map(
     valid_indexes = np.where(inside)[0]
     reference_tissue[valid_indexes] = (
         reference_mask[
-            np.rint(reference_points[valid_indexes, 1]).astype(int),
-            np.rint(reference_points[valid_indexes, 0]).astype(int),
+            np.clip(
+                np.rint(reference_points[valid_indexes, 1]).astype(int),
+                0,
+                reference_mask.shape[0] - 1,
+            ),
+            np.clip(
+                np.rint(reference_points[valid_indexes, 0]).astype(int),
+                0,
+                reference_mask.shape[1] - 1,
+            ),
         ]
         > 0
     )
@@ -744,7 +752,6 @@ class ValisEngine:
             moving_full_size=inputs.moving_full_size,
         )
         artifact = inputs.workspace / "valis-coordinate-map.json"
-        artifact.write_text(json.dumps(result.as_json(), separators=(",", ":")))
         payload = result.as_json()
         if not local_evidence_qualified:
             payload = _mark_approximate_engine_map(
@@ -770,6 +777,7 @@ class ValisEngine:
             ),
             "valisLocalEvidenceQualified": local_evidence_qualified,
         }
+        artifact.write_text(json.dumps(payload, separators=(",", ":")))
         return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
 
 

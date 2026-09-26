@@ -1,7 +1,16 @@
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+import cv2
 import numpy as np
 import pytest
-from wsi_viewer.alignment import AlignmentRejected, map_registration_point
+from PIL import Image
+from wsi_viewer import alignment_engines
+from wsi_viewer.alignment import AlignmentRejected, _structure, map_registration_point
 from wsi_viewer.alignment_engines import (
+    EngineInput,
+    ValisEngine,
     _mark_approximate_engine_map,
     _sample_coordinate_map,
     _scanner_frame_candidate,
@@ -49,6 +58,23 @@ def test_engine_map_rejects_inconsistent_inverse() -> None:
         )
 
 
+def test_engine_map_handles_fractional_coordinates_at_image_boundary() -> None:
+    image = _tissue()
+    _, mask = _structure(image)
+    x, y, width, height = cv2.boundingRect(cv2.findNonZero(mask))
+    offset = np.asarray(
+        [image.shape[1] - 0.1 - (x + width - 1), image.shape[0] - 0.1 - (y + height - 1)]
+    )
+    result = _sample_coordinate_map(
+        reference_rgb=image,
+        moving_rgb=image,
+        map_moving_to_reference=lambda points: points + offset,
+        map_reference_to_moving=lambda points: points - offset,
+        provenance="fractional-edge",
+    )
+    assert result.triangles
+
+
 def test_engine_map_rejects_self_consistent_wrong_tissue_overlap() -> None:
     image = _tissue()
     offset = np.asarray([150.0, 0.0])
@@ -92,9 +118,7 @@ def test_dense_engine_map_without_feature_evidence_is_overview_only() -> None:
         provenance="dense-flow",
     ).as_json()
 
-    approximate = _mark_approximate_engine_map(
-        result, reason="insufficient distributed features"
-    )
+    approximate = _mark_approximate_engine_map(result, reason="insufficient distributed features")
 
     assert approximate["status"] == "approximate"
     assert approximate["triangles"] == []
@@ -120,3 +144,28 @@ def test_settings_digest_includes_pathlab_adapter_revision() -> None:
 
     assert len(digest) == 64
     assert digest != settings_digest("native-v12")
+
+
+def test_valis_artifact_preserves_final_approximate_qualification(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    slide = SimpleNamespace(warp_xy_from_to=lambda points, target: points)
+    registrar = SimpleNamespace(
+        register=lambda: (None, None, SimpleNamespace(to_dict=lambda **kwargs: [])),
+        get_slide=lambda name: slide,
+    )
+    registration = SimpleNamespace(Valis=lambda *args, **kwargs: registrar)
+    original_import = alignment_engines.importlib.import_module
+    monkeypatch.setattr(ValisEngine, "available", lambda self: (True, None))
+    monkeypatch.setattr(
+        alignment_engines.importlib,
+        "import_module",
+        lambda name: registration if name == "valis.registration" else original_import(name),
+    )
+    image = Image.fromarray(_tissue())
+    run = ValisEngine().register(
+        EngineInput(image, image, image.size, image.size, tmp_path), lambda value: None
+    )
+    assert run.registration["status"] == "approximate"
+    assert run.artifact_path is not None
+    assert json.loads(run.artifact_path.read_text()) == run.registration
