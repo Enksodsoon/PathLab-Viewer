@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "9d6ff238ff0b436f2664a19ebdb7bad1c1d11f977e287b6cbdf9d0998c537e5a",
+      "sha256": "4823b169f4146dd371f035d79283df7af1dae82a92355bb7ceed8b4e78329dc5",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "4f881c3356e14479f614fbf061ccc11c3c6b7a0539a58aa641571cbfe1e37d08",
+      "sha256": "c59079c7da2bd350dd53e890ba36dbb809276cea50d9cbe496a32de5095f2a88",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "55b49de155c303322c0e3918841140ecd103bc945ed68d36692b62d85a88e017",
+      "sha256": "7d03bfaf1629107ca83e0f195a15c270ddf2e82711396b134e6ced4e8062650b",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "f62b919732c17083ea0dde371ddad5c6371d4b6027629a6a01a44b4a6beb465c",
+      "sha256": "9abbd3a66ee029b98282b1ce2d66240e2e4398e29e4692d7ff6ad03946178f1f",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-26T22:10:35Z",
+  "generatedAt": "2026-09-27T07:36:40Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "6aa1289e2713cb02b0730bddb29cf37222e0815f",
+      "gitBlob": "183de7957b44fbfb8cae13ce3c995334d8a0947c",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "c3882dee0d27012c2c7b48f30e39817d6eb39ddcf1a61778dfac6efc7c7f69f3",
+      "sha256": "cff7df7d9b9e2f91bf18034f9169174d4e6b0a236ed11dad372314a500db5b7c",
       "sizeBytes": 41188
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "dbbe6669cf0e9dad9e601aca4178ab83487f6275",
-  "subjectTree": "4e53d14c29bc861bf2ba81974634dac10ddb21c4"
+  "subjectCommit": "7b2ff8d16f170a252ae637115b8092564796fb6b",
+  "subjectTree": "4fbfdf32ea6b2830bb8513d831b87c9076cec6dc"
 }
