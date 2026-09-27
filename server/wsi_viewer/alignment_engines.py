@@ -43,8 +43,8 @@ ENGINE_VERSIONS = {
 }
 ADAPTER_VERSIONS = {
     ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
-    ENGINE_HISALIGN: "pathlab-adapter-v3-bounded-mask-sampling",
-    ENGINE_VALIS: "pathlab-adapter-v9-qualified-artifact",
+    ENGINE_HISALIGN: "pathlab-adapter-v4-overview-support",
+    ENGINE_VALIS: "pathlab-adapter-v10-overview-support",
 }
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
 
@@ -346,6 +346,9 @@ def _mark_approximate_engine_map(payload: dict[str, Any], *, reason: str) -> dic
     transform. It does not prove that the transform joins corresponding
     anatomy, so maps without distributed matched features are overview-only.
     """
+    tissue_dice = float((payload.get("evidence") or {}).get("tissueDice") or 0.0)
+    if not np.isfinite(tissue_dice) or tissue_dice < 0.65:
+        raise AlignmentRejected("Needs refinement: coarse map has insufficient tissue support")
     result = dict(payload)
     result["status"] = "approximate"
     result["reason"] = reason

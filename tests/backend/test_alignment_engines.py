@@ -139,6 +139,14 @@ def test_availability_always_reports_native_and_explains_optional_engines() -> N
             assert availability[engine]["reason"]
 
 
+@pytest.mark.parametrize("dice", [None, 0.492022, 0.649999, float("nan")])
+def test_unqualified_dense_map_cannot_publish_weak_overview(dice: float | None) -> None:
+    with pytest.raises(AlignmentRejected, match="insufficient tissue support"):
+        _mark_approximate_engine_map(
+            {"evidence": {"tissueDice": dice}}, reason="insufficient distributed features"
+        )
+
+
 def test_settings_digest_includes_pathlab_adapter_revision() -> None:
     digest = settings_digest("hisalign-0.2.1")
 
