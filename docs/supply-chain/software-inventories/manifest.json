@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "c80855d1404da07cfeeca2e278fbd8df8fd674460c76eef3b56e2f45bc0d57a5",
+      "sha256": "7397b6deea7b5e27bae6de07b0cd62c1377023aded3569c6c2e2deddd8c09dd4",
       "sizeBytes": 727763
     },
     {
       "path": "build.spdx.json",
-      "sha256": "4a2d1ce89d91276fe2f2bea5292e04ebb1973036d276e8c78730f95e35d10282",
+      "sha256": "543942aaa70e3a57f0c90a183c4e1eafca27af2cd4d0e7ec82937813f6a26e39",
       "sizeBytes": 587873
     },
     {
       "path": "source.cdx.json",
-      "sha256": "650c6405033cd4017031236054a3e818ac7f48db42935c28a1a8692a4bf20b65",
+      "sha256": "917c731365afad69d5e0aa73a1dddf5efa2e3302b2b842c880361d05249a66cf",
       "sizeBytes": 767863
     },
     {
       "path": "source.spdx.json",
-      "sha256": "0e446bdd18aa9819f1541d59ea9e1db4359d2e031a5597ea8dd8f5d56cce5d64",
+      "sha256": "695ab8c7340ffb4b4735fde6651bb5464871765639e07d0fb81d918cff2ef1b3",
       "sizeBytes": 619537
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-27T07:34:09Z",
+  "generatedAt": "2026-09-27T07:45:53Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -117,9 +117,9 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "b060a8e8408d2003c9653b4734007a66d9ca629b",
+      "gitBlob": "d733ef7bbc223052ba32b104c1c3f8d17e36c3d0",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "167a3ea839c0066538262089209343f00331d968d8cadaccc3c159ed723f68bb",
+      "sha256": "cdfef4ce06753d8c3decb580a4eca1abce2b849640285e32b856a28ac345325d",
       "sizeBytes": 809765
     },
     {
@@ -153,10 +153,10 @@
       "sizeBytes": 22180
     },
     {
-      "gitBlob": "b1d7955ffe16da3ee2106cb85283c20cd7909b92",
+      "gitBlob": "ed05da5e55c21710f67598994e4390a57ba884a8",
       "path": "scripts/generate_software_inventories.py",
-      "sha256": "923ca47f953b1d72faffede7092cb643f1b9bc7c4fd649037b8dfa50d22bee0b",
-      "sizeBytes": 23345
+      "sha256": "28673342750477d92a72d33d0e5f7ae43ddf2aee17645f19a8e8d4e90e9b8e26",
+      "sizeBytes": 23426
     },
     {
       "gitBlob": "f208bff06ba5263e9dd4bd462ac975e3bfbb8d68",
@@ -183,18 +183,6 @@
       "sizeBytes": 107661
     },
     {
-      "gitBlob": "377eeda17110d0587147dd7ac88f6d15dcdcf446",
-      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-common-package.json",
-      "sha256": "740784b70b19207529b9a08229aaa4bf7c211afcc30ab4594daa32891ccffb94",
-      "sizeBytes": 977
-    },
-    {
-      "gitBlob": "d7ff027264ebece8f09ddccabfb7a6f650a62621",
-      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-web-package.json",
-      "sha256": "664ea43e8734f7037a9cbf3192ae1880c67a034e3914f23408e69529c7a56d98",
-      "sizeBytes": 4601
-    },
-    {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
       "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
       "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
@@ -205,6 +193,18 @@
       "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2",
       "sizeBytes": 325054
+    },
+    {
+      "gitBlob": "377eeda17110d0587147dd7ac88f6d15dcdcf446",
+      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-common-package.json",
+      "sha256": "740784b70b19207529b9a08229aaa4bf7c211afcc30ab4594daa32891ccffb94",
+      "sizeBytes": 977
+    },
+    {
+      "gitBlob": "d7ff027264ebece8f09ddccabfb7a6f650a62621",
+      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-web-package.json",
+      "sha256": "664ea43e8734f7037a9cbf3192ae1880c67a034e3914f23408e69529c7a56d98",
+      "sizeBytes": 4601
     },
     {
       "gitBlob": "3ef1d26cafc90001bc9525fe43d7f090080e42f7",
@@ -1375,6 +1375,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "0d7dde464d54255c05fdfd6313f8d1c504b24ea5",
-  "subjectTree": "5d1ec1ff3e756e0ecd8c87cd5b70c7f4f40a4fdd"
+  "subjectCommit": "0868f189131f9d3e37632459a8ee843c5c92b3ac",
+  "subjectTree": "6b7e279aa6f8c305deb221976e4681ac59c6fe53"
 }
