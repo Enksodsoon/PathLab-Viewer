@@ -36,13 +36,18 @@ function flatten(
   children: Map<string, LibraryFolder[]>,
   expanded: Set<string>,
   level = 1,
+  visited = new Set<string>(),
 ): FlatFolder[] {
-  return folders.flatMap((folder) => [
-    { folder, level },
-    ...(expanded.has(folder.id)
-      ? flatten(children.get(folder.id) ?? [], children, expanded, level + 1)
-      : []),
-  ])
+  return folders.flatMap((folder) => {
+    if (visited.has(folder.id)) return []
+    visited.add(folder.id)
+    return [
+      { folder, level },
+      ...(expanded.has(folder.id)
+        ? flatten(children.get(folder.id) ?? [], children, expanded, level + 1, visited)
+        : []),
+    ]
+  })
 }
 
 export function FolderTree({

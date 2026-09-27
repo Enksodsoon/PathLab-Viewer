@@ -555,6 +555,7 @@ export function AdminPage() {
             if (
               slide.state === statusItem.state
               && slide.errorCode === statusItem.errorCode
+              && (statusItem.thumbnailUrl === undefined || slide.thumbnailUrl === statusItem.thumbnailUrl)
             ) {
               return [slide]
             }
@@ -563,6 +564,7 @@ export function AdminPage() {
               ...slide,
               state: statusItem.state,
               errorCode: statusItem.errorCode,
+              thumbnailUrl: statusItem.thumbnailUrl === undefined ? slide.thumbnailUrl : statusItem.thumbnailUrl,
             }]
           })
           if (!changed) return current
@@ -678,7 +680,9 @@ export function AdminPage() {
     if (location.startsWith('folder:')) {
       const names: Array<{ label: string; location: string }> = []
       let current = foldersById.get(location.slice('folder:'.length))
-      while (current) {
+      const visited = new Set<string>()
+      while (current && !visited.has(current.id)) {
+        visited.add(current.id)
         names.unshift({ label: current.name, location: `folder:${current.id}` })
         current = current.parentId ? foldersById.get(current.parentId) : undefined
       }

@@ -953,6 +953,22 @@ describe('Canvas Focus library explorer', () => {
     expect(api.getSlideStatuses).toHaveBeenCalledTimes(callsWhileVisible)
   })
 
+  it('shows the completed thumbnail without clearing library selection', async () => {
+    vi.useFakeTimers()
+    api.getSlideStatuses.mockResolvedValue([{
+      id: 'slide-2', state: 'ready_private', errorCode: null,
+      thumbnailUrl: '/api/v2/admin/slides/slide-2/thumbnail',
+    }])
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await act(async () => Promise.resolve())
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Colon adenocarcinoma' }))
+    await act(async () => vi.advanceTimersByTimeAsync(4000))
+    const card = screen.getByRole('button', { name: 'Open details for HER2 gastric IHC' }).closest('.library-slide-card')
+    expect(card?.querySelector('img')).toHaveAttribute('src', '/api/v2/admin/slides/slide-2/thumbnail')
+    expect(screen.getByRole('checkbox', { name: 'Select Colon adenocarcinoma' })).toBeChecked()
+    expect(api.getLibraryItems).toHaveBeenCalledTimes(1)
+  })
+
   it('refreshes navigator counters when a processing slide changes state', async () => {
     vi.useFakeTimers()
     api.getSlideStatuses.mockResolvedValue([{

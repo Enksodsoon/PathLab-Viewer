@@ -50,6 +50,12 @@ pathlab-tiles = "wsi_viewer.tile_service:main"
 [tool.hatch.build.targets.wheel]
 packages = ["server/wsi_viewer"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt" = "wsi_viewer/THIRD_PARTY_NOTICES.txt"
+
+[tool.hatch.build.targets.sdist.force-include]
+"docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt" = "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 testpaths = ["tests/backend"]

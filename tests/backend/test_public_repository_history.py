@@ -57,9 +57,7 @@ def make_repo(tmp_path: Path) -> tuple[Path, str]:
     (repo / "scripts").mkdir()
     shutil.copy2(SCANNER, repo / "scripts" / "check_public_repository.py")
     (repo / "README.md").write_text("clean\n", encoding="utf-8")
-    (repo / "LICENSE").write_text(
-        "Apache License\nVersion 2.0, January 2004\n", encoding="utf-8"
-    )
+    (repo / "LICENSE").write_text("Apache License\nVersion 2.0, January 2004\n", encoding="utf-8")
     (repo / "NOTICE").write_text(
         "PathLab Viewer\nCopyright 2026 Example\nThird-party works retain their terms.\n",
         encoding="utf-8",
@@ -335,8 +333,7 @@ def test_lockfile_rejects_network_ip_but_allows_numeric_version(tmp_path: Path) 
     repo, _ = make_repo(tmp_path)
     address = ".".join(("8", "8", "4", "4"))
     (repo / "pnpm-lock.yaml").write_text(
-        "version: " + ".".join(("1", "2", "3", "4")) + "\n"
-        f"resolution: https://{address}/pkg.tgz\n",
+        "version: " + ".".join(("1", "2", "3", "4")) + f"\nresolution: https://{address}/pkg.tgz\n",
         encoding="utf-8",
     )
     git(repo, "add", "pnpm-lock.yaml")
@@ -378,7 +375,8 @@ def test_only_exact_public_registry_notice_is_exempted(tmp_path: Path) -> None:
     repo, _ = make_repo(tmp_path)
     source_lock = SCANNER.parent.parent / "pnpm-lock.yaml"
     notice = next(
-        line for line in source_lock.read_text(encoding="utf-8").splitlines()
+        line
+        for line in source_lock.read_text(encoding="utf-8").splitlines()
         if line.strip().startswith("deprecated: Old versions of glob")
     )
     lock = repo / "pnpm-lock.yaml"
@@ -394,15 +392,76 @@ def test_historical_fixture_receipts_never_exempt_current_or_changed_content() -
 
     for (commit, relative), hashes in HISTORICAL_SYNTHETIC_EMAIL_LINES.items():
         import hashlib
+
         historical = subprocess.check_output(
-            ["git", "show", f"{commit}:{relative}"], cwd=SCANNER.parent.parent,
+            ["git", "show", f"{commit}:{relative}"],
+            cwd=SCANNER.parent.parent,
         ).decode("utf-8")
-        lines = [line for line in historical.splitlines()
-                 if hashlib.sha256(line.strip().encode()).hexdigest() in hashes]
+        lines = [
+            line
+            for line in historical.splitlines()
+            if hashlib.sha256(line.strip().encode()).hexdigest() in hashes
+        ]
         assert len(lines) == len(hashes)
         for line in lines:
             assert scan_text(relative, line, label=commit) == []
             assert any("email" in finding[2] for finding in scan_text(relative, line))
-            assert any("email" in finding[2] for finding in scan_text(
-                relative, line + " changed", label=commit,
-            ))
+            assert any(
+                "email" in finding[2]
+                for finding in scan_text(
+                    relative,
+                    line + " changed",
+                    label=commit,
+                )
+            )
+
+
+def test_exact_public_legal_email_lines_are_path_bound_and_do_not_exempt_secrets(tmp_path):
+    import json
+
+    from scripts.check_public_repository import EMAIL_PATTERN, is_allowed_email
+    from scripts.generate_software_inventories import dependency_components, notice_bundle
+
+    repo, _ = make_repo(tmp_path)
+    root = SCANNER.parents[1]
+    receipt_path = "docs/supply-chain/notice-material/public-legal-email-lines.json"
+    receipt = json.loads((root / receipt_path).read_text())
+    target = repo / receipt_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes((root / receipt_path).read_bytes())
+    for source in receipt["sources"]:
+        copied = repo / source["path"]
+        copied.parent.mkdir(parents=True, exist_ok=True)
+        copied.write_bytes((root / source["path"]).read_bytes())
+    inventory = json.loads((root / "docs/supply-chain/dependency-inventory.json").read_text())
+    bundle = notice_bundle(
+        dependency_components(inventory["records"]), (root / "NOTICE").read_text()
+    )
+    generated = repo / "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    generated.parent.mkdir(parents=True, exist_ok=True)
+    generated.write_bytes(bundle)
+    git(repo, "add", ".")
+    scanned = run_scan(repo)
+    assert scanned.returncode == 0, scanned.stderr
+    original = repo / receipt["sources"][0]["path"]
+    content = original.read_text()
+    public_email = next(
+        local + "@" + domain
+        for local, domain in EMAIL_PATTERN.findall(content)
+        if not is_allowed_email(local + "@" + domain)
+    )
+    original.write_text(content.replace(public_email, "private@" + "personal.org"))
+    assert "non-example email address" in run_scan(repo).stderr
+    original.write_text(content + "\nghp_" + "A" * 32 + "\n")
+    scanned = run_scan(repo)
+    assert "credential-like token" in scanned.stderr
+    original.write_text(content)
+    # The same approved upstream email is still rejected outside its exact paths.
+    (repo / "unexpected.txt").write_text(content)
+    git(repo, "add", "unexpected.txt")
+    assert "unexpected.txt" in run_scan(repo).stderr
+    (repo / "unexpected.txt").unlink()
+    git(repo, "add", "-u")
+    # A byte change in the approval receipt invalidates all its exemptions.
+    target.write_bytes(target.read_bytes() + b"\n")
+    assert "non-example email address" in run_scan(repo).stderr

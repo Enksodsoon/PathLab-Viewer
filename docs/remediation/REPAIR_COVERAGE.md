@@ -1,5 +1,7 @@
 # Repair coverage
 
+Release update: this prior coverage set shipped through PRs267–269 and protected deployment36275489983 at cf0d2d2. Fresh hardening review and additional proven defects are tracked separately in [remaining closure](tickets/remaining-campaign-closure.md). Passing prior release gates does not close those remaining entries.
+
 Final current-code coverage of the first and follow-up batches. The authoritative register has300 confirmed source sections across98 canonical keys,111falsepositive sections,189fixedupstream,328hardening and26overviewduplicate sections. Source sections and canonical keys are not independent bug totals; Study aggregate and deletion keys still overlap by actual mechanism.
 
 ## Current residual outcome
@@ -126,13 +128,13 @@ General-role Classroom capability claim is falsepositive under supported proxyde
 
 ## Remaining qualification and external evidence
 
-Two of29 extracted security aggregate subclaims still need external evidence: apparent embedded credential validity and actual OneDrive synchronization scope. This report does not reproduce secret values or infer those answers. Browser evidence covers current automated engines and synthetic data, not olderSafari or physicaldevices. Actual Forge client source was located remotely and the saved ViewerSyncService.java was reviewed; its existing opaque nextCursor loop matches current composite server pagination. Java integration was not executed.
+Two of29 extracted security aggregate subclaims still need external evidence: apparent embedded credential validity and actual OneDrive synchronization scope. This report does not reproduce secret values or infer those answers. Browser evidence covers current automated engines and synthetic data, not olderSafari or physicaldevices. The follow-up now qualifies pinned Forge Java pairing/synchronization against current Viewer routes; see FORGE_QUALIFICATION.md for actual runtime results and remaining real-image/device limits.
 
 The first candidate exact-check inventory was read-only inspected at first-worktree var/evidence/verification/first-batch-exact-checks.jsonl, headbd3ab41d16cb5387b4f86f0899067467aa615e4b; firstbatch merged main3a46ad5. Subsequent main strictinventory validation found unavailable squash-history subject objects; root extends existing immutable object fetch to metadata dependencies without waiving validators. Native integrity68pass/8PGskips and12inventory regressions pass. Fresh follow-up protected CI, deployment, backup/restore gates and authenticated live qualification remain necessary. No master register/product edits were made by this coverage task.
 
 
 
-Final coverage freeze: all98 current confirmed canonical keys represented exactly once; no confirmed mechanism remains identified as needing a product repair in this reviewed set. Source identity/status register remains root-owned. Two external aggregate evidence gaps and protected release/live qualification remain open. No product, master JSON, commit or push changes by this coverage pass.
+Original source coverage freeze: all98 confirmed canonical keys represented exactly once in that reviewed set. PRs267–269 subsequently passed protected checks, deployed at cf0d2d2, and received signed-in synthetic qualification. The fresh closure batch separately repairs reproduced production and hardening findings; see HARDENING_REVIEW.md and PRODUCTION_CLOSURE_QA.md. Those local changes still require their own reviewed release. Source identity/status register remains root-owned; external security facts and physical-device qualification remain open.
 
 ## Additional campaign findings
 

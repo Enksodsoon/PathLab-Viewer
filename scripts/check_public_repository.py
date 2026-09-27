@@ -24,6 +24,27 @@ HISTORICAL_SYNTHETIC_EMAIL_LINES = {
         "6b92465d2374633ca5ed410acad4790ae2048fcd96e5f853232f93b84fc189fb",
     },
 }
+# Exact public author/copyright lines from checksum-verified upstream legal
+# material. A changed receipt, line, or path receives no exemption. This affects
+# email findings only; every credential/IP/workstation rule still runs.
+LEGAL_EMAIL_RECEIPT = "docs/supply-chain/notice-material/public-legal-email-lines.json"
+LEGAL_EMAIL_RECEIPT_SHA256 = "3628a88e91d64e6d81a053ae0df28310686dd10a306d6b8c11f665d6dc3ef62b"
+
+
+def approved_legal_email_lines() -> dict[str, list[str]]:
+    try:
+        payload = (ROOT / LEGAL_EMAIL_RECEIPT).read_bytes()
+    except OSError:
+        return {}
+    if hashlib.sha256(payload).hexdigest() != LEGAL_EMAIL_RECEIPT_SHA256:
+        return {}
+    receipt = json.loads(payload)
+    if receipt.get("schema") != "pathlab.public-legal-email-lines/1":
+        return {}
+    return receipt["lines"]
+
+
+PUBLIC_LEGAL_EMAIL_LINES = approved_legal_email_lines()
 SELF_RELATIVE = Path(__file__).resolve().relative_to(ROOT).as_posix()
 TEXT_SUFFIXES = {
     "",
@@ -373,10 +394,14 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             historical_fixture = hashlib.sha256(line.strip().encode("utf-8")).hexdigest() in (
                 HISTORICAL_SYNTHETIC_EMAIL_LINES.get((label, relative), set())
             )
+            legal_notice = relative in PUBLIC_LEGAL_EMAIL_LINES.get(
+                hashlib.sha256(line.strip().encode("utf-8")).hexdigest(), []
+            )
             if (
                 not is_allowed_email(email)
                 and not public_registry_notice
                 and not historical_fixture
+                and not legal_notice
             ):
                 findings.append((display, line_number, "non-example email address"))
         for match in IPV4_PATTERN.finditer(line):

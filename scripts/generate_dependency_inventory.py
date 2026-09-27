@@ -179,6 +179,18 @@ def npm_roles(lock: dict[str, Any]) -> dict[str, tuple[str, bool]]:
     return roles
 
 
+# These exact registry archives include complete MIT grants in README files.
+# A README mention, changed payload, or another version is not notice evidence.
+EMBEDDED_NOTICE_RECEIPTS = {
+    "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz": {
+        "package/README.md": "ff138e683771b187f3629c383db72ee7d632009010a36d08e18e8d2a34222ec7",
+    },
+    "https://registry.npmjs.org/splaytree/-/splaytree-3.2.3.tgz": {
+        "package/Readme.md": "ba6a09ed78a28536852d504086e7dd0e1f9c090a27c460bc9f301ee5783927dd",
+    },
+}
+
+
 def archive_notices(data: bytes, source: str) -> list[dict[str, str]]:
     notices: list[dict[str, str]] = []
 
@@ -189,21 +201,91 @@ def archive_notices(data: bytes, source: str) -> list[dict[str, str]]:
     def accept(name: str, payload: bytes) -> None:
         if len(payload) > 2_000_000:
             return
-        notices.append({"path": name, "sha256": sha256(payload)})
+        digest = sha256(payload)
+        if not is_notice(name) and EMBEDDED_NOTICE_RECEIPTS.get(source, {}).get(name) != digest:
+            return
+        notices.append({"path": name, "sha256": digest})
 
     if source.endswith((".whl", ".zip")):
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             for info in archive.infolist():
-                if not info.is_dir() and is_notice(info.filename):
+                if not info.is_dir() and (
+                    is_notice(info.filename)
+                    or info.filename in EMBEDDED_NOTICE_RECEIPTS.get(source, {})
+                ):
                     accept(info.filename, archive.read(info))
     else:
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as archive:
             for member in archive.getmembers():
-                if member.isfile() and is_notice(member.name):
+                if member.isfile() and (
+                    is_notice(member.name)
+                    or member.name in EMBEDDED_NOTICE_RECEIPTS.get(source, {})
+                ):
                     extracted = archive.extractfile(member)
                     if extracted is not None:
                         accept(member.name, extracted.read())
     return sorted(notices, key=lambda item: item["path"])
+
+
+def notice_material(receipt: dict[str, Any]) -> bytes:
+    relative = PurePosixPath(receipt["path"])
+    if (
+        relative.is_absolute()
+        or ".." in relative.parts
+        or not relative.as_posix().startswith("docs/supply-chain/notice-material/")
+    ):
+        raise ValueError("notice material path is outside its recorded directory")
+    payload = (ROOT / relative).read_bytes()
+    if sha256(payload) != receipt["sha256"]:
+        raise ValueError(f"notice material checksum mismatch: {relative}")
+    return payload
+
+
+def supplemental_notices(
+    record: dict[str, Any], metadata: dict[str, Any], receipts: list[dict[str, Any]]
+) -> list[dict[str, str]]:
+    receipt = next((item for item in receipts if item["id"] == record["id"]), None)
+    if receipt is None:
+        return []
+    if not record["checksumVerified"] or any(
+        record[key] != receipt[key] for key in ("source", "artifact", "checksum", "license")
+    ):
+        raise ValueError(f"supplemental notice binding mismatch: {record['id']}")
+    repository = metadata.get("repository", {})
+    repository = repository.get("url") if isinstance(repository, dict) else repository
+    if str(repository).removeprefix("git+").lower() != receipt["repository"].lower():
+        raise ValueError(f"supplemental notice repository mismatch: {record['id']}")
+    package = json.loads(notice_material(receipt["packageReceipt"]))
+    if any(package.get(key) != record[key] for key in ("name", "version", "license")):
+        raise ValueError(f"supplemental notice binding package mismatch: {record['id']}")
+    prefix = f"https://raw.githubusercontent.com/microsoft/onnxruntime/{receipt['sourceCommit']}/"
+    if not re.fullmatch(r"[0-9a-f]{40}", receipt["sourceCommit"]):
+        raise ValueError("supplemental notice binding must use an immutable release commit")
+    for item in [receipt["packageReceipt"], *receipt["notices"]]:
+        if not item["url"].startswith(prefix):
+            raise ValueError("supplemental notice binding source mismatch")
+        notice_material(item)
+    return [{"path": item["path"], "sha256": item["sha256"]} for item in receipt["notices"]]
+
+
+def archive_notice_text(record: dict[str, Any], notice: dict[str, str]) -> bytes | None:
+    index = json.loads(
+        (ROOT / "docs/supply-chain/notice-material/archive-notices.json").read_text()
+    )
+    if index.get("schema") != "pathlab.archive-notices/1":
+        raise ValueError("unexpected archive notice index schema")
+    match = next((item for item in index["records"] if item["id"] == record["id"]), None)
+    if match is None or any(match[key] != record[key] for key in ("artifact", "checksum")):
+        return None
+    material = next(
+        (
+            item
+            for item in match["notices"]
+            if item["member"] == notice["path"] and item["sha256"] == notice["sha256"]
+        ),
+        None,
+    )
+    return notice_material(material) if material else None
 
 
 def npm_record(item: tuple[str, dict[str, Any], tuple[str, bool]]) -> dict[str, Any]:
@@ -226,6 +308,21 @@ def npm_record(item: tuple[str, dict[str, Any], tuple[str, bool]]) -> dict[str, 
         license_value = license_value.get("type")
     license_text = str(license_value).strip() if license_value else "UNKNOWN"
     notices = archive_notices(archive, archive_url)
+    supplements = json.loads(MANUAL_INPUTS.read_text(encoding="utf-8")).get(
+        "supplementalNotices", []
+    )
+    binding = {
+        "id": f"npm:{name}@{version}",
+        "name": name,
+        "version": version,
+        "source": metadata_url,
+        "artifact": archive_url,
+        "checksum": integrity,
+        "checksumVerified": verified,
+        "license": license_text,
+    }
+    supplemental = supplemental_notices(binding, metadata, supplements)
+    notices += supplemental
     blockers: list[str] = []
     if not verified:
         blockers.append("LOCK_INTEGRITY_MISMATCH")
@@ -234,7 +331,7 @@ def npm_record(item: tuple[str, dict[str, Any], tuple[str, bool]]) -> dict[str, 
     if not notices:
         blockers.append("NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE")
     role, optional = role_info
-    return {
+    record = {
         "id": f"npm:{name}@{version}",
         "ecosystem": "npm",
         "name": name,
@@ -254,6 +351,11 @@ def npm_record(item: tuple[str, dict[str, Any], tuple[str, bool]]) -> dict[str, 
         "admission": "BLOCKED" if blockers else "RECORDED_UNREVIEWED",
         "blockers": blockers,
     }
+    if supplemental:
+        record["supplementalNoticeSources"] = next(
+            item for item in supplements if item["id"] == record["id"]
+        )
+    return record
 
 
 def parse_requirements(path: Path) -> list[dict[str, Any]]:
@@ -309,6 +411,7 @@ def python_record(item: tuple[str, Path, dict[str, Any]]) -> dict[str, Any]:
             (entry for entry in artifacts if entry.get("packagetype") == "bdist_wheel"),
             None,
         )
+
     blockers: list[str] = []
     notices: list[dict[str, str]] = []
     source = "MISSING"
@@ -440,6 +543,14 @@ def main() -> int:
             manifest_receipt(NPM_LOCK),
             *(manifest_receipt(path) for path in PYTHON_LOCKS.values()),
             manifest_receipt(MANUAL_INPUTS),
+            *(
+                manifest_receipt(path)
+                for path in sorted(
+                    (ROOT / "docs/supply-chain/notice-material").rglob("*"),
+                    key=lambda path: path.as_posix(),
+                )
+                if path.is_file()
+            ),
         ],
         "records": sorted(
             npm_records + merge_python_records(python_records) + manual_records,

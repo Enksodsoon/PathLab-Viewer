@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T08:05:00.805635Z",
+  "generatedAt": "2026-09-27T07:44:24.143806Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -7893,11 +7893,9 @@
       "version": "2.0.1"
     },
     {
-      "admission": "BLOCKED",
+      "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz",
-      "blockers": [
-        "NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE"
-      ],
+      "blockers": [],
       "checksum": "sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==",
       "checksumVerified": true,
       "distribution": "bundled",
@@ -7909,7 +7907,12 @@
       ],
       "metadataSha256": "566bbad706db3711a1be1a2822bd37b200fd273fc118305430f019100e521a15",
       "name": "isarray",
-      "noticeFiles": [],
+      "noticeFiles": [
+        {
+          "path": "package/README.md",
+          "sha256": "ff138e683771b187f3629c383db72ee7d632009010a36d08e18e8d2a34222ec7"
+        }
+      ],
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "runtime-mandatory",
@@ -9346,11 +9349,9 @@
       "version": "2.1.4"
     },
     {
-      "admission": "BLOCKED",
+      "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.27.0.tgz",
-      "blockers": [
-        "NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE"
-      ],
+      "blockers": [],
       "checksum": "sha512-3KxL5wIVqa8Ex08jxSzncm9CMgw8CjOFyOQ7SxvG9o0cVLlhTNKXyIQuTbtX4tGPJEf73OER2xrjt4HJSBL4ow==",
       "checksumVerified": true,
       "distribution": "bundled",
@@ -9362,19 +9363,52 @@
       ],
       "metadataSha256": "cee97b74ecffc5022d1efee645fa7906e326772fbe6495bab3217e421819e261",
       "name": "onnxruntime-common",
-      "noticeFiles": [],
+      "noticeFiles": [
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+        },
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+          "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+        }
+      ],
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "runtime-mandatory",
       "source": "https://registry.npmjs.org/onnxruntime-common/1.27.0",
+      "supplementalNoticeSources": {
+        "artifact": "https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.27.0.tgz",
+        "checksum": "sha512-3KxL5wIVqa8Ex08jxSzncm9CMgw8CjOFyOQ7SxvG9o0cVLlhTNKXyIQuTbtX4tGPJEf73OER2xrjt4HJSBL4ow==",
+        "id": "npm:onnxruntime-common@1.27.0",
+        "license": "MIT",
+        "notices": [
+          {
+            "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+            "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+            "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/LICENSE"
+          },
+          {
+            "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+            "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2",
+            "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/ThirdPartyNotices.txt"
+          }
+        ],
+        "packageReceipt": {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-common-package.json",
+          "sha256": "740784b70b19207529b9a08229aaa4bf7c211afcc30ab4594daa32891ccffb94",
+          "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/js/common/package.json"
+        },
+        "repository": "https://github.com/Microsoft/onnxruntime.git",
+        "source": "https://registry.npmjs.org/onnxruntime-common/1.27.0",
+        "sourceCommit": "8f0278c77bf44b0cc83c098c6c722b92a36ac4b5"
+      },
       "version": "1.27.0"
     },
     {
-      "admission": "BLOCKED",
+      "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.27.0.tgz",
-      "blockers": [
-        "NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE"
-      ],
+      "blockers": [],
       "checksum": "sha512-ogDLsqIozHZwifPuN37OproAo0byX6t43/bP8GzeZWBWD6MOGExswFAx3up4NS/vvWBOg2u2PXomDt3rMmdQSg==",
       "checksumVerified": true,
       "distribution": "bundled",
@@ -9386,11 +9420,46 @@
       ],
       "metadataSha256": "e5a122676d4648a3d7eef34e80f26da979b987c6209ae77ce0dc53ba081aecc5",
       "name": "onnxruntime-web",
-      "noticeFiles": [],
+      "noticeFiles": [
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+        },
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+          "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+        }
+      ],
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "runtime-mandatory",
       "source": "https://registry.npmjs.org/onnxruntime-web/1.27.0",
+      "supplementalNoticeSources": {
+        "artifact": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.27.0.tgz",
+        "checksum": "sha512-ogDLsqIozHZwifPuN37OproAo0byX6t43/bP8GzeZWBWD6MOGExswFAx3up4NS/vvWBOg2u2PXomDt3rMmdQSg==",
+        "id": "npm:onnxruntime-web@1.27.0",
+        "license": "MIT",
+        "notices": [
+          {
+            "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+            "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+            "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/LICENSE"
+          },
+          {
+            "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+            "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2",
+            "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/ThirdPartyNotices.txt"
+          }
+        ],
+        "packageReceipt": {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-web-package.json",
+          "sha256": "664ea43e8734f7037a9cbf3192ae1880c67a034e3914f23408e69529c7a56d98",
+          "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/js/web/package.json"
+        },
+        "repository": "https://github.com/Microsoft/onnxruntime.git",
+        "source": "https://registry.npmjs.org/onnxruntime-web/1.27.0",
+        "sourceCommit": "8f0278c77bf44b0cc83c098c6c722b92a36ac4b5"
+      },
       "version": "1.27.0"
     },
     {
@@ -11050,11 +11119,9 @@
       "version": "1.2.1"
     },
     {
-      "admission": "BLOCKED",
+      "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/splaytree/-/splaytree-3.2.3.tgz",
-      "blockers": [
-        "NOTICE_TEXT_NOT_FOUND_IN_ARCHIVE"
-      ],
+      "blockers": [],
       "checksum": "sha512-7OXrNWzy6CK+r7Ch9OLPBDTKfB6XlWHjX4P0RU5B3IgFuWPeYN0XtRtlexGRjgbQxpfaUve6jTAwBGWuGntz/w==",
       "checksumVerified": true,
       "distribution": "bundled",
@@ -11066,7 +11133,12 @@
       ],
       "metadataSha256": "13878c5c704f0ae4f07ff1b21969fb67ef6b3459a0e2f0d8177e2101fa9c0a2e",
       "name": "splaytree",
-      "noticeFiles": [],
+      "noticeFiles": [
+        {
+          "path": "package/Readme.md",
+          "sha256": "ba6a09ed78a28536852d504086e7dd0e1f9c090a27c460bc9f301ee5783927dd"
+        }
+      ],
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "runtime-mandatory",
@@ -14001,7 +14073,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "d2b48e6be18038b3cfb588ed5b0b35594d26b2dc7be8b94cbeb916f94d48db2b",
+      "metadataSha256": "831497c6c281b59ef7857a79652556220e85aa8e942445123f1bd847c087f42f",
       "name": "greenlet",
       "noticeFiles": [
         {
@@ -14221,7 +14293,7 @@
         "deploy/backend-requirements.txt",
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "cf4ff5d748a88fe6e9d75ffbcc19b946d304b334dd10baa21bd90fb5566dfa44",
+      "metadataSha256": "22a9f01b4f3819da346f98e5d488fb18ea10cb98a2753a425d07692b9691304d",
       "name": "idna",
       "noticeFiles": [
         {
@@ -14523,7 +14595,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "85ae9a5c38c9b08a3bbc9cc871829c0cb535c26c26dfe735996f49f5237553cc",
+      "metadataSha256": "fa1f8e116a70415f18ad140a7e078cb90df8b13f9d99e98bc98e1fadc9eeca02",
       "name": "mako",
       "noticeFiles": [
         {
@@ -14820,7 +14892,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "446b1f8767eb6096fe88bd4fd42e6d7a4fdaf91f2c6964f24f0f374c9852bbde",
+      "metadataSha256": "ba02a1199eb87b5f3dd0ba6902f0abb489d342aa1dfd49d60fe656b142d52945",
       "name": "multidict",
       "noticeFiles": [
         {
@@ -14966,7 +15038,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "cc2fbd70696393eecd911a885495b4136c29f5ab1318b375a95ec2056d7dbdce",
+      "metadataSha256": "bea54320a5e6040161c453d6e8f187752a567f404cba98e69e36641a60edfc54",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -14997,7 +15069,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "462c351628cb46a9bd5608f508df518dba0322fd120f01c086279c73213cdda5",
+      "metadataSha256": "83014d06e14aff961f15ec20de230d25f288500ea79a03d9c751c8479cea0934",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15041,64 +15113,6 @@
       "role": "runtime-mandatory",
       "source": "https://pypi.org/pypi/ome-types/0.6.3/json",
       "version": "0.6.3"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "allLockedSha256": [
-        "1777f43c9fa064f54b916ad70d944b4fde0a644a17e49f04a966bb24a4b5f1e1",
-        "211e581f5a4670acbbe08fff36a35e9946039d2eea28b80394632d036d1be527",
-        "29714d7716dbfddf9fec20ffb878765e94ccaecd7d3ebd6750877420296e2dc5",
-        "4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577",
-        "5e02669eac0ba67b2a22d7245af1e8ee1a2ef1185ee526a063d8f0555224bd52",
-        "97c6e818c6f71c0cfa214e12293b1d0266d679c38f4e086de08357c8ac6ece0d",
-        "bc7db37dc234f7bb3190a158fd9dd750357246fc7d8adb23698843ef721a993b",
-        "cbed65415b8f6a9541c705afe3e64795840524d0ff3bc58f507826284a1dc64b",
-        "f70296aa7ac9d7ade0d925c43fdc006c83e20a23f30e2f40f1b82c74a7a54460"
-      ],
-      "artifact": "https://files.pythonhosted.org/packages/67/8a/51ff1c6287be0b6cd3070cf095875da4ff7d6eda38507e6ada5608786a78/opencv_python_headless-4.14.0.94.tar.gz",
-      "blockers": [],
-      "checksum": "sha256:4afa2ea1214453648be88259f035712454faa9039b686de7753569ba8eec1577",
-      "checksumVerified": true,
-      "distribution": "bundled-runtime",
-      "ecosystem": "pypi",
-      "id": "pypi:opencv-python-headless@4.14.0.94",
-      "license": "Apache Software License",
-      "manifestRefs": [
-        "deploy/backend-requirements.txt"
-      ],
-      "metadataSha256": "fffd4d8cfce3ac567a57eff464a9ccd9a2eeba2b9dd67f910d04968ec1f57d0f",
-      "name": "opencv-python-headless",
-      "noticeFiles": [
-        {
-          "path": "opencv_python_headless-4.14.0.94/LICENSE-3RD-PARTY.txt",
-          "sha256": "36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c"
-        },
-        {
-          "path": "opencv_python_headless-4.14.0.94/LICENSE.txt",
-          "sha256": "09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c"
-        },
-        {
-          "path": "opencv_python_headless-4.14.0.94/opencv/COPYRIGHT",
-          "sha256": "854538f426422b0f989a5e5b7641e5943753d10ef29ea54901dcd36039e43f58"
-        },
-        {
-          "path": "opencv_python_headless-4.14.0.94/opencv/LICENSE",
-          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
-        },
-        {
-          "path": "opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_BSD.txt",
-          "sha256": "a5a7cf90fe5ac9763baad852cf69cf9d9b89bff934a679fdc5c8fcecaeba9a25"
-        },
-        {
-          "path": "opencv_python_headless-4.14.0.94/opencv/doc/LICENSE_CHANGE_NOTICE.txt",
-          "sha256": "b2255f81ae7162e36550daefe432c72a8506cfc1b954897dbc553ed5160ad4b8"
-        }
-      ],
-      "optional": false,
-      "purpose": "PathLab API/runtime dependency",
-      "role": "runtime-mandatory",
-      "source": "https://pypi.org/pypi/opencv-python-headless/4.14.0.94/json",
-      "version": "4.14.0.94"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -15298,7 +15312,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "bf0fa80e3834e66b1411dab44de239a9751860316029a4eaaff04bd07409a632",
+      "metadataSha256": "8e678ee42cfc34de08a13df7b40a0b8ccfab08d5ac53eade8863ff15558fbf7d",
       "name": "propcache",
       "noticeFiles": [
         {
@@ -15319,117 +15333,117 @@
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
-        "018fbed325936da502feb546642c982dcc4b9ffdea32dfef78dbf3b7f7ad4070",
-        "0579252a1202cd73e4da137a1426e2dae993ae44e757605344282af3a082848c",
-        "136f199a407b5348b9b857c504aff60c77622a28482e7195839ce1b51238c4cc",
-        "13a7f380824c35896dcac7fe0f61440f7ca49d6dc73f3c13a9a4471e6a3b302e",
-        "17a21953a9e5ff3a16dab692625a3676e2f101db5e40072f39dbee2250194d68",
-        "1dc1f79fd16bb1f3f4421417a514607539f17804d95c7ed617265369d1981cae",
-        "1fbaa292a3c8bb61b45df1ad3da1908ccee7cb889db9425e3557d9e34e2a4829",
-        "22cdbf5f91ef7bb91fe0c5757e1962d3127a8010256eefd9c61fcaf441802097",
-        "26df2717e59c0473e4465a97dfb1b7afebaa479277870fd5784d1436470db47c",
-        "276904e3452d6a23d474ef9a21eee19f20eed3d53ddd2576af033827e0ba0992",
-        "28b7398fdd19db3232c884fb24550bdfe951221f510e195e233299e4c9b78f97",
-        "2c09aad7051326e7603c14e50636db9c01f78272dc54b3accff03d46370461e6",
-        "32a6fbf8481e3a370d0d72b860d35948a693cb01281da217f7b2f307636e591a",
-        "41f2ec0fea529832982bcb6c9415de3c86264ebe562b77a467c0fbcd7efbba8d",
-        "46893c26858be12cc49ca4226ed6a60b4bfccadd946b3bebb783a60b38788228",
-        "47c656a8a7ba6eb0cff1801a4caaa9c8bdc12d03080e273aff1c8ac39971a77e",
-        "494ca54901be8cf9eb7e02c25b731f2317c378efa44f43e8f9bd0e1184ae7be4",
-        "514404ed543efd620c85602b747df2a23cf1241b4067199e1a66f2d2757aaa41",
-        "574ea21a9651958f1535c5a1c649c7409e9168bcbffa29a3f2f961f58b322949",
-        "580ae30a5f95ccd90008ec697d3ed6a4a2047a516407ad904283fa42086936e9",
-        "5ab28a2a7649df3b72e6b674b4c190e448e8e77cf496a65bd846472048de2089",
-        "5c4ab71be17bdca30cb34c34c4e1496e2f5d6f20c199c12bad226070b22ef9bf",
-        "612a627d733f695b1de1f9b4bd511c15f999a5d8b915d444bbd7dd71cf3370da",
-        "6402a9d8146cf4b3974ded3fd28a971e83dc6a0333eb7822524a3aa20b546578",
-        "6b9016b1714da4dd5ecaaa75b82098aa5a0b87854ce9b092e21c27c4ae23e014",
-        "71e55ccbdfae79a2ed9c6369c3008a3025817ff9d7e27b32a2d84e2a4267e66e",
-        "7465bfe6087d2d5b42d4c53b9b11ca9f218e477317a4a162a10e3c19e984ba8e",
-        "75a9067e236f9b9ae3535b66fe99bddb33d39c0de10112e49b9ab11eee53dc31",
-        "773d573e11f437ce0bdb95b7c18dc58390494f96d43f8b45b9760436114f7652",
-        "77df19583501ea288eaf15ac0fe7ad01e6d8091a91d5c41df5c718f307d8e31b",
-        "7f7668f30b9dd5163197e5cbf4e0efd54e00f0a859cc566ce56cfc31f4054839",
-        "8c0056529e68dbe9184cd4019a1f3d8f3a4ead2f6fc7a5afcf27d3314edd1277",
-        "94596f9e7633ee3f6440711d43bb70aa31cc0a46a900ab8b4201a366ace5c9e7",
-        "ab8cca8ef8fb1ccf5b048ae5bd78ba55b9e4b5d472e3ce5ca39ff4d2a9c249e4",
-        "ad3bc94054876155549fdaedf4a46d1ec69d39a5bcee377148afe498e84c4b8e",
-        "b56b603ebcea8aa10b46228b8410ba7f13e7c2ee54389d4d9be0927fd8ce2a70",
-        "b6f5a29e9c775b9f12a1a717aa7a2c80f9e1db6f27ba44a5b59c80ac61d2ffcf",
-        "b7bfff1ca23732b488cbca3076fc11bc98d520ee122514fdb17a8e20d3338f5a",
-        "bdef84570ebbce1d42b4e7ea952d21c414c5f118ad02fee00c5625f35e134429",
-        "c37e024c07308cd06cf3ec51bfd0e7f6157585a4d84d1bce4a7f5f7913719bf8",
-        "c677c4ad433cb7150c8cd304a0769ae3bcfbe5ea0676eb53faa7b1443b16d0d3",
-        "cf7f73a4a792bc5db58a4b385d8a1467e8d468f7548702fb0ed1e9b7501b1c13",
-        "cffc3408d77a27973f33e5d909b624cce683db5fc25964b02fe0aae7886c1007",
-        "d7b4d40c153fa352ab3cca530f3a0baedf7621b2ebcbd7f084009522c21788fc",
-        "dbfdb9b6cc79f31104a7b162a2b921b765fcc62af6c00540a167a8de47e4ed38",
-        "df1d567fc430f6df15c9fcf67d87685fc49bdb325adc0db5af1adfb2f44eb5c9",
-        "e2631da29253a98bd496e6c4813b24e09a4fe3fb2a9e88513305d6f8747cce95",
-        "e7510c37550f91a187e3660a8cc50d4b760f8c3b8b2f89ebc5698cd2c7f2c85d",
-        "eb05ee1c2b817d27c537333224c9e83c7afb86fe7296ba970990068baf819b16",
-        "eb4eed2079c01a4850bf467deacfab56d356d4225040170af03dc9958321242d",
-        "ee17a2cf4943cde261adfad1bbc5bf38d6b3776d7afff74c7cabcbeaeb08c260",
-        "f80e3f2b5331dbbf0901bcb658056c03eeb2c1ef31d774afb0d61598b242e744",
-        "f9b1c2533af01cd7648378599f82b0b8ae32f293296e6eec5753a625bc97ef28",
-        "fa1cbc10768a796c96d3243656016bf4e337c81c71097270bb7b0ad6210d9765",
-        "fbd1d4ed566895ad2d3bf4ddfd8bae90026930ddf29df3b9d91d32c8c47866a7"
+        "0249c3e960cdee686000eb77169fb6590105c05bacc37e057ccdffdcd8e6ebde",
+        "04f64b39830887c2c737b522cbfd6ad215d65e67ebfff674aa4cf21c02af487b",
+        "06de14ac978a2d53e864069fb5487075c6e3cfb0740f1bfd7017bc8b9942067f",
+        "0d8a4b7ae47f3381e2ded89891d2455b809f4afb7e5b58086844abb8cfa420ea",
+        "1344fd57a19737554670e67aecabd4fb37cd7937f2925840009645d641117e5a",
+        "14f432430fd9e1a9e7d9ab2fe14956c77f5d074ebdc556a1ad04e9a1bd3fca04",
+        "14fdfd65a96ecbd8b586d14546105641f4a6ac7cbe335c786830ea4de94bbe60",
+        "19e5bf9872dbd164c220567fd385ba2309c7d9df1541f78343510c6b0f36a1b7",
+        "1ef2e498be47800f6202b9a2304c22646325ca6d54001b7c785bcfdb24a1e8ab",
+        "2111f880add40fb03c60556069ad68e884a0908a74d2debafc603caf93b73552",
+        "25105f9b46bdf2a30fcb67f56976ed66f6855941ae16bc024192609b917d493c",
+        "2719fe19a4da752c4110cc767716d0a5bdb760d1153d89018bb7c9c61717bde5",
+        "358748fc4c8ccdc0e2bdf55420494930e19c3ade586ea9c3a6de3dad1f897311",
+        "35885e333020fc152d27bea1a494bef13b2e68f6fd92b6229015e93539152008",
+        "39e70c8e3b5fad70e2970ea4cc502bf3b612018f128aa1c670f1fa78b9774543",
+        "40505676b1526b9ea387dace034040a8c8b0bcf984cd6bd4720a2ab15e813586",
+        "40f8b132c7243ef5f503f0b6f986bf16d38a51b0df1c6ba2577743f128be03e3",
+        "479b96fd78149cfa10369dc53fbfb89ee729be13146b584a23dbc7e164c0cf1e",
+        "4901e5b9a31c230211a1871263b6594373bacd770b14ad9b14d349716cb69cbe",
+        "553b5443cbc94fdb9b0e31b62acdf615e0780982d6b13752a15eb3d6c0dfd0d2",
+        "5698ab5941a4d138c30fef858588e651fe7d583280cd6e41832825ad9e747750",
+        "5816472e3bb05615f33a741e0835043d1f4bf9709ff30d2f4aed71815cfc6b5e",
+        "5b981d25fc2dd13fa7328e40703ea8a03f3e9d855ec946431e96a23206d3b9fd",
+        "682a17a57415c3ca1731eec018ed031f012ffcb81ba74806eb219cb396065672",
+        "6e85d50b87257fb117675a19ee59daa7bf9a57f6431500adf7059df799232ef4",
+        "7b443f943abfe35aa5a776630cea27c9348aa66659286cee0b99084332252080",
+        "88e01aa2e938a45655a8a5213fc3a44ba78cb4cab8a569b3e0bcb3d1d0eaba16",
+        "893ce86a4b997f6ca1261a7826db2506727332a6ff66646fa7f024b39b5e630e",
+        "8dbd694f3741dd4ac5bc60b70e17f7841aefb3f0f38cef4d2756de270e03af43",
+        "972cc28e943746e71ede254a4dfd1fdfcdd6dcadd6f375703849859f09377f24",
+        "98a388509306e5e08a4203253ac52846bc1b034e5cbd0ae6da1211593cc28594",
+        "9c071bf78e5c2e6efa40bc9089a954d7b41221347a72f35c6bf2d8c96e632f75",
+        "a5e45e4bb68656253ce5c7a344c0a425c293581eba954d7fd7c2e4b2dc9f3038",
+        "ab39e2794b95af61a2ff69e33e5ab6ac5df36e9ffea9a3b18e38b2aaca8c5ad5",
+        "ae67072db949d0c094b747a8ec52ad0fa3c42b27842a5f746f3613d54dde3fba",
+        "af5084124fb2fd16557073822519dfe8c389636a16adef661a4c0c3918733171",
+        "ba466011569297114449df9d523438e1adeedf3e4f31ffb78e897ec3fef3076b",
+        "c065531e8c1815276f50dbfa283e3a7f022671414cdda6fa9a16794dd53b28f9",
+        "c09775c549b40b274206e1b043c5e5b5af39666e85c98382a30bd05d23ab677b",
+        "c0cac998b9b1e82dec853d2e53b3d34d56a525cf231f9441a636cfd5992929a9",
+        "c6bd84e4cf67930f26f015dec33f615472b9c5871d46408efe112dbc1bc021de",
+        "ca8af7c0454cdce235d4aedcb5528857468f1490202d25e24fc7af40e176d563",
+        "cb3b3bffebfe07110730626e76238161124f35ac87b748d663316a28d22f58b0",
+        "cd0faa2475ab254ad1b507430131cf7f7f0be927ffdc03c32ad3b33d2ef63f42",
+        "cf0e5e63ee86098299c673992053d556c489ba9ae6aca6cb6e24d16a8e0b09e6",
+        "d06da67e9c687c6a6fdac9da4b17cbeb296ddd59bd01f6416ed4294bc57c5faf",
+        "d2a61e8147902771df7efe14062a3c8736347850d0d8befcf048235752504f2e",
+        "d8b66353b20e79bf7ac0a80f03ae97f522ccbbf909d687eec62f112e56c0276d",
+        "df209e64674a34b41662c67fdc8b4e0ffd77d2136393790691d086a09f9a6cab",
+        "df9853b832b7b916e02ef68e0d5403a7dab2d5c1ddfe94f22b1b155eb862622f",
+        "e5becd311f9af8d180bad372f51fb2252fd02cb2073056e2b170c9274f95fe7f",
+        "f45d77e398542ce0937d9fa3cd9d84e9c5fc6b34c50a66404ae840bada312750",
+        "f7e1e45aad410e20de45df2b159df68ff6c8dbf47a3501f806c4489b27f4ad2b",
+        "fd5b047c9fd887b767d063845413e405f5de8ce1dc7a9d0da0637b77b836b469",
+        "fdbeb38c9b7ca8fa57a7bda3802bedb62f4494ad3dd46c7dd36dc3f77fd5093f"
       ],
-      "artifact": "https://files.pythonhosted.org/packages/b7/bf/70d8a60488f9955cbbcd538beae44d56bb2f1d19e673b72788f2d343ff55/psycopg_binary-3.3.4-cp310-cp310-macosx_10_9_x86_64.whl",
+      "artifact": "https://files.pythonhosted.org/packages/45/cf/f0577fe9c08b67c3c203506a99c69bbcb2b357e46e2f5f5705878c1e466f/psycopg_binary-3.3.5-cp310-cp310-macosx_10_9_x86_64.whl",
       "blockers": [],
-      "checksum": "sha256:b7bfff1ca23732b488cbca3076fc11bc98d520ee122514fdb17a8e20d3338f5a",
+      "checksum": "sha256:cd0faa2475ab254ad1b507430131cf7f7f0be927ffdc03c32ad3b33d2ef63f42",
       "checksumVerified": true,
       "distribution": "bundled-runtime",
       "ecosystem": "pypi",
-      "id": "pypi:psycopg-binary@3.3.4",
+      "id": "pypi:psycopg-binary@3.3.5",
       "license": "LGPL-3.0-only",
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "dddff65c8d7278735bb12ef43187c099b6aaf774df2325e82a22c92641c7c5e7",
+      "metadataSha256": "5c8c98df1d44fb882cd17a5f4d4a86a6439ab02c060ec5e5a99b939c238b6756",
       "name": "psycopg-binary",
       "noticeFiles": [
         {
-          "path": "psycopg_binary-3.3.4.dist-info/licenses/LICENSE.txt",
+          "path": "psycopg_binary-3.3.5.dist-info/licenses/LICENSE.txt",
           "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
         }
       ],
       "optional": false,
       "purpose": "PathLab API/runtime dependency",
       "role": "runtime-mandatory",
-      "source": "https://pypi.org/pypi/psycopg-binary/3.3.4/json",
-      "version": "3.3.4"
+      "source": "https://pypi.org/pypi/psycopg-binary/3.3.5/json",
+      "version": "3.3.5"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
-        "b6bbc25ccf05c8fad3b061d9db2ef0909a555171b84b07f29458a447253d679a",
-        "e21207764952cff81b6b8bdacad9a3939f2793367fdac2987b3aac36a651b5bc"
+        "ce5aa5cdb4f9379f00f487590e5890bfa7df9a164648c969ffa628505e21af4e",
+        "d0a3d9ccf5788af054cbd745278cb02401b5c312aeaafbf2c6144460aec47da4"
       ],
-      "artifact": "https://files.pythonhosted.org/packages/db/2f/cb91e5502ec9de1de6f1b76cfbf69531932725361168bb06963620c77e2e/psycopg-3.3.4.tar.gz",
+      "artifact": "https://files.pythonhosted.org/packages/72/73/8fb739d0f6bba247b9b93c9840c402a4f88545be5f1d4b02b23366371c00/psycopg-3.3.5.tar.gz",
       "blockers": [],
-      "checksum": "sha256:e21207764952cff81b6b8bdacad9a3939f2793367fdac2987b3aac36a651b5bc",
+      "checksum": "sha256:d0a3d9ccf5788af054cbd745278cb02401b5c312aeaafbf2c6144460aec47da4",
       "checksumVerified": true,
       "distribution": "bundled-runtime",
       "ecosystem": "pypi",
-      "id": "pypi:psycopg@3.3.4",
+      "id": "pypi:psycopg@3.3.5",
       "license": "LGPL-3.0-only",
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "30898f6418a99bdfafdb17a187c1774dbb39883c592b1e9006d2bcc9f46b5610",
+      "metadataSha256": "f34fd11e70a02487a6f8504794f7784900548e8890727827b549f89c1fb17433",
       "name": "psycopg",
       "noticeFiles": [
         {
-          "path": "psycopg-3.3.4/LICENSE.txt",
+          "path": "psycopg-3.3.5/LICENSE.txt",
           "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
         }
       ],
       "optional": false,
       "purpose": "PathLab API/runtime dependency",
       "role": "runtime-mandatory",
-      "source": "https://pypi.org/pypi/psycopg/3.3.4/json",
-      "version": "3.3.4"
+      "source": "https://pypi.org/pypi/psycopg/3.3.5/json",
+      "version": "3.3.5"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -15722,7 +15736,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "f696500a789add7ff2d4bf000bd7f32cf97bd24f962ba36c6b6f3580354f8175",
+      "metadataSha256": "15e51af7f5418ed361a0f1be12d382574715a87bf574800efe962728dbd3f052",
       "name": "pyjwt",
       "noticeFiles": [
         {
@@ -15850,7 +15864,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "432d78ccfb379c9b45a3c54c29dd8749b6a50e04ffc04cb3600ac19c94c3786b",
+      "metadataSha256": "a7a32aeaf66263e3f1190e203404873d8340c3248fa1a6beefe4836eaa59fa85",
       "name": "pytz",
       "noticeFiles": [
         {
@@ -16211,7 +16225,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b61576e60291d87c730a9c652a957e491421e6012a23129422ea2e3272260725",
+      "metadataSha256": "33344ea8493622f2c6694a250179e7587e78ddf2eb17f349d67677bb7f9b1041",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -16250,7 +16264,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "43ebafd94051031ee7f4754e668c200e1ae3c723ac4a242d312ffaa583ba5317",
+      "metadataSha256": "d382720672585edde34dcad36d32ead28f5a4271e3fee164ffc128b20170d71e",
       "name": "starlette",
       "noticeFiles": [
         {
@@ -16312,7 +16326,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "a6dce4d794bb2d6267bda1ea265f195d93d08710e8c4afad031cdd84a83f6e39",
+      "metadataSha256": "7718a3731c44a56ec8b4980a2ec3b3a8075be4f0e86f88d9736f62b25ea247c2",
       "name": "tifffile",
       "noticeFiles": [
         {
@@ -16427,41 +16441,6 @@
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
-        "c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81",
-        "f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79"
-      ],
-      "artifact": "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7374323befcc0be5ab3bd94afd4096a0124e7379152c/tzdata-2026.4.tar.gz",
-      "blockers": [],
-      "checksum": "sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79",
-      "checksumVerified": true,
-      "distribution": "bundled-runtime",
-      "ecosystem": "pypi",
-      "id": "pypi:tzdata@2026.4",
-      "license": "Apache-2.0",
-      "manifestRefs": [
-        "deploy/backend-requirements.txt"
-      ],
-      "metadataSha256": "47765f2d72ad6d2568e3717c8ac15292dfa6e06cd89b3cd2cb15643cf42b3218",
-      "name": "tzdata",
-      "noticeFiles": [
-        {
-          "path": "tzdata-2026.4/LICENSE",
-          "sha256": "df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46"
-        },
-        {
-          "path": "tzdata-2026.4/licenses/LICENSE_APACHE",
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
-        }
-      ],
-      "optional": false,
-      "purpose": "PathLab API/runtime dependency",
-      "role": "runtime-mandatory",
-      "source": "https://pypi.org/pypi/tzdata/2026.4/json",
-      "version": "2026.4"
-    },
-    {
-      "admission": "RECORDED_UNREVIEWED",
-      "allLockedSha256": [
         "231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c",
         "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
       ],
@@ -16476,7 +16455,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "75b89d3859397532f4af5efb511f8defa0d3000921a03c49eb64994a81ea812f",
+      "metadataSha256": "a0375620087b0c3b6c4b6b1f6a694537acaac10bfb0e8ac856078648ffed4199",
       "name": "urllib3",
       "noticeFiles": [
         {
@@ -16507,7 +16486,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "55eb483da3cac41098529adca00eb6be4d5b54c372287cdf439805cd280f073b",
+      "metadataSha256": "df5abebabb548a9a8f9b058e1e7c55474942363b876384a55a1d7b4e8901655d",
       "name": "uvicorn",
       "noticeFiles": [
         {
@@ -16520,6 +16499,100 @@
       "role": "runtime-mandatory",
       "source": "https://pypi.org/pypi/uvicorn/0.52.4/json",
       "version": "0.52.4"
+    },
+    {
+      "admission": "RECORDED_UNREVIEWED",
+      "allLockedSha256": [
+        "017bd46f9e7b78e81606329d07141d3da446f8798c6baeec124260e22c262772",
+        "0530a5fbad9c9e4ee3f2b33b148c6a64d47bbad8000ea63704fa8260f4cf728e",
+        "05e4b5f86e621cf3927631789999e697e58f0d2d32675b67d9ca9eb0bca55743",
+        "0ae676de143db2b2f60a9696d7eca5bb9d0dd6cc3ac3dad59a8ae7e95f9e1b54",
+        "1489cf791aa7b6e8c8be1c5a080bae3a672791fcb4e9e12249b05862a2ca9cec",
+        "17d4e97258b0172dfa107b89aa1eeba3016f4b1974ce85ca3ef6a66b35cbf659",
+        "1cdf5192ab3e674ca26da2eada35b288d2fa49fdd0f357a19f0e7c4e7d5077c8",
+        "1f38ec5e3f18c8a10ded09742f7fb8de0108796eb673f30ce7762ce1b8550cad",
+        "286322a90bea1f9422a470d5d2ad82d38080be0a29c4dd9b3e6384320a4d11e7",
+        "297c27d8003520596236bdb2335e6b3f649480bd09e00d1e3a99144b691d2a35",
+        "37554f70528f60cad66945b885eb01f1bb514f132d92b6eeed1c90fd54ed6289",
+        "3879b88423ec7e97cd4eba2a443aa26ed4e59b45e6b76aabf13fe2f27023a142",
+        "3b7f102bf3cb1995cfeaee9321105e8f5da76fdb104cdad8986f85461a1b7b77",
+        "40631b049d5972c6755b06d0bfe8233b1bd9a8a6392d9d1c45c10b6f9e9b2733",
+        "481c990a7abe2c6f4fc3d98781cc9426ebd7f03a9aaa7eb03d3bfc68ac2a46bd",
+        "4a968a72422a097b09042d5fa2c5c590251ad484acf910a651b4b620acd7f193",
+        "4baa86acedf1d62115c1dc6ad1e17134476688f08c6efd8a2ab076e815665c74",
+        "512fec6815e2dd45161054592441ef76c830eddaad55c8aa30952e6fe1ed07c0",
+        "51eb9bd88391483410daad430813d982010f9c9c89512321f5b60e2cddbdddd6",
+        "535cc37b3a04f6cd2c1ef65fa1d370c9a35b6695df735fcff5427323f2cd5473",
+        "53c85520781d84a4b8b230e24a5af5b0778efdb39142b424990ff1ef7c48ba21",
+        "55502bc2c653ed2e9692e8c55cb95b397d33f9f2911e929dc97c4d6b26d04242",
+        "561577354eb94200d75aca23fbde86ee11be36b00e52a4eaf8f50fb0c86b7705",
+        "56a2d1fae65fd82197cb8c53c367310b3eabe1bbb9fb5a04d28e3e3520e4f702",
+        "57df59d8b48feb0e613d9b1f5e57b7532e97cbaf0d61f7aa9aa32221e84bc4b6",
+        "6c84bae345b9147082b17371e3dd5d42775bddce91f885499017f4607fdaf39f",
+        "6cde23eeda1a25c75b2e07d39970f3374105d5eafbaab2a4482be82f272d5a5e",
+        "6e2ea3d6190a2968f4a14a23019d3b16870dd2190cd69c8180f7c632d21de68d",
+        "700e674a166ca5778255e0e1dc4e9d79ab2acc57b9171b79e65feba7184b3370",
+        "7b5b1ac819a3f946d3b2ee07f09149578ae76066d70b44df3fa990add49a82e4",
+        "7cd375a12b71d33d46af85a3343b35d98e8116134ba404bd657b3b1d15988792",
+        "80eee091fe128e425177fbd82f8635769e2f32ec9daf6468286ec57ec0313efa",
+        "93f617675b2d03af4e72a5333ef89450dfaa5321303ede6e67ba9c9d26878079",
+        "a592b043a47ad17911add5fbd087c76716d7c9ccc1d64ec9249ceafd735f03c2",
+        "ac33ed96229b7790eb729702751c0e93ac5bc3bcf52ae9eccbff30da09194b86",
+        "b31dc2fccbd42adc73bc4e7cdbae4fc5086cf378979e53ca5d0301838c5682c6",
+        "b45649628d816c030dba3c80f8e2689bab1c89518ed10d426036cdc47874dfc4",
+        "b76324e2dc033a0b2f435f33eb88ff9913c156ef78e153fb210e03c13da746b3",
+        "b91328c72635f6f9e0282e4a57da7470c7350ab1c9f48546c0f2866205349d21",
+        "badb4d8e58ee08dad957002027830d5c3b06aea446a6a3744483c2b3b745345c",
+        "bc5ef13bbc10b5335792360623cc378d52d7e62c2de64660616478c32cd0598e",
+        "c1955d5a1dd43198244d47664a5858082a3239766a839b2102a269aaff7a4e25",
+        "c3e5c6727a57cb6558592a95019e504f605d1c54eb86463ee9f7a2dbd411c820",
+        "c60ebcd36f7b240b30788554b6f0782454826a0ed765d8430652621b5de674b9",
+        "daf620c2995d193449393d6c62131b3fbd40a63bf7b307a1527856ace637fe88",
+        "e047cc068570bac9866237739607d1313b9253c3051ad84738cbb095be0537b2",
+        "ea721dd3203b809039fcc2983f14608dae82b212288b346e0bfe46ec2fab0b7c",
+        "ef6f0d4cc8a9fa1f6a910230cd53545d9a14479311e87e3cb225495952eb672c",
+        "fe94b4564e865d968414598eea1a6de60adba0c040ba4ed05ac1300de402cd42"
+      ],
+      "artifact": "https://files.pythonhosted.org/packages/06/f0/18d39dbd1971d6d62c4629cc7fa67f74821b0dc1f5a77af43719de7936a7/uvloop-0.22.1.tar.gz",
+      "blockers": [],
+      "checksum": "sha256:6c84bae345b9147082b17371e3dd5d42775bddce91f885499017f4607fdaf39f",
+      "checksumVerified": true,
+      "distribution": "bundled-runtime",
+      "ecosystem": "pypi",
+      "id": "pypi:uvloop@0.22.1",
+      "license": "Apache Software License | MIT License",
+      "manifestRefs": [
+        "deploy/backend-requirements.txt"
+      ],
+      "metadataSha256": "99758eca11304f49d64748cd227c05aff7ece13a2bfc0b4c4b3d739018fe1382",
+      "name": "uvloop",
+      "noticeFiles": [
+        {
+          "path": "uvloop-0.22.1/LICENSE-APACHE",
+          "sha256": "377025287798f9dcd819e1f826fa5fc5e2f382528691ab0528c5cf8c8c282c27"
+        },
+        {
+          "path": "uvloop-0.22.1/LICENSE-MIT",
+          "sha256": "6dd4c399f26de043d77a2ad7e31db4cb5bf08ea8368b0a42d6e158635cc8ab62"
+        },
+        {
+          "path": "uvloop-0.22.1/vendor/libuv/LICENSE",
+          "sha256": "16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c"
+        },
+        {
+          "path": "uvloop-0.22.1/vendor/libuv/LICENSE-docs",
+          "sha256": "cce5d01fa4a83b794271bd2c28cffdf99afd43c803e6ddefddae39b591ea7448"
+        },
+        {
+          "path": "uvloop-0.22.1/vendor/libuv/LICENSE-extra",
+          "sha256": "262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836"
+        }
+      ],
+      "optional": false,
+      "purpose": "PathLab API/runtime dependency",
+      "role": "runtime-mandatory",
+      "source": "https://pypi.org/pypi/uvloop/0.22.1/json",
+      "version": "0.22.1"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -16643,7 +16716,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "178ddabbac1b454edc3c93620546cf25dfa9efbdadb28e63b912688963d1b068",
+      "metadataSha256": "b560847b11c80831a4a8f6e75dcc126902c52279a258bb0b6aabd5df1c8d7fea",
       "name": "watchfiles",
       "noticeFiles": [
         {
@@ -16674,7 +16747,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "549bbafc96419edaab816c7bccc1973a331e71cf2784a9600d04469e5627a354",
+      "metadataSha256": "589e1b620f955bfda0f1208e13816f93502ce779271e41f0b86cfe67207008a6",
       "name": "wcwidth",
       "noticeFiles": [
         {
@@ -17015,7 +17088,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "249b1949c92255b2e1a70ed6315b472d614fb372199486eb8a32e24533197f79",
+      "metadataSha256": "3536569ecfc87b716d33064a699c0f1febb57a4d0b57fbeac759a5606c31727f",
       "name": "yarl",
       "noticeFiles": [
         {
@@ -17840,9 +17913,9 @@
       "sha256": "c97e9cfde59e620ea68684d8e3ae04fe732ba7831202c139bbdf99699b38d844"
     },
     {
-      "gitBlob": "473f3828fcc96fb1c3b866561f52e04cdef772e0",
+      "gitBlob": "0467e61da46d6fa98b94edf7234630e8851d062f",
       "path": "deploy/backend-requirements.txt",
-      "sha256": "e14fb061b0d796947f5438aff672524c0f9dcd8cb3a5513fc10feaefc24a144f"
+      "sha256": "a7ffa0db664ba783105e140c9a7459526369867a2a6481653e8f83c8f73faba6"
     },
     {
       "gitBlob": "3c21421766a6526f8b82bd519c23a70050fc64e4",
@@ -17850,11 +17923,856 @@
       "sha256": "8ae56866d9ef2d4b26ee6081ca5df481be8a750cb42189dfc7b41e3062b6e63e"
     },
     {
-      "gitBlob": "5012f416de0a4890f3fc9f35521c42291dda726f",
+      "gitBlob": "dbc9ff22999a29b6582644621119d31b8c6b3c46",
       "path": "docs/supply-chain/dependency-manual-inputs.json",
-      "sha256": "818a0cc282d7afdf82a4293eb2ff3a2982ad467e53b361d9a39129b725c8c21b"
+      "sha256": "8d7903f892ff0ae818f7db8c6179f2777745f797a604722c62eb5bac137ba0bb"
+    },
+    {
+      "gitBlob": "48c7d96c66b37763ebe2d06c96053e2e85f2722c",
+      "path": "docs/supply-chain/notice-material/.gitattributes",
+      "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
+    },
+    {
+      "gitBlob": "1b31ebf587e594dd23d9a74500200221ce72042b",
+      "path": "docs/supply-chain/notice-material/archive-notices.json",
+      "sha256": "3d99811303ac06cf4230df7752292305fe7dc17295e828a81e8d7d57ee917812"
+    },
+    {
+      "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
+      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    {
+      "gitBlob": "fbd9f9a95f6013d8ecaef81e02b0033e5882a675",
+      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+    },
+    {
+      "gitBlob": "377eeda17110d0587147dd7ac88f6d15dcdcf446",
+      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-common-package.json",
+      "sha256": "740784b70b19207529b9a08229aaa4bf7c211afcc30ab4594daa32891ccffb94"
+    },
+    {
+      "gitBlob": "d7ff027264ebece8f09ddccabfb7a6f650a62621",
+      "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-web-package.json",
+      "sha256": "664ea43e8734f7037a9cbf3192ae1880c67a034e3914f23408e69529c7a56d98"
+    },
+    {
+      "gitBlob": "3ef1d26cafc90001bc9525fe43d7f090080e42f7",
+      "path": "docs/supply-chain/notice-material/public-legal-email-lines.json",
+      "sha256": "3628a88e91d64e6d81a053ae0df28310686dd10a306d6b8c11f665d6dc3ef62b"
+    },
+    {
+      "gitBlob": "6a60e8c225c9baca25907f87c74b428e5d85de0c",
+      "path": "docs/supply-chain/notice-material/sha256/0154425673db15cdfa80ecba2c9b1f1a867f7197a006764712849bfc3a93cbb7",
+      "sha256": "0154425673db15cdfa80ecba2c9b1f1a867f7197a006764712849bfc3a93cbb7"
+    },
+    {
+      "gitBlob": "0b58de379fb308e471aa7db8dbad306712d39e18",
+      "path": "docs/supply-chain/notice-material/sha256/01ad164273e8e095abc9dbd1c21e194594a671af7d528cb43ee7b4c903ba7da3",
+      "sha256": "01ad164273e8e095abc9dbd1c21e194594a671af7d528cb43ee7b4c903ba7da3"
+    },
+    {
+      "gitBlob": "b41aae0c89a0f2486843d395f972db759c73c4b8",
+      "path": "docs/supply-chain/notice-material/sha256/05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6",
+      "sha256": "05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6"
+    },
+    {
+      "gitBlob": "a4310b4cd7e7d0395b5168f3fdda95f48c64800a",
+      "path": "docs/supply-chain/notice-material/sha256/062921eb9bbe83c9a28723b6a4b642da6f4b5c1b9789bd28fbe0c2c249b11365",
+      "sha256": "062921eb9bbe83c9a28723b6a4b642da6f4b5c1b9789bd28fbe0c2c249b11365"
+    },
+    {
+      "gitBlob": "d6bf75dcf1f6f701d4a8fc502f01f93e9d1284f2",
+      "path": "docs/supply-chain/notice-material/sha256/06bafa45fdad2579ba0e43b0c9b2c6290287c99c4203c300254a462b38a307f6",
+      "sha256": "06bafa45fdad2579ba0e43b0c9b2c6290287c99c4203c300254a462b38a307f6"
+    },
+    {
+      "gitBlob": "bd36874f34b9ae537f2bbc383fdf6e320dfafe98",
+      "path": "docs/supply-chain/notice-material/sha256/0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551",
+      "sha256": "0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551"
+    },
+    {
+      "gitBlob": "e28f5b6ae12123252b37d393581f01becb614f4e",
+      "path": "docs/supply-chain/notice-material/sha256/0c691797527763df1d52d1dcac62911ba31b7555b1dba27208c935377ac7d5d9",
+      "sha256": "0c691797527763df1d52d1dcac62911ba31b7555b1dba27208c935377ac7d5d9"
+    },
+    {
+      "gitBlob": "bee14a47d2d83f2d4e3aca6d5a41e587ebf3c516",
+      "path": "docs/supply-chain/notice-material/sha256/0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1",
+      "sha256": "0c846399369ea76ddd7b5c44fe6d16497415fcf015f5cbb508c24bf98b81c5b1"
+    },
+    {
+      "gitBlob": "a6cf1b17e99725556ac56ce3661498df1ee2276a",
+      "path": "docs/supply-chain/notice-material/sha256/103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f",
+      "sha256": "103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f"
+    },
+    {
+      "gitBlob": "778edb20730ef48c01002248f4d51e7752c13487",
+      "path": "docs/supply-chain/notice-material/sha256/11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b",
+      "sha256": "11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b"
+    },
+    {
+      "gitBlob": "e4bf1d69b1bb0df5acf1278e583264acdc1eefc5",
+      "path": "docs/supply-chain/notice-material/sha256/14275f5c8139d02054c5259d52a88ccbba662a86af18c30f071c8d082dc6004c",
+      "sha256": "14275f5c8139d02054c5259d52a88ccbba662a86af18c30f071c8d082dc6004c"
+    },
+    {
+      "gitBlob": "6566365d4f238005a3358710e20b2acde266b594",
+      "path": "docs/supply-chain/notice-material/sha256/16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c",
+      "sha256": "16de0c32b265cb7d46a6d3bd614f259dd4d693a5e26b3407b04aae8d73041f0c"
+    },
+    {
+      "gitBlob": "eb18aceff4f748a3cba80b685ce5ff4acf40ecc8",
+      "path": "docs/supply-chain/notice-material/sha256/17da96b26ac706d2cbd06d4555dedb43026782f4943faf0156fe7acf89454228",
+      "sha256": "17da96b26ac706d2cbd06d4555dedb43026782f4943faf0156fe7acf89454228"
+    },
+    {
+      "gitBlob": "046fc66490024a7a8b928e2485f12349e522c936",
+      "path": "docs/supply-chain/notice-material/sha256/18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3",
+      "sha256": "18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3"
+    },
+    {
+      "gitBlob": "5aac82c78c2d9982865f4432ab6a9b5d77aa9245",
+      "path": "docs/supply-chain/notice-material/sha256/18d45466ba3253deae04667e267a91ea8de8548f18c1125264d1c9db28194cc1",
+      "sha256": "18d45466ba3253deae04667e267a91ea8de8548f18c1125264d1c9db28194cc1"
+    },
+    {
+      "gitBlob": "f706835ab3a5dd709a6e1f57aee0a94ae1415df6",
+      "path": "docs/supply-chain/notice-material/sha256/1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04",
+      "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04"
+    },
+    {
+      "gitBlob": "f37a12cc4cccf83af4517809791777e71c1df2a9",
+      "path": "docs/supply-chain/notice-material/sha256/1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491",
+      "sha256": "1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491"
+    },
+    {
+      "gitBlob": "2a445f9c62843f5205e3e4a920fd49c1808a399e",
+      "path": "docs/supply-chain/notice-material/sha256/1e07e9c25f2618a040560b70e63f42259eab24e558d0f3532e6163d751cb4eea",
+      "sha256": "1e07e9c25f2618a040560b70e63f42259eab24e558d0f3532e6163d751cb4eea"
+    },
+    {
+      "gitBlob": "2f71fa3f8a69e0841c50ebfa1f7552d286995907",
+      "path": "docs/supply-chain/notice-material/sha256/2237848c0c93932b1ef57fd0785ec659606acb845022240b02188134ab58866c",
+      "sha256": "2237848c0c93932b1ef57fd0785ec659606acb845022240b02188134ab58866c"
+    },
+    {
+      "gitBlob": "29365be72721b3e0057a56634326d46001e6f67a",
+      "path": "docs/supply-chain/notice-material/sha256/238ddb00e12a420a54e060afa19bdab4f70bf49e0e2a8ebb1a5e851f9ef447df",
+      "sha256": "238ddb00e12a420a54e060afa19bdab4f70bf49e0e2a8ebb1a5e851f9ef447df"
+    },
+    {
+      "gitBlob": "547189a6a369fccba645d2c70d2ad26acf1d37ab",
+      "path": "docs/supply-chain/notice-material/sha256/252a200ba7a38686f7954ec4cb09b3ad7788fa099eb724de167d7ab16b1244b9",
+      "sha256": "252a200ba7a38686f7954ec4cb09b3ad7788fa099eb724de167d7ab16b1244b9"
+    },
+    {
+      "gitBlob": "7d8ee65fce626e203cc355ae25eb22595f7ffc32",
+      "path": "docs/supply-chain/notice-material/sha256/262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836",
+      "sha256": "262c44bd2cdba037e6d2a82fba15f5800d292bc993a6f5d6b6ea487744d02836"
+    },
+    {
+      "gitBlob": "7aab4ae8b80e899899001de5ef399a4a15b0a8ee",
+      "path": "docs/supply-chain/notice-material/sha256/27873abeec2df3693480a8d1b8fe17dd61bee843d1b39c1c9cfab57ffe93099e",
+      "sha256": "27873abeec2df3693480a8d1b8fe17dd61bee843d1b39c1c9cfab57ffe93099e"
+    },
+    {
+      "gitBlob": "33ab86d54a1a2d7ba3ae631535b238ee8468ad86",
+      "path": "docs/supply-chain/notice-material/sha256/29df7754beffda9d321e8874bc6e3c76c132d325e79e7a81bbd88928638b12fa",
+      "sha256": "29df7754beffda9d321e8874bc6e3c76c132d325e79e7a81bbd88928638b12fa"
+    },
+    {
+      "gitBlob": "0716871caabdbbb3e77a0371d49936cef1923ea1",
+      "path": "docs/supply-chain/notice-material/sha256/2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a",
+      "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a"
+    },
+    {
+      "gitBlob": "8cb5cc6e616c0d9259b4965f9d2ce8528e4d2828",
+      "path": "docs/supply-chain/notice-material/sha256/2c7c5d22ed5a8ee968c64757710979afcd77438c48b4a265b94e615babd8a901",
+      "sha256": "2c7c5d22ed5a8ee968c64757710979afcd77438c48b4a265b94e615babd8a901"
+    },
+    {
+      "gitBlob": "32ef3ca0ba706f9ae9ef437d7219748c90d1641b",
+      "path": "docs/supply-chain/notice-material/sha256/2d1d7a93b46e4274355ac2904428707c4ee47ee8c6029fa394ebf405648d3f63",
+      "sha256": "2d1d7a93b46e4274355ac2904428707c4ee47ee8c6029fa394ebf405648d3f63"
+    },
+    {
+      "gitBlob": "c7e27478a3eff8862ca150f10d1b93a5ac866af2",
+      "path": "docs/supply-chain/notice-material/sha256/2dc0465729366c3a7890dfa9e972a1ba7048a26c02116fb8b419a6a1ac110149",
+      "sha256": "2dc0465729366c3a7890dfa9e972a1ba7048a26c02116fb8b419a6a1ac110149"
+    },
+    {
+      "gitBlob": "b98294335901b5c1c52d02d653c316393d666175",
+      "path": "docs/supply-chain/notice-material/sha256/2ec372e137fa65938a6551e9abaa3d3ea21f5ebd398fca00a13354ea881e6539",
+      "sha256": "2ec372e137fa65938a6551e9abaa3d3ea21f5ebd398fca00a13354ea881e6539"
+    },
+    {
+      "gitBlob": "3a7543bdaf119789b1af38844ef8e60e27dee72b",
+      "path": "docs/supply-chain/notice-material/sha256/30e92f8d417156e2c3f867bfe8ecddaefa942f0e265602fd95091dbd4886c61c",
+      "sha256": "30e92f8d417156e2c3f867bfe8ecddaefa942f0e265602fd95091dbd4886c61c"
+    },
+    {
+      "gitBlob": "d8d7f9437dbf5ad54701a187f05988bcf0006fd8",
+      "path": "docs/supply-chain/notice-material/sha256/33b734d60042d0fe0c92dd1fc1e874193a1c899ec3e276a2eb935d2d0bf5b710",
+      "sha256": "33b734d60042d0fe0c92dd1fc1e874193a1c899ec3e276a2eb935d2d0bf5b710"
+    },
+    {
+      "gitBlob": "5f66d4ee6e85dc68fc36a027dddb2368e3f71fb4",
+      "path": "docs/supply-chain/notice-material/sha256/377025287798f9dcd819e1f826fa5fc5e2f382528691ab0528c5cf8c8c282c27",
+      "sha256": "377025287798f9dcd819e1f826fa5fc5e2f382528691ab0528c5cf8c8c282c27"
+    },
+    {
+      "gitBlob": "8f080eae848f759c9173bfc0c79506357ebe5090",
+      "path": "docs/supply-chain/notice-material/sha256/37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361",
+      "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361"
+    },
+    {
+      "gitBlob": "6dc9316a6c92f2782c0bcf29951bf2a704524277",
+      "path": "docs/supply-chain/notice-material/sha256/3b2a6a268aa815dec121d614245e03b5c68db1f044d5b525e36db7d5dc7fb9c3",
+      "sha256": "3b2a6a268aa815dec121d614245e03b5c68db1f044d5b525e36db7d5dc7fb9c3"
+    },
+    {
+      "gitBlob": "f26bcf4d2de6eb136e31006ca3ab447d5e488adf",
+      "path": "docs/supply-chain/notice-material/sha256/3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+      "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+    },
+    {
+      "gitBlob": "d8b9580f48f4953e76e0984215b4a044b88b0d6c",
+      "path": "docs/supply-chain/notice-material/sha256/3cf196b1625812d2d119518294043e71017fe858355a58eb48e1e35b61213ce9",
+      "sha256": "3cf196b1625812d2d119518294043e71017fe858355a58eb48e1e35b61213ce9"
+    },
+    {
+      "gitBlob": "5d61ece22a75a759aed8e52af280eca28d35d6bf",
+      "path": "docs/supply-chain/notice-material/sha256/3d6a0c050d8bec52fabad502e45fb25bd02bcadbd70dea34d447b6a0ff4e6da8",
+      "sha256": "3d6a0c050d8bec52fabad502e45fb25bd02bcadbd70dea34d447b6a0ff4e6da8"
+    },
+    {
+      "gitBlob": "b11f379efe1504d235b4d2d42685ba5dc6af6e9f",
+      "path": "docs/supply-chain/notice-material/sha256/3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb",
+      "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb"
+    },
+    {
+      "gitBlob": "514e84e648df769fb1725ce4b9baf01bd67aae24",
+      "path": "docs/supply-chain/notice-material/sha256/3fda5977c0904e226190b4e21d64340c1731e2142d6fe5f3dee0090a216b8b63",
+      "sha256": "3fda5977c0904e226190b4e21d64340c1731e2142d6fe5f3dee0090a216b8b63"
+    },
+    {
+      "gitBlob": "757562ec59276bff35792501d88fe83b34acca9a",
+      "path": "docs/supply-chain/notice-material/sha256/3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6",
+      "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
+    },
+    {
+      "gitBlob": "c728dc70b96897b4f56c18d41e2965a547f67cfc",
+      "path": "docs/supply-chain/notice-material/sha256/41a2aa55a9ebad3df900cf37fded512714a127f4300ef54b978f834a11ec4d48",
+      "sha256": "41a2aa55a9ebad3df900cf37fded512714a127f4300ef54b978f834a11ec4d48"
+    },
+    {
+      "gitBlob": "3f7b9e6dd8944b53ff88accc0417014da90ee5f6",
+      "path": "docs/supply-chain/notice-material/sha256/41b85edab0ce43c343109ae70d7397297497959a05ac20d8844c2b435e62b14f",
+      "sha256": "41b85edab0ce43c343109ae70d7397297497959a05ac20d8844c2b435e62b14f"
+    },
+    {
+      "gitBlob": "f785757cd63f863c42f19d4f5a417141d6c4a890",
+      "path": "docs/supply-chain/notice-material/sha256/451ec07eeb9c4e1b86de9abdaa426462a8be48f887ec7421cf0bbb9c769555ab",
+      "sha256": "451ec07eeb9c4e1b86de9abdaa426462a8be48f887ec7421cf0bbb9c769555ab"
+    },
+    {
+      "gitBlob": "a41e0a7ef970ecdd83d82cd99bda97b22077bc62",
+      "path": "docs/supply-chain/notice-material/sha256/483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a",
+      "sha256": "483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a"
+    },
+    {
+      "gitBlob": "9d227a0cc43c3268d15722b763bd94ad298645a1",
+      "path": "docs/supply-chain/notice-material/sha256/489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea",
+      "sha256": "489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea"
+    },
+    {
+      "gitBlob": "e7af2f77107d73046421ef56c4684cbfdd3c1e89",
+      "path": "docs/supply-chain/notice-material/sha256/48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0",
+      "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+    },
+    {
+      "gitBlob": "57b7e30978f88510f19dd4364eeacfeb5037719d",
+      "path": "docs/supply-chain/notice-material/sha256/49d6a1c9a623784c61c6cb70f773f3457faceb1914a13c8560a9823b7631950c",
+      "sha256": "49d6a1c9a623784c61c6cb70f773f3457faceb1914a13c8560a9823b7631950c"
+    },
+    {
+      "gitBlob": "6f41046769eac7d282643916d5b93fcd70485329",
+      "path": "docs/supply-chain/notice-material/sha256/4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87",
+      "sha256": "4a0179c4ef9fb2c7464215c8c48686fe326a3dfcf34752ab41cd91e93a7cac87"
+    },
+    {
+      "gitBlob": "598835fe059f3cea397daee98a3e44293d70d4d1",
+      "path": "docs/supply-chain/notice-material/sha256/4a161ebed4f1ef933e16ccfa00d86c718703f5d015a9987ea7ce1bb72a43cd22",
+      "sha256": "4a161ebed4f1ef933e16ccfa00d86c718703f5d015a9987ea7ce1bb72a43cd22"
+    },
+    {
+      "gitBlob": "868bd40de24c1335c4b52cd4865e10e38267e914",
+      "path": "docs/supply-chain/notice-material/sha256/4ab87e6e3c0c0b78e47c77d49ec10c048f8a519fb8062e6e3217e3e6e9b0c6e9",
+      "sha256": "4ab87e6e3c0c0b78e47c77d49ec10c048f8a519fb8062e6e3217e3e6e9b0c6e9"
+    },
+    {
+      "gitBlob": "b95f5698c645e44ecf09ee09a0a44ee6437e23a1",
+      "path": "docs/supply-chain/notice-material/sha256/4da724fc305d81606b245b324d4d2586916b9d248b23d82183df753ace0fdf71",
+      "sha256": "4da724fc305d81606b245b324d4d2586916b9d248b23d82183df753ace0fdf71"
+    },
+    {
+      "gitBlob": "19129e315fe593965a2fdd50ec0d1253bcbd2ece",
+      "path": "docs/supply-chain/notice-material/sha256/4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b",
+      "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+    },
+    {
+      "gitBlob": "ab79d16a3f4c6c894c028d1f7431811e8711b42b",
+      "path": "docs/supply-chain/notice-material/sha256/4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d",
+      "sha256": "4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d"
+    },
+    {
+      "gitBlob": "3e92463e6bd522a2a21e5f0a80d8089d6c4be20d",
+      "path": "docs/supply-chain/notice-material/sha256/4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e",
+      "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e"
+    },
+    {
+      "gitBlob": "bdd9b15521a6e7860883f7d5fea2ed29e1c0422e",
+      "path": "docs/supply-chain/notice-material/sha256/4fd78355b67ce2677ede9fb6f63a250f377bb7e22088136a5f4699adb4bc069f",
+      "sha256": "4fd78355b67ce2677ede9fb6f63a250f377bb7e22088136a5f4699adb4bc069f"
+    },
+    {
+      "gitBlob": "104eebf5a3002fccdaceef3a4cb936173c1c2035",
+      "path": "docs/supply-chain/notice-material/sha256/5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
+      "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0"
+    },
+    {
+      "gitBlob": "beea023ce05ade82dce8d26517e6414cc5037085",
+      "path": "docs/supply-chain/notice-material/sha256/563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256",
+      "sha256": "563953e4bf6aba42f430420da7494dce2747f60d56e82ca165e24dfaf766d256"
+    },
+    {
+      "gitBlob": "f8250b37a61862ea61ea9a93d5d423cad395a364",
+      "path": "docs/supply-chain/notice-material/sha256/566c953c6090b1218ca6217dd7359d45dde46581968586dc607d59a78af6a9c4",
+      "sha256": "566c953c6090b1218ca6217dd7359d45dde46581968586dc607d59a78af6a9c4"
+    },
+    {
+      "gitBlob": "b8c1246cf49cbdc3084c7b33f69ec64cb019a42a",
+      "path": "docs/supply-chain/notice-material/sha256/59a400d04c5078579acc27ddd6452c1bdf763f9506e01364700935fbb1a7c91b",
+      "sha256": "59a400d04c5078579acc27ddd6452c1bdf763f9506e01364700935fbb1a7c91b"
+    },
+    {
+      "gitBlob": "6d52b8acfbe771e96a1b862c620f00efd7d48d1e",
+      "path": "docs/supply-chain/notice-material/sha256/5b37224c080cdcc97c871ada971c224e9926370fe74f11b539aa1cf9f3b1aca1",
+      "sha256": "5b37224c080cdcc97c871ada971c224e9926370fe74f11b539aa1cf9f3b1aca1"
+    },
+    {
+      "gitBlob": "0a1dbfb017c2e0afcaac48ba6750d32539335e41",
+      "path": "docs/supply-chain/notice-material/sha256/5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63",
+      "sha256": "5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63"
+    },
+    {
+      "gitBlob": "59ca972451b97bca9dd27e4438240cb95107b3a7",
+      "path": "docs/supply-chain/notice-material/sha256/5c81b0caa98593408b03125efa25efe622341ed87ae55561968828cd887d64a4",
+      "sha256": "5c81b0caa98593408b03125efa25efe622341ed87ae55561968828cd887d64a4"
+    },
+    {
+      "gitBlob": "fa7ceba3eb4a9657a9db7f3ffca4e4e97a9019de",
+      "path": "docs/supply-chain/notice-material/sha256/5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+      "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
+    },
+    {
+      "gitBlob": "dea3013d6710ee273f49ac606a65d5211d480c88",
+      "path": "docs/supply-chain/notice-material/sha256/5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b",
+      "sha256": "5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b"
+    },
+    {
+      "gitBlob": "ec1a29d34d6e419411c75523408aca72f705345c",
+      "path": "docs/supply-chain/notice-material/sha256/602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb",
+      "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb"
+    },
+    {
+      "gitBlob": "23682c03875844d5becc72ab477a3f9056b6d888",
+      "path": "docs/supply-chain/notice-material/sha256/628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d",
+      "sha256": "628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d"
+    },
+    {
+      "gitBlob": "52ed3b0a63274d653474abc893d6f7221fc301fd",
+      "path": "docs/supply-chain/notice-material/sha256/631987b7616a325a5b97566c232418481ddf7dbb5ecadefb991e791876cc2599",
+      "sha256": "631987b7616a325a5b97566c232418481ddf7dbb5ecadefb991e791876cc2599"
+    },
+    {
+      "gitBlob": "7b190ca6712aa09eede3e6de79f68d7fa29072da",
+      "path": "docs/supply-chain/notice-material/sha256/63af09891b6be8ad1a4252ed43af0f4efba7fc948e228367bed7f3c5ae0b09d7",
+      "sha256": "63af09891b6be8ad1a4252ed43af0f4efba7fc948e228367bed7f3c5ae0b09d7"
+    },
+    {
+      "gitBlob": "e2eb0bd013b5e311bc97231854760d4a3d20af41",
+      "path": "docs/supply-chain/notice-material/sha256/6918b72504641180600cbbd4a86b0dfa9dfccf788775694325b71b9a029f6eb4",
+      "sha256": "6918b72504641180600cbbd4a86b0dfa9dfccf788775694325b71b9a029f6eb4"
+    },
+    {
+      "gitBlob": "6d77cd5f36c36205877a574cbc1da7f5b3768a64",
+      "path": "docs/supply-chain/notice-material/sha256/69b1ce578ad0aa97ce5302c7cb8d507c2fbe5a670712b02f0b4a2b95cae3184a",
+      "sha256": "69b1ce578ad0aa97ce5302c7cb8d507c2fbe5a670712b02f0b4a2b95cae3184a"
+    },
+    {
+      "gitBlob": "db6bc32cc7c44e86102035b2fb75ba8d05123f3f",
+      "path": "docs/supply-chain/notice-material/sha256/69dee148a2cc470554dfa7142e830662062394d0fe67cddd379aba90dc60d6b3",
+      "sha256": "69dee148a2cc470554dfa7142e830662062394d0fe67cddd379aba90dc60d6b3"
+    },
+    {
+      "gitBlob": "40fd0230d7010bf08f207bf92874e3166d10f647",
+      "path": "docs/supply-chain/notice-material/sha256/6dd4c399f26de043d77a2ad7e31db4cb5bf08ea8368b0a42d6e158635cc8ab62",
+      "sha256": "6dd4c399f26de043d77a2ad7e31db4cb5bf08ea8368b0a42d6e158635cc8ab62"
+    },
+    {
+      "gitBlob": "b03e235f9a94f5893b5d33eb8756eee57a26853f",
+      "path": "docs/supply-chain/notice-material/sha256/6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc",
+      "sha256": "6e68d94a03a0e3e327ddf3e86d1ebedc14eece3922022618fc246a36296fd0cc"
+    },
+    {
+      "gitBlob": "4c654da7a361a02c30ea0726cf3462c833ff1683",
+      "path": "docs/supply-chain/notice-material/sha256/6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d",
+      "sha256": "6fc7e80b75b5999783a328d90976a2585e0956c4a348c3c888453938ceca742d"
+    },
+    {
+      "gitBlob": "ddb0b853d7eeff136646bbb132edcda9e8afd2ef",
+      "path": "docs/supply-chain/notice-material/sha256/732f37009943e7f4378cf37113c9bcc4716af002a8583511aa91ed5d37683e73",
+      "sha256": "732f37009943e7f4378cf37113c9bcc4716af002a8583511aa91ed5d37683e73"
+    },
+    {
+      "gitBlob": "b73a4a10c6fa93a3a6fa47deb3796c590a9dee10",
+      "path": "docs/supply-chain/notice-material/sha256/769831d6e5dfaf2c20802faccff1fafb4c2025dd8f6253dfa47fcad59d4d0979",
+      "sha256": "769831d6e5dfaf2c20802faccff1fafb4c2025dd8f6253dfa47fcad59d4d0979"
+    },
+    {
+      "gitBlob": "7d0a32c385b04289862dd6e927d69c9cd7c88bd2",
+      "path": "docs/supply-chain/notice-material/sha256/77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49",
+      "sha256": "77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49"
+    },
+    {
+      "gitBlob": "56420a6a06bd156003ce69970b50c67176f2afe5",
+      "path": "docs/supply-chain/notice-material/sha256/79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231",
+      "sha256": "79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231"
+    },
+    {
+      "gitBlob": "1ec0ab4e1746be2b5a7a817eb9c92cf8e3ff7e6d",
+      "path": "docs/supply-chain/notice-material/sha256/79e6ba8b687cb54786207342b9b6fcee0ac10218453ed9009b84d949b2233cc0",
+      "sha256": "79e6ba8b687cb54786207342b9b6fcee0ac10218453ed9009b84d949b2233cc0"
+    },
+    {
+      "gitBlob": "e825ad51621c5e34d370ba64f13f6854d89456a6",
+      "path": "docs/supply-chain/notice-material/sha256/804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3",
+      "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3"
+    },
+    {
+      "gitBlob": "3a97119010ac82e15e917a69b7b8f9f59b5a4601",
+      "path": "docs/supply-chain/notice-material/sha256/80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9",
+      "sha256": "80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9"
+    },
+    {
+      "gitBlob": "88c18c279879a844cf6ee0803dabcdefa02f599a",
+      "path": "docs/supply-chain/notice-material/sha256/809e66de579fb7d92503848bbe6d1f348f4f6521a71e5d294fe7cc0c87a3b4ff",
+      "sha256": "809e66de579fb7d92503848bbe6d1f348f4f6521a71e5d294fe7cc0c87a3b4ff"
+    },
+    {
+      "gitBlob": "0c7f4283a4131ec69d72bc35121dde223e5e9992",
+      "path": "docs/supply-chain/notice-material/sha256/864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0",
+      "sha256": "864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0"
+    },
+    {
+      "gitBlob": "b24e6350cafa3bc6f5731153aa5672a1ab477aa4",
+      "path": "docs/supply-chain/notice-material/sha256/87092fe7ffd1e92eba5d1dd39b73a73fdb4fdd4df3474beacc3d9f6b08ece82c",
+      "sha256": "87092fe7ffd1e92eba5d1dd39b73a73fdb4fdd4df3474beacc3d9f6b08ece82c"
+    },
+    {
+      "gitBlob": "1c0bdde90c8798fbbff2556ac5ce4593a227fe8d",
+      "path": "docs/supply-chain/notice-material/sha256/88707653d5414f2242d597302a769565107ac139817b8ca321b3928cc1346c50",
+      "sha256": "88707653d5414f2242d597302a769565107ac139817b8ca321b3928cc1346c50"
+    },
+    {
+      "gitBlob": "cf1ab25da0349f84a3fdd40032f0ce99db813b8b",
+      "path": "docs/supply-chain/notice-material/sha256/88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd",
+      "sha256": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd"
+    },
+    {
+      "gitBlob": "c5402b9577a8cdd966c0974e5b74cc7b85f536c5",
+      "path": "docs/supply-chain/notice-material/sha256/8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004",
+      "sha256": "8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004"
+    },
+    {
+      "gitBlob": "e5cf905a5e9ad5b7a5338bfc2723026b75e9e9ad",
+      "path": "docs/supply-chain/notice-material/sha256/8c1d171bc5d341ad9cd33d5e2c39b96a82c7bd49b3ae89a470c37e5822232054",
+      "sha256": "8c1d171bc5d341ad9cd33d5e2c39b96a82c7bd49b3ae89a470c37e5822232054"
+    },
+    {
+      "gitBlob": "7ba928d30f2a8823b8ff7cc6c5a501883ef7d539",
+      "path": "docs/supply-chain/notice-material/sha256/8cd23e2d76d2791765f7dd1025a9df99d81db91da9e2701f283987a1c0435aa3",
+      "sha256": "8cd23e2d76d2791765f7dd1025a9df99d81db91da9e2701f283987a1c0435aa3"
+    },
+    {
+      "gitBlob": "882767eebf1172dd202e03a53512c5fadb4d2d3e",
+      "path": "docs/supply-chain/notice-material/sha256/8cf9b31947daf7adb4a7a00a037459e58241af050cd0a603bfcf1756e533f75e",
+      "sha256": "8cf9b31947daf7adb4a7a00a037459e58241af050cd0a603bfcf1756e533f75e"
+    },
+    {
+      "gitBlob": "2f1b8e15e5627d92f0521605c9870bc8e5505cb4",
+      "path": "docs/supply-chain/notice-material/sha256/8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4",
+      "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4"
+    },
+    {
+      "gitBlob": "ddb6a9051edeba15bf12355e6e0bb429936d2d72",
+      "path": "docs/supply-chain/notice-material/sha256/8f85aab053e268546014761da47630a09886626afbd0d8d440cb2c69611bb8d3",
+      "sha256": "8f85aab053e268546014761da47630a09886626afbd0d8d440cb2c69611bb8d3"
+    },
+    {
+      "gitBlob": "0bdf03913ffdfd09be5a524c9303bd54a132d450",
+      "path": "docs/supply-chain/notice-material/sha256/8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855",
+      "sha256": "8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855"
+    },
+    {
+      "gitBlob": "9aa55eadf6e42ccf98b7f9ce77d73a85c63b8c03",
+      "path": "docs/supply-chain/notice-material/sha256/908a4454d01d77cd6a0ae1eea0bafaa74a2e3befdbc4b7b714de2499a22351ce",
+      "sha256": "908a4454d01d77cd6a0ae1eea0bafaa74a2e3befdbc4b7b714de2499a22351ce"
+    },
+    {
+      "gitBlob": "2d80720fe669c96dd0cfec56a90939666086e701",
+      "path": "docs/supply-chain/notice-material/sha256/93f5d82a8d59442fe3275383453a255fef761647fb28265644010ba799806148",
+      "sha256": "93f5d82a8d59442fe3275383453a255fef761647fb28265644010ba799806148"
+    },
+    {
+      "gitBlob": "c39e6949ed2dc6c05fce7ed3c7bfa12c38ef0ce2",
+      "path": "docs/supply-chain/notice-material/sha256/97d87142793695cd73243de7258694abe85b3b6060fca7f247b0a2afa8219678",
+      "sha256": "97d87142793695cd73243de7258694abe85b3b6060fca7f247b0a2afa8219678"
+    },
+    {
+      "gitBlob": "22ab7d811ffc5dded92dd183ae762c648fe5f15d",
+      "path": "docs/supply-chain/notice-material/sha256/990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b",
+      "sha256": "990e6a6dbaee82e655163c3d2a51d1002471e5c0964da4881bc193eaa6a8ee3b"
+    },
+    {
+      "gitBlob": "d12a849186982399c537c5b9a8fd77bf2edd5eab",
+      "path": "docs/supply-chain/notice-material/sha256/9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d",
+      "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+    },
+    {
+      "gitBlob": "46e7b75c91ced041ae473299398af2b0472dc352",
+      "path": "docs/supply-chain/notice-material/sha256/9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e",
+      "sha256": "9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e"
+    },
+    {
+      "gitBlob": "88caf8710bef80b7fcd3801e0ff0fdaaa1d75c86",
+      "path": "docs/supply-chain/notice-material/sha256/9e23899170d96e708b24a2afce11e96d169c8cebf1bd24ac60b675a400cb1cf1",
+      "sha256": "9e23899170d96e708b24a2afce11e96d169c8cebf1bd24ac60b675a400cb1cf1"
+    },
+    {
+      "gitBlob": "f12cd49cae3978dcdb337c7bad10842b3412ce59",
+      "path": "docs/supply-chain/notice-material/sha256/9fe335fb097fbff0b7f709ee14a77b1d1cf739d3400cd0b0e19118946772ea56",
+      "sha256": "9fe335fb097fbff0b7f709ee14a77b1d1cf739d3400cd0b0e19118946772ea56"
+    },
+    {
+      "gitBlob": "a934ef8db478453e38b2f29af67610916fa9fc99",
+      "path": "docs/supply-chain/notice-material/sha256/a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539",
+      "sha256": "a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539"
+    },
+    {
+      "gitBlob": "dbb574ae74e0afd634461c10fdf153b45553e487",
+      "path": "docs/supply-chain/notice-material/sha256/a09bbbbb46be63e89ef39a5a6f72d610da47b2a6b6ba0eef1442327f1cf23eeb",
+      "sha256": "a09bbbbb46be63e89ef39a5a6f72d610da47b2a6b6ba0eef1442327f1cf23eeb"
+    },
+    {
+      "gitBlob": "881248b6d7f0ca2c4f65c41c0af5e02bb0680601",
+      "path": "docs/supply-chain/notice-material/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
+      "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
+    },
+    {
+      "gitBlob": "2a2d5601b66f213848eb4fd995dbfc29e51ad031",
+      "path": "docs/supply-chain/notice-material/sha256/a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794",
+      "sha256": "a67b34a24a5daddcce46aea68c5004e4442bbfb63690329fa607bf4de4269794"
+    },
+    {
+      "gitBlob": "e7323bb52ec35279e2df7d728a6dd5a10b99afd8",
+      "path": "docs/supply-chain/notice-material/sha256/a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+      "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+    },
+    {
+      "gitBlob": "cb7e807b9bdb33c128dba99d56eeedd7b8cba452",
+      "path": "docs/supply-chain/notice-material/sha256/a9801fb52ba22ef808682a094da8a7a480584b7ed0dfd0d888ab543616335031",
+      "sha256": "a9801fb52ba22ef808682a094da8a7a480584b7ed0dfd0d888ab543616335031"
+    },
+    {
+      "gitBlob": "488c6260c10f2e88fa1fae58a63fccec8d600cd1",
+      "path": "docs/supply-chain/notice-material/sha256/a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3",
+      "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3"
+    },
+    {
+      "gitBlob": "8407b9a30f51b0da9eaac366bdde18d900e951ba",
+      "path": "docs/supply-chain/notice-material/sha256/aaa78451b6fecd1b9c4594c796c133c0e90cad100372ff8bc6de615e9ef9adf1",
+      "sha256": "aaa78451b6fecd1b9c4594c796c133c0e90cad100372ff8bc6de615e9ef9adf1"
+    },
+    {
+      "gitBlob": "62589edd12a37dd28b6b6fed1e2d728ac9f05c8d",
+      "path": "docs/supply-chain/notice-material/sha256/aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe",
+      "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe"
+    },
+    {
+      "gitBlob": "a16d6d2ffee94866a0fb5ce3ab08a5b9c49967af",
+      "path": "docs/supply-chain/notice-material/sha256/ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590",
+      "sha256": "ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590"
+    },
+    {
+      "gitBlob": "954f2fa8235009998fe29a775bbaf8c23f5e2d50",
+      "path": "docs/supply-chain/notice-material/sha256/b173e19b9a78df305577ace0e52ef45a4bcc915ea28b47b256dc3b68dcb1f7e7",
+      "sha256": "b173e19b9a78df305577ace0e52ef45a4bcc915ea28b47b256dc3b68dcb1f7e7"
+    },
+    {
+      "gitBlob": "dd761fd120dff321af0f8877b34017564513aa06",
+      "path": "docs/supply-chain/notice-material/sha256/b4aa3a8b0dfd4c8cea97ea65b3f19ef54bd280665533478f35c0a5d205a7d341",
+      "sha256": "b4aa3a8b0dfd4c8cea97ea65b3f19ef54bd280665533478f35c0a5d205a7d341"
+    },
+    {
+      "gitBlob": "2ba82d3aa2b67b49234b148bf82dae5157564ee5",
+      "path": "docs/supply-chain/notice-material/sha256/b4fabf9bc25d74808d21002a72eb5179cfc061a840d69275eea522119fadf669",
+      "sha256": "b4fabf9bc25d74808d21002a72eb5179cfc061a840d69275eea522119fadf669"
+    },
+    {
+      "gitBlob": "5fe8908edde6507838f413d2b2d21d074bbc1efb",
+      "path": "docs/supply-chain/notice-material/sha256/b5d91ed480d2f5e61bc3a32cb731aaf5641b83226055cdbc3b9d764a9dce4525",
+      "sha256": "b5d91ed480d2f5e61bc3a32cb731aaf5641b83226055cdbc3b9d764a9dce4525"
+    },
+    {
+      "gitBlob": "d1b626b36530035f4a816de74e4adec2f0b6f655",
+      "path": "docs/supply-chain/notice-material/sha256/b6944d386e87ccf49d9632da083685a4b7624733e686a7fe283dd2d428341d77",
+      "sha256": "b6944d386e87ccf49d9632da083685a4b7624733e686a7fe283dd2d428341d77"
+    },
+    {
+      "gitBlob": "20c5901780537ab292f13f6cc969a1141150ba3f",
+      "path": "docs/supply-chain/notice-material/sha256/b9e9abeaf8b92573dc28915d4948dbce30d55b30c688d109898b35e6105c4215",
+      "sha256": "b9e9abeaf8b92573dc28915d4948dbce30d55b30c688d109898b35e6105c4215"
+    },
+    {
+      "gitBlob": "2fb7493dec16f97491cff8ee88ae29e0b471e649",
+      "path": "docs/supply-chain/notice-material/sha256/ba6a09ed78a28536852d504086e7dd0e1f9c090a27c460bc9f301ee5783927dd",
+      "sha256": "ba6a09ed78a28536852d504086e7dd0e1f9c090a27c460bc9f301ee5783927dd"
+    },
+    {
+      "gitBlob": "48f0e8483ef0775559908e0dfbe06f55355d6621",
+      "path": "docs/supply-chain/notice-material/sha256/bf20b07b8e41f306d22b73bfa6b0e248e81ee8caaa6a04285acb0b8e963c01ec",
+      "sha256": "bf20b07b8e41f306d22b73bfa6b0e248e81ee8caaa6a04285acb0b8e963c01ec"
+    },
+    {
+      "gitBlob": "058b6b4efa3f45896ae691f2558a2a1aca05bebd",
+      "path": "docs/supply-chain/notice-material/sha256/c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858",
+      "sha256": "c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858"
+    },
+    {
+      "gitBlob": "9e841e7a26e4eb057b24511e7b92d42b257a80e5",
+      "path": "docs/supply-chain/notice-material/sha256/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+      "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+    },
+    {
+      "gitBlob": "32b20de6aabd3f4ffe7a085ff1402acebcfb3bce",
+      "path": "docs/supply-chain/notice-material/sha256/c4b4ad3a5746f1f5249a6dd90396ec519264e1bb02e01e48a6522c48a3a97cb4",
+      "sha256": "c4b4ad3a5746f1f5249a6dd90396ec519264e1bb02e01e48a6522c48a3a97cb4"
+    },
+    {
+      "gitBlob": "5723c45b65c813a87ed38272f5a3e6b7b6890a96",
+      "path": "docs/supply-chain/notice-material/sha256/c542ba7851b5d39a5face477e47a27cb7c00a9759e321b66824e79718bffe1ac",
+      "sha256": "c542ba7851b5d39a5face477e47a27cb7c00a9759e321b66824e79718bffe1ac"
+    },
+    {
+      "gitBlob": "46f7017bb76f1f2844d7e95ecd725d682d5e9d05",
+      "path": "docs/supply-chain/notice-material/sha256/c5c6c5183a789d122f267c405f685037efb87e27fcde28ab1dd7378a2d2f5962",
+      "sha256": "c5c6c5183a789d122f267c405f685037efb87e27fcde28ab1dd7378a2d2f5962"
+    },
+    {
+      "gitBlob": "050c1aa99aba87d6f25f89ea757084c4e9cec81e",
+      "path": "docs/supply-chain/notice-material/sha256/c6a7de1428955aa5a692f4d3a3d3ede658d959616944713337cda296736442e1",
+      "sha256": "c6a7de1428955aa5a692f4d3a3d3ede658d959616944713337cda296736442e1"
+    },
+    {
+      "gitBlob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "path": "docs/supply-chain/notice-material/sha256/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "gitBlob": "0c068ceecbd48fc4e8279e6451793fec2bf12178",
+      "path": "docs/supply-chain/notice-material/sha256/c7cc929b57080f4b9d0c6cf57669f0463fc5b39906344dfc8d3bc43426b30eac",
+      "sha256": "c7cc929b57080f4b9d0c6cf57669f0463fc5b39906344dfc8d3bc43426b30eac"
+    },
+    {
+      "gitBlob": "53883b1c7add1f76201c2ba4c1d1d17e5cb7ed18",
+      "path": "docs/supply-chain/notice-material/sha256/cce5d01fa4a83b794271bd2c28cffdf99afd43c803e6ddefddae39b591ea7448",
+      "sha256": "cce5d01fa4a83b794271bd2c28cffdf99afd43c803e6ddefddae39b591ea7448"
+    },
+    {
+      "gitBlob": "ec7df93329abf38815ff5837ca184eea7754fc2a",
+      "path": "docs/supply-chain/notice-material/sha256/cdbc258d13806538e727964c2436a8806e6e2496ccd616224aace6f7bf98dbc1",
+      "sha256": "cdbc258d13806538e727964c2436a8806e6e2496ccd616224aace6f7bf98dbc1"
+    },
+    {
+      "gitBlob": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "path": "docs/supply-chain/notice-material/sha256/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "gitBlob": "1493534e60dce4a4c73e60e0bb448a0ab2567c9d",
+      "path": "docs/supply-chain/notice-material/sha256/d11323827fa4edeaafc437cc5b91b6971b335f0127efeeb42bf5122fe8657e8f",
+      "sha256": "d11323827fa4edeaafc437cc5b91b6971b335f0127efeeb42bf5122fe8657e8f"
+    },
+    {
+      "gitBlob": "61ece8cc92afb41fdb1552ec1f72ac147b9eaceb",
+      "path": "docs/supply-chain/notice-material/sha256/d408f38ffa3355c5faec517153295338892eb0f1ea43f57874bb23c6075979b5",
+      "sha256": "d408f38ffa3355c5faec517153295338892eb0f1ea43f57874bb23c6075979b5"
+    },
+    {
+      "gitBlob": "e5f0ada92e14723f9683acf33b582ff83390323d",
+      "path": "docs/supply-chain/notice-material/sha256/d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483",
+      "sha256": "d59ca233e5c37a734e7ddeb14073c661b571a005b65d291bcc7a70c578bc3483"
+    },
+    {
+      "gitBlob": "b18aed69219562718858d972467ba0a68b1ce178",
+      "path": "docs/supply-chain/notice-material/sha256/d9fed24f132985934fca621c4dc1dfb53e03377a24d0568d424383d7eaa9c0ac",
+      "sha256": "d9fed24f132985934fca621c4dc1dfb53e03377a24d0568d424383d7eaa9c0ac"
+    },
+    {
+      "gitBlob": "b93be90515ccd0b9daedaa589e42bf5929693f1f",
+      "path": "docs/supply-chain/notice-material/sha256/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93"
+    },
+    {
+      "gitBlob": "c914149a6f845cc9614f303b651db4289b511e73",
+      "path": "docs/supply-chain/notice-material/sha256/dbbf03317f0101fed5643cd87ca80fb769e358fa4f428445bf2315deeb23a154",
+      "sha256": "dbbf03317f0101fed5643cd87ca80fb769e358fa4f428445bf2315deeb23a154"
+    },
+    {
+      "gitBlob": "d16a60ec5b9963ef86b35a52ac92227014618e6c",
+      "path": "docs/supply-chain/notice-material/sha256/dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf",
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+    },
+    {
+      "gitBlob": "740172639feadf761b726e5211973acb3fe4f0d8",
+      "path": "docs/supply-chain/notice-material/sha256/dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
+      "sha256": "dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce"
+    },
+    {
+      "gitBlob": "9d2e5162a2d4bb1a26e51a07b14b9fd35f167c57",
+      "path": "docs/supply-chain/notice-material/sha256/ddc9158fa20e427bc12fa8e1e6d07c642ed4d2c618607df768b30ae2986b3b7c",
+      "sha256": "ddc9158fa20e427bc12fa8e1e6d07c642ed4d2c618607df768b30ae2986b3b7c"
+    },
+    {
+      "gitBlob": "eead04a12162dc336a2d5029bc5101c9e430aa21",
+      "path": "docs/supply-chain/notice-material/sha256/e05b1eaf5b5f99b7ad75cd1f38858ff9a311780b97715ead67936d60bf96aa7e",
+      "sha256": "e05b1eaf5b5f99b7ad75cd1f38858ff9a311780b97715ead67936d60bf96aa7e"
+    },
+    {
+      "gitBlob": "0a041280bd00a9d068f503b8ee7ce35214bd24a1",
+      "path": "docs/supply-chain/notice-material/sha256/e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+      "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+    },
+    {
+      "gitBlob": "d3b509a2b4119c47ad86af9fc1b400ce2eb09cf1",
+      "path": "docs/supply-chain/notice-material/sha256/e5ff3c23c110e494cd7d736c10fd96d462457bafeca310840db6527298c7d46b",
+      "sha256": "e5ff3c23c110e494cd7d736c10fd96d462457bafeca310840db6527298c7d46b"
+    },
+    {
+      "gitBlob": "d32ab4426a5f6bd7986ed80df4073bbf997903d1",
+      "path": "docs/supply-chain/notice-material/sha256/e70ff771504ba41f2be55de812a017ff46433d7a250c862e38fc419159e44500",
+      "sha256": "e70ff771504ba41f2be55de812a017ff46433d7a250c862e38fc419159e44500"
+    },
+    {
+      "gitBlob": "982db1392010656384c7c3a37dae2749ebbd25e0",
+      "path": "docs/supply-chain/notice-material/sha256/e7f5d28405c9fe6580db684634bace66953055b436d7fbb6f860d0c800c44a9f",
+      "sha256": "e7f5d28405c9fe6580db684634bace66953055b436d7fbb6f860d0c800c44a9f"
+    },
+    {
+      "gitBlob": "903d67495fc6c2017713c754cf16b8f179122ed2",
+      "path": "docs/supply-chain/notice-material/sha256/e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9",
+      "sha256": "e862bb5b904fb5513c3e14288d7a25a12eb0ecc7847a0a965d310e9a955e7cb9"
+    },
+    {
+      "gitBlob": "62b076cdee58ec8f34034141ba0befd9015b0c7e",
+      "path": "docs/supply-chain/notice-material/sha256/e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+      "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7"
+    },
+    {
+      "gitBlob": "d90598f2a8740731fa4c637870bd1f8a1a23bfb4",
+      "path": "docs/supply-chain/notice-material/sha256/eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998",
+      "sha256": "eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998"
+    },
+    {
+      "gitBlob": "6c1512dd6bcd6de314673f8c2c7ff3fd6139f28e",
+      "path": "docs/supply-chain/notice-material/sha256/ebca854e0134cd256d673627c20499f42577eb74bacf08b9f25b626a73c91277",
+      "sha256": "ebca854e0134cd256d673627c20499f42577eb74bacf08b9f25b626a73c91277"
+    },
+    {
+      "gitBlob": "2873b3b2e595072e66330369d83e8af46655970c",
+      "path": "docs/supply-chain/notice-material/sha256/ec62dc96da0099b87f4511736c87309335527fb7031639493e06c95728dc8c54",
+      "sha256": "ec62dc96da0099b87f4511736c87309335527fb7031639493e06c95728dc8c54"
+    },
+    {
+      "gitBlob": "c67e3532b542455fad8c4004ef297534d7f480b2",
+      "path": "docs/supply-chain/notice-material/sha256/ecdccbcf39024f624ded480c01c0b25458e1eca8f26ecf040933865ce56d9a4f",
+      "sha256": "ecdccbcf39024f624ded480c01c0b25458e1eca8f26ecf040933865ce56d9a4f"
+    },
+    {
+      "gitBlob": "a6bba14552c7673a7db57a5750ddb06508264273",
+      "path": "docs/supply-chain/notice-material/sha256/efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371",
+      "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371"
+    },
+    {
+      "gitBlob": "7adfab231080832428c1bb9fa3c2bd93ed55fee9",
+      "path": "docs/supply-chain/notice-material/sha256/f37b1c16b366d1416cb7a8a2f03a7037d45a919a722b4f3fb91cbac084af7fa6",
+      "sha256": "f37b1c16b366d1416cb7a8a2f03a7037d45a919a722b4f3fb91cbac084af7fa6"
+    },
+    {
+      "gitBlob": "79a03ca513a7c94562cb1f8d83aa8bfc736ba0c2",
+      "path": "docs/supply-chain/notice-material/sha256/f4573e7cb7676745fb5b8d36fa548aa93e391cfb6872ddacd65130c45ea6a92d",
+      "sha256": "f4573e7cb7676745fb5b8d36fa548aa93e391cfb6872ddacd65130c45ea6a92d"
+    },
+    {
+      "gitBlob": "e906a25acfb5ee2f955bd39101a207e3458463bd",
+      "path": "docs/supply-chain/notice-material/sha256/f65c5d9f22a317b2a10803bd1868461ce6499c2ed7217bc80c0cc772a748789c",
+      "sha256": "f65c5d9f22a317b2a10803bd1868461ce6499c2ed7217bc80c0cc772a748789c"
+    },
+    {
+      "gitBlob": "77c42f1408a38a0609cac12c887616cb21bfb736",
+      "path": "docs/supply-chain/notice-material/sha256/f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc",
+      "sha256": "f71e8ed126b46346494aad5486874cd8f0aafe95092ed67d2e3cb6110f939abc"
+    },
+    {
+      "gitBlob": "fd579a40a27109ba8ed69211f98afc2a5521be09",
+      "path": "docs/supply-chain/notice-material/sha256/fcf06aacb36ee29237110d6b3a9fbd6296e85ad4324263abf5f8a5cfb5706c81",
+      "sha256": "fcf06aacb36ee29237110d6b3a9fbd6296e85ad4324263abf5f8a5cfb5706c81"
+    },
+    {
+      "gitBlob": "1ee8d0e6172ebab4e98e1413ba4376e49582c5dd",
+      "path": "docs/supply-chain/notice-material/sha256/fd4098360de4b9fb2e003ac7c852e8c86f264a1d6e27c47128e8c8075c81249b",
+      "sha256": "fd4098360de4b9fb2e003ac7c852e8c86f264a1d6e27c47128e8c8075c81249b"
+    },
+    {
+      "gitBlob": "311b2b56c53f678ab95fc0def708c675d521a807",
+      "path": "docs/supply-chain/notice-material/sha256/fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5",
+      "sha256": "fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5"
+    },
+    {
+      "gitBlob": "d99323a9965f146d5b0888c4ca1bf0727e12b04f",
+      "path": "docs/supply-chain/notice-material/sha256/fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d",
+      "sha256": "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d"
+    },
+    {
+      "gitBlob": "16d2c59c6195f9a1ac9af37cb9d75f1a6b85ab01",
+      "path": "docs/supply-chain/notice-material/sha256/ff138e683771b187f3629c383db72ee7d632009010a36d08e18e8d2a34222ec7",
+      "sha256": "ff138e683771b187f3629c383db72ee7d632009010a36d08e18e8d2a34222ec7"
+    },
+    {
+      "gitBlob": "e0c69d56032d1562a06c0caa8ab8b278efded3c0",
+      "path": "docs/supply-chain/notice-material/sha256/ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272",
+      "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
+    },
+    {
+      "gitBlob": "7a254464cc78ccea32b3ded00513c44c4e4da412",
+      "path": "docs/supply-chain/notice-material/sha256/fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf",
+      "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "2be62a9ae211a637a5490520212cbca8be6d5d60",
-  "subjectTree": "63c25f9c4825fb67c6639a8202f233a6fa2cbc92"
+  "subjectCommit": "f09b0eaf2b5f8306c6b3b341c60558bfe0962d5f",
+  "subjectTree": "b3d54daa078af7eb96bfc4390580f39682a553ff"
 }

@@ -9,20 +9,30 @@ async function emit(page: Page, type: string, payload: Record<string, unknown>) 
 async function publicationAttempts(page: Page) {
   return page.evaluate(() => (window as unknown as { qaPresenterAttempts: unknown[] }).qaPresenterAttempts)
 }
-async function sample(page: Page) {
+async function readSample(page: Page) {
   return page.evaluate(async () => {
     const url = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))!.name
     const OSD = (await import(/* @vite-ignore */ url)).default
     let element: Element | null = document.querySelector('.openseadragon-canvas')
     let viewer = element ? OSD.getViewer(element) : null
     while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
-    const item = viewer.world.getItemAt(0)
+    const item = viewer?.world.getItemAt(0)
+    if (!viewer?.isOpen() || !item || !viewer.viewport) return null
     const center = item.viewportToImageCoordinates(viewer.viewport.getCenter(true))
     const node = document.querySelector('[data-teacher-pointer]') as HTMLElement | null
     const matrix = node ? new DOMMatrixReadOnly(getComputedStyle(node).transform) : null
     const pointer = matrix ? item.viewportToImageCoordinates(viewer.viewport.pointFromPixel(new OSD.Point(matrix.e, matrix.f), true)) : null
     return { source: item.source.width, tileUrl: item.source.getTileUrl(0, 0, 0), x: center.x / 256, y: center.y / 256, zoom: item.viewportToImageZoom(viewer.viewport.getZoom(true)), pointer: pointer ? { hidden: node!.hidden, x: pointer.x / 256, y: pointer.y / 256 } : null }
   })
+}
+
+async function sample(page: Page) {
+  let current: Awaited<ReturnType<typeof readSample>> = null
+  await expect.poll(async () => {
+    current = await readSample(page)
+    return current !== null
+  }, { message: 'Native OSD must finish opening a world item before sampling' }).toBe(true)
+  return current!
 }
 
 test('real OSD teacher slide opening reaches guided student and remote control does not echo', async ({ context, page }, info) => {
@@ -59,11 +69,13 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   let presenter: { sequence: number; slideId: string; viewport: Record<string, unknown> | null } = { sequence: 0, slideId: 'slide-1', viewport: null }
   let controller: string | null = null
   const receipts: Array<Record<string, unknown>> = []
+  const marks: Array<Record<string, unknown>> = []
+  let snapshots = 0
   const student = await context.newPage()
   let snapshotGate: Promise<void> | null = null
   let releaseSnapshot: (() => void) | null = null
   let heldSnapshots = 0
-  const teacherState = () => ({ session: { id: 'qa', status: 'active', phase: 'live', publicId: 'public', joinCode: 'ABC234DEFG', reviewExpiresAt: '2027-01-01T00:00:00Z' }, slides, stateVersion: version, presenter, participantCount: 1, rosterVersion: 1, participants: [], pendingQuestions: [], activePins: [], teacherPointer: null, teachingAnnotations: [], controller: { participantId: controller, leaseId: controller ? 'lease' : null, controlEpoch: version, expiresAt: null } })
+  const teacherState = () => ({ session: { id: 'qa', status: 'active', phase: 'live', publicId: 'public', joinCode: 'ABC234DEFG', reviewExpiresAt: '2027-01-01T00:00:00Z' }, slides, stateVersion: version, presenter, participantCount: 1, rosterVersion: 1, participants: [], pendingQuestions: [], activePins: [], teacherPointer: null, teachingAnnotations: marks, controller: { participantId: controller, leaseId: controller ? 'lease' : null, controlEpoch: version, expiresAt: null } })
   await context.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith('/auth/session')) return route.fulfill({ json: { csrfToken: 'synthetic-csrf' } })
@@ -71,6 +83,7 @@ test('real OSD teacher slide opening reaches guided student and remote control d
     if (path === '/api/v1/admin/classroom/sessions') return route.fulfill({ json: { sessions: [{ id: 'qa', publicId: 'public', phase: 'live', joinCode: 'ABC234DEFG', reviewExpiresAt: '2027-01-01T00:00:00Z' }] } })
     if (path.endsWith('/participants')) return route.fulfill({ json: { items: [], total: 0, nextCursor: null, rosterVersion: 1 } })
     if (path === '/api/v1/admin/classroom/sessions/qa') {
+      snapshots += 1
       const snapshot = teacherState()
       if (snapshotGate) { heldSnapshots += 1; await snapshotGate }
       return route.fulfill({ json: snapshot })
@@ -96,6 +109,12 @@ test('real OSD teacher slide opening reaches guided student and remote control d
       const event = { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: viewport.slideId, viewport }
       await emit(page, 'presenter', event)
       await emit(student, 'presenter', event)
+      return
+    }
+    if (path.endsWith('/annotations') && route.request().method() === 'POST') {
+      marks.push({ ...route.request().postDataJSON(), id: 'mark-1' }); version += 1
+      await route.fulfill({ status: 204 })
+      await emit(page, 'teaching-annotation-added', { hubEpoch: 'epoch-reconnected', eventSequence: ++sequence, stateVersion: version, annotation: marks[0] })
       return
     }
     return route.fulfill({ json: {} })
@@ -197,7 +216,63 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   }
   expect(heldSnapshots).toBe(2)
   expect((await publicationAttempts(page)).length).toBe(afterReclaim)
-  const receipt = JSON.stringify({ receipts, teacher: await sample(page), student: await sample(student), baseline, afterReclaim, heldSnapshots })
+  // Teacher exploration stays local with Guide off, including annotation refresh.
+  controller = null; version += 1
+  await emit(page, 'control', { hubEpoch: 'epoch-reconnected', eventSequence: ++sequence, stateVersion: version })
+  await expect(page.getByRole('button', { name: 'Draw', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Stop guiding students', exact: true }).click()
+  await page.getByRole('button', { name: '2. Synthetic slide 2', exact: true }).click()
+  let releaseOpen!: () => void
+  let observeOpen!: () => void
+  const openHeld = new Promise<void>((resolve) => { releaseOpen = resolve })
+  const openObserved = new Promise<void>((resolve) => { observeOpen = resolve })
+  const holdSource = async (route: import('@playwright/test').Route) => {
+    observeOpen()
+    await openHeld
+    await route.fallback()
+  }
+  await context.route('**/qa/slide-1.dzi*', holdSource)
+  await page.getByRole('button', { name: /Slide 1 Synthetic slide 1/ }).click()
+  try {
+    await openObserved
+    expect(await readSample(page)).toBeNull()
+    const openingSample = sample(page)
+    expect(await readSample(page)).toBeNull()
+    releaseOpen()
+    expect((await openingSample).tileUrl).toContain('slide-1_files')
+  } finally {
+    releaseOpen()
+    await context.unroute('**/qa/slide-1.dzi*', holdSource)
+  }
+  await expect.poll(async () => (await sample(page)).tileUrl).toContain('slide-1_files')
+  await page.getByRole('button', { name: 'Draw', exact: true }).click()
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click()
+  const box = (await page.getByLabel('Private slide drawing canvas').boundingBox())!
+  const beforeMark = snapshots
+  await page.mouse.move(box.x + box.width * .4, box.y + box.height * .4)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * .6, box.y + box.height * .6, { steps: 4 })
+  await page.mouse.up()
+  await expect.poll(() => marks.length).toBe(1)
+  expect(marks[0].slideId).toBe('slide-1')
+  await expect.poll(() => snapshots).toBeGreaterThan(beforeMark)
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await expect.poll(async () => (await sample(page)).tileUrl).toContain('slide-1_files')
+  for (const size of [{ width: 320, height: 740 }, { width: 768, height: 1024 }, { width: 740, height: 360 }]) {
+    await page.setViewportSize(size)
+    await page.getByRole('button', { name: 'Draw', exact: true }).click()
+    await page.locator('.classroom-activity-tray > summary').click()
+    await page.getByRole('button', { name: 'Rectangle', exact: true }).click()
+    await page.locator('.classroom-activity-tray > summary').click()
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await student.setViewportSize(size)
+    await student.getByRole('button', { name: 'Draw on slide', exact: true }).click()
+    await student.locator('.classroom-activity-tray > summary').click()
+    await student.getByRole('button', { name: 'Rectangle', exact: true }).click()
+    await student.getByRole('button', { name: 'Done', exact: true }).click()
+    await student.locator('.classroom-activity-tray > summary').click()
+  }
+  const receipt = JSON.stringify({ receipts, marks, snapshots, teacher: await sample(page), student: await sample(student), baseline, afterReclaim, heldSnapshots })
   await writeFile(info.outputPath('actual-osd-receipts.json'), receipt)
   await info.attach('actual-osd-receipts', { body: receipt, contentType: 'application/json' })
   await page.screenshot({ path: info.outputPath('teacher-osd.png') })

@@ -15,3 +15,8 @@ await Promise.all(
     copyFile(resolve(repositoryRoot, name), resolve(outputRoot, name)),
   ),
 );
+
+await copyFile(
+  resolve(repositoryRoot, "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"),
+  resolve(outputRoot, "THIRD_PARTY_NOTICES.txt"),
+);

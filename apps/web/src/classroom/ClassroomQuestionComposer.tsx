@@ -14,6 +14,11 @@ export function ClassroomQuestionComposer({ viewer, pin, question, busy, onQuest
   const [element] = useState(() => document.createElement('div'))
   useEffect(() => {
     element.className = 'classroom-question-composer'
+    // OSD's canvas tracker otherwise captures overlay presses and consumes
+    // the native click before the portal's form controls can receive it.
+    const stopViewerGesture = (event: Event) => event.stopPropagation()
+    const gestures = ['pointerdown', 'pointerup', 'click', 'dblclick', 'wheel']
+    gestures.forEach((type) => element.addEventListener(type, stopViewerGesture))
     let placed = false
     let focusTimer: number | undefined
     const fit = () => {
@@ -39,15 +44,16 @@ export function ClassroomQuestionComposer({ viewer, pin, question, busy, onQuest
     viewer.addHandler('animation', fit)
     viewer.addHandler('resize', fit)
     place()
-    return () => { window.clearTimeout(focusTimer); viewer.removeHandler('open', place); viewer.removeHandler('animation', fit); viewer.removeHandler('resize', fit); viewer.removeOverlay(element) }
+    return () => { gestures.forEach((type) => element.removeEventListener(type, stopViewerGesture)); window.clearTimeout(focusTimer); viewer.removeHandler('open', place); viewer.removeHandler('animation', fit); viewer.removeHandler('resize', fit); viewer.removeOverlay(element) }
   }, [element, viewer, pin])
-  return createPortal(<form aria-label="Pinned question" onSubmit={(event) => { event.preventDefault(); if (!busy && question.trim()) onSubmit() }}>
+  const submit = () => { if (!busy && question.trim()) onSubmit() }
+  return createPortal(<form aria-label="Pinned question" onSubmit={(event) => { event.preventDefault(); submit() }}>
     <label htmlFor="classroom-pinned-question">Question at this point</label>
     <textarea id="classroom-pinned-question" maxLength={500} value={question} onChange={(event) => onQuestion(event.target.value)} onKeyDown={(event) => {
-      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); if (!busy && question.trim()) onSubmit() }
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); submit() }
       if (event.key === 'Escape' && !busy) onCancel()
     }} />
     <small>Ctrl / ⌘ Enter to send · Escape to clear</small>
-    <div><button type="submit" disabled={busy || !question.trim()}>{busy ? 'Sending…' : 'Send question'}</button><button type="button" disabled={busy} onClick={onCancel}>Cancel</button></div>
+    <div><button type="button" disabled={busy || !question.trim()} onClick={submit}>{busy ? 'Sending…' : 'Send question'}</button><button type="button" disabled={busy} onClick={onCancel}>Cancel</button></div>
   </form>, element)
 }
