@@ -63,5 +63,59 @@
     {"id":"standards:w3c-vc-bitstring-rdfc@2.0-1.0-1.0","ecosystem":"standard-artifact","name":"W3C VC Bitstring Status List RDFC","version":"VC-2.0-Bitstring-1.0-RDFC-1.0","role":"planned-runtime-and-validation","source":"W3C-upstream","purpose":"credential proof canonicalization and status","distribution":"offline-standard-corpus","manifestRefs":["docs/adr/0099-issue-private-bounded-open-badges-and-clrs.md"],"blockers":["EXACT_CONTEXT_SCHEMA_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED"]},
     {"id":"standards:caliper@1.2","ecosystem":"standard-artifact","name":"Caliper Analytics","version":"1.2","role":"planned-runtime-optional","optional":true,"source":"1EdTech-upstream","purpose":"disabled-by-default minimized analytics exchange","distribution":"offline-standard-corpus","manifestRefs":["docs/adr/0100-emit-minimized-optional-caliper-and-exclude-overlapping-standards.md"],"blockers":["EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED"]},
     {"id":"standards:wcag@2.2","ecosystem":"standard-artifact","name":"WCAG","version":"2.2","role":"planned-validation","source":"W3C-upstream","purpose":"accessibility qualification","distribution":"offline-validation-corpus","manifestRefs":["docs/adr/0050-block-launch-on-the-supported-client-and-accessibility-matrix.md"],"blockers":["EXACT_ARTIFACT_CHECKSUM_LICENSE_NOTICE_AND_RIGHTS_RECEIPT_NOT_MIRRORED"]}
+  ],
+  "supplementalNotices": [
+    {
+      "artifact": "https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.27.0.tgz",
+      "checksum": "sha512-3KxL5wIVqa8Ex08jxSzncm9CMgw8CjOFyOQ7SxvG9o0cVLlhTNKXyIQuTbtX4tGPJEf73OER2xrjt4HJSBL4ow==",
+      "id": "npm:onnxruntime-common@1.27.0",
+      "license": "MIT",
+      "notices": [
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+          "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/LICENSE"
+        },
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+          "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2",
+          "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/ThirdPartyNotices.txt"
+        }
+      ],
+      "packageReceipt": {
+        "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-common-package.json",
+        "sha256": "740784b70b19207529b9a08229aaa4bf7c211afcc30ab4594daa32891ccffb94",
+        "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/js/common/package.json"
+      },
+      "repository": "https://github.com/Microsoft/onnxruntime.git",
+      "source": "https://registry.npmjs.org/onnxruntime-common/1.27.0",
+      "sourceCommit": "8f0278c77bf44b0cc83c098c6c722b92a36ac4b5"
+    },
+    {
+      "artifact": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.27.0.tgz",
+      "checksum": "sha512-ogDLsqIozHZwifPuN37OproAo0byX6t43/bP8GzeZWBWD6MOGExswFAx3up4NS/vvWBOg2u2PXomDt3rMmdQSg==",
+      "id": "npm:onnxruntime-web@1.27.0",
+      "license": "MIT",
+      "notices": [
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-LICENSE",
+          "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+          "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/LICENSE"
+        },
+        {
+          "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+          "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2",
+          "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/ThirdPartyNotices.txt"
+        }
+      ],
+      "packageReceipt": {
+        "path": "docs/supply-chain/notice-material/onnxruntime-1.27.0-js-web-package.json",
+        "sha256": "664ea43e8734f7037a9cbf3192ae1880c67a034e3914f23408e69529c7a56d98",
+        "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/8f0278c77bf44b0cc83c098c6c722b92a36ac4b5/js/web/package.json"
+      },
+      "repository": "https://github.com/Microsoft/onnxruntime.git",
+      "source": "https://registry.npmjs.org/onnxruntime-web/1.27.0",
+      "sourceCommit": "8f0278c77bf44b0cc83c098c6c722b92a36ac4b5"
+    }
   ]
 }

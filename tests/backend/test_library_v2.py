@@ -569,8 +569,19 @@ def test_slide_trash_restore_and_targeted_status(tmp_path: Path) -> None:
         statuses = client.get("/api/v2/admin/slides/status", params={"ids": "slide-processing"})
         assert statuses.status_code == 200
         assert statuses.json() == {
-            "items": [{"id": "slide-processing", "state": "converting", "errorCode": None}]
+            "items": [{"id": "slide-processing", "state": "converting", "errorCode": None,
+                       "thumbnailUrl": None}]
         }
+        with session_factory(client.app.state.settings)() as database:
+            slide = database.get(Slide, "slide-processing")
+            assert slide is not None
+            slide.state = SlideState.READY_PRIVATE
+            slide.render_mode = "ome_dynamic"
+            database.commit()
+        completed = client.get("/api/v2/admin/slides/status", params={"ids": "slide-processing"})
+        assert completed.json()["items"][0]["thumbnailUrl"] == (
+            "/api/v2/admin/slides/slide-processing/thumbnail"
+        )
         too_many = client.get(
             "/api/v2/admin/slides/status",
             params={"ids": ",".join(f"slide-{index}" for index in range(101))},

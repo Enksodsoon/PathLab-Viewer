@@ -138,3 +138,95 @@ def test_notice_bundle_preserves_missing_text_and_blocker_boundaries() -> None:
     assert "ID: npm:react@19.2.8" in notices
     assert "ID: model:trace-sim@" in notices
     assert "PRODUCTION_APPROVAL_REJECTED" in notices
+
+
+def test_notice_bundle_includes_exact_archive_text_and_rejects_tampering(tmp_path, monkeypatch):
+    import hashlib
+
+    from scripts import generate_dependency_inventory as dependencies
+    from scripts import generate_software_inventories as generator
+
+    text = b"Synthetic copyright and complete grant.\n"
+    digest = hashlib.sha256(text).hexdigest()
+    path = "docs/supply-chain/notice-material/sha256/" + digest
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_bytes(text)
+    index = {
+        "schema": "pathlab.archive-notices/1",
+        "records": [
+            {
+                "id": "npm:synthetic@1",
+                "artifact": "https://example.test/exact.tgz",
+                "checksum": "sha512-exact",
+                "notices": [{"member": "package/LICENSE", "path": path, "sha256": digest}],
+            }
+        ],
+    }
+    index_path = tmp_path / "docs/supply-chain/notice-material/archive-notices.json"
+    index_path.write_text(json.dumps(index))
+    monkeypatch.setattr(dependencies, "ROOT", tmp_path)
+    monkeypatch.setattr(generator, "ROOT", tmp_path)
+    component = {
+        "id": "npm:synthetic@1",
+        "artifact": "https://example.test/exact.tgz",
+        "checksum": "sha512-exact",
+        "license": "MIT",
+        "role": "runtime-mandatory",
+        "distribution": "bundled",
+        "admission": "RECORDED_UNREVIEWED",
+        "blockers": [],
+        "name": "synthetic",
+        "version": "1",
+        "source": "https://example.test/exact.tgz",
+        "noticeFiles": [{"path": "package/LICENSE", "sha256": digest}],
+    }
+    output = generator.notice_bundle([component], "Root notice")
+    assert text in output
+    assert b"RECORDED_UNREVIEWED" in output
+    wrong = dict(component, checksum="sha512-other")
+    with pytest.raises(ValueError, match="shipped notice text not captured"):
+        generator.notice_bundle([wrong], "Root notice")
+    target.write_bytes(text + b"changed")
+    with pytest.raises(ValueError, match="notice material checksum"):
+        generator.notice_bundle([component], "Root notice")
+    target.unlink()
+    with pytest.raises(FileNotFoundError):
+        generator.notice_bundle([component], "Root notice")
+
+
+def test_web_notice_copy_and_python_container_packaging_use_same_artifact(tmp_path):
+    import subprocess
+    import tomllib
+
+    root = Path(__file__).resolve().parents[2]
+    script = tmp_path / "apps/web/scripts/copy-release-legal-files.mjs"
+    script.parent.mkdir(parents=True)
+    script.write_bytes((root / "apps/web/scripts/copy-release-legal-files.mjs").read_bytes())
+    source = "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    for name, payload in [
+        ("LICENSE", b"root license"),
+        ("NOTICE", b"root notice"),
+        (source, b"Synthetic upstream copyright and full grant.\n"),
+    ]:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+    subprocess.run(["node", str(script)], check=True, capture_output=True)
+    assert (tmp_path / "apps/web/dist/THIRD_PARTY_NOTICES.txt").read_bytes() == (
+        tmp_path / source
+    ).read_bytes()
+    (tmp_path / source).unlink()
+    result = subprocess.run(["node", str(script)], capture_output=True)
+    assert result.returncode != 0
+    config = tomllib.loads((root / "pyproject.toml").read_text())
+    targets = config["tool"]["hatch"]["build"]["targets"]
+    assert targets["wheel"]["force-include"][source] == "wsi_viewer/THIRD_PARTY_NOTICES.txt"
+    assert targets["sdist"]["force-include"][source] == source
+    for name in ("backend", "web"):
+        docker = (root / f"deploy/Dockerfile.{name}").read_text()
+        assert (
+            f"COPY {source} ./docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+            in docker
+        )
+        assert "/usr/share/licenses/pathlab-viewer/THIRD_PARTY_NOTICES.txt" in docker

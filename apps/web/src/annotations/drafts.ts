@@ -112,18 +112,33 @@ export class IndexedDbDraftStorage implements DraftStorage {
   private databasePromise: Promise<IDBDatabase> | null = null
 
   private database(): Promise<IDBDatabase> {
-    this.databasePromise ??= new Promise((resolve, reject) => {
+    if (this.databasePromise) return this.databasePromise
+    let failed = false
+    const attempt = new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(DATABASE_NAME, 1)
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(STORE_NAME)) {
           request.result.createObjectStore(STORE_NAME, { keyPath: 'slideId' })
         }
       }
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error ?? new Error('IndexedDB open failed'))
-      request.onblocked = () => reject(new Error('IndexedDB upgrade is blocked'))
+      request.onsuccess = () => {
+        if (failed) request.result.close()
+        else resolve(request.result)
+      }
+      request.onerror = () => {
+        failed = true
+        reject(request.error ?? new Error('IndexedDB open failed'))
+      }
+      request.onblocked = () => {
+        failed = true
+        reject(new Error('IndexedDB upgrade is blocked'))
+      }
     })
-    return this.databasePromise
+    this.databasePromise = attempt
+    void attempt.catch(() => {
+      if (this.databasePromise === attempt) this.databasePromise = null
+    })
+    return attempt
   }
 
   async list(): Promise<AnnotationDraft[]> {

@@ -197,6 +197,7 @@ export interface SlideStatusItem {
   id: string
   state: SlideState
   errorCode: string | null
+  thumbnailUrl?: string | null
 }
 
 export interface SharedSlide {

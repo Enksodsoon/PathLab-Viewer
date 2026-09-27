@@ -1,5 +1,7 @@
 # Current-code report reconciliation
 
+Current release: PRs267–269 merged and protected deployment36275489983 succeeded at cf0d2d2, with nine required checks and backup/restore verification. Historical observations below retain their investigation context. Fresh hardening review and newly reproduced repairs are tracked in [remaining closure](tickets/remaining-campaign-closure.md); the campaign remains open.
+
 `AUDIT_DISPOSITIONS.json` preserves all 954 source section identities from `findings.json`. This is a partial current-code audit, not certification of 954 independent bugs. It retains genuinely unverified claims as `unresolved`; no old reconciliation status is treated as proof. Section counts include duplicate claims, aggregate severity headings, and planning overviews. Count distinct behavior canonical keys for triaged mechanisms, never source headings as bugs.
 
 ## Historical audit observations

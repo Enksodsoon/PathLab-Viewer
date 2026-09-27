@@ -1873,3 +1873,12 @@
     max-height: calc(100svh - 240px);
   }
 }
+
+@media (max-width: 640px) {
+  /* Keep the activity tray away from the drawing toolbar while marking. */
+  .classroom-shell--teacher:has(.classroom-drawing.is-active) .classroom-activity-tray {
+    top: 82px;
+    bottom: auto;
+    max-height: calc(100svh - 240px);
+  }
+}

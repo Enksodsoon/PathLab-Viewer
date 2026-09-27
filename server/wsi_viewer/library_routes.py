@@ -653,6 +653,7 @@ def register_library_routes(
                     "id": slide_id,
                     "state": by_id[slide_id].state.value,
                     "errorCode": by_id[slide_id].error_code,
+                    "thumbnailUrl": slide_json(by_id[slide_id])["thumbnailUrl"],
                 }
                 for slide_id in slide_ids
                 if slide_id in by_id

@@ -253,3 +253,34 @@ test('residual library controls preserve card targets and real navigation bounda
   await noOverflow(page)
   await screenshot(page,testInfo.project.name,'residual-library-controls')
 })
+
+test('late ready thumbnail decodes without losing library selection or folder search', async ({ page }, info) => {
+  await fixture(page)
+  let ready = false
+  let itemLoads = 0
+  const statuses: Array<Record<string, unknown>> = []
+  await page.route('**/api/v2/admin/library/items**', (route) => {
+    itemLoads += 1
+    return route.fulfill({ json: { items: [sample, { ...slides[1], state: 'converting' }], nextCursor: null, total: 2 } })
+  })
+  await page.route('**/api/v2/admin/slides/status**', (route) => {
+    const item = { id: 'qa-b', state: ready ? 'ready_private' : 'converting', errorCode: null, thumbnailUrl: ready ? '/qa/thumbnail-b.png' : null }
+    statuses.push(item)
+    return route.fulfill({ json: { items: [item] } })
+  })
+  await page.goto('/admin?location=folder%3Aqa-folder&q=Synthetic')
+  await expect(card(page, 'Synthetic B')).toBeVisible()
+  await expect(card(page, 'Synthetic B').locator('.library-slide-thumbnail img')).toHaveCount(0)
+  await page.getByRole('checkbox', { name: 'Select Synthetic A' }).check()
+  await expect.poll(() => statuses.length).toBeGreaterThan(0)
+  ready = true
+  const image = card(page, 'Synthetic B').locator('.library-slide-thumbnail img')
+  await expect(image).toHaveAttribute('src', '/qa/thumbnail-b.png')
+  await expect.poll(() => image.evaluate((node) => { const image = node as HTMLImageElement; return image.complete && image.naturalWidth === 256 && image.naturalHeight === 256 })).toBe(true)
+  await expect(page.getByRole('checkbox', { name: 'Select Synthetic A' })).toBeChecked()
+  await expect(page.getByRole('searchbox', { name: 'Search slides' })).toHaveValue('Synthetic')
+  await expect(page).toHaveURL(/location=folder%3Aqa-folder.*q=Synthetic/)
+  expect(itemLoads).toBe(1)
+  await info.attach('late-thumbnail-status', { body: JSON.stringify({ statuses, itemLoads, selection: 'qa-a', thumbnail: await image.getAttribute('src') }), contentType: 'application/json' })
+  await page.screenshot({ path: info.outputPath('late-thumbnail-selection.png') })
+})

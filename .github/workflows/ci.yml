@@ -156,6 +156,8 @@ jobs:
           tests/backend/test_postgres_migration.py
           tests/backend/test_postgres_restore_comparison.py
           tests/backend/test_postgres_classroom.py
+          tests/backend/test_classroom_control_expiry_race.py
+          tests/backend/test_study_pseudonym_collision.py
           tests/backend/test_postgres_time_support.py
           tests/backend/test_postgres_sharing_lifecycle.py
           tests/backend/test_postgres_storage.py
@@ -330,6 +332,9 @@ jobs:
           e2e/classroom-study-remediation.spec.ts
           e2e/classroom-teacher-osd-integrity.spec.ts
           e2e/library-upload-remediation.spec.ts
+          e2e/library-folder-cache-cycle.spec.ts
+          e2e/annotation-draft-recovery.spec.ts
+          e2e/classroom-invite-modal.spec.ts
           e2e/study-local-store-concurrency.spec.ts
           e2e/study-download-audit.spec.ts
           --workers=2
