@@ -20,8 +20,16 @@
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "121bc68063796d560c1f2cd4f2641ed45d29aabc70fcb46bdaf0463fc5d1d1db": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "17fa7a237660e9a8ec1ab06ebea4b9c26b8b243da4db06ffbae7a549830a79d4": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "191a3c07bf3295c9eccacd268199176d7fbc0535032817d5832a1fc06d4c4414": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "1cd42607a35e71210400481763b4b5411cd4d28281934cadcabc271510c70af1": [
@@ -44,6 +52,14 @@
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "2cdfb032b327494ef8fb075799d2ff62d9e6608fa4cae7e95e0d258fe65eb1d3": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "2f5e3061fcda513fef73a55a22af7d9f59941b0d05c2f9791fbd4ded2c78d88c": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "35084aefe125ac67c1bcd7b048a36544e12ab0896f2f3c8e7d6f9c6ffb40910d": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
@@ -58,6 +74,14 @@
     ],
     "367ea6e4ac9f781af074a823cd3dd30cc98f9ff0280e760323d8c13b077939ca": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "3794d7182a0afe9e92d4835577e6b60ec4f518fad58ecad8019a2a9c97ab3d74": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "39fa71330e3926c4ae1a16d97697aa4770a6701041cda07ca4d7d2a36d391b78": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "3b3c005009ef7122cd45bb99f841c620574902e9ccc3ed56a2fd63d08a2cd58e": [
@@ -78,6 +102,10 @@
     ],
     "433bac7b6413069ef4e18b0d4583c2a32b774e7202a195bc23697b1244a6abdf": [
       "docs/supply-chain/notice-material/sha256/37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "4693f16d405a8016c61118da2d9009513507bf58a7a600909b019a99dadb0634": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "4812d9bdc57db0b5af1ebb9f8420c96009060ee73d8e57ab020b25af1e9c6c25": [
@@ -129,8 +157,20 @@
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "5ff4d479f808280ff775bf07003b3e448b71e1b36fe3c27c8c36fae04eefc1ea": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "610f1be2b7e07de2cc5e159d3ca0a6c75aa71ae6b3ad9dcd10fa3c8ac087cd28": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "61dfb3ec3a25292e352698e9c250eba575c910ee628755836a57f412b129db40": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "62570065ca4b6127035efe0813126fe1857ee57f6ce84e23141a3bb352704ed2": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "69609d2408ecda1cb24a5de480eddb0aea7b29e3b7eac034b3b7505a460712c6": [
@@ -149,6 +189,10 @@
       "docs/supply-chain/notice-material/sha256/dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "6ff1178ceca11382f5749e5967b14e762487058c2144e019256a76aa5a232081": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "74511c0e11847d85f13ecb9dae5e55a89e84b47409dba85157a9c782618391b6": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
@@ -159,6 +203,10 @@
     ],
     "758f33cf0617f0582c2773189efc7736453ed0fb301e13a7c36df44dc823168e": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "7b6f97d76851c1626b2ec79b41b38f3845dae4f71e9d691ae4c17753d300d470": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "7f39a27a3895a5bfde66ce4916610363a63b3d73a8da7173cff66f9264f2c014": [
@@ -206,6 +254,10 @@
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "8b37abb6c52ce79f3f825eea33c3c162d045f35b1596ac8ff47d07c4e0e5b6ad": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "8d33f993e30d6c0e65854c9bee16d248d466d1c371c61081a2e83b14626a2a82": [
       "docs/supply-chain/notice-material/sha256/dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
@@ -238,12 +290,20 @@
       "docs/supply-chain/notice-material/sha256/0154425673db15cdfa80ecba2c9b1f1a867f7197a006764712849bfc3a93cbb7",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "a034a06e495e9b18580dcae8b5f80ee83788bb0ccde87240d4294a1d76d47ce8": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "a111050f786539274124ddb2d4db6b297cbeb6e465f810ec596b3043d0d07cd3": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "a1b9bf9a258d8ed92a85f7f3fffc9b2dfbdd53e01b0c37797436e12956aa83b8": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "ab01fb1447274d613e9aeac7ec17e18c43fd3d1c60047a1e3558ceb4fab5d9e4": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "acea5df19eea297ac88109facebf08fc15b6d77bfbd63f9331a997bfca74468e": [
@@ -263,8 +323,24 @@
       "docs/supply-chain/notice-material/sha256/dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "bf9db5c5f489e1b205cb3bda16c3b592268ba40329c253e59656e1a5c0a9a153": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "c19ca4a05774b5a08d7185c687700ab7786af666a21569cbf501d7603ebb8f41": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "c228305db336e89e828c5850ce529fddd9eaa72c6894b2e8f7da9e4ca96c0914": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "c26dac5c0feafda00d0b6893292d2c4a130d253096235fb2ccd1644c87f697c4": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "cfe2a94c444208e86b679acef385d723cd689986c7d6c0d44fa628bf0ed5fd9a": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "d24d235027e90d8a94afd75b9a55eb9bc9afa518b7207410fed97c7e0427a85d": [
@@ -295,8 +371,20 @@
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
+    "e1d9fa9b945b2fc79ddff76f9c1d39d497f5ea632b9db17be9976027faf49d9e": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "e3e69b3d0c20dde40e7ad249e9067fbd1eeb087cbf64b472211484a6176db643": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
     "e9d44ee06025c2611edd2150c3e2553de3f5701d1ad65c9b9cd26a28947449a1": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "eedab4d360043b842827d895df4672e03a1c24ba4b3f91060ca80a60be147907": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "f44c817b3fbd04b45cc9743389c41b69b993fdc8bbc47ceebebf02b0deda0682": [
@@ -313,6 +401,10 @@
     ],
     "fb0adf0e764657f25420901d5c8f3e1360b9e3fc84de8bd5facb42a285759ad2": [
       "docs/supply-chain/notice-material/onnxruntime-1.27.0-ThirdPartyNotices.txt",
+      "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ],
+    "fb8eaf81ebfc26abd0719ad906eff1d71525cf4db33b2da43c4a661f2ce39093": [
+      "docs/supply-chain/notice-material/sha256/36bae33968d5e67f66906bc595949cb78d65978604e7392f552a79006c93cf2c",
       "docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
     ],
     "fd97963fbc4603f0669b0816b6091f4e5cb47c1cf4f8a21169ebab35943d5c4c": [

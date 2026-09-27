@@ -28,7 +28,7 @@ HISTORICAL_SYNTHETIC_EMAIL_LINES = {
 # material. A changed receipt, line, or path receives no exemption. This affects
 # email findings only; every credential/IP/workstation rule still runs.
 LEGAL_EMAIL_RECEIPT = "docs/supply-chain/notice-material/public-legal-email-lines.json"
-LEGAL_EMAIL_RECEIPT_SHA256 = "3628a88e91d64e6d81a053ae0df28310686dd10a306d6b8c11f665d6dc3ef62b"
+LEGAL_EMAIL_RECEIPT_SHA256 = "0ff5231b3b81f6b5d1b0ffc0245a9d215c240c5677cb0d57daaf7d0395ea9c34"
 
 
 def approved_legal_email_lines() -> dict[str, list[str]]:
