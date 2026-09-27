@@ -298,7 +298,11 @@ def python_record(item: tuple[str, Path, dict[str, Any]]) -> dict[str, Any]:
     metadata_url = f"https://pypi.org/pypi/{normalized}/{version}/json"
     metadata_bytes = read_url(metadata_url)
     metadata = json.loads(metadata_bytes)
-    artifacts = metadata.get("urls", [])
+    artifacts = [
+        entry
+        for entry in metadata.get("urls", [])
+        if entry.get("digests", {}).get("sha256") in requirement["hashes"]
+    ]
     selected = next((entry for entry in artifacts if entry.get("packagetype") == "sdist"), None)
     if selected is None:
         selected = next(

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T15:02:27.492531Z",
+  "generatedAt": "2026-09-27T08:05:00.805635Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -14523,7 +14523,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "fa1f8e116a70415f18ad140a7e078cb90df8b13f9d99e98bc98e1fadc9eeca02",
+      "metadataSha256": "85ae9a5c38c9b08a3bbc9cc871829c0cb535c26c26dfe735996f49f5237553cc",
       "name": "mako",
       "noticeFiles": [
         {
@@ -14820,7 +14820,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "d20fb6f9f61c0c4baa8cbb55bebe287bdea9116d8ddec063b4e8b634bebd1ff2",
+      "metadataSha256": "446b1f8767eb6096fe88bd4fd42e6d7a4fdaf91f2c6964f24f0f374c9852bbde",
       "name": "multidict",
       "noticeFiles": [
         {
@@ -14966,7 +14966,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "6e30cc20c24062b289cf298cb4bdbd3bc5093a6d23244f14c07bc6fc8fd7c5d3",
+      "metadataSha256": "cc2fbd70696393eecd911a885495b4136c29f5ab1318b375a95ec2056d7dbdce",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -14997,7 +14997,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "cf1e45ee27d90e538ecfdb26f3b299eb9f232f644eb3d4809fe407c20fe988ec",
+      "metadataSha256": "462c351628cb46a9bd5608f508df518dba0322fd120f01c086279c73213cdda5",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15101,17 +15101,15 @@
       "version": "4.14.0.94"
     },
     {
-      "admission": "BLOCKED",
+      "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
         "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91",
         "d9c7f76c0673154f044e9d78c8655fb4213f6ca31a836df48b40fe5d187717b9"
       ],
-      "artifact": "https://files.pythonhosted.org/packages/1c/3d/bb7fca845737cf9d7dbde16ed1843984665ff2e0a518f5db43e77ec540b9/pillow-12.3.0.tar.gz",
-      "blockers": [
-        "LOCK_HASH_OR_ARTIFACT_MISMATCH"
-      ],
-      "checksum": "sha256:3b8182a766685eaa002637e28b4ec8d6b18819a0c71f579bf0dbaa5830297cce",
-      "checksumVerified": false,
+      "artifact": "https://files.pythonhosted.org/packages/25/27/ac8f99618ffd3dde21db0f4d4b1d2ab00c0880595bfd17df103f7f39fd0c/pillow-12.3.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+      "blockers": [],
+      "checksum": "sha256:d9c7f76c0673154f044e9d78c8655fb4213f6ca31a836df48b40fe5d187717b9",
+      "checksumVerified": true,
       "distribution": "bundled-runtime",
       "ecosystem": "pypi",
       "id": "pypi:pillow@12.3.0",
@@ -15123,20 +15121,8 @@
       "name": "pillow",
       "noticeFiles": [
         {
-          "path": "pillow-12.3.0/LICENSE",
-          "sha256": "15181e7363dca9aed78b79bebebc7fde7f1814b8bd311ea3b87ae8ccadfc185b"
-        },
-        {
-          "path": "pillow-12.3.0/Tests/fonts/LICENSE.txt",
-          "sha256": "b79f6f6a2fc060b2e0a6e7a6946c446ae199bec07b92a3df1295975e25c4d96b"
-        },
-        {
-          "path": "pillow-12.3.0/Tests/icc/LICENSE.txt",
-          "sha256": "09e62757edb34e284bc11c54e3429b438d9db37f46c9cb36bd57b1b25ae36184"
-        },
-        {
-          "path": "pillow-12.3.0/docs/COPYING",
-          "sha256": "d44ce2bbf81806be0eb34ec0ecb0cb013ccd56a94057daf214fb7381adde8f0c"
+          "path": "pillow-12.3.0.dist-info/licenses/LICENSE",
+          "sha256": "dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce"
         }
       ],
       "optional": false,
@@ -15736,7 +15722,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "15e51af7f5418ed361a0f1be12d382574715a87bf574800efe962728dbd3f052",
+      "metadataSha256": "f696500a789add7ff2d4bf000bd7f32cf97bd24f962ba36c6b6f3580354f8175",
       "name": "pyjwt",
       "noticeFiles": [
         {
@@ -15864,7 +15850,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "a7a32aeaf66263e3f1190e203404873d8340c3248fa1a6beefe4836eaa59fa85",
+      "metadataSha256": "432d78ccfb379c9b45a3c54c29dd8749b6a50e04ffc04cb3600ac19c94c3786b",
       "name": "pytz",
       "noticeFiles": [
         {
@@ -16225,7 +16211,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "0a2b8b95da2750a7b9c9edec60ce9c630b691357a218d5b842f7fc88cc462959",
+      "metadataSha256": "b61576e60291d87c730a9c652a957e491421e6012a23129422ea2e3272260725",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -16264,7 +16250,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "d382720672585edde34dcad36d32ead28f5a4271e3fee164ffc128b20170d71e",
+      "metadataSha256": "43ebafd94051031ee7f4754e668c200e1ae3c723ac4a242d312ffaa583ba5317",
       "name": "starlette",
       "noticeFiles": [
         {
@@ -16326,7 +16312,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "c5194389cf08e3c2f5447ef092db2d327a44f22f58cb2e93c747fe74a10996ac",
+      "metadataSha256": "a6dce4d794bb2d6267bda1ea265f195d93d08710e8c4afad031cdd84a83f6e39",
       "name": "tifffile",
       "noticeFiles": [
         {
@@ -16521,7 +16507,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "8afb202a09745058cd9afad5254f600d4d254403b64610f62f682227cfa9a4f1",
+      "metadataSha256": "55eb483da3cac41098529adca00eb6be4d5b54c372287cdf439805cd280f073b",
       "name": "uvicorn",
       "noticeFiles": [
         {
@@ -16657,7 +16643,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b560847b11c80831a4a8f6e75dcc126902c52279a258bb0b6aabd5df1c8d7fea",
+      "metadataSha256": "178ddabbac1b454edc3c93620546cf25dfa9efbdadb28e63b912688963d1b068",
       "name": "watchfiles",
       "noticeFiles": [
         {
@@ -16688,7 +16674,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "632df9cf5d2a014d9eb8d58ae6b5f8329139376f13b44aa9f9e2e49d8efdeb48",
+      "metadataSha256": "549bbafc96419edaab816c7bccc1973a331e71cf2784a9600d04469e5627a354",
       "name": "wcwidth",
       "noticeFiles": [
         {
