@@ -2,28 +2,28 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "1cd08da674ab0d90d1f5218c3afa9d65a8d211a2d8297cafd1961cee2c4a98b5",
-      "sizeBytes": 185783
+      "sha256": "d005f9e699d16b8e8b6a2917a98ac2a7aea01ea7f97b3ac399b06973638cc578",
+      "sizeBytes": 185459
     },
     {
       "path": "build.cdx.json",
-      "sha256": "7bb57a4f6efaaa3bea78b91beacc33a702160f2b9bb8c33249a2750808a6f4f9",
-      "sizeBytes": 730674
+      "sha256": "2432cc74cd4a62f62298bdfabc328d3faf6341965a9bef7ec1488b90bc9e62a5",
+      "sizeBytes": 730707
     },
     {
       "path": "build.spdx.json",
-      "sha256": "4d0ce2334609c73e8be27b754d209bdddb743640b50c4156d5cfd3b10d016506",
-      "sizeBytes": 590260
+      "sha256": "5a0a63956ef9ef6ddceb8948a484ef8b5f9b5dbbadb2a98f272386d9a03c285f",
+      "sizeBytes": 590293
     },
     {
       "path": "source.cdx.json",
-      "sha256": "f35c55a73195d31145cb470a2f8e6d0254bee7e5dcd0bdb58b6ea77c33e4aae3",
-      "sizeBytes": 770774
+      "sha256": "a5e8d7f6360d0d63b1518930c3944d172f1b150cc554ea4bea3a741124082423",
+      "sizeBytes": 770807
     },
     {
       "path": "source.spdx.json",
-      "sha256": "7c2f6d04851aa4ce11bddf091805b1399692164e816ced05c93661db59ca909e",
-      "sizeBytes": 621924
+      "sha256": "4b61c99bdf7bbf3a0d88754d6021bad43009368f8008d80f47c6e2bf88d18818",
+      "sizeBytes": 621957
     }
   ],
   "coverage": {
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-27T07:44:23Z",
+  "generatedAt": "2026-09-27T08:05:33Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "8c3f6b8558963349c4b899e93fbe3a73f98604da",
+      "gitBlob": "7b238b683f85c1026a8f1b8397086cfede18a36e",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "2d223dc91ce5ad21a982d5a1b427dc132b611bfbd643b7e1bf4124b23064a4dc",
-      "sizeBytes": 757721
+      "sha256": "0e7f55fc8d7547c4b2d125c190e3ed420a5090514965329d23bbdf81c61fa550",
+      "sizeBytes": 757270
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "67f9b99d18ee28281f5966417bb2a5a1ebd74f14",
+      "gitBlob": "4f58628136f8b57883a5d83e951ede3bda9936e0",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "3020fd487ca947f5d2afa12d43d083f343cc4032a7a1de0cb88010af8fbd86c5",
+      "sha256": "b7d6af68550189afda128fb1be94ca3bbf962458e88225523b73ab95e15b5c5d",
       "sizeBytes": 41188
     },
     {
@@ -181,7 +181,6 @@
     "BLOCKED:npm:onnxruntime-common@1.27.0",
     "BLOCKED:npm:onnxruntime-web@1.27.0",
     "BLOCKED:npm:splaytree@3.2.3",
-    "BLOCKED:pypi:pillow@12.3.0",
     "RECORDED_UNREVIEWED:npm:@fontsource-variable/cormorant-garamond@5.3.0",
     "RECORDED_UNREVIEWED:npm:@fontsource-variable/sofia-sans@5.3.0",
     "RECORDED_UNREVIEWED:npm:@fontsource-variable/source-sans-3@5.3.0",
@@ -334,6 +333,7 @@
     "RECORDED_UNREVIEWED:pypi:numpy@2.5.2",
     "RECORDED_UNREVIEWED:pypi:ome-types@0.6.3",
     "RECORDED_UNREVIEWED:pypi:opencv-python-headless@4.14.0.94",
+    "RECORDED_UNREVIEWED:pypi:pillow@12.3.0",
     "RECORDED_UNREVIEWED:pypi:psycopg-binary@3.3.4",
     "RECORDED_UNREVIEWED:pypi:psycopg@3.3.4",
     "RECORDED_UNREVIEWED:pypi:pycparser@3.0",
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "7c255e74445872cd7a657c25e719028ddf9e0e3e",
-  "subjectTree": "afad92a5ef60c4dd6c0c9b8cf2a49f34c10786c9"
+  "subjectCommit": "4a677c69af8cd32518849826715bf6b1d6e96c89",
+  "subjectTree": "c73cf2f1fd99cc0613d0344868b0621b31665f7b"
 }

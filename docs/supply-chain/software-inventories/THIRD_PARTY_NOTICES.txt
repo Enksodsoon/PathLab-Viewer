@@ -5106,14 +5106,11 @@ ID: pypi:pillow@12.3.0
 Name: pillow
 Version: 12.3.0
 License: MIT-CMU
-Admission: BLOCKED
+Admission: RECORDED_UNREVIEWED
 Source: https://pypi.org/pypi/pillow/12.3.0/json
-Blockers: LOCK_HASH_OR_ARTIFACT_MISMATCH
+Blockers: NONE
 Notice files:
-  - pillow-12.3.0/LICENSE sha256:15181e7363dca9aed78b79bebebc7fde7f1814b8bd311ea3b87ae8ccadfc185b
-  - pillow-12.3.0/Tests/fonts/LICENSE.txt sha256:b79f6f6a2fc060b2e0a6e7a6946c446ae199bec07b92a3df1295975e25c4d96b
-  - pillow-12.3.0/Tests/icc/LICENSE.txt sha256:09e62757edb34e284bc11c54e3429b438d9db37f46c9cb36bd57b1b25ae36184
-  - pillow-12.3.0/docs/COPYING sha256:d44ce2bbf81806be0eb34ec0ecb0cb013ccd56a94057daf214fb7381adde8f0c
+  - pillow-12.3.0.dist-info/licenses/LICENSE sha256:dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce
 
 ID: pypi:prompt-toolkit@3.0.43
 Name: prompt-toolkit
