@@ -53,6 +53,17 @@ def test_confident_wrong_structure_match_blocks_acceptance():
     assert report["qualified"] is False
 
 
+@pytest.mark.parametrize("review", [None, 0, "false", "missing"])
+def test_missing_or_non_boolean_wrong_structure_review_blocks_acceptance(review):
+    record = _record(wrongStructure=review)
+    if review == "missing":
+        del record["wrongStructure"]
+    report = evaluate_landmarks([record])
+    assert report["invalidLandmarks"] == 1
+    assert report["evaluatedLandmarks"] == 0
+    assert report["qualified"] is False
+
+
 def test_preentered_errors_and_invalid_calibration_cannot_qualify():
     report = evaluate_landmarks(
         [{"eligible": True, "errorUm": 0}, _record(referenceMicronsPerPixel=[float("nan"), 1])]

@@ -14,6 +14,8 @@ def evaluate_landmarks(records: list[dict[str, Any]]) -> dict[str, Any]:
     unsupported = 0
     for record in eligible:
         try:
+            if type(record.get("wrongStructure")) is not bool:
+                raise ValueError("Missing independently reviewed wrong-structure flag")
             moving = np.asarray(record["movingPoint"], dtype=float)
             reference = np.asarray(record["referencePoint"], dtype=float)
             calibration = np.asarray(record["referenceMicronsPerPixel"], dtype=float)
