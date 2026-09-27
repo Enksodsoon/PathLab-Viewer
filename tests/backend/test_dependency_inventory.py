@@ -13,7 +13,7 @@ from scripts import generate_dependency_inventory as generator
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "bc71e6fda969b3746953237c83e1199428ebbcca"
+SUBJECT = "810225b691286a25dce7182fe7544c0fcf55bbf0"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
@@ -40,7 +40,7 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
 def test_inventory_subject_is_current_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
     assert inventory["subjectCommit"] == SUBJECT
-    assert inventory["subjectTree"] == "d0753d960d92a999da8941aa99df689639bbc70e"
+    assert inventory["subjectTree"] == "be545559d50119b5f73df2460f5e141695f852d3"
 
 
 def test_source_sha256_receipts_use_canonical_git_blob_bytes() -> None:
