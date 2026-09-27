@@ -51,6 +51,8 @@ INPUT_PATHS = (
     "deploy/oci-cli-requirements.txt",
     "deploy/Dockerfile.backend",
     "deploy/Dockerfile.web",
+    "deploy/Dockerfile.alignment",
+    "deploy/Dockerfile.alignment-valis",
     "deploy/compose.yaml",
     "deploy/compose.postgres.yaml",
     "docs/supply-chain/dependency-inventory.json",

@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import wsi_viewer
 from PIL import Image, ImageDraw
 from wsi_viewer.alignment import AlignmentRejected, map_registration_point
 from wsi_viewer.alignment_engines import ENGINE_NATIVE, engine_availability
@@ -26,6 +27,11 @@ def synthetic_pair() -> tuple[Image.Image, Image.Image]:
 
 
 def main() -> None:
+    notices = Path("/usr/share/licenses/pathlab-viewer/THIRD_PARTY_NOTICES.txt").read_bytes()
+    assert notices == Path(
+        "/app/docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt"
+    ).read_bytes()
+    assert notices == Path(wsi_viewer.__file__).with_name("THIRD_PARTY_NOTICES.txt").read_bytes()
     availability = engine_availability()
     assert availability[ENGINE_NATIVE]["available"], availability
     reference, moving = synthetic_pair()

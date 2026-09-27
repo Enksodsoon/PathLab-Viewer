@@ -7,6 +7,8 @@ RUN apt-get update \
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE NOTICE alembic.ini ./
 COPY LICENSE NOTICE /usr/share/licenses/pathlab-viewer/
+COPY docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt ./docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt
+COPY docs/supply-chain/software-inventories/THIRD_PARTY_NOTICES.txt /usr/share/licenses/pathlab-viewer/THIRD_PARTY_NOTICES.txt
 COPY deploy/backend-requirements.txt ./deploy/backend-requirements.txt
 COPY migrations ./migrations
 COPY server ./server
