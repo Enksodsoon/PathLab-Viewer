@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "f711061a89f7951b1fb476cda60cc2806bb4f3c9381e23040862056be246ae04",
+      "sha256": "56f7ea33e059b11a0397235e066090c27113ace7c32047bb53e9b452aaba4e41",
       "sizeBytes": 730611
     },
     {
       "path": "build.spdx.json",
-      "sha256": "3ab73046ebf4ac9ded3d12ff537fce2d7d9f72ef16794a0adfadfd890f18d8c0",
+      "sha256": "7ce14d424b47ea6e0f5b3c21d7a86b1f00f5e326d70b719f0b0a4f9b9ca0654a",
       "sizeBytes": 590197
     },
     {
       "path": "source.cdx.json",
-      "sha256": "cdf391edba2f198779faa1cfc6c2f1f45b5a233c559d9392c1ae119c16a4f6d5",
+      "sha256": "535d06616f859de9e7a94f34cefecf35162197a766ce348e0535a7b699991d62",
       "sizeBytes": 770711
     },
     {
       "path": "source.spdx.json",
-      "sha256": "530689874058f707f4f5aef268a7c73892838254295a4deab4935c17367c6aa7",
+      "sha256": "895f835f7db5ddf0afd6c353a70a2caed65fcc441bab50345094a0940239d765",
       "sizeBytes": 621861
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-27T08:57:39Z",
+  "generatedAt": "2026-09-27T09:10:32Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -105,6 +105,18 @@
       "sizeBytes": 925
     },
     {
+      "gitBlob": "493b7e83e8e45c3fbf293af5ac25e02eef27b4c4",
+      "path": "deploy/Dockerfile.alignment",
+      "sha256": "725b288eb08d697698b8d4a97916bc4c99fce432c254f006709c7cd8e7297a5e",
+      "sizeBytes": 1555
+    },
+    {
+      "gitBlob": "64e48102ce4126934945dba3a485bf76b1f241d5",
+      "path": "deploy/Dockerfile.alignment-valis",
+      "sha256": "8a99db33081a90c368e8aa3466d95d2fc115fbd7e22d381f3efc06c55a228ce7",
+      "sizeBytes": 2349
+    },
+    {
       "gitBlob": "aac5ca3a298fd2a769fbd1efc1a500875e0d2456",
       "path": "deploy/compose.yaml",
       "sha256": "754d8399be4af154dda739ba9c11b2e8f83b7621d4f9d2d34fa1cf0fac2641c6",
@@ -141,9 +153,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "d1dda0ae6bbe34121c0f557de48b4fe77b0ac5e9",
+      "gitBlob": "513c977a91863b6141a41b9c8a9f9e385a79af67",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "820500d7e19981cc2994a044945c41b947061f8ee2dbbc47aedef0592b031b80",
+      "sha256": "b29f28a988739cdd75d6e3302c901ca1ca27ea8879a345b89cac860c9272f3ee",
       "sizeBytes": 41188
     },
     {
@@ -153,10 +165,10 @@
       "sizeBytes": 23115
     },
     {
-      "gitBlob": "ed05da5e55c21710f67598994e4390a57ba884a8",
+      "gitBlob": "fd28fc0826633246824b79c350bcc8a7a8b5df75",
       "path": "scripts/generate_software_inventories.py",
-      "sha256": "28673342750477d92a72d33d0e5f7ae43ddf2aee17645f19a8e8d4e90e9b8e26",
-      "sizeBytes": 23426
+      "sha256": "6e2d634e3e8edcdb7c5c257a738305b812c55787b1b6f6854bcc99d6c8ef4335",
+      "sizeBytes": 23502
     },
     {
       "gitBlob": "f208bff06ba5263e9dd4bd462ac975e3bfbb8d68",
@@ -1412,6 +1424,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "b2d0b696ad1932bdd688ff09d06b5bc331be8581",
-  "subjectTree": "dafd233705a71bb4c092736cb5da73f1ee77c73b"
+  "subjectCommit": "418efa7722d8ec0b029bb4ecaacffe4f2e693c4d",
+  "subjectTree": "cc2807fa02f4851e878dbf66c640b7063cda1d00"
 }
