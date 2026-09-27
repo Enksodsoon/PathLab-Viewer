@@ -9,20 +9,30 @@ async function emit(page: Page, type: string, payload: Record<string, unknown>) 
 async function publicationAttempts(page: Page) {
   return page.evaluate(() => (window as unknown as { qaPresenterAttempts: unknown[] }).qaPresenterAttempts)
 }
-async function sample(page: Page) {
+async function readSample(page: Page) {
   return page.evaluate(async () => {
     const url = performance.getEntriesByType('resource').find((entry) => /openseadragon\.js/.test(entry.name))!.name
     const OSD = (await import(/* @vite-ignore */ url)).default
     let element: Element | null = document.querySelector('.openseadragon-canvas')
     let viewer = element ? OSD.getViewer(element) : null
     while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
-    const item = viewer.world.getItemAt(0)
+    const item = viewer?.world.getItemAt(0)
+    if (!viewer?.isOpen() || !item || !viewer.viewport) return null
     const center = item.viewportToImageCoordinates(viewer.viewport.getCenter(true))
     const node = document.querySelector('[data-teacher-pointer]') as HTMLElement | null
     const matrix = node ? new DOMMatrixReadOnly(getComputedStyle(node).transform) : null
     const pointer = matrix ? item.viewportToImageCoordinates(viewer.viewport.pointFromPixel(new OSD.Point(matrix.e, matrix.f), true)) : null
     return { source: item.source.width, tileUrl: item.source.getTileUrl(0, 0, 0), x: center.x / 256, y: center.y / 256, zoom: item.viewportToImageZoom(viewer.viewport.getZoom(true)), pointer: pointer ? { hidden: node!.hidden, x: pointer.x / 256, y: pointer.y / 256 } : null }
   })
+}
+
+async function sample(page: Page) {
+  let current: Awaited<ReturnType<typeof readSample>> = null
+  await expect.poll(async () => {
+    current = await readSample(page)
+    return current !== null
+  }, { message: 'Native OSD must finish opening a world item before sampling' }).toBe(true)
+  return current!
 }
 
 test('real OSD teacher slide opening reaches guided student and remote control does not echo', async ({ context, page }, info) => {
@@ -209,7 +219,28 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   await expect(page.getByRole('button', { name: 'Draw', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Stop guiding students', exact: true }).click()
   await page.getByRole('button', { name: '2. Synthetic slide 2', exact: true }).click()
+  let releaseOpen!: () => void
+  let observeOpen!: () => void
+  const openHeld = new Promise<void>((resolve) => { releaseOpen = resolve })
+  const openObserved = new Promise<void>((resolve) => { observeOpen = resolve })
+  const holdSource = async (route: import('@playwright/test').Route) => {
+    observeOpen()
+    await openHeld
+    await route.fallback()
+  }
+  await context.route('**/qa/slide-1.dzi*', holdSource)
   await page.getByRole('button', { name: /Slide 1 Synthetic slide 1/ }).click()
+  try {
+    await openObserved
+    expect(await readSample(page)).toBeNull()
+    const openingSample = sample(page)
+    expect(await readSample(page)).toBeNull()
+    releaseOpen()
+    expect((await openingSample).tileUrl).toContain('slide-1_files')
+  } finally {
+    releaseOpen()
+    await context.unroute('**/qa/slide-1.dzi*', holdSource)
+  }
   await expect.poll(async () => (await sample(page)).tileUrl).toContain('slide-1_files')
   await page.getByRole('button', { name: 'Draw', exact: true }).click()
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click()
