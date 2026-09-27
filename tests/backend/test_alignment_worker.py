@@ -5,7 +5,8 @@ from threading import Barrier, BrokenBarrierError
 
 import pytest
 from PIL import Image, ImageDraw
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from wsi_viewer.alignment import AlignmentRejected
 from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
 from wsi_viewer.config import Settings
@@ -476,3 +477,26 @@ def test_worker_claim_is_serialized_before_dispatch(tmp_path: Path, monkeypatch)
     with ThreadPoolExecutor(max_workers=2) as threads:
         results = list(threads.map(lambda _: process_next(factory, layout), range(2)))
     assert sorted(results) == [False, True]
+
+
+def test_worker_retries_admission_after_sqlite_writer_releases_lock(tmp_path: Path) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'busy.sqlite3'}", data_root=tmp_path / "data"
+    )
+    create_schema(settings)
+    factory = session_factory(settings)
+    layout = StorageLayout(settings.data_root)
+    with factory() as database:
+        database.add(Job(kind="convert", resource_class="background", status="queued"))
+        database.commit()
+    polling_engine = create_engine(settings.database_url, connect_args={"timeout": 0})
+    polling_factory = sessionmaker(bind=polling_engine)
+    with factory() as writer:
+        writer.connection().exec_driver_sql("BEGIN IMMEDIATE")
+        assert process_next(polling_factory, layout) is False
+        assert writer.query(Job).one().status == "queued"
+        writer.rollback()
+    polling_engine.dispose()
+    assert process_next(factory, layout) is True
+    with factory() as database:
+        assert database.query(Job).one().status == "failed_terminal"

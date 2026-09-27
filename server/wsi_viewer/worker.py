@@ -7,6 +7,7 @@ import os
 import queue
 import shutil
 import signal
+import sqlite3
 import stat
 import sys
 import threading
@@ -23,7 +24,7 @@ from typing import Any, Protocol, cast
 import cv2
 from PIL import Image
 from sqlalchemy import CursorResult, case, delete, func, or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import Select
@@ -1013,7 +1014,14 @@ def process_next(
             if not database.scalar(select(func.pg_try_advisory_xact_lock(0x504C41424A4F42))):
                 return False
         elif dialect == "sqlite":
-            database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            try:
+                database.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            except OperationalError as error:
+                if isinstance(error.orig, sqlite3.OperationalError) and (
+                    getattr(error.orig, "sqlite_errorcode", 0) & 0xFF
+                ) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
+                    return False  # Retry admission on the next worker poll.
+                raise
         now = datetime.now(UTC)
         if protection_enabled:
             snapshot = protection_snapshot(database, now=now)
