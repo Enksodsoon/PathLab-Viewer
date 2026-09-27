@@ -19,7 +19,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Res
 from fastapi.responses import StreamingResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import and_, delete, func, literal, or_, select
+from sqlalchemy import and_, delete, func, literal, or_, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import aliased
 from starlette.concurrency import run_in_threadpool
@@ -678,20 +679,40 @@ def register_classroom_routes(
             or as_utc(classroom.controller_expires_at) > _now()
         ):
             return
-        classroom.control_epoch += 1
-        classroom.state_version += 1
-        classroom.controller_participant_id = None
-        classroom.controller_lease_id = None
-        classroom.controller_expires_at = None
+        epoch = classroom.control_epoch + 1
+        version = classroom.state_version + 1
+        changed = db.execute(
+            update(ClassroomSession).where(
+                ClassroomSession.id == classroom.id,
+                ClassroomSession.control_epoch == classroom.control_epoch,
+                ClassroomSession.state_version == classroom.state_version,
+                ClassroomSession.controller_participant_id == classroom.controller_participant_id,
+                ClassroomSession.controller_lease_id == classroom.controller_lease_id,
+                ClassroomSession.controller_expires_at == classroom.controller_expires_at,
+            ).values(
+                control_epoch=epoch,
+                state_version=version,
+                controller_participant_id=None,
+                controller_lease_id=None,
+                controller_expires_at=None,
+            ).execution_options(synchronize_session=False)
+        )
+        if cast(CursorResult[Any], changed).rowcount != 1:
+            # A newer grant/revoke won. Never clear it or publish stale expiry.
+            db.refresh(classroom)
+            return
         db.commit()
+        db.refresh(classroom)
+        if classroom.control_epoch != epoch or classroom.state_version != version:
+            return
         hub.publish(
             classroom.id,
             "control",
             {
-                "stateVersion": classroom.state_version,
+                "stateVersion": version,
                 "participantId": None,
                 "leaseId": None,
-                "controlEpoch": classroom.control_epoch,
+                "controlEpoch": epoch,
                 "expiresAt": None,
             },
             critical=True,

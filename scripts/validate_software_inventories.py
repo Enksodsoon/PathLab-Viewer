@@ -18,7 +18,6 @@ try:
         CYCLONEDX_VERSION,
         DEFAULT_OUTPUT,
         DEPENDENCY_INVENTORY,
-        INPUT_PATHS,
         OUTPUT_NAMES,
         ROOT,
         SCHEMA,
@@ -28,6 +27,7 @@ try:
         dependency_components,
         generate,
         identifier_digest,
+        inventory_input_paths,
         toolchain_components,
     )
 except ModuleNotFoundError:
@@ -37,7 +37,6 @@ except ModuleNotFoundError:
         CYCLONEDX_VERSION,
         DEFAULT_OUTPUT,
         DEPENDENCY_INVENTORY,
-        INPUT_PATHS,
         OUTPUT_NAMES,
         ROOT,
         SCHEMA,
@@ -47,6 +46,7 @@ except ModuleNotFoundError:
         dependency_components,
         generate,
         identifier_digest,
+        inventory_input_paths,
         toolchain_components,
     )
 
@@ -133,7 +133,7 @@ def validate_input_receipts(manifest: dict[str, Any]) -> None:
     if not isinstance(inputs, list):
         fail("manifest inputs must be a list")
     paths = [item.get("path") for item in inputs]
-    if paths != list(INPUT_PATHS) or len(paths) != len(set(paths)):
+    if paths != list(inventory_input_paths()) or len(paths) != len(set(paths)):
         fail("manifest input membership or ordering changed")
     for item in inputs:
         if set(item) != {"path", "gitBlob", "sha256", "sizeBytes"}:

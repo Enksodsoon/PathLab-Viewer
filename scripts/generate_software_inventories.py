@@ -13,10 +13,12 @@ from typing import Any
 from urllib.parse import quote, urlparse
 
 try:
+    from scripts.generate_dependency_inventory import archive_notice_text, notice_material
     from scripts.validate_asset_rights_ledger import validate as validate_assets
     from scripts.validate_dependency_inventory import validate as validate_dependencies
     from scripts.validate_runtime_toolchain_admission import validate as validate_toolchain
 except ModuleNotFoundError:
+    from generate_dependency_inventory import archive_notice_text, notice_material
     from validate_asset_rights_ledger import validate as validate_assets
     from validate_dependency_inventory import validate as validate_dependencies
     from validate_runtime_toolchain_admission import validate as validate_toolchain
@@ -59,6 +61,7 @@ INPUT_PATHS = (
     "docs/supply-chain/asset-rights-policy.json",
     "scripts/generate_software_inventories.py",
     "scripts/validate_software_inventories.py",
+    "docs/supply-chain/dependency-manual-inputs.json",
 )
 
 BUILD_ROLES = {
@@ -426,7 +429,7 @@ def notice_bundle(components: list[dict[str, Any]], root_notice: str) -> bytes:
     lines = [
         "PATHLAB VIEWER THIRD-PARTY NOTICE BUNDLE",
         "",
-        "This deterministic bundle is an inventory of recorded licenses and notice-file hashes.",
+        "This deterministic bundle records licenses, notice-file hashes and captured notice text.",
         "It does not replace missing upstream notice text or admit a blocked component.",
         "",
         "PATHLAB ROOT NOTICE",
@@ -453,14 +456,50 @@ def notice_bundle(components: list[dict[str, Any]], root_notice: str) -> bytes:
         if notices:
             lines.append("Notice files:")
             lines.extend(f"  - {item['path']} sha256:{item['sha256']}" for item in notices)
+            if component["distribution"] in SHIPPED_DISTRIBUTIONS:
+                for item in notices:
+                    payload = (
+                        notice_material(item)
+                        if item["path"].startswith("docs/supply-chain/notice-material/")
+                        else archive_notice_text(component, item)
+                    )
+                    if payload is None:
+                        if component["admission"] != "BLOCKED":
+                            raise ValueError(
+                                f"shipped notice text not captured: {component['id']}:"
+                                f"{item['path']}"
+                            )
+                        lines.append("Notice text: NOT CAPTURED (component remains BLOCKED)")
+                    else:
+                        lines.extend(
+                            [
+                                f"BEGIN NOTICE {item['path']}",
+                                payload.decode("utf-8"),
+                                f"END NOTICE {item['path']}",
+                            ]
+                        )
         else:
             lines.append("Notice files: NONE RECORDED")
     return ("\n".join(lines) + "\n").encode()
 
 
+def inventory_input_paths() -> tuple[str, ...]:
+    return (
+        *INPUT_PATHS,
+        *(
+            path.relative_to(ROOT).as_posix()
+            for path in sorted(
+                (ROOT / "docs/supply-chain/notice-material").rglob("*"),
+                key=lambda path: path.as_posix(),
+            )
+            if path.is_file()
+        ),
+    )
+
+
 def input_receipts(subject: str) -> list[dict[str, Any]]:
     receipts = []
-    for relative in INPUT_PATHS:
+    for relative in inventory_input_paths():
         data = git_bytes(subject, relative)
         subject_blob = git("rev-parse", f"{subject}:{relative}")
         working_blob = git("hash-object", "--path", relative, relative)

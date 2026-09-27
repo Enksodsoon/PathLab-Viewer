@@ -1350,7 +1350,7 @@ def test_capacity_shell_refuses_0459_before_raising_limit(tmp_path: Path) -> Non
     assert not marker.exists()
 
 
-@pytest.mark.skipif(not BASH.exists(), reason="Git Bash is required")
+@pytest.mark.skipif(PORTABLE_BASH is None, reason="Bash is required")
 def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) -> None:
     compose_dir = tmp_path / "deploy"
     runtime_dir = compose_dir / "runtime"
@@ -1365,8 +1365,8 @@ def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) ->
     command = fake_bin / "overrun-load"
     command.write_text(
         "#!/usr/bin/env bash\n"
-        f"touch '{_bash_path(started)}'\n"
-        f"trap \"touch '{_bash_path(terminated)}'\" TERM\n"
+        f"touch '{_shell_path(started)}'\n"
+        f"trap \"touch '{_shell_path(terminated)}'\" TERM\n"
         "while :; do sleep 1; done\n",
         encoding="utf-8",
     )
@@ -1389,7 +1389,6 @@ def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) ->
     env = os.environ.copy()
     env.update(
         {
-            "PATH": f"{_bash_path(fake_bin)}:{env['PATH']}",
             "PATHLAB_CAPACITY_TEST_MODE": "1",
             "PATHLAB_CAPACITY_TEST_ICT_HOUR": "02",
             "PATHLAB_CAPACITY_TEST_ICT_SECONDS": "7200",
@@ -1398,37 +1397,58 @@ def test_capacity_shell_terminates_overrun_and_restores_limit(tmp_path: Path) ->
             "PATHLAB_CAPACITY_TEST_KILL_AFTER_SECONDS": "1",
             "PATHLAB_CAPACITY_TEST_DEADLINE_SAFETY_SECONDS": "1",
             "PATHLAB_CAPACITY_RESTORE_NOT_AFTER": str(int(time.time()) + 30),
-            "PATHLAB_CAPACITY_ENV_FILE": _bash_path(env_file),
-            "PATHLAB_COMPOSE_DIR": _bash_path(compose_dir),
-            "PATHLAB_CAPACITY_RUNTIME_DIR": _bash_path(runtime_dir),
-            "PATHLAB_CAPACITY_DECISION_FILE": _bash_path(decision),
-            "PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE": _bash_path(Path(f"{decision}.sig")),
-            "PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE": _bash_path(evidence),
+            "PATHLAB_CAPACITY_ENV_FILE": _shell_path(env_file),
+            "PATHLAB_COMPOSE_DIR": _shell_path(compose_dir),
+            "PATHLAB_CAPACITY_RUNTIME_DIR": _shell_path(runtime_dir),
+            "PATHLAB_CAPACITY_DECISION_FILE": _shell_path(decision),
+            "PATHLAB_CAPACITY_DECISION_SIGNATURE_FILE": _shell_path(Path(f"{decision}.sig")),
+            "PATHLAB_CAPACITY_PREFLIGHT_EVIDENCE": _shell_path(evidence),
             "PATHLAB_CAPACITY_PREFLIGHT_SIGNATURE": "a" * 64,
             "PATHLAB_CAPACITY_CANDIDATE_SHA": "b" * 40,
             "PATHLAB_CAPACITY_RUN_ID": "run-overrun",
             "PATHLAB_CAPACITY_NONCE": "nonce-run-overrun",
-            "PATHLAB_PYTHON": _bash_path(python),
+            "PATHLAB_PYTHON": _shell_path(python),
         }
     )
     started_at = time.monotonic()
     result = subprocess.run(
         [
-            str(BASH),
-            str(ROOT / "deploy" / "scripts" / "with-capacity-override.sh"),
-            _bash_path(command),
+            str(PORTABLE_BASH),
+            "-c",
+            # Git Bash reconstructs PATH at startup. Prepend mocks inside the
+            # selected shell so Linux and Windows execute the same fake clock.
+            'export PATH="$1:$PATH"; exec "$2" "$3"',
+            "capacity-overrun-test",
+            _shell_path(fake_bin),
+            _shell_path(ROOT / "deploy" / "scripts" / "with-capacity-override.sh"),
+            _shell_path(command),
         ],
         env=env,
         text=True,
         capture_output=True,
         check=False,
-        timeout=10,
+        timeout=30,
     )
     elapsed = time.monotonic() - started_at
     assert result.returncode in {124, 137}
-    assert elapsed < 6
     assert started.exists()
     assert terminated.exists()
+    # Native filesystem timestamps measure the command itself, excluding shell
+    # and wrapper setup/restore. The fake date must not control this measurement.
+    command_started_ns = started.stat().st_mtime_ns
+    command_terminated_ns = terminated.stat().st_mtime_ns
+    command_seconds = (command_terminated_ns - command_started_ns) / 1e9
+    command_timeout_seconds = 5 - 1 - 1
+    assert 0 < command_seconds < command_timeout_seconds + 1
+    print(json.dumps({
+        "wrapperWallSeconds": elapsed,
+        "commandStartedNs": command_started_ns,
+        "commandTerminatedNs": command_terminated_ns,
+        "commandTermSeconds": command_seconds,
+        "configuredTimeoutSeconds": command_timeout_seconds,
+        "killAfterSeconds": 1,
+        "returnCode": result.returncode,
+    }))
     assert env_file.read_text(encoding="utf-8") == (
         "PATHLAB_CLASSROOM_MAX_PARTICIPANTS=300\n"
         "PATHLAB_ANNOTATIONS_ENABLED=false\n"

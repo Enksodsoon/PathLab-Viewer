@@ -90,6 +90,23 @@ describe('queued classroom publication boundaries', () => {
     api.publishTeacherPointer.mockResolvedValue(undefined); api.clearTeacherPointer.mockResolvedValue(undefined)
   })
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); vi.unstubAllGlobals() })
+  it('preserves a locally selected teacher slide on annotation refresh but follows participant control', async () => {
+    const second = { ...slide, id: 'slide-2', position: 1, displayName: 'Second synthetic slide' }
+    const snapshot = { ...teacher, slides: [slide, second] }
+    api.teacherState.mockResolvedValue(snapshot)
+    await mountTeacher()
+    fireEvent.click(screen.getByRole('button', { name: '1. Synthetic slide' }))
+    fireEvent.click(screen.getByRole('button', { name: /Slide 2\s*Second synthetic slide/ }))
+    expect(screen.getByRole('button', { name: '2. Second synthetic slide' })).toBeVisible()
+    api.teacherState.mockResolvedValue({ ...snapshot, stateVersion: 5 })
+    act(() => Source.current?.emit('teaching-annotation-added', { hubEpoch: 'epoch', eventSequence: 1, stateVersion: 5 }))
+    await waitFor(() => expect(api.teacherState).toHaveBeenCalledTimes(2))
+    await act(async () => {})
+    expect(screen.getByRole('button', { name: '2. Second synthetic slide' })).toBeVisible()
+    api.teacherState.mockResolvedValue({ ...snapshot, stateVersion: 6, controller: { participantId: 'learner', leaseId: 'lease', controlEpoch: 1, expiresAt: null } })
+    act(() => Source.current?.emit('control', { hubEpoch: 'epoch', eventSequence: 2, stateVersion: 6 }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '1. Synthetic slide' })).toBeVisible())
+  })
   it('drops a queued teacher field while handoff acknowledgment is pending', async () => {
     await mountTeacher()
     fireEvent.click(screen.getByRole('button', { name: 'Guide students' }))

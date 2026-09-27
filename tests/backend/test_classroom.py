@@ -52,9 +52,10 @@ def _client(
     role: str = "all",
     max_participants: int = 300,
     protection_enabled: bool = False,
+    database_url: str | None = None,
 ) -> TestClient:
     settings = Settings(
-        database_url=f"sqlite:///{tmp_path / 'test.sqlite3'}",
+        database_url=database_url or f"sqlite:///{tmp_path / 'test.sqlite3'}",
         data_root=tmp_path / "data",
         secret_key="test-secret-that-is-long-enough",
         secure_cookies=False,

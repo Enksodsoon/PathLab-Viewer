@@ -12,6 +12,11 @@ from typing import Any
 
 import yaml
 
+try:
+    from scripts.generate_dependency_inventory import supplemental_notices
+except ModuleNotFoundError:
+    from generate_dependency_inventory import supplemental_notices
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INVENTORY = ROOT / "docs" / "supply-chain" / "dependency-inventory.json"
 REQUIREMENT = re.compile(r"^([A-Za-z0-9_.-]+)==([^\\\s]+)")
@@ -88,7 +93,7 @@ def npm_id(key: str) -> str:
     boundary = base.rfind("@")
     if boundary <= 0:
         fail(f"invalid pnpm package key: {key}")
-    return f"npm:{base[:boundary]}@{base[boundary + 1:]}"
+    return f"npm:{base[:boundary]}@{base[boundary + 1 :]}"
 
 
 def expected_python_ids() -> set[str]:
@@ -143,7 +148,27 @@ def validate(path: Path, subject: str | None = None) -> dict[str, Any]:
     if len(ids) != len(set(ids)):
         fail("inventory record identifiers must be unique")
     by_id = {record["id"]: record for record in records}
+    supplemental_receipts = json.loads(
+        (ROOT / "docs/supply-chain/dependency-manual-inputs.json").read_text()
+    ).get("supplementalNotices", [])
     for record in records:
+        if (
+            any(
+                item["path"].startswith("docs/supply-chain/notice-material/")
+                for item in record.get("noticeFiles", [])
+            )
+            and "supplementalNoticeSources" not in record
+        ):
+            fail(f"{record['id']} local notice lacks supplemental notice binding")
+        if "supplementalNoticeSources" in record:
+            receipt = record["supplementalNoticeSources"]
+            if receipt not in supplemental_receipts:
+                fail(f"{record['id']} supplemental notice binding is not authoritative")
+            notices = supplemental_notices(
+                record, {"repository": receipt["repository"]}, supplemental_receipts
+            )
+            if not all(item in record["noticeFiles"] for item in notices):
+                fail(f"{record['id']} supplemental notice membership mismatch")
         missing = REQUIRED_FIELDS - record.keys()
         if missing:
             fail(f"{record.get('id', '<unknown>')} missing fields: {sorted(missing)}")
@@ -163,28 +188,29 @@ def validate(path: Path, subject: str | None = None) -> dict[str, Any]:
     if actual_npm != expected_npm:
         fail(
             "npm reconciliation mismatch: "
-            f"missing={expected_npm-actual_npm}, extra={actual_npm-expected_npm}"
+            f"missing={expected_npm - actual_npm}, extra={actual_npm - expected_npm}"
         )
     actual_python = {identifier for identifier in ids if identifier.startswith("pypi:")}
     expected_python = expected_python_ids()
     if actual_python != expected_python:
         fail(
             "Python reconciliation mismatch: "
-            f"missing={expected_python-actual_python}, extra={actual_python-expected_python}"
+            f"missing={expected_python - actual_python}, extra={actual_python - expected_python}"
         )
     expected_actions = expected_action_ids(workflow_text())
     actual_actions = {identifier for identifier in ids if identifier.startswith("github-action:")}
     if actual_actions != expected_actions:
         fail(
             "Actions reconciliation mismatch: "
-            f"missing={expected_actions-actual_actions}, extra={actual_actions-expected_actions}"
+            f"missing={expected_actions - actual_actions}, "
+            f"extra={actual_actions - expected_actions}"
         )
     expected_images = expected_container_ids()
     actual_images = {identifier for identifier in ids if identifier.startswith("container:")}
     if actual_images != expected_images:
         fail(
             "container reconciliation mismatch: "
-            f"missing={expected_images-actual_images}, extra={actual_images-expected_images}"
+            f"missing={expected_images - actual_images}, extra={actual_images - expected_images}"
         )
     missing_manual = REQUIRED_MANUAL_IDS - set(ids)
     if missing_manual:

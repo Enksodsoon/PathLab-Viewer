@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import io
 import json
+import logging
 import secrets
 import time
 from collections.abc import Callable, Iterator
@@ -61,6 +62,7 @@ from .tile_routes import private_static_target
 from .time_support import as_utc, utc_now
 
 STUDY_COOKIE = "pathlab_study"
+logger = logging.getLogger(__name__)
 SUBMISSION_INTERVAL_SECONDS = 30
 _verified_asset_hashes: dict[tuple[str, int, int], str] = {}
 MODEL_APPROVAL_STATUS = "public_beta_bounded_safe_actions"
@@ -182,8 +184,13 @@ class StudyPurger:
 
     async def _run(self) -> None:
         while not self.stop_event.is_set():
-            with self.factory() as database:
-                purge_due_study_data(database)
+            try:
+                with self.factory() as database:
+                    purge_due_study_data(database)
+            except Exception as error:
+                # Retain the existing hourly cadence after transient database failure.
+                # Do not log SQL parameters containing learner/session information.
+                logger.warning("Study retention cleanup failed: %s", type(error).__name__)
             with suppress(TimeoutError):
                 await asyncio.wait_for(self.stop_event.wait(), timeout=60 * 60)
 
@@ -990,6 +997,24 @@ def register_study_routes(
         )
         if current_count >= course.learner_limit:
             raise HTTPException(status_code=409, detail={"code": "STUDY_COURSE_FULL"})
+        # Course admission already serializes supported invitation redemptions.
+        # Match Classroom's bounded alias allocation without retrying unrelated
+        # integrity errors or consuming the invitation on exhaustion.
+        for _attempt in range(8):
+            pseudonym = "Learner-" + secrets.token_hex(4).upper()
+            collision = database.scalar(
+                select(StudyLearnerSession.id).where(
+                    StudyLearnerSession.course_id == course.id,
+                    StudyLearnerSession.pseudonym == pseudonym,
+                ).limit(1)
+            )
+            if collision is None:
+                break
+        else:
+            raise HTTPException(
+                status_code=503, detail={"code": "STUDY_BUSY"},
+                headers={"Retry-After": "1"},
+            )
         token = _token(48)
         csrf_token = csrf_value(token)
         expires_at = course.ends_at or (_now() + timedelta(days=90))
@@ -998,7 +1023,7 @@ def register_study_routes(
             invitation_id=invitation.id,
             token_hash=_hash(token),
             csrf_hash=_hash(csrf_token),
-            pseudonym="Learner-" + secrets.token_hex(4).upper(),
+            pseudonym=pseudonym,
             expires_at=expires_at,
         )
         invitation.status = "redeemed"
@@ -1405,6 +1430,7 @@ def register_study_routes(
         slide = database.get(Slide, slide_id) if allowed else None
         if (
             slide is None
+            or slide.trashed_at is not None
             or slide.render_mode != "static_dzi"
             or slide.privacy_status != "passed"
             or slide.state not in {SlideState.READY_PRIVATE, SlideState.PUBLISHED}

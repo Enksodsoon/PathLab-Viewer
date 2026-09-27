@@ -97,13 +97,28 @@ function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onC
   const inviteUrl = `${window.location.origin}/classroom/invite/${classroom.publicId}`
   const invitation = `PathLab Classroom\n${inviteUrl}\nAccess code: ${classroom.joinCode}`
   const [message, setMessage] = useState('')
+  const dialog = useRef<HTMLDialogElement>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const element = dialog.current
+    if (!element) return
+    const previousFocus = document.activeElement
+    if (!element.open) element.showModal()
+    closeButton.current?.focus()
+    return () => {
+      if (element.open) element.close()
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus()
+    }
+  }, [])
   const copy = async (text: string, success: string) => {
     try {
       await navigator.clipboard.writeText(text)
       setMessage(success)
     } catch { setMessage('Copy failed. Select the visible link and code.') }
   }
-  return <div className="classroom-code-display" role="dialog" aria-modal="true" aria-labelledby="classroom-code-title">
+  return <dialog ref={dialog} className="classroom-code-display" aria-labelledby="classroom-code-title"
+    style={{ width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, border: 0 }}
+    onCancel={(event) => { event.preventDefault(); onClose() }}>
     <div className="classroom-invite-card">
       <p>PathLab classroom</p>
       <h2 id="classroom-code-title">Review slides and join class</h2>
@@ -116,9 +131,9 @@ function InviteDialog({ classroom, onClose }: { classroom: CreatedClassroom; onC
         {'share' in navigator ? <button type="button" onClick={() => void navigator.share({ title: 'PathLab Classroom', text: invitation })}><ShareNetwork />Share</button> : null}
       </div>
       {message ? <span role="status">{message}</span> : null}
-      <button type="button" autoFocus onClick={onClose}>Close</button>
+      <button ref={closeButton} type="button" onClick={onClose}>Close</button>
     </div>
-  </div>
+  </dialog>
 }
 
 function TeachingToolIcon({ name }: { name: 'guide' | 'navigate' | 'draw' | 'arrow' }) {
@@ -336,7 +351,14 @@ export function ClassroomTeacherPage() {
           teachingOverlayRef.current?.setPointer(
             teachingToolRef.current === 'pointer' ? null : next.teacherPointer,
           )
-          if (next.presenter.slideId) setSlideId(next.presenter.slideId)
+          const presenterSlideId = next.presenter.slideId
+          if (presenterSlideId) {
+            // Snapshot refresh also follows local teaching marks. Keep the
+            // teacher's chosen field unless a participant owns presentation.
+            setSlideId((current) => !next.controller.participantId
+              && next.slides.some((slide) => slide.id === current)
+              ? current : presenterSlideId)
+          }
           replayingEphemeral.current = true
           try { ephemeralBuffer.current.drain() } finally { replayingEphemeral.current = false }
         },

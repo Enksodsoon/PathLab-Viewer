@@ -1,8 +1,8 @@
 # Findings register
 
-954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Confirmed repairs remain local until verified release. Two of29separate security subclaims need external credential/sync evidence.
+954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. The first three reviewed batches are deployed at cf0d2d2; remaining hardening review and newly reproduced repairs keep the campaign open. Two of29separate security subclaims still need external credential/sync evidence.
 
-[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks current repair coverage. The campaign also records a reproduced post-squash inventory gate failure. Production verification is pending.
+[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks prior repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks fresh review and authenticated production qualification. Synthetic upload, tiles, annotation reload and adjacent navigation passed; Classroom and Study qualification continues.
 
 | Disposition | Source sections |
 | --- | ---: |

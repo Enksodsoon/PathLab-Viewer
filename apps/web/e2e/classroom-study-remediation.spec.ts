@@ -155,3 +155,50 @@ test('Assessment practice survives denied reads and writes without promising per
     await page.screenshot({ path: info.outputPath(`practice-${size.width}x${size.height}-${theme}.png`), fullPage: true })
   }
 })
+
+test('native OSD pinned question sends from pointer button and keyboard', async ({ page }, info) => {
+  await tiles(page)
+  await page.addInitScript(() => { window.EventSource = class { addEventListener() {} close() {} } as unknown as typeof EventSource })
+  const questions: Array<Record<string, unknown>> = []
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/sessions/qa-session')) return route.fulfill({ json: classroom })
+    if (path.endsWith('/questions')) { questions.push(route.request().postDataJSON()); return route.fulfill({ status: 200, json: {} }) }
+    return route.fulfill({ json: {} })
+  })
+  await page.goto('/classroom/qa-session')
+  await expect(page.locator('.openseadragon-canvas canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Ask at visible centre (P)' }).click()
+  await page.getByLabel('Question at this point').fill('Synthetic pointer question')
+  if (info.project.name === 'mobile-chromium') await page.getByRole('button', { name: 'Send question', exact: true }).tap()
+  else await page.getByRole('button', { name: 'Send question', exact: true }).click()
+  await expect.poll(() => questions.length).toBe(1)
+  await expect(page.getByLabel('Question at this point')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Ask at visible centre (P)' }).click()
+  await page.getByLabel('Question at this point').fill('Synthetic keyboard question')
+  await page.keyboard.press('Control+Enter')
+  await expect.poll(() => questions.length).toBe(2)
+  await expect(page.getByLabel('Question at this point')).toHaveCount(0)
+  await info.attach('question-requests', { body: JSON.stringify(questions), contentType: 'application/json' })
+})
+
+test('teacher expiry input is submitted after normal browser fill and Prepare click', async ({ page }, info) => {
+  await page.addInitScript(() => sessionStorage.setItem('pathlab-csrf', 'synthetic-csrf'))
+  const requests: Array<{ reviewExpiresAt: string }> = []
+  await page.route('**/api/**', (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/auth/session')) return route.fulfill({ json: { csrfToken: 'synthetic-csrf' } })
+    if (path.endsWith('/setup/folders')) return route.fulfill({ json: { items: [{ id: 'folder', name: 'Synthetic class', folderPath: ['Synthetic class'], depth: 0, hasChildren: false, readyCount: 1, blockedCount: 0, tooManySlides: false }], nextCursor: null } })
+    if (path.endsWith('/readiness')) return route.fulfill({ json: { folderId: 'folder', ready: [{ id: 'slide', displayName: 'Synthetic', folderPath: [] }], blocked: [], tooManySlides: false } })
+    if (path.endsWith('/sessions') && route.request().method() === 'POST') { requests.push(route.request().postDataJSON()); return route.fulfill({ status: 503, json: { detail: { code: 'SYNTHETIC_STOP_AFTER_REQUEST' } } }) }
+    return route.fulfill({ json: { sessions: [] } })
+  })
+  await page.goto('/admin/classroom')
+  await page.getByRole('radio', { name: /Synthetic class/ }).check()
+  const chosen = await page.evaluate(() => { const date = new Date(Date.now() + 86400000); const pad = (value: number) => String(value).padStart(2, '0'); const local = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`; return { local, iso: new Date(local).toISOString() } })
+  await page.getByLabel('Review access expires').fill(chosen.local)
+  await page.getByRole('button', { name: 'Prepare classroom with 1 slide', exact: true }).click()
+  await expect.poll(() => requests.length).toBe(1)
+  expect(requests[0].reviewExpiresAt).toBe(chosen.iso)
+  await info.attach('expiry-request', { body: JSON.stringify({ chosen, requests }), contentType: 'application/json' })
+})
