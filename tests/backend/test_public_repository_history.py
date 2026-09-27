@@ -15,6 +15,9 @@ def test_recorded_opencv_version_does_not_exempt_network_addresses() -> None:
     assert scan_text(receipt, f'"version": "{version}"') == []
     assert scan_text(receipt, f'"purl": "pkg:pypi/opencv-python-headless@{version}"') == []
     assert scan_text("deploy/backend-requirements.txt", f"opencv-python-headless=={version}") == []
+    archive = "docs/supply-chain/notice-material/archive-notices.json"
+    assert scan_text(archive, f'"member": "opencv_python_headless-{version}/LICENSE"') == []
+    assert scan_text(archive, f'"host": "{version}"')
     assert scan_text(receipt, f'"url": "https://{version}/opencv-python-headless@{version}"')
     assert scan_text(receipt, f'"host": "{version}"')
     assert scan_text("config.json", f'"version": "{version}"')

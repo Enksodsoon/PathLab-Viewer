@@ -28,7 +28,7 @@ HISTORICAL_SYNTHETIC_EMAIL_LINES = {
 # material. A changed receipt, line, or path receives no exemption. This affects
 # email findings only; every credential/IP/workstation rule still runs.
 LEGAL_EMAIL_RECEIPT = "docs/supply-chain/notice-material/public-legal-email-lines.json"
-LEGAL_EMAIL_RECEIPT_SHA256 = "0ff5231b3b81f6b5d1b0ffc0245a9d215c240c5677cb0d57daaf7d0395ea9c34"
+LEGAL_EMAIL_RECEIPT_SHA256 = "7e09325084e042aceeefd7ade5588c74d19a0ae17bfbe138874095782231627a"
 
 
 def approved_legal_email_lines() -> dict[str, list[str]]:
@@ -340,7 +340,10 @@ def is_recorded_opencv_version(relative: str, line: str, start: int, end: int) -
         return False
     if relative == "deploy/backend-requirements.txt":
         return line[:start] == "opencv-python-headless=="
-    if relative != "docs/supply-chain/dependency-inventory.json" and not relative.startswith(
+    if relative not in {
+        "docs/supply-chain/dependency-inventory.json",
+        "docs/supply-chain/notice-material/archive-notices.json",
+    } and not relative.startswith(
         "docs/supply-chain/software-inventories/"
     ):
         return False
