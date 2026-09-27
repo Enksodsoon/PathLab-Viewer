@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "4823b169f4146dd371f035d79283df7af1dae82a92355bb7ceed8b4e78329dc5",
+      "sha256": "7bb57a4f6efaaa3bea78b91beacc33a702160f2b9bb8c33249a2750808a6f4f9",
       "sizeBytes": 730674
     },
     {
       "path": "build.spdx.json",
-      "sha256": "c59079c7da2bd350dd53e890ba36dbb809276cea50d9cbe496a32de5095f2a88",
+      "sha256": "4d0ce2334609c73e8be27b754d209bdddb743640b50c4156d5cfd3b10d016506",
       "sizeBytes": 590260
     },
     {
       "path": "source.cdx.json",
-      "sha256": "7d03bfaf1629107ca83e0f195a15c270ddf2e82711396b134e6ced4e8062650b",
+      "sha256": "f35c55a73195d31145cb470a2f8e6d0254bee7e5dcd0bdb58b6ea77c33e4aae3",
       "sizeBytes": 770774
     },
     {
       "path": "source.spdx.json",
-      "sha256": "9abbd3a66ee029b98282b1ce2d66240e2e4398e29e4692d7ff6ad03946178f1f",
+      "sha256": "7c2f6d04851aa4ce11bddf091805b1399692164e816ced05c93661db59ca909e",
       "sizeBytes": 621924
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-27T07:36:40Z",
+  "generatedAt": "2026-09-27T07:44:23Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "183de7957b44fbfb8cae13ce3c995334d8a0947c",
+      "gitBlob": "67f9b99d18ee28281f5966417bb2a5a1ebd74f14",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "cff7df7d9b9e2f91bf18034f9169174d4e6b0a236ed11dad372314a500db5b7c",
+      "sha256": "3020fd487ca947f5d2afa12d43d083f343cc4032a7a1de0cb88010af8fbd86c5",
       "sizeBytes": 41188
     },
     {
@@ -356,6 +356,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "7b2ff8d16f170a252ae637115b8092564796fb6b",
-  "subjectTree": "4fbfdf32ea6b2830bb8513d831b87c9076cec6dc"
+  "subjectCommit": "7c255e74445872cd7a657c25e719028ddf9e0e3e",
+  "subjectTree": "afad92a5ef60c4dd6c0c9b8cf2a49f34c10786c9"
 }
