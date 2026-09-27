@@ -230,3 +230,10 @@ def test_web_notice_copy_and_python_container_packaging_use_same_artifact(tmp_pa
             in docker
         )
         assert "/usr/share/licenses/pathlab-viewer/THIRD_PARTY_NOTICES.txt" in docker
+
+
+def test_notice_input_receipts_use_platform_independent_posix_order():
+    from scripts.generate_software_inventories import inventory_input_paths
+
+    material = [path for path in inventory_input_paths() if "/notice-material/" in path]
+    assert material == sorted(material)

@@ -542,7 +542,10 @@ def main() -> int:
             manifest_receipt(MANUAL_INPUTS),
             *(
                 manifest_receipt(path)
-                for path in sorted((ROOT / "docs/supply-chain/notice-material").rglob("*"))
+                for path in sorted(
+                    (ROOT / "docs/supply-chain/notice-material").rglob("*"),
+                    key=lambda path: path.as_posix(),
+                )
                 if path.is_file()
             ),
         ],

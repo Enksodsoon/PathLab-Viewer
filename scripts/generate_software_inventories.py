@@ -488,7 +488,10 @@ def inventory_input_paths() -> tuple[str, ...]:
         *INPUT_PATHS,
         *(
             path.relative_to(ROOT).as_posix()
-            for path in sorted((ROOT / "docs/supply-chain/notice-material").rglob("*"))
+            for path in sorted(
+                (ROOT / "docs/supply-chain/notice-material").rglob("*"),
+                key=lambda path: path.as_posix(),
+            )
             if path.is_file()
         ),
     )
