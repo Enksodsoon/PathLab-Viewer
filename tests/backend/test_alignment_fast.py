@@ -1,8 +1,52 @@
+import cv2
 import numpy as np
 import pytest
 from PIL import Image, ImageDraw
 from wsi_viewer import alignment
 from wsi_viewer.worker import _registration_quality
+
+
+def test_coarse_fallback_preserves_stronger_map_and_is_source_bound():
+    from copy import deepcopy
+
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
+    from wsi_viewer.alignment_policy import current_registration
+    from wsi_viewer.worker import _with_overview_fallback
+
+    primary = {
+        "status": "approximate",
+        "provenance": "automatic",
+        "sourceVersion": "moving-v1",
+        "anchorVersion": "fixed-v1",
+        "anchorSlideId": "fixed",
+        "engine": ENGINE_NATIVE,
+        "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+        "settingsDigest": settings_digest(ENGINE_NATIVE),
+        "overviewTriangles": [{"moving": [[0, 0], [1, 0], [0, 1]]}],
+        "evidence": {"source": "bounded-pyramid-whole-slide-structure"},
+    }
+    coarse = {
+        **deepcopy(primary),
+        "overviewTriangles": [{"moving": [[0, 0], [100, 0], [0, 100]]}],
+        "evidence": {"source": "bounded-sparse-overview"},
+    }
+    saved = deepcopy(primary)
+    combined = _with_overview_fallback(primary, coarse)
+    assert combined["overviewTriangles"] == primary["overviewTriangles"]
+    assert combined["overviewFallback"] == coarse
+    assert primary == saved and "overviewFallback" not in coarse
+    assert "overviewFallback" not in _with_overview_fallback(coarse, coarse)
+    assert _with_overview_fallback(primary, {**coarse, "sourceVersion": "other"}) == primary
+    assert (
+        _with_overview_fallback({**primary, "provenance": "manual"}, coarse).get("overviewFallback")
+        is None
+    )
+    replacement = {**primary, "status": "ready", "triangles": [{"reviewed": True}]}
+    assert _with_overview_fallback(replacement, combined)["overviewFallback"] == coarse
+    combined["overviewFallback"]["engineVersion"] = "obsolete"
+    served = current_registration(combined)
+    assert "overviewFallback" not in served and served["status"] == "approximate"
+    assert "overviewFallback" in combined
 
 
 def test_legacy_engine_map_cannot_outrank_current_qualified_overview():
@@ -98,6 +142,32 @@ def test_fast_preparation_reuses_source_and_invalidates_geometry_and_version():
     assert sampled.full_size == (5120, 3840)
 
 
+def test_fast_preparation_retains_thin_tissue_when_standard_mask_is_empty():
+    from wsi_viewer import alignment_fast as fast
+
+    image = Image.new("RGB", (640, 480), "white")
+    draw = ImageDraw.Draw(image)
+    for y in (100, 150, 200, 250, 300):
+        draw.line((60, y, 580, y + 20), fill=(140, 80, 150), width=3)
+    prepared, _ = fast.PreparationCache().prepare("thin-slide", image, image.size)
+    assert prepared.mask.any()
+    assert prepared.thin_mask is prepared.mask
+
+
+def test_fast_preparation_recovers_tissue_on_tinted_glass_without_accepting_empty_glass():
+    from wsi_viewer import alignment_fast as fast
+
+    image = Image.new("RGB", (640, 480), (235, 229, 233))
+    ImageDraw.Draw(image).ellipse((120, 80, 520, 400), fill=(140, 80, 150))
+    prepared, _ = fast.PreparationCache().prepare("tinted-tissue", image, image.size)
+    assert prepared.mask[240, 320] != 0
+    assert prepared.mask[20, 20] == 0
+    with pytest.raises(alignment.AlignmentRejected, match="insufficient tissue"):
+        fast.PreparationCache().prepare(
+            "empty-glass", Image.new("RGB", image.size, (235, 229, 233)), image.size
+        )
+
+
 def test_fast_pair_recovers_translation_without_local_anatomy_claim():
     from wsi_viewer import alignment_fast as fast
 
@@ -120,6 +190,26 @@ def test_fast_pair_recovers_translation_without_local_anatomy_claim():
     assert x == pytest.approx(300, abs=3)
     assert y == pytest.approx(200, abs=3)
     assert len(ref.points) <= 1536
+
+
+def test_overview_seed_recovers_clear_quarter_turn_without_claiming_ambiguous_shape(monkeypatch):
+    from wsi_viewer import alignment_fast as fast
+
+    reference = np.zeros((128, 128), dtype=np.uint8)
+    cv2.rectangle(reference, (23, 30), (95, 43), 255, -1)
+    cv2.rectangle(reference, (23, 30), (39, 108), 255, -1)
+    moving = cv2.rotate(reference, cv2.ROTATE_90_CLOCKWISE)
+    monkeypatch.setattr(fast, "_mask_seed", lambda *_: (np.eye(2, 3, dtype=np.float32), 0.5))
+
+    seed = fast._overview_mask_seed(reference, moving)
+    warped = cv2.warpAffine(moving, seed, reference.shape[::-1])
+    assert np.count_nonzero((warped > 0) & (reference > 0)) / np.count_nonzero(reference) > 0.95
+
+    symmetric = np.zeros((128, 128), dtype=np.uint8)
+    cv2.circle(symmetric, (64, 64), 35, 255, -1)
+    np.testing.assert_array_equal(
+        fast._overview_mask_seed(symmetric, symmetric), np.eye(2, 3, dtype=np.float32)
+    )
 
 
 @pytest.mark.parametrize(
@@ -149,6 +239,39 @@ def test_fast_scale_gate_uses_level_zero_geometry(monkeypatch, reference_size, a
     result = fast.register_prepared(reference, moving)
     assert result.status == "approximate" and result.overview_triangles
     np.testing.assert_allclose(result.moving_to_reference, [[1, 0, 0], [0, 1, 0]], atol=1e-6)
+
+
+def test_fast_ecc_seed_uses_rounded_resize_pixel_centers(monkeypatch):
+    from wsi_viewer import alignment_fast as fast
+
+    def prepared(width, height):
+        mask = np.full((height, width), 255, dtype=np.uint8)
+        ramp = np.tile(np.linspace(0, 255, width, dtype=np.float32), (height, 1))
+        return fast.PreparedSlide(ramp, mask, np.empty((0, 2)), None, (width, height))
+
+    received = []
+
+    def ecc(fixed, moving, inverse, *_):
+        expected_pixels = fast.cv2.resize(reference.structure, fixed.shape[::-1]) / 255
+        np.testing.assert_allclose(fixed, expected_pixels, atol=1e-7)
+        received.append((fixed.shape, moving.shape, inverse.copy()))
+        return 0.9, inverse
+
+    monkeypatch.setattr(fast.cv2, "findTransformECC", ecc)
+    monkeypatch.setattr(fast.cv2, "GaussianBlur", lambda image, *_: image)
+    reference = prepared(997, 1019)
+    fast.register_prepared(reference, prepared(983, 1001))
+    fixed_shape, moving_shape, inverse = received[0]
+
+    def frame(shape, width, height):
+        sx, sy = shape[1] / width, shape[0] / height
+        return np.asarray([[sx, 0, (sx - 1) / 2], [0, sy, (sy - 1) / 2], [0, 0, 1]])
+
+    reference_frame = frame(fixed_shape, 997, 1019)
+    moving_frame = frame(moving_shape, 983, 1001)
+    scanner = np.diag([997 / 983, 1019 / 1001, 1])
+    expected = moving_frame @ np.linalg.inv(scanner) @ np.linalg.inv(reference_frame)
+    np.testing.assert_allclose(inverse, expected[:2], atol=1e-6)
 
 
 @pytest.mark.parametrize(
@@ -182,6 +305,36 @@ def test_thin_mask_is_a_bounded_fallback_not_an_acceptance_override(
         registered = fast.register_prepared(prepared, prepared)
         assert (registered.evidence.get("maskMode") == "thin-tissue-fallback") == first_rejected
     assert calls == ([3, 5] if first_rejected else [3])
+
+
+def test_calibrated_pair_is_used_only_after_primary_masks_reject(monkeypatch):
+    from wsi_viewer import alignment_fast as fast
+
+    original = np.ones((64, 64), dtype=np.uint8)
+    alternate = np.full((64, 64), 255, dtype=np.uint8)
+    calibrated = fast.PreparedSlide(alternate, alternate, np.empty((0, 2)), None, (64, 64))
+    prepared = fast.PreparedSlide(
+        original, original, np.empty((0, 2)), None, (64, 64), original, calibrated
+    )
+    result = alignment.RegistrationResult(
+        "approximate", [[1, 0, 0], [0, 1, 0]], (0, 0, 64, 64), (0, 0, 64, 64), 0.4, 0, 0, -1
+    )
+    calls = []
+
+    def register(reference, moving, *, sigma):
+        calls.append((reference.structure is calibrated.structure, sigma))
+        if reference.structure is not calibrated.structure:
+            raise alignment.AlignmentRejected("insufficient evidence")
+        return result
+
+    monkeypatch.setattr(fast, "_register_prepared", register)
+    registered = fast.register_prepared(prepared, prepared)
+    assert calls == [(False, 3), (False, 5), (True, 3)]
+    assert registered.evidence["maskMode"] == "calibrated-fallback"
+    assert prepared.nbytes == calibrated.nbytes + sum(
+        value.nbytes
+        for value in (prepared.structure, prepared.mask, prepared.points, prepared.thin_mask)
+    )
 
 
 def test_foreground_admission_precedes_older_refinement(tmp_path):

@@ -679,6 +679,43 @@ def _component_seed(
     return scores[0][1], scores[0][0], scores[0][0] - second, matched_count
 
 
+def _orb_features(
+    structure: np.ndarray[Any, Any],
+    mask: np.ndarray[Any, Any],
+    budget: int,
+    *,
+    fast_threshold: int = 8,
+) -> tuple[list[cv2.KeyPoint], np.ndarray[Any, Any] | None]:
+    """Hard-cap spatial ORB descriptors, including tied detector responses."""
+    height, width = structure.shape
+    grid = min(4, max(1, min(height, width) // 128))
+    keys, chunks = [], []
+    for index in range(grid * grid):
+        quota = budget // (grid * grid) + (index < budget % (grid * grid))
+        row, column = divmod(index, grid)
+        left, top = column * width // grid, row * height // grid
+        right, bottom = (column + 1) * width // grid, (row + 1) * height // grid
+        x0, y0 = max(0, left - 32), max(0, top - 32)
+        crop = structure[y0 : min(height, bottom + 32), x0 : min(width, right + 32)]
+        support = np.zeros(crop.shape, dtype=np.uint8)
+        support[top - y0 : bottom - y0, left - x0 : right - x0] = mask[top:bottom, left:right]
+        if not np.any(support):
+            continue
+        detector = cv2.ORB_create(nfeatures=quota, fastThreshold=fast_threshold)
+        candidates = detector.detect(crop, support)
+        selected = sorted(
+            candidates, key=lambda point: (-point.response, point.pt[1], point.pt[0])
+        )[:quota]
+        local_keys, descriptors = detector.compute(crop, selected)
+        if descriptors is None:
+            continue
+        for point in local_keys:
+            point.pt = (point.pt[0] + x0, point.pt[1] + y0)
+        keys.extend(local_keys)
+        chunks.append(descriptors)
+    return keys, np.concatenate(chunks) if chunks else None
+
+
 def _mutual_matches(
     moving_descriptors: np.ndarray, reference_descriptors: np.ndarray, ratio: float
 ) -> list[Any]:
@@ -748,11 +785,12 @@ def _coarse_refined_result(
     size = (reference_mask.shape[1], reference_mask.shape[0])
     warped_structure = cv2.warpAffine(moving_structure, seed, size)
     warped_mask = cv2.warpAffine(moving_mask, seed, size)
-    detector = cv2.ORB_create(nfeatures=8000, scaleFactor=1.2, nlevels=8, fastThreshold=3)
-    reference_keys, reference_descriptors = detector.detectAndCompute(
-        reference_structure, reference_mask
+    reference_keys, reference_descriptors = _orb_features(
+        reference_structure, reference_mask, 8000, fast_threshold=3
     )
-    moving_keys, moving_descriptors = detector.detectAndCompute(warped_structure, warped_mask)
+    moving_keys, moving_descriptors = _orb_features(
+        warped_structure, warped_mask, 8000, fast_threshold=3
+    )
     if reference_descriptors is None or moving_descriptors is None:
         return outline_result()
     matches = _mutual_matches(moving_descriptors, reference_descriptors, 0.72)
@@ -868,13 +906,11 @@ def register_pair(
             moving_scale,
         )
 
-    detector = cv2.ORB_create(
-        nfeatures=1536 if feature_only else 5000, scaleFactor=1.2, nlevels=8, fastThreshold=8
+    budget = 1536 if feature_only else 5000
+    reference_keys, reference_descriptors = _orb_features(
+        reference_structure, reference_mask, budget
     )
-    reference_keys, reference_descriptors = detector.detectAndCompute(
-        reference_structure, reference_mask
-    )
-    moving_keys, moving_descriptors = detector.detectAndCompute(moving_structure, moving_mask)
+    moving_keys, moving_descriptors = _orb_features(moving_structure, moving_mask, budget)
     if reference_descriptors is None or moving_descriptors is None:
         return fallback()
 

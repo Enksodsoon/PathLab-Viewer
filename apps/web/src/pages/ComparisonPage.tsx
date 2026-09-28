@@ -19,6 +19,7 @@ type CorrectionState = {
   originalActivePane: number
   originalAlignmentMode: AlignmentMode
   originalLinked: boolean
+  originalViewports: Map<string, ImageViewport>
   referenceId: string
   movingId: string
   points: Array<{ reference: [number, number]; moving: [number, number] }>
@@ -58,6 +59,8 @@ function pairRegistrations(source: ComparisonMember, target: ComparisonMember, p
     : null
 }
 type CandidatePreviewState = {
+  setVersion: number
+  registration: ComparisonMember['registration']
   candidateId: string
   engine: string
   slideId: string
@@ -65,6 +68,7 @@ type CandidatePreviewState = {
   originalRegistration: ComparisonMember['registration']
   originalAlignmentMode: AlignmentMode
   originalLinked: boolean
+  originalViewports: Map<string, ImageViewport>
 }
 
 function matchedFocusBounds(source: ComparisonMember, targets: ComparisonMember[], primaryReferenceId: string): Exclude<Support, null> | null {
@@ -163,16 +167,29 @@ export function ComparisonPage() {
   const activeTransaction = useRef<string | null>(null)
   const restoreNavigationAfterCorrection = useRef(false)
   const alignmentPreferenceExplicit = useRef(false)
+  const captureViewports = () => new Map(panes.flatMap((slideId) => {
+    const viewport = handles.current.get(slideId)?.getImageViewport() ?? savedViewports.current.get(slideId)
+    return viewport ? [[slideId, { ...viewport }] as const] : []
+  }))
+  const restoreViewports = useCallback((viewports: Map<string, ImageViewport>) => {
+    savedViewports.current = new Map(viewports)
+    hasInitialField.current = true
+    initializedPanes.current = ''
+    window.requestAnimationFrame(() => {
+      for (const [slideId, viewport] of viewports) handles.current.get(slideId)?.setImageViewport(viewport, 'restore-field')
+    })
+  }, [])
   const comparisonStatus = comparison?.status
   const benchmarkActivity = jobs.some((job) => job.kind === 'align_benchmark'
     && ['queued', 'leased', 'running', 'retry_wait'].includes(job.status))
   const previewCandidate = (candidate: RegistrationCandidate, slideName: string) => {
-    if (!candidate.registration || !comparison) return
+    if (correction || !candidate.registration || !comparison || candidate.currentSettings === false || ['rejected', 'stale', 'needs_refinement'].includes(candidate.status)) return
     const originalRegistration = candidatePreview?.slideId === candidate.slideId
       ? candidatePreview.originalRegistration
       : comparison.members.find((member) => member.slideId === candidate.slideId)?.registration ?? null
     const originalAlignmentMode = candidatePreview?.originalAlignmentMode ?? alignmentMode
     const originalLinked = candidatePreview?.originalLinked ?? linked
+    const originalViewports = candidatePreview?.originalViewports ?? captureViewports()
     setComparison((current) => {
       if (!current) return current
       const restoredMembers = candidatePreview
@@ -187,16 +204,15 @@ export function ComparisonPage() {
           : member),
       }
     })
-    setCandidatePreview({ candidateId: candidate.id, engine: candidate.engine, slideId: candidate.slideId, slideName, originalRegistration, originalAlignmentMode, originalLinked })
+    setCandidatePreview({ setVersion: candidate.setVersion, registration: candidate.registration, candidateId: candidate.id, engine: candidate.engine, slideId: candidate.slideId, slideName, originalRegistration, originalAlignmentMode, originalLinked, originalViewports })
     setAlignmentMode(candidate.registration.status === 'approximate' ? 'approximate' : 'matched')
     setLinked(true)
-    hasInitialField.current = false
     initializedPanes.current = ''
     setSuspendedPanes(new Set())
     setNotice('')
   }
   const stopCandidatePreview = () => {
-    if (!candidatePreview) return
+    if (correction || !candidatePreview) return
     setComparison((current) => current ? {
       ...current,
       members: current.members.map((member) => member.slideId === candidatePreview.slideId
@@ -206,8 +222,7 @@ export function ComparisonPage() {
     setCandidatePreview(null)
     setAlignmentMode(candidatePreview.originalAlignmentMode)
     setLinked(candidatePreview.originalLinked)
-    hasInitialField.current = false
-    initializedPanes.current = ''
+    restoreViewports(candidatePreview.originalViewports)
     setSuspendedPanes(new Set())
     setNotice('Candidate preview closed. The saved alignment is active again.')
   }
@@ -269,21 +284,43 @@ export function ComparisonPage() {
   }, [comparisonId, publicId])
   useEffect(() => {
     if (!comparison || (!['queued', 'running'].includes(comparison.status) && !benchmarkActivity)) return
+    let active = true
     const timer = window.setInterval(() => {
       if (publicId) {
-        void getSharedComparisonSet(publicId, comparison.id).then(setComparison).catch(() => undefined)
+        void getSharedComparisonSet(publicId, comparison.id).then(value => {
+          if (active) setComparison(value)
+        }).catch(() => undefined)
         return
       }
       void Promise.all([getComparisonSet(comparison.id), getComparisonJobs(comparison.id), getComparisonCandidates(comparison.id)])
         .then(([updated, updatedJobs, updatedCandidates]) => {
-          setComparison(updated)
+          if (!active) return
+          const freshCandidate = updatedCandidates.candidates?.find(candidate => candidate.id === candidatePreview?.candidateId)
+          if (candidatePreview && updated.version === candidatePreview.setVersion
+            && freshCandidate && freshCandidate.currentSettings !== false
+            && !['stale', 'rejected', 'needs_refinement'].includes(freshCandidate.status)) {
+            const saved = updated.members.find(member => member.slideId === candidatePreview.slideId)
+            setCandidatePreview(current => current ? { ...current, originalRegistration: saved?.registration ?? null } : current)
+            setComparison({ ...updated, members: updated.members.map(member =>
+              member.slideId === candidatePreview.slideId
+                ? { ...member, registration: candidatePreview.registration } : member) })
+          } else {
+            setComparison(updated)
+            if (candidatePreview) {
+              setCandidatePreview(null)
+              setAlignmentMode(candidatePreview.originalAlignmentMode)
+              setLinked(candidatePreview.originalLinked)
+              restoreViewports(candidatePreview.originalViewports)
+              setNotice('Candidate preview ended because the slide stack changed.')
+            }
+          }
           if (Array.isArray(updatedJobs)) setJobs(updatedJobs)
           if (Array.isArray(updatedCandidates.candidates)) setCandidateManifest(updatedCandidates)
         })
         .catch(() => undefined)
     }, 2000)
-    return () => window.clearInterval(timer)
-  }, [benchmarkActivity, comparison, publicId])
+    return () => { active = false; window.clearInterval(timer) }
+  }, [benchmarkActivity, candidatePreview, comparison, publicId, restoreViewports])
   useEffect(() => {
     if ((!comparisonStatus || !['queued', 'running'].includes(comparisonStatus)) && !benchmarkActivity) return
     setProgressNow(Date.now())
@@ -333,6 +370,7 @@ export function ComparisonPage() {
         [snapshot.centerX, snapshot.centerY], source.slideId, targetId,
         comparison.referenceSlideId, comparison.members,
         alignmentMode === 'approximate' ? 'overview' : 'best',
+        snapshot.visibleRadiusPixels,
       )
       if (!mapped) {
         suspended.push(target.displayName)
@@ -495,9 +533,20 @@ export function ComparisonPage() {
         setNotice('Manual correction saved. Support is limited to the area between your landmarks.')
       }
     } catch (error) {
-      setCorrectionError(error instanceof ApiError && error.status === 409
-        ? 'This set changed. Cancel and reload before saving new landmarks.'
-        : 'Correction rejected. Use at least three non-collinear corresponding points spread across the same tissue.')
+      const code = error instanceof ApiError ? error.code : ''
+      setCorrectionError(error instanceof ApiError && error.status === 401
+        ? 'Your session expired. Sign in to PathLab in another tab, then retry here. Do not reload this tab or the recorded points will be lost.'
+        : error instanceof ApiError && error.status === 409
+          ? 'This set changed. Cancel and reload before saving new landmarks.'
+          : code === 'LANDMARK_OUTSIDE_SLIDE'
+            ? 'A recorded point is outside its slide. Undo that pair and record it inside the image.'
+          : code === 'LANDMARK_ON_GLASS'
+            ? 'A point is on blank glass. Undo that pair and mark the same identifiable tissue structure in both slides.'
+          : code === 'LANDMARK_IMAGE_UNAVAILABLE'
+            ? 'The slide image could not be checked. Retry when its tiles are available.'
+          : code === 'LANDMARKS_DEGENERATE' || code === 'LANDMARKS_NOT_DISTRIBUTED'
+              ? 'Points are too close together or nearly in a line. Record corresponding points spread across the tissue.'
+              : 'Correction could not be previewed. Retry, or check the server connection.')
     } finally { setCorrectionBusy(false) }
   }
   if (!comparison && !notice) return <Loader label="Opening comparison…" size="large" fullscreen />
@@ -559,6 +608,7 @@ export function ComparisonPage() {
       originalActivePane: activePane,
       originalAlignmentMode: alignmentMode,
       originalLinked: linked,
+      originalViewports: captureViewports(),
       referenceId,
       movingId,
       points: [],
@@ -575,10 +625,11 @@ export function ComparisonPage() {
   const cancelCorrection = () => {
     if (!correction) return
     setComparison(correction.original)
-    restoreNavigationAfterCorrection.current = true
+    restoreNavigationAfterCorrection.current = false
+    restoreViewports(correction.originalViewports)
     setPanes(correction.originalPanes)
     setActivePane(Math.min(correction.originalActivePane, correction.originalPanes.length - 1))
-    hasInitialField.current = false
+    hasInitialField.current = true
     initializedPanes.current = ''
     drivingPane.current = correction.referenceId
     setCorrection(null)
@@ -631,7 +682,7 @@ export function ComparisonPage() {
         <button type="button" disabled={registering || !!correction || !!grouping || registrationPending} onClick={() => { setRegistering(true); void reregisterComparisonSet(comparison.id).then(() => { setComparison((current) => current ? { ...current, status: 'queued' } : current); setNotice('Automatic alignment queued. The current map remains active until its replacement succeeds.') }).catch(() => setNotice('Automatic alignment could not be queued.')).finally(() => setRegistering(false)) }}>{registering ? 'Queuing…' : 'Run automatic alignment again'}</button>
         {['queued', 'running'].includes(comparison.status) || benchmarkActivity ? <button type="button" disabled={registering} onClick={() => { setRegistering(true); void cancelComparisonRegistration(comparison.id).then(() => setNotice('Registration cancellation requested.')).catch(() => setNotice('Registration could not be cancelled.')).finally(() => setRegistering(false)) }}>Cancel registration</button> : null}
         <button type="button" aria-label="Groups" disabled={registering || !!correction || ['queued', 'running'].includes(comparison.status)} onClick={() => setGrouping({ referenceId: comparison.referenceSlideId, anchors: Object.fromEntries(comparison.members.filter((member) => member.slideId !== comparison.referenceSlideId).map((member) => [member.slideId, comparison.alignmentConfig?.anchors?.[member.slideId] ?? member.registration?.anchorSlideId ?? comparison.referenceSlideId])) })}>Reference groups</button>
-        <button type="button" disabled={benchmarking || registrationPending} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(async () => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.'); const queuedJobs = await getComparisonJobs(comparison.id); if (Array.isArray(queuedJobs)) setJobs(queuedJobs) }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
+        <button type="button" disabled={benchmarking || registrationPending || !!correction} onClick={() => { const engines = Object.entries(candidateManifest?.engineAvailability ?? {}).filter(([, value]) => value.available).map(([engine]) => engine); setBenchmarking(true); void benchmarkComparisonSet(comparison.id, comparison.version, engines.length ? engines : ['native-v12']).then(async () => { setNotice('Engine benchmark queued. Existing alignment remains active until you promote a candidate.'); const queuedJobs = await getComparisonJobs(comparison.id); if (Array.isArray(queuedJobs)) setJobs(queuedJobs) }).catch(() => setNotice('Engine benchmark could not be queued.')).finally(() => setBenchmarking(false)) }}>{benchmarking ? 'Queuing benchmark…' : 'Benchmark engines'}</button>
         <button type="button" disabled={registrationPending || !!correction || !!grouping || !panes.some((slideId) => slideId !== comparison.referenceSlideId)} onClick={startCorrection}>Correct alignment</button>
       </div></details> : null}
     </header>
@@ -669,15 +720,15 @@ export function ComparisonPage() {
       })}</ul>
       <p>The active viewer remains available. Candidate maps replace nothing until they pass validation and an administrator promotes them.</p>
     </section> : null}
-    {!publicId && visibleCandidates.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy. Preview a candidate and inspect corresponding tissue before saving it.</p><div>{visibleCandidates.map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; const canPreview = candidate.status !== 'rejected' && !!candidate.registration; const canPromote = candidate.currentSettings !== false && candidate.status === 'ready' && candidate.validationState === 'engineering_passed' && !!candidate.registration; const isPreviewing = candidatePreview?.candidateId === candidate.id; const candidateReason = candidate.failureReason || candidate.registration?.reason; return <article key={candidate.id} data-previewing={isPreviewing}><strong>{candidateSlideName}</strong><span>{candidate.engine} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}{candidate.currentSettings === false ? ' · outdated adapter' : ''}</span>{candidateReason ? <small>{candidateReason}</small> : null}<div className="comparison-candidate-actions">{isPreviewing ? <button type="button" aria-label={`Stop previewing ${candidate.engine} for ${candidateSlideName}`} onClick={stopCandidatePreview}>Stop preview</button> : <button type="button" aria-label={`Preview ${candidate.engine} for ${candidateSlideName}`} disabled={!canPreview} onClick={() => previewCandidate(candidate, candidateSlideName)}>Preview candidate</button>}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={!canPromote || registering} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setCandidatePreview(null); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></div></article> })}</div></details> : null}
-    {candidatePreview ? <div className="comparison-notice comparison-candidate-preview" role="status"><strong>Experimental alignment preview</strong> {candidatePreview.engine} is temporarily driving {candidatePreview.slideName}. No server changes have been saved. Pan and zoom through several tissue regions before promotion. <button type="button" onClick={stopCandidatePreview}>Restore saved alignment</button></div> : null}
+    {!publicId && visibleCandidates.length ? <details className="comparison-quality comparison-engine-candidates"><summary>Registration engine candidates</summary><p>Candidate maps are experimental until promoted. Fit residuals are engineering checks, not anatomical accuracy. Preview a candidate and inspect corresponding tissue before saving it.</p><div>{visibleCandidates.map((candidate) => { const candidateSlideName = comparison.members.find((member) => member.slideId === candidate.slideId)?.displayName ?? candidate.slideId; const canPreview = candidate.currentSettings !== false && !['rejected', 'stale', 'needs_refinement'].includes(candidate.status) && !!candidate.registration; const localEvidenceReady = candidate.engine.startsWith('hisalign') ? candidate.registration?.evidence?.hisalignLocalEvidenceQualified === true : candidate.engine.startsWith('valis') ? candidate.registration?.evidence?.valisLocalEvidenceQualified === true : true; const canPromote = candidate.currentSettings !== false && candidate.status === 'ready' && candidate.validationState === 'engineering_passed' && !!candidate.registration && localEvidenceReady; const isPreviewing = candidatePreview?.candidateId === candidate.id; const candidateReason = candidate.failureReason || candidate.registration?.reason; return <article key={candidate.id} data-previewing={isPreviewing}><strong>{candidateSlideName}</strong><span>{candidate.engine} · {candidate.status} · {candidate.validationState.replaceAll('_', ' ')}{candidate.currentSettings === false ? ' · outdated adapter' : !localEvidenceReady ? ' · local map unqualified' : ''}</span>{candidateReason ? <small>{candidateReason}</small> : null}<div className="comparison-candidate-actions">{isPreviewing ? <button type="button" aria-label={`Stop previewing ${candidate.engine} for ${candidateSlideName}`} disabled={!!correction} onClick={stopCandidatePreview}>Stop preview</button> : <button type="button" aria-label={`Preview ${candidate.engine} for ${candidateSlideName}`} disabled={!canPreview || !!correction} onClick={() => previewCandidate(candidate, candidateSlideName)}>Preview candidate</button>}<button type="button" aria-label={`Promote ${candidate.engine} for ${candidateSlideName}`} disabled={!canPromote || registering || !!correction} onClick={() => { setRegistering(true); void promoteComparisonCandidate(comparison.id, candidate.id, comparison.version).then((updated) => { setComparison(updated); setCandidatePreview(null); setNotice(`${candidate.engine} candidate promoted for this slide.`) }).catch(() => setNotice('Candidate could not be promoted.')).finally(() => setRegistering(false)) }}>Promote candidate</button></div></article> })}</div></details> : null}
+    {candidatePreview ? <div className="comparison-notice comparison-candidate-preview" role="status"><strong>Experimental alignment preview</strong> {candidatePreview.engine} is temporarily driving {candidatePreview.slideName}. No server changes have been saved. Pan and zoom through several tissue regions before promotion. <button type="button" disabled={!!correction} onClick={stopCandidatePreview}>Restore saved alignment</button></div> : null}
     {grouping ? <section className="comparison-groups" aria-label="Alignment groups"><strong>Reference and groups</strong><p>Choose the primary reference, then choose the serial-section anchor used for each other slide.</p><label>Primary reference<select aria-label="Primary reference" value={grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, referenceId: event.target.value })}>{comparison.members.map((member) => <option key={member.slideId} value={member.slideId}>{member.stain} · {member.displayName}</option>)}</select></label>{comparison.members.filter((member) => member.slideId !== grouping.referenceId).map((member) => <label key={member.slideId}>{member.displayName}<select aria-label={`Anchor for ${member.displayName}`} value={grouping.anchors[member.slideId] ?? grouping.referenceId} onChange={(event) => setGrouping({ ...grouping, anchors: { ...grouping.anchors, [member.slideId]: event.target.value } })}>{comparison.members.filter((anchor) => anchor.slideId !== member.slideId).map((anchor) => <option key={anchor.slideId} value={anchor.slideId}>{anchor.stain} · {anchor.displayName}</option>)}</select></label>)}<button type="button" disabled={registering} onClick={() => { setRegistering(true); void updateComparisonSet(comparison.id, { version: comparison.version, referenceSlideId: grouping.referenceId, anchors: grouping.anchors }).then(async (updated) => { await registerComparisonSet(updated.id); setComparison({ ...updated, status: 'queued', members: updated.members.map((member) => ({ ...member, registration: null })) }); setGrouping(null); setNotice('Registration queued with the updated reference groups.') }).catch(() => setNotice('Reference groups could not be saved.')).finally(() => setRegistering(false)) }}>Save and register</button><button type="button" disabled={registering} onClick={() => setGrouping(null)}>Cancel</button></section> : null}
     {!correction && !grouping && !hasMatchedMap && !registrationPending ? <div className="comparison-notice" role="note" aria-label="Alignment unavailable"><strong>{hasApproximateMap ? 'Automatic alignment completed with overview maps.' : 'Automatic anatomical alignment could not establish a map for this set.'}</strong> {hasApproximateMap ? 'Overview alignment matches tissue-component shape, tilt, and size but may not place the same microscopic structure under both crosshairs.' : 'No accepted tissue correspondence was found. Linking panes cannot align these slides.'} {publicId ? 'Ask the set administrator to review the registration.' : 'Use Correct alignment to define and preview corresponding landmarks.'}</div> : null}
     {!correction && !grouping && hasMatchedMap && hasPendingLandmarkValidation && !registrationPending ? <details className="comparison-notice comparison-validation" aria-label="Alignment validation pending"><summary><strong>Local structural maps available</strong><span>Validation details</span></summary><p>Matched regions passed alternative-fragment and withheld patch checks, but anatomical error has not been measured against independent landmarks.</p></details> : null}
     {notice ? <div className="comparison-notice" role="status">{notice}</div> : null}
     {correction ? <section className="comparison-correction" aria-label="Landmark correction">
       <strong>{correction.preview ? 'Correction preview' : 'Mark corresponding tissue'}</strong>
-      <p>Left pane is the reference. Pan each image independently until the same anatomical point is under both crosshairs, then record the pair. Use at least three points spread across the tissue.</p>
+      <p>Left pane is the reference. Pan each image independently until the same identifiable tissue structure is under both crosshairs, then record the pair. Avoid blank glass; use at least three points spread across the tissue.</p>
       <span>{correction.points.length} point pairs</span>
       <button type="button" disabled={correctionBusy || correction.preview || correction.points.length >= 20} onClick={() => {
         const reference = handles.current.get(correction.referenceId)?.getImageViewport(); const moving = handles.current.get(correction.movingId)?.getImageViewport()
@@ -712,6 +763,7 @@ export function ComparisonPage() {
         const adjustments = display[slideId] ?? { brightness: 1, contrast: 1, gamma: 1 }
         const paneLinked = linked && !unlinkedPanes.has(slideId) && aligned
         const approximate = member.registration?.status === 'approximate' || approximatePanes.has(slideId)
+        const correctionPreview = correction?.preview && slideId === correction.movingId
         const suspended = paneLinked && suspendedPanes.has(slideId)
         const evidence = member.registration?.evidence
         const residuals = member.registration?.controlPoints
@@ -721,7 +773,7 @@ export function ComparisonPage() {
           ? [...residuals].sort((left, right) => left - right)[Math.floor(residuals.length / 2)]
           : null
         return <section className="comparison-pane" data-active={paneIndex === activePane} data-hidden={maximizedPane !== null && maximizedPane !== paneIndex} key={`${paneIndex}-${slideId}`} onPointerDown={() => setActivePane(paneIndex)}>
-          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={suspended || !paneLinked || !aligned ? 'alignment-unavailable' : approximate ? 'alignment-approximate' : 'alignment-ready'}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : !aligned ? 'Not aligned' : approximate ? 'Approximate sync' : alignmentLabel}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
+          <header><span className="comparison-pane-number" aria-hidden="true">{paneIndex + 1}</span><select disabled={!!correction} aria-label={`Slide shown in pane ${paneIndex + 1}`} value={slideId} onChange={(event) => selectPaneSlide(paneIndex, event.target.value)}>{comparison.members.filter((candidate) => candidate.tileSource && (!panes.includes(candidate.slideId) || candidate.slideId === slideId)).map((candidate) => <option key={candidate.slideId} value={candidate.slideId}>{candidate.stain || 'Unspecified stain'} · {candidate.displayName}</option>)}</select><span aria-live="polite" className={suspended || !paneLinked || !aligned ? 'alignment-unavailable' : approximate || correctionPreview ? 'alignment-approximate' : 'alignment-ready'}>{suspended ? 'Unavailable' : !paneLinked ? 'Independent' : !aligned ? 'Not aligned' : correctionPreview ? 'Unsaved correction preview' : approximate ? 'Approximate sync' : alignmentLabel}</span><button type="button" title={paneLinked ? 'Unlink this pane' : 'Link this pane'} disabled={!!correction} aria-label={`${paneLinked ? 'Unlink' : 'Link'} ${member.displayName} pane`} aria-pressed={paneLinked} onClick={() => {
             if (!paneLinked) {
               alignmentPreferenceExplicit.current = true
               setLinked(true)

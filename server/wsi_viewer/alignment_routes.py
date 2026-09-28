@@ -27,7 +27,8 @@ from .alignment_engines import (
     engine_availability,
     settings_digest,
 )
-from .alignment_policy import current_registration
+from .alignment_policy import case_ids_conflict, current_registration
+from .alignment_pyramid import read_region
 from .domain import SlideState
 from .models import (
     ComparisonRegistrationCandidate,
@@ -119,6 +120,21 @@ class PromoteCandidateRequest(BaseModel):
 
 def _error(code: str, http_status: int = 422) -> HTTPException:
     return HTTPException(status_code=http_status, detail={"code": code})
+
+
+def _landmark_near_tissue(
+    derivative: Path, point: tuple[float, float], size: tuple[int, int]
+) -> bool:
+    """Reject glass-only landmarks using a small native-resolution field."""
+    x, y = (int(round(value)) for value in point)
+    left, top = max(0, x - 64), max(0, y - 64)
+    right, bottom = min(size[0], x + 64), min(size[1], y + 64)
+    image, _ = read_region(derivative, (left, top, right, bottom), maximum=256)
+    rgb = np.asarray(image, dtype=np.uint8)
+    darkest = rgb.min(axis=2)
+    chroma = rgb.max(axis=2) - darkest
+    stained = (darkest < 205) | ((darkest < 225) & (chroma > 8))
+    return bool(np.count_nonzero(stained) >= max(8, stained.size // 100))
 
 
 def _utc_iso(value: datetime) -> str:
@@ -231,6 +247,10 @@ def _json(
                     anchor_version=by_id[anchors.get(slide.id, item.reference_slide_id)].sha256
                     if anchors.get(slide.id, item.reference_slide_id) in by_id
                     else None,
+                    source_case_id=slide.case_id,
+                    anchor_case_id=by_id[anchors.get(slide.id, item.reference_slide_id)].case_id
+                    if anchors.get(slide.id, item.reference_slide_id) in by_id
+                    else None,
                 ),
                 "state": slide.state.value,
                 "availabilityReason": availability_reason,
@@ -246,7 +266,11 @@ def _json(
         "referenceSlideId": item.reference_slide_id,
         "status": "partial"
         if item.status == "ready"
-        and any((member.get("registration") or {}).get("status") == "stale" for member in members)
+        and any(
+            (member.get("registration") or {}).get("status") != "ready"
+            for member in members
+            if member["slideId"] != item.reference_slide_id
+        )
         else item.status,
         "version": item.version,
         "alignmentConfig": item.alignment_config,
@@ -889,6 +913,8 @@ def register_alignment_routes(
             or item.source_versions.get(anchor.id) != anchor.sha256
         ):
             raise _error("ALIGNMENT_CANDIDATE_STALE", 409)
+        if case_ids_conflict(source.case_id, anchor.case_id):
+            raise _error("ALIGNMENT_CANDIDATE_NOT_PROMOTABLE", 409)
         if candidate.engine_version != ENGINE_VERSIONS[
             candidate.engine
         ] or candidate.settings_digest != settings_digest(
@@ -905,6 +931,13 @@ def register_alignment_routes(
             "sourceVersion": candidate.source_version,
             "anchorVersion": candidate.anchor_version,
         }
+        verified = current_registration(
+            registration,
+            source_version=source.sha256,
+            anchor_version=anchor.sha256,
+        )
+        if not verified or verified.get("status") != "ready":
+            raise _error("ALIGNMENT_CANDIDATE_NOT_PROMOTABLE", 409)
         registrations = dict(item.registrations)
         registrations[candidate.slide_id] = registration
         item.registrations = registrations
@@ -1044,6 +1077,25 @@ def register_alignment_routes(
         reference_hull = cv2.contourArea(cv2.convexHull(reference.astype(np.float32)))
         if moving_hull < 4.0 or reference_hull < 4.0:
             raise _error("LANDMARKS_NOT_DISTRIBUTED")
+        if storage is None:
+            raise _error("LANDMARK_IMAGE_UNAVAILABLE", 503)
+        for member_id, points in (
+            (anchor_id, payload.reference_points),
+            (slide_id, payload.moving_points),
+        ):
+            metadata = members[member_id].slide_metadata or {}
+            derivative = storage.for_slide(member_id).private_derivative
+            try:
+                supported = all(
+                    _landmark_near_tissue(
+                        derivative, point, (int(metadata["width"]), int(metadata["height"]))
+                    )
+                    for point in points
+                )
+            except (OSError, ValueError, KeyError):
+                raise _error("LANDMARK_IMAGE_UNAVAILABLE", 503) from None
+            if not supported:
+                raise _error("LANDMARK_ON_GLASS")
         predicted: np.ndarray[Any, Any] = cv2.transform(
             moving[:, None, :].astype(np.float32), transform
         )[:, 0, :]
@@ -1090,6 +1142,24 @@ def register_alignment_routes(
                 "withheldCheck": "manual-preview",
             },
         }
+        previous = current_registration(
+            item.registrations.get(slide_id),
+            source_version=members[slide_id].sha256,
+            anchor_version=members[anchor_id].sha256,
+            source_case_id=members[slide_id].case_id,
+            anchor_case_id=members[anchor_id].case_id,
+        )
+        overview = (previous or {}).get("overviewFallback") or previous
+        if (
+            overview
+            and overview.get("status") == "approximate"
+            and overview.get("overviewTriangles")
+            and all(
+                overview.get(key) == registrations[slide_id].get(key)
+                for key in ("sourceVersion", "anchorVersion", "anchorSlideId")
+            )
+        ):
+            registrations[slide_id]["overviewFallback"] = overview
         if payload.preview_only:
             preview = _json(item, list(members.values()), database=database)
             for member in preview["members"]:

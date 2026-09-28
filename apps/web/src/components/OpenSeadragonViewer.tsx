@@ -31,6 +31,7 @@ export interface ImageViewport {
   centerY: number
   imageZoom: number
   rotation: number
+  visibleRadiusPixels?: number
 }
 
 export type ViewerAttachmentCallback = (
@@ -375,6 +376,8 @@ export function OpenSeadragonViewer({
             centerX: center.x,
             centerY: center.y,
             imageZoom: readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true)),
+          visibleRadiusPixels: Math.min(readyViewer.container.clientWidth, readyViewer.container.clientHeight)
+            / (2 * readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true))),
             rotation: readyViewer.viewport.getRotation(),
           }
         },
@@ -390,7 +393,7 @@ export function OpenSeadragonViewer({
           readyViewer.viewport.zoomTo(readyViewer.viewport.imageToViewportZoom(snapshot.imageZoom), center, true)
           readyViewer.viewport.setRotation(displayRotation)
           setRotation(Number(displayRotation.toFixed(1)) % 360)
-          readyViewer.viewport.applyConstraints(true)
+          // Clamping to this slide's bounds moves the mapped center and breaks linked scale.
           updateScale()
           applyingViewport.current = false
         },
@@ -421,6 +424,8 @@ export function OpenSeadragonViewer({
           centerX: center.x,
           centerY: center.y,
           imageZoom: viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)),
+          visibleRadiusPixels: Math.min(viewer.container.clientWidth, viewer.container.clientHeight)
+            / (2 * viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true))),
           rotation: viewer.viewport.getRotation(),
         }, navigationTransaction.current)
       }

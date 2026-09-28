@@ -230,21 +230,49 @@ def _approximate_component_map(
 
     reference_structure, reference_mask = _structure(reference_rgb, cropped=True)
     moving_structure, moving_mask = _structure(moving_rgb, cropped=True)
-    seed, initial_overlap = _mask_seed(reference_mask, moving_mask)
+    seed, _ = _mask_seed(reference_mask, moving_mask)
+
+    ecc_images = []
+    ecc_frames = []
+    for structure in (reference_structure, moving_structure):
+        height, width = structure.shape
+        ratio = min(1.0, 1024 / max(height, width))
+        size = (max(1, round(width * ratio)), max(1, round(height * ratio)))
+        sx, sy = size[0] / width, size[1] / height
+        ecc_images.append(cv2.resize(structure, size, interpolation=cv2.INTER_AREA))
+        ecc_frames.append(np.asarray([[sx, 0, (sx - 1) / 2], [0, sy, (sy - 1) / 2], [0, 0, 1]]))
+    reference_ecc_frame, moving_ecc_frame = ecc_frames
 
     def ecc_candidate(
         forward_seed: np.ndarray[Any, Any], motion: int
     ) -> tuple[float, np.ndarray[Any, Any]] | None:
         """Refine one proposal without allowing a failed proposal to win."""
-        inverse = cv2.invertAffineTransform(forward_seed).astype(np.float32)
+        bounded_seed = (
+            reference_ecc_frame
+            @ np.vstack([forward_seed, [0, 0, 1]])
+            @ np.linalg.inv(moving_ecc_frame)
+        )
+        inverse = cv2.invertAffineTransform(bounded_seed[:2]).astype(np.float32)
         try:
             score = 0.0
             for sigma in (12.0, 6.0, 3.0):
                 fixed = (
-                    cv2.GaussianBlur(reference_structure, (0, 0), sigma).astype(np.float32) / 255
+                    cv2.GaussianBlur(
+                        ecc_images[0],
+                        (0, 0),
+                        sigma * reference_ecc_frame[0, 0],
+                        sigmaY=sigma * reference_ecc_frame[1, 1],
+                    ).astype(np.float32)
+                    / 255
                 )
                 floating = (
-                    cv2.GaussianBlur(moving_structure, (0, 0), sigma).astype(np.float32) / 255
+                    cv2.GaussianBlur(
+                        ecc_images[1],
+                        (0, 0),
+                        sigma * moving_ecc_frame[0, 0],
+                        sigmaY=sigma * moving_ecc_frame[1, 1],
+                    ).astype(np.float32)
+                    / 255
                 )
                 score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
                     fixed,
@@ -257,7 +285,12 @@ def _approximate_component_map(
                 )
         except cv2.error:
             return None
-        return float(score), cv2.invertAffineTransform(inverse)
+        full_transform = (
+            np.linalg.inv(reference_ecc_frame)
+            @ np.vstack([cv2.invertAffineTransform(inverse), [0, 0, 1]])
+            @ moving_ecc_frame
+        )
+        return float(score), full_transform[:2].astype(np.float32)
 
     # Consecutive sections from one scanner commonly retain the same slide
     # coordinate frame.  PCA on a broad or fragmented tissue mask can invent a
@@ -280,7 +313,7 @@ def _approximate_component_map(
     score, transform = (
         max(refined_candidates, key=lambda item: item[0])
         if refined_candidates
-        else (float(initial_overlap), seed.copy())
+        else (-1.0, seed.copy())
     )
     determinant = float(np.linalg.det(transform[:, :2]))
     warped_mask: np.ndarray[Any, Any] = cv2.warpAffine(
@@ -291,16 +324,9 @@ def _approximate_component_map(
     overlap = 2 * intersection / max(1, total_tissue)
     internally_supported = score >= 0.45 and overlap >= 0.5
     if not internally_supported or not 0.25 <= determinant <= 4:
-        # ECC is deliberately conservative across very different stains.  The
-        # mask seed remains useful as an explicitly approximate component map
-        # when its tissue overlap is strong; it never becomes anatomical
-        # evidence or a ready registration.
-        seed_determinant = float(np.linalg.det(seed[:, :2]))
-        if initial_overlap < 0.6 or not 0.25 <= seed_determinant <= 4:
-            return None
-        transform = seed.copy()
-        score = float(initial_overlap)
-        overlap = float(initial_overlap)
+        # Tissue outlines initialize registration; overlap alone cannot establish
+        # correspondence across stains or justify moving a slide.
+        return None
 
     feature_inliers, feature_spread = (
         _feature_identity_evidence(
@@ -541,6 +567,12 @@ def _feature_identity_evidence(
         [reference_keypoints[match.queryIdx].pt for match in mutual], dtype=np.float32
     )
     target = np.asarray([moving_keypoints[match.trainIdx].pt for match in mutual], dtype=np.float32)
+    # Both images already share the proposed coarse frame. A homography can
+    # otherwise explain a different repeated structure far from that proposal.
+    local = np.linalg.norm(source - target, axis=1) <= 96.0
+    source, target = source[local], target[local]
+    if len(source) < 4:
+        return 0, 0.0
     _, inlier_mask = cv2.findHomography(source, target, cv2.USAC_MAGSAC, 5.0)
     if inlier_mask is None:
         return 0, 0.0
@@ -738,11 +770,14 @@ def _flow_refined_controls(
     fixed_feature = _gradient_feature(reference_structure)
     moving_feature = _gradient_feature(warped_structure)
     flow_width, flow_height = max(2, width // 2), max(2, height // 2)
+    scale_x, scale_y = width / flow_width, height / flow_height
     size = (flow_width, flow_height)
     fixed = cv2.resize(fixed_feature, size, interpolation=cv2.INTER_AREA)
     moving = cv2.resize(moving_feature, size, interpolation=cv2.INTER_AREA)
     valid = cv2.resize(
-        ((reference_mask > 0) & (warped_mask > 0)).astype(np.uint8),
+        # Start in moving tissue; reference support is checked at the flow
+        # endpoint below, rather than at this different anatomical position.
+        (warped_mask > 0).astype(np.uint8),
         size,
         interpolation=cv2.INTER_NEAREST,
     )
@@ -806,8 +841,9 @@ def _flow_refined_controls(
                 or float(np.std(np.asarray(fixed_patch))) < 5.0
             ):
                 continue
-            reference_x, reference_y = 2 * (x + dx), 2 * (y + dy)
-            warped_point = np.asarray([2.0 * x, 2.0 * y])
+            reference_x = (x + dx + 0.5) * scale_x - 0.5
+            reference_y = (y + dy + 0.5) * scale_y - 0.5
+            warped_point = np.asarray([(x + 0.5) * scale_x - 0.5, (y + 0.5) * scale_y - 0.5])
             moving_point = inverse[:, :2] @ warped_point + inverse[:, 2]
             mx, my = int(round(float(moving_point[0]))), int(round(float(moving_point[1])))
             rx, ry = int(round(reference_x)), int(round(reference_y))
@@ -820,7 +856,10 @@ def _flow_refined_controls(
                 and reference_mask[ry, rx]
             ):
                 continue
-            error = 2.0 * float(cycle[y, x])
+            error = math.hypot(
+                scale_x * float(forward[y, x, 0] + reverse_x[y, x]),
+                scale_y * float(forward[y, x, 1] + reverse_y[y, x]),
+            )
             cycles.append(error)
             controls.append(
                 {
@@ -939,6 +978,17 @@ def refine_supported_patches(
 ) -> dict[str, Any]:
     """Refine tissue inside supported coarse cells without repeating discovery."""
     coarse = seed.get("overviewTriangles") or seed.get("triangles") or []
+    fallback = seed.get("overviewFallback") or {}
+    if (
+        fallback.get("status") == "approximate"
+        and fallback.get("evidence", {}).get("source") == "bounded-sparse-overview"
+        and all(
+            seed.get(key) is not None and seed.get(key) == fallback.get(key)
+            for key in ("sourceVersion", "anchorVersion", "anchorSlideId")
+        )
+        and fallback.get("overviewTriangles")
+    ):
+        coarse = fallback["overviewTriangles"]
     if not coarse:
         raise AlignmentRejected("No supported cells for guided refinement")
     result = {**seed, "triangles": list(seed.get("triangles") or [])}
@@ -963,10 +1013,24 @@ def refine_supported_patches(
         try:
             if left == right or top == bottom:
                 continue
+            mask_left, mask_top = left * mask.shape[1] // width, top * mask.shape[0] // height
+            mask_right = max(mask_left + 1, right * mask.shape[1] // width)
+            mask_bottom = max(mask_top + 1, bottom * mask.shape[0] // height)
+            ys, xs = np.nonzero(mask[mask_top:mask_bottom, mask_left:mask_right])
+            if not len(xs):
+                continue
             x = min(mask.shape[1] - 1, (left + right) * mask.shape[1] // (2 * width))
             y = min(mask.shape[0] - 1, (top + bottom) * mask.shape[0] // (2 * height))
             if not mask[y, x]:
-                continue
+                # Scanner-grid centers often land on glass beside thin biopsies.
+                nearest = int(np.argmin((xs - np.median(xs)) ** 2 + (ys - np.median(ys)) ** 2))
+                cx = (int(xs[nearest]) + mask_left) * width // mask.shape[1]
+                cy = (int(ys[nearest]) + mask_top) * height // mask.shape[0]
+                half_width, half_height = (right - left) // 2, (bottom - top) // 2
+                left, top = max(0, cx - half_width), max(0, cy - half_height)
+                right, bottom = min(width, cx + half_width), min(height, cy + half_height)
+                bounds = (left, top, right, bottom)
+                corners = [(left, top), (right, top), (right, bottom), (left, bottom)]
             if result["triangles"]:
                 try:
                     for px, py in corners:
@@ -975,21 +1039,36 @@ def refine_supported_patches(
                 except AlignmentRejected:
                     pass
             mapped = []
-            for _ in range(4):
-                try:
-                    mapped = [
-                        map_registration_point({"triangles": coarse}, px, py) for px, py in corners
-                    ]
-                    break
-                except AlignmentRejected:
-                    dx, dy = (right - left) // 4, (bottom - top) // 4
-                    if not dx or not dy:
-                        break
-                    left, top, right, bottom = left + dx, top + dy, right - dx, bottom - dy
-                    bounds = (left, top, right, bottom)
-                    corners = [(left, top), (right, top), (right, bottom), (left, bottom)]
+            supported_vertices = []
+            # Crop the supported tissue intersection, not a rectangle whose
+            # four corners must all be tissue. Glass around an irregular
+            # component is valid read context, not a reason to drop its edges.
+            window = np.asarray(corners, dtype=np.float32)
+            for cell in coarse:
+                source = np.asarray(cell["moving"], dtype=np.float32)
+                target = np.asarray(cell["reference"], dtype=np.float32)
+                if source.shape != (3, 2) or target.shape != (3, 2):
+                    continue
+                area, polygon = cv2.intersectConvexConvex(source, window)
+                if area <= 0 or polygon is None:
+                    continue
+                clipped_points = np.asarray(polygon.reshape(-1, 2), dtype=np.float32)
+                # Keep the existing support check; this affine is only used
+                # at clipped points inside its own coarse cell.
+                map_registration_point({"triangles": coarse}, *np.mean(clipped_points, axis=0))
+                transform = cv2.getAffineTransform(source, target)
+                supported_vertices.extend(clipped_points.tolist())
+                mapped.extend(
+                    cv2.transform(clipped_points[:, None, :], transform)[:, 0, :].tolist()
+                )
             if not mapped:
                 continue
+            left = max(left, math.floor(min(point[0] for point in supported_vertices)))
+            top = max(top, math.floor(min(point[1] for point in supported_vertices)))
+            right = min(right, math.ceil(max(point[0] for point in supported_vertices)))
+            bottom = min(bottom, math.ceil(max(point[1] for point in supported_vertices)))
+            bounds = (left, top, right, bottom)
+            corners = [(left, top), (right, top), (right, bottom), (left, bottom)]
             if result["triangles"]:
                 try:
                     for px, py in corners:
@@ -1010,9 +1089,29 @@ def refine_supported_patches(
             ):
                 continue
             key = hashlib.sha256(
-                repr((bounds, reference_bounds, coarse, cv2.__version__, "patch-v4")).encode()
+                repr(
+                    (
+                        bounds,
+                        reference_bounds,
+                        reference_size,
+                        moving_size,
+                        coarse,
+                        seed.get("sourceVersion"),
+                        seed.get("anchorVersion"),
+                        seed.get("anchorSlideId"),
+                        cv2.__version__,
+                        "patch-v8-spatial-orb",
+                    )
+                ).encode()
             ).hexdigest()
-            receipt = checkpoint_dir / f"patch-{key}.json" if checkpoint_dir else None
+            receipt = (
+                checkpoint_dir / f"patch-{key}.json"
+                if checkpoint_dir
+                and all(
+                    seed.get(name) for name in ("sourceVersion", "anchorVersion", "anchorSlideId")
+                )
+                else None
+            )
             attempted += 1
             cached = None
             if receipt and receipt.is_file():
@@ -1038,10 +1137,14 @@ def refine_supported_patches(
                         for cell in patch.triangles:
                             moving_points = [[px + mx, py + my] for px, py in cell["moving"]]
                             reference_points = [[px + rx, py + ry] for px, py in cell["reference"]]
-                            predicted = [
-                                map_registration_point({"triangles": coarse}, px, py)
-                                for px, py in moving_points
-                            ]
+                            try:
+                                predicted = [
+                                    map_registration_point({"triangles": coarse}, px, py)
+                                    for px, py in moving_points
+                                ]
+                            except AlignmentRejected:
+                                # Unsupported edge cells must not discard supported siblings.
+                                continue
                             if any(
                                 math.dist(actual, expected) > margin
                                 for actual, expected in zip(
@@ -1440,7 +1543,9 @@ def register_components(
                 else:
                     record = None
                     try:
-                        result = register_pair(reference, moving, max_dimension=4096)
+                        result = register_pair(
+                            reference, moving, max_dimension=4096, feature_only=True
+                        )
                         record = asdict(result)
                     except AlignmentRejected as error:
                         record = {"rejected": str(error)}
@@ -1538,7 +1643,14 @@ def register_components(
             reference, reference_frame = region(reference_path, reference_boxes[reference_index])
             batch_key = hashlib.sha256(
                 repr(
-                    (reference_frame, moving_frame, reference.size, moving.size, cv2.__version__)
+                    (
+                        reference_frame,
+                        moving_frame,
+                        reference.size,
+                        moving.size,
+                        cv2.__version__,
+                        "flow-resize-pixel-centers-v3-ecc1024-local-identity",
+                    )
                 ).encode()
             ).hexdigest()
             receipt = checkpoint_dir / f"structure-{batch_key}.json" if checkpoint_dir else None

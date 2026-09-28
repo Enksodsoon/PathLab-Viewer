@@ -5,18 +5,25 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { ComparisonPage } from '../pages/ComparisonPage'
 
+const viewportHarness = vi.hoisted(() => ({ enabled: false, applied: vi.fn(), fitted: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
+
 vi.mock('../components/OpenSeadragonViewer', () => ({
-  OpenSeadragonViewer: ({ tileSource, onOpen, onViewportChange }: { tileSource: string, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void }) => <button
+  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
     onClick={() => {
+      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: vi.fn() })
       onOpen?.()
-      onViewportChange?.({ centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
+      onViewportChange?.(viewportHarness.enabled ? { ...viewportHarness.current } : { centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
     }}
   />,
 }))
 
 beforeEach(() => {
+  viewportHarness.enabled = false
+  viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 }
+  viewportHarness.applied.mockClear()
+  viewportHarness.fitted.mockClear()
   sessionStorage.clear()
   vi.stubGlobal('fetch', vi.fn(async (input) => String(input).endsWith('/jobs')
     ? new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -108,7 +115,28 @@ it('keeps the current map usable while a replacement registration runs', async (
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toBeEnabled()
 })
 
-it('activates an explicit approximate candidate preview and restores the saved navigation mode', async () => {
+it('does not offer promotion for a locally unqualified engine map', async () => {
+  vi.mocked(fetch).mockImplementation(async (input) => {
+    const url = String(input)
+    if (url.endsWith('/jobs')) return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })
+    if (url.endsWith('/candidates')) return new Response(JSON.stringify({
+      comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {},
+      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'current', settingsDigest: 'current', currentSettings: true, status: 'ready', validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate', evidence: { hisalignLocalEvidenceQualified: false } }, evidence: {}, artifactSha256: null, failureReason: null, createdAt: '2026-09-28T00:00:00Z' }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ id: 'set-1', name: 'Unsafe candidate set', referenceSlideId: 'slide-1', status: 'partial', version: 1, members: [
+      { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+      { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
+    ] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await user.click(await screen.findByText('Registration engine candidates'))
+  expect(screen.getByText(/local map unqualified/)).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Promote hisalign-0.2.1 for P40' })).toBeDisabled()
+})
+
+it.each([{ status: 'partial', currentSettings: true }, { status: 'running', currentSettings: true }, { status: 'partial', currentSettings: false }])('handles candidate freshness and $status refreshes with currentSettings=$currentSettings', async ({ status, currentSettings }) => {
+  let setReads = 0
   const savedRegistration = { status: 'approximate', provenance: 'automatic', anchorSlideId: 'slide-1', movingToReference: [[1, 0, 20], [0, 1, 10]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[20, 10], [520, 10], [20, 510]] }] }
   const candidateRegistration = { status: 'approximate', provenance: 'automatic-candidate', anchorSlideId: 'slide-1', movingToReference: [[1.03, 0, 40], [0, 1.03, 25]], overviewTriangles: [{ moving: [[0, 0], [500, 0], [0, 500]], reference: [[40, 25], [555, 25], [40, 540]], maxResidualPixels: 0.2 }], evidence: { featureMatchCount: 7 } }
   vi.mocked(fetch).mockImplementation(async (input, init) => {
@@ -116,11 +144,12 @@ it('activates an explicit approximate candidate preview and restores the saved n
     if (url.endsWith('/jobs')) return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (url.endsWith('/candidates')) return new Response(JSON.stringify({
       comparisonSetId: 'set-1', setVersion: 1, engineAvailability: {},
-      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings: true, status: 'approximate', validationState: 'rejected', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
+      candidates: [{ id: 'candidate-1', slideId: 'slide-2', setVersion: 1, anchorSlideId: 'slide-1', engine: 'hisalign-0.2.1', engineVersion: 'c56d1eb', settingsDigest: 'abc', currentSettings, status: 'approximate', validationState: 'rejected', registration: candidateRegistration, evidence: {}, artifactSha256: 'hash', failureReason: null, createdAt: '2026-09-22T00:00:00Z' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     if (init?.method === 'POST') throw new Error('Preview must not mutate the server')
+    setReads += 1
     return new Response(JSON.stringify({
-      id: 'set-1', name: 'Candidate preview set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
+      id: 'set-1', name: setReads > 1 ? 'Refreshed preview set' : 'Candidate preview set', referenceSlideId: 'slide-1', status, version: 1,
       members: [
         { slideId: 'slide-1', displayName: 'H&E', stain: 'H&E', tileSource: '/tiles/1.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: null },
         { slideId: 'slide-2', displayName: 'P40', stain: 'P40', tileSource: '/tiles/2.dzi', metadata: { width: 1000, height: 800, physicalSizeX: 0.25 }, registration: savedRegistration },
@@ -132,18 +161,50 @@ it('activates an explicit approximate candidate preview and restores the saved n
 
   expect(await screen.findByText('Candidate preview set')).toBeVisible()
   await user.click(await screen.findByText('Registration engine candidates'))
+  if (!currentSettings) {
+    expect(screen.getByRole('button', { name: 'Preview hisalign-0.2.1 for P40' })).toBeDisabled()
+    expect(screen.queryByText('Experimental alignment preview')).not.toBeInTheDocument()
+    return
+  }
+  viewportHarness.enabled = true
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  const originalViewport = { ...viewportHarness.current }
+  viewportHarness.fitted.mockClear()
   await user.click(screen.getByRole('button', { name: 'Preview hisalign-0.2.1 for P40' }))
 
   expect(screen.getByText('Experimental alignment preview')).toBeVisible()
   expect(screen.getByRole('status')).toHaveTextContent('No server changes have been saved')
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
   expect(screen.getByRole('button', { name: 'Stop previewing hisalign-0.2.1 for P40' })).toBeVisible()
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect(viewportHarness.fitted).not.toHaveBeenCalled()
   expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/promote'), expect.anything())
+  if (status === 'running') {
+    expect(await screen.findByText('Refreshed preview set', {}, { timeout: 3500 })).toBeVisible()
+    expect(screen.getByText('7 feature candidates')).toBeInTheDocument()
+    expect(screen.getByText('Experimental alignment preview')).toBeVisible()
+  }
 
+  if (status !== 'running') {
+  await user.click(screen.getByRole('button', { name: 'Correct alignment' }))
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('independent')
+  expect(screen.getByRole('button', { name: 'Restore saved alignment' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Stop previewing hisalign-0.2.1 for P40' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Benchmark engines' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
+  expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('independent')
+  await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
+  expect(screen.getByText('Experimental alignment preview')).toBeVisible()
+  }
+  viewportHarness.current = { centerX: 650, centerY: 470, imageZoom: 4, rotation: 35 }
+  viewportHarness.applied.mockClear()
   await user.click(screen.getByRole('button', { name: 'Restore saved alignment' }))
   expect(screen.queryByText('Experimental alignment preview')).not.toBeInTheDocument()
-  expect(screen.getByRole('status')).toHaveTextContent('saved alignment is active again')
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('matched')
+  await waitFor(() => {
+    expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', originalViewport)
+    expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', originalViewport)
+  })
 })
 
 it('supports a real three-pane layout and makes the replacement target explicit', async () => {
@@ -192,7 +253,7 @@ it('restores an explicitly selected approximate alignment mode after a page remo
   expect(await screen.findByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
 })
 
-it('does not extrapolate an approximate component proposal outside its support', async () => {
+it('labels short overview gaps approximate instead of freezing the linked pane', async () => {
   vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({
     id: 'set-1', name: 'Mixed evidence set', referenceSlideId: 'slide-1', status: 'partial', version: 1,
     members: [
@@ -213,9 +274,9 @@ it('does not extrapolate an approximate component proposal outside its support',
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/2.dzi' }))
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
 
-  expect(screen.getByText('Unavailable')).toBeVisible()
-  expect(screen.getByRole('status')).toHaveTextContent('No verified correspondence is available at this field for Silver')
-  expect(screen.queryByText(/Synchronization suspended/)).not.toBeInTheDocument()
+  expect(screen.getByText('Approximate sync')).toBeVisible()
+  expect(screen.getByRole('status')).toHaveTextContent('Using approximate overview synchronization for Silver')
+  expect(screen.queryByText('Unavailable')).not.toBeInTheDocument()
 })
 
 it('automatically uses and labels an order-preserving component overview', async () => {
@@ -333,6 +394,58 @@ it('opens a correction with independent panes and requires preview before save',
   expect(screen.queryByRole('button', { name: 'Record point pair' })).not.toBeInTheDocument()
 })
 
+it.each([
+  { code: 'AUTH_REQUIRED', status: 401, message: /Your session expired/ },
+  { code: 'LANDMARK_ON_GLASS', status: 422, message: /A point is on blank glass/ },
+])('explains a rejected correction without discarding recorded points: $code', async ({ code, status, message }) => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation((input, init) => String(input).includes('/corrections/')
+    ? Promise.resolve(new Response(JSON.stringify({ detail: { code } }), { status }))
+    : originalFetch(input, init))
+  await user.click(screen.getByRole('button', { name: 'Correct alignment' }))
+  viewportHarness.enabled = true
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  for (const [centerX, centerY] of [[100, 100], [500, 100], [100, 500]]) {
+    viewportHarness.current = { ...viewportHarness.current, centerX, centerY }
+    await user.click(screen.getByRole('button', { name: 'Record point pair' }))
+  }
+  await user.click(screen.getByRole('button', { name: 'Preview correction' }))
+  expect(await screen.findByText(message)).toBeVisible()
+  expect(screen.getByText('3 point pairs')).toBeVisible()
+})
+
+it('labels a successful correction preview as unsaved', async () => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    if (String(input).includes('/corrections/') && init?.method === 'POST') {
+      const original = await originalFetch('/admin/comparisons/set-1')
+      const comparison = await original.json()
+      comparison.members[1].registration = {
+        status: 'ready', provenance: 'manual', anchorSlideId: 'slide-1',
+        movingToReference: [[1, 0, 0], [0, 1, 0]],
+        triangles: [{ moving: [[0, 0], [1000, 0], [0, 800]], reference: [[0, 0], [1000, 0], [0, 800]] }],
+      }
+      return new Response(JSON.stringify(comparison), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+    return originalFetch(input, init)
+  })
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await user.click(await screen.findByRole('button', { name: 'Correct alignment' }))
+  viewportHarness.enabled = true
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  for (const [centerX, centerY] of [[100, 100], [500, 100], [100, 500]]) {
+    viewportHarness.current = { ...viewportHarness.current, centerX, centerY }
+    await user.click(screen.getByRole('button', { name: 'Record point pair' }))
+  }
+  await user.click(screen.getByRole('button', { name: 'Preview correction' }))
+  expect(await screen.findByText('Unsaved correction preview')).toHaveClass('alignment-approximate')
+  expect(screen.getByRole('button', { name: 'Save correction' })).toBeEnabled()
+})
+
 it('focuses the active rejected slide for correction and restores the previous layout on cancel', async () => {
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
@@ -353,6 +466,25 @@ it('focuses the active rejected slide for correction and restores the previous l
   expect(screen.getByRole('combobox', { name: 'Slide shown in pane 4' })).toHaveValue('slide-5')
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toHaveValue('approximate')
   expect(screen.getByRole('button', { name: 'Views linked' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+it('restores the original microscopic field when cancelling a four-pane correction', async () => {
+  viewportHarness.enabled = true
+  viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 }
+  const original = { ...viewportHarness.current }
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Add pane' }))
+  await user.click(screen.getByRole('button', { name: 'Add pane' }))
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Correct alignment' }))
+  viewportHarness.current = { centerX: 700, centerY: 650, imageZoom: 0.1, rotation: 0 }
+  await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(4)
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/1.dzi', original))
 })
 
 

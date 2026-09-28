@@ -7,6 +7,7 @@ single triangle correspondence supplies both forward and inverse navigation.
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import importlib.util
 import json
@@ -16,19 +17,21 @@ import tempfile
 import time
 import types
 from collections.abc import Callable
-from dataclasses import dataclass
+from contextlib import ExitStack
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from .alignment import (
     AlignmentRejected,
     RegistrationResult,
     _registration_triangles,
     _structure,
+    compose_transforms,
     register_pair,
     rescale_registration,
 )
@@ -37,14 +40,14 @@ ENGINE_NATIVE = "native-v12"
 ENGINE_HISALIGN = "hisalign-0.2.1"
 ENGINE_VALIS = "valis-1.2.0"
 ENGINE_VERSIONS = {
-    ENGINE_NATIVE: "piecewise-affine-components-v15",
+    ENGINE_NATIVE: "piecewise-affine-components-v25",
     ENGINE_HISALIGN: "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
     ENGINE_VALIS: "325828c1dec444e6bb672a78e875537436dd3c20",
 }
 ADAPTER_VERSIONS = {
     ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
     ENGINE_HISALIGN: "pathlab-adapter-v4-overview-support",
-    ENGINE_VALIS: "pathlab-adapter-v10-overview-support",
+    ENGINE_VALIS: "pathlab-adapter-v14-feature-residual-gate",
 }
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
 
@@ -332,6 +335,7 @@ def _sample_coordinate_map(
             "engine": provenance,
             "triangleCount": len(triangles),
             "sampledControlCount": len(controls),
+            "coordinateGridSize": grid_size,
             "roundTripP95Pixels": round(cycle_p95, 6),
             "tissueDice": round(tissue_dice, 6),
             "withheldCheck": "engine-cycle-tissue-support-and-overlap",
@@ -605,6 +609,147 @@ class HisAlignEngine:
         return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)
 
 
+def _feature_tissue_coverage(points: np.ndarray[Any, Any], rgb: np.ndarray[Any, Any]) -> float:
+    """Measure distributed matches over tissue, without counting surrounding glass."""
+    if len(points) < 3 or not np.isfinite(points).all():
+        return 0.0
+    _, mask = _structure(rgb)
+    height, width = mask.shape
+    if np.any(points < 0) or np.any(points[:, 0] >= width) or np.any(points[:, 1] >= height):
+        return 0.0
+    hull = cv2.convexHull(points.astype(np.float32))
+    covered = np.zeros_like(mask)
+    cv2.fillConvexPoly(covered, np.rint(hull).astype(np.int32), (255,))
+    return float(np.count_nonzero((covered > 0) & (mask > 0)) / max(1, np.count_nonzero(mask)))
+
+
+def _feature_supported_triangles(
+    triangles: list[dict[str, Any]], moving: np.ndarray[Any, Any], reference: np.ndarray[Any, Any]
+) -> list[dict[str, Any]]:
+    """Never extend local feature evidence beyond its hull on either slide."""
+    hulls = {}
+    for side, points in (("moving", moving), ("reference", reference)):
+        if len(points) < 3 or not np.isfinite(points).all():
+            return []
+        hull = cv2.convexHull(points.astype(np.float32))
+        if cv2.contourArea(hull) <= 0:
+            return []
+        hulls[side] = hull
+    return [
+        cell
+        for cell in triangles
+        if all(
+            cv2.pointPolygonTest(hulls[side], (float(x), float(y)), True) >= -1e-4
+            for side in ("moving", "reference")
+            for x, y in cell[side]
+        )
+    ]
+
+
+def merge_component_maps(
+    parts: list[tuple[dict[str, Any], tuple[int, int, int], tuple[int, int, int]]],
+) -> dict[str, Any]:
+    """Keep independent fragment geometry in a shared level-zero coordinate frame."""
+    qualified = [
+        part
+        for part in parts
+        if part[0].get("status") == "ready"
+        and part[0].get("evidence", {}).get("valisLocalEvidenceQualified") is True
+        and part[0].get("triangles")
+        or part[0].get("status") == "approximate"
+        and part[0].get("overviewTriangles")
+    ]
+    if not qualified:
+        raise AlignmentRejected("No accepted component correspondence")
+    primary, (rx, ry, _), (mx, my, _) = next(
+        (part for part in qualified if part[0].get("status") == "ready"), qualified[0]
+    )
+    result = {**primary, "triangles": [], "overviewTriangles": [], "controlPoints": []}
+    result["movingToReference"] = compose_transforms(
+        [[1, 0, rx], [0, 1, ry]],
+        compose_transforms(primary["movingToReference"], [[1, 0, -mx], [0, 1, -my]]),
+    )
+    component_evidence = []
+    for payload, reference_frame, moving_frame in qualified:
+        rx, ry, _ = reference_frame
+        mx, my, _ = moving_frame
+        for key in ("triangles", "overviewTriangles", "controlPoints"):
+            if payload.get("status") != "ready" and key != "overviewTriangles":
+                continue
+            for item in payload.get(key) or []:
+                if key == "controlPoints":
+                    translated = {
+                        **item,
+                        "moving": [item["moving"][0] + mx, item["moving"][1] + my],
+                        "reference": [item["reference"][0] + rx, item["reference"][1] + ry],
+                    }
+                else:
+                    translated = {
+                        **item,
+                        "moving": [[x + mx, y + my] for x, y in item["moving"]],
+                        "reference": [[x + rx, y + ry] for x, y in item["reference"]],
+                    }
+                result[key].append(translated)
+        component_evidence.append({"status": payload["status"], **payload.get("evidence", {})})
+    cells = result["triangles"] + result["overviewTriangles"]
+    if not cells:
+        raise AlignmentRejected("Component maps have no supported cells")
+    for side in ("moving", "reference"):
+        points = np.asarray([point for cell in cells for point in cell[side]])
+        result[f"{side}Support"] = [*points.min(axis=0).tolist(), *points.max(axis=0).tolist()]
+    result["supportPolygons"] = {
+        side: [cell[side] for cell in result["triangles"]] for side in ("moving", "reference")
+    }
+    result["status"] = "ready" if result["triangles"] else "approximate"
+    result["inlierCount"] = len(result["controlPoints"])
+    result["matchCount"] = sum(int(payload.get("matchCount") or 0) for payload, _, _ in qualified)
+    result["confidence"] = min(float(payload.get("confidence") or 0) for payload, _, _ in qualified)
+    local_count = sum(payload.get("status") == "ready" for payload, _, _ in qualified)
+    result["evidence"] = {
+        "source": "bounded-pyramid-component-valis",
+        "componentCount": len(qualified),
+        "localComponentCount": local_count,
+        "approximateComponentCount": len(qualified) - local_count,
+        "componentEvidence": component_evidence,
+        "triangleCount": len(result["triangles"]),
+        "overviewTriangleCount": len(result["overviewTriangles"]),
+        "valisLocalEvidenceQualified": bool(result["triangles"]),
+        "withheldCheck": "pending-independent-landmarks",
+    }
+    if local_count < len(qualified):
+        result["reason"] = "Partial component coverage; unresolved tissue needs refinement"
+    return result
+
+
+def _register_valis_bounded(registrar: Any, maximum_dimension: int) -> Any:
+    """Bound rematching tensors as well as the initial reader images."""
+    oversized = False
+    with ExitStack() as cleanup:
+        detectors = {
+            id(matcher.feature_detector): matcher.feature_detector
+            for matcher in registrar.rigid_reg_kwargs.values()
+            if hasattr(matcher, "feature_detector")
+        }
+        if not detectors:
+            raise AlignmentRejected("VALIS feature detectors cannot be bounded")
+        for detector in detectors.values():
+            original = detector.detect_and_compute
+
+            def bounded(image: Any, *args: Any, detect: Any = original, **kwargs: Any) -> Any:
+                nonlocal oversized
+                if max(image.shape[:2]) > 2 * maximum_dimension:
+                    oversized = True
+                    raise AlignmentRejected("VALIS rematching canvas exceeds the image ceiling")
+                return detect(image, *args, **kwargs)
+
+            cleanup.callback(setattr, detector, "detect_and_compute", original)
+            detector.detect_and_compute = bounded
+        result = registrar.register()
+        if oversized:
+            raise AlignmentRejected("VALIS rematching canvas exceeds the image ceiling")
+        return result
+
+
 class ValisEngine:
     name = ENGINE_VALIS
 
@@ -627,18 +772,50 @@ class ValisEngine:
         source.mkdir(parents=True, exist_ok=True)
         reference_path = source / "00-reference.png"
         moving_path = source / "01-moving.png"
-        inputs.reference.save(reference_path)
-        inputs.moving.save(moving_path)
+        blur = (inputs.settings or {}).get("inputBlurRadius", 0)
+        if isinstance(blur, bool) or not isinstance(blur, (int, float)) or not 0 <= blur <= 1:
+            raise AlignmentRejected("VALIS input blur radius must be between zero and one pixel")
+        # Registration inputs only; support validation and displayed pixels stay unchanged.
+        for image, path in ((inputs.reference, reference_path), (inputs.moving, moving_path)):
+            (image.filter(ImageFilter.GaussianBlur(blur)) if blur else image).save(path)
         progress({"stage": "valis-rigid-and-non-rigid", "progress": 35})
         maximum_dimension = int((inputs.settings or {}).get("maxImageDimension", 896))
         if maximum_dimension not in {768, 896}:
             raise AlignmentRejected("VALIS image dimension must use a qualified profile")
+        rigid_matcher = (inputs.settings or {}).get("rigidMatcher", "default")
+        if rigid_matcher not in {"default", "vgg", "disk"}:
+            raise AlignmentRejected("Unsupported VALIS rigid matcher")
+        matcher_options = (
+            {"matcher": registration.DEFAULT_MATCHER_FOR_SORTING}
+            if rigid_matcher == "vgg"
+            else {"matcher_for_sorting": registration.DEFAULT_MATCHER}
+            if rigid_matcher == "disk"
+            else {}
+        )
+        feature_limit = (inputs.settings or {}).get("maxFeatures")
+        if feature_limit is not None:
+            if (
+                type(feature_limit) is not int
+                or not 256 <= feature_limit <= 7500
+                or rigid_matcher == "vgg"
+            ):
+                raise AlignmentRejected("VALIS feature limit requires 256–7500 DISK features")
+            detectors = importlib.import_module("valis.feature_detectors")
+            matchers = importlib.import_module("valis.feature_matcher")
+            matcher = matchers.LightGlueMatcher(
+                feature_detector=detectors.DiskFD(num_features=feature_limit),
+                match_filter_method=matchers.DEFAULT_RANSAC_NAME,
+            )
+            matcher_options["matcher"] = matcher
+            if rigid_matcher == "disk":
+                matcher_options["matcher_for_sorting"] = matcher
         registrar = registration.Valis(
             str(source),
             str(output),
             reference_img_f=reference_path.name,
             imgs_ordered=True,
             align_to_reference=True,
+            **matcher_options,
             # VALIS otherwise promotes its default 1024-pixel reader limit to
             # max_processed_image_dim_px and materializes several 4096-pixel
             # float images during non-rigid registration.  That exceeded the
@@ -651,8 +828,36 @@ class ValisEngine:
             max_processed_image_dim_px=maximum_dimension,
             max_non_rigid_registration_dim_px=1024,
         )
-        _, _, error_df = registrar.register()
+        _, _, error_df = _register_valis_bounded(registrar, maximum_dimension)
         if error_df is None:
+            if blur == 0 and rigid_matcher == "default":
+                # Retry only this failed fragment, never discard an accepted raw map.
+                del registrar
+                gc.collect()
+                progress({"stage": "valis-input-blur-fallback", "progress": 35})
+                retry = self.register(
+                    replace(
+                        inputs,
+                        workspace=inputs.workspace / "input-blur-fallback",
+                        settings={**(inputs.settings or {}), "inputBlurRadius": 0.6},
+                    ),
+                    progress,
+                )
+                payload = {
+                    **retry.registration,
+                    "evidence": {
+                        **retry.registration.get("evidence", {}),
+                        "valisInitialFailure": "missing-validation-evidence",
+                    },
+                }
+                assert retry.artifact_path is not None
+                retry.artifact_path.write_text(json.dumps(payload, separators=(",", ":")))
+                return EngineRun(
+                    payload,
+                    retry.artifact_path,
+                    _hash_file(retry.artifact_path),
+                    time.monotonic() - started,
+                )
             raise AlignmentRejected("VALIS registration did not produce validation evidence")
         moving_slide = registrar.get_slide(moving_path.name)
         reference_slide = registrar.get_slide(reference_path.name)
@@ -676,6 +881,8 @@ class ValisEngine:
             map_moving_to_reference=forward,
             map_reference_to_moving=inverse,
             provenance=self.name,
+            # Keep curvature lost by the old 25-point grid out of viewer navigation.
+            grid_size=49,
             # Serial sections can have real missing edge tissue, so VALIS is
             # allowed to produce a preview map below the strict whole-outline
             # threshold. Distributed feature evidence below decides whether
@@ -714,6 +921,12 @@ class ValisEngine:
                 reference_area / max(1.0, float(np.prod(inputs.reference.size))),
             )
         match_residual = float("inf")
+        tissue_match_coverage = min(
+            _feature_tissue_coverage(moving_matches, np.asarray(inputs.moving.convert("RGB"))),
+            _feature_tissue_coverage(
+                reference_matches, np.asarray(inputs.reference.convert("RGB"))
+            ),
+        )
         if match_count:
             match_residual = float(
                 np.median(
@@ -741,12 +954,40 @@ class ValisEngine:
         except (StopIteration, TypeError, ValueError):
             pass
         tissue_dice = float(result.evidence.get("tissueDice") or 0.0)
+        # Evaluate the sampled transform at actual matches, not just upstream rTRE.
+        # This is an engineering support gate; reviewed anatomical error is separate.
+        feature_residual_limit = max(3.0, 0.005 * max(inputs.reference.size))
         local_evidence_qualified = bool(
             match_count >= 8
             and match_spread >= 0.08
+            and match_residual <= feature_residual_limit
             and valis_non_rigid_rtre <= 0.02
             and tissue_dice >= 0.45
         )
+        original_cells = result.triangles
+        if local_evidence_qualified:
+            supported_cells = _feature_supported_triangles(
+                original_cells, moving_matches, reference_matches
+            )
+            local_evidence_qualified = bool(supported_cells)
+            if supported_cells:
+                vertices = {tuple(point) for cell in supported_cells for point in cell["moving"]}
+                controls = [
+                    point for point in result.control_points if tuple(point["moving"]) in vertices
+                ]
+                result = replace(
+                    result,
+                    triangles=supported_cells,
+                    overview_triangles=original_cells,
+                    control_points=controls,
+                    inlier_count=len(controls),
+                    match_count=len(controls),
+                    evidence={
+                        **result.evidence,
+                        "triangleCount": len(supported_cells),
+                        "sampledControlCount": len(controls),
+                    },
+                )
         result = rescale_registration(
             result,
             reference_thumbnail_size=inputs.reference.size,
@@ -770,15 +1011,23 @@ class ValisEngine:
             **payload.get("evidence", {}),
             "adapterVersion": ADAPTER_VERSIONS[self.name],
             "valisImageDimension": maximum_dimension,
+            "valisRigidMatcher": rigid_matcher,
+            "valisInputBlurRadius": blur,
+            "valisFeatureLimit": feature_limit or 7500,
             "valisFeatureMatches": match_count,
             "valisFeatureSpatialSpread": round(match_spread, 6),
+            "valisFeatureTissueCoverage": round(tissue_match_coverage, 6),
             "valisFeatureResidualPixels": (
                 round(match_residual, 6) if np.isfinite(match_residual) else None
             ),
+            "valisFeatureResidualLimitPixels": round(feature_residual_limit, 6),
             "valisNonRigidRTRE": (
                 round(valis_non_rigid_rtre, 8) if np.isfinite(valis_non_rigid_rtre) else None
             ),
             "valisLocalEvidenceQualified": local_evidence_qualified,
+            "valisFeatureSupportedCellCount": len(payload.get("triangles") or []),
+            "valisFeatureUnsupportedCellCount": len(original_cells)
+            - len(payload.get("triangles") or []),
         }
         artifact.write_text(json.dumps(payload, separators=(",", ":")))
         return EngineRun(payload, artifact, _hash_file(artifact), time.monotonic() - started)

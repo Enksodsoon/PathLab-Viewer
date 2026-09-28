@@ -1,8 +1,91 @@
 import { describe, expect, it } from 'vitest'
+import { mapStackPoint } from '../alignment'
 
 import { alignmentViewDelta, continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
+  it('keeps short glass gaps linked as approximate without expanding local support', () => {
+    const cell = {
+      moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+      reference: [[20, 0], [120, 0], [20, 100]] as [[number, number], [number, number], [number, number]],
+    }
+    for (const status of ['ready', 'approximate']) {
+      const registration = { status, anchorSlideId: 'fixed', movingToReference: [[1, 0, 20], [0, 1, 0]], triangles: status === 'ready' ? [cell] : [], overviewTriangles: [cell] }
+      const members = [{ slideId: 'fixed' }, { slideId: 'moving', registration }]
+      const mapped = mapStackPoint([110, 25], 'moving', 'fixed', 'fixed', members)
+      expect(mapped?.point[0]).toBeCloseTo(130)
+      expect(mapped?.point[1]).toBeCloseTo(25)
+      expect(mapped?.approximate).toBe(true)
+      expect(mapStackPoint(mapped!.point, 'fixed', 'moving', 'fixed', members)?.point[0]).toBeCloseTo(110)
+      expect(mapStackPoint([110, 25], 'moving', 'fixed', 'fixed', members, 'strict')).toBeNull()
+      expect(mapStackPoint([500, 500], 'moving', 'fixed', 'fixed', members)).toBeNull()
+      const overview = mapStackPoint([500, 500], 'moving', 'fixed', 'fixed', members, 'best', 700)
+      expect(overview?.point[0]).toBeCloseTo(520)
+      expect(overview?.approximate).toBe(true)
+      expect(mapStackPoint([500, 500], 'moving', 'fixed', 'fixed', members, 'strict', 700)).toBeNull()
+      expect(mapStackPoint([500, 500], 'moving', 'fixed', 'fixed', members, 'best', 100)).toBeNull()
+    }
+  })
+
+  it('does not use tissue-outline evidence to extrapolate anatomy outside supported cells', () => {
+    const registration = {
+      status: 'approximate', anchorSlideId: 'fixed',
+      movingToReference: [[1, 0, 20], [0, 1, -10]],
+      evidence: { source: 'bounded-sparse-overview' },
+      overviewTriangles: [{
+        moving: [[0, 0], [10, 0], [0, 10]] as [[number, number], [number, number], [number, number]],
+        reference: [[20, -10], [30, -10], [20, 0]] as [[number, number], [number, number], [number, number]],
+      }],
+    }
+    const members = [{ slideId: 'fixed' }, { slideId: 'moving', registration }]
+    expect(mapStackPoint([200, 300], 'moving', 'fixed', 'fixed', members)).toBeNull()
+    expect(mapStackPoint([220, 290], 'fixed', 'moving', 'fixed', members)).toBeNull()
+    registration.evidence.source = 'bounded-pyramid-whole-slide-structure'
+    expect(mapStackPoint([200, 300], 'moving', 'fixed', 'fixed', members)).toBeNull()
+  })
+  it('uses a retained coarse mesh only outside the preferred supported cells', () => {
+    const cell = (size: number, offset: number) => ({
+      moving: [[0, 0], [size, 0], [0, size]] as [[number, number], [number, number], [number, number]],
+      reference: [[offset, 0], [size + offset, 0], [offset, size]] as [[number, number], [number, number], [number, number]],
+    })
+    const registration = {
+      status: 'approximate', anchorSlideId: 'fixed',
+      movingToReference: [[1, 0, 10], [0, 1, 0]],
+      overviewTriangles: [cell(10, 10)],
+      overviewFallback: {
+        movingToReference: [[1, 0, 20], [0, 1, 0]],
+        overviewTriangles: [cell(100, 20)],
+      },
+    }
+    const members = [{slideId: 'fixed'}, {slideId: 'moving', registration}]
+    expect(mapStackPoint([2, 2], 'moving', 'fixed', 'fixed', members)?.point).toEqual([12, 2])
+    const fallback = mapStackPoint([40, 20], 'moving', 'fixed', 'fixed', members)
+    expect(fallback?.point[0]).toBeCloseTo(60, 10)
+    expect(fallback?.point[1]).toBeCloseTo(20, 10)
+    expect(fallback?.approximate).toBe(true)
+    const restored = mapStackPoint([60, 20], 'fixed', 'moving', 'fixed', members)
+    expect(restored?.point[0]).toBeCloseTo(40, 10)
+    expect(restored?.point[1]).toBeCloseTo(20, 10)
+    expect(mapStackPoint([40, 20], 'moving', 'fixed', 'fixed', members, 'strict')).toBeNull()
+    expect(mapStackPoint([200, 200], 'moving', 'fixed', 'fixed', members)).toBeNull()
+  })
+  it('uses an approximate overview outside a manual correction hull', () => {
+    const registration = {
+      status: 'ready', anchorSlideId: 'fixed', movingToReference: [[1, 0, 5], [0, 1, 0]],
+      triangles: [{ moving: [[0, 0], [10, 0], [0, 10]] as [[number, number], [number, number], [number, number]],
+        reference: [[5, 0], [15, 0], [5, 10]] as [[number, number], [number, number], [number, number]] }],
+      overviewFallback: { movingToReference: [[1, 0, 20], [0, 1, 0]],
+        overviewTriangles: [{ moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],
+          reference: [[20, 0], [120, 0], [20, 100]] as [[number, number], [number, number], [number, number]] }] },
+    }
+    const members = [{ slideId: 'fixed' }, { slideId: 'moving', registration }]
+    expect(mapStackPoint([2, 2], 'moving', 'fixed', 'fixed', members)).toMatchObject({ point: [7, 2], approximate: false })
+    const fallback = mapStackPoint([40, 20], 'moving', 'fixed', 'fixed', members)
+    expect(fallback?.point[0]).toBeCloseTo(60)
+    expect(fallback?.point[1]).toBeCloseTo(20)
+    expect(fallback?.approximate).toBe(true)
+    expect(mapStackPoint([40, 20], 'moving', 'fixed', 'fixed', members, 'strict')).toBeNull()
+  })
   it('maps bidirectionally through reference coordinates', () => {
     const movingToReference = [[1, 0, 20], [0, 1, -10]]
     expect(mapComparisonPoint([100, 80], movingToReference, null)).toEqual([120, 70])

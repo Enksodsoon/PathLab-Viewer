@@ -212,3 +212,19 @@ def test_composes_secondary_reference_coordinates() -> None:
         100.0,
         40.0,
     )
+
+
+def test_spatial_orb_hard_caps_tied_responses_and_keeps_weak_regions():
+    import cv2
+    from wsi_viewer.alignment import _orb_features
+
+    y, x = np.mgrid[:1024, :1024]
+    checker = ((x // 8 + y // 8) % 2).astype(np.uint8)
+    image = np.where(x < 512, checker * 180 + 30, checker * 18 + 118).astype(np.uint8)
+    image = cv2.GaussianBlur(image, (3, 3), 0.7)
+    mask = np.full(image.shape, 255, np.uint8)
+    keys, descriptors = _orb_features(image, mask, 1536)
+    assert descriptors is not None
+    assert len(keys) == len(descriptors) <= 1536
+    assert sum(point.pt[0] >= 512 for point in keys) >= 100
+    assert all(0 <= point.pt[0] < 1024 and 0 <= point.pt[1] < 1024 for point in keys)

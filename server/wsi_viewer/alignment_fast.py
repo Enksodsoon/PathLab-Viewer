@@ -20,13 +20,14 @@ from .alignment import (
     RegistrationResult,
     _mask_seed,
     _mutual_matches,
+    _orb_features,
     _registration_triangles,
     _structure,
     _support,
     rescale_registration,
 )
 
-PREPARATION_VERSION = "overview-orb1536-v3"
+PREPARATION_VERSION = "overview-orb1536-v5-quarter-turn"
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class PreparedSlide:
     descriptors: np.ndarray[Any, Any] | None
     full_size: tuple[int, int]
     thin_mask: np.ndarray[Any, Any] | None = None
+    calibrated: PreparedSlide | None = None
 
     @property
     def nbytes(self) -> int:
@@ -44,7 +46,7 @@ class PreparedSlide:
             x.nbytes
             for x in (self.structure, self.mask, self.points, self.descriptors, self.thin_mask)
             if x is not None
-        )
+        ) + (self.calibrated.nbytes if self.calibrated is not None else 0)
 
 
 class PreparationCache:
@@ -77,24 +79,54 @@ class PreparationCache:
         )
         bounded.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
         rgb = np.asarray(bounded.convert("RGB"))
-        structure, mask = _structure(rgb)
-        # Cache the alternate support once; retain the original detector budget.
+        corrected = None
         try:
-            _, thin_mask = _structure(rgb, preserve_thin_tissue=True)
+            structure, mask = _structure(rgb)
         except AlignmentRejected:
-            thin_mask = None
-        # Per-cell quotas keep a large dark fragment from taking every feature.
-        detector = cv2.ORB.create(nfeatures=1536, fastThreshold=8)
-        keys = detector.detect(structure, mask)
-        buckets: dict[tuple[int, int], list[cv2.KeyPoint]] = {}
-        height, width = mask.shape
-        for point in sorted(keys, key=lambda p: p.response, reverse=True):
-            cell = (min(7, int(point.pt[0] * 8 / width)), min(7, int(point.pt[1] * 8 / height)))
-            bucket = buckets.setdefault(cell, [])
-            if len(bucket) < 24:
-                bucket.append(point)
-        selected = [p for bucket in buckets.values() for p in bucket]
-        keys, descriptors = detector.compute(structure, selected)
+            try:
+                structure, mask = _structure(rgb, preserve_thin_tissue=True)
+            except AlignmentRejected:
+                # A tinted glass field can flood the fixed white-background mask.
+                # Estimate its color from a sparse sample only after both masks fail.
+                background = np.percentile(rgb[::8, ::8].reshape(-1, 3), 70, axis=0)
+                corrected = np.clip(
+                    rgb.astype(np.float32) * (255 / np.maximum(background, 1)), 0, 255
+                ).astype(np.uint8)
+                structure, mask = _structure(corrected, preserve_thin_tissue=True)
+            thin_mask = mask
+        else:
+            # Cache the alternate support once; retain the original detector budget.
+            try:
+                _, thin_mask = _structure(rgb, preserve_thin_tissue=True)
+            except AlignmentRejected:
+                thin_mask = None
+        keys, descriptors = _orb_features(structure, mask, 1536)
+        calibrated = None
+        if corrected is None and np.count_nonzero(mask) >= mask.size * 0.15:
+            # Dense, lightly stained sections can lose most of their tissue at
+            # the overview threshold. Retain a second bounded view only for
+            # pairs whose unchanged primary registration rejects.
+            background = np.percentile(rgb[::8, ::8].reshape(-1, 3), 70, axis=0)
+            corrected = np.clip(
+                rgb.astype(np.float32) * (255 / np.maximum(background, 1)), 0, 255
+            ).astype(np.uint8)
+            try:
+                calibrated_structure, calibrated_mask = _structure(
+                    corrected, preserve_thin_tissue=True
+                )
+                calibrated_keys, calibrated_descriptors = _orb_features(
+                    calibrated_structure, calibrated_mask, 1536
+                )
+                calibrated = PreparedSlide(
+                    calibrated_structure,
+                    calibrated_mask,
+                    np.asarray([p.pt for p in calibrated_keys], dtype=np.float32).reshape(-1, 2),
+                    calibrated_descriptors,
+                    coordinate_size,
+                    calibrated_mask,
+                )
+            except AlignmentRejected:
+                pass
         prepared = PreparedSlide(
             structure,
             mask,
@@ -102,6 +134,7 @@ class PreparationCache:
             descriptors,
             coordinate_size,
             thin_mask,
+            calibrated,
         )
         while self.entries and self.bytes_used + prepared.nbytes > self.max_bytes:
             _, removed = self.entries.popitem(last=False)
@@ -115,15 +148,61 @@ class PreparationCache:
 def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> RegistrationResult:
     try:
         return _register_prepared(reference, moving, sigma=3)
-    except AlignmentRejected:
-        if reference.thin_mask is None or moving.thin_mask is None:
-            raise
-        result = _register_prepared(
-            replace(reference, mask=reference.thin_mask),
-            replace(moving, mask=moving.thin_mask),
-            sigma=5,
-        )
-        return replace(result, evidence={**result.evidence, "maskMode": "thin-tissue-fallback"})
+    except AlignmentRejected as primary_error:
+        if reference.thin_mask is not None and moving.thin_mask is not None:
+            try:
+                result = _register_prepared(
+                    replace(reference, mask=reference.thin_mask),
+                    replace(moving, mask=moving.thin_mask),
+                    sigma=5,
+                )
+                return replace(
+                    result, evidence={**result.evidence, "maskMode": "thin-tissue-fallback"}
+                )
+            except AlignmentRejected:
+                pass
+        if reference.calibrated is not None or moving.calibrated is not None:
+            result = register_prepared(
+                reference.calibrated or reference,
+                moving.calibrated or moving,
+            )
+            return replace(result, evidence={**result.evidence, "maskMode": "calibrated-fallback"})
+        raise primary_error
+
+
+def _overview_mask_seed(reference_mask: np.ndarray, moving_mask: np.ndarray) -> np.ndarray:
+    principal, principal_score = _mask_seed(reference_mask, moving_mask)
+    reference_y, reference_x = np.nonzero(reference_mask)
+    moving_y, moving_x = np.nonzero(moving_mask)
+    reference_center = np.array([reference_x.mean(), reference_y.mean()])
+    moving_center = np.array([moving_x.mean(), moving_y.mean()])
+    scale = np.sqrt(len(reference_x) / len(moving_x))
+    candidates = []
+    for turns, rotation in enumerate((
+        ((1, 0), (0, 1)),
+        ((0, -1), (1, 0)),
+        ((-1, 0), (0, -1)),
+        ((0, 1), (-1, 0)),
+    )):
+        candidate = np.zeros((2, 3), dtype=np.float32)
+        candidate[:, :2] = np.asarray(rotation) * scale
+        candidate[:, 2] = reference_center - candidate[:, :2] @ moving_center
+        warped = cv2.warpAffine(moving_mask, candidate, reference_mask.shape[::-1])
+        intersection = np.count_nonzero((warped > 0) & (reference_mask > 0))
+        dice = 2 * intersection / max(1, np.count_nonzero(warped) + len(reference_x))
+        candidates.append((dice, candidate, turns))
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    best, second = candidates[:2]
+    # Shape is only a coarse hint. Switch orientations only when the scanner
+    # quarter-turn is clearly better than both the principal-axis and other turns.
+    if (
+        best[2] in (1, 3)
+        and best[0] >= 0.75
+        and best[0] > principal_score + 0.03
+        and best[0] > second[0] + 0.015
+    ):
+        return best[1]
+    return principal
 
 
 def _register_prepared(
@@ -171,21 +250,37 @@ def _register_prepared(
     if transform is None:
         # Compare scanner and tissue-axis initialization. Neither mask overlap
         # nor scanner position alone is sufficient evidence to publish a map.
-        seed, _ = _mask_seed(reference.mask, moving.mask)
+        seed = _overview_mask_seed(reference.mask, moving.mask)
         scanner = np.asarray(
             [[width / moving.mask.shape[1], 0, 0], [0, height / moving.mask.shape[0], 0]],
             dtype=np.float32,
         )
         divisor = max(1.0, max(width, height, *moving.mask.shape) / 512)
-        fixed = cv2.resize(reference.structure, None, fx=1 / divisor, fy=1 / divisor)
-        floating = cv2.resize(moving.structure, None, fx=1 / divisor, fy=1 / divisor)
+        fixed = cv2.resize(
+            reference.structure,
+            (max(1, round(width / divisor)), max(1, round(height / divisor))),
+        )
+        floating = cv2.resize(
+            moving.structure,
+            tuple(max(1, round(side / divisor)) for side in moving.structure.shape[::-1]),
+        )
+
+        def resize_frame(
+            original: np.ndarray[Any, Any], resized: np.ndarray[Any, Any]
+        ) -> np.ndarray[Any, Any]:
+            sx, sy = resized.shape[1] / original.shape[1], resized.shape[0] / original.shape[0]
+            return np.asarray([[sx, 0, (sx - 1) / 2], [0, sy, (sy - 1) / 2], [0, 0, 1]])
+
+        reference_frame = resize_frame(reference.structure, fixed)
+        moving_frame = resize_frame(moving.structure, floating)
         fixed = cv2.GaussianBlur(fixed, (0, 0), sigma).astype(np.float32) / 255
         floating = cv2.GaussianBlur(floating, (0, 0), sigma).astype(np.float32) / 255
         candidates = []
         for initial, motion in ((scanner, cv2.MOTION_TRANSLATION), (seed, cv2.MOTION_AFFINE)):
-            small_seed = initial.copy()
-            small_seed[:, 2] /= divisor
-            inverse = cv2.invertAffineTransform(small_seed).astype(np.float32)
+            small_seed = (
+                reference_frame @ np.vstack([initial, [0, 0, 1]]) @ np.linalg.inv(moving_frame)
+            )
+            inverse = cv2.invertAffineTransform(small_seed[:2]).astype(np.float32)
             try:
                 score, inverse = cv2.findTransformECC(  # type: ignore[call-overload]
                     fixed,
@@ -198,7 +293,11 @@ def _register_prepared(
                 )
             except cv2.error:
                 continue
-            candidate = cv2.invertAffineTransform(inverse)
+            candidate = (
+                np.linalg.inv(reference_frame)
+                @ np.vstack([cv2.invertAffineTransform(inverse), [0, 0, 1]])
+                @ moving_frame
+            )[:2]
             singular = np.linalg.svd(
                 reference_to_full @ candidate[:, :2] @ moving_from_full, compute_uv=False
             )
@@ -209,7 +308,6 @@ def _register_prepared(
                 or singular[0] / singular[-1] > 1.35
             ):
                 continue
-            candidate[:, 2] *= divisor
             candidates.append((score, candidate))
         if not candidates:
             raise AlignmentRejected("Needs refinement: weak coarse structural correspondence")

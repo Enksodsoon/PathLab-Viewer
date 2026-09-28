@@ -160,6 +160,37 @@ def test_component_maps_use_full_slide_coordinates_and_round_trip(tmp_path):
         np.testing.assert_allclose(restored, source, atol=0.5)
 
 
+def test_component_feature_failure_does_not_run_discarded_pair_fallback(tmp_path, monkeypatch):
+    from contextlib import suppress
+
+    from wsi_viewer import alignment
+    from wsi_viewer import alignment_pyramid as pyramid
+
+    image = _textured_tissue()
+    _pyramid(tmp_path / "r", image)
+    _pyramid(tmp_path / "m", image)
+    detections = []
+
+    class NoFeatures:
+        def detect(self, structure, mask):
+            detections.append(structure.shape)
+            return []
+
+        def compute(self, structure, keys):
+            return [], None
+
+    def discarded_fallback(*args, **kwargs):
+        raise AssertionError("Component discovery must not compute an unused pair overview")
+
+    monkeypatch.setattr(alignment.cv2, "ORB_create", lambda **kwargs: NoFeatures())
+    monkeypatch.setattr(alignment, "_coarse_refined_result", discarded_fallback)
+    with suppress(pyramid.AlignmentRejected):
+        pyramid.register_components(
+            tmp_path / "r", tmp_path / "m", image, image, image.size, image.size
+        )
+    assert len(detections) >= 2
+
+
 def test_identical_repeated_fragments_remain_explicitly_approximate(tmp_path):
     from wsi_viewer.alignment import map_registration_point
     from wsi_viewer.alignment_pyramid import register_components
@@ -337,6 +368,9 @@ def test_optical_density_kaze_prefers_same_structure_across_stain_hues():
     assert same_inliers >= 20
     assert same_spread >= 0.25
     assert (same_inliers * same_spread) > (wrong_inliers * wrong_spread) * 1.5
+    # The proposed coarse frame is identity: a recovered 230 px translation
+    # must not count as evidence that its current tissue positions correspond.
+    assert (wrong_inliers, wrong_spread) == (0, 0.0)
 
 
 def test_layout_consistency_checks_all_large_fragments():
@@ -570,6 +604,38 @@ def test_whole_slide_structural_fallback_rejects_unrelated_same_size_tissue(tmp_
         )
 
 
+def test_component_ecc_is_bounded_and_preserves_original_crop_coordinates(monkeypatch):
+    from wsi_viewer import alignment_pyramid as pyramid
+
+    seed = np.asarray([[1, 0, 9], [0, 1, -5]], dtype=np.float32)
+    monkeypatch.setattr(pyramid, "_mask_seed", lambda *_: (seed, 0.9))
+    monkeypatch.setattr(
+        pyramid,
+        "_structure",
+        lambda rgb, **kwargs: (rgb[:, :, 0], np.full(rgb.shape[:2], 255, np.uint8)),
+    )
+    calls = []
+
+    def ecc(fixed, moving, inverse, motion, *args):
+        assert max(*fixed.shape, *moving.shape) <= 1024
+        calls.append(motion)
+        return (0.95 if motion == cv2.MOTION_AFFINE else 0.8), inverse
+
+    monkeypatch.setattr(cv2, "findTransformECC", ecc)
+    result = pyramid._approximate_component_map(
+        Image.new("RGB", (2049, 1537), (120, 100, 140)),
+        Image.new("RGB", (2053, 1541), (120, 100, 140)),
+        (100, 200, 4),
+        (50, 70, 4),
+        refine_flow=False,
+    )
+    assert result is not None
+    assert len(calls) == 6
+    assert np.asarray(result.transform) == pytest.approx(
+        np.asarray([[1, 0, 86], [0, 1, 110]]), abs=1e-4
+    )
+
+
 def test_flow_refinement_returns_cycle_consistent_local_controls():
     reference = np.full((512, 512), 245, dtype=np.uint8)
     rng = np.random.default_rng(91)
@@ -623,6 +689,54 @@ def test_flow_refinement_rejects_textureless_tissue():
 
     assert controls == []
     assert cycle_p95 == -1
+
+
+@pytest.mark.parametrize("shape", [(512, 512), (513, 515)])
+def test_flow_controls_use_resize_pixel_centers_and_per_axis_scale(monkeypatch, shape):
+    from wsi_viewer import alignment_pyramid as pyramid
+
+    texture = np.random.default_rng(9).integers(0, 256, shape, dtype=np.uint8)
+    mask = np.full(shape, 255, dtype=np.uint8)
+    reference_mask = mask.copy()
+    # This starting position is glass in the reference, but its mapped
+    # endpoint is tissue. Support belongs to each image's own coordinates.
+    reference_mask[60:69, 60:69] = 0
+    monkeypatch.setattr(pyramid, "_gradient_feature", lambda image: image)
+
+    class ConstantFlow:
+        calls = 0
+
+        def setFinestScale(self, value):
+            pass
+
+        def setPatchSize(self, value):
+            pass
+
+        def setPatchStride(self, value):
+            pass
+
+        def calc(self, first, second, initial):
+            self.calls += 1
+            vector = (3, -2) if self.calls == 1 else (-2.75, 2)
+            return np.broadcast_to(np.asarray(vector, np.float32), (*first.shape, 2)).copy()
+
+    monkeypatch.setattr(cv2, "DISOpticalFlow_create", lambda *_: ConstantFlow())
+    controls, cycle = pyramid._flow_refined_controls(
+        texture, reference_mask, texture, mask, np.eye(2, 3, dtype=np.float32)
+    )
+    assert controls
+    scale = np.asarray([shape[1] / (shape[1] // 2), shape[0] / (shape[0] // 2)])
+    assert controls[0]["moving"] == pytest.approx((32.5 * scale - 0.5).tolist())
+    for point in controls:
+        assert np.asarray(point["reference"]) - point["moving"] == pytest.approx(scale * [3, -2])
+        assert point["errorPixels"] == pytest.approx(scale[0] * 0.25)
+        x, y = (round(value) for value in point["reference"])
+        assert reference_mask[y, x]
+    assert cycle == pytest.approx(scale[0] * 0.25)
+    unsupported, _ = pyramid._flow_refined_controls(
+        texture, np.zeros(shape, np.uint8), texture, mask, np.eye(2, 3, dtype=np.float32)
+    )
+    assert unsupported == []
 
 
 def test_flow_cell_evidence_requires_local_patch_agreement_and_discrimination():
@@ -711,7 +825,53 @@ def test_component_batches_reuse_decodes_and_resume_completed_attempts(tmp_path,
     assert len(overview_attempts) > overview_counts[1]
 
 
-@pytest.mark.parametrize("mode", ["accept", "reject", "wrong-position"])
+@pytest.mark.parametrize("compatible", [True, False])
+def test_guided_patches_use_broad_fallback_only_for_the_same_pair(
+    tmp_path, monkeypatch, compatible
+):
+    from wsi_viewer import alignment_pyramid as pyramid
+
+    narrow = [{"moving": [[2, 2], [4, 2], [2, 4]], "reference": [[3, 3], [5, 3], [3, 5]]}]
+    broad = [{"moving": [[1, 1], [8, 1], [1, 8]], "reference": [[2, 2], [9, 2], [2, 9]]}]
+    binding = {"sourceVersion": "moving", "anchorVersion": "fixed", "anchorSlideId": "ref"}
+    seed = {
+        **binding,
+        "status": "approximate",
+        "overviewTriangles": narrow,
+        "overviewFallback": {
+            **binding,
+            "sourceVersion": "moving" if compatible else "old",
+            "status": "approximate",
+            "overviewTriangles": broad,
+            "evidence": {"source": "bounded-sparse-overview"},
+        },
+    }
+    seen = []
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    mask[3, 3] = 255  # Thin tissue away from every scanner-grid center.
+    monkeypatch.setattr(pyramid, "_structure", lambda *_: (None, mask))
+
+    def unsupported(registration, *args):
+        seen.append(registration["triangles"])
+        raise pyramid.AlignmentRejected("Outside supported cells")
+
+    monkeypatch.setattr(pyramid, "map_registration_point", unsupported)
+    result = pyramid.refine_supported_patches(
+        tmp_path,
+        tmp_path,
+        Image.new("RGB", (512, 512)),
+        (512, 512),
+        (512, 512),
+        seed,
+    )
+    assert seen and all(cells == (broad if compatible else narrow) for cells in seen)
+    assert result["overviewTriangles"] == narrow
+    assert result["status"] == "approximate"
+
+
+@pytest.mark.parametrize(
+    "mode", ["accept", "reject", "wrong-position", "unsupported-first", "unsupported-last"]
+)
 def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monkeypatch, mode):
     from copy import deepcopy
 
@@ -728,6 +888,9 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
         "triangles": [],
         "controlPoints": [],
         "evidence": {"source": "coarse"},
+        "sourceVersion": "moving-source-1",
+        "anchorVersion": "reference-source-1",
+        "anchorSlideId": "reference",
     }
     original = deepcopy(seed)
     reads = []
@@ -747,7 +910,7 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
         shift = 100 if mode == "wrong-position" else 0
         points = [[4, 4], [50, 4], [4, 50]]
         targets = [[x + mx - rx + shift, y + my - ry] for x, y in points]
-        return RegistrationResult(
+        result = RegistrationResult(
             "ready",
             [[1, 0, mx - rx], [0, 1, my - ry]],
             (0, 0, 64, 64),
@@ -762,6 +925,22 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
             ],
             triangles=[{"moving": points, "reference": targets, "maxResidualPixels": 0.0}],
         )
+        if mode.startswith("unsupported-"):
+            unsupported_points = [[-mx - 40, 4], [-mx - 20, 4], [-mx - 40, 24]]
+            unsupported_targets = [[x + mx - rx, y + my - ry] for x, y in unsupported_points]
+            unsupported = {
+                "moving": unsupported_points,
+                "reference": unsupported_targets,
+                "maxResidualPixels": 0.0,
+            }
+            result.triangles.insert(
+                0 if mode == "unsupported-first" else len(result.triangles), unsupported
+            )
+            result.control_points.extend(
+                {"moving": point, "reference": target, "errorPixels": 0.0}
+                for point, target in zip(unsupported_points, unsupported_targets, strict=True)
+            )
+        return result
 
     monkeypatch.setattr(pyramid, "read_region", read)
     monkeypatch.setattr(pyramid, "register_pair", register)
@@ -777,8 +956,13 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
     )
     assert seed == original
     assert result["overviewTriangles"] == cells
-    assert bool(result["triangles"]) == (mode == "accept")
-    assert result["status"] == ("ready" if mode == "accept" else "approximate")
+    accepted = mode == "accept" or mode.startswith("unsupported-")
+    assert bool(result["triangles"]) == accepted
+    assert result["status"] == ("ready" if accepted else "approximate")
+    if accepted:
+        assert len(result["controlPoints"]) == 3 * len(result["triangles"])
+        assert all(point["moving"][0] >= 0 for point in result["controlPoints"])
+        assert result["inlierCount"] == len(result["controlPoints"])
     assert len(reads) == 128
     reads.clear()
     resumed = pyramid.refine_supported_patches(
@@ -792,6 +976,18 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
     )
     assert resumed == result
     assert reads == []
+    changed = {**seed, "sourceVersion": "moving-source-2"}
+    pyramid.refine_supported_patches(
+        tmp_path / "ref",
+        tmp_path / "mov",
+        Image.new("RGB", (512, 512)),
+        (512, 512),
+        (512, 512),
+        changed,
+        **options,
+    )
+    assert len(reads) == 128
+    reads.clear()
     covered = {**seed, "status": "ready", "triangles": cells}
     pyramid.refine_supported_patches(
         tmp_path / "ref",
@@ -802,3 +998,55 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
         covered,
     )
     assert reads == []
+
+
+def test_guided_crop_keeps_supported_edge_tissue_when_its_corners_are_glass(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_pyramid as pyramid
+
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    mask[18:50, 18:50] = 255
+    monkeypatch.setattr(pyramid, "_structure", lambda *_: (None, mask))
+    cell = {"moving": [[20, 20], [48, 20], [20, 48]], "reference": [[25, 27], [53, 27], [25, 55]]}
+    seed = {"status": "approximate", "overviewTriangles": [cell], "triangles": [], "evidence": {}}
+    reads = []
+
+    def read(path, bounds, maximum):
+        reads.append((path, bounds))
+        return Image.new("RGB", (64, 64)), (*bounds[:2], 1)
+
+    def reject(*args, **kwargs):
+        raise pyramid.AlignmentRejected("No verified feature correspondence")
+
+    monkeypatch.setattr(pyramid, "read_region", read)
+    monkeypatch.setattr(pyramid, "register_pair", reject)
+    result = pyramid.refine_supported_patches(
+        tmp_path / "ref",
+        tmp_path / "mov",
+        Image.new("RGB", (512, 512)),
+        (512, 512),
+        (512, 512),
+        seed,
+    )
+    moving_bounds = [bounds for path, bounds in reads if path.name == "mov"]
+    assert any(
+        left <= 45 <= right and top <= 22 <= bottom for left, top, right, bottom in moving_bounds
+    )
+    assert result["status"] == "approximate"
+    assert result["triangles"] == []
+
+
+def test_component_rejects_outline_only_fallback(monkeypatch):
+    from wsi_viewer import alignment_pyramid as pyramid
+
+    image = Image.new("RGB", (256, 256), (180, 120, 150))
+    monkeypatch.setattr(
+        pyramid,
+        "_mask_seed",
+        lambda *_: (np.asarray([[1.8, 0, -100], [0, 1.8, -100]], dtype=np.float32), 0.95),
+    )
+
+    def failed_ecc(*args, **kwargs):
+        raise pyramid.cv2.error("No internal correspondence")
+
+    monkeypatch.setattr(pyramid.cv2, "findTransformECC", failed_ecc)
+    assert pyramid._approximate_component_map(image, image, (0, 0, 1), (0, 0, 1)) is None

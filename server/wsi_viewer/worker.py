@@ -38,12 +38,19 @@ from .alignment_engines import (
     ENGINE_NATIVE,
     ENGINE_VALIS,
     ENGINE_VERSIONS,
+    merge_component_maps,
     run_engine,
     settings_digest,
 )
 from .alignment_fast import PREPARATION_VERSION, PreparationCache, register_prepared
-from .alignment_policy import VALIDATION_POLICY, current_registration
-from .alignment_pyramid import read_region, refine_supported_patches, register_components
+from .alignment_policy import VALIDATION_POLICY, case_ids_conflict, current_registration
+from .alignment_pyramid import (
+    _candidate_component_pairs,
+    component_bounds,
+    read_region,
+    refine_supported_patches,
+    register_components,
+)
 from .config import Settings
 from .conversion import configure_libvips, generate_dzi
 from .database import session_factory
@@ -76,6 +83,24 @@ PAIRING_CLEANUP_INTERVAL_SECONDS = 60.0
 PAIRING_CLEANUP_BATCH_SIZE = 1000
 STORAGE_CAPACITY_THRESHOLDS = (70, 80, 90)
 LOGGER = logging.getLogger(__name__)
+
+
+def _candidate_validation_state(
+    registration: dict[str, Any], engine: str, source_version: str, anchor_version: str
+) -> str:
+    candidate = {
+        **registration,
+        "provenance": "automatic",
+        "engine": engine,
+        "engineVersion": ENGINE_VERSIONS[engine],
+        "settingsDigest": settings_digest(engine, registration.get("engineSettings") or {}),
+        "sourceVersion": source_version,
+        "anchorVersion": anchor_version,
+    }
+    current = current_registration(
+        candidate, source_version=source_version, anchor_version=anchor_version
+    )
+    return "engineering_passed" if current and current.get("status") == "ready" else "rejected"
 
 
 def _registration_quality(registration: dict[str, Any] | None) -> tuple[int, float, int]:
@@ -121,6 +146,8 @@ def _best_compatible_registration(
     slide: Slide,
     reference: Slide,
 ) -> dict[str, Any] | None:
+    if case_ids_conflict(slide.case_id, reference.case_id):
+        return None
     candidates: list[dict[str, Any]] = []
     current = comparison.registrations.get(slide.id)
     if (
@@ -149,6 +176,34 @@ def _best_compatible_registration(
         if (value := current_registration(item)) and value.get("status") in {"ready", "approximate"}
     ]
     return max(candidates, key=_registration_quality, default=None)
+
+
+def _with_overview_fallback(
+    primary: dict[str, Any], secondary: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Keep a qualified coarse mesh without replacing stronger local evidence."""
+    if str(primary.get("provenance", "")).startswith("manual") or not secondary:
+        return primary
+    fallback = secondary.get("overviewFallback") or secondary
+    if (
+        fallback.get("status") != "approximate"
+        or not fallback.get("overviewTriangles")
+        or (fallback.get("evidence") or {}).get("source") != "bounded-sparse-overview"
+        or any(
+            not primary.get(key) or primary.get(key) != fallback.get(key)
+            for key in ("sourceVersion", "anchorVersion", "anchorSlideId")
+        )
+        or (current_registration(fallback) or {}).get("status") != "approximate"
+    ):
+        return primary
+    if primary.get("overviewTriangles") == fallback.get("overviewTriangles"):
+        result = deepcopy(primary)
+        result.pop("overviewFallback", None)
+        return result
+    result = deepcopy(primary)
+    result["overviewFallback"] = deepcopy(fallback)
+    result["overviewFallback"].pop("overviewFallback", None)
+    return result
 
 
 def _next_job_statement(
@@ -477,6 +532,12 @@ def _load_dzi_overview(derivative: Path, *, maximum: int = 4096) -> Image.Image:
     for row in range(rows):
         for column in range(columns):
             path = tile_root / f"{column}_{row}.{image_format}"
+            if not path.exists() and (derivative / ".openslide-source.json").is_file():
+                from .tile_routes import materialize_local_openslide_tile_from_root
+
+                path = materialize_local_openslide_tile_from_root(
+                    derivative, derivative.name, path.relative_to(derivative).as_posix()
+                )
             # Sparse DZI writers omit all-white tiles. The missing tile is
             # background, not a corrupt pyramid and must not force engines
             # back to the low-resolution thumbnail.
@@ -528,6 +589,132 @@ def _alignment_child(
 
         reference_image = overview(reference_derivative)
         moving_image = overview(moving_derivative)
+        if engine_name == ENGINE_VALIS and all(
+            (Path(path) / "slide.dzi").is_file()
+            for path in (reference_derivative, moving_derivative)
+        ):
+            reference_boxes = component_bounds(reference_image, reference_full_size)
+            moving_boxes = component_bounds(moving_image, moving_full_size)
+            if 1 < len(reference_boxes) == len(moving_boxes):
+                started = time.monotonic()
+                pairs, _ = _candidate_component_pairs(
+                    reference_image,
+                    moving_image,
+                    reference_boxes,
+                    moving_boxes,
+                    reference_full_size,
+                    moving_full_size,
+                )
+                parts = []
+                failures = []
+                for index, (moving_index, reference_index) in enumerate(pairs):
+                    reference_crop, reference_frame = read_region(
+                        Path(reference_derivative), reference_boxes[reference_index], 2048
+                    )
+                    moving_crop, moving_frame = read_region(
+                        Path(moving_derivative), moving_boxes[moving_index], 2048
+                    )
+                    reference_size = (
+                        reference_crop.width * reference_frame[2],
+                        reference_crop.height * reference_frame[2],
+                    )
+                    moving_size = (
+                        moving_crop.width * moving_frame[2],
+                        moving_crop.height * moving_frame[2],
+                    )
+                    key = hashlib.sha256(
+                        repr(
+                            (
+                                hashlib.sha256(reference_crop.tobytes()).hexdigest(),
+                                hashlib.sha256(moving_crop.tobytes()).hexdigest(),
+                                reference_crop.mode,
+                                moving_crop.mode,
+                                reference_frame,
+                                moving_frame,
+                                reference_size,
+                                moving_size,
+                                settings_digest(engine_name, engine_settings),
+                                "ordered-components-v1",
+                            )
+                        ).encode()
+                    ).hexdigest()
+                    component_dir = (
+                        Path(artifact_dir) / f"component-{key}" if artifact_dir else None
+                    )
+                    receipt = component_dir / "valis-coordinate-map.json" if component_dir else None
+                    try:
+                        payload = None
+                        if receipt and receipt.is_file():
+                            with suppress(OSError, ValueError, TypeError):
+                                payload = json.loads(receipt.read_text())
+                        if (
+                            not isinstance(payload, dict)
+                            or payload.get("engineVersion") != ENGINE_VERSIONS[engine_name]
+                            or payload.get("status") not in {"ready", "approximate"}
+                            or not payload.get("movingToReference")
+                            or not (payload.get("triangles") or payload.get("overviewTriangles"))
+                        ):
+                            run = run_engine(
+                                engine_name,
+                                reference=reference_crop,
+                                moving=moving_crop,
+                                reference_full_size=reference_size,
+                                moving_full_size=moving_size,
+                                artifact_dir=component_dir,
+                                settings=engine_settings,
+                                progress=lambda values: output.put({"progress": values}),
+                            )
+                            payload = run.registration
+                        parts.append((payload, reference_frame, moving_frame))
+                    except AlignmentRejected as error:
+                        failures.append(
+                            {
+                                "movingComponent": moving_index,
+                                "referenceComponent": reference_index,
+                                "reason": str(error),
+                            }
+                        )
+                    output.put(
+                        {
+                            "progress": {
+                                "stage": "valis-components",
+                                "processedComponentPairs": index + 1,
+                                "totalComponentPairs": len(pairs),
+                            }
+                        }
+                    )
+                payload = merge_component_maps(parts)
+                payload["evidence"].update(
+                    {
+                        "componentOrderPreserved": True,
+                        "componentPolicy": "ordered-components-v1",
+                        "totalComponentPairs": len(pairs),
+                        "acceptedComponentPairs": payload["evidence"]["componentCount"],
+                        "componentFailures": failures,
+                    }
+                )
+                if failures:
+                    payload["reason"] = (
+                        "Partial component coverage; unresolved tissue needs refinement"
+                    )
+                artifact = (
+                    Path(artifact_dir) / "component-coordinate-map.json" if artifact_dir else None
+                )
+                if artifact:
+                    artifact.parent.mkdir(parents=True, exist_ok=True)
+                    artifact.write_text(json.dumps(payload))
+                output.put(
+                    {
+                        "ok": True,
+                        "result": payload,
+                        "artifactPath": str(artifact) if artifact else None,
+                        "artifactSha256": hashlib.sha256(artifact.read_bytes()).hexdigest()
+                        if artifact
+                        else None,
+                        "runtimeSeconds": time.monotonic() - started,
+                    }
+                )
+                return
         if engine_name != ENGINE_NATIVE:
             engine_run = run_engine(
                 engine_name,
@@ -835,6 +1022,8 @@ def _preview_alignment(
     preparation_seconds = 0.0
     pair_hit = False
     try:
+        if case_ids_conflict(moving.case_id, reference.case_id):
+            raise AlignmentRejected("Needs refinement: slides have different case identifiers")
         if datetime.now(UTC) >= deadline:
             raise AlignmentRejected("Needs refinement: stack foreground deadline exceeded")
         prepared = []
@@ -924,6 +1113,14 @@ def _preview_alignment(
     database.refresh(job)
     database.refresh(reference)
     database.refresh(moving)
+    if case_ids_conflict(moving.case_id, reference.case_id):
+        payload.update(
+            status="needs_refinement",
+            reason="Needs refinement: slides have different case identifiers",
+            triangles=[],
+            overviewTriangles=[],
+            movingToReference=None,
+        )
     if (
         comparison.version != checkpoint["setVersion"]
         or job.cancellation_requested_at
@@ -940,9 +1137,9 @@ def _preview_alignment(
         preserved = previous and _registration_quality(previous) > _registration_quality(payload)
         metrics = payload["evidence"]
         if preserved:
-            payload = cast(dict[str, Any], previous)
+            payload = _with_overview_fallback(cast(dict[str, Any], previous), payload)
         comparison.registrations = {**comparison.registrations, moving.id: payload}
-        if not preserved:
+        if not preserved or payload != previous:
             database.add(
                 ComparisonRegistrationRevision(
                     comparison_set_id=comparison.id,
@@ -1176,6 +1373,9 @@ def process_next(
             source_current = (
                 reference is not None
                 and primary_reference is not None
+                and bool(reference.sha256)
+                and bool(primary_reference.sha256)
+                and bool(slide.sha256)
                 and comparison.source_versions.get(reference.id) == reference.sha256
                 and comparison.source_versions.get(primary_reference.id) == primary_reference.sha256
                 and comparison.source_versions.get(slide.id) == slide.sha256
@@ -1191,6 +1391,7 @@ def process_next(
                 return True
             assert reference is not None
             assert primary_reference is not None
+            assert reference.sha256 is not None and slide.sha256 is not None
             if checkpoint.get("sourceVersion") not in {None, slide.sha256} or checkpoint.get(
                 "anchorVersion"
             ) not in {None, reference.sha256}:
@@ -1212,6 +1413,10 @@ def process_next(
                 comparison.status = "running"
             database.commit()
             try:
+                if case_ids_conflict(slide.case_id, reference.case_id):
+                    raise AlignmentRejected(
+                        "Needs refinement: slides have different case identifiers"
+                    )
                 reference_derivative = layout.for_slide(reference.id).private_derivative
                 moving_derivative = layout.for_slide(slide.id).private_derivative
                 checkpoint.update(
@@ -1381,9 +1586,9 @@ def process_next(
                             engine_version=ENGINE_VERSIONS[engine_name],
                             settings_digest=settings_digest(engine_name, applied_settings),
                             status=str(result_json.get("status", "rejected")),
-                            validation_state="engineering_passed"
-                            if result_json.get("status") == "ready"
-                            else "rejected",
+                            validation_state=_candidate_validation_state(
+                                result_json, engine_name, slide.sha256, reference.sha256
+                            ),
                             registration={
                                 **result_json,
                                 "provenance": "automatic-candidate",
@@ -1434,10 +1639,14 @@ def process_next(
                         reference=reference,
                     )
                     if _registration_quality(existing) > _registration_quality(replacement):
-                        preserved = existing
+                        preserved = _with_overview_fallback(
+                            cast(dict[str, Any], existing), replacement
+                        )
+                    elif existing:
+                        replacement = _with_overview_fallback(replacement, existing)
                 registrations[slide.id] = preserved or replacement
                 comparison.registrations = registrations
-                if preserved is None:
+                if preserved is None or preserved != existing:
                     database.add(
                         ComparisonRegistrationRevision(
                             comparison_set_id=comparison.id,

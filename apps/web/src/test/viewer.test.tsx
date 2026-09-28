@@ -14,6 +14,7 @@ const osdMock = vi.hoisted(() => {
   const handlers = new Map<string, () => void>()
   const viewer = {
     imageLoader: { jobLimit: 12 },
+    container: { clientWidth: 800, clientHeight: 600 },
     viewport: {
       zoomBy: vi.fn(),
       goHome: vi.fn(),
@@ -199,7 +200,12 @@ it('keeps synchronized rotation visible and resets orientation with the home han
   )
 
   expect(handle).not.toBeNull()
+  osdMock.viewer.viewport.applyConstraints.mockClear()
   act(() => handle!.setImageViewport({ centerX: 40, centerY: 30, imageZoom: 2, rotation: 90 }))
+  expect(osdMock.viewer.viewport.panTo).toHaveBeenLastCalledWith({ x: 40, y: 30 }, true)
+  expect(osdMock.viewer.viewport.zoomTo).toHaveBeenLastCalledWith(2, { x: 40, y: 30 }, true)
+  expect(osdMock.viewer.viewport.applyConstraints).not.toHaveBeenCalled()
+  expect(handle!.getImageViewport().visibleRadiusPixels).toBe(150)
   expect(screen.getByRole('button', { name: 'Open rotation controls. Current rotation 90 degrees' })).toBeInTheDocument()
 
   act(() => handle!.home())

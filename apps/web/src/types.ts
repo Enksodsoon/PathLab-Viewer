@@ -228,6 +228,7 @@ export interface SharedManifest {
 }
 
 export interface SlideRegistration {
+  overviewFallback?: SlideRegistration
   status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
   provenance: 'automatic' | 'automatic-candidate' | 'manual'
   engine?: string
@@ -282,6 +283,8 @@ export interface SlideRegistration {
     componentOrderPreserved?: boolean
     availabilityReason?: string
     withheldCheck?: string
+    hisalignLocalEvidenceQualified?: boolean
+    valisLocalEvidenceQualified?: boolean
   }
   reason?: string
 }

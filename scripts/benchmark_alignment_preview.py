@@ -82,12 +82,16 @@ def main() -> None:
                         reasons.append(str(error))
                 preparation_seconds = time.perf_counter() - start
                 accepted = 0
+                local = 0
+                approximate = 0
                 for moving in prepared[1:]:
                     try:
                         if prepared[0] is None or moving is None:
                             raise AlignmentRejected("preparation failed")
                         result = register_prepared(prepared[0], moving)
                         accepted += bool(result.overview_triangles or result.triangles)
+                        local += bool(result.status == "ready" and result.triangles)
+                        approximate += bool(result.overview_triangles and not result.triangles)
                     except AlignmentRejected as error:
                         reasons.append(str(error))
                 records.append(
@@ -100,6 +104,8 @@ def main() -> None:
                         "preparationSeconds": preparation_seconds,
                         "totalComputeSeconds": time.perf_counter() - start,
                         "acceptedOverviewPairs": accepted,
+                        "acceptedLocalPairs": local,
+                        "approximateOnlyPairs": approximate,
                         "eligiblePairs": len(prepared) - 1,
                         "sampledRssBytes": _process_rss_bytes(os.getpid()),
                         "processLifetimePeakRssBytes": _process_rss_bytes(os.getpid(), peak=True),
@@ -133,6 +139,8 @@ def main() -> None:
                         np.percentile([r["totalComputeSeconds"] for r in rows], 95)
                     ),
                     "acceptedOverviewPairs": sum(r["acceptedOverviewPairs"] for r in rows),
+                    "acceptedLocalPairs": sum(r["acceptedLocalPairs"] for r in rows),
+                    "approximateOnlyPairs": sum(r["approximateOnlyPairs"] for r in rows),
                     "eligiblePairRuns": sum(r["eligiblePairs"] for r in rows),
                     "maxSampledRssBytes": max(r["sampledRssBytes"] for r in rows),
                 }

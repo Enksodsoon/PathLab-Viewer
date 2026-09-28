@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw
 from sqlalchemy import select, text
 from wsi_viewer.alignment_engines import ENGINE_VERSIONS, settings_digest
 from wsi_viewer.config import Settings
@@ -77,6 +78,21 @@ def _headers(client: TestClient) -> dict[str, str]:
         },
     )
     return {"X-CSRF-Token": response.json()["csrfToken"]}
+
+
+def _correction_tiles(tmp_path: Path, *, blank_on_slide_2: bool = False) -> None:
+    for slide_id in ("slide-1", "slide-2", "slide-3"):
+        derivative = tmp_path / "data" / "private" / slide_id
+        tile_dir = derivative / "slide_files" / "10"
+        tile_dir.mkdir(parents=True)
+        (derivative / "slide.dzi").write_text(
+            '<Image TileSize="1024" Overlap="0" Format="jpeg">'
+            '<Size Width="1000" Height="800"/></Image>'
+        )
+        image = Image.new("RGB", (1000, 800), (180, 110, 150))
+        if blank_on_slide_2 and slide_id == "slide-2":
+            ImageDraw.Draw(image).rectangle((700, 500, 999, 799), fill="white")
+        image.save(tile_dir / "0_0.jpeg")
 
 
 def test_alignment_api_is_hidden_when_disabled(tmp_path: Path) -> None:
@@ -455,6 +471,22 @@ def test_benchmark_queues_enabled_engines_and_promotes_candidate(tmp_path: Path)
         assert stale_settings_promotion.json()["detail"]["code"] == (
             "ALIGNMENT_CANDIDATE_SETTINGS_STALE"
         )
+        unqualified_promotion = client.post(
+            url + f"/candidates/{candidate_id}/promote",
+            headers=headers,
+            json={"version": created["version"]},
+        )
+        assert unqualified_promotion.status_code == 409
+        assert unqualified_promotion.json()["detail"]["code"] == (
+            "ALIGNMENT_CANDIDATE_NOT_PROMOTABLE"
+        )
+        with session_factory(client.app.state.settings)() as database:
+            qualified = database.get(ComparisonRegistrationCandidate, candidate_id)
+            qualified.registration = {
+                **qualified.registration,
+                "evidence": {"hisalignLocalEvidenceQualified": True},
+            }
+            database.commit()
         promoted = client.post(
             url + f"/candidates/{candidate_id}/promote",
             headers=headers,
@@ -616,6 +648,7 @@ def test_shared_collection_lists_only_fully_authorized_comparisons(tmp_path: Pat
 
 
 def test_correction_preview_save_and_stale_write(tmp_path: Path) -> None:
+    _correction_tiles(tmp_path)
     with _client(tmp_path, enabled=True) as client:
         headers = _headers(client)
         created = client.post(
@@ -658,7 +691,54 @@ def test_correction_preview_save_and_stale_write(tmp_path: Path) -> None:
         assert updated.status_code == 200, updated.text
 
 
+def test_manual_correction_retains_compatible_overview_for_other_tissue(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _correction_tiles(tmp_path)
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets", headers=headers,
+            json={"name": "Manual with overview", "slideIds": ["slide-1", "slide-2"],
+                  "referenceSlideId": "slide-1"},
+        ).json()
+        overview = {
+            "status": "approximate", "provenance": "automatic",
+            "sourceVersion": "sha-2", "anchorVersion": "sha-1", "anchorSlideId": "slide-1",
+            "movingToReference": [[1, 0, 20], [0, 1, 0]],
+            "overviewTriangles": [{"moving": [[0, 0], [1000, 0], [0, 800]],
+                                   "reference": [[20, 0], [1020, 0], [20, 800]]}],
+            "engine": "native-v12", "engineVersion": ENGINE_VERSIONS["native-v12"],
+            "settingsDigest": settings_digest("native-v12"),
+        }
+        with session_factory(client.app.state.settings)() as database:
+            comparison = database.get(ComparisonSet, created["id"])
+            comparison.registrations = {"slide-2": overview}
+            database.commit()
+        endpoint = f"/api/v1/admin/comparison-sets/{created['id']}/corrections/slide-2"
+        correction = {
+            "version": created["version"], "referencePoints": [[100, 100], [500, 100], [100, 500]],
+            "movingPoints": [[120, 110], [520, 110], [120, 510]], "previewOnly": True,
+        }
+        preview = client.put(endpoint, headers=headers, json=correction)
+        assert preview.status_code == 200, preview.text
+        registration = preview.json()["members"][1]["registration"]
+        assert registration["status"] == "ready"
+        assert registration["overviewFallback"] == overview
+        assert not registration.get("overviewTriangles")
+        correction["previewOnly"] = False
+        saved = client.put(endpoint, headers=headers, json=correction)
+        assert saved.status_code == 200, saved.text
+        current = client.get(f"/api/v1/admin/comparison-sets/{created['id']}").json()
+        assert current["members"][1]["registration"]["overviewFallback"] == overview
+        monkeypatch.setitem(ENGINE_VERSIONS, "native-v12", "obsolete-overview-version")
+        current = client.get(f"/api/v1/admin/comparison-sets/{created['id']}").json()
+        assert current["members"][1]["registration"]["status"] == "ready"
+        assert "overviewFallback" not in current["members"][1]["registration"]
+
+
 def test_correction_rejects_collinear_and_out_of_bounds_points(tmp_path: Path) -> None:
+    _correction_tiles(tmp_path)
     with _client(tmp_path, enabled=True) as client:
         headers = _headers(client)
         created = client.post(
@@ -682,6 +762,33 @@ def test_correction_rejects_collinear_and_out_of_bounds_points(tmp_path: Path) -
                 },
             )
             assert response.status_code == 422
+
+
+def test_correction_rejects_a_blank_glass_landmark(tmp_path: Path) -> None:
+    _correction_tiles(tmp_path, blank_on_slide_2=True)
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={
+                "name": "Glass point",
+                "slideIds": ["slide-1", "slide-2"],
+                "referenceSlideId": "slide-1",
+            },
+        ).json()
+        response = client.put(
+            f"/api/v1/admin/comparison-sets/{created['id']}/corrections/slide-2",
+            headers=headers,
+            json={
+                "version": created["version"],
+                "referencePoints": [[100, 100], [500, 100], [800, 600]],
+                "movingPoints": [[100, 100], [500, 100], [800, 600]],
+                "previewOnly": True,
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]["code"] == "LANDMARK_ON_GLASS"
 
 
 def test_engine_upgrade_invalidates_saved_map_and_requeues_completed_pair(tmp_path, monkeypatch):
@@ -734,3 +841,30 @@ def test_engine_upgrade_invalidates_saved_map_and_requeues_completed_pair(tmp_pa
         assert client.post(endpoint + "/register", headers=headers).json()["queuedPairs"] == 0
         with session_factory(client.app.state.settings)() as database:
             assert database.query(Job).filter(Job.kind == "align").count() == 3
+
+
+def test_saved_map_is_hidden_when_slides_have_different_case_ids(tmp_path: Path) -> None:
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        created = client.post(
+            "/api/v1/admin/comparison-sets",
+            headers=headers,
+            json={"name": "Cross-case", "slideIds": ["slide-1", "slide-2"],
+                  "referenceSlideId": "slide-1"},
+        ).json()
+        with session_factory(client.app.state.settings)() as database:
+            database.get(Slide, "slide-1").case_id = "Case A"
+            database.get(Slide, "slide-2").case_id = "Case B"
+            comparison = database.get(ComparisonSet, created["id"])
+            comparison.registrations = {"slide-2": {
+                "status": "approximate", "movingToReference": [[1, 0, 2], [0, 1, 3]],
+                "overviewTriangles": [{"moving": [[0, 0], [1, 0], [0, 1]],
+                                       "reference": [[2, 3], [3, 3], [2, 4]]}],
+            }}
+            database.commit()
+        registration = client.get(
+            f"/api/v1/admin/comparison-sets/{created['id']}"
+        ).json()["members"][1]["registration"]
+        assert registration["status"] == "rejected"
+        assert registration["movingToReference"] is None
+        assert registration["overviewTriangles"] == []

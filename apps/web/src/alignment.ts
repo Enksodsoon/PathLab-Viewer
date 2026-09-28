@@ -10,6 +10,7 @@ export interface RegistrationTriangle {
 }
 
 export interface LocalRegistration {
+  overviewFallback?: LocalRegistration
   movingToReference?: AffineTransform
   controlPoints?: Array<{ moving: Point; reference: Point; errorPixels: number }>
   triangles?: RegistrationTriangle[]
@@ -104,6 +105,7 @@ export function mapStackPoint(
   point: Point, sourceId: string, targetId: string, referenceId: string,
   members: Array<{ slideId: string; registration?: StackRegistration | null }>,
   mode: 'best' | 'strict' | 'overview' = 'best',
+  visibleRadiusPixels = 0,
 ): { point: Point; rotation: number; zoomScale: number; approximate: boolean } | null {
   const byId = new Map(members.map(member => [member.slideId, member]))
   const chain = (id: string) => {
@@ -134,6 +136,17 @@ export function mapStackPoint(
         mapped = mapRegistrationPointUsing(result.point, registration, registration.overviewTriangles, backwards)
       } else if (registration.status === 'approximate') {
         mapped = mapOverviewRegistrationPoint(result.point, registration, backwards)
+      }
+      if (!mapped && registration.overviewFallback?.movingToReference) {
+        mapped = mapRegistrationPointUsing(result.point, registration.overviewFallback,
+          registration.overviewFallback.overviewTriangles, backwards)
+      }
+      // Prefer supported cells from either mesh before crossing a short glass gap.
+      if (!mapped && registration.overviewTriangles?.length) {
+        mapped = mapUsingNearbyCell(result.point, registration.overviewTriangles, backwards, 1, visibleRadiusPixels / result.zoomScale)
+      }
+      if (!mapped && registration.overviewFallback?.overviewTriangles?.length) {
+        mapped = mapUsingNearbyCell(result.point, registration.overviewFallback.overviewTriangles, backwards, 1, visibleRadiusPixels / result.zoomScale)
       }
     }
     if (!mapped) return false
@@ -167,6 +180,7 @@ function mapUsingNearbyCell(
   triangles: RegistrationTriangle[],
   backwards: boolean,
   maximumEdgeMultiples: number | null = null,
+  visibleRadiusPixels = 0,
 ): { point: Point; linear: AffineTransform } | null {
   let candidate: RegistrationTriangle | null = null
   let candidateDistanceSquared = Number.POSITIVE_INFINITY
@@ -193,7 +207,8 @@ function mapUsingNearbyCell(
       (source[1][0] - source[2][0]) ** 2 + (source[1][1] - source[2][1]) ** 2,
       (source[2][0] - source[0][0]) ** 2 + (source[2][1] - source[0][1]) ** 2,
     )
-    if (candidateDistanceSquared > longestEdgeSquared * maximumEdgeMultiples ** 2) return null
+    const radiusSquared = Number.isFinite(visibleRadiusPixels) && visibleRadiusPixels > 0 ? visibleRadiusPixels ** 2 : 0
+    if (candidateDistanceSquared > Math.max(longestEdgeSquared * maximumEdgeMultiples ** 2, radiusSquared)) return null
   }
   const target = backwards ? candidate.moving : candidate.reference
   const matrix = triangleLinear(source, target)
