@@ -155,7 +155,11 @@ export function OpenSeadragonViewer({
       if (!rotationControl.current?.contains(event.target as Node)) setRotationOpen(false)
     }
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setRotationOpen(false)
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        setRotationOpen(false)
+      }
     }
     document.addEventListener('pointerdown', closeOnOutsidePress)
     document.addEventListener('keydown', closeOnEscape)

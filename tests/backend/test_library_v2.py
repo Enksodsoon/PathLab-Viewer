@@ -373,6 +373,14 @@ def test_collections_are_many_to_many_and_keep_manual_order(tmp_path: Path) -> N
             params={"location": f"collection:{collection_id}", "sort": "manual"},
         ).json()["items"]
         assert [item["id"] for item in items] == ["slide-b", "slide-a"]
+        details = client.get("/api/v2/admin/slides/slide-a").json()
+        assert details["collections"] == [{"id": collection_id, "name": "Week 5"}]
+        removed = client.request(
+            "DELETE", f"/api/v2/admin/collections/{collection_id}/items",
+            headers=headers, json={"slideIds": ["slide-a"]},
+        )
+        assert removed.status_code == 200
+        assert client.get("/api/v2/admin/slides/slide-a").json()["collections"] == []
 
 
 @pytest.mark.parametrize("filters", [

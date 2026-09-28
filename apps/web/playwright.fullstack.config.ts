@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import path from 'node:path'
 
 const baseURL = process.env.PATHLAB_E2E_BASE_URL
 const browser = process.env.PATHLAB_E2E_BROWSER ?? 'chromium'
@@ -16,10 +17,12 @@ if (!baseURL || new URL(baseURL).hostname !== '127.0.0.1'
 
 export default defineConfig({
   testDir: './e2e-fullstack',
-  outputDir: process.env.PATHLAB_E2E_OUTPUT_DIR,
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  outputDir: process.env.PATHLAB_E2E_OUTPUT_DIR
+    ?? (process.env.PATHLAB_E2E_REPORT_DIR
+      ? path.join(process.env.PATHLAB_E2E_REPORT_DIR, 'browser-artifacts') : undefined),
   timeout: 180_000,
   reporter: 'line',
   expect: { timeout: 10_000 },

@@ -63,10 +63,10 @@
       "sizeBytes": 485
     },
     {
-      "gitBlob": "d29be1a97981e05a7f41b7f534175b0863940b16",
+      "gitBlob": "60def65c6c6dc1cefc5fbdab721af0e7cbb79e3e",
       "path": "pnpm-lock.yaml",
-      "sha256": "c97e9cfde59e620ea68684d8e3ae04fe732ba7831202c139bbdf99699b38d844",
-      "sizeBytes": 133470
+      "sha256": "f22645c3007bed6ffae98a2b5a174fa5d02f4256ff3e9420b102eed28418a027",
+      "sizeBytes": 134356
     },
     {
       "gitBlob": "7b9dc1c4823da15ec67d7cce449c227f5ae88afa",
@@ -75,10 +75,10 @@
       "sizeBytes": 1911
     },
     {
-      "gitBlob": "e0fea267db680410d773f5c918642bbad8c1ebaa",
+      "gitBlob": "225bc78e696b41389c8e3132753b0372af5cedd5",
       "path": "apps/web/package.json",
-      "sha256": "a074d71e0fb50dbc2f72fc12a062b2f9ba3c52261626c19d7dd1bd5f9cc80e7d",
-      "sizeBytes": 1765
+      "sha256": "42c524c106b115bc988917401944bcbaa0f24b41f2d19ce4a899f6b1467783c0",
+      "sizeBytes": 1804
     },
     {
       "gitBlob": "473f3828fcc96fb1c3b866561f52e04cdef772e0",

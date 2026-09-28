@@ -1132,6 +1132,50 @@
       "version": "8.3.2"
     },
     {
+      "bom-ref": "dependency:npm:@axe-core/playwright@4.13.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.13.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/@axe-core%2Fplaywright/4.13.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "name": "@axe-core/playwright",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:@axe-core/playwright@4.13.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "excluded-lock-entry"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "not-bundled-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/%40axe-core%2Fplaywright@4.13.0",
+      "type": "library",
+      "version": "4.13.0"
+    },
+    {
       "bom-ref": "dependency:npm:@babel/code-frame@7.29.7",
       "externalReferences": [
         {
@@ -8522,6 +8566,50 @@
       "purl": "pkg:npm/async@3.2.6",
       "type": "library",
       "version": "3.2.6"
+    },
+    {
+      "bom-ref": "dependency:npm:axe-core@4.13.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/axe-core/4.13.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "name": "axe-core",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:axe-core@4.13.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "excluded-lock-entry"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "not-bundled-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/axe-core@4.13.0",
+      "type": "library",
+      "version": "4.13.0"
     },
     {
       "bom-ref": "dependency:npm:b4a@1.8.1",
@@ -27147,6 +27235,7 @@
         "dependency:npm:@adobe/css-tools@4.5.0",
         "dependency:npm:@asamuzakjp/css-color@6.0.7",
         "dependency:npm:@asamuzakjp/dom-selector@8.3.2",
+        "dependency:npm:@axe-core/playwright@4.13.0",
         "dependency:npm:@babel/code-frame@7.29.7",
         "dependency:npm:@babel/compat-data@7.29.7",
         "dependency:npm:@babel/core@7.29.7",
@@ -27315,6 +27404,7 @@
         "dependency:npm:aria-query@5.3.2",
         "dependency:npm:assertion-error@2.0.1",
         "dependency:npm:async@3.2.6",
+        "dependency:npm:axe-core@4.13.0",
         "dependency:npm:b4a@1.8.1",
         "dependency:npm:balanced-match@4.0.4",
         "dependency:npm:bare-events@2.9.2",
@@ -27842,6 +27932,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:@asamuzakjp/dom-selector@8.3.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:@axe-core/playwright@4.13.0"
     },
     {
       "dependsOn": [],
@@ -28514,6 +28608,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:async@3.2.6"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:axe-core@4.13.0"
     },
     {
       "dependsOn": [],

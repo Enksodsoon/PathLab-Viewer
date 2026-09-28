@@ -1397,9 +1397,7 @@ button.library-storage-meter:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-elevated);
-  content-visibility:auto;
   contain:layout paint style;
-  contain-intrinsic-size:360px;
 }
 
 .library-slide-card:hover {
@@ -2082,10 +2080,12 @@ button.library-storage-meter:focus-visible {
   position: fixed;
   z-index: 1000;
   width: min(248px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
   max-height: calc(100dvh - 16px);
-  overflow-y: auto;
   display: grid;
   gap: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 7px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
@@ -3326,7 +3326,7 @@ button.library-storage-meter:focus-visible {
 
   .library-command-actions {
     display: grid;
-    grid-template-columns: 44px minmax(94px, 1fr) 68px 44px 44px;
+    grid-template-columns: 44px minmax(94px, 1fr) 84px 44px;
     gap: 7px;
     overflow: visible;
   }
@@ -3365,8 +3365,8 @@ button.library-storage-meter:focus-visible {
   }
 
   .mobile-view-select {
-    width: 68px;
-    min-width: 68px;
+    width: 84px;
+    min-width: 84px;
     display: block;
   }
 

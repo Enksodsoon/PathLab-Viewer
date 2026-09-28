@@ -1901,7 +1901,7 @@ def test_upload_token_renewal_preserves_reservation_and_authorization(tmp_path: 
         assert client.post(endpoint, headers=headers).status_code == 409
 
 
-def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> None:
+def test_completed_upload_persists_non_tiff_rejection(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         csrf = _login(client)
         settings = client.app.state.settings

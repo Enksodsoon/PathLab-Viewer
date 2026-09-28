@@ -138,6 +138,11 @@ ALLOWED_EMAIL_DOMAINS = {
 ALLOWED_EXACT_EMAILS = {"noreply@github.com"}
 ALLOWED_RESERVED_EMAIL_SUFFIXES = (".example", ".invalid", ".test")
 LOCK_NAMES = {"pnpm-lock.yaml", "package-lock.json", "yarn.lock"}
+PNPM_PATCH_REFERENCE_LINES = {
+    "pnpm-workspace.yaml": {
+        "  openseadragon@6.1.0: patches/openseadragon@6.1.0.patch",
+    }
+}
 
 Finding = tuple[str, int, str]
 
@@ -400,11 +405,13 @@ def scan_text(relative: str, text: str, *, label: str | None = None) -> list[Fin
             legal_notice = relative in PUBLIC_LEGAL_EMAIL_LINES.get(
                 hashlib.sha256(line.strip().encode("utf-8")).hexdigest(), []
             )
+            pnpm_patch_reference = line in PNPM_PATCH_REFERENCE_LINES.get(relative, set())
             if (
                 not is_allowed_email(email)
                 and not public_registry_notice
                 and not historical_fixture
                 and not legal_notice
+                and not pnpm_patch_reference
             ):
                 findings.append((display, line_number, "non-example email address"))
         for match in IPV4_PATTERN.finditer(line):

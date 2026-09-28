@@ -266,6 +266,8 @@ export function AdminPage() {
   const [details, setDetails] = useState<LibrarySlideDetails | LibrarySlide | null>(null)
   const [quickLook, setQuickLook] = useState<LibrarySlide | null>(null)
   const [dialog, setDialog] = useState<DialogName>(null)
+  const actionInFlight = useRef(false)
+  const [actionBusy, setActionBusy] = useState(false)
   const [singleActionSlide, setSingleActionSlide] = useState<LibrarySlide | null>(null)
   useEffect(() => { if (dialog === null) setSingleActionSlide(null) }, [dialog])
   const [securityOpen, setSecurityOpen] = useState(false)
@@ -277,8 +279,6 @@ export function AdminPage() {
   const [publishBusy, setPublishBusy] = useState(false)
   const [visible, setVisible] = useState(() => document.visibilityState !== 'hidden')
   const [formName, setFormName] = useState('')
-  const [actionBusy, setActionBusy] = useState(false)
-  const actionInFlight = useRef(false)
   const [formDescription, setFormDescription] = useState('')
   const [moveTarget, setMoveTarget] = useState('')
   const [folderTarget, setFolderTarget] = useState<LibraryFolder | null>(null)
@@ -1222,6 +1222,7 @@ export function AdminPage() {
 
   function addUploadFiles(files: File[]) {
     enqueueFiles(files, location.startsWith('folder:') ? location.slice('folder:'.length) : null)
+
   }
 
   function endSession(message = '') {

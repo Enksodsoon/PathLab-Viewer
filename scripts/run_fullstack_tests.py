@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import secrets
@@ -398,6 +399,7 @@ def isolated_environment(directory: Path) -> dict[str, str]:
             "PATHLAB_SERVE_PUBLIC_TILES": "true",
             "PATHLAB_CLASSROOM_ENABLED": "true",
             "PATHLAB_ASSESSMENT_ENABLED": "true",
+            "PATHLAB_STUDY_MODE_ENABLED": "true",
             "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED": "true",
             "PATHLAB_ALIGNMENT_ENABLED": "true",
             "PATHLAB_WORKER_HEARTBEAT_PATH": str(directory / "worker-heartbeat.json"),
@@ -437,6 +439,8 @@ def local_caddyfile(
     body = body.replace("{$PATHLAB_ASSESSMENT_SERVICE_URL}", f"http://127.0.0.1:{api_port}")
     delivery = (directory / "data/delivery/individual").as_posix()
     body = body.replace("/pathlab-individual", f'"{delivery}"')
+    assessment = (directory / "data/delivery/assessment").as_posix()
+    body = body.replace("/pathlab-assessment", f'"{assessment}"')
     return (
         "{\n admin off\n auto_https off\n}\n"
         f"http://127.0.0.1:{edge_port} {{\n bind 127.0.0.1\n"
@@ -476,7 +480,10 @@ def main() -> int:
         help="Keep browser evidence outside the repository",
     )
     parser.add_argument("--grep", help="Run only matching browser journeys")
+    parser.add_argument("--stress", action="store_true", help="Run the isolated stress campaign")
     args = parser.parse_args()
+    if args.stress and not args.report_dir:
+        parser.error("--stress requires --report-dir to retain campaign evidence")
     if not args.tusd or not args.pnpm or not args.caddy:
         parser.error("tusd, pnpm and caddy must be installed or supplied by absolute path")
     with tempfile.TemporaryDirectory(prefix="pathlab-fullstack-") as temporary:
@@ -487,6 +494,7 @@ def main() -> int:
             parser.error("--report-dir must be outside the repository")
         report_dir.mkdir(parents=True, exist_ok=True)
         env["PATHLAB_E2E_BROWSER"] = args.browser
+        env["PATHLAB_E2E_STRESS"] = "1" if args.stress else "0"
         env["PATHLAB_E2E_OUTPUT_DIR"] = str(report_dir / "results")
         env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(report_dir / "results.json")
         api_port, tus_port, web_port, tile_port, edge_port = reserve_ports(5)
@@ -550,6 +558,34 @@ def main() -> int:
                 timeout=120,
             )
             manager.run("build", [args.pnpm, "--dir", str(ROOT / "apps/web"), "build"], timeout=600)
+            if args.report_dir:
+                provenance = {
+                    "commit": subprocess.check_output(
+                        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+                    ).strip(),
+                    "diff_sha256": hashlib.sha256(
+                        subprocess.check_output(["git", "diff", "HEAD"], cwd=ROOT)
+                    ).hexdigest(),
+                    "browser": args.browser,
+                    "platform": sys.platform,
+                    "python": sys.version,
+                    "database": "disposable SQLite",
+                    "features": {
+                        key: env[key]
+                        for key in (
+                            "PATHLAB_CLASSROOM_ENABLED",
+                            "PATHLAB_ASSESSMENT_ENABLED",
+                            "PATHLAB_ADMIN_ANNOTATION_CANARY_ENABLED",
+                        )
+                    },
+                    "bundle_sha256": {
+                        file.name: hashlib.sha256(file.read_bytes()).hexdigest()
+                        for file in sorted((ROOT / "apps/web/dist/assets").glob("*.js"))
+                    },
+                }
+                (args.report_dir / "run-environment.json").write_text(
+                    json.dumps(provenance, indent=2), encoding="utf-8"
+                )
 
             def service(name: str, command: list[str]) -> ManagedProcess:
                 owned = manager.start(name, command)
@@ -645,7 +681,7 @@ def main() -> int:
                     "--reporter=line,json",
                     *(["--grep", args.grep] if args.grep else []),
                 ],
-                timeout=600,
+                timeout=4200 if args.stress else 900,
             )
             if any(process.poll() is not None for process in services):
                 raise RuntimeError("An isolated service stopped during the browser journey")

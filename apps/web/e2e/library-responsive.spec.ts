@@ -49,6 +49,15 @@ const slide = {
 }
 
 async function mockLibrary(page: Page) {
+  await page.route('**/api/v2/admin/library/facets**', (route) => route.fulfill({
+    json: { organ: [{ value: 'Colon', count: 2 }], stain: [{ value: 'H&E', count: 2 }],
+      diagnosis: [{ value: 'Adenocarcinoma', count: 2 }], course: [{ value: 'Core pathology', count: 2 }] },
+  }))
+  await page.route('**/api/v2/admin/shares', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/v2/admin/shares/preview**', (route) => route.fulfill({
+    json: { targetType: 'folder', targetId: 'folder-organs', name: 'Organ systems',
+      description: '', included: [{ id: slide.id, displayName: slide.displayName }], excluded: [] },
+  }))
   await page.route('**/api/v2/admin/library/navigation**', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify(navigation),
@@ -162,6 +171,21 @@ test('keeps controls readable and non-overlapping across every layout boundary',
     const searchBox = await page.locator('.library-search').boundingBox()
     expect(searchBox?.height, `search control expanded vertically at ${width}px`).toBeLessThanOrEqual(56)
     if (width <= 600) {
+      // Native selects reserve an arrow in addition to CSS padding. Keep the
+      // longest layout label readable, rather than merely checking overflow.
+      const viewSelect = page.getByRole('combobox', { name: 'View slides', exact: true })
+      await viewSelect.selectOption('table')
+      const textFits = await viewSelect.evaluate((element) => {
+        const select = element as HTMLSelectElement
+        const style = getComputedStyle(select)
+        const context = document.createElement('canvas').getContext('2d')!
+        context.font = style.font
+        const labelWidth = context.measureText(select.selectedOptions[0].text).width
+        return select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+          >= labelWidth + 17
+      })
+      expect(textFits, `layout label clipped at ${width}px`).toBe(true)
+      await viewSelect.selectOption('grid')
       const selects = page.locator('.library-command-actions select')
       const boxes = await selects.evaluateAll((elements) => elements.map((element) => {
         const box = element.getBoundingClientRect()

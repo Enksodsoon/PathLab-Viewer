@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './qa-test'
 
 // This intentionally exhausts shared login admission; run after signed-in journeys.
 

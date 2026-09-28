@@ -81,6 +81,7 @@ export function ContextMenu({
     else if (event.key === 'End') next = items.length - 1
     else if (event.key === 'Escape') {
       event.preventDefault()
+      event.stopPropagation()
       close()
       return
     } else return

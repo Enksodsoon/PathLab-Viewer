@@ -662,6 +662,33 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
+      "artifact": "https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.13.0.tgz",
+      "blockers": [],
+      "checksum": "sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==",
+      "checksumVerified": true,
+      "distribution": "not-bundled-tooling",
+      "ecosystem": "npm",
+      "id": "npm:@axe-core/playwright@4.13.0",
+      "license": "MPL-2.0",
+      "manifestRefs": [
+        "pnpm-lock.yaml"
+      ],
+      "metadataSha256": "2d41cb31dfd3867c563d77d3592ee4ce66074da5600873623798e5abf9dd040e",
+      "name": "@axe-core/playwright",
+      "noticeFiles": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "812e9d96e900a093ae4d1d3f22c5f82f568a0a0461c3007a99d00573d41c5461"
+        }
+      ],
+      "optional": true,
+      "purpose": "web dependency resolved from pnpm-lock.yaml",
+      "role": "excluded-lock-entry",
+      "source": "https://registry.npmjs.org/@axe-core%2Fplaywright/4.13.0",
+      "version": "4.13.0"
+    },
+    {
+      "admission": "RECORDED_UNREVIEWED",
       "artifact": "https://registry.npmjs.org/@babel/code-frame/-/code-frame-7.29.7.tgz",
       "blockers": [],
       "checksum": "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==",
@@ -5064,6 +5091,37 @@
       "role": "runtime-mandatory",
       "source": "https://registry.npmjs.org/async/3.2.6",
       "version": "3.2.6"
+    },
+    {
+      "admission": "RECORDED_UNREVIEWED",
+      "artifact": "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz",
+      "blockers": [],
+      "checksum": "sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==",
+      "checksumVerified": true,
+      "distribution": "not-bundled-tooling",
+      "ecosystem": "npm",
+      "id": "npm:axe-core@4.13.0",
+      "license": "MPL-2.0",
+      "manifestRefs": [
+        "pnpm-lock.yaml"
+      ],
+      "metadataSha256": "3fd7b4d40a620eba144f75f50d3f41ba6e4c95dddeaf2628c38b4a814dfa7ec0",
+      "name": "axe-core",
+      "noticeFiles": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "af175b9d96ee93c21a036152e1b905b0b95304d4ae8c2c921c7609100ba8df7e"
+        },
+        {
+          "path": "package/LICENSE-3RD-PARTY.txt",
+          "sha256": "4f8563870d0fca38bbc3e00b6f670cb7fa9f380ba9f26a7f7d1184a6b18b1653"
+        }
+      ],
+      "optional": true,
+      "purpose": "web dependency resolved from pnpm-lock.yaml",
+      "role": "excluded-lock-entry",
+      "source": "https://registry.npmjs.org/axe-core/4.13.0",
+      "version": "4.13.0"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -17907,9 +17965,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "d29be1a97981e05a7f41b7f534175b0863940b16",
+      "gitBlob": "60def65c6c6dc1cefc5fbdab721af0e7cbb79e3e",
       "path": "pnpm-lock.yaml",
-      "sha256": "c97e9cfde59e620ea68684d8e3ae04fe732ba7831202c139bbdf99699b38d844"
+      "sha256": "f22645c3007bed6ffae98a2b5a174fa5d02f4256ff3e9420b102eed28418a027"
     },
     {
       "gitBlob": "473f3828fcc96fb1c3b866561f52e04cdef772e0",

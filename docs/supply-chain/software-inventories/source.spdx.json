@@ -512,6 +512,24 @@
       "versionInfo": "8.3.2"
     },
     {
+      "SPDXID": "SPDXRef-b2b34c318d235f1baaa686de",
+      "comment": "{\"admission\":\"RECORDED_UNREVIEWED\",\"blockers\":[],\"distribution\":\"not-bundled-tooling\",\"kind\":\"dependency\",\"pathlabId\":\"npm:@axe-core/playwright@4.13.0\",\"recordedLicense\":\"MPL-2.0\",\"role\":\"excluded-lock-entry\"}",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.13.0.tgz",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:npm/%40axe-core%2Fplaywright@4.13.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MPL-2.0",
+      "name": "@axe-core/playwright",
+      "versionInfo": "4.13.0"
+    },
+    {
       "SPDXID": "SPDXRef-af63199d86b5070468d9e47a",
       "comment": "{\"admission\":\"RECORDED_UNREVIEWED\",\"blockers\":[],\"distribution\":\"not-bundled-tooling\",\"kind\":\"dependency\",\"pathlabId\":\"npm:@babel/code-frame@7.29.7\",\"recordedLicense\":\"MIT\",\"role\":\"build-only\"}",
       "copyrightText": "NOASSERTION",
@@ -3534,6 +3552,24 @@
       "licenseDeclared": "MIT",
       "name": "async",
       "versionInfo": "3.2.6"
+    },
+    {
+      "SPDXID": "SPDXRef-2e0d620155b484b345dd3465",
+      "comment": "{\"admission\":\"RECORDED_UNREVIEWED\",\"blockers\":[],\"distribution\":\"not-bundled-tooling\",\"kind\":\"dependency\",\"pathlabId\":\"npm:axe-core@4.13.0\",\"recordedLicense\":\"MPL-2.0\",\"role\":\"excluded-lock-entry\"}",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:npm/axe-core@4.13.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MPL-2.0",
+      "name": "axe-core",
+      "versionInfo": "4.13.0"
     },
     {
       "SPDXID": "SPDXRef-92c30a3f40c5a06b6afed3f0",

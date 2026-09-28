@@ -36,6 +36,7 @@ const STATUS: Record<LibrarySlide['state'], string> = {
 }
 
 const FAILURE_EXPLANATIONS: Record<string, string> = {
+  INVALID_TIFF_SIGNATURE: 'This file is not a valid TIFF. Check the source and upload a valid OME-TIFF file.',
   DECOMPRESSION_FAILED: 'The image data could not be decoded.',
   INVALID_IMAGEJ_METADATA: 'The ImageJ dimensions are invalid or inconsistent.',
   INVALID_OME_XML: 'The file does not contain valid OME metadata.',

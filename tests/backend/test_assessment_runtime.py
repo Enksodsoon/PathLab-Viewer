@@ -344,6 +344,7 @@ def test_student_session_restore_logout_and_stale_save_reconciliation(tmp_path: 
         headers={**student_headers, "Idempotency-Key": "restore-start"},
     ).json()
     attempt_id = attempt["id"]
+    assert datetime.fromisoformat(attempt["startedAt"]).tzinfo is not None
     saved = client.patch(
         f"/api/v2/assessment/attempts/{attempt_id}/responses",
         headers={**student_headers, "Idempotency-Key": "newer-save"},

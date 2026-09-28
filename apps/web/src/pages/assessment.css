@@ -311,6 +311,7 @@
 @media (max-width: 520px) {
   .assessment-studio-header { width: calc(100% - 20px); }
   .assessment-studio-meta { flex-wrap: wrap; row-gap: 4px; }
+  .assessment-studio-meta .assessment-save-state { display: inline-flex; flex-basis: 100%; border-left: 0; white-space: normal; }
   .assessment-studio-header .assessment-tabs { gap: 18px; }
   .assessment-question-workspace { padding: 10px 10px 86px; }
   .assessment-authoring-actions .assessment-toolbar-add { display: none; }
@@ -1396,7 +1397,7 @@ main.assessment-main > label select {
   font-weight: 650;
   text-decoration: none;
 }
-.assessment-workspace-nav a.active { border-color: var(--primary); color: var(--primary); }
+.assessment-workspace-nav a.active { border-color: var(--primary); color: var(--ink); }
 
 .assessment-table-wrap { overflow: hidden; border-bottom: 1px solid var(--border); container: assessment-list / inline-size; }
 .assessment-table { width: 100%; border-collapse: collapse; table-layout: fixed; }

@@ -931,6 +931,20 @@ describe('Canvas Focus library explorer', () => {
     )).toBe(true)
   })
 
+  it('preserves storage navigation while a search debounce completes', async () => {
+    render(<AdminPage />, { wrapper: MemoryRouter })
+    await screen.findAllByText('Colon adenocarcinoma')
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'lung' } })
+    fireEvent.click(screen.getByRole('button', { name: /open storage/i }))
+    await screen.findByRole('heading', { name: /^storage$/i })
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)) })
+    expect(screen.getByRole('heading', { name: /^storage$/i })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: /back to slide library/i }))
+    await waitFor(() => expect(api.getLibraryItems).toHaveBeenCalledWith(
+      expect.objectContaining({ q: 'lung' }),
+    ))
+  })
+
   it('polls only active slide IDs and stops while hidden', async () => {
     vi.useFakeTimers()
     let visibility: DocumentVisibilityState = 'visible'

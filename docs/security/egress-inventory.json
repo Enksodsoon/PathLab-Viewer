@@ -4,6 +4,7 @@
   "rules": [
     {"glob":".github/workflows/*","class":"HOSTED_VALIDATION_OR_DEPLOY_CONTROL","environment":"HOSTED_NON_AUTHORITATIVE","defaultDenyTarget":"P0-T09 and P1-T20: authoritative build stays offline; deployment permits only exact GitHub/OCI endpoints during an approved operation","ownerTasks":["P0-T09","P1-T20"]},
     {"glob":"apps/web/e2e/*","class":"TEST_ONLY_NETWORK_FIXTURE","environment":"TEST_ONLY","defaultDenyTarget":"Excluded from production artifact; test origin is explicit and synthetic","ownerTasks":["P7-G01"]},
+    {"glob":"apps/web/e2e-fullstack/*","class":"TEST_ONLY_NETWORK_FIXTURE","environment":"TEST_ONLY","defaultDenyTarget":"Excluded from production artifact; isolated full-stack browser tests use synthetic data and loopback services","ownerTasks":["P7-G01"]},
     {"glob":"apps/web/*.config.ts","class":"TEST_OR_BUILD_ORIGIN","environment":"BUILD_OR_TEST","defaultDenyTarget":"Authoritative build runs offline; browser tests permit only declared local fixture origin","ownerTasks":["P0-T09","P7-G01"]},
     {"glob":"apps/web/src/*","class":"SAME_ORIGIN_BROWSER_REQUEST","environment":"PRODUCTION_BROWSER","defaultDenyTarget":"CSP and connect-src admit only same-origin application endpoints unless a later task declares a purpose-bound exception","ownerTasks":["P1-T20","P3-T18"]},
     {"glob":"deploy/Dockerfile.*","class":"BUILD_INPUT_ACQUISITION","environment":"IMAGE_BUILD","defaultDenyTarget":"P0-T09 mirrors every input; authoritative build executes with network disabled","ownerTasks":["P0-T09"]},
