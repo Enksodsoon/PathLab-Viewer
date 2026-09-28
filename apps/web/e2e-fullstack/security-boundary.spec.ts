@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './qa-test'
 
 test('edge blocks internal routes and rejects oversized JSON before authentication', async ({ request }) => {
   expect((await request.get('/api/v1/internal/uploads/admission')).status()).toBe(404)

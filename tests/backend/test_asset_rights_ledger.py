@@ -22,7 +22,7 @@ from scripts.validate_asset_rights_ledger import (
     validate_subject_paths,
 )
 
-SUBJECT = "929e561db7820e48b24f26fda165ffcaabfb0049"
+SUBJECT = "fa0d3283cf04f3396ac2a8146b683ac5232761e3"
 
 
 def test_exact_restored_assets_are_admitted_after_owner_approval() -> None:

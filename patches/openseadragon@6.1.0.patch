@@ -1,0 +1,22 @@
+diff --git a/build/openseadragon/openseadragon.js b/build/openseadragon/openseadragon.js
+index f75dc017105b3ba04a0abb83683b2ddfb10829aa..845ee1a7992c4178a10bfb80709e148c6a2e6175 100644
+--- a/build/openseadragon/openseadragon.js
++++ b/build/openseadragon/openseadragon.js
+@@ -26589,7 +26589,7 @@ function determineSubPixelRoundingRule(subPixelRoundingRules) {
+ 
+             let data = cache.data;
+             let isCanvas = false;
+-            if (data instanceof CanvasRenderingContext2D || data instanceof OffscreenCanvasRenderingContext2D) {
++            if (data instanceof CanvasRenderingContext2D || (typeof OffscreenCanvasRenderingContext2D !== 'undefined' && data instanceof OffscreenCanvasRenderingContext2D)) {
+                 data = data.canvas;
+                 isCanvas = true;
+             }
+@@ -26660,7 +26660,7 @@ function determineSubPixelRoundingRule(subPixelRoundingRules) {
+                 context.drawImage( data, 0, 0 );
+                 data = context;
+             }
+-            if (data instanceof CanvasRenderingContext2D || data instanceof OffscreenCanvasRenderingContext2D ) {
++            if (data instanceof CanvasRenderingContext2D || (typeof OffscreenCanvasRenderingContext2D !== 'undefined' && data instanceof OffscreenCanvasRenderingContext2D) ) {
+                 return data;
+             }
+             $.console.error("Unsupported data used for WebGL Drawer - probably a bug!");

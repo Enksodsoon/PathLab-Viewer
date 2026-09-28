@@ -6,12 +6,13 @@ const libraryCss = normalizeNewlines(readFileSync('src/library.css', 'utf8'))
 const globalCss = normalizeNewlines(readFileSync('src/styles.css', 'utf8'))
 
 describe('library rendering performance contract', () => {
-  it('avoids persistent blur layers and isolates off-screen slide cards', () => {
+  it('avoids persistent blur layers and contains card painting without deferred layout', () => {
     expect(libraryCss).not.toContain('backdrop-filter:blur(14px)')
     expect(libraryCss).not.toContain('backdrop-filter:blur(8px)')
-    expect(libraryCss).toContain('content-visibility:auto')
+    // Deferred card heights shifted the pagination button during a Firefox click.
+    // The real-backend scale journey verifies pointer activation on 1,000 records.
+    expect(libraryCss).not.toContain('content-visibility:auto')
     expect(libraryCss).toContain('contain:layout paint style')
-    expect(libraryCss).toContain('contain-intrinsic-size:')
   })
 
   it('keeps every representative mobile action at least 44 pixels tall', () => {

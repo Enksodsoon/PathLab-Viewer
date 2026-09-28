@@ -764,7 +764,7 @@ for (const publicRoute of [
     await page.goto(publicRoute.path)
     const payload = await (await publicResponse).json() as unknown
 
-    await expect(page.getByText('Public teaching slide', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Public teaching slide', { exact: true }).filter({ visible: true }).first()).toBeVisible()
     await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toHaveCount(0)
     await expect(page.getByText('Annotations', { exact: true })).toHaveCount(0)
 

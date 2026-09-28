@@ -1132,6 +1132,50 @@
       "version": "8.3.2"
     },
     {
+      "bom-ref": "dependency:npm:@axe-core/playwright@4.13.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.13.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/@axe-core%2Fplaywright/4.13.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "name": "@axe-core/playwright",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:@axe-core/playwright@4.13.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "excluded-lock-entry"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "not-bundled-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/%40axe-core%2Fplaywright@4.13.0",
+      "type": "library",
+      "version": "4.13.0"
+    },
+    {
       "bom-ref": "dependency:npm:@babel/code-frame@7.29.7",
       "externalReferences": [
         {
@@ -8522,6 +8566,50 @@
       "purl": "pkg:npm/async@3.2.6",
       "type": "library",
       "version": "3.2.6"
+    },
+    {
+      "bom-ref": "dependency:npm:axe-core@4.13.0",
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "https://registry.npmjs.org/axe-core/4.13.0"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MPL-2.0"
+        }
+      ],
+      "name": "axe-core",
+      "properties": [
+        {
+          "name": "pathlab:id",
+          "value": "npm:axe-core@4.13.0"
+        },
+        {
+          "name": "pathlab:role",
+          "value": "excluded-lock-entry"
+        },
+        {
+          "name": "pathlab:distribution",
+          "value": "not-bundled-tooling"
+        },
+        {
+          "name": "pathlab:admission",
+          "value": "RECORDED_UNREVIEWED"
+        },
+        {
+          "name": "pathlab:blockers",
+          "value": "[]"
+        }
+      ],
+      "purl": "pkg:npm/axe-core@4.13.0",
+      "type": "library",
+      "version": "4.13.0"
     },
     {
       "bom-ref": "dependency:npm:b4a@1.8.1",
@@ -27058,6 +27146,7 @@
         "dependency:npm:@adobe/css-tools@4.5.0",
         "dependency:npm:@asamuzakjp/css-color@6.0.7",
         "dependency:npm:@asamuzakjp/dom-selector@8.3.2",
+        "dependency:npm:@axe-core/playwright@4.13.0",
         "dependency:npm:@babel/code-frame@7.29.7",
         "dependency:npm:@babel/compat-data@7.29.7",
         "dependency:npm:@babel/core@7.29.7",
@@ -27226,6 +27315,7 @@
         "dependency:npm:aria-query@5.3.2",
         "dependency:npm:assertion-error@2.0.1",
         "dependency:npm:async@3.2.6",
+        "dependency:npm:axe-core@4.13.0",
         "dependency:npm:b4a@1.8.1",
         "dependency:npm:balanced-match@4.0.4",
         "dependency:npm:bare-events@2.9.2",
@@ -27642,7 +27732,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:0868f189131f9d3e37632459a8ee843c5c92b3ac"
+      "ref": "pathlab:source:17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
     },
     {
       "dependsOn": [],
@@ -27751,6 +27841,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:@asamuzakjp/dom-selector@8.3.2"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:@axe-core/playwright@4.13.0"
     },
     {
       "dependsOn": [],
@@ -28423,6 +28517,10 @@
     {
       "dependsOn": [],
       "ref": "dependency:npm:async@3.2.6"
+    },
+    {
+      "dependsOn": [],
+      "ref": "dependency:npm:axe-core@4.13.0"
     },
     {
       "dependsOn": [],
@@ -30087,15 +30185,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:0868f189131f9d3e37632459a8ee843c5c92b3ac",
+      "bom-ref": "pathlab:source:17a79955374f0d97fddeefb9e5d3c68e43e10fc9",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/0868f189131f9d3e37632459a8ee843c5c92b3ac"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/0868f189131f9d3e37632459a8ee843c5c92b3ac"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
         }
       ],
       "licenses": [
@@ -30126,13 +30224,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@0868f189131f9d3e37632459a8ee843c5c92b3ac",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@17a79955374f0d97fddeefb9e5d3c68e43e10fc9",
       "type": "application",
-      "version": "0868f189131f9d3e37632459a8ee843c5c92b3ac"
+      "version": "17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
     },
-    "timestamp": "2026-09-27T07:45:53Z"
+    "timestamp": "2026-09-27T10:40:30Z"
   },
-  "serialNumber": "urn:uuid:0868f189-131f-4d3e-a763-2459a8ee843c",
+  "serialNumber": "urn:uuid:17a79955-374f-4d97-adde-efb9e5d3c68e",
   "specVersion": "1.6",
   "version": 1
 }

@@ -107,6 +107,16 @@ it('presents the PathLab Assessment dashboard and status counts', async () => {
   expect(container.querySelector('.assessment-preview-backdrop')).not.toBeInTheDocument()
 })
 
+it('creates a section document that can represent all exposed question types', async () => {
+  api.createAssessmentDraft.mockResolvedValue({ id: 'new-draft' })
+  render(<MemoryRouter><AssessmentAdminPage /></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name: 'New assessment' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Create assessment' }))
+  expect(api.createAssessmentDraft).toHaveBeenCalledWith('Untitled assessment', expect.objectContaining({
+    schema: 'pathlab.assessment/2', sections: [{ id: 'section-1', title: 'Section 1', items: [] }],
+  }), undefined)
+})
+
 it('presents a dedicated visual report with question and student views', async () => {
   api.getAssessmentDraft.mockResolvedValue({
     id: 'draft-1', title: 'Lung pathology', status: 'draft', revision: 1,
@@ -371,6 +381,8 @@ it('adds accessible question cards and exposes publish presets', async () => {
   expect(screen.getByRole('textbox', { name: 'Assessment description' })).toBeVisible()
   expect(screen.queryByRole('tab', { name: 'Description' })).not.toBeInTheDocument()
   await userEvent.click(screen.getAllByRole('button', { name: 'Add question' })[0])
+  expect(screen.queryByRole('button', { name: 'Add rating' })).not.toBeInTheDocument()
+  expect(screen.getByText('Upgrade to sections to add rating questions.')).toBeVisible()
   await userEvent.click(screen.getByRole('button', { name: 'Add multiple choice' }))
   expect(screen.getByRole('group', { name: 'Question 1' })).toBeVisible()
   api.previewAssessmentDraft.mockRejectedValueOnce(new Error('Draft validation failed'))

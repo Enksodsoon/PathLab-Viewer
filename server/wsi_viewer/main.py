@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -903,8 +903,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail={"code": "UPLOAD_LENGTH_MISMATCH"})
         with source.open("rb") as uploaded:
             signature = uploaded.read(4)
-        if signature not in {b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"}:
-            raise HTTPException(status_code=400, detail={"code": "INVALID_TIFF_SIGNATURE"})
+        valid_signature = signature in {b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"}
         destination = storage.for_slide(slide.id).original
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = destination.with_suffix(".partial")
@@ -914,6 +913,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except OSError:
             shutil.copy2(source, temporary)
         temporary.replace(destination)
+        if not valid_signature:
+            # The transfer has finished. Persist rejection so the browser does not
+            # poll "uploading" forever; retain the private source for normal cleanup.
+            slide.state = transition(slide.state, SlideState.FAILED)
+            slide.error_code = "INVALID_TIFF_SIGNATURE"
+            db.add(AuditEvent(action="upload.rejected", target_id=slide.id))
+            db.commit()
+            raise HTTPException(status_code=400, detail={"code": "INVALID_TIFF_SIGNATURE"})
         slide.state = transition(slide.state, SlideState.QUEUED)
         db.add(Job(slide_id=slide.id))
         db.add(AuditEvent(action="upload.complete", target_id=slide.id,
@@ -986,9 +993,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if hook_type == "post-finish":
             try:
                 grant = verify_upload_token(token, current.secret_key, allow_expired=True)
+                rejected = db.get(Slide, grant.slide_id)
+                if (rejected is not None and rejected.state is SlideState.FAILED
+                        and rejected.error_code == "INVALID_TIFF_SIGNATURE"):
+                    return {}
                 storage_path = Path(str(upload["Storage"]["Path"]))
                 finalize_upload(grant, storage_path, size, db)
-            except (InvalidToken, KeyError, HTTPException) as error:
+            except HTTPException as error:
+                if (
+                    error.status_code == 400
+                    and cast(Any, error.detail) == {"code": "INVALID_TIFF_SIGNATURE"}
+                ):
+                    return {}  # Rejection is durable; retrying this webhook cannot repair the file.
+                raise HTTPException(
+                    status_code=500, detail={"code": "TUS_FINALIZE_FAILED"}
+                ) from error
+            except (InvalidToken, KeyError) as error:
                 raise HTTPException(
                     status_code=500, detail={"code": "TUS_FINALIZE_FAILED"}
                 ) from error

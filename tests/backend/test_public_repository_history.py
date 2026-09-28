@@ -356,6 +356,19 @@ def test_only_exact_public_registry_notice_is_exempted(tmp_path: Path) -> None:
     assert run_scan(repo).returncode == 1
 
 
+def test_exact_pnpm_patch_coordinate_is_not_treated_as_email() -> None:
+    from scripts.check_public_repository import scan_text
+
+    package = "openseadragon"
+    version = "@6.1.0"
+    line = f"  {package}{version}: patches/{package}{version}.patch"
+    assert scan_text("pnpm-workspace.yaml", line) == []
+    assert any(
+        "email" in finding[2]
+        for finding in scan_text("pnpm-workspace.yaml", line + " # owner@" + "private.org")
+    )
+
+
 def test_historical_fixture_receipts_never_exempt_current_or_changed_content() -> None:
     from scripts.check_public_repository import HISTORICAL_SYNTHETIC_EMAIL_LINES, scan_text
 

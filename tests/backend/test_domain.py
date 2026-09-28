@@ -6,6 +6,7 @@ from wsi_viewer.domain import InvalidTransition, SlideState, transition
     ("source", "target"),
     [
         (SlideState.UPLOADING, SlideState.QUEUED),
+        (SlideState.UPLOADING, SlideState.FAILED),
         (SlideState.QUEUED, SlideState.VALIDATING),
         (SlideState.VALIDATING, SlideState.CONVERTING),
         (SlideState.CONVERTING, SlideState.READY_PRIVATE),

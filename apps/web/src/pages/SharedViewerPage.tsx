@@ -122,7 +122,16 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
   const [search, setSearch] = useState('')
   const [scaleBar, setScaleBar] = useState<{ microns: number; width: number } | null>(null)
   const controls = useRef<ViewerHandle | null>(null)
+  const navigatorTrigger = useRef<HTMLButtonElement | null>(null)
+  const wasDrawerOpen = useRef(drawerOpen)
   const ready = useCallback((handle: ViewerHandle) => { controls.current = handle }, [])
+
+  useEffect(() => {
+    if (wasDrawerOpen.current && !drawerOpen && window.matchMedia('(max-width: 760px)').matches) {
+      navigatorTrigger.current?.focus()
+    }
+    wasDrawerOpen.current = drawerOpen
+  }, [drawerOpen])
   const storageKey = `pathlab-share-position:${targetType}:${publicId}`
 
   useEffect(() => {
@@ -156,7 +165,10 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
       else if (event.key === 'ArrowLeft') select(position - 1)
       else if (event.key === '+' || event.key === '=') controls.current?.zoomIn()
       else if (event.key === '-') controls.current?.zoomOut()
-      else if (event.key === 'Escape') setDrawerOpen(false)
+      else if (event.key === 'Escape') {
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined)
+        else setDrawerOpen(false)
+      }
       else return
       event.preventDefault()
     }
@@ -211,13 +223,14 @@ export function SharedViewerPage({ targetType }: { targetType: 'folder' | 'colle
   return (
     <div className={`shared-viewer-shell ${drawerOpen ? 'drawer-open' : ''}`}>
       <header className="shared-viewer-header">
-        <button type="button" className="share-menu" aria-label="Open slide navigator" onClick={() => setDrawerOpen(true)}><Menu /></button>
+        <button ref={navigatorTrigger} type="button" className="share-menu" aria-label="Open slide navigator"
+          aria-controls="shared-slide-rail" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><Menu /></button>
         <div><p>PathLab Viewer</p><h1>{manifest.name}</h1></div>
         <ThemeControl compact className="shared-theme-control" />
         <span>{position + 1} / {manifest.slides.length}</span>
       </header>
       <button type="button" className="share-drawer-backdrop" aria-label="Close slide navigator" onClick={() => setDrawerOpen(false)} />
-      <aside className="share-slide-rail" aria-label="Shared slides">
+      <aside id="shared-slide-rail" className="share-slide-rail" aria-label="Shared slides">
         <div className="share-rail-heading">
           <div><p>Teaching set</p><h2>{manifest.name}</h2></div>
           <button type="button" aria-label="Close slide navigator" onClick={() => setDrawerOpen(false)}><X /></button>

@@ -29,10 +29,10 @@ it('retains review after transient polling error and clears only terminal denial
   await mount()
   await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
   expect(screen.getByTestId('review-viewer')).toBeVisible()
-  expect(screen.getByText(/Review status could not be refreshed/)).toBeVisible()
+  expect(await screen.findByText(/Review status could not be refreshed/)).toBeVisible()
   await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
+  expect(await screen.findByText('This classroom invitation is no longer available.')).toBeVisible()
   expect(screen.queryByTestId('review-viewer')).not.toBeInTheDocument()
-  expect(screen.getByText('This classroom invitation is no longer available.')).toBeVisible()
 })
 it('serializes timer and visibility polling and ignores old invite responses', async () => {
   let resolveOld: ((value: { phase: string }) => void) | undefined
