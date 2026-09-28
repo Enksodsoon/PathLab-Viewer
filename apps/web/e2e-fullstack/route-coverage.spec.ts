@@ -234,6 +234,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
       ? page.getByText(item.marker, { exact: true }).first()
       : page.getByRole('heading', { name: item?.marker ?? 'All slides', exact: true }).first()
     await expect(marker, `Could not restore route ${target}`).toBeVisible()
+    if (target === '/admin') await expect(page.locator('.library-loading')).toBeHidden()
     if (item?.redirect) {
       await expect(page.getByRole('navigation', { name: 'Response views', exact: true })).toBeVisible()
     }
