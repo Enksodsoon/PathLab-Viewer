@@ -37,7 +37,7 @@ def test_checked_in_software_inventories_reconcile_and_repeat() -> None:
         "currentShippedInputs": manifest["coverage"]["currentShippedInputs"],
         "dependencyRecordIdsSha256": manifest["coverage"]["dependencyRecordIdsSha256"],
         "dependencyRecords": 583,
-        "sourceComponents": 612,
+        "sourceComponents": 614,
         "toolchainRecordIdsSha256": manifest["coverage"]["toolchainRecordIdsSha256"],
         "toolchainRecords": 14,
     }
