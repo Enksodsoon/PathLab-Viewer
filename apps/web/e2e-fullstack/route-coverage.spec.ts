@@ -4,14 +4,14 @@ import { signIn, uploadSyntheticSlide, waitForSlideConversion } from '../e2e-liv
 import { sweepVisibleTabStops } from './tab-traversal'
 
 const declaredRoutePatterns = [
-  '/admin', '/admin/preview/:slideId', '/admin/connect', '/admin/classroom', '/classroom',
+  '/admin', '/admin/preview/:slideId', '/admin/comparisons/:comparisonId', '/admin/connect', '/admin/classroom', '/classroom',
   '/classroom/invite/:publicId', '/classroom/:sessionId', '/admin/study', '/admin/study/packs/new',
   '/admin/assessments', '/admin/assessments/classes', '/admin/assessments/courses/new',
   '/admin/assessments/courses/:courseId', '/admin/assessments/courses/:courseId/edit',
   '/admin/assessments/courses/:courseId/roster', '/admin/assessments/courses/:courseId/classes/new',
   '/admin/assessments/courses/:courseId/classes/:classId', '/admin/assessments/courses/:courseId/classes/:classId/edit',
   '/admin/assessments/:draftId/report', '/admin/assessments/:draftId', '/assessment/:publicId',
-  '/admin/study/evidence', '/study', '/s/:publicId', '/f/:publicId', '/c/:publicId', '*',
+  '/admin/study/evidence', '/study', '/s/:publicId', '/f/:publicId', '/c/:publicId', '/c/:publicId/compare/:comparisonId', '*',
 ]
 
 async function createCourseAndClass(page: Parameters<typeof signIn>[0], label: string, withSlideSet = false) {
@@ -105,6 +105,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
     { route: '/admin?location=storage', marker: 'Storage' },
     { route: '/admin?location=trash', marker: 'Trash' },
     { route: '/admin/preview/qa-missing-slide', marker: 'This slide is unavailable' },
+    { route: '/admin/comparisons/qa-missing-comparison', marker: 'Comparison set is unavailable.' },
     { route: '/admin/connect?code=QA-INVALID-CODE', marker: 'Connect PathLab Forge' },
     { route: '/admin/classroom', marker: 'Choose a class folder' },
     { route: '/classroom', marker: 'Join a slide session' },
@@ -129,6 +130,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
     { route: '/s/qa-missing-public-slide', marker: 'This slide is unavailable' },
     { route: '/f/qa-missing-folder-share', marker: 'This shared library is unavailable' },
     { route: '/c/qa-missing-collection-share', marker: 'This shared library is unavailable' },
+    { route: '/c/qa-missing-collection-share/compare/qa-missing-comparison', marker: 'Comparison set is unavailable.' },
   ]
   const routeEvidence: Array<{
     route: string
@@ -628,7 +630,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
       activationEvidence }, null, 2),
     contentType: 'application/json',
   })
-  expect(routeEvidence, 'Route and library substate inventory').toHaveLength(29)
+  expect(routeEvidence, 'Route and library substate inventory').toHaveLength(31)
   expect(activationEvidence.filter((item) => item.result === 'click-error'), 'Button activation errors').toEqual([])
   expect(activationEvidence.filter((item) => item.result === 'control-label-changed'), 'Unexpected control label changes').toEqual([])
   expect(activationEvidence.filter((item) => item.result === 'not-reachable-after-prior-action')

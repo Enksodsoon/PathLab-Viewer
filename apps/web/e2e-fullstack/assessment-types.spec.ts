@@ -6,7 +6,8 @@ test('all six authorable question types survive publication, learner save and su
   await page.getByRole('button', { name: 'Teaching Studio', exact: true }).click()
   await page.getByRole('button', { name: 'New assessment', exact: true }).click()
   await page.getByRole('button', { name: 'Create assessment', exact: true }).click()
-  await page.getByRole('button', { name: 'Upgrade to sections', exact: true }).click()
+  const upgrade = page.getByRole('button', { name: 'Upgrade to sections', exact: true })
+  if (await upgrade.isVisible()) await upgrade.click()
   await expect(page.getByRole('combobox', { name: 'Question type for section 1', exact: true })).toBeVisible()
   await page.getByRole('textbox', { name: 'Assessment name', exact: true }).fill('QA all question types')
   const types = ['multiple choice', 'checkboxes', 'rating', 'text response', 'diagnostic field', 'description']

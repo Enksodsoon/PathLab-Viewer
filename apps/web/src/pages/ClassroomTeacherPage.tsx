@@ -582,9 +582,21 @@ export function ClassroomTeacherPage() {
       setState(null)
       setError('This live classroom has ended or been revoked. Open a current classroom to continue.')
     })
-    for (const name of ['question-added', 'question-removed', 'control']) {
+    for (const name of ['question-added', 'question-removed']) {
       listen(events, name, update)
     }
+    listen(events, 'control', (event) => {
+      const payload = sequence(event)
+      if (!payload) return
+      // Stop local publication as soon as control is granted; the snapshot may lag.
+      if (typeof payload.participantId === 'string' && stateRef.current) {
+        stateRef.current = {
+          ...stateRef.current,
+          controller: { ...stateRef.current.controller, participantId: payload.participantId },
+        }
+      }
+      void refresh(classroom.id).catch(() => undefined)
+    })
     listen(events, 'roster-changed', (event) => {
       const payload = sequence(event)
       let rosterVersion = payload?.rosterVersion
