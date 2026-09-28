@@ -1014,28 +1014,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ) from error
         return {}
 
-    def mutate(slide_id: str, target: SlideState, authenticated: Session, db: OrmSession) -> Slide:
-        slide = db.get(Slide, slide_id)
-        if slide is None:
-            raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
-        try:
-            slide.state = transition(slide.state, target)
-        except InvalidTransition as error:
-            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
-        if target is SlideState.PUBLISHED:
-            slide.published_at = datetime.now(UTC)
-        elif slide.state is SlideState.READY_PRIVATE:
-            slide.published_at = None
-        db.add(
-            AuditEvent(
-                actor_user_id=authenticated.user_id,
-                action=f"slide.{target.value}",
-                target_id=slide.id,
-            )
-        )
-        db.commit()
-        return slide
-
     @app.post("/api/v1/admin/slides/{slide_id}/retry")
     def retry(slide_id: str, authenticated: LegacyCsrfSession) -> dict[str, Any]:
         try:
@@ -1109,13 +1087,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.delete("/api/v1/admin/slides/{slide_id}", status_code=status.HTTP_202_ACCEPTED)
     def delete(slide_id: str, authenticated: LegacyCsrfSession, db: Database) -> dict[str, Any]:
-        slide = db.get(Slide, slide_id)
+        lock_admission(db, f"upload:{slide_id}")
+        slide = db.get(Slide, slide_id, with_for_update=True)
         if slide is None:
             raise HTTPException(status_code=404, detail={"code": "SLIDE_NOT_FOUND"})
+        try:
+            target = transition(slide.state, SlideState.DELETING)
+        except InvalidTransition as error:
+            raise HTTPException(status_code=409, detail={"code": "INVALID_STATE"}) from error
         delete_all_slide_grants(db, storage, slide)
         if slide.render_mode == "ome_dynamic":
             tile_routes().purge_slide(slide.sha256)
-        slide = mutate(slide_id, SlideState.DELETING, authenticated, db)
+        slide.state = target
+        db.add(AuditEvent(
+            actor_user_id=authenticated.user_id, action="slide.deleting", target_id=slide.id,
+        ))
         db.add(Job(slide_id=slide.id, kind="delete"))
         db.commit()
         return _slide_json(slide, annotations_enabled=current.admin_annotations_enabled)
