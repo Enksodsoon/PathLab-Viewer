@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { ApiError, getPrivateSlide, renewUploadReservation, reserveUpload, type UploadReservation } from './api'
+import { ApiError, deleteSlide, getPrivateSlide, renewUploadReservation, reserveUpload, type UploadReservation } from './api'
 import { startTusUpload } from './upload'
 import type { UploadQueueItemView } from './components/library/UploadWorkspace'
 
@@ -16,6 +16,8 @@ interface QueueState { items: UploadQueueItem[]; running: boolean; authorized: b
 let state: QueueState = { items: [], running: false, authorized: false, notice: '' }
 let epoch = 0
 let active: AbortController | null = null
+let activeItemId: string | null = null
+const removals = new Set<string>()
 const listeners = new Set<() => void>()
 const polls = new Map<string, ReturnType<typeof setTimeout>>()
 function boundedQueueName(name: string) { return name.slice(0, 200) }
@@ -33,7 +35,7 @@ export function useUploadQueue() { return useSyncExternalStore(subscribeUploadQu
 export function authorizeUploadQueue() { if (!state.authorized) publish({ authorized: true }) }
 export function resetUploadQueue() {
   epoch += 1
-  active?.abort(); active = null
+  active?.abort(); active = null; activeItemId = null; removals.clear()
   polls.forEach(clearTimeout); polls.clear()
   publish({ items: [], running: false, authorized: false, notice: '' })
 }
@@ -55,11 +57,35 @@ export function addUploadFiles(files: File[], folderId: string | null = null) {
 export function renameUploadItem(id: string, displayName: string) {
   if (state.items.find((item) => item.id === id)?.phase === 'queued') update(id, { displayName: boundedQueueName(displayName) })
 }
-export function removeUploadItem(id: string) {
+export async function removeUploadItem(id: string) {
   const item = state.items.find((entry) => entry.id === id)
   if (!item || item.phase === 'preparing' || item.phase === 'uploading') return
+  if (activeItemId === id) {
+    removals.add(id)
+    update(id, { error: 'Finishing the paused transfer before cancelling its reservation.' })
+    return
+  }
+  if (removals.has(id)) return
+  removals.add(id)
+  const generation = epoch
+  if (item.reservation && ['queued', 'cancelled', 'error'].includes(item.phase)) {
+    update(id, { error: 'Cancelling upload reservation…' })
+    try {
+      await deleteSlide(item.reservation.slide.id)
+    } catch {
+      if (generation === epoch) update(id, { error: 'Cancellation failed. The reservation is still allocated; retry or resume the transfer.' })
+      removals.delete(id)
+      return
+    }
+  }
+  if (generation !== epoch) { removals.delete(id); return }
   const poll = polls.get(id); if (poll) clearTimeout(poll); polls.delete(id)
-  publish({ items: state.items.filter((entry) => entry.id !== id) })
+  publish({
+    items: state.items.filter((entry) => entry.id !== id),
+    notice: item.reservation && ['queued', 'cancelled', 'error'].includes(item.phase)
+      ? 'Cancellation queued. Storage will be released when deletion finishes.' : state.notice,
+  })
+  removals.delete(id)
 }
 export function cancelUploadItem(id: string) {
   const item = state.items.find((entry) => entry.id === id)
@@ -94,9 +120,9 @@ export async function startUploadQueue() {
   publish({ running: true, notice: '' })
   try {
     while (generation === epoch && state.authorized) {
-      const item = state.items.find((entry) => entry.phase === 'queued')
+      const item = state.items.find((entry) => entry.phase === 'queued' && !removals.has(entry.id))
       if (!item) break
-      const controller = new AbortController(); active = controller
+      const controller = new AbortController(); active = controller; activeItemId = item.id
       update(item.id, { phase: 'preparing', error: '', bytesPerSecond: null, etaSeconds: null })
       try {
         const reservation = item.reservation ? await renewUploadReservation(item.reservation.slide.id) : await reserveUpload(item.file, item.displayName.trim() || defaultQueueName(item.file), item.folderId)
@@ -130,7 +156,10 @@ export async function startUploadQueue() {
         update(item.id, { phase: 'error', bytesPerSecond: null, etaSeconds: null, error: failureMessage(error) })
         publish({ notice: 'Queue paused. Retry the failed transfer when the service is available.' })
         break
-      } finally { if (active === controller) active = null }
+      } finally {
+        if (active === controller) { active = null; activeItemId = null }
+        if (removals.delete(item.id)) void removeUploadItem(item.id)
+      }
     }
   } finally { if (generation === epoch) publish({ running: false }) }
 }

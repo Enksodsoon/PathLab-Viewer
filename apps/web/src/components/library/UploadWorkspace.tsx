@@ -154,7 +154,7 @@ export function UploadWorkspace({
                   {!active ? (
                     <button
                       type="button"
-                      aria-label={`Remove ${item.file.name}`}
+                      aria-label={`${['cancelled', 'error'].includes(item.phase) ? 'Cancel upload for' : 'Remove'} ${item.file.name}`}
                       onClick={() => onRemove(item.id)}
                     >
                       <X />

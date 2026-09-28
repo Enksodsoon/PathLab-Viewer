@@ -24,7 +24,7 @@ export function UploadDock() {
           {['queued','preparing','uploading'].includes(item.phase) ? <button type="button" onClick={() => cancelUploadItem(item.id)} aria-label={`Pause ${item.displayName}`}><Pause /> Pause</button> : null}
           {item.phase === 'error' || item.phase === 'cancelled' ? <button type="button" onClick={() => retryUploadItem(item.id)}>Resume transfer</button> : null}
           {item.phase === 'ready' && item.reservation ? <Link to={`/admin/preview/${encodeURIComponent(item.reservation.slide.id)}`}>Open viewer</Link> : null}
-          {!['preparing','uploading'].includes(item.phase) ? <button type="button" aria-label={`Dismiss ${item.displayName} from upload tray`} onClick={() => removeUploadItem(item.id)}><X /></button> : null}
+          {!['preparing','uploading'].includes(item.phase) ? <button type="button" aria-label={`${['cancelled','error'].includes(item.phase) ? 'Cancel upload for' : 'Dismiss'} ${item.displayName}`} onClick={() => void removeUploadItem(item.id)}><X /></button> : null}
         </div>
       </article>)}</div>
       <footer>{queue.notice ? <p role="status">{queue.notice}</p> : null}<span>Transfers continue while you browse. Keep this browser tab open.</span>{queued ? <button type="button" disabled={queue.running} onClick={() => void startUploadQueue()}>Upload {queued} {queued === 1 ? 'file' : 'files'}</button> : null}</footer>

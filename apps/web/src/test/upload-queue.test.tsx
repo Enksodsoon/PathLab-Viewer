@@ -1,20 +1,21 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UploadCallbacks } from '../upload'
-const api = vi.hoisted(() => ({ reserveUpload: vi.fn(), renewUploadReservation: vi.fn(), getPrivateSlide: vi.fn() }))
+const api = vi.hoisted(() => ({ reserveUpload: vi.fn(), renewUploadReservation: vi.fn(), getPrivateSlide: vi.fn(), deleteSlide: vi.fn() }))
 const transport = vi.hoisted(() => ({ startTusUpload: vi.fn() }))
 vi.mock('../api', async (original) => ({ ...await original<typeof import('../api')>(), ...api }))
 vi.mock('../upload', () => transport)
-import { addUploadFiles, authorizeUploadQueue, cancelUploadItem, getUploadQueueSnapshot, renameUploadItem, resetUploadQueue, retryUploadItem, startUploadQueue, useUploadQueue } from '../uploadQueue'
+import { addUploadFiles, authorizeUploadQueue, cancelUploadItem, getUploadQueueSnapshot, removeUploadItem, renameUploadItem, resetUploadQueue, retryUploadItem, startUploadQueue, useUploadQueue } from '../uploadQueue'
 const file = new File(['1234567890'], 'kidney.ome.tiff', {lastModified:1})
 const reservation = { slide:{id:'private-one',state:'uploading'}, uploadUrl:'/uploads', uploadToken:'secret', expiresIn:60 }
 let finish: () => void
 let callbacks: UploadCallbacks
 beforeEach(() => {
-  resetUploadQueue(); api.reserveUpload.mockReset(); api.renewUploadReservation.mockReset(); api.getPrivateSlide.mockReset(); transport.startTusUpload.mockReset()
+  resetUploadQueue(); api.reserveUpload.mockReset(); api.renewUploadReservation.mockReset(); api.getPrivateSlide.mockReset(); api.deleteSlide.mockReset(); transport.startTusUpload.mockReset()
   api.reserveUpload.mockResolvedValue(reservation)
   api.renewUploadReservation.mockResolvedValue({...reservation,uploadToken:'fresh-token'})
   api.getPrivateSlide.mockResolvedValue({id:'private-one',state:'queued'})
+  api.deleteSlide.mockResolvedValue(undefined)
   transport.startTusUpload.mockImplementation((_file: File, _url: string, _token: string, next: UploadCallbacks, _id: string, signal: AbortSignal) => {
     callbacks = next
     return new Promise((resolve,reject) => { finish=() => resolve({}); signal.addEventListener('abort',()=>reject(new DOMException('Paused','AbortError')),{once:true}) })
@@ -75,6 +76,31 @@ describe('persistent sequential upload queue', () => {
     expect(transport.startTusUpload.mock.calls[0][2]).toBe('fresh-token')
     expect(transport.startTusUpload.mock.calls[0][4]).toBe('private-one')
     finish(); await vi.waitFor(()=>expect(getUploadQueueSnapshot().running).toBe(false))
+  })
+  it('cancels a paused server reservation before removing its queue entry and retains failures', async () => {
+    addUploadFiles([file]); const id=getUploadQueueSnapshot().items[0].id
+    const running=startUploadQueue(); await Promise.resolve()
+    cancelUploadItem(id); await running
+    api.deleteSlide.mockRejectedValueOnce(new Error('offline'))
+    await removeUploadItem(id)
+    expect(getUploadQueueSnapshot().items[0]).toMatchObject({phase:'cancelled',reservation})
+    expect(getUploadQueueSnapshot().items[0].error).toMatch(/Cancellation failed/)
+    await removeUploadItem(id)
+    expect(api.deleteSlide).toHaveBeenCalledTimes(2)
+    expect(api.deleteSlide).toHaveBeenCalledWith('private-one')
+    expect(getUploadQueueSnapshot().items).toHaveLength(0)
+  })
+  it('waits for a late reservation before cancelling a paused upload', async () => {
+    let reserved: (value: typeof reservation) => void = () => {}
+    api.reserveUpload.mockImplementation(()=>new Promise((resolve)=>{reserved=resolve}))
+    addUploadFiles([file]); const id=getUploadQueueSnapshot().items[0].id
+    const running=startUploadQueue(); cancelUploadItem(id)
+    await removeUploadItem(id)
+    expect(getUploadQueueSnapshot().items).toHaveLength(1)
+    reserved(reservation); await running
+    await vi.waitFor(()=>expect(getUploadQueueSnapshot().items).toHaveLength(0))
+    expect(api.deleteSlide).toHaveBeenCalledWith('private-one')
+    expect(transport.startTusUpload).not.toHaveBeenCalled()
   })
   it('computes speed only from measured byte deltas and forgets data on session reset', async () => {
     let now=1000; vi.spyOn(performance,'now').mockImplementation(()=>now)
