@@ -78,6 +78,7 @@ test('rostered learner submits text; teacher grades, releases, exports, archives
     await expect(page.getByRole('heading', { name: 'Grading complete', exact: true })).toBeVisible()
     await page.getByRole('switch', { name: 'Accepting responses', exact: true }).click()
     await page.getByRole('button', { name: 'Release scores', exact: true }).click()
+    await expect(page.getByText('Scores released. Learners can refresh their result page.', { exact: true })).toBeVisible()
     await student.reload()
     await expect(student.getByText(/^0(?:\.0+)? \/ 1(?:\.0+)?$/)).toBeVisible()
     for (const format of ['CSV', 'Excel', 'Visual']) {
