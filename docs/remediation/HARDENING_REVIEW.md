@@ -11,7 +11,7 @@ Review base `cf0d2d2` plus explicitly identified repairs. All 328 source identit
 
 Seven native-proven mechanisms were repaired: SQLite purge-task failure, rejected IndexedDB open, Study pseudonym collision, Classroom expiry read/grant race, Library stale-cache tree/breadcrumb loops, invitation modal keyboard escape, and Study delivery after owner trash. Each proof and scope is recorded below. No currently proven unrepaired product mechanism remains in these 125 groups.
 
-One external substantive gap remains: whether any live database/WAL/data directory is synced by OneDrive. Operator confirmation is required. Exact-main PostgreSQL and protected deployment checks passed at `3cb26bc`; individual authenticated production behavior, physical devices and external credential validity remain separate evidence.
+One external substantive gap remains: whether any live database/WAL/data directory is synced by OneDrive. Operator confirmation is required. Exact-main PostgreSQL and protected deployment checks passed at `3cb26bc`; [signed-in synthetic production checks](PRODUCTION_CLOSURE_QA.md) cover selected Library, upload and Classroom paths. Other production behaviors, physical devices and external credential validity remain separate evidence.
 
 ## account.password-input-clearing
 
