@@ -196,7 +196,7 @@ export function StudyPackAuthoringPage() {
 
   const task = preview?.canonicalCore.tasks[previewIndex]
   return <main className="study-author-shell">
-    <header className="study-author-topbar"><Brand product="Study" /><div><button type="button" onClick={() => navigate('/admin/study')}><ArrowLeft /> Study Coach</button><ThemeControl /></div></header>
+    <header className="study-author-topbar"><Brand product="Study" /><div><button type="button" onClick={() => navigate('/admin/study')}><ArrowLeft /> Study Coach</button><ThemeControl compact /></div></header>
     <div className="study-author-layout">
       <section className="study-author-editor" aria-labelledby="author-title">
         <span className="study-eyebrow">Viewer-native faculty workspace</span><h1 id="author-title">Author a Study Pack</h1>
@@ -212,7 +212,20 @@ export function StudyPackAuthoringPage() {
         </div>
         <fieldset className="study-author-task"><legend>Add or replace a task</legend><div className="study-author-grid">
           <label>Task ID<input value={draft.id} onChange={(event) => setDraft({ ...draft, id: event.target.value })} /></label>
-          <label>Type<select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as StudyPackTaskDefinition['type'] })}><option value="multiple-choice">Multiple choice</option><option value="spatial">Spatial identification</option></select></label>
+          <label>Type<select value={draft.type} onChange={(event) => {
+            const type = event.target.value as StudyPackTaskDefinition['type']
+            setDraft((current) => ({
+              ...current,
+              type,
+              ...(type === 'spatial' ? {
+                targetX: current.targetX ?? 0.1,
+                targetY: current.targetY ?? 0.1,
+                targetWidth: current.targetWidth ?? 0.1,
+                targetHeight: current.targetHeight ?? 0.1,
+                tolerance: current.tolerance ?? 0.06,
+              } : {}),
+            }))
+          }}><option value="multiple-choice">Multiple choice</option><option value="spatial">Spatial identification</option></select></label>
           <label>Viewer slide<select value={draft.slideId} onChange={(event) => setDraft({ ...draft, slideId: event.target.value })}>{slides.map((slide) => <option key={slide.id} value={slide.id}>{slide.displayName}</option>)}</select></label>
           <label className="wide">Prompt<textarea value={draft.prompt} onChange={(event) => setDraft({ ...draft, prompt: event.target.value })} /></label>
           {draft.type === 'multiple-choice' ? <><label className="wide">Options, one per line<textarea value={draft.options?.join('\n')} onChange={(event) => setDraft({ ...draft, options: event.target.value.split('\n') })} /></label><label>Explicit answer<input value={draft.answerKey} onChange={(event) => setDraft({ ...draft, answerKey: event.target.value })} /></label></> : <div className="study-spatial-fields">{(['targetX', 'targetY', 'targetWidth', 'targetHeight', 'tolerance'] as const).map((name) => <label key={name}>{name}<input type="number" min="0" max="1" step=".01" value={draft[name] ?? (name === 'tolerance' ? .06 : .1)} onChange={(event) => setDraft({ ...draft, [name]: Number(event.target.value) })} /></label>)}</div>}

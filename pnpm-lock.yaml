@@ -13,6 +13,7 @@ overrides:
 pnpmfileChecksum: sha256-JGxQtJPXmFeZt6cToprZ0Dj0bD6Q7tgJOrNia77F75M=
 
 patchedDependencies:
+  openseadragon@6.1.0: c5a22d9268b634f8ff8ac2335f2c03f97a24fb661de1cbedff178ac97409b8d8
   tus-js-client@4.3.1: 5a72d18267fe6c9702f8e16614142b823b8170d8dba99e3efc685b4bbde352bc
 
 importers:
@@ -38,7 +39,7 @@ importers:
         version: 1.27.0
       openseadragon:
         specifier: 6.1.0
-        version: 6.1.0
+        version: 6.1.0(patch_hash=c5a22d9268b634f8ff8ac2335f2c03f97a24fb661de1cbedff178ac97409b8d8)
       polygon-clipping:
         specifier: 0.15.7
         version: 0.15.7
@@ -67,6 +68,9 @@ importers:
         specifier: 2.3.10
         version: 2.3.10
     devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.13.0
+        version: 4.13.0(playwright-core@1.62.1)
       '@eslint/js':
         specifier: ^9.39.5
         version: 9.39.5
@@ -134,6 +138,11 @@ packages:
   '@asamuzakjp/dom-selector@8.3.2':
     resolution: {integrity: sha512-93Z1N+BQNXysodoicpOIyNh2drHfz/CTf9nnT0FEx72GJcIiwgydD7tGAr78j41LsYn3hlRn+LdGPuBLn1Bl8Q==}
     engines: {node: ^22.13.0 || >=24.0.0}
+
+  '@axe-core/playwright@4.13.0':
+    resolution: {integrity: sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -940,6 +949,10 @@ packages:
 
   async@3.2.6:
     resolution: {integrity: sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA==}
+
+  axe-core@4.13.0:
+    resolution: {integrity: sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==}
+    engines: {node: '>=4'}
 
   b4a@1.8.1:
     resolution: {integrity: sha512-aiqre1Nr0B/6DgE2N5vwTc+2/oQZ4Wh1t4NznYY4E00y8LCt6NqdRv81so00oo27D8MVKTpUa/MwUUtBLXCoDw==}
@@ -2145,6 +2158,11 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.2
 
+  '@axe-core/playwright@4.13.0(playwright-core@1.62.1)':
+    dependencies:
+      axe-core: 4.13.0
+      playwright-core: 1.62.1
+
   '@babel/code-frame@7.29.7':
     dependencies:
       '@babel/helper-validator-identifier': 7.29.7
@@ -2871,6 +2889,8 @@ snapshots:
 
   async@3.2.6: {}
 
+  axe-core@4.13.0: {}
+
   b4a@1.8.1: {}
 
   balanced-match@4.0.4: {}
@@ -3475,7 +3495,7 @@ snapshots:
       platform: 1.3.6
       protobufjs: 7.6.5
 
-  openseadragon@6.1.0: {}
+  openseadragon@6.1.0(patch_hash=c5a22d9268b634f8ff8ac2335f2c03f97a24fb661de1cbedff178ac97409b8d8): {}
 
   optionator@0.9.4:
     dependencies:

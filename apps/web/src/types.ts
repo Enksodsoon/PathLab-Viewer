@@ -72,6 +72,7 @@ export interface LibrarySlideDetails extends LibrarySlide {
   filename: string
   adminNotes: string
   metadata: SlideMetadata | null
+  collections?: Array<{ id: string; name: string }>
 }
 
 export interface LibraryFolder {

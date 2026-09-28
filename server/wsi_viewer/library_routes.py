@@ -671,7 +671,15 @@ def register_library_routes(
         _: Any = Depends(admin_dependency),
         database: OrmSession = Depends(database_dependency),
     ) -> dict[str, Any]:
-        return slide_json(_get_slide(database, slide_id), include_details=True)
+        result = slide_json(_get_slide(database, slide_id), include_details=True)
+        memberships = database.execute(
+            select(Collection.id, Collection.name)
+            .join(CollectionSlide, CollectionSlide.collection_id == Collection.id)
+            .where(CollectionSlide.slide_id == slide_id)
+            .order_by(Collection.name, Collection.id)
+        ).all()
+        result["collections"] = [{"id": item.id, "name": item.name} for item in memberships]
+        return result
 
     app.add_api_route(
         "/api/v2/admin/slides/{slide_id}",

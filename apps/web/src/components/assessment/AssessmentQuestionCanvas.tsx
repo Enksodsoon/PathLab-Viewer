@@ -147,7 +147,7 @@ export function AssessmentQuestionCanvas({ document, draftId = '', mediaScopeLab
   }
 
   function insertItem(type: AssessmentItemType, index: number) {
-    const item = questionTypesByType[type].create(newId)
+    const item = questionTypesByType[type === 'section-information' ? 'information' : type].create(newId)
     onDocumentChange((current) => {
       const nextItems = [...assessmentItems(current)]
       nextItems.splice(index, 0, item)
@@ -454,7 +454,8 @@ function InsertControl({ open, onOpen, onClose, onSelect }: { open: boolean; onO
 function TypePicker({ onClose, onSelect }: { onClose: () => void; onSelect: (type: AssessmentItemType) => void }) {
   return <div className="assessment-type-picker" role="dialog" aria-label="Choose question type">
     <header><strong>Add item</strong><button type="button" aria-label="Close type picker" onClick={onClose}><X /></button></header>
-    <div>{questionTypeGroups.map((group) => <section key={group}><h3>{group}</h3>{authorableQuestionTypeRegistry.filter((definition) => definition.group === group).map((definition) => <button key={definition.type} type="button" aria-label={`Add ${definition.label.toLowerCase()}`} onClick={() => onSelect(definition.type)}><Plus aria-hidden="true" />{definition.label}</button>)}</section>)}</div>
+    <div>{questionTypeGroups.map((group) => <section key={group}><h3>{group}</h3>{authorableQuestionTypeRegistry.filter((definition) => definition.group === group && definition.type !== 'rating').map((definition) => <button key={definition.type} type="button" aria-label={`Add ${definition.label.toLowerCase()}`} onClick={() => onSelect(definition.type)}><Plus aria-hidden="true" />{definition.label}</button>)}</section>)}</div>
+    <p>Upgrade to sections to add rating questions.</p>
   </div>
 }
 

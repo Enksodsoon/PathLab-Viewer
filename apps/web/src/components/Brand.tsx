@@ -5,7 +5,7 @@ interface BrandProps {
 
 export function Brand({ variant = 'default', product = 'Viewer' }: BrandProps) {
   return (
-    <div className={`brand${variant === 'library' ? ' brand-library' : ''}`} aria-label="PathLab Viewer">
+    <div className={`brand${variant === 'library' ? ' brand-library' : ''}`} role="img" aria-label="PathLab Viewer">
       <span className={`brand-mark${variant === 'library' ? ' brand-mark-layers' : ''}`}>
         <svg
           aria-hidden="true"

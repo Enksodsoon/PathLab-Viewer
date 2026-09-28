@@ -197,6 +197,8 @@ function safePage(value: LibraryItemsPage): LibraryItemsPage {
 export function AdminPage() {
   const navigate = useNavigate()
   const [url, setUrl] = useSearchParams()
+  const latestUrl = useRef(url)
+  latestUrl.current = url
   const routerLocation = useLocation()
   const navigationType = useNavigationType()
   const [libraryTrail, setLibraryTrail] = useState(() => ({ keys: [routerLocation.key], index: 0 }))
@@ -261,6 +263,8 @@ export function AdminPage() {
   const [details, setDetails] = useState<LibrarySlideDetails | LibrarySlide | null>(null)
   const [quickLook, setQuickLook] = useState<LibrarySlide | null>(null)
   const [dialog, setDialog] = useState<DialogName>(null)
+  const actionInFlight = useRef(false)
+  const [actionBusy, setActionBusy] = useState(false)
   const [singleActionSlide, setSingleActionSlide] = useState<LibrarySlide | null>(null)
   useEffect(() => { if (dialog === null) setSingleActionSlide(null) }, [dialog])
   const [securityOpen, setSecurityOpen] = useState(false)
@@ -316,17 +320,18 @@ export function AdminPage() {
     values: Record<string, string | string[] | null>,
     replace = true,
   ) => {
-    setUrl((current) => {
-      const next = new URLSearchParams(current)
-      for (const [key, value] of Object.entries(values)) {
-        if (Array.isArray(value)) {
-          next.delete(key)
-          value.forEach((item) => next.append(key, item))
-        } else if (!value) next.delete(key)
-        else next.set(key, value)
-      }
-      return next
-    }, { replace })
+    // React Router's setter does not queue functional updates like React state.
+    // A pending search debounce must preserve a navigation change in this turn.
+    const next = new URLSearchParams(latestUrl.current)
+    for (const [key, value] of Object.entries(values)) {
+      if (Array.isArray(value)) {
+        next.delete(key)
+        value.forEach((item) => next.append(key, item))
+      } else if (!value) next.delete(key)
+      else next.set(key, value)
+    }
+    latestUrl.current = next
+    setUrl(next, { replace })
   }, [setUrl])
 
   const savedView = location.startsWith('saved:')
@@ -741,8 +746,16 @@ export function AdminPage() {
   }
 
   function runAction(task: () => Promise<unknown>, failure: string) {
+    if (actionInFlight.current) return
+    actionInFlight.current = true
+    setActionBusy(true)
     setError('')
-    void task().catch(() => setError(`${failure} failed. Try again.`))
+    void Promise.resolve().then(task)
+      .catch(() => setError(`${failure} failed. Try again.`))
+      .finally(() => {
+        actionInFlight.current = false
+        setActionBusy(false)
+      })
   }
 
   async function expandFolder(folder: LibraryFolder) {
@@ -1207,6 +1220,7 @@ export function AdminPage() {
 
   function addUploadFiles(files: File[]) {
     enqueueFiles(files, location.startsWith('folder:') ? location.slice('folder:'.length) : null)
+
   }
 
   function endSession(message = '') {
@@ -1725,7 +1739,9 @@ export function AdminPage() {
             folderName={details.folderId
               ? foldersById.get(details.folderId)?.name
               : undefined}
-            collectionNames={location.startsWith('collection:')
+            collectionNames={'collections' in details && details.collections
+              ? details.collections.map((collection) => collection.name)
+              : location.startsWith('collection:')
               ? [navigation.collections.find(
                 (collection) => collection.id === location.slice('collection:'.length),
               )?.name].filter((name): name is string => Boolean(name))
@@ -1791,7 +1807,7 @@ export function AdminPage() {
           {dialog !== 'saved' ? (
             <label>Description<textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} /></label>
           ) : <p>Current search and filters will be saved.</p>}
-          <button type="submit" className="primary">Create</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Create</button>
         </form>
       </LibraryDialog>
 
@@ -1868,7 +1884,7 @@ export function AdminPage() {
               }))}
             />
           </label>
-          <button type="submit" className="primary">Save details</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save details</button>
         </form>
       </LibraryDialog>
 
@@ -1887,7 +1903,7 @@ export function AdminPage() {
           <label>Description
             <textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} />
           </label>
-          <button type="submit" className="primary">Save folder</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save folder</button>
         </form>
       </LibraryDialog>
 
@@ -1910,7 +1926,7 @@ export function AdminPage() {
                 .map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
           </label>
-          <button type="submit" className="primary">Move folder</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Move folder</button>
         </form>
       </LibraryDialog>
 
@@ -1931,7 +1947,7 @@ export function AdminPage() {
               <textarea value={formDescription} onChange={(event) => setFormDescription(event.target.value)} />
             </label>
           ) : null}
-          <button type="submit" className="primary">Save name</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save name</button>
         </form>
       </LibraryDialog>
 
@@ -2027,7 +2043,7 @@ export function AdminPage() {
               {[...foldersById.values()].map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
             </select>
           </label>
-          <button type="submit" className="primary">Move</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Move</button>
         </form>
       </LibraryDialog>
 
@@ -2047,7 +2063,7 @@ export function AdminPage() {
               {navigation.collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
             </select>
           </label>
-          <button type="submit" className="primary">Add slides</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Add slides</button>
         </form>
       </LibraryDialog>
 
@@ -2062,7 +2078,7 @@ export function AdminPage() {
           runAction(submitSimpleDialog, 'Save tags')
         }}>
           <label>Tags<input value={tagValue} onChange={(event) => setTagValue(event.target.value)} placeholder="Teaching, Adenocarcinoma" /></label>
-          <button type="submit" className="primary">Save tags</button>
+          <button type="submit" className="primary" disabled={actionBusy}>Save tags</button>
         </form>
       </LibraryDialog>
 

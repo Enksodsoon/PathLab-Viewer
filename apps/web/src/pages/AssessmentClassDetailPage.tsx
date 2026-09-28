@@ -27,8 +27,10 @@ const slideThumbnail = (slide: AdminSlide) => slide.thumbnailUrl
     : null)
 
 const newAssessmentDocument = {
+  schema: 'pathlab.assessment/2' as const,
   title: 'Untitled assessment',
-  items: [],
+  sections: [{ id: 'section-1', title: 'Section 1', items: [] }],
+  presentation: { preset: 'standard' as const, showProgress: true, showSectionTitles: true },
   settings: { mode: 'formative' as const },
 }
 

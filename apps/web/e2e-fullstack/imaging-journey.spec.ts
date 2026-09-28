@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './qa-test'
 
 import { signIn, uploadSyntheticSlide, waitForSlideConversion } from '../e2e-live/capacity-helpers'
 import { exerciseClassroom } from './classroom-journey'
 
-test('interrupted upload, conversion, annotations, sign-in return, publication and revocation', async ({ page, browser }) => {
+test('interrupted upload, conversion, annotations, sign-in return, publication and revocation', async ({ page, browser }, testInfo) => {
   const username = process.env.PATHLAB_E2E_USERNAME
   const password = process.env.PATHLAB_E2E_PASSWORD
   const source = process.env.PATHLAB_E2E_OME
@@ -30,7 +30,17 @@ test('interrupted upload, conversion, annotations, sign-in return, publication a
   await page.reload()
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: `More actions for ${name}`, exact: true }).click()
+  const slideActions = page.getByRole('button', { name: `More actions for ${name}`, exact: true })
+  await slideActions.click()
+  const privateMenuItems = (await page.getByRole('menu').getByRole('menuitem').allTextContents())
+    .map((item) => item.trim().replace(/\s+/g, ' ')).sort()
+  expect(privateMenuItems).toEqual([
+    'Add to collection', 'Details', 'Edit details', 'Move', 'Move to Trash', 'Preview', 'Publish',
+  ])
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu')).toBeHidden()
+  await expect(slideActions).toBeFocused()
+  await slideActions.click()
   await page.getByRole('menuitem', { name: 'Preview', exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/admin/preview/${slideId}$`))
   await expect(page.locator('.openseadragon-canvas canvas').first()).toBeVisible()
@@ -73,11 +83,36 @@ test('interrupted upload, conversion, annotations, sign-in return, publication a
   await confirmation.getByRole('button', { name: 'Publish 1 slide', exact: true }).click()
   expect((await publication).ok()).toBe(true)
   await expect(confirmation).not.toBeVisible()
-  await page.getByRole('button', { name: `More actions for ${name}`, exact: true }).click()
-  const publicPath = await page.getByRole('menuitem', { name: 'Open public slide' }).getAttribute('href')
+  await slideActions.click()
+  const publishedMenuItems = (await page.getByRole('menu').getByRole('menuitem').allTextContents())
+    .map((item) => item.trim().replace(/\s+/g, ' ')).sort()
+  expect(publishedMenuItems).toEqual([
+    'Add to collection', 'Copy public link', 'Details', 'Edit details', 'Move', 'Move to Trash',
+    'Open public slide', 'Preview', 'Unpublish',
+  ])
+  const publicSlideLink = page.getByRole('menuitem', { name: 'Open public slide', exact: true })
+  const publicPath = await publicSlideLink.getAttribute('href')
   expect(publicPath).toMatch(/^\/s\/[A-Za-z0-9_-]+$/)
   if (!publicPath) throw new Error('Published slide link missing')
   const publicId = publicPath.split('/').pop()!
+  const [openedPublicSlide] = await Promise.all([
+    page.context().waitForEvent('page'),
+    publicSlideLink.click(),
+  ])
+  await expect(openedPublicSlide).toHaveURL(new RegExp(`${publicPath.replaceAll('/', '\\/')}$`))
+  await expect(openedPublicSlide.locator('.openseadragon-canvas canvas').first()).toBeVisible()
+  await openedPublicSlide.close()
+
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await slideActions.click()
+  await page.getByRole('menuitem', { name: 'Copy public link', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Public link copied.')
+  expect(await page.evaluate(() => navigator.clipboard.readText()))
+    .toBe(new URL(publicPath, page.url()).toString())
+  await testInfo.attach('slide-menu-inventory.json', {
+    body: JSON.stringify({ private: privateMenuItems, published: publishedMenuItems }, null, 2),
+    contentType: 'application/json',
+  })
   await exerciseClassroom(page, browser, name)
 
   const anonymous = await browser.newContext({ baseURL: process.env.PATHLAB_E2E_BASE_URL })

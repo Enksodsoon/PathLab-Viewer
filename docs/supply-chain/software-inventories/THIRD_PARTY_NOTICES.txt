@@ -265,6 +265,16 @@ Blockers: NONE
 Notice files:
   - package/LICENSE sha256:7cdf9db3b91cc77b9ec947ad0c7126140f00e34528b67c3a58e9fc1a98055e14
 
+ID: npm:@axe-core/playwright@4.13.0
+Name: @axe-core/playwright
+Version: 4.13.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/@axe-core%2Fplaywright/4.13.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:812e9d96e900a093ae4d1d3f22c5f82f568a0a0461c3007a99d00573d41c5461
+
 ID: npm:@babel/code-frame@7.29.7
 Name: @babel/code-frame
 Version: 7.29.7
@@ -2943,6 +2953,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 END NOTICE package/LICENSE
+
+ID: npm:axe-core@4.13.0
+Name: axe-core
+Version: 4.13.0
+License: MPL-2.0
+Admission: RECORDED_UNREVIEWED
+Source: https://registry.npmjs.org/axe-core/4.13.0
+Blockers: NONE
+Notice files:
+  - package/LICENSE sha256:af175b9d96ee93c21a036152e1b905b0b95304d4ae8c2c921c7609100ba8df7e
+  - package/LICENSE-3RD-PARTY.txt sha256:4f8563870d0fca38bbc3e00b6f670cb7fa9f380ba9f26a7f7d1184a6b18b1653
 
 ID: npm:b4a@1.8.1
 Name: b4a

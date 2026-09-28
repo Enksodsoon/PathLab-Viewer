@@ -5,6 +5,8 @@ const isolatedServer = process.env.PLAYWRIGHT_PORT !== undefined
 
 export default defineConfig({
   testDir: './e2e',
+  // This live canary has its own opt-in config and requires provisioned learners.
+  testIgnore: '**/assessment-capacity-canary.spec.ts',
   fullyParallel: true,
   retries: 0,
   reporter: 'line',

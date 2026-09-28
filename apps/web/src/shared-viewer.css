@@ -382,13 +382,16 @@
     z-index: 20;
     width: min(340px, 90vw);
     transform: translateX(-105%);
+    visibility: hidden;
     border-right-color: var(--border);
     box-shadow: 18px 0 48px #0005;
-    transition: transform .2s ease-out;
+    transition: transform .2s ease-out, visibility 0s linear .2s;
   }
 
   .drawer-open .share-slide-rail {
     transform: translateX(0);
+    visibility: visible;
+    transition: transform .2s ease-out, visibility 0s;
   }
 
   .share-rail-heading button {

@@ -33,18 +33,25 @@ export function ContextMenu({
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current || !menuRef.current) return
-    const trigger = triggerRef.current.getBoundingClientRect()
-    const menu = menuRef.current.getBoundingClientRect()
-    const gap = 6
-    const left = Math.max(8, Math.min(
-      trigger.right - menu.width,
-      window.innerWidth - menu.width - 8,
-    ))
-    const top = trigger.bottom + gap + menu.height <= window.innerHeight
-      ? trigger.bottom + gap
-      : Math.max(8, trigger.top - menu.height - gap)
-    setPosition({ left, top })
-    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    const positionMenu = () => {
+      if (!triggerRef.current || !menuRef.current) return
+      const trigger = triggerRef.current.getBoundingClientRect()
+      const menu = menuRef.current.getBoundingClientRect()
+      const gap = 6
+      const left = Math.max(8, Math.min(
+        trigger.right - menu.width,
+        window.innerWidth - menu.width - 8,
+      ))
+      const top = trigger.bottom + gap + menu.height <= window.innerHeight
+        ? trigger.bottom + gap
+        : Math.max(8, trigger.top - menu.height - gap)
+      setPosition((current) => current.left === left && current.top === top ? current : { left, top })
+    }
+    positionMenu()
+    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true })
+    const onScroll = () => positionMenu()
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
   }, [open])
 
   useEffect(() => {
@@ -56,11 +63,9 @@ export function ContextMenu({
     const onResize = () => setOpen(false)
     document.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('resize', onResize)
-    window.addEventListener('scroll', onResize, true)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('resize', onResize)
-      window.removeEventListener('scroll', onResize, true)
     }
   }, [open])
 
@@ -76,6 +81,7 @@ export function ContextMenu({
     else if (event.key === 'End') next = items.length - 1
     else if (event.key === 'Escape') {
       event.preventDefault()
+      event.stopPropagation()
       close()
       return
     } else return

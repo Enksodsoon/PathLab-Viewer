@@ -197,6 +197,7 @@ def test_anonymous_formative_attempt_saves_latest_responses_and_scores(
     assert restored.status_code == 200
     assert restored.json()["attempt"]["id"] == attempt_id
     assert datetime.fromisoformat(restored.json()["serverTime"]).tzinfo is not None
+    assert datetime.fromisoformat(restored.json()["attempt"]["startedAt"]).tzinfo is not None
     assert restored.json()["attempt"]["status"] == "submitted"
     # Pre-upgrade receipts may still contain a score; replay must reapply
     # the current response boundary rather than expose those stored bytes.
@@ -342,6 +343,7 @@ def test_student_session_restore_logout_and_stale_save_reconciliation(tmp_path: 
         headers={**student_headers, "Idempotency-Key": "restore-start"},
     ).json()
     attempt_id = attempt["id"]
+    assert datetime.fromisoformat(attempt["startedAt"]).tzinfo is not None
     saved = client.patch(
         f"/api/v2/assessment/attempts/{attempt_id}/responses",
         headers={**student_headers, "Idempotency-Key": "newer-save"},

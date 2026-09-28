@@ -1901,7 +1901,7 @@ def test_upload_token_renewal_preserves_reservation_and_authorization(tmp_path: 
         assert client.post(endpoint, headers=headers).status_code == 409
 
 
-def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> None:
+def test_completed_upload_persists_non_tiff_rejection(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         csrf = _login(client)
         settings = client.app.state.settings
@@ -1923,6 +1923,17 @@ def test_completed_upload_rejects_non_tiff_without_moving_it(tmp_path: Path) -> 
         )
         assert response.status_code == 400
         assert response.json()["detail"]["code"] == "INVALID_TIFF_SIGNATURE"
+        slide = client.get(f"/api/v1/admin/slides/{created['slide']['id']}").json()
+        assert slide["state"] == "failed"
+        assert slide["errorCode"] == "INVALID_TIFF_SIGNATURE"
+        for _ in range(2):
+            hook = client.post("/api/v1/internal/tus/hooks", json={
+                "Type": "post-finish", "Event": {"Upload": {
+                    "Size": 10, "MetaData": {"uploadToken": created["uploadToken"]},
+                    "Storage": {"Path": str(upload)},
+                }},
+            })
+            assert hook.status_code == 200
 
 
 def test_completed_upload_reduces_hook_path_to_a_safe_tus_id(tmp_path: Path) -> None:
