@@ -488,6 +488,10 @@ def main() -> int:
         parser.error("tusd, pnpm and caddy must be installed or supplied by absolute path")
     with tempfile.TemporaryDirectory(prefix="pathlab-fullstack-") as temporary:
         directory = Path(temporary)
+        # Corepack chooses pnpm from its cwd before pnpm processes --dir.
+        (directory / "package.json").write_text(json.dumps({
+            "packageManager": json.loads((ROOT / "package.json").read_text())["packageManager"]
+        }), encoding="utf-8")
         env = isolated_environment(directory)
         report_dir = args.report_dir.resolve() if args.report_dir else directory / "browser-results"
         if report_dir.is_relative_to(ROOT):
