@@ -1,8 +1,8 @@
 # Findings register
 
-954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. The first three reviewed batches are deployed at cf0d2d2; remaining hardening review and newly reproduced repairs keep the campaign open. Two of29separate security subclaims still need external credential/sync evidence.
+954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Reviewed PRs 267–270 and 272 are deployed at `3cb26bc`; authenticated checks of the latest release and two external security facts keep the campaign open. The 29 separate security subclaims retain their individual dispositions.
 
-[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks prior repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks fresh review and authenticated production qualification. Synthetic upload, tiles, annotation reload and adjacent navigation passed; Classroom and Study qualification continues.
+[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks release evidence and open qualification. The latest release passed a synthetic Classroom tile reload; signed-in Library, upload, teacher and Study checks remain open.
 
 | Disposition | Source sections |
 | --- | ---: |
