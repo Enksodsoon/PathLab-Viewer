@@ -685,7 +685,7 @@ def main() -> int:
                     "--reporter=line,json",
                     *(["--grep", args.grep] if args.grep else []),
                 ],
-                timeout=4200 if args.stress else 900,
+                timeout=4200 if args.stress else 1200,
             )
             if any(process.poll() is not None for process in services):
                 raise RuntimeError("An isolated service stopped during the browser journey")

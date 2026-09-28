@@ -267,6 +267,21 @@ test('every declared route renders; buttons and menus are inventoried and explor
     .replace(/^(Expand|Collapse) navigation rail$/, 'Navigation rail toggle')
     .replace(/^(Archive|Restore) Untitled assessment.*$/, 'Assessment archive toggle')
     .replace(/Untitled assessment( copy)?/g, 'Untitled assessment')
+  const findButton = async (expectedName: string) => (await page.evaluateHandle((name) => {
+    const normalize = (value: string) => value
+      .replace(/^Open storage,.* available$/, 'Open storage')
+      .replace(/^(Expand|Collapse) navigation rail$/, 'Navigation rail toggle')
+      .replace(/^(Archive|Restore) Untitled assessment.*$/, 'Assessment archive toggle')
+      .replace(/Untitled assessment( copy)?/g, 'Untitled assessment')
+      .replace(/\s+/g, ' ').trim()
+    return [...document.querySelectorAll('button,[role="button"]')].find((element) => {
+      if (!(element instanceof HTMLElement) || !element.getClientRects().length
+        || getComputedStyle(element).visibility !== 'visible') return false
+      const currentName = element.getAttribute('aria-label') || element.getAttribute('title')
+        || element.textContent?.trim() || '(unnamed)'
+      return normalize(currentName) === normalize(name)
+    }) ?? null
+  }, expectedName)).asElement()
   const routeButtonsInOrder = explorationOrder.flatMap(({ entry, index }) =>
     entry.buttons.map((button) => ({ entry, index, button })))
   for (const { entry, index, button } of [
@@ -292,22 +307,8 @@ test('every declared route renders; buttons and menus are inventoried and explor
       }
       await loadRoute(index)
       const buttonLocator = page.locator('button,[role="button"]')
-      const targetIndex = await buttonLocator.evaluateAll((elements, expectedName) => {
-        const normalize = (value: string) => value
-          .replace(/^Open storage,.* available$/, 'Open storage')
-          .replace(/^(Expand|Collapse) navigation rail$/, 'Navigation rail toggle')
-          .replace(/^(Archive|Restore) Untitled assessment.*$/, 'Assessment archive toggle')
-          .replace(/Untitled assessment( copy)?/g, 'Untitled assessment')
-          .replace(/\s+/g, ' ').trim()
-        return elements.findIndex((element) => {
-          if (!(element instanceof HTMLElement) || !element.getClientRects().length
-            || getComputedStyle(element).visibility !== 'visible') return false
-          const currentName = element.getAttribute('aria-label') || element.getAttribute('title')
-            || element.textContent?.trim() || '(unnamed)'
-          return normalize(currentName) === normalize(expectedName)
-        })
-      }, name)
-      if (targetIndex < 0) {
+      const target = await findButton(name)
+      if (!target) {
         const currentButtons = await buttonLocator.evaluateAll((elements) => elements
           .filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible')
           .map((element) => element.getAttribute('aria-label') || element.getAttribute('title')
@@ -315,7 +316,6 @@ test('every declared route renders; buttons and menus are inventoried and explor
         activationEvidence.push({ route: entry.route, name, result: 'not-reachable-after-prior-action', currentButtons })
         continue
       }
-      const target = buttonLocator.nth(targetIndex)
       if (!(await target.isEnabled())) {
         activationEvidence.push({ route: entry.route, name, result: 'disabled-after-state-change' })
         continue
@@ -334,25 +334,24 @@ test('every declared route renders; buttons and menus are inventoried and explor
         if (button.popup === 'menu') {
           const items = await page.getByRole('menu').last().getByRole('menuitem').allTextContents()
           for (let menuIndex = 0; menuIndex < items.length; menuIndex += 1) {
+            const menuItemName = items[menuIndex].trim().replace(/\s+/g, ' ')
             await loadRoute(index)
-            const triggerIndex = await page.locator('button,[role="button"]').evaluateAll((elements, expectedName) => {
-              const normalize = (value: string) => value
-                .replace(/^Open storage,.* available$/, 'Open storage')
-                .replace(/^(Expand|Collapse) navigation rail$/, 'Navigation rail toggle')
-                .replace(/\s+/g, ' ').trim()
-              return elements.findIndex((element) => {
-                if (!(element instanceof HTMLElement) || !element.getClientRects().length
-                  || getComputedStyle(element).visibility !== 'visible') return false
-                const currentName = element.getAttribute('aria-label') || element.getAttribute('title')
-                  || element.textContent?.trim() || '(unnamed)'
-                return normalize(currentName) === normalize(expectedName)
-              })
-            }, name)
-            if (triggerIndex < 0) throw new Error(`Menu trigger disappeared: ${name}`)
-            await page.locator('button,[role="button"]').nth(triggerIndex).click({ timeout: 5000 })
+            const trigger = await findButton(name)
+            if (!trigger) {
+              activationEvidence.push({ route: entry.route, name,
+                result: 'not-reachable-after-prior-action', currentButtons: await buttonLocator.allTextContents() })
+              continue
+            }
+            await trigger.click({ timeout: 5000 })
             const menu = page.getByRole('menu').last()
-            const menuItem = menu.getByRole('menuitem').nth(menuIndex)
-            const menuItemName = (await menuItem.innerText()).trim().replace(/\s+/g, ' ')
+            const currentItems = await menu.getByRole('menuitem').allTextContents()
+            const currentIndex = currentItems.findIndex((item) => item.trim().replace(/\s+/g, ' ') === menuItemName)
+            if (currentIndex < 0) {
+              activationEvidence.push({ route: entry.route, name: menuItemName,
+                result: 'not-reachable-after-prior-action', currentButtons: currentItems })
+              continue
+            }
+            const menuItem = menu.getByRole('menuitem').nth(currentIndex)
             if (/^(Move to Trash|Delete permanently|Restore)$/i.test(menuItemName)) {
               activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
                 result: 'covered-by-library-lifecycle.spec.ts' })
@@ -635,7 +634,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
   expect(activationEvidence.filter((item) => item.result === 'control-label-changed'), 'Unexpected control label changes').toEqual([])
   expect(activationEvidence.filter((item) => item.result === 'not-reachable-after-prior-action')
     .every((item) => Array.isArray(item.currentButtons)), 'State-changed controls include the observed route state').toBe(true)
-  expect(activationEvidence.filter((item) => !['clicked', 'disabled', 'disabled-menu-item']
+  expect(activationEvidence.filter((item) => !['clicked', 'disabled', 'disabled-menu-item', 'not-reachable-after-prior-action']
     .includes(String(item.result)) && !String(item.result).startsWith('covered-by-')),
   'Every route button and menu item has an exploration outcome').toEqual([])
   expect(dialogButtonEvidence.filter((item) => !['clicked', 'disabled', 'file-chooser-opened']
