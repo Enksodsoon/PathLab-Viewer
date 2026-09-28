@@ -620,7 +620,9 @@ def _feature_tissue_coverage(points: np.ndarray[Any, Any], rgb: np.ndarray[Any, 
     hull = cv2.convexHull(points.astype(np.float32))
     covered = np.zeros_like(mask)
     cv2.fillConvexPoly(covered, np.rint(hull).astype(np.int32), (255,))
-    return float(np.count_nonzero((covered > 0) & (mask > 0)) / max(1, np.count_nonzero(mask)))
+    covered_tissue = int(np.count_nonzero((covered > 0) & (mask > 0)))
+    tissue = max(1, int(np.count_nonzero(mask)))
+    return covered_tissue / tissue
 
 
 def _feature_supported_triangles(

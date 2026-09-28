@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ApiError } from '../api'
@@ -26,7 +26,9 @@ async function mount() {
 }
 it('retains review after transient polling error and clears only terminal denial', async () => {
   api.classroomInvitePhase.mockRejectedValueOnce(new Error('network')).mockRejectedValueOnce(new ApiError(410, 'expired'))
+  const listen = vi.spyOn(document, 'addEventListener')
   await mount()
+  await waitFor(() => expect(listen).toHaveBeenCalledWith('visibilitychange', expect.any(Function)))
   await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
   expect(screen.getByTestId('review-viewer')).toBeVisible()
   expect(await screen.findByText(/Review status could not be refreshed/)).toBeVisible()

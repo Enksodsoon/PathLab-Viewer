@@ -80,6 +80,7 @@ class PreparationCache:
         bounded.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
         rgb = np.asarray(bounded.convert("RGB"))
         corrected = None
+        thin_mask: np.ndarray[Any, Any] | None
         try:
             structure, mask = _structure(rgb)
         except AlignmentRejected:
@@ -170,7 +171,9 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
         raise primary_error
 
 
-def _overview_mask_seed(reference_mask: np.ndarray, moving_mask: np.ndarray) -> np.ndarray:
+def _overview_mask_seed(
+    reference_mask: np.ndarray[Any, Any], moving_mask: np.ndarray[Any, Any]
+) -> np.ndarray[Any, Any]:
     principal, principal_score = _mask_seed(reference_mask, moving_mask)
     reference_y, reference_x = np.nonzero(reference_mask)
     moving_y, moving_x = np.nonzero(moving_mask)
@@ -188,8 +191,8 @@ def _overview_mask_seed(reference_mask: np.ndarray, moving_mask: np.ndarray) -> 
         candidate[:, :2] = np.asarray(rotation) * scale
         candidate[:, 2] = reference_center - candidate[:, :2] @ moving_center
         warped = cv2.warpAffine(moving_mask, candidate, reference_mask.shape[::-1])
-        intersection = np.count_nonzero((warped > 0) & (reference_mask > 0))
-        dice = 2 * intersection / max(1, np.count_nonzero(warped) + len(reference_x))
+        intersection = int(np.count_nonzero(np.logical_and(warped, reference_mask)))
+        dice = 2 * intersection / max(1, int(np.count_nonzero(warped)) + len(reference_x))
         candidates.append((dice, candidate, turns))
     candidates.sort(key=lambda item: item[0], reverse=True)
     best, second = candidates[:2]
