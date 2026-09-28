@@ -16,11 +16,11 @@ Continue the explicitly authorized repair and production campaign from deployed 
 - Study purger database failure, cached IndexedDB draft-open rejection, pseudonym collision and Classroom expiry/grant race were independently reproduced and repaired in PR 270. Native regression checks and the reviewed release passed; individual post-release production checks remain open.
 - Production Classroom exposed teacher slide reset after mark acknowledgment and a mouse Send failure. Shared fixes passed native Chromium, Firefox, WebKit and mobile Chromium, with responsive drawing controls at 320px, tablet and short landscape sizes, then shipped in PR 270. Teacher actions still need post-release authenticated checks.
 - Valid folder moves can combine fresh roots with cached children into a client cycle. Shared tree and breadcrumb guards shipped in PR 270 after native regression; production interaction remains unchecked.
-- Production Study reports STUDY_MODE_DISABLED. Preserve the current feature gate; local engineering qualification does not constitute production activation.
+- The deployed public Study entry returned `STUDY_MODE_DISABLED` to a format-valid synthetic invitation code. Preserve the current feature gate; local engineering qualification does not constitute production activation.
 - All 125 hardening mechanisms retaining 328 source aliases were reviewed; see HARDENING_REVIEW.md. The OneDrive synchronization/sharing question remains substantive unresolved work, and deployed status does not answer it.
 - Dependency admission requires actual notice material and accountable receipts; see INVENTORY_CLOSURE.md. No automatic admission or inferred license grant.
 - The pinned Forge runtime passed the recorded synthetic Viewer pairing checks; see FORGE_QUALIFICATION.md. This does not establish physical-device or real-WSI quality qualification.
-- After deployment of `3cb26bc`, a disposable synthetic Classroom invitation reloaded and slide B tiles rendered in Edge. The administrator tab still shows a failed sign-in, so current Library, upload, teacher and authenticated Study workflows have not been checked against this release. Earlier signed-in checks apply to `cf0d2d2`, not to `3cb26bc`.
+- After deployment of `3cb26bc`, a disposable synthetic Classroom invitation reloaded and slide B tiles rendered in Edge. The administrator tab still shows a failed sign-in, so current Library, upload and teacher workflows have not been checked against this release. Activated Study workflows remain gated. Earlier signed-in checks apply to `cf0d2d2`, not to `3cb26bc`.
 
 ## Closure gates
 

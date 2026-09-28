@@ -12700,7 +12700,7 @@
     }
   ],
   "campaignStatus": "in progress; PRs 267-270 and 272 deployed at 3cb26bc; authenticated post-release checks and two external security facts remain open",
-  "verification": "Nine exact-main checks passed for 3cb26bc14ec64bc3dad85a29a6da823082615d6c, including fullstack rerun attempt 2 after one route-coverage failure. Protected deploy 36381707062 succeeded with restore drill and health checks. Synthetic Classroom slide B rendered after reload. Signed-in Library, upload, teacher and Study checks at this release remain open because administrator sign-in failed; Study is feature-gated.",
+  "verification": "Nine exact-main checks passed for 3cb26bc14ec64bc3dad85a29a6da823082615d6c, including fullstack rerun attempt 2 after one route-coverage failure. Protected deploy 36381707062 succeeded with restore drill and health checks. Synthetic Classroom slide B rendered after reload. Public Study entry returned STUDY_MODE_DISABLED to a format-valid synthetic code. Signed-in Library, upload and teacher checks remain open because administrator sign-in failed; activated Study flows remain gated.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
