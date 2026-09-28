@@ -1901,6 +1901,42 @@ def test_upload_token_renewal_preserves_reservation_and_authorization(tmp_path: 
         assert client.post(endpoint, headers=headers).status_code == 409
 
 
+def test_cancel_reserved_upload_commits_state_and_job(tmp_path: Path, monkeypatch) -> None:
+    from sqlalchemy.orm import Session as DatabaseSession
+
+    with _client(tmp_path) as client:
+        csrf = _login(client)
+        headers = {"X-CSRF-Token": csrf}
+        created = client.post(
+            "/api/v1/admin/slides", headers=headers,
+            json={"displayName": "Cancel", "filename": "x.ome.tif", "length": 10},
+        ).json()
+        slide_id = created["slide"]["id"]
+        settings = client.app.state.settings
+        original_commit = DatabaseSession.commit
+
+        def fail_commit(_database):
+            raise RuntimeError("injected commit failure")
+
+        monkeypatch.setattr(DatabaseSession, "commit", fail_commit)
+        with pytest.raises(RuntimeError, match="injected commit failure"):
+            client.delete(f"/api/v1/admin/slides/{slide_id}", headers=headers)
+        monkeypatch.setattr(DatabaseSession, "commit", original_commit)
+        with session_factory(settings)() as database:
+            assert database.get(Slide, slide_id).state is SlideState.UPLOADING
+            assert not database.scalars(select(Job)).all()
+
+        assert client.delete(f"/api/v1/admin/slides/{slide_id}", headers=headers).status_code == 202
+        with session_factory(settings)() as database:
+            assert database.get(Slide, slide_id).state is SlideState.DELETING
+            jobs = database.scalars(
+                select(Job).where(Job.slide_id == slide_id, Job.kind == "delete")
+            )
+            assert jobs.one()
+        renewed = client.post(f"/api/v1/admin/slides/{slide_id}/upload-token", headers=headers)
+        assert renewed.status_code == 409
+
+
 def test_completed_upload_persists_non_tiff_rejection(tmp_path: Path) -> None:
     with _client(tmp_path) as client:
         csrf = _login(client)
