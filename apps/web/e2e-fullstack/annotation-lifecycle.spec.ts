@@ -178,6 +178,7 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await page.getByRole('button', { name: 'Confirm annotation import', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('ANNOTATION_IMPORT_ID_CONFLICT')
   expect((await read()).total).toBe(count)
+  if (isMobile) await inspector.getByRole('button', { name: 'Close annotation inspector', exact: true }).click()
   await page.getByRole('button', { name: 'Retry annotations', exact: true }).click()
   await expect(page.getByRole('alert')).not.toBeVisible()
   await expect(page.locator('.annotation-operation-status')).toHaveText(/^Annotations ready/)
