@@ -12707,84 +12707,84 @@
     {
       "key": "campaign-status-thumbnail",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Terminal status omitted newly generated thumbnail until reload; existing status serializer and card-only merge repaired. Backend34/frontend44 and native four-browser image/selection checks pass.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-study-purger-recovery",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Native SQLite lock killed scheduled cleanup; existing hourly loop now contains database failure and resumes later. Native later purge/close regression passes.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-annotation-draft-open-retry",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Rejected IndexedDB open remained cached; same instance now retries and closes late blocked handles. Native four-browser regression passes.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-study-pseudonym-collision",
       "status": "confirmed",
-      "repairState": "repaired-local",
-      "evidence": "Valid invitation redemption collided with unique learner alias and returned500; existing admission lock now allocates bounded8 aliases, returns retryable503 without consuming invite on exhaustion. Native cases pass; PostgreSQL CI qualification pending.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "repairState": "deployed",
+      "evidence": "Valid invitation redemption collided with unique learner alias and returned500; existing admission lock now allocates bounded8 aliases, returns retryable503 without consuming invite on exhaustion. Native cases and exact-main PostgreSQL CI pass.",
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-classroom-expiry-grant-race",
       "status": "confirmed",
-      "repairState": "repaired-local",
-      "evidence": "A stale student read cleared a newer acknowledged teacher grant. Shared expiry compare-and-set preserves lease/epoch/version and suppresses stale event. Native SQLite regression passes; PostgreSQL CI qualification pending.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "repairState": "deployed",
+      "evidence": "A stale student read cleared a newer acknowledged teacher grant. Shared expiry compare-and-set preserves lease/epoch/version and suppresses stale event. Native SQLite regression and exact-main PostgreSQL CI pass.",
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-library-cache-cycle",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Sequential valid server folder moves combined with cached children caused tree recursion and breadcrumb hang. Shared visited guards preserve unique rows and keyboard selection. Native four-browser regression passes.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-teacher-local-slide",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Production mark acknowledgment reset teacher local slide with Guide off. Snapshot refresh retains valid teacher selection while following participant control. Native four-browser OSD regression passes.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-question-composer-send",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Production mouse Send failed while CtrlEnter succeeded. Native portal gesture containment and guarded shared submit repair canvas interception. Native click/tap and keyboard four-browser regression passes.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-mobile-drawing-occlusion",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Native mobile activity summary occluded drawing controls. Existing mobile layout reserves drawing toolbar space. Unforced teacher/student320px/tablet/short-landscape controls pass across four browser targets.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-invitation-dialog-focus",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Native aria-modal container let Tab reach background. Existing native showModal pattern supplies focus containment, Escape, and return focus; final native regression passes all four browser targets.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     },
     {
       "key": "campaign-study-trash-eligibility",
       "status": "confirmed",
-      "repairState": "repaired-local",
+      "repairState": "deployed",
       "evidence": "Study delivered a slide after owner trash withdrew publication grants; shared lifecycle predicate now rejects trashed content while preserving pack/course/learner history and allowing owner restore. Native HTTP regression passes.",
-      "qualification": "Fresh PR/main checks, deployment and applicable production verification pending"
+      "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
     }
   ],
-  "campaignStatus": "in progress; first three reviewed batches deployed, remaining hardening review and production qualification open",
-  "verification": "PRs 267, 268, 269 merged; nine required checks passed for deployed cf0d2d2b0b6a298185a676988ffae69a6d01dd3c. Protected deploy 36275489983 succeeded with backup/restore drill. Signed-in synthetic upload, tiles, annotation reload and adjacent navigation passed. Further Classroom/Study checks and new local repairs remain open.",
-  "currentClosureBranch": "codex/remediation-closure",
+  "campaignStatus": "in progress; PRs 267-270 and 272 deployed at 3cb26bc; remaining production checks and two external security facts remain open",
+  "verification": "Nine exact-main checks passed for 3cb26bc14ec64bc3dad85a29a6da823082615d6c, including fullstack rerun attempt 2 after one route-coverage failure. Protected deploy 36381707062 succeeded with restore drill and health checks. Signed-in Edge rendered synthetic Library and Quick Look tiles, adjacent navigation and command search; a 12 MiB synthetic upload reached Ready private and its viewer persisted after reload. A private annotation persisted after Save and reload. Disposable Classrooms rendered slide B, switched guide mode, collapsed the activity tray and acknowledged a rectangle mark without resetting to A; their new invitations were revoked. Public Study entry returned STUDY_MODE_DISABLED to a format-valid synthetic code. Teacher question acknowledgment, concurrent learner interaction and external security facts remain open.",
+  "currentClosureBranch": "main",
   "currentClosureEvidence": [
     "tickets/remaining-campaign-closure.md",
     "HARDENING_REVIEW.md",

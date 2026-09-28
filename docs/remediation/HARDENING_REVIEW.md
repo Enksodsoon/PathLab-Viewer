@@ -1,6 +1,6 @@
 # Independent hardening review
 
-Base `cf0d2d2` plus explicitly identified local repairs. All 328 source identities freshly reviewed as125 exact canonical groups; classifications count mechanisms, not bugs.
+Review base `cf0d2d2` plus explicitly identified repairs. All 328 source identities were reviewed as 125 exact canonical groups; classifications count mechanisms, not bugs. The disposition names below preserve the audit-time state. The seven repairs shipped in PR 270 and deployed at `3cb26bc` after exact-main checks.
 
 | Disposition | Canonical groups |
 |---|---:|
@@ -9,9 +9,9 @@ Base `cf0d2d2` plus explicitly identified local repairs. All 328 source identiti
 | upstream-addressed | 3 |
 | substantive-unresolved-work | 1 |
 
-Seven native-proven mechanisms repaired locally: SQLite purge-task failure, rejected IndexedDB open, Study pseudonym collision, Classroom expiry read/grant race, Library stale-cache tree/breadcrumb loops, invitation modal keyboard escape, and Study delivery after owner trash. Each proof and scope is recorded below. No currently proven unrepaired product mechanism remains in these125 groups.
+Seven native-proven mechanisms were repaired: SQLite purge-task failure, rejected IndexedDB open, Study pseudonym collision, Classroom expiry read/grant race, Library stale-cache tree/breadcrumb loops, invitation modal keyboard escape, and Study delivery after owner trash. Each proof and scope is recorded below. No currently proven unrepaired product mechanism remains in these 125 groups.
 
-One external substantive gap remains: whether any live database/WAL/data directory is synced by OneDrive. Operator confirmation is required. No all-resolved or deployment claim: PostgreSQL cases are wired and skipped locally without PATHLAB_POSTGRES_TEST_URL; physical devices, protected gates, production and external credential validity remain separate parent-owned evidence.
+One external substantive gap remains: whether any live database/WAL/data directory is synced by OneDrive. Operator confirmation is required. Exact-main PostgreSQL and protected deployment checks passed at `3cb26bc`; [signed-in synthetic production checks](PRODUCTION_CLOSURE_QA.md) cover selected Library, upload and Classroom paths. Other production behaviors, physical devices and external credential validity remain separate evidence.
 
 ## account.password-input-clearing
 

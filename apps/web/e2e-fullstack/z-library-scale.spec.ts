@@ -48,7 +48,11 @@ test('large synthetic library paginates, survives offline recovery and isolates 
             return url.pathname.endsWith('/api/v2/admin/library/items') && url.searchParams.has('cursor')
           })
           await next.click()
-          expect((await responsePromise).ok()).toBe(true)
+          const response = await responsePromise
+          expect(response.ok()).toBe(true)
+          const { items } = await response.json() as { items: Array<{ displayName: string }> }
+          await expect(actions).toHaveCount(items.length)
+          await expect(actions.first()).toHaveAttribute('aria-label', `More actions for ${items[0].displayName}`)
         }
       } finally { await explorer.close() }
       expect(menuEvidence).toHaveLength(1000)
