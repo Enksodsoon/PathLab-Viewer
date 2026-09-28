@@ -2,7 +2,7 @@
 
 954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Reviewed PRs 267–270 and 272 are deployed at `3cb26bc`; remaining production checks and two external security facts keep the campaign open. The 29 separate security subclaims retain their individual dispositions.
 
-[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks release evidence and open qualification. The latest release passed signed-in synthetic Library, upload and Classroom presenter checks; public Study remains gated. Annotation persistence, teacher mark/question acknowledgments and concurrent learner behavior remain open.
+[findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks release evidence and open qualification. The latest release passed signed-in synthetic Library, upload, annotation persistence and Classroom presenter mark checks; public Study remains gated. Teacher question acknowledgment and concurrent learner behavior remain open.
 
 | Disposition | Source sections |
 | --- | ---: |
