@@ -12886,23 +12886,23 @@
     {
       "key": "campaign-folder-native-custom-data-loss",
       "status": "confirmed",
-      "repairState": "merged",
+      "repairState": "deployed; live qualification pending",
       "evidence": "Native WebKit minimal fixture retains text/plain but discards custom folder MIME at dragover/drop; application consequently refuses the drop. Active local gesture identity supplies a bounded fallback, cleared on drop/dragend. Real-backend native nesting/top-level return and reload now pass. External text and ended-gesture drops remain rejected by focused tests.",
-      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038."
+      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only."
     },
     {
       "key": "campaign-annotation-mobile-command-clipping",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "deployed; live qualification pending",
       "evidence": "Released68e0a03 at320x568: command bar width208 at x56; Inspector button x345.625,width44, no scrollable overflow. Local native browser regression fails the same hit/viewport checks before repair. Desktop max-width and max-content rules survive the mobile breakpoint; small save cluster also exceeds available width. Mobile resets desktop sizing and uses a two-row grid preserving44px controls and visible save status. List offset accounts for the second row.",
-      "qualification": "All60 annotation-responsive browser checks pass across Chromium/Firefox/WebKit/mobile Chromium, including320/390/760/844/1584 widths. Real-backend320px point creation,title edit,acknowledgment and reload pass all four targets. Build/TypeScript,changed-file lint,security baseline and both inventory validators pass. Protected release and live repair verification remain pending. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure."
+      "qualification": "All60 annotation-responsive browser checks pass across Chromium/Firefox/WebKit/mobile Chromium, including320/390/760/844/1584 widths. Real-backend320px point creation,title edit,acknowledgment and reload pass all four targets. Build/TypeScript,changed-file lint,security baseline and both inventory validators pass. Protected release and live repair verification remain pending. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only."
     },
     {
       "key": "campaign-annotation-desktop-inspector-focus",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "deployed; live qualification pending",
       "evidence": "After mobile layout repair, regression reaches844x390 and closing Inspector leaves its trigger inactive. Existing focus cleanup returns early for non-mobile panels. Return focus to the trigger on desktop inspector closure while retaining the mobile modal focus trap. Corrected Chromium regression passes all five viewport widths.",
-      "qualification": "All60 focused browser matrix checks pass, including desktop/mobile Inspector closure restoring trigger focus. Four real-backend320px cases pass. Protected release remains pending; desktop stays non-modal. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure."
+      "qualification": "All60 focused browser matrix checks pass, including desktop/mobile Inspector closure restoring trigger focus. Four real-backend320px cases pass. Protected release remains pending; desktop stays non-modal. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only."
     }
   ],
   "currentClosureBranch": "main",
@@ -12937,5 +12937,37 @@
     "implementationCommit": "c16e4d787e1fcb14c847f1b6ca0fa0aaa2ff9892",
     "qualification": "PR285 merged at 68e0a038; all nine exact-main checks passed (CI37091487416 attempt2, Security37091487357); protected deployment37093695257 succeeded; fresh authenticated annotation persistence verified",
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
+  },
+  "currentProductionRelease": {
+    "sha": "bd6984878bdc21719c5d890784369466b612d064",
+    "ciRun": 37106540538,
+    "securityRun": 37106540515,
+    "deploymentRun": 37107676115,
+    "deploymentConclusion": "success",
+    "completedAt": "2026-10-03T08:03:18Z",
+    "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+    "restore": {
+      "schemaRevision": "20260907_0037",
+      "tableCount": 69,
+      "fileCount": 106325,
+      "fileBytes": 3286131731,
+      "databaseIntegrity": "restored",
+      "filesIntegrity": "restored"
+    },
+    "featureSettings": {
+      "classroom": true,
+      "annotations": false,
+      "adminAnnotationCanary": true,
+      "study": "existing gate retained"
+    },
+    "liveEvidence": "Fresh readyz and livez returned HTTP200. Existing synthetic B tiles and saved offline-recovery annotation rendered after reload in signed-in Edge.",
+    "remaining": [
+      "Released native folder moves and modal Escape",
+      "Released 320px annotation controls, acknowledgment and reload",
+      "Action-time confirmation for specific synthetic upload cancellation",
+      "External application-secret rotation and OneDrive sync/sharing facts",
+      "Final requirement-by-requirement campaign closure audit"
+    ],
+    "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
   }
 }

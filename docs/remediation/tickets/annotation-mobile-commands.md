@@ -30,3 +30,7 @@ Head5d60ce1 passed eight delivery gates, but CI37100892082's launcher killed its
 The scale scenario itself allows900seconds,while the whole normal browser suite also had a900second limit. Prior qualified28-case Linux suite took865.085seconds; this batch adds a real-backend narrow journey. Allocate a bounded1200second browser-suite envelope within the unchanged25-minute CI job. Keep every assertion,the900second scale-case limit,all1000 menu checks,the stress4200second envelope,and capacity/cleanup controls. Launcher child-ownership/timeout/cleanup regressions,Ruff,changed-file ESLint and security baseline pass. Retain at most one small progress receipt per scale page,so future termination leaves checked-menu count and elapsed time even if final reporting is interrupted. The original Linux failure is retained separately.
 
 The corrected local Chromium scale scenario passes every1000-menu assertion,pagination,offline recovery and tab-search isolation. Durable progress records all1000 menus checked in56.436seconds. This Windows scoped pass does not replace the corrected Linux full-suite gate.
+
+## Protected delivery update - 2026-10-03
+
+This repair is included in production `bd69848` after all nine exact-main checks passed and protected deployment 37107676115 succeeded. See [release evidence and open checks](remaining-campaign-closure.md#protected-delivery-update---2026-10-03). Relevant signed-in repair verification remains open; earlier pending statements retain historical states.
