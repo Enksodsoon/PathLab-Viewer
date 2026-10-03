@@ -1252,7 +1252,7 @@
       "source": "BUG_REPORT.md",
       "line": 3351,
       "alias": "FE-21",
-      "title": "[FE-21] Router Catch-All Swallows 404 / Share-Invalid \u2192 Forced /admin",
+      "title": "[FE-21] Router Catch-All Swallows 404 / Share-Invalid → Forced /admin",
       "status": "hardening",
       "canonicalKey": "router.unknown-route-ux",
       "duplicateOf": null,
@@ -1384,7 +1384,7 @@
       "source": "BUG_REPORT.md",
       "line": 3478,
       "alias": "REL-04",
-      "title": "[REL-04] Worker delete Job Outside Try \u2014 Poison-Pill Hot Loop",
+      "title": "[REL-04] Worker delete Job Outside Try — Poison-Pill Hot Loop",
       "status": "confirmed",
       "canonicalKey": "worker.delete-durability",
       "duplicateOf": "BUG_REPORT.md:1202",
@@ -1437,7 +1437,7 @@
       "source": "BUG_REPORT.md",
       "line": 3518,
       "alias": "CONC-14",
-      "title": "[CONC-14] Concurrent Folder Moves Create Cycle \u2192 Infinite CTE DoS",
+      "title": "[CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS",
       "status": "confirmed",
       "canonicalKey": "library.folder-topology-serialization",
       "duplicateOf": null,
@@ -1504,7 +1504,7 @@
       "source": "BUG_REPORT.md",
       "line": 3576,
       "alias": "FE-26",
-      "title": "[FE-26] InviteDialog False Modal \u2014 No Trap/Inert/Restore",
+      "title": "[FE-26] InviteDialog False Modal — No Trap/Inert/Restore",
       "status": "hardening",
       "canonicalKey": "classroom.invite-modal-focus",
       "duplicateOf": null,
@@ -1519,7 +1519,7 @@
       "source": "BUG_REPORT.md",
       "line": 3586,
       "alias": "OPS-07",
-      "title": "[OPS-07] tusd + caddy Zero Healthcheck \u2014 Silent Upload Blackhole",
+      "title": "[OPS-07] tusd + caddy Zero Healthcheck — Silent Upload Blackhole",
       "status": "hardening",
       "canonicalKey": "operations.proxy-upload-healthchecks",
       "duplicateOf": null,
@@ -1534,7 +1534,7 @@
       "source": "BUG_REPORT.md",
       "line": 3596,
       "alias": "SEC-34",
-      "title": "[SEC-34] Backups Plaintext \u2014 Zero Encryption (PHI Exfiltration)",
+      "title": "[SEC-34] Backups Plaintext — Zero Encryption (PHI Exfiltration)",
       "status": "hardening",
       "canonicalKey": "ops.backup-encryption",
       "duplicateOf": null,
@@ -2524,7 +2524,7 @@
       "source": "BUG_REPORT.md",
       "line": 6682,
       "alias": "SEC-47",
-      "title": "[SEC-47] Unhandled Argon2 InvalidHash \u2192 500 on Corrupt Hash",
+      "title": "[SEC-47] Unhandled Argon2 InvalidHash → 500 on Corrupt Hash",
       "status": "fixed upstream",
       "canonicalKey": "auth.invalid-hash",
       "duplicateOf": null,
@@ -2537,7 +2537,7 @@
       "source": "BUG_REPORT.md",
       "line": 6692,
       "alias": "BUG-25",
-      "title": "[BUG-25] KeyError on Unknown Membership Role \u2192 500",
+      "title": "[BUG-25] KeyError on Unknown Membership Role → 500",
       "status": "hardening",
       "canonicalKey": "identity.corrupt-role",
       "duplicateOf": null,
@@ -2566,7 +2566,7 @@
       "source": "BUG_REPORT.md",
       "line": 6712,
       "alias": "OPS-13",
-      "title": "[OPS-13] Engine Cache Key Omits Password Content \u2192 Stale After Rotation",
+      "title": "[OPS-13] Engine Cache Key Omits Password Content → Stale After Rotation",
       "status": "hardening",
       "canonicalKey": "database.secret-reload",
       "duplicateOf": null,
@@ -2611,7 +2611,7 @@
       "source": "BUG_REPORT.md",
       "line": 6742,
       "alias": "DATA-22",
-      "title": "[DATA-22] Migration Manifest Unbounded PK List \u2192 OOM",
+      "title": "[DATA-22] Migration Manifest Unbounded PK List → OOM",
       "status": "hardening",
       "canonicalKey": "migration.manifest-memory",
       "duplicateOf": null,
@@ -2652,7 +2652,7 @@
       "source": "BUG_REPORT.md",
       "line": 6772,
       "alias": "BUG-27",
-      "title": "[BUG-27] sort=manual Outside Collection \u2192 500",
+      "title": "[BUG-27] sort=manual Outside Collection → 500",
       "status": "confirmed",
       "canonicalKey": "library.manual-sort-context",
       "duplicateOf": null,
@@ -2676,7 +2676,7 @@
       "source": "BUG_REPORT.md",
       "line": 6792,
       "alias": "BUG-29",
-      "title": "[BUG-29] Redeem Ignores ends_at \u2014 Burns Single-Use Code",
+      "title": "[BUG-29] Redeem Ignores ends_at — Burns Single-Use Code",
       "status": "confirmed",
       "canonicalKey": "study.expired-redemption",
       "duplicateOf": null,
@@ -4598,7 +4598,7 @@
       "source": "BUG_REPORT.md",
       "line": 12446,
       "alias": "SEC-68",
-      "title": "[SEC-68] Missing nosniff on Tile/Thumbnail Delivery (Sniff \u2192 Stored XSS)",
+      "title": "[SEC-68] Missing nosniff on Tile/Thumbnail Delivery (Sniff → Stored XSS)",
       "status": "false positive",
       "canonicalKey": "delivery.nosniff-proxy",
       "duplicateOf": null,
@@ -4784,7 +4784,7 @@
       "status": "confirmed",
       "canonicalKey": "annotation.rotation-control-occlusion",
       "duplicateOf": null,
-      "evidence": "Actual elementFromPoint rendered defaultannotationdock covers rotation at320x568 and toolstrip at844x390. Narrowfollowup CSS moves rotation above mobile dock/clear of shortlandscape strip and anchorspopupinward. Fourbrowser\u00d7fourviewport16 reachability/scale-separation/preset checks pass, docs/remediation/evidence/viewer-download-browser-audit.json. Confirmed localrepair; no physicaldevice/oldbrowser claim."
+      "evidence": "Actual elementFromPoint rendered defaultannotationdock covers rotation at320x568 and toolstrip at844x390. Narrowfollowup CSS moves rotation above mobile dock/clear of shortlandscape strip and anchorspopupinward. Fourbrowser×fourviewport16 reachability/scale-separation/preset checks pass, docs/remediation/evidence/viewer-download-browser-audit.json. Confirmed localrepair; no physicaldevice/oldbrowser claim."
     },
     {
       "key": "BUG_REPORT.md:12626",
@@ -5110,7 +5110,7 @@
       "source": "CYBERSECURITY_REPORT.md",
       "line": 34,
       "alias": "section-34",
-      "title": "\ud83d\udd34 CRITICAL Findings",
+      "title": "🔴 CRITICAL Findings",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REPORT.md",
       "duplicateOf": "CYBERSECURITY_REPORT.md:22",
@@ -5121,7 +5121,7 @@
       "source": "CYBERSECURITY_REPORT.md",
       "line": 102,
       "alias": "section-102",
-      "title": "\ud83d\udfe0 HIGH Findings",
+      "title": "🟠 HIGH Findings",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REPORT.md",
       "duplicateOf": "CYBERSECURITY_REPORT.md:22",
@@ -5132,7 +5132,7 @@
       "source": "CYBERSECURITY_REPORT.md",
       "line": 212,
       "alias": "section-212",
-      "title": "\ud83d\udfe1 MEDIUM Findings",
+      "title": "🟡 MEDIUM Findings",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REPORT.md",
       "duplicateOf": "CYBERSECURITY_REPORT.md:22",
@@ -5143,7 +5143,7 @@
       "source": "CYBERSECURITY_REPORT.md",
       "line": 367,
       "alias": "section-367",
-      "title": "\ud83d\udfe2 LOW Findings",
+      "title": "🟢 LOW Findings",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REPORT.md",
       "duplicateOf": "CYBERSECURITY_REPORT.md:22",
@@ -5154,7 +5154,7 @@
       "source": "CYBERSECURITY_REMEDIATION.md",
       "line": 9,
       "alias": "section-9",
-      "title": "P0 \u2014 Immediate (Do These First)",
+      "title": "P0 — Immediate (Do These First)",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REMEDIATION.md",
       "duplicateOf": null,
@@ -5165,7 +5165,7 @@
       "source": "CYBERSECURITY_REMEDIATION.md",
       "line": 58,
       "alias": "section-58",
-      "title": "P1 \u2014 This Sprint",
+      "title": "P1 — This Sprint",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REMEDIATION.md",
       "duplicateOf": "CYBERSECURITY_REMEDIATION.md:9",
@@ -5176,7 +5176,7 @@
       "source": "CYBERSECURITY_REMEDIATION.md",
       "line": 156,
       "alias": "section-156",
-      "title": "P2 \u2014 Next Sprint",
+      "title": "P2 — Next Sprint",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REMEDIATION.md",
       "duplicateOf": "CYBERSECURITY_REMEDIATION.md:9",
@@ -5187,7 +5187,7 @@
       "source": "CYBERSECURITY_REMEDIATION.md",
       "line": 269,
       "alias": "section-269",
-      "title": "P3 \u2014 Planned (Defense-in-Depth)",
+      "title": "P3 — Planned (Defense-in-Depth)",
       "status": "duplicate",
       "canonicalKey": "overview:CYBERSECURITY_REMEDIATION.md",
       "duplicateOf": "CYBERSECURITY_REMEDIATION.md:9",
@@ -6392,7 +6392,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 3317,
       "alias": "FE-21",
-      "title": "[FE-21] Router Catch-All Swallows 404 / Share-Invalid \u2192 Forced /admin",
+      "title": "[FE-21] Router Catch-All Swallows 404 / Share-Invalid → Forced /admin",
       "status": "hardening",
       "canonicalKey": "router.unknown-route-ux",
       "duplicateOf": "BUG_REPORT.md:3351",
@@ -6524,7 +6524,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 3444,
       "alias": "REL-04",
-      "title": "[REL-04] Worker delete Job Outside Try \u2014 Poison-Pill Hot Loop",
+      "title": "[REL-04] Worker delete Job Outside Try — Poison-Pill Hot Loop",
       "status": "confirmed",
       "canonicalKey": "worker.delete-durability",
       "duplicateOf": "BUG_REPORT.md:1202",
@@ -6577,7 +6577,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 3484,
       "alias": "CONC-14",
-      "title": "[CONC-14] Concurrent Folder Moves Create Cycle \u2192 Infinite CTE DoS",
+      "title": "[CONC-14] Concurrent Folder Moves Create Cycle → Infinite CTE DoS",
       "status": "confirmed",
       "canonicalKey": "library.folder-topology-serialization",
       "duplicateOf": "BUG_REPORT.md:3518",
@@ -6644,7 +6644,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 3542,
       "alias": "FE-26",
-      "title": "[FE-26] InviteDialog False Modal \u2014 No Trap/Inert/Restore",
+      "title": "[FE-26] InviteDialog False Modal — No Trap/Inert/Restore",
       "status": "hardening",
       "canonicalKey": "classroom.invite-modal-focus",
       "duplicateOf": "BUG_REPORT.md:3576",
@@ -6659,7 +6659,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 3552,
       "alias": "OPS-07",
-      "title": "[OPS-07] tusd + caddy Zero Healthcheck \u2014 Silent Upload Blackhole",
+      "title": "[OPS-07] tusd + caddy Zero Healthcheck — Silent Upload Blackhole",
       "status": "hardening",
       "canonicalKey": "operations.proxy-upload-healthchecks",
       "duplicateOf": "BUG_REPORT.md:3586",
@@ -6674,7 +6674,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 3562,
       "alias": "SEC-34",
-      "title": "[SEC-34] Backups Plaintext \u2014 Zero Encryption (PHI Exfiltration)",
+      "title": "[SEC-34] Backups Plaintext — Zero Encryption (PHI Exfiltration)",
       "status": "hardening",
       "canonicalKey": "ops.backup-encryption",
       "duplicateOf": "BUG_REPORT.md:3596",
@@ -7664,7 +7664,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 6648,
       "alias": "SEC-47",
-      "title": "[SEC-47] Unhandled Argon2 InvalidHash \u2192 500 on Corrupt Hash",
+      "title": "[SEC-47] Unhandled Argon2 InvalidHash → 500 on Corrupt Hash",
       "status": "fixed upstream",
       "canonicalKey": "auth.invalid-hash",
       "duplicateOf": "BUG_REPORT.md:6682",
@@ -7677,7 +7677,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 6658,
       "alias": "BUG-25",
-      "title": "[BUG-25] KeyError on Unknown Membership Role \u2192 500",
+      "title": "[BUG-25] KeyError on Unknown Membership Role → 500",
       "status": "hardening",
       "canonicalKey": "identity.corrupt-role",
       "duplicateOf": "BUG_REPORT.md:6692",
@@ -7706,7 +7706,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 6678,
       "alias": "OPS-13",
-      "title": "[OPS-13] Engine Cache Key Omits Password Content \u2192 Stale After Rotation",
+      "title": "[OPS-13] Engine Cache Key Omits Password Content → Stale After Rotation",
       "status": "hardening",
       "canonicalKey": "database.secret-reload",
       "duplicateOf": "BUG_REPORT.md:6712",
@@ -7751,7 +7751,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 6708,
       "alias": "DATA-22",
-      "title": "[DATA-22] Migration Manifest Unbounded PK List \u2192 OOM",
+      "title": "[DATA-22] Migration Manifest Unbounded PK List → OOM",
       "status": "hardening",
       "canonicalKey": "migration.manifest-memory",
       "duplicateOf": "BUG_REPORT.md:6742",
@@ -7792,7 +7792,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 6738,
       "alias": "BUG-27",
-      "title": "[BUG-27] sort=manual Outside Collection \u2192 500",
+      "title": "[BUG-27] sort=manual Outside Collection → 500",
       "status": "confirmed",
       "canonicalKey": "library.manual-sort-context",
       "duplicateOf": "BUG_REPORT.md:6772",
@@ -7816,7 +7816,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 6758,
       "alias": "BUG-29",
-      "title": "[BUG-29] Redeem Ignores ends_at \u2014 Burns Single-Use Code",
+      "title": "[BUG-29] Redeem Ignores ends_at — Burns Single-Use Code",
       "status": "confirmed",
       "canonicalKey": "study.expired-redemption",
       "duplicateOf": "BUG_REPORT.md:6792",
@@ -9738,7 +9738,7 @@
       "source": "docs/reports/BUG_REPORT_CODEX.md",
       "line": 12412,
       "alias": "SEC-68",
-      "title": "[SEC-68] Missing nosniff on Tile/Thumbnail Delivery (Sniff \u2192 Stored XSS)",
+      "title": "[SEC-68] Missing nosniff on Tile/Thumbnail Delivery (Sniff → Stored XSS)",
       "status": "false positive",
       "canonicalKey": "delivery.nosniff-proxy",
       "duplicateOf": "BUG_REPORT.md:12446",
@@ -10091,7 +10091,7 @@
       "source": "docs/reports/FULL_SYSTEM_QA_REPORT.md",
       "line": 149,
       "alias": "section-149",
-      "title": "P1 \u2014 High Severity",
+      "title": "P1 — High Severity",
       "status": "duplicate",
       "canonicalKey": "overview:docs/reports/FULL_SYSTEM_QA_REPORT.md",
       "duplicateOf": null,
@@ -10128,7 +10128,7 @@
       "source": "docs/reports/FULL_SYSTEM_QA_REPORT.md",
       "line": 193,
       "alias": "section-193",
-      "title": "P2 \u2014 Medium Severity",
+      "title": "P2 — Medium Severity",
       "status": "duplicate",
       "canonicalKey": "overview:docs/reports/FULL_SYSTEM_QA_REPORT.md",
       "duplicateOf": "docs/reports/FULL_SYSTEM_QA_REPORT.md:149",
@@ -10178,7 +10178,7 @@
       "source": "docs/reports/FULL_SYSTEM_QA_REPORT.md",
       "line": 255,
       "alias": "section-255",
-      "title": "P3 \u2014 Low Severity",
+      "title": "P3 — Low Severity",
       "status": "duplicate",
       "canonicalKey": "overview:docs/reports/FULL_SYSTEM_QA_REPORT.md",
       "duplicateOf": "docs/reports/FULL_SYSTEM_QA_REPORT.md:149",
@@ -12176,7 +12176,7 @@
       "source": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md",
       "line": 884,
       "alias": "REL-04",
-      "title": "[REL-04] Worker delete Job Outside Try \u2014 Poison-Pill Hot Loop",
+      "title": "[REL-04] Worker delete Job Outside Try — Poison-Pill Hot Loop",
       "status": "confirmed",
       "canonicalKey": "worker.delete-durability",
       "duplicateOf": "BUG_REPORT.md:1202",
@@ -12216,7 +12216,7 @@
       "source": "docs/reports/CODEX_BUG_RECONCILIATION_REPORT.md",
       "line": 902,
       "alias": "OPS-07",
-      "title": "[OPS-07] tusd + caddy Zero Healthcheck \u2014 Silent Upload Blackhole",
+      "title": "[OPS-07] tusd + caddy Zero Healthcheck — Silent Upload Blackhole",
       "status": "hardening",
       "canonicalKey": "operations.proxy-upload-healthchecks",
       "duplicateOf": "BUG_REPORT.md:3586",
@@ -12699,8 +12699,8 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "Production9ea88b9 verified;43 separately tracked campaign findings. Atomic revision admission PR305 merged6331154 after nine exact-head gates; rebased lost-acknowledgment PR304 awaits fresh head/main checks and combined protected delivery. External facts, strict rights admission and specific synthetic action confirmations remain open.",
-  "verification": "Historical verified production ae9b1ac: all nine exact-main delivery checks passed; protected deployment37116218798 succeeded with actual restore69tables/106325files/schema20260907_0037. Public health200, anonymous checked admin denials401; signed-in synthetic tiles/annotation persistence, accessible folder move persistence, descendant omission and modal Escape passed. Native drag remains unverified. Historical verification statements retained in verificationHistory;954 source entries and29 aggregate subclaims preserved.",
+  "campaignStatus": "Production c570116 verified after all nine exact-main gates, protected restore and fresh health/native save-reload/viewer checks. All 43 campaign findings and 954 source entries/29 aggregate subclaims retained. External security facts, accountable software admission and specific remaining production observations/confirmations keep the full campaign open.",
+  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
@@ -13097,10 +13097,10 @@
     },
     {
       "key": "campaign-assessment-lost-acknowledgment",
-      "status": "confirmed; local candidate qualified, renewed review clear; fresh hosted gates and protected delivery pending",
+      "status": "confirmed; repaired and delivered in verified production c570116",
       "evidence": "Actual-fetch component at9ea88b9 commits revision2 then loses response; newer edits cannot reach acknowledged revision3. Independent API red and review-stage denial/Unicode red retained.",
       "repair": "One bounded authoritative read after uncertain transport/5xx mutation, same id/exactly next revision/structurally equal document only; exclude known CSRF refresh-stage failures. Existing serialized optimistic save handles confirmed acknowledgment.",
-      "qualification": "Initial focused29pass and browser20pass; corrected44affected pass after reviewer findings. Final complete suite/browser/build/review pending. Different server evidence remains fail-closed; no production fault injection. Final571frontend85files325.46seconds pass;24browser across4projects1.1minutes pass, build9.98seconds/fresh lint. Renewed product review clear. Actual disposable backend commit2/response drop/newer edit If-Match2/revision3/GET/reload passed; fullstack1expected0unexpected0flaky0skip7.43seconds, productionTouched=false. Initial review red3fail and initial browser denial fixture4fail retained; latter noPATCH because StrictMode initial reads, fixture corrected. Final added fullstack/fixture review pending. Final independent review of real-backend scenario and corrected browser fixture clears both; no actionable findings. All nine first exact0ba75bd hosted gates passed in CI37152804010/Security37152804049. Backend prerequisite PR305 passed all nine gates and merged6331154. Rebase preserves all frontend application/test blobs; fresh rebased gates and combined protected delivery remain pending. Both new finding keys retained with original954source entries/29subclaims exactly equal to main;40 prior documentation encoding artifacts corrected. Combined real-backend scenario repeated against atomic6331154 succeeds with productionTouched=false; receipt var/lost-ack-atomic-backend/fullstack.json. Final integration review clear; three stale documentation summaries corrected before final fresh head gates.",
+      "qualification": "Initial focused29pass and browser20pass; corrected44affected pass after reviewer findings. Final complete suite/browser/build/review pending. Different server evidence remains fail-closed; no production fault injection. Final571frontend85files325.46seconds pass;24browser across4projects1.1minutes pass, build9.98seconds/fresh lint. Renewed product review clear. Actual disposable backend commit2/response drop/newer edit If-Match2/revision3/GET/reload passed; fullstack1expected0unexpected0flaky0skip7.43seconds, productionTouched=false. Initial review red3fail and initial browser denial fixture4fail retained; latter noPATCH because StrictMode initial reads, fixture corrected. Final added fullstack/fixture review pending. Final independent review of real-backend scenario and corrected browser fixture clears both; no actionable findings. All nine first exact0ba75bd hosted gates passed in CI37152804010/Security37152804049. Backend prerequisite PR305 passed all nine gates and merged6331154. Rebase preserves all frontend application/test blobs; fresh rebased gates and combined protected delivery remain pending. Both new finding keys retained with original954source entries/29subclaims exactly equal to main;40 prior documentation encoding artifacts corrected. Combined real-backend scenario repeated against atomic6331154 succeeds with productionTouched=false; receipt var/lost-ack-atomic-backend/fullstack.json. Final integration review clear; three stale documentation summaries corrected before final fresh head gates. Delivered together at c570116 after all nine reviewed-head and fresh merged-main gates passed. Protected deployment37158209056 succeeded with actual database/files restore. Fresh health/access-denial and native signed-in positive assessment save/reload passed; no production response-loss or concurrency injection.",
       "callers": [
         "AssessmentBuilderPage autosave/manual retry",
         "AssessmentAdminPage rename"
@@ -13109,10 +13109,10 @@
     },
     {
       "key": "campaign-assessment-revision-admission",
-      "status": "confirmed; qualified and merged6331154, combined production delivery pending",
+      "status": "confirmed; repaired and delivered in verified production c570116",
       "evidence": "At main9ea88b9 actual HTTP save/save, save/import and import/import each read revision1 then both return200/revision2, losing one accepted document. Save paused after editable read returns200 after archive. Four original-source failures retained in var/assessment-draft-concurrency-red.log.",
       "repair": "Conditional database UPDATE matches id, organization, expected revision and draft status; increment once and commit the accepted document. Roll back rejected admission before current ownership/status conflict handling. Preserve own acknowledged snapshot and capture immutable identity before rollback.",
-      "qualification": "Four SQLite interleaving regressions pass; focused22pass4PostgreSQL skips locally. Ruff and mypy pass. Hosted PostgreSQL uses generated disposable schemas and CI explicitly includes all four PostgreSQL cases; execution and complete backend review/checks pending. No production injection or delivery claim. Full Windows suite1419pass108skip699.05seconds. Hosted Linux1436pass91skip504.30seconds, PostgreSQL156pass1skip142seconds including eight new cases, browser249pass3skip13.5minutes and actual fullstack success. All nine latest exact4fef6f2 contexts passed; normal protected squash merge63311545f912a624259bb5499181d2ed877511c7. PostgreSQL fixture isolation review corrected URL options overridden by application timeouts; merged connect_args retain both settings and schema assertion before writes. No production fault injection or deployment claim.",
+      "qualification": "Four SQLite interleaving regressions pass; focused22pass4PostgreSQL skips locally. Ruff and mypy pass. Hosted PostgreSQL uses generated disposable schemas and CI explicitly includes all four PostgreSQL cases; execution and complete backend review/checks pending. No production injection or delivery claim. Full Windows suite1419pass108skip699.05seconds. Hosted Linux1436pass91skip504.30seconds, PostgreSQL156pass1skip142seconds including eight new cases, browser249pass3skip13.5minutes and actual fullstack success. All nine latest exact4fef6f2 contexts passed; normal protected squash merge63311545f912a624259bb5499181d2ed877511c7. PostgreSQL fixture isolation review corrected URL options overridden by application timeouts; merged connect_args retain both settings and schema assertion before writes. No production fault injection or deployment claim. Delivered together at c570116 after all nine reviewed-head and fresh merged-main gates passed. Protected deployment37158209056 succeeded with actual database/files restore. Fresh health/access-denial and native signed-in positive assessment save/reload passed; no production response-loss or concurrency injection.",
       "callers": [
         "PATCH assessment draft authoring and rename",
         "POST import-questions destination mutation",
@@ -13155,20 +13155,51 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "9ea88b9824768808884ae0a66ff4fa627fe63ee1",
-    "ciRun": 37148947392,
-    "securityRun": 37148947344,
-    "deploymentRun": 37150191318,
+    "sha": "c570116a7b018620bd803266edca813701bc8f6f",
+    "ciRun": 37157146069,
+    "securityRun": 37157146107,
+    "deploymentRun": 37158209056,
     "deploymentConclusion": "success",
-    "completedAt": "2026-10-03T20:19:26Z",
-    "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+    "updatedAt": "2026-10-03T22:38:37Z",
+    "allNineLatestMainChecksPassed": true,
     "restore": {
-      "schemaRevision": "20260907_0037",
-      "tableCount": 69,
-      "fileCount": 106325,
+      "archiveRoots": [
+        "delivery",
+        "originals",
+        "private",
+        "public"
+      ],
       "fileBytes": 3286131731,
+      "fileCount": 106325,
+      "filesIntegrity": "restored",
       "databaseIntegrity": "restored",
-      "filesIntegrity": "restored"
+      "schemaRevision": "20260907_0037",
+      "tableCount": 69
+    },
+    "health": {
+      "checkedAt": "2026-10-03T22:38:41.899344+00:00",
+      "scope": "Anonymous HTTP health and actual assessment authorization boundary; deployed SHA must be established separately from workflow logs.",
+      "results": [
+        {
+          "path": "/livez",
+          "status": 200,
+          "expected": 200,
+          "elapsedSeconds": 0.125
+        },
+        {
+          "path": "/readyz",
+          "status": 200,
+          "expected": 200,
+          "elapsedSeconds": 0.14
+        },
+        {
+          "path": "/api/v2/admin/assessment/drafts",
+          "status": 401,
+          "expected": 401,
+          "elapsedSeconds": 0.125
+        }
+      ],
+      "passed": true
     },
     "featureSettings": {
       "classroom": true,
@@ -13176,16 +13207,34 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "Protected deployment terminal success at exact9ea88b9; actual restore20:18:02UTC verified existing schema69tables/106325files/3286131731bytes and database/files integrity. Fresh livez/readyz20020:19:56UTC. Native signed-in synthetic copy edit/All changes saved/explicit browser Refresh retained9ea88b9 marker,2questions/2.502points. Library retry notice cleared after fresh refresh. Prior e5f8cbd positive private import/reload, different-record Inspector/title/reload and accessible folder Move/hierarchy reload qualified.",
+    "nativeAssessment": {
+      "draftId": "8fa54472-90a8-4041-9462-eede03640074",
+      "descriptionMarker": "Atomic revisions and acknowledgment recovery release c570116 verified.",
+      "observations": [
+        "Browser Refresh loaded assessment",
+        "Native description edit acknowledged All changes saved",
+        "Browser Refresh retained marker, two questions and 2.502 points"
+      ],
+      "receipt": "var/production-c570116-native-save.md"
+    },
+    "nativeViewer": {
+      "slideId": "82c82766-44ee-4d8f-8b56-695ac8bfc57b",
+      "observations": [
+        "Refreshed Library loaded synthetic B thumbnail",
+        "Open viewer reached authenticated admin preview",
+        "3072 x 3072 patterned tiles, two saved rectangles and NO CHANGES rendered"
+      ]
+    },
     "remaining": [
-      "Lost-server-acknowledgment reconciliation candidate requires final qualification/review/fresh hosted gates/protected delivery",
-      "Native production folder drag remains unverified; three-engine local actual pointer fixture passes",
-      "Specific synthetic Practice publication/learner attempt and upload Cancel confirmations",
-      "External application-secret rotation/provenance and actual OneDrive sync/sharing facts",
-      "Strict accountable software admission and two immutable notice gaps",
-      "Requirement-by-requirement campaign closure; Study gate retained; no physical-device/clinical qualification"
+      "Native production drag direct observation",
+      "Specific synthetic publication/learner-attempt and Cancel confirmations",
+      "External reported-secret rotation/provenance and actual OneDrive sync/sharing facts",
+      "Strict accountable software admission and two exact notice gaps",
+      "Requirement-by-requirement campaign closure"
     ],
-    "limitations": "No production fault injection, lost acknowledgment reconciliation or global zero-bug claim. Study gate retained."
+    "limitations": "Positive native released save/reload and viewer checks only; failure/concurrency paths qualified locally/hosted, not injected into production. No clinical, physical-device, unrestricted capacity or zero-bug claim.",
+    "evidenceOrigin": "Protected GitHub workflow logs and fresh native signed-in Edge observations; no credential values or production failure injection.",
+    "completedAt": "2026-10-03T22:38:36Z"
   },
   "previousProductionReleases": [
     {
@@ -13445,12 +13494,49 @@
         "Requirement-by-requirement campaign closure; no physical-device or clinical qualification claim"
       ],
       "limitations": "No production fault injection, lost acknowledgment reconciliation or global zero-bug claim. Study gate retained."
+    },
+    {
+      "sha": "9ea88b9824768808884ae0a66ff4fa627fe63ee1",
+      "ciRun": 37148947392,
+      "securityRun": 37148947344,
+      "deploymentRun": 37150191318,
+      "deploymentConclusion": "success",
+      "completedAt": "2026-10-03T20:19:26Z",
+      "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+      "restore": {
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69,
+        "fileCount": 106325,
+        "fileBytes": 3286131731,
+        "databaseIntegrity": "restored",
+        "filesIntegrity": "restored"
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "liveEvidence": "Protected deployment terminal success at exact9ea88b9; actual restore20:18:02UTC verified existing schema69tables/106325files/3286131731bytes and database/files integrity. Fresh livez/readyz20020:19:56UTC. Native signed-in synthetic copy edit/All changes saved/explicit browser Refresh retained9ea88b9 marker,2questions/2.502points. Library retry notice cleared after fresh refresh. Prior e5f8cbd positive private import/reload, different-record Inspector/title/reload and accessible folder Move/hierarchy reload qualified.",
+      "remaining": [
+        "Lost-server-acknowledgment reconciliation candidate requires final qualification/review/fresh hosted gates/protected delivery",
+        "Native production folder drag remains unverified; three-engine local actual pointer fixture passes",
+        "Specific synthetic Practice publication/learner attempt and upload Cancel confirmations",
+        "External application-secret rotation/provenance and actual OneDrive sync/sharing facts",
+        "Strict accountable software admission and two immutable notice gaps",
+        "Requirement-by-requirement campaign closure; Study gate retained; no physical-device/clinical qualification"
+      ],
+      "limitations": "No production fault injection, lost acknowledgment reconciliation or global zero-bug claim. Study gate retained."
     }
   ],
   "verificationHistory": [
     {
       "campaignStatus": "in progress; protected production68e0a038 deployed; three folder/modal candidates pass four local Windows browser targets, but Linux fullstack native folder move lacks PATCH acknowledgment; diagnostic collection added before further repair. External security facts and live Cancel confirmation remain open.",
       "verification": "Production 68e0a038f75c26fbc7162c7f1c92c5c18770607f: all nine required exact-main checks successful; original WebKit navigator failure retained, 10 local repeats and CI rerun passed without source changes. Protected deploy37093695257 completed; restore drill69tables106325files/schema20260907_0037; public readiness/liveness200. Fresh signed-in Edge Library/QuickLook/private viewer and synthetic annotation autosave/reload persistence passed. At preceding0d11, selected native Classroom expiry persisted and revocation rejected the correct code. Source aliases remain954; current campaign is not closed."
+    },
+    {
+      "campaignStatus": "Production9ea88b9 verified;43 separately tracked campaign findings. Atomic revision admission PR305 merged6331154 after nine exact-head gates; rebased lost-acknowledgment PR304 awaits fresh head/main checks and combined protected delivery. External facts, strict rights admission and specific synthetic action confirmations remain open.",
+      "verification": "Historical verified production ae9b1ac: all nine exact-main delivery checks passed; protected deployment37116218798 succeeded with actual restore69tables/106325files/schema20260907_0037. Public health200, anonymous checked admin denials401; signed-in synthetic tiles/annotation persistence, accessible folder move persistence, descendant omission and modal Escape passed. Native drag remains unverified. Historical verification statements retained in verificationHistory;954 source entries and29 aggregate subclaims preserved."
     }
   ],
   "productionReleaseHistory": [
