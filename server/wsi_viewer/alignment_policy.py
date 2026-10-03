@@ -43,7 +43,7 @@ def current_registration(
         or anchor_version is not None
         and value.get("anchorVersion") not in {None, anchor_version}
     )
-    if str(value.get("provenance", "")).startswith("manual"):
+    if str(value.get("provenance", "")).startswith(("manual", "automatic")):
         incompatible_source |= (
             source_version is not None
             and value.get("sourceVersion") != source_version

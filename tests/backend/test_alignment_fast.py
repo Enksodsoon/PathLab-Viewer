@@ -528,3 +528,35 @@ def test_saved_fallback_settings_are_bound_to_the_current_adapter_digest():
     assert current_registration(saved)["status"] == "ready"
     settings["maxImageDimension"] = 512
     assert current_registration(saved)["status"] == "stale"
+
+@pytest.mark.parametrize("status", ["ready", "approximate"])
+@pytest.mark.parametrize("missing_field", ["sourceVersion", "anchorVersion"])
+def test_automatic_map_requires_both_source_identities_when_served(status, missing_field):
+    from copy import deepcopy
+
+    from wsi_viewer.alignment_engines import ENGINE_NATIVE, ENGINE_VERSIONS, settings_digest
+    from wsi_viewer.alignment_policy import current_registration
+
+    saved = {
+        "status": status,
+        "provenance": "automatic",
+        "sourceVersion": "moving-v1",
+        "anchorVersion": "reference-v1",
+        "engine": ENGINE_NATIVE,
+        "engineVersion": ENGINE_VERSIONS[ENGINE_NATIVE],
+        "settingsDigest": settings_digest(ENGINE_NATIVE),
+        "movingToReference": [[1, 0, 0], [0, 1, 0]],
+        "triangles": [{"supported": True}],
+        "overviewTriangles": [{"supported": True}],
+        "overviewFallback": {"status": "approximate"},
+    }
+    del saved[missing_field]
+    original = deepcopy(saved)
+    served = current_registration(
+        saved, source_version="moving-v1", anchor_version="reference-v1"
+    )
+    assert served["status"] == "stale"
+    assert served["movingToReference"] is None
+    assert not served["triangles"] and not served["overviewTriangles"]
+    assert "overviewFallback" not in served
+    assert saved == original
