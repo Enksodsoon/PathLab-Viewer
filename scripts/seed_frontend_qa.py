@@ -48,7 +48,7 @@ def seed_alignment(settings: Settings) -> None:
             moved.save(derivative / "thumbnail.jpg")
             (derivative / "slide.dzi").write_text(
                 '<Image xmlns="http://schemas.microsoft.com/deepzoom/2008" '
-                'TileSize="256" Overlap="1" Format="png">'
+                'TileSize="256" Overlap="1" Format="jpeg">'
                 '<Size Width="640" Height="480"/></Image>'
             )
             maximum = math.ceil(math.log2(max(image.size)))
@@ -66,7 +66,7 @@ def seed_alignment(settings: Settings) -> None:
                                 min(small.width, (column + 1) * 256 + 1),
                                 min(small.height, (row + 1) * 256 + 1),
                             )
-                        ).save(root / f"{column}_{row}.png")
+                        ).save(root / f"{column}_{row}.jpeg", quality=95)
             database.add(
                 Slide(
                     id=slide_id,

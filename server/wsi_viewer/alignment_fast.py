@@ -27,7 +27,7 @@ from .alignment import (
     rescale_registration,
 )
 
-PREPARATION_VERSION = "overview-orb1536-v5-quarter-turn"
+PREPARATION_VERSION = "overview-orb1536-v6-component-fallback"
 
 
 @dataclass(frozen=True)
@@ -150,6 +150,10 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
     try:
         return _register_prepared(reference, moving, sigma=3)
     except AlignmentRejected as primary_error:
+        try:
+            return _register_prepared_components(reference, moving)
+        except AlignmentRejected:
+            pass
         if reference.thin_mask is not None and moving.thin_mask is not None:
             try:
                 result = _register_prepared(
@@ -171,6 +175,96 @@ def register_prepared(reference: PreparedSlide, moving: PreparedSlide) -> Regist
         raise primary_error
 
 
+def _register_prepared_components(
+    reference: PreparedSlide, moving: PreparedSlide
+) -> RegistrationResult:
+    """Bounded partial-tissue proposals with unchanged correspondence/geometry gates.
+
+    Feature ambiguity between repeated fragments remains a rejection. No cells
+    span the dropped fragments, and successful component maps remain approximate.
+    """
+
+    def components(prepared: PreparedSlide) -> list[PreparedSlide]:
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(prepared.mask)
+        order = sorted(range(1, count), key=lambda i: int(stats[i, cv2.CC_STAT_AREA]), reverse=True)
+        result = []
+        for label in order[:3]:
+            if stats[label, cv2.CC_STAT_AREA] < max(256, prepared.mask.size * 0.01):
+                continue
+            mask = (labels == label).astype(np.uint8) * 255
+            xy = np.rint(prepared.points).astype(int)
+            keep = (
+                (
+                    mask[
+                        np.clip(xy[:, 1], 0, mask.shape[0] - 1),
+                        np.clip(xy[:, 0], 0, mask.shape[1] - 1),
+                    ]
+                    > 0
+                )
+                if len(xy)
+                else np.zeros(0, bool)
+            )
+            result.append(
+                replace(
+                    prepared,
+                    mask=mask,
+                    structure=np.where(mask > 0, prepared.structure, 0).astype(np.uint8),
+                    points=prepared.points[keep],
+                    descriptors=prepared.descriptors[keep]
+                    if prepared.descriptors is not None
+                    else None,
+                    thin_mask=None,
+                    calibrated=None,
+                )
+            )
+        return result
+
+    fixed = components(reference)
+    floating = components(moving)
+    if not fixed or not floating or (len(fixed) == len(floating) == 1):
+        raise AlignmentRejected("Needs refinement: no partial component proposals")
+    accepted = []
+    checked = 0
+    used = set()
+    for source in floating:
+        candidates = []
+        for index, target in enumerate(fixed):
+            checked += 1
+            try:
+                proposal = _register_prepared(target, source, sigma=3)
+            except AlignmentRejected:
+                continue
+            if proposal.inlier_count >= 10:
+                candidates.append((proposal.inlier_count, index, proposal))
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        if not candidates:
+            continue
+        best = candidates[0]
+        if len(candidates) > 1 and (
+            best[0] < candidates[1][0] * 1.35 or best[0] - candidates[1][0] < 3
+        ):
+            continue
+        if best[1] in used:
+            continue
+        used.add(best[1])
+        accepted.append(best[2])
+    if not accepted:
+        raise AlignmentRejected("Needs refinement: ambiguous partial component correspondence")
+    cells = [cell for result in accepted for cell in result.overview_triangles]
+    best_map = max(accepted, key=lambda result: result.inlier_count)
+    return replace(
+        best_map,
+        overview_triangles=cells,
+        evidence={
+            **best_map.evidence,
+            "maskMode": "bounded-component-fallback",
+            "componentPairsChecked": checked,
+            "acceptedComponents": len(accepted),
+            "overviewTriangleCount": len(cells),
+        },
+    )
+
+
 def _overview_mask_seed(
     reference_mask: np.ndarray[Any, Any], moving_mask: np.ndarray[Any, Any]
 ) -> np.ndarray[Any, Any]:
@@ -181,12 +275,14 @@ def _overview_mask_seed(
     moving_center = np.array([moving_x.mean(), moving_y.mean()])
     scale = np.sqrt(len(reference_x) / len(moving_x))
     candidates = []
-    for turns, rotation in enumerate((
-        ((1, 0), (0, 1)),
-        ((0, -1), (1, 0)),
-        ((-1, 0), (0, -1)),
-        ((0, 1), (-1, 0)),
-    )):
+    for turns, rotation in enumerate(
+        (
+            ((1, 0), (0, 1)),
+            ((0, -1), (1, 0)),
+            ((-1, 0), (0, -1)),
+            ((0, 1), (-1, 0)),
+        )
+    ):
         candidate = np.zeros((2, 3), dtype=np.float32)
         candidate[:, :2] = np.asarray(rotation) * scale
         candidate[:, 2] = reference_center - candidate[:, :2] @ moving_center

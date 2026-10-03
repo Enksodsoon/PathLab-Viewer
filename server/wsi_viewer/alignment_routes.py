@@ -7,30 +7,41 @@ import uuid
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import cv2
 import numpy as np
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import sessionmaker
 
 from .alignment import _registration_triangles
 from .alignment_engines import (
+    ENGINE_DHR_CLASSICAL,
+    ENGINE_DHR_LEARNED,
     ENGINE_HISALIGN,
     ENGINE_NATIVE,
     ENGINE_VALIS,
     ENGINE_VERSIONS,
+    ENGINE_WSIREG,
+    RECIPE_STAGES,
     SUPPORTED_ENGINES,
     engine_availability,
     settings_digest,
 )
 from .alignment_policy import case_ids_conflict, current_registration
 from .alignment_pyramid import read_region
+from .alignment_regions import (
+    RegionRejected,
+    build_region_registration,
+    slide_version,
+    validate_anchors,
+)
 from .domain import SlideState
 from .models import (
+    ComparisonRegionCorrection,
     ComparisonRegistrationCandidate,
     ComparisonRegistrationRevision,
     ComparisonSet,
@@ -78,6 +89,24 @@ class ComparisonUpdateRequest(BaseModel):
     version: int = Field(ge=1)
     reference_slide_id: str | None = Field(default=None, alias="referenceSlideId")
     anchors: dict[str, str] | None = None
+
+
+class RegionCorrectionRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, allow_inf_nan=False)
+    version: int = Field(ge=1)
+    operation: Literal["preview", "save", "clear"]
+    source_slide_id: str = Field(alias="sourceSlideId", min_length=1, max_length=64)
+    target_slide_id: str = Field(alias="targetSlideId", min_length=1, max_length=64)
+    region_id: str | None = Field(default=None, alias="regionId", min_length=1, max_length=36)
+    source_bounds: list[float] | None = Field(
+        default=None, alias="sourceBounds", min_length=4, max_length=4
+    )
+    moving_points: list[tuple[float, float]] = Field(
+        default_factory=list, alias="movingPoints", max_length=2
+    )
+    reference_points: list[tuple[float, float]] = Field(
+        default_factory=list, alias="referencePoints", max_length=2
+    )
 
 
 class StackMemberInput(BaseModel):
@@ -275,7 +304,49 @@ def _json(
         "version": item.version,
         "alignmentConfig": item.alignment_config,
         "members": members,
+        "regionalCorrections": _regional_corrections(database, item, by_id) if database else [],
     }
+
+
+def _regional_corrections(
+    database: OrmSession, item: ComparisonSet, slides: dict[str, Slide]
+) -> list[dict[str, Any]]:
+    latest: dict[str, ComparisonRegionCorrection] = {}
+    for row in database.scalars(
+        select(ComparisonRegionCorrection)
+        .where(ComparisonRegionCorrection.comparison_set_id == item.id)
+        .order_by(ComparisonRegionCorrection.set_version.desc())
+    ):
+        latest.setdefault(row.region_id, row)
+    result: list[dict[str, Any]] = []
+    for row in latest.values():
+        source, target = slides.get(row.source_slide_id), slides.get(row.target_slide_id)
+        if row.operation == "clear" or source is None or target is None:
+            continue
+        if (
+            source.trashed_at is not None
+            or target.trashed_at is not None
+            or source.state not in READY_STATES
+            or target.state not in READY_STATES
+            or slide_version(source) != row.source_version
+            or slide_version(target) != row.target_version
+            or case_ids_conflict(source.case_id, target.case_id)
+        ):
+            continue
+        result.append(
+            {
+                "id": row.id,
+                "regionId": row.region_id,
+                "sourceSlideId": row.source_slide_id,
+                "targetSlideId": row.target_slide_id,
+                "sourceVersion": row.source_version,
+                "targetVersion": row.target_version,
+                "sourceBounds": row.source_bounds,
+                "registration": row.registration,
+                "createdAt": _utc_iso(row.created_at),
+            }
+        )
+    return result
 
 
 def register_alignment_routes(
@@ -292,6 +363,8 @@ def register_alignment_routes(
     max_upload_bytes: int = 5 * 1024**3,
     hisalign_enabled: bool = False,
     valis_enabled: bool = False,
+    wsireg_enabled: bool = False,
+    deeperhistreg_enabled: bool = False,
 ) -> None:
     if not enabled:
         return
@@ -403,12 +476,18 @@ def register_alignment_routes(
         reference_id = payload.reference_slide_id or item.reference_slide_id
         if reference_id not in item.member_slide_ids:
             raise _error("REFERENCE_NOT_MEMBER")
-        anchors = payload.anchors or (item.alignment_config or {}).get("anchors", {})
-        if any(
-            slide_id not in item.member_slide_ids or anchor_id not in item.member_slide_ids
-            for slide_id, anchor_id in anchors.items()
-        ):
-            raise _error("ANCHOR_NOT_MEMBER")
+        anchors = (
+            payload.anchors
+            if payload.anchors is not None
+            else dict((item.alignment_config or {}).get("anchors", {}))
+        )
+        # The new primary has no outgoing edge; discard its inherited default.
+        if payload.anchors is None:
+            anchors.pop(reference_id, None)
+        try:
+            validate_anchors(item.member_slide_ids, reference_id, anchors)
+        except RegionRejected as exc:
+            raise _error(str(exc)) from exc
         changed = reference_id != item.reference_slide_id or anchors != (
             item.alignment_config or {}
         ).get("anchors", {})
@@ -426,6 +505,8 @@ def register_alignment_routes(
             item.status = "draft"
             cancel_stack_jobs(database, item.id)
             sync_membership_mirror(database, item)
+            if payload.anchors == {}:
+                item.alignment_config = {**(item.alignment_config or {}), "anchors": {}}
         database.commit()
         return _json(item, _members(database, item), database=database)
 
@@ -470,17 +551,15 @@ def register_alignment_routes(
         anchors = {
             row.slide_id: row.anchor_slide_id or next_reference
             for row in rows
-            if row.slide_id not in remove_ids
+            if row.slide_id not in remove_ids and row.slide_id != next_reference
         }
         anchors.update(
             {entry.slide_id: entry.anchor_slide_id or next_reference for entry in payload.add}
         )
-        if any(
-            anchor_id not in final_ids
-            for slide_id, anchor_id in anchors.items()
-            if slide_id != next_reference
-        ):
-            raise _error("ANCHOR_NOT_MEMBER")
+        try:
+            validate_anchors(final_ids, next_reference, anchors)
+        except RegionRejected as exc:
+            raise _error(str(exc)) from exc
         for row in rows:
             if row.slide_id in remove_ids:
                 database.delete(row)
@@ -783,12 +862,18 @@ def register_alignment_routes(
                     "engine": row.engine,
                     "engineVersion": row.engine_version,
                     "settingsDigest": row.settings_digest,
-                    "currentSettings": row.engine_version == ENGINE_VERSIONS[row.engine]
+                    "currentSettings": row.engine in SUPPORTED_ENGINES
+                    and row.engine_version == ENGINE_VERSIONS[row.engine]
                     and row.settings_digest
                     == settings_digest(row.engine, row.registration.get("engineSettings") or {}),
                     "status": row.status,
                     "validationState": row.validation_state,
                     "registration": row.registration,
+                    "recipeIdentity": row.registration.get("recipeIdentity", row.engine),
+                    "stageProvenance": row.registration.get(
+                        "stageProvenance", row.registration.get("recipeStages", [])
+                    ),
+                    "benchmarkMeasurements": row.evidence.get("benchmarkMeasurements", {}),
                     "evidence": row.evidence,
                     "artifactSha256": row.artifact_sha256,
                     "failureReason": row.failure_reason,
@@ -817,6 +902,14 @@ def register_alignment_routes(
             enabled_engines.add(ENGINE_HISALIGN)
         if valis_enabled:
             enabled_engines.add(ENGINE_VALIS)
+        if wsireg_enabled:
+            enabled_engines.add(ENGINE_WSIREG)
+        if deeperhistreg_enabled:
+            enabled_engines.update({ENGINE_DHR_CLASSICAL, ENGINE_DHR_LEARNED})
+        enabled_engines.update(
+            recipe for recipe, stages in RECIPE_STAGES.items()
+            if all(stage in enabled_engines for stage in stages)
+        )
         if any(engine not in enabled_engines for engine in requested):
             raise _error("ALIGNMENT_ENGINE_DISABLED", 409)
         slides = _members(database, item)
@@ -875,7 +968,7 @@ def register_alignment_routes(
                         resource_limits={
                             "cpuThreads": 2,
                             "memoryBytes": 7 * 1024**3,
-                            "timeoutSeconds": 2700,
+                            "timeoutSeconds": 600,
                         },
                     )
                 )
@@ -915,6 +1008,8 @@ def register_alignment_routes(
             raise _error("ALIGNMENT_CANDIDATE_STALE", 409)
         if case_ids_conflict(source.case_id, anchor.case_id):
             raise _error("ALIGNMENT_CANDIDATE_NOT_PROMOTABLE", 409)
+        if candidate.engine not in SUPPORTED_ENGINES:
+            raise _error("ALIGNMENT_CANDIDATE_SETTINGS_STALE", 409)
         if candidate.engine_version != ENGINE_VERSIONS[
             candidate.engine
         ] or candidate.settings_digest != settings_digest(
@@ -1029,6 +1124,165 @@ def register_alignment_routes(
             item.status = _settled_registration_status(item)
         database.commit()
         return {"cancelledJobs": cancelled}
+
+    def correct_region(
+        set_id: str,
+        payload: RegionCorrectionRequest,
+        _: Any = Depends(csrf_dependency),
+        database: OrmSession = Depends(database_dependency),
+    ) -> dict[str, Any]:
+        item = database.get(ComparisonSet, set_id)
+        if item is None:
+            raise _error("COMPARISON_NOT_FOUND", 404)
+        if payload.version != item.version:
+            raise _error("COMPARISON_VERSION_CONFLICT", 409)
+        members = {slide.id: slide for slide in _members(database, item)}
+        source, target = members.get(payload.source_slide_id), members.get(payload.target_slide_id)
+        if source is None or target is None:
+            raise _error("COMPARISON_MEMBER_NOT_FOUND", 404)
+        if source.id == target.id:
+            raise _error("REGION_PAIR_INVALID")
+        previous_row = None
+        if payload.region_id:
+            previous_row = database.scalar(
+                select(ComparisonRegionCorrection)
+                .where(
+                    ComparisonRegionCorrection.comparison_set_id == item.id,
+                    ComparisonRegionCorrection.region_id == payload.region_id,
+                )
+                .order_by(ComparisonRegionCorrection.set_version.desc())
+                .limit(1)
+            )
+            if previous_row is not None and (
+                previous_row.source_slide_id,
+                previous_row.target_slide_id,
+            ) != (
+                source.id,
+                target.id,
+            ):
+                raise _error("REGION_PAIR_INVALID")
+        region_id = payload.region_id or str(uuid.uuid4())
+        source_digest, target_digest = slide_version(source), slide_version(target)
+        if payload.operation == "clear":
+            if previous_row is None or previous_row.operation == "clear":
+                raise _error("REGION_NOT_FOUND", 404)
+            source_bounds, registration = previous_row.source_bounds, {}
+        else:
+            if (
+                source.trashed_at is not None
+                or target.trashed_at is not None
+                or source.state not in READY_STATES
+                or target.state not in READY_STATES
+            ):
+                raise _error("SLIDES_NOT_READY")
+            if any(
+                item.source_versions.get(slide.id) != slide.sha256 for slide in (source, target)
+            ):
+                raise _error("COMPARISON_SOURCE_CHANGED", 409)
+            if case_ids_conflict(source.case_id, target.case_id):
+                raise _error("REGION_CASE_MISMATCH")
+            if payload.source_bounds is None:
+                raise _error("REGION_BOUNDS_REQUIRED")
+            if storage is None:
+                raise _error("LANDMARK_IMAGE_UNAVAILABLE", 503)
+            previous = item.registrations.get(source.id)
+            if previous and previous.get("anchorSlideId") != target.id:
+                previous = None
+            if previous:
+                previous = current_registration(
+                    previous,
+                    source_version=source.sha256,
+                    anchor_version=target.sha256,
+                    source_case_id=source.case_id,
+                    anchor_case_id=target.case_id,
+                )
+            if not previous:
+                reverse = item.registrations.get(target.id)
+                if reverse and reverse.get("anchorSlideId") == source.id:
+                    reverse = current_registration(
+                        reverse,
+                        source_version=target.sha256,
+                        anchor_version=source.sha256,
+                        source_case_id=target.case_id,
+                        anchor_case_id=source.case_id,
+                    )
+                    if reverse and reverse.get("status") in {"ready", "approximate"}:
+                        previous = {**reverse}
+                        for key in ("triangles", "overviewTriangles"):
+                            previous[key] = [
+                                {**cell, "moving": cell["reference"], "reference": cell["moving"]}
+                                for cell in reverse.get(key) or []
+                            ]
+                        previous.pop("overviewFallback", None)
+            try:
+                registration = build_region_registration(
+                    source_metadata=source.slide_metadata or {},
+                    target_metadata=target.slide_metadata or {},
+                    source_bounds=payload.source_bounds,
+                    moving_points=payload.moving_points,
+                    reference_points=payload.reference_points,
+                    source_path=storage.for_slide(source.id).private_derivative,
+                    target_path=storage.for_slide(target.id).private_derivative,
+                    source_version=source_digest,
+                    target_version=target_digest,
+                    target_slide_id=target.id,
+                    previous=previous,
+                )
+            except RegionRejected as exc:
+                raise _error(str(exc)) from exc
+            except (OSError, ValueError, KeyError):
+                raise _error("LANDMARK_IMAGE_UNAVAILABLE", 503) from None
+            source_bounds = payload.source_bounds
+        now = datetime.now(UTC)
+        revision_id = str(uuid.uuid4())
+        if payload.operation == "preview":
+            result = _json(item, list(members.values()), database=database)
+            result["regionalCorrections"] = [
+                entry for entry in result["regionalCorrections"] if entry["regionId"] != region_id
+            ]
+            result["regionalCorrections"].insert(
+                0,
+                {
+                    "id": revision_id,
+                    "regionId": region_id,
+                    "sourceSlideId": source.id,
+                    "targetSlideId": target.id,
+                    "sourceVersion": source_digest,
+                    "targetVersion": target_digest,
+                    "sourceBounds": source_bounds,
+                    "registration": registration,
+                    "createdAt": _utc_iso(now),
+                },
+            )
+            return result
+        # Atomically claim the expected version so concurrent saves cannot both succeed.
+        next_version = database.scalar(
+            update(ComparisonSet)
+            .where(ComparisonSet.id == item.id, ComparisonSet.version == payload.version)
+            .values(version=payload.version + 1, updated_at=now)
+            .returning(ComparisonSet.version)
+        )
+        if next_version is None:
+            database.rollback()
+            raise _error("COMPARISON_VERSION_CONFLICT", 409)
+        database.add(
+            ComparisonRegionCorrection(
+                id=revision_id,
+                comparison_set_id=item.id,
+                region_id=region_id,
+                source_slide_id=source.id,
+                target_slide_id=target.id,
+                source_version=source_digest,
+                target_version=target_digest,
+                source_bounds=source_bounds,
+                registration=registration,
+                operation=payload.operation,
+                set_version=payload.version + 1,
+                created_at=now,
+            )
+        )
+        database.commit()
+        return _json(item, _members(database, item), database=database)
 
     def correct(
         set_id: str,
@@ -1311,6 +1565,11 @@ def register_alignment_routes(
         "/api/v1/admin/comparison-sets/{set_id}/register",
         cancel_registration,
         methods=["DELETE"],
+    )
+    app.add_api_route(
+        "/api/v1/admin/comparison-sets/{set_id}/region-corrections",
+        correct_region,
+        methods=["POST"],
     )
     app.add_api_route(
         "/api/v1/admin/comparison-sets/{set_id}/corrections/{slide_id}", correct, methods=["PUT"]

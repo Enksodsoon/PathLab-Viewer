@@ -86,3 +86,45 @@ def test_approximate_outline_is_not_counted_as_anatomical_coverage():
     )
     assert report["unsupportedLandmarks"] == 1
     assert report["qualified"] is False
+
+
+def test_approximate_map_measured_without_promoting_status():
+    record = _record(
+        registration={
+            "status": "approximate",
+            "overviewTriangles": [
+                {
+                    "moving": [[0, 0], [1000, 0], [0, 1000]],
+                    "reference": [[10, 20], [1010, 20], [10, 1020]],
+                }
+            ],
+        }
+    )
+    report = evaluate_landmarks([record], measure_approximate=True)
+    assert report["medianErrorUm"] == 0
+    assert report["observedLandmarks"] == 1
+    assert report["approximateLandmarks"] == 1
+    assert report["qualified"] is False
+    assert record["registration"]["status"] == "approximate"
+
+
+def test_uncalibrated_relative_observations_have_separate_denominator():
+    record = _record(referenceSize=[1000, 1000])
+    del record["referenceMicronsPerPixel"]
+    report = evaluate_landmarks([record, _record()], measure_approximate=True)
+    assert report["relativeLandmarks"] == 1
+    assert report["medianRelativeError"] == 0
+    assert report["calibratedCoverage"] == 0.5
+    assert report["qualified"] is False
+
+
+def test_approximate_observations_cannot_hide_ready_map_error_gate():
+    records = [_record(60) for _ in range(45)] + [_record(0) for _ in range(35)]
+    approximate = _record(0)
+    approximate["registration"]["status"] = "approximate"
+    approximate["registration"]["overviewTriangles"] = approximate["registration"].pop("triangles")
+    records += [approximate] * 20
+    result = evaluate_landmarks(records, measure_approximate=True)
+    assert result["medianErrorUm"] == 0
+    assert result["coverage"] == 0.8
+    assert result["qualified"] is False

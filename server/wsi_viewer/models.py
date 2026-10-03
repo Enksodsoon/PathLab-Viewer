@@ -1373,11 +1373,37 @@ class ComparisonSetMember(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ComparisonRegionCorrection(Base):
+    """Append-only regional navigation revisions, independent of worker maps."""
+
+    __tablename__ = "comparison_region_corrections"
+    __table_args__ = (
+        Index("ix_region_corrections_set", "comparison_set_id", "set_version"),
+        UniqueConstraint(
+            "comparison_set_id", "region_id", "set_version", name="uq_region_correction_revision"
+        ),
+        CheckConstraint("operation IN ('save', 'clear')", name="ck_region_correction_operation"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    comparison_set_id: Mapped[str] = mapped_column(
+        ForeignKey("comparison_sets.id", ondelete="CASCADE"), nullable=False
+    )
+    region_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    source_slide_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    target_slide_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    target_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    set_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    operation: Mapped[str] = mapped_column(String(10), nullable=False)
+    source_bounds: Mapped[list[float]] = mapped_column(JSON, nullable=False)
+    registration: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class ComparisonRegistrationRevision(Base):
     __tablename__ = "comparison_registration_revisions"
-    __table_args__ = (
-        Index("ix_registration_revisions_set", "comparison_set_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_registration_revisions_set", "comparison_set_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     comparison_set_id: Mapped[str] = mapped_column(

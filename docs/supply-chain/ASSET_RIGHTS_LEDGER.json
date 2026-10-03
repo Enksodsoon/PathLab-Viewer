@@ -257,7 +257,7 @@
     {
       "attribution": "Copyright (c) 2020 Phosphor Icons; preserve the MIT license notice.",
       "blockers": [],
-      "contentSha256": "be92069fbdd8567c67ec11b9349bbd7a2f16cafb0d3985c72c8bfd8ee70ce144",
+      "contentSha256": "23004817896d854a6f2d3da2dd2765c1d1e837c15994fb0100142792728203f0",
       "creator": "Phosphor Icons",
       "dependencyId": "npm:@phosphor-icons/react@2.1.10",
       "distributionScope": "SHIPPED_RUNTIME",
@@ -449,6 +449,14 @@
         {
           "contentSha256": "873646b9af69d8ed97314caaa993d09fc07675d9d88a729a481df07d20ce14b1",
           "name": "Copy"
+        },
+        {
+          "contentSha256": "9808d4892b49d5d91af6316cee9038439545dce80ef17dd19d772351a67adf50",
+          "name": "CornersIn"
+        },
+        {
+          "contentSha256": "8d1a348e0ced7b694b4865b810085a29b7d032bac1c354a8bbbe0d55162d56dd",
+          "name": "CornersOut"
         },
         {
           "contentSha256": "c23fe85d953df196fdb9fc1608595b92b14636831836082352111f78f98f2eb7",
@@ -775,6 +783,10 @@
           "name": "SignOut"
         },
         {
+          "contentSha256": "f94fd0898696d0dd21cf81939ba85c09c2b5b6eac92347ae33a1155af605c271",
+          "name": "SlidersHorizontal"
+        },
+        {
           "contentSha256": "a6c3587b74d773f6fd585826995857ab0d2fac6f667ec57239fb902215c61256",
           "name": "SpinnerGap"
         },
@@ -883,7 +895,7 @@
       "privacyClass": "PUBLIC_NON_PERSONAL",
       "provenance": "Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.",
       "releaseDisposition": "ADMITTED",
-      "sizeBytes": 480461,
+      "sizeBytes": 488616,
       "sourceArtifact": "https://registry.npmjs.org/@phosphor-icons/react/-/react-2.1.10.tgz",
       "sourceArtifactChecksum": "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==",
       "sourceNoticeHashes": [
@@ -953,5 +965,5 @@
   "releaseAdmission": "ADMITTED",
   "releaseBlockers": [],
   "schemaVersion": 1,
-  "subjectCommit": "0fa5ad0c2108c789bb3e7620efce5fe066c7b3b6"
+  "subjectCommit": "92b45de41155d5ddc177b417b9cb2dea0bee5242"
 }

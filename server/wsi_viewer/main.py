@@ -560,6 +560,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             enabled=current.alignment_enabled,
             hisalign_enabled=current.alignment_hisalign_enabled,
             valis_enabled=current.alignment_valis_enabled,
+            wsireg_enabled=current.alignment_wsireg_enabled,
+            deeperhistreg_enabled=current.alignment_deeperhistreg_enabled,
         )
         register_annotation_routes(
             app,

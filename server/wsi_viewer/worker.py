@@ -906,6 +906,9 @@ def _run_alignment_bounded(
     heartbeat: Callable[[], None] | None = None,
     progress: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
+    timeout_seconds = min(600, timeout_seconds)
+    if timeout_seconds <= 0:
+        raise AlignmentRejected("registration exceeded the pair timeout")
     if heartbeat:
         heartbeat()
     context = multiprocessing.get_context("spawn")
@@ -998,6 +1001,45 @@ def _container_memory() -> dict[str, int]:
         with suppress(OSError, ValueError):
             measurements[key] = int((Path("/sys/fs/cgroup") / filename).read_text())
     return measurements
+
+
+def _alignment_remaining_budget(checkpoint: dict[str, Any], limits: dict[str, Any]) -> float:
+    return max(
+        0.0,
+        min(600.0, float(limits.get("timeoutSeconds", 600)))
+        - max(0.0, float(checkpoint.get("computeSecondsUsed", 0))),
+    )
+
+
+def _finish_superseded_alignment(database: OrmSession, comparison: ComparisonSet, job: Job) -> None:
+    """End obsolete progress without mutating saved maps or regional revisions."""
+    if job.kind == "align_benchmark":
+        return
+    active = database.scalar(
+        select(Job.id)
+        .where(
+            Job.id != job.id,
+            Job.kind == "align",
+            Job.status.in_({"queued", "retry_wait", "leased", "running"}),
+            Job.checkpoint["comparisonSetId"].as_string() == comparison.id,
+            Job.checkpoint["setVersion"].as_integer() == comparison.version,
+        )
+        .limit(1)
+    )
+    if active:
+        comparison.status = "running"
+        return
+    members = [
+        member for member in comparison.member_slide_ids if member != comparison.reference_slide_id
+    ]
+    comparison.status = (
+        "ready"
+        if members
+        and all(
+            comparison.registrations.get(member, {}).get("status") == "ready" for member in members
+        )
+        else "partial"
+    )
 
 
 def _preview_alignment(
@@ -1130,6 +1172,8 @@ def _preview_alignment(
     ):
         job.status = "cancelled"
         job.failure_code = "ALIGNMENT_STALE"
+        job.error = "Stale registration output discarded after comparison change"
+        _finish_superseded_alignment(database, comparison, job)
     else:
         previous = _best_compatible_registration(
             database, comparison=comparison, slide=moving, reference=reference
@@ -1365,6 +1409,7 @@ def process_next(
                 job.error = "Comparison changed while registration was queued"
                 job.heartbeat_at = None
                 job.lease_expires_at = None
+                _finish_superseded_alignment(database, comparison, job)
                 database.commit()
                 return True
             primary_reference = database.get(Slide, comparison.reference_slide_id)
@@ -1490,7 +1535,7 @@ def process_next(
                 run_options: dict[str, Any] = {
                     "engine_name": engine_name,
                     "artifact_dir": artifact_dir,
-                    "timeout_seconds": min(2700, int(limits.get("timeoutSeconds", 2700))),
+                    "timeout_seconds": min(600, int(limits.get("timeoutSeconds", 600))),
                     "memory_bytes": min(7 * 1024**3, int(limits.get("memoryBytes", 7 * 1024**3))),
                     "heartbeat": renew_alignment_lease,
                     "progress": record_alignment_progress,
@@ -1499,14 +1544,29 @@ def process_next(
                     run_options["seed_registration"] = _best_compatible_registration(
                         database, comparison=comparison, slide=slide, reference=reference
                     )
+
+                def run_with_remaining_budget(**options: Any) -> dict[str, Any]:
+                    remaining = _alignment_remaining_budget(checkpoint, limits)
+                    if remaining <= 0:
+                        raise AlignmentRejected("registration exceeded the total pair timeout")
+                    options["timeout_seconds"] = remaining
+                    run_started = time.monotonic()
+                    try:
+                        return _run_alignment_bounded(
+                            reference_derivative,
+                            moving_derivative,
+                            reference_full_size,
+                            moving_full_size,
+                            **options,
+                        )
+                    finally:
+                        checkpoint["computeSecondsUsed"] = float(
+                            checkpoint.get("computeSecondsUsed", 0)
+                        ) + (time.monotonic() - run_started)
+                        job.checkpoint = dict(checkpoint)
+
                 try:
-                    result_json = _run_alignment_bounded(
-                        reference_derivative,
-                        moving_derivative,
-                        reference_full_size,
-                        moving_full_size,
-                        **run_options,
-                    )
+                    result_json = run_with_remaining_budget(**run_options)
                 except AlignmentRejected as error:
                     if engine_name != ENGINE_VALIS or "memory ceiling" not in str(error):
                         raise
@@ -1520,11 +1580,7 @@ def process_next(
                     job.checkpoint = dict(checkpoint)
                     database.commit()
                     applied_settings = {"maxImageDimension": 768}
-                    result_json = _run_alignment_bounded(
-                        reference_derivative,
-                        moving_derivative,
-                        reference_full_size,
-                        moving_full_size,
+                    result_json = run_with_remaining_budget(
                         engine_settings=applied_settings,
                         **run_options,
                     )
@@ -1559,6 +1615,7 @@ def process_next(
                     job.error = "Stale registration output discarded"
                     job.heartbeat_at = None
                     job.lease_expires_at = None
+                    _finish_superseded_alignment(database, comparison, job)
                     database.commit()
                     return True
                 if job.kind == "align_benchmark":
@@ -1691,8 +1748,10 @@ def process_next(
                 if comparison.version != expected_version or job.cancellation_requested_at:
                     job.status = "cancelled"
                     job.failure_code = "ALIGNMENT_STALE"
+                    job.error = "Stale registration output discarded after comparison change"
                     job.heartbeat_at = None
                     job.lease_expires_at = None
+                    _finish_superseded_alignment(database, comparison, job)
                     database.commit()
                     return True
                 if job.kind == "align_benchmark":
@@ -1750,6 +1809,7 @@ def process_next(
                     and job.status in {"succeeded", "failed_terminal"}
                     and comparison.registrations.get(slide.id, {}).get("status") != "ready"
                     and Settings().alignment_valis_enabled
+                    and _alignment_remaining_budget(checkpoint, job.resource_limits or {}) > 0
                 ):
                     fallback_key = hashlib.sha256(f"{job.id}:valis".encode()).hexdigest()
                     if not database.scalar(
@@ -1772,7 +1832,7 @@ def process_next(
                                 resource_limits={
                                     "cpuThreads": 1,
                                     "memoryBytes": 7 * 1024**3,
-                                    "timeoutSeconds": 2700,
+                                    "timeoutSeconds": 600,
                                 },
                             )
                         )

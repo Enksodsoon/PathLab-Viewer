@@ -39,16 +39,41 @@ from .alignment import (
 ENGINE_NATIVE = "native-v12"
 ENGINE_HISALIGN = "hisalign-0.2.1"
 ENGINE_VALIS = "valis-1.2.0"
+ENGINE_WSIREG = "wsireg-0.3.10"
+ENGINE_DHR_CLASSICAL = "deeperhistreg-classical"
+ENGINE_DHR_LEARNED = "deeperhistreg-learned"
+RECIPE_STAGES = {
+    "native-wsireg": (ENGINE_NATIVE, ENGINE_WSIREG),
+    "valis-rigid-wsireg": (ENGINE_VALIS, ENGINE_WSIREG),
+    "native-valis": (ENGINE_NATIVE, ENGINE_VALIS),
+}
+ENGINE_ALIASES = {
+    "native": ENGINE_NATIVE,
+    "hisalign": ENGINE_HISALIGN,
+    "valis": ENGINE_VALIS,
+    "wsireg": ENGINE_WSIREG,
+}
 ENGINE_VERSIONS = {
     ENGINE_NATIVE: "piecewise-affine-components-v27",
     ENGINE_HISALIGN: "c56d1eb1a295aec00bf34c05e0274e2fd79fdaf5",
     ENGINE_VALIS: "325828c1dec444e6bb672a78e875537436dd3c20",
+    ENGINE_WSIREG: "7bc3fb21c6a8f107f760799a5ac113896a710454-itk-elastix-0.25.4",
+    ENGINE_DHR_CLASSICAL: "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6-sift-ransac",
+    ENGINE_DHR_LEARNED: "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6-superpoint-superglue",
 }
 ADAPTER_VERSIONS = {
-    ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
+    ENGINE_NATIVE: "pathlab-adapter-v3-partial-overview-components",
     ENGINE_HISALIGN: "pathlab-adapter-v4-overview-support",
     ENGINE_VALIS: "pathlab-adapter-v14-feature-residual-gate",
+    ENGINE_WSIREG: "pathlab-adapter-v2-wsireg-single-elastix-chain-physical",
+    ENGINE_DHR_CLASSICAL: "pathlab-adapter-v1-dhr-normalized-pull-affine",
+    ENGINE_DHR_LEARNED: "pathlab-adapter-v1-dhr-normalized-pull-affine",
 }
+for _recipe, _stages in RECIPE_STAGES.items():
+    ENGINE_VERSIONS[_recipe] = "+".join(ENGINE_VERSIONS[stage] for stage in _stages)
+    ADAPTER_VERSIONS[_recipe] = "pathlab-recipe-v3-calibrated-original-support:" + "+".join(
+        ADAPTER_VERSIONS[stage] for stage in _stages
+    )
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
 
 
@@ -96,6 +121,7 @@ def engine_availability() -> dict[str, dict[str, str | bool | None]]:
 
 
 def settings_digest(engine: str, settings: dict[str, Any] | None = None) -> str:
+    engine = ENGINE_ALIASES.get(engine, engine)
     payload = {
         "engine": engine,
         "buildVersion": ENGINE_VERSIONS[engine],
@@ -113,6 +139,17 @@ def _hash_file(path: Path) -> str:
         for block in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def engine_resource_availability(name: str, settings: dict[str, Any]) -> tuple[bool, str | None]:
+    """Check optional immutable research assets without importing models."""
+    if ENGINE_ALIASES.get(name, name) == ENGINE_DHR_LEARNED:
+        for key in ("superpoint", "superglue"):
+            path = Path(str(settings.get(f"{key}WeightsPath", "")))
+            digest = settings.get(f"{key}WeightsSha256")
+            if not path.is_file() or not digest or _hash_file(path) != digest:
+                return False, "verified-research-weights-unavailable"
+    return True, None
 
 
 def _affine_from_controls(controls: list[dict[str, Any]]) -> list[list[float]]:
@@ -818,6 +855,11 @@ class ValisEngine:
             imgs_ordered=True,
             align_to_reference=True,
             **matcher_options,
+            **(
+                {"non_rigid_registrar_cls": None}
+                if (inputs.settings or {}).get("rigidOnly")
+                else {}
+            ),
             # VALIS otherwise promotes its default 1024-pixel reader limit to
             # max_processed_image_dim_px and materializes several 4096-pixel
             # float images during non-rigid registration.  That exceeded the
@@ -868,12 +910,22 @@ class ValisEngine:
 
         def forward(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
             return np.asarray(
-                moving_slide.warp_xy_from_to(points, reference_slide), dtype=np.float64
+                moving_slide.warp_xy_from_to(
+                    points,
+                    reference_slide,
+                    **({"non_rigid": False} if (inputs.settings or {}).get("rigidOnly") else {}),
+                ),
+                dtype=np.float64,
             )
 
         def inverse(points: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
             return np.asarray(
-                reference_slide.warp_xy_from_to(points, moving_slide), dtype=np.float64
+                reference_slide.warp_xy_from_to(
+                    points,
+                    moving_slide,
+                    **({"non_rigid": False} if (inputs.settings or {}).get("rigidOnly") else {}),
+                ),
+                dtype=np.float64,
             )
 
         progress({"stage": "valis-coordinate-map", "progress": 75})
@@ -1036,6 +1088,15 @@ class ValisEngine:
 
 
 def get_engine(name: str) -> RegistrationEngine:
+    name = ENGINE_ALIASES.get(name, name)
+    if name in RECIPE_STAGES:
+        from .alignment_recipes import RecipeEngine
+
+        return RecipeEngine(name)
+    if name in (ENGINE_WSIREG, ENGINE_DHR_CLASSICAL, ENGINE_DHR_LEARNED):
+        from .alignment_optional import DeeperHistRegEngine, WsiregEngine
+
+        return WsiregEngine() if name == ENGINE_WSIREG else DeeperHistRegEngine(name)
     if name == ENGINE_NATIVE:
         return NativeEngine()
     if name == ENGINE_HISALIGN:

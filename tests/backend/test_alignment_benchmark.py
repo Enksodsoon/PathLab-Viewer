@@ -1,0 +1,255 @@
+import json
+
+import pytest
+
+
+def test_manifest_screening_requires_frozen_positive_negative_counts(tmp_path):
+    from wsi_viewer.alignment_benchmark import validate_manifest
+
+    with pytest.raises(ValueError, match="12 positive.*4 negative"):
+        validate_manifest({"pairs": []}, screening=True)
+
+
+def test_cache_digest_changes_for_actual_input_bytes_and_settings(tmp_path):
+    from wsi_viewer.alignment_benchmark import pair_digest
+
+    first = tmp_path / "a"
+    first.mkdir()
+    (first / "thumbnail.jpg").write_bytes(b"a")
+    second = tmp_path / "b"
+    second.mkdir()
+    (second / "thumbnail.jpg").write_bytes(b"b")
+    pair = {
+        "reference": {"path": str(first), "size": [10, 10]},
+        "moving": {"path": str(second), "size": [10, 10]},
+        "kind": "positive",
+        "landmarks": [],
+    }
+    initial = pair_digest(pair, "native", {})
+    assert pair_digest(pair, "native", {"iterations": 2}) != initial
+    (second / "thumbnail.jpg").write_bytes(b"c")
+    assert pair_digest(pair, "native", {}) != initial
+
+
+def test_failed_pairs_keep_landmark_denominator_and_no_compute_only_fast_winner():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    records = [
+        {
+            "eligible": True,
+            "movingPoint": [1, 1],
+            "referencePoint": [1, 1],
+            "referenceMicronsPerPixel": [1, 1],
+            "wrongStructure": False,
+        }
+    ]
+    local = {
+        "status": "ready",
+        "triangles": [
+            {"moving": [[0, 0], [10, 0], [0, 10]], "reference": [[0, 0], [10, 0], [0, 10]]}
+        ],
+    }
+    rows = [
+        {
+            "recipe": "native",
+            "kind": "positive",
+            "outcome": "ok",
+            "registration": local,
+            "landmarks": records,
+            "coldRuntimeSeconds": 0.01,
+        },
+        {
+            "recipe": "native",
+            "kind": "positive",
+            "outcome": "error",
+            "registration": {},
+            "landmarks": records,
+            "coldRuntimeSeconds": 0.01,
+        },
+    ]
+    report = aggregate_results(rows)
+    assert report["recipes"]["native"]["eligibleLandmarks"] == 2
+    assert report["recipes"]["native"]["coverage"] == 0.5
+    assert report["winners"]["fast"] is None
+    assert report["winners"]["accurate"] is None
+
+
+def test_cached_run_does_not_replace_cold_timing_and_report_omits_private_paths(
+    tmp_path, monkeypatch
+):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for name in ("reference", "moving"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "thumbnail.jpg").write_bytes(b"private pixel digest input")
+    pair = {
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+        "kind": "positive",
+        "landmarks": [
+            {
+                "movingPoint": [1, 1],
+                "referencePoint": [1, 1],
+                "referenceMicronsPerPixel": [1, 1],
+                "wrongStructure": False,
+                "eligible": True,
+            }
+        ],
+    }
+    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(bench, "_run_alignment_bounded", lambda *_a, **_kw: {"status": "rejected"})
+    manifest = {"pairs": [pair]}
+    out = tmp_path / "out"
+    first = bench.run_benchmark(manifest, out, ["native"])
+    calls = []
+    monkeypatch.setattr(
+        bench,
+        "_run_alignment_bounded",
+        lambda *_a, **_kw: calls.append(True) or {"status": "rejected", "peakMemoryBytes": 1234},
+    )
+    second = bench.run_benchmark(manifest, out, ["native"], repeat_runs=1)
+    assert first["rows"][0]["coldRuntimeSeconds"] == second["rows"][0]["coldRuntimeSeconds"]
+    assert second["rows"][0]["cached"] is True
+    assert calls == [True]
+    assert len(second["rows"][0]["repeatComputeReceipts"]) == 1
+    assert second["rows"][0]["repeatComputeReceipts"][0]["peakMemoryBytes"] == 1234
+    assert str(tmp_path) not in json.dumps(second)
+
+
+def test_unscored_development_never_selects_finalists_or_winners():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    result = aggregate_results(
+        [
+            {
+                "recipe": "native",
+                "kind": "positive",
+                "landmarks": [],
+                "registration": {"status": "ready"},
+                "outcome": "ok",
+                "coldRuntimeSeconds": 0.01,
+                "peakMemoryBytes": 1234,
+            }
+        ]
+    )
+    assert result["finalists"] == []
+    assert result["winners"] == {"fast": None, "accurate": None}
+    assert result["recipes"]["native"]["missingGroundTruthPairs"] == 1
+    assert result["recipes"]["native"]["peakMemoryP95Bytes"] == 1234
+
+
+def test_reviewed_approximate_recipe_can_qualify_without_ready_promotion():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    registration = {
+        "status": "approximate",
+        "confidence": 0.4,
+        "overviewTriangles": [
+            {"moving": [[0, 0], [10, 0], [0, 10]], "reference": [[0, 0], [10, 0], [0, 10]]}
+        ],
+    }
+    rows = [
+        {
+            "recipe": "wsireg",
+            "kind": "positive",
+            "outcome": "ok",
+            "registration": registration,
+            "coldRuntimeSeconds": 1,
+            "independentlyReviewed": True,
+            "landmarksFitFree": True,
+            "landmarks": [
+                {
+                    "eligible": True,
+                    "movingPoint": [1, 1],
+                    "referencePoint": [1, 1],
+                    "referenceMicronsPerPixel": [1, 1],
+                    "wrongStructure": False,
+                }
+            ],
+        },
+        {
+            "recipe": "wsireg",
+            "kind": "negative",
+            "outcome": "ok",
+            "registration": {"status": "rejected", "confidence": 0},
+            "landmarks": [],
+            "coldRuntimeSeconds": 1,
+            "wrongStructure": False,
+            "independentlyReviewed": True,
+            "landmarksFitFree": True,
+        },
+    ]
+    rows[1]["outcome"] = "rejected"
+    report = aggregate_results(rows)
+    assert report["recipes"]["wsireg"]["benchmarkQualified"] is True
+    assert report["recipes"]["wsireg"]["readyQualified"] is False
+    assert report["winners"]["accurate"] == "wsireg"
+    assert report["winners"]["fast"] is None
+    assert registration["status"] == "approximate"
+    rows[1]["registration"] = {"status": "approximate", "confidence": 0.49}
+    rows[1]["wrongStructure"] = True
+    unsafe = aggregate_results(rows)
+    assert unsafe["recipes"]["wsireg"]["benchmarkQualified"] is False
+
+
+def test_missing_learned_weights_are_runtime_unavailable_not_registration_failure(
+    tmp_path, monkeypatch
+):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"input")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    monkeypatch.setattr(
+        bench, "engine_availability", lambda: {"deeperhistreg-learned": {"available": True}}
+    )
+    monkeypatch.setattr(
+        bench,
+        "_run_alignment_bounded",
+        lambda *_a, **_kw: pytest.fail("missing research weights must not launch a child"),
+    )
+    result = bench.run_benchmark({"pairs": [pair]}, tmp_path / "out", ["deeperhistreg-learned"])
+    assert result["rows"][0]["outcome"] == "unavailable"
+    assert result["rows"][0]["reasonCode"] == "verified-research-weights-unavailable"
+    assert result["rows"][0]["coldRuntimeSeconds"] is None
+
+
+def test_registration_change_invalidates_negative_and_latency_reviews(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"input")
+    pair = {
+        "kind": "negative",
+        "landmarks": [],
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(bench, "_run_alignment_bounded", lambda *_a, **_kw: {"status": "rejected"})
+    manifest = {"pairs": [pair]}
+    first = bench.run_benchmark(manifest, tmp_path / "out", ["native"])
+    pair["reviews"] = {
+        "native": {
+            "registrationDigest": first["rows"][0]["digest"],
+            "wrongStructure": False,
+            "frontendLatencySeconds": 1,
+            "frontendLatencyScope": "foreground-open-to-sync",
+            "frontendLatencyReviewed": True,
+        }
+    }
+    reviewed = bench.run_benchmark(manifest, tmp_path / "out", ["native"])
+    assert reviewed["rows"][0]["wrongStructure"] is False
+    assert reviewed["rows"][0]["frontendLatencyReviewed"] is True
+    manifest["settings"] = {"native": {"changed": True}}
+    changed = bench.run_benchmark(manifest, tmp_path / "out", ["native"])
+    assert changed["rows"][0]["wrongStructure"] is None
+    assert changed["rows"][0]["frontendLatencyReviewed"] is False
+    assert changed["recipes"]["native-v12"]["missingNegativeReviews"] == 1

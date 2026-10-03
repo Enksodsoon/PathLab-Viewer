@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     alignment_enabled: bool = False
     alignment_hisalign_enabled: bool = False
     alignment_valis_enabled: bool = False
+    alignment_wsireg_enabled: bool = False
+    alignment_deeperhistreg_enabled: bool = False
     admin_annotation_canary_enabled: bool = False
     desktop_ome_dynamic_enabled: bool = True
     classroom_enabled: bool = False

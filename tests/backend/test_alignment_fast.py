@@ -6,6 +6,32 @@ from wsi_viewer import alignment
 from wsi_viewer.worker import _registration_quality
 
 
+def test_partial_coarse_component_recovers_unique_feature_region_without_full_outline():
+    from wsi_viewer.alignment_fast import PreparationCache, register_prepared
+
+    rng = np.random.default_rng(761)
+    reference = Image.new("RGB", (640, 480), "white")
+    drawing = ImageDraw.Draw(reference)
+    drawing.polygon([(35, 80), (235, 40), (275, 310), (55, 350)], fill=(195, 120, 165))
+    drawing.polygon([(365, 65), (585, 100), (575, 420), (350, 355)], fill=(190, 130, 155))
+    for left, right in ((70, 230), (390, 540)):
+        for x, y in rng.integers([left, 120], [right, 290], (300, 2)):
+            drawing.ellipse((int(x), int(y), int(x + 4), int(y + 4)), fill=(45, 25, 80))
+    moving = reference.copy()
+    ImageDraw.Draw(moving).rectangle((325, 0, 639, 479), fill="white")
+    cache = PreparationCache()
+    fixed, _ = cache.prepare("fixed-partial", reference, reference.size)
+    floating, _ = cache.prepare("moving-partial", moving, moving.size)
+    result = register_prepared(fixed, floating)
+    assert result.status == "approximate"
+    assert result.evidence["maskMode"] == "bounded-component-fallback"
+    assert result.evidence["componentPairsChecked"] <= 9
+    assert result.overview_triangles and not result.triangles
+    assert all(
+        max(point[0] for point in cell["moving"]) < 300 for cell in result.overview_triangles
+    )
+
+
 def test_coarse_fallback_preserves_stronger_map_and_is_source_bound():
     from copy import deepcopy
 
@@ -529,6 +555,7 @@ def test_saved_fallback_settings_are_bound_to_the_current_adapter_digest():
     settings["maxImageDimension"] = 512
     assert current_registration(saved)["status"] == "stale"
 
+
 @pytest.mark.parametrize("status", ["ready", "approximate"])
 @pytest.mark.parametrize("missing_field", ["sourceVersion", "anchorVersion"])
 def test_automatic_map_requires_both_source_identities_when_served(status, missing_field):
@@ -552,9 +579,7 @@ def test_automatic_map_requires_both_source_identities_when_served(status, missi
     }
     del saved[missing_field]
     original = deepcopy(saved)
-    served = current_registration(
-        saved, source_version="moving-v1", anchor_version="reference-v1"
-    )
+    served = current_registration(saved, source_version="moving-v1", anchor_version="reference-v1")
     assert served["status"] == "stale"
     assert served["movingToReference"] is None
     assert not served["triangles"] and not served["overviewTriangles"]

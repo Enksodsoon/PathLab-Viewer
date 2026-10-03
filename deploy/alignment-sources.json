@@ -18,6 +18,46 @@
       "licenseDeclared": "MIT",
       "licenseFile": "deploy/third_party/VALIS_LICENSE.txt",
       "weights": []
+    },
+    {
+      "name": "wsireg-0.3.10",
+      "repository": "https://github.com/nhpatterson/wsireg",
+      "commit": "7bc3fb21c6a8f107f760799a5ac113896a710454",
+      "archiveSha256": "31ba8147503bc2ee7f5ced0d2e7449128ca5521d25c38299e8ecfe57fe94b857",
+      "archiveFormat": "github-codeload-zip",
+      "licenseDeclared": "MIT",
+      "licenseFile": "deploy/third_party/WSIREG_LICENSE.txt",
+      "runtimePins": {"wsireg": "0.3.10", "itk-elastix": "0.25.4"},
+      "weights": []
+    },
+    {
+      "name": "deeperhistreg-classical",
+      "repository": "https://github.com/MWod/DeeperHistReg",
+      "commit": "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6",
+      "archiveSha256": "09fbca6c15325b65a9b89e080946441ccdc78155878da9b09fcf5b39b9fbe0be",
+      "archiveFormat": "github-codeload-zip",
+      "licenseDeclared": "CC-BY-SA-4.0",
+      "licenseFile": "deploy/third_party/DEEPERHISTREG_LICENSE.txt",
+      "runtimePins": {"deeperhistreg": "1.0.1", "torch": "2.8.0"},
+      "adapterMethod": "sift_ransac",
+      "productionEligible": false,
+      "weights": []
+    },
+    {
+      "name": "deeperhistreg-learned",
+      "repository": "https://github.com/MWod/DeeperHistReg",
+      "commit": "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6",
+      "archiveSha256": "09fbca6c15325b65a9b89e080946441ccdc78155878da9b09fcf5b39b9fbe0be",
+      "archiveFormat": "github-codeload-zip",
+      "licenseDeclared": "CC-BY-SA-4.0",
+      "licenseFile": "deploy/third_party/DEEPERHISTREG_LICENSE.txt",
+      "runtimePins": {"deeperhistreg": "1.0.1", "torch": "2.8.0"},
+      "adapterMethod": "superpoint_superglue",
+      "productionEligible": false,
+      "weights": [
+        {"name": "SuperPoint", "admission": "explicit-local-path-and-sha256", "licenseDeclared": "noncommercial-research-only", "repository": "https://github.com/magicleap/SuperGluePretrainedNetwork", "commit": "ddcf11f42e7e0732a0c4607648f9448ea8d73590", "file": "models/weights/superpoint_v1.pth", "sha256": "52b6708629640ca883673b5d5c097c4ddad37d8048b33f09c8ca0d69db12c40e", "licenseFile": "deploy/third_party/SUPERGLUE_RESEARCH_LICENSE.txt", "productionEligible": false},
+        {"name": "SuperGlue outdoor", "admission": "explicit-local-path-and-sha256", "licenseDeclared": "noncommercial-research-only", "repository": "https://github.com/magicleap/SuperGluePretrainedNetwork", "commit": "ddcf11f42e7e0732a0c4607648f9448ea8d73590", "file": "models/weights/superglue_outdoor.pth", "sha256": "2f5f5e9bb3febf07b69df633c4c3ff7a17f8af26a023aae2b9303d22339195bd", "licenseFile": "deploy/third_party/SUPERGLUE_RESEARCH_LICENSE.txt", "productionEligible": false}
+      ]
     }
   ]
 }
