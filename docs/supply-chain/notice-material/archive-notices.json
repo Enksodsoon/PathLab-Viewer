@@ -420,6 +420,18 @@
       ]
     },
     {
+      "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.12.tgz",
+      "checksum": "sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==",
+      "id": "npm:brace-expansion@5.0.12",
+      "notices": [
+        {
+          "member": "package/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e",
+          "sha256": "9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e"
+        }
+      ]
+    },
+    {
       "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz",
       "checksum": "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==",
       "id": "npm:brace-expansion@5.0.9",
@@ -1501,6 +1513,18 @@
       "artifact": "https://registry.npmjs.org/undici-types/-/undici-types-8.3.0.tgz",
       "checksum": "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==",
       "id": "npm:undici-types@8.3.0",
+      "notices": [
+        {
+          "member": "package/LICENSE",
+          "path": "docs/supply-chain/notice-material/sha256/a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
+        }
+      ]
+    },
+    {
+      "artifact": "https://registry.npmjs.org/undici/-/undici-8.10.2.tgz",
+      "checksum": "sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==",
+      "id": "npm:undici@8.10.2",
       "notices": [
         {
           "member": "package/LICENSE",
