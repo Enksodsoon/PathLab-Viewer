@@ -395,6 +395,35 @@ it.each([320, 1200])('keeps a dismissed inspector closed through save acknowledg
   expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
 })
 
+it.each([320, 1200])('keeps a dismissed inspector closed while undoing and redoing a selected annotation edit at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({}, [record(101)])}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /Finding 101/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.change(within(inspector).getByRole('textbox', { name: 'Title' }), {
+    target: { value: 'Edited selected annotation' },
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: /Edited selected annotation/ })).toHaveClass('is-selected')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: /Finding 101/ })).toHaveClass('is-selected')
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+  expect(screen.getByRole('button', { name: /Edited selected annotation/ })).toHaveClass('is-selected')
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+})
+
 beforeEach(() => {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
 })
