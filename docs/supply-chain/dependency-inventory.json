@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T08:35:44.973508Z",
+  "generatedAt": "2026-10-03T01:19:19.960697Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -5426,18 +5426,18 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz",
+      "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.11.tgz",
       "blockers": [],
-      "checksum": "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==",
+      "checksum": "sha512-awigjhi6cLTh90bdw6+QJ9CtmJmyYhEIi70iCbc8Rozn04Fw9FeQIBjv/E22FFGuCGx1bLJyUfB64x/szUSXUg==",
       "checksumVerified": true,
       "distribution": "bundled",
       "ecosystem": "npm",
-      "id": "npm:brace-expansion@5.0.9",
+      "id": "npm:brace-expansion@5.0.11",
       "license": "MIT",
       "manifestRefs": [
         "pnpm-lock.yaml"
       ],
-      "metadataSha256": "5dbfb4eb48a8cff23652095d546fa9cc9b1805cb71bea0391c726d6e9d746b3b",
+      "metadataSha256": "7f9068c26613102404cbd8570c00ec5dce25cb52aabe624c110aa5b15784a78b",
       "name": "brace-expansion",
       "noticeFiles": [
         {
@@ -5448,8 +5448,8 @@
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/brace-expansion/5.0.9",
-      "version": "5.0.9"
+      "source": "https://registry.npmjs.org/brace-expansion/5.0.11",
+      "version": "5.0.11"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -12012,18 +12012,18 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/undici/-/undici-8.10.0.tgz",
+      "artifact": "https://registry.npmjs.org/undici/-/undici-8.10.2.tgz",
       "blockers": [],
-      "checksum": "sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ==",
+      "checksum": "sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==",
       "checksumVerified": true,
       "distribution": "not-bundled-tooling",
       "ecosystem": "npm",
-      "id": "npm:undici@8.10.0",
+      "id": "npm:undici@8.10.2",
       "license": "MIT",
       "manifestRefs": [
         "pnpm-lock.yaml"
       ],
-      "metadataSha256": "78800cebfe338a222f9082dcc0acc24572c630ca88479453d3da61a861e24ed0",
+      "metadataSha256": "68f678fba4a4798b33e994b01744b53f843228367f441135c795ea48b87b2a1a",
       "name": "undici",
       "noticeFiles": [
         {
@@ -12034,8 +12034,8 @@
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "test-only",
-      "source": "https://registry.npmjs.org/undici/8.10.0",
-      "version": "8.10.0"
+      "source": "https://registry.npmjs.org/undici/8.10.2",
+      "version": "8.10.2"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -13825,7 +13825,7 @@
         "deploy/backend-requirements.txt",
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "02bbd8a2728dac94f7d6a4a3d5de523afdadc90ca5b1476845ad3f505861ea63",
+      "metadataSha256": "6173d893ced0fe6e155dcbc85531df981c7412d4bead511f8eeaad0e667f31c9",
       "name": "cryptography",
       "noticeFiles": [
         {
@@ -13864,7 +13864,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b639cb5e4795c51f8be7b4834e190e05f5f6824679d090ee496f46d855c69566",
+      "metadataSha256": "5e02eb25b092ccba150d087ba1044d95833e390c6a83cbf49b5911e1be20682a",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -14771,7 +14771,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "20faf559f1a150d84e7b0e7567b933fb3d383e6ba82179a1caa32a44cdc96085",
+      "metadataSha256": "0de4f18187d0fc2318de8504c4178f2297bc7cfa7a55adfb6d013190aff8cff4",
       "name": "markupsafe",
       "noticeFiles": [
         {
@@ -15096,7 +15096,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "cc2fbd70696393eecd911a885495b4136c29f5ab1318b375a95ec2056d7dbdce",
+      "metadataSha256": "522bc00328e8fbeb1c70b0100411d50e102e008522eb09682091c67df9d0dd87",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -15127,7 +15127,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "462c351628cb46a9bd5608f508df518dba0322fd120f01c086279c73213cdda5",
+      "metadataSha256": "5f0896a661696bd546200d003ade29695f371b969b0491d16e37fcd4cd9406f3",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15852,7 +15852,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "f696500a789add7ff2d4bf000bd7f32cf97bd24f962ba36c6b6f3580354f8175",
+      "metadataSha256": "78a34e8a3ef2a0b6580f17922e214676f6718e9df370e07a89829d25b9c188ee",
       "name": "pyjwt",
       "noticeFiles": [
         {
@@ -15945,7 +15945,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "3bbfaba3c2f97623da2a353067b509c493110ae3be1fbddcb2eae593e294dfc2",
+      "metadataSha256": "5bbd730075bcfd67860e03d3bf67e844824e1b6e3df94c9b39c6556cff2ae193",
       "name": "python-dotenv",
       "noticeFiles": [
         {
@@ -16341,7 +16341,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b61576e60291d87c730a9c652a957e491421e6012a23129422ea2e3272260725",
+      "metadataSha256": "bcb5f777ca2aa3dbcc328ecf98b132a1c064cc79d605505ff1ab810ac8db5fe8",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -16606,7 +16606,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "75b89d3859397532f4af5efb511f8defa0d3000921a03c49eb64994a81ea812f",
+      "metadataSha256": "54db1e362e04e390c23c2182dd425a6b3f0c1a73c5bd3f3e40611c3590c7a43a",
       "name": "urllib3",
       "noticeFiles": [
         {
@@ -17965,9 +17965,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "60def65c6c6dc1cefc5fbdab721af0e7cbb79e3e",
+      "gitBlob": "24b5e96dafe852a1325a9ca2b041cdc61f08a1ee",
       "path": "pnpm-lock.yaml",
-      "sha256": "f22645c3007bed6ffae98a2b5a174fa5d02f4256ff3e9420b102eed28418a027"
+      "sha256": "e6c13978016800da85f912dc92ab16e71bd3043ffa64f05751eb4a1e278e17a2"
     },
     {
       "gitBlob": "473f3828fcc96fb1c3b866561f52e04cdef772e0",
@@ -17990,9 +17990,9 @@
       "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
     },
     {
-      "gitBlob": "efaf8c63efe7368c443b92c177f5587ae9166387",
+      "gitBlob": "193ef28b71e11dde71376a870f46a538bd9658e3",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "e596066e893b22bcc4f38aeb91745055c37e2c6e6ba144ce73600cc0d938b76f"
+      "sha256": "c40ef2f34e5e1a516f6f93e5e09259a9086c5d5c8a7f27f6542814b2a0eb4137"
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -18550,6 +18550,11 @@
       "sha256": "a09bbbbb46be63e89ef39a5a6f72d610da47b2a6b6ba0eef1442327f1cf23eeb"
     },
     {
+      "gitBlob": "294350045bbb56c0a5dbbdd15981cfdd20719dd0",
+      "path": "docs/supply-chain/notice-material/sha256/a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88",
+      "sha256": "a21d6c8d3fc631198b97e57584697f7f9c37805c71c6cf9a12e4442b40394b88"
+    },
+    {
       "gitBlob": "881248b6d7f0ca2c4f65c41c0af5e02bb0680601",
       "path": "docs/supply-chain/notice-material/sha256/a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09",
       "sha256": "a49c9ba464796f65b59fca3f1e6ca40912df1e859f575383223f7ec6c5baae09"
@@ -18860,6 +18865,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "0fa5ad0c2108c789bb3e7620efce5fe066c7b3b6",
-  "subjectTree": "96249dfa1a56ce0847d6e64f05b489406837c7d6"
+  "subjectCommit": "2d74170ab5f30029d21ab0e341cab56b5d0f0aad",
+  "subjectTree": "a7c445b1138f3070cccb38fd459d3b098ad027e1"
 }
