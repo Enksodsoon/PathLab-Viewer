@@ -3,7 +3,7 @@ import json
 import math
 import unicodedata
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, DecimalException
 from typing import Any
 
 SCHEMA = "pathlab.assessment/1"
@@ -12,6 +12,8 @@ MAX_ITEMS = 100
 MAX_SLIDES = 50
 MAX_OPTIONS = 10
 PRECISION = Decimal("0.001")
+# AssessmentScoreVersion stores points and maximum_points as Numeric(12, 3).
+MAX_STORED_SCORE = Decimal("999999999.999")
 ITEM_TYPES = {
     "multiple-choice",
     "checkboxes",
@@ -70,6 +72,8 @@ def compile_assessment(draft: dict[str, Any]) -> CompiledAssessment:
     ids: set[str] = set()
     slide_ids: set[str] = set()
     normalized_items: list[dict[str, Any]] = []
+    total_points = Decimal("0")
+    total_rounded_points = Decimal("0")
     for position, raw in enumerate(items):
         _require(isinstance(raw, dict), "ASSESSMENT_INVALID_ITEM")
         item = dict(raw)
@@ -82,16 +86,46 @@ def compile_assessment(draft: dict[str, Any]) -> CompiledAssessment:
         _require(item_type in ITEM_TYPES, "ASSESSMENT_ITEM_TYPE_INVALID")
         _require(isinstance(item.get("prompt"), str), "ASSESSMENT_PROMPT_REQUIRED")
         if item_type != "information":
-            points = Decimal(str(item.get("points", "0")))
-            _require(points >= 0, "ASSESSMENT_POINTS_INVALID")
+            try:
+                points = Decimal(str(item.get("points", "0")))
+                _require(points.is_finite() and points >= 0, "ASSESSMENT_POINTS_INVALID")
+                rounded_points = _quantize(points)
+                total_points += points
+                total_rounded_points += rounded_points
+                _require(
+                    _quantize(total_points) <= MAX_STORED_SCORE
+                    and total_rounded_points <= MAX_STORED_SCORE,
+                    "ASSESSMENT_POINTS_INVALID",
+                )
+            except DecimalException as error:
+                raise AssessmentContractError("ASSESSMENT_POINTS_INVALID") from error
         if item_type in {"multiple-choice", "checkboxes", "diagnostic-field"} or (
             item_type == "short-answer" and not item.get("manual", False)
         ):
             _require("answerKey" in item, "ASSESSMENT_ANSWER_KEY_REQUIRED")
+        answer_key = item.get("answerKey", {})
+        _require(isinstance(answer_key, dict), "ASSESSMENT_ANSWER_KEY_INVALID")
+        if item_type in {"multiple-choice", "checkboxes"}:
+            keys = answer_key.get("optionIds", [])
+            _require(
+                isinstance(keys, list) and all(isinstance(key, str) for key in keys),
+                "ASSESSMENT_ANSWER_KEY_INVALID",
+            )
         options = item.get("options", [])
         _require(isinstance(options, list), "ASSESSMENT_OPTIONS_INVALID")
         _require(len(options) <= MAX_OPTIONS, "ASSESSMENT_OPTION_LIMIT")
-        option_ids = [option.get("id") for option in options if isinstance(option, dict)]
+        option_ids: list[str] = []
+        for option in options:
+            _require(isinstance(option, dict), "ASSESSMENT_OPTIONS_INVALID")
+            option_id = option.get("id")
+            _require(
+                isinstance(option_id, str) and bool(option_id), "ASSESSMENT_OPTION_ID_REQUIRED"
+            )
+            label = option.get("label")
+            _require(
+                isinstance(label, str) and bool(label.strip()), "ASSESSMENT_OPTION_LABEL_REQUIRED"
+            )
+            option_ids.append(option_id)
         _require(len(option_ids) == len(set(option_ids)), "ASSESSMENT_DUPLICATE_ID")
         slide_id = item.get("slideId")
         if slide_id is not None:
@@ -173,6 +207,8 @@ def _region_matches(
 
 def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None:
     item_type = item["type"]
+    if item_type in {"information", "section-information"}:
+        return Decimal("0.000")
     points = _decimal(item.get("points", 0))
     answer = item.get("answerKey", {})
     fraction = Decimal("0")
@@ -240,6 +276,4 @@ def score_item(item: dict[str, Any], response: dict[str, Any]) -> Decimal | None
         fraction = Decimal(valid) if item.get("answerKey", {}).get("value") is None else Decimal(
             value == item["answerKey"]["value"]
         )
-    elif item_type in {"information", "section-information"}:
-        return Decimal("0.000")
     return _quantize(points * fraction)

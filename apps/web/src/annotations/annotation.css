@@ -1436,8 +1436,14 @@
     top:8px;
     right:8px;
     left:8px;
-    max-width:calc(100% - 16px);
+    width:auto;
+    max-width:none;
+    margin-inline:0;
     min-height:50px;
+  }
+
+  .annotation-workspace--inspector .annotation-commandbar {
+    right:8px;
   }
 
   .annotation-save-status {
@@ -1569,15 +1575,38 @@
 
 @media (max-width:420px) {
   .annotation-commandbar {
+    display:grid;
+    grid-template-columns:repeat(3,44px) minmax(44px,1fr) 44px;
     gap:3px;
-    flex-wrap:wrap;
+  }
+
+  .annotation-save-cluster {
+    display:contents;
   }
 
   .annotation-commandbar button {
     padding-inline:7px;
   }
 
+  .annotation-save-status {
+    display:block;
+    grid-column:1 / -1;
+    grid-row:2;
+    min-width:0;
+    min-height:12px;
+    padding:0;
+    font-size:10px;
+    line-height:1.2;
+    text-align:center;
+  }
+
+  .annotation-save-cluster button {
+    font-size:0;
+    gap:0;
+  }
+
   .annotation-list {
+    top:86px;
     width:calc(100% - 16px);
   }
 

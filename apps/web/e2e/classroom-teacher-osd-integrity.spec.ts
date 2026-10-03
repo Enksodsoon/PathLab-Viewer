@@ -69,6 +69,10 @@ test('real OSD teacher slide opening reaches guided student and remote control d
   let presenter: { sequence: number; slideId: string; viewport: Record<string, unknown> | null } = { sequence: 0, slideId: 'slide-1', viewport: null }
   let controller: string | null = null
   const receipts: Array<Record<string, unknown>> = []
+  let completedPresenterRequests = 0
+  let priorOwnerRequestCount: number | null = null
+  let priorOwnerRequestsDone: Promise<void> | null = null
+  let resolvePriorOwnerRequests: (() => void) | null = null
   const marks: Array<Record<string, unknown>> = []
   let snapshots = 0
   const student = await context.newPage()
@@ -84,6 +88,11 @@ test('real OSD teacher slide opening reaches guided student and remote control d
     if (path.endsWith('/participants')) return route.fulfill({ json: { items: [], total: 0, nextCursor: null, rosterVersion: 1 } })
     if (path === '/api/v1/admin/classroom/sessions/qa') {
       snapshots += 1
+      if (priorOwnerRequestsDone) {
+        await priorOwnerRequestsDone
+        controller = 'learner'
+        priorOwnerRequestsDone = null
+      }
       const snapshot = teacherState()
       if (snapshotGate) { heldSnapshots += 1; await snapshotGate }
       return route.fulfill({ json: snapshot })
@@ -109,6 +118,10 @@ test('real OSD teacher slide opening reaches guided student and remote control d
       const event = { hubEpoch: 'epoch', eventSequence: ++sequence, presenterSequence: presenter.sequence, slideId: viewport.slideId, viewport }
       await emit(page, 'presenter', event)
       await emit(student, 'presenter', event)
+      completedPresenterRequests += 1
+      if (priorOwnerRequestCount !== null && completedPresenterRequests >= priorOwnerRequestCount) {
+        resolvePriorOwnerRequests?.()
+      }
       return
     }
     if (path.endsWith('/annotations') && route.request().method() === 'POST') {
@@ -148,7 +161,11 @@ test('real OSD teacher slide opening reaches guided student and remote control d
     while (!viewer && element) { element = element.parentElement; viewer = element ? OSD.getViewer(element) : null }
     ;(window as unknown as { qaQueueField: () => void }).qaQueueField = () => viewer.raiseEvent('animation-finish', {})
   })
-  controller = 'learner'; version += 1
+  // Serialize the mock grant behind owner requests dispatched before the
+  // handoff. Otherwise a late old request can reclaim control in the fixture
+  // and turn the following remote field into legitimate teacher publication.
+  priorOwnerRequestsDone = new Promise<void>((resolve) => { resolvePriorOwnerRequests = resolve })
+  version += 1
   snapshotGate = new Promise<void>((resolve) => { releaseSnapshot = resolve })
   // Count browser dispatches synchronously, not later Node route arrivals.
   // Enqueue and control run without an await in the same browser task.
@@ -161,7 +178,11 @@ test('real OSD teacher slide opening reaches guided student and remote control d
     return { count, at }
   }, { hubEpoch: 'epoch', eventSequence: ++sequence, stateVersion: version })
   const baseline = boundary.count
+  priorOwnerRequestCount = baseline
+  if (completedPresenterRequests >= baseline) resolvePriorOwnerRequests!()
   await expect.poll(() => heldSnapshots).toBe(1)
+  expect(controller).toBe('learner')
+  expect(completedPresenterRequests).toBe(baseline)
   await page.locator('.openseadragon-canvas').first().hover()
   await page.mouse.wheel(0, -200)
   await page.waitForTimeout(700)

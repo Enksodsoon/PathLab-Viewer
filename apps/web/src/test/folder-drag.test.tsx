@@ -37,6 +37,24 @@ it('preserves slide drop and accessible Move action', () => {
   fireEvent.click(screen.getByRole('menuitem', {name: 'Move'}))
   expect(onAction).toHaveBeenCalledWith(a, 'move')
 })
+it('uses the active local folder drag when native custom data is discarded, then clears it', () => {
+  const { transfer, onDropFolder } = setup()
+  const stripped = { ...transfer, types: ['text/plain'], getData: () => '' }
+  const target = screen.getByRole('treeitem', { name: 'B' })
+  // External text, and drops after an ended gesture, have no folder identity.
+  fireEvent.drop(target, { dataTransfer: stripped })
+  expect(onDropFolder).not.toHaveBeenCalled()
+  fireEvent.dragStart(screen.getByRole('treeitem', { name: 'Child' }), { dataTransfer: transfer })
+  fireEvent.drop(target, { dataTransfer: stripped })
+  expect(onDropFolder).toHaveBeenCalledExactlyOnceWith(child, 'B')
+  onDropFolder.mockClear()
+  fireEvent.drop(target, { dataTransfer: stripped })
+  expect(onDropFolder).not.toHaveBeenCalled()
+  fireEvent.dragStart(screen.getByRole('treeitem', { name: 'Child' }), { dataTransfer: transfer })
+  fireEvent.dragEnd(screen.getByRole('treeitem', { name: 'Child' }), { dataTransfer: stripped })
+  fireEvent.drop(target, { dataTransfer: stripped })
+  expect(onDropFolder).not.toHaveBeenCalled()
+})
 it('blocks self, unchanged parent, trash and cyclic destinations', () => {
   const folders = new Map([a, b, child, {...folder('Trash'), trashedAt: 'today'}].map((item) => [item.id, item]))
   expect(canMoveFolder(a, 'A', folders)).toBe(false)

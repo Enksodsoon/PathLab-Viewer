@@ -69,6 +69,27 @@ def test_compile_rejects_limits_duplicate_ids_and_incomplete_publish_data() -> N
         compile_assessment(duplicate)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "code"),
+    [
+        ("options", ["Option A", "Option B"], "ASSESSMENT_OPTIONS_INVALID"),
+        ("options", [{"label": "Option A"}], "ASSESSMENT_OPTION_ID_REQUIRED"),
+        ("options", [{"id": 1, "label": "Option A"}], "ASSESSMENT_OPTION_ID_REQUIRED"),
+        ("options", [{"id": "a"}], "ASSESSMENT_OPTION_LABEL_REQUIRED"),
+        ("answerKey", ["option-a"], "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("answerKey", {"optionIds": "option-a"}, "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("answerKey", {"optionIds": [[]]}, "ASSESSMENT_ANSWER_KEY_INVALID"),
+    ],
+)
+def test_publish_rejects_shapes_that_cannot_render_or_score(
+    field: str, value: object, code: str
+) -> None:
+    draft = _draft()
+    draft["items"][0][field] = value  # type: ignore[index]
+    with pytest.raises(AssessmentContractError, match=code):
+        compile_assessment(draft)
+
+
 def test_short_answer_normalization_is_unicode_and_whitespace_stable() -> None:
     assert normalize_short_answer("  ADENO\u212aARCINOMA\n  NOS ") == "adenokarcinoma nos"
 
@@ -124,3 +145,43 @@ def test_known_scoring_vectors_are_decimal_half_up_and_bounded() -> None:
         },
         {"selection": {"kind": "point", "x": 0.5, "y": 0.5}, "diagnosis": "adenocarcinoma"},
     ) == Decimal("2.000")
+
+
+@pytest.mark.parametrize("points", ["invalid", "NaN", "Infinity", "-Infinity", "1e999999999", None])
+def test_publish_rejects_unusable_points(points: object) -> None:
+    draft = _draft()
+    draft["items"][0]["points"] = points  # type: ignore[index]
+    with pytest.raises(AssessmentContractError, match="ASSESSMENT_POINTS_INVALID"):
+        compile_assessment(draft)
+
+
+def test_publish_rejects_score_total_beyond_existing_database_precision() -> None:
+    draft = _draft()
+    draft["items"][0]["points"] = "999999999.999"  # type: ignore[index]
+    with pytest.raises(AssessmentContractError, match="ASSESSMENT_POINTS_INVALID"):
+        compile_assessment(draft)
+
+
+def test_valid_decimal_score_boundary_and_rounding_remain_supported() -> None:
+    draft = _draft()
+    draft["items"] = [draft["items"][0]]  # type: ignore[index]
+    draft["items"][0]["points"] = "999999999.999"  # type: ignore[index]
+    compiled = compile_assessment(draft)
+    assert score_item(compiled.definition["items"][0], {"optionId": "option-a"}) == Decimal(
+        "999999999.999"
+    )
+    draft["items"][0]["points"] = "1.0055"  # type: ignore[index]
+    compiled = compile_assessment(draft)
+    assert score_item(compiled.definition["items"][0], {"optionId": "option-a"}) == Decimal("1.006")
+
+
+def test_information_content_does_not_parse_unused_score_points() -> None:
+    compiled = compile_assessment(
+        {
+            "title": "Information",
+            "items": [
+                {"id": "info", "type": "information", "prompt": "Read this", "points": "invalid"}
+            ],
+        }
+    )
+    assert score_item(compiled.definition["items"][0], {}) == Decimal("0.000")

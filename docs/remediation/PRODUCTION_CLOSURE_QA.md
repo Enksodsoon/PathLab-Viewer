@@ -61,3 +61,35 @@ A second disposable folder temporarily held the existing synthetic `Codex QA rel
 ## Paused upload cancellation defect — 2026-09-28
 
 At deployed `3cb26bc`, a 201,327,494-byte synthetic OME-TIFF was throttled to 1 MiB/s in the QA Edge tab. After upload reached 3%, Pause retained its server reservation. The visible Remove control then discarded only the browser queue item: no slide DELETE request was sent, and the library subsequently showed `Codex QA cancel 004fc79` in Uploading. The storage display moved from 97% to 92% free. This confirms a stranded logical reservation and lost browser resume path. The incomplete synthetic slide was moved to recoverable Trash; soft deletion does not release its active reservation. Permanent removal awaits authorization. The candidate repair makes Remove request server deletion and retain the queue item on failure, with a regression for a late reservation response. Production retest is pending release.
+
+## Protected delivery update - 2026-10-03
+
+PRs288,289 and290 are included in production `bd6984878bdc21719c5d890784369466b612d064`. All nine exact-main checks passed in [CI37106540538](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37106540538) and [Security37106540515](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37106540515). The [protected deployment37107676115](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37107676115) completed successfully at08:03:18Z. Earlier pending delivery statements describe historical states.
+
+Browser237passed/3skipped; backend1350passed/83skipped with Ruff/mypy; PostgreSQL144passed/1skipped; real fullstack28passed/1skipped/0unexpected/0flaky. The fullstack1000-menu sweep completed with actual bounded progress receipts. All matrix cases, zero retries and application capacity limits remain intact.
+
+The release verified actual database/file restoration: schema20260907_0037,69tables,106325files,3286131731bytes, both integrity results restored. Classroom=true, general annotations=false and admin annotation canary=true were preserved; Study remains gated. Fresh public readyz/livez returned200. Signed-in synthetic B tiles and the existing saved annotation rendered after reload.
+
+Released native folder moves/modal Escape and320px annotation controls/save/reload remain unverified. Browser inputs were paused while the desktop was being used for another task. Specific upload Cancel approval and external secret rotation/OneDrive facts remain unanswered. The campaign remains open; these release receipts do not prove all workflows, physical devices, sustained soak or clinical safety.
+
+## Signed-in mobile annotation follow-up — 2026-10-03
+
+Native Edge responsive emulation at320x568 on bd69848 displayed all five annotation commands, the Inspector and annotation list. The existing synthetic B rectangle was edited, Undo/Redo were acknowledged, and an explicit offline Save retained1UNSAVED. Restoring No throttling and explicitly retrying changed the status toSAVED. A final distinct title, `Codex QA offline recovery 68e0a03 · mobile verified bd69848`, was saved and remained in the annotation list after a full browser reload withNO CHANGES and one rectangle. This supersedes the earlier unverified320px save/reload status for these exercised paths only.
+
+One transient POST403 appeared before a later successful acknowledgement; no response body was retained, so its cause is unproved. Inspector unexpectedly reopened after history/save updates. The current-code regression and candidate repair are tracked in the selection stability ticket. UI Automation's focus field did not prove browser DOM keyboard focus. Desktop closure focus and native folder drag qualification remain open. Emulation does not qualify physical devices.
+
+Assessment PRs292 and294 and Classroom fixture PR293 have merged. All nine exact-main gates passed at ae9b1ac, including28 real fullstack cases,1skip,0unexpected and0flaky. Deployment37116218798 was normally approved and is in progress; these facts do not yet prove a deployed ae9b1ac release.
+
+## Production ae9b1ac delivery verification — 2026-10-03
+
+[Deployment37116218798](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37116218798) completed successfully at10:38:42Z and its authenticated deployment log confirms exact `ae9b1ac624c44388866e36e7be4759609f3dcb9b`. Actual restoration again verified schema20260907_0037,69tables,106325files and3286131731bytes, with database/files integrity restored. Classroom=true, general annotations=false and admin annotation canary=true were preserved.
+
+Fresh readyz/livez returned200; anonymous admin slides and assessment drafts returned401. Native Edge Refresh reached a fresh signed-in synthetic B viewer at320x568: patterned tiles, the saved rectangle, all five command controls andNO CHANGES rendered. Opening the list retained the complete `mobile verified bd69848` title. These checks qualify existing data persistence across this deployment. Assessment-specific live qualification, native folder/desktop focus checks and the separately tested Inspector candidate remain open. The prior in-progress statement above is historical.
+
+## Current verification checkpoint - 2026-10-03
+
+Production `ae9b1ac624c44388866e36e7be4759609f3dcb9b` is verified at successful protected deployment37116218798, following all nine exact-main delivery gates. Actual database/file restore, health and feature settings are recorded above. Earlier pending deployment and unverified mobile statements are historical.
+
+Signed-in Edge verified that accessible Move placed the empty `Codex QA drag ae9b1ac` folder under `Codex QA 2026-09-27`; its hierarchy survived reload. The parent destination omitted its descendant. Escape closed the New folder and Move dialogs while retaining the Library navigator. No parent move or deletion was submitted. A single native drag attempt did not change hierarchy and has no retained dragstart/network evidence: production drag remains unverified, without a new product root-cause claim. Ignored receipt: var/remediation-evidence/production-ae9b1ac-folder-native.json.
+
+The Inspector selection-stability repair remains a PR295 candidate. Its previous head passed all nine delivery gates, all64 annotation browser matrix cases and5 real-backend annotation scenarios. Initial4pass/1fail long-path fixture evidence is retained separately from the unchanged-source short-path5pass result. Review's selected-record Undo/Redo gap is covered at320/1200, and all496 frontend tests pass. Follow-up test/docs changes require fresh exact-head gates and released authenticated qualification. Strict software admission, external security facts, specific Cancel approval, physical devices and sustained soak remain open.

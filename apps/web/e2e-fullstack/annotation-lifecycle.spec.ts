@@ -202,3 +202,43 @@ test('every authored geometry persists; annotation edit, duplicate, trash, resto
   await page.getByRole('searchbox', { name: 'Search annotations', exact: true }).fill('QA persisted annotation')
   await expect(page.getByRole('button', { name: /QA persisted annotation/ }).first()).toBeVisible()
 })
+
+
+test('320px annotation commands open inspector and acknowledge edits across reload', async ({ page, isMobile }, info) => {
+  await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
+  const id = await uploadSyntheticSlide(page, process.env.PATHLAB_E2E_OME!, 'QA narrow annotation commands')
+  await waitForSlideConversion(page, id)
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto(`/admin/preview/${id}`)
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  const toggle = page.getByRole('button', { name: 'Open annotation inspector', exact: true })
+  await toggle.click()
+  const inspector = page.getByRole('dialog', { name: 'Annotation inspector', exact: true })
+  await expect(inspector).toBeVisible()
+  await inspector.getByRole('button', { name: 'Close annotation inspector', exact: true }).click()
+  await expect(toggle).toBeFocused()
+  await page.getByRole('button', { name: 'More annotation tools', exact: true }).click()
+  await page.getByRole('button', { name: 'Point marker', exact: true }).click()
+  const overlay = page.locator('.annotation-svg-overlay')
+  const box = (await overlay.boundingBox())!
+  const point = [box.x + box.width * .75, box.y + box.height * .55] as [number, number]
+  const saved = page.waitForResponse((response) => response.request().method() === 'POST'
+    && new URL(response.url()).pathname === `/api/v2/admin/annotations/slides/${id}/batch` && response.ok())
+  if (isMobile) await page.touchscreen.tap(...point)
+  else await page.mouse.click(...point)
+  expect((await saved).status()).toBe(200)
+  await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
+  const createdRow = page.locator('[data-annotation-row]')
+  await expect(createdRow).toHaveCount(1)
+  await createdRow.click()
+  await expect(inspector).toBeVisible()
+  const title = 'QA 320px persisted title'
+  await inspector.getByRole('textbox', { name: 'Title', exact: true }).fill(title)
+  await inspector.getByRole('button', { name: 'Close annotation inspector', exact: true }).click()
+  const status = page.getByLabel('Annotation commands', { exact: true }).getByRole('status')
+  await expect(status).toHaveText('Saved')
+  await page.reload()
+  await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
+  await expect(page.getByRole('button', { name: new RegExp(title) })).toBeVisible()
+  await info.attach('narrow-annotation-commands.png', { body: await page.screenshot(), contentType: 'image/png' })
+})

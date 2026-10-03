@@ -686,6 +686,8 @@ def main() -> int:
                     "--reporter=line,json",
                     *(["--grep", args.grep] if args.grep else []),
                 ],
+                # The scale scenario alone allows 900s; leave bounded room for
+                # the other journeys within CI's unchanged 25-minute job cap.
                 timeout=4200 if args.stress else 1200,
             )
             if any(process.poll() is not None for process in services):
