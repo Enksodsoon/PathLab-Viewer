@@ -92,7 +92,10 @@ fail() {
 }
 
 interrupt_deployment() {
-  trap - HUP INT TERM
+  trap - HUP INT TERM PIPE
+  # SSH/workflow cancellation can close both output descriptors. Recovery
+  # must finish even when Compose or rollback tries to write to that channel.
+  exec >/dev/null 2>&1
   if [[ "${SWAPPED}" -eq 1 ]]; then
     rollback_release
   fi
@@ -431,7 +434,7 @@ exclude_capacity_for_deployment
 DEPLOY_EVIDENCE="$(mktemp /run/pathlab-deploy-evidence-XXXXXX.json)"
 chmod 600 "${DEPLOY_EVIDENCE}"
 trap cleanup_exit EXIT
-trap interrupt_deployment HUP INT TERM
+trap interrupt_deployment HUP INT TERM PIPE
 python3 - "${EVIDENCE_B64}" "${DEPLOY_EVIDENCE}" <<'PY' || fail "deployment evidence transfer failed"
 import base64
 import pathlib

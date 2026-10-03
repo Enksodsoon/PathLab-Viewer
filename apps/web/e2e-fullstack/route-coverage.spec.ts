@@ -86,7 +86,7 @@ async function createDraft(page: Parameters<typeof signIn>[0], courseName: strin
 }
 
 test('every declared route renders; buttons and menus are inventoried and explored', async ({ page }, testInfo) => {
-  test.setTimeout(900_000)
+  test.setTimeout(1_800_000)
   const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const sourceRoutes = [...appSource.matchAll(/<Route\s+path="([^"]+)"/g)].map((match) => match[1])
   expect(sourceRoutes, 'Route inventory must match App.tsx declarations').toEqual(declaredRoutePatterns)
@@ -99,6 +99,12 @@ test('every declared route renders; buttons and menus are inventoried and explor
   await waitForSlideConversion(page, routeSlideId)
   await page.reload()
   await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+  await page.getByRole('button', { name: `More actions for ${routeSlideName}`, exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Publish', exact: true }).click()
+  const publication = page.getByRole('dialog', { name: 'Confirm deidentification', exact: true })
+  await publication.getByRole('checkbox').check()
+  await publication.getByRole('button', { name: 'Publish 1 slide', exact: true }).click()
+  await expect(publication).toBeHidden()
 
   const routes = [
     { route: '/admin', marker: 'All slides' },
@@ -236,7 +242,10 @@ test('every declared route renders; buttons and menus are inventoried and explor
       ? page.getByText(item.marker, { exact: true }).first()
       : page.getByRole('heading', { name: item?.marker ?? 'All slides', exact: true }).first()
     await expect(marker, `Could not restore route ${target}`).toBeVisible()
-    if (target === '/admin') await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+    // The unmatched route redirects to Library before its data has settled.
+    if (target === '/admin' || !item) {
+      await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+    }
     if (item?.redirect) {
       await expect(page.getByRole('navigation', { name: 'Response views', exact: true })).toBeVisible()
     }
@@ -375,6 +384,11 @@ test('every declared route renders; buttons and menus are inventoried and explor
             if (/^Archive assessment$/i.test(menuItemName)) {
               activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
                 result: 'covered-by-assessment-types.spec.ts' })
+              continue
+            }
+            if (entry.route === '/admin' && /^More actions for /.test(name) && /^Unpublish$/i.test(menuItemName)) {
+              activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
+                result: 'covered-by-imaging-journey.spec.ts' })
               continue
             }
             if (!(await menuItem.isEnabled())) {

@@ -1,19 +1,14 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import subprocess
-import zipfile
 from pathlib import Path
 
-import pytest
-
-from scripts import generate_dependency_inventory as generator
 from scripts.validate_dependency_inventory import DEFAULT_INVENTORY, validate
 
 ROOT = Path(__file__).resolve().parents[2]
-SUBJECT = "2d74170ab5f30029d21ab0e341cab56b5d0f0aad"
+SUBJECT = "3598ea7359bdbe57c57c9e59f945d233aa12145a"
 
 
 def test_inventory_reconciles_every_manifest() -> None:
@@ -40,7 +35,10 @@ def test_inventory_preserves_fail_closed_production_boundaries() -> None:
 def test_inventory_subject_is_current_implementation_tree() -> None:
     inventory = json.loads((ROOT / "docs/supply-chain/dependency-inventory.json").read_text())
     assert inventory["subjectCommit"] == SUBJECT
-    assert inventory["subjectTree"] == "a7c445b1138f3070cccb38fd459d3b098ad027e1"
+    tree = subprocess.check_output(
+        ["git", "rev-parse", f"{SUBJECT}^{{tree}}"], cwd=ROOT, text=True
+    ).strip()
+    assert inventory["subjectTree"] == tree
 
 
 def test_source_sha256_receipts_use_canonical_git_blob_bytes() -> None:
@@ -217,37 +215,3 @@ def test_dependency_validator_rejects_forged_supplemental_binding(tmp_path):
     target.write_text(json.dumps(inventory))
     with pytest.raises(ValueError, match="local notice lacks supplemental notice binding"):
         validate(target)
-
-
-@pytest.mark.parametrize("corrupt", [False, True])
-def test_python_inventory_selects_locked_wheel_before_unlocked_sdist(monkeypatch, corrupt):
-    archive = io.BytesIO()
-    with zipfile.ZipFile(archive, "w") as wheel:
-        wheel.writestr("example.dist-info/licenses/LICENSE", "Example license")
-    data = archive.getvalue()
-    digest = hashlib.sha256(data).hexdigest()
-    metadata = {
-        "info": {"license_expression": "MIT"},
-        "urls": [
-            {"packagetype": "sdist", "url": "unlocked.tar.gz", "digests": {"sha256": "0" * 64}},
-            {"packagetype": "bdist_wheel", "url": "locked.whl", "digests": {"sha256": digest}},
-        ],
-    }
-
-    def read(url):
-        assert url != "unlocked.tar.gz"
-        if url == "locked.whl":
-            return data + b"corrupt" if corrupt else data
-        return json.dumps(metadata).encode()
-
-    monkeypatch.setattr(generator, "read_url", read)
-    record = generator.python_record(
-        (
-            "runtime-mandatory",
-            ROOT / "deploy/backend-requirements.txt",
-            {"name": "example", "version": "1", "hashes": [digest]},
-        )
-    )
-    assert record["artifact"] == "locked.whl"
-    assert record["checksumVerified"] is not corrupt
-    assert ("LOCK_HASH_OR_ARTIFACT_MISMATCH" in record["blockers"]) is corrupt

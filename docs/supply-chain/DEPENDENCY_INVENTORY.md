@@ -8,10 +8,15 @@ unresolved mandatory inputs. P0-T04 refreshed the current inventory against impl
 path. The remaining blocked inputs continue to block their Phase 0 admission; neither task changes
 ratified architecture or authorizes deployment, qualification, or activation work.
 
-The authoritative machine-readable record is
-[`dependency-inventory.json`](dependency-inventory.json). It contains 580 unique records:
+On 2026-10-03, the inventory was refreshed for the patched transitive `undici` and
+`brace-expansion` versions. Their registry artifact checksums and exact license text were verified;
+the current receipt is bound to implementation commit
+`3598ea7359bdbe57c57c9e59f945d233aa12145a`.
 
-- 449 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
+The authoritative machine-readable record is
+[`dependency-inventory.json`](dependency-inventory.json). It contains 582 unique records:
+
+- 451 exact npm resolutions from `pnpm-lock.yaml`, including transitive and platform-optional
   packages;
 - 73 unique exact PyPI resolutions from the two hash-locked deployment requirement files;
 - 58 explicit non-lockfile records for GitHub Actions, pinned container images, native and hosted
@@ -28,7 +33,7 @@ The checked-in inventory does not treat registry metadata alone as final legal a
 
 ## Fail-closed findings
 
-124 records are `BLOCKED`. The material blockers are:
+119 records are `BLOCKED`. The material blockers are:
 
 - P0-T04 removed `combine-errors@3.0.3` and its now-unused transitive path. The current lock and
   inventory reject its reintroduction; `tus-js-client@4.3.1` remains exact, MIT-licensed, and
@@ -69,16 +74,16 @@ patched tus snapshot and patch digest.
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject 58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89
+python scripts/generate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject 58e274be6a1f8f8b90a8bb0aa6eb3819c2b62c89
+python scripts/validate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
 python scripts/validate_combine_errors_removal.py
 python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```
 
-The inventory subject is the exact P0-T04 implementation commit immediately before receipt
+The current inventory subject is the exact implementation commit immediately before receipt
 generation. Later tasks must create new evidence rather than silently rebinding this receipt.
