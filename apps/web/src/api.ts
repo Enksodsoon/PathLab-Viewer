@@ -20,6 +20,11 @@ const CSRF_KEY = 'pathlab-csrf'
 let memoryCsrf = ''
 let csrfStorageWriteFailed = false
 let csrfGeneration = 0
+const csrfRefreshFailures = new WeakSet<object>()
+
+export function isCsrfRefreshFailure(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && csrfRefreshFailures.has(error)
+}
 function readCsrf() {
   if (csrfStorageWriteFailed) return memoryCsrf
   try { return sessionStorage.getItem(CSRF_KEY) ?? '' } catch { return memoryCsrf }
@@ -107,7 +112,16 @@ export async function csrfFetch(
   }
   if (code !== 'CSRF_INVALID') return response
 
-  if (generation !== csrfGeneration || !await refreshSession()) return response
+  if (generation !== csrfGeneration) return response
+  let refreshed: boolean
+  try {
+    refreshed = await refreshSession()
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error('Session refresh failed', { cause: error })
+    csrfRefreshFailures.add(failure)
+    throw failure
+  }
+  if (!refreshed) return response
   return send()
 }
 

@@ -65,3 +65,9 @@ Evidence-backed remaining repairs; interface changes only after reproductions re
 ## Out of scope
 
 Clinical qualification, inferred scanner color profiles, speculative performance rewrites, guessed invitation formats, and activating unqualified feature gates.
+
+## Acknowledgment recovery followup at9ea88b9
+
+Production9ea88b9 is verified through protected release37150191318, actual restore, fresh health and native signed-in save/reload. Cache transaction abort and save-feedback repairs are delivered. Native private import/reload, different-record Inspector/reload and accessible folder Move/reload are proved; native HTML5 drag and external closure facts remain separate.
+
+[Lost server acknowledgment](tickets/assessment-lost-acknowledgment.md) is the next confirmed dependency-boundary repair. It recognizes only a same-id/exactly-next-revision/exact-document authoritative read after uncertain mutation; known denied CSRF/session-refresh failures and changed server documents stay fail-closed.571frontend,24browser and one real-backend commit/drop/reload check passed; renewed product and added-test reviews are clear. Fresh exact-head/main checks and protected delivery are pending. Original954sourcealiases/29aggregateclaims retained;42separatecampaignfindings now tracked.
