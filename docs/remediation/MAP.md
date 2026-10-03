@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Native folder moves and modal Escape](tickets/folder-drag-qualification.md): qualify actual drag/drop with the backend and retain stationary targets during native gestures.
+
 - [Combined follow-up release](tickets/remaining-release-integration.md): preserve individual review history, qualify the four remaining batches together, and verify the protected production release.
 
 - [OCI advisory reconciliation](tickets/oci-advisory-main-integration.md): retain current upstream JavaScript fixes, audit the complete deployment lock, and regenerate subject-bound inventories.
