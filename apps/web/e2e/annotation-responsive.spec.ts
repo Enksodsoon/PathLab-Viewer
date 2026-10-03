@@ -841,3 +841,56 @@ test('residual revision history clears on selection and ignores a delayed respon
   await expect(page.getByRole('button',{name:'Restore selected revision'})).toHaveCount(0)
   expect(restores).toBe(0)
 })
+
+
+test('keeps every annotation command reachable at narrow widths and after closing inspector', async ({ page }) => {
+  for (const viewport of [
+    { width: 320, height: 568 }, { width: 390, height: 844 },
+    { width: 760, height: 650 }, { width: 844, height: 390 },
+    { width: 1584, height: 992 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/admin/preview/private-1')
+    await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+    const commandbar = page.getByLabel('Annotation commands', { exact: true })
+    const measure = () => commandbar.evaluate((bar) => [...bar.querySelectorAll('button,output')].map((control) => {
+      const rect = control.getBoundingClientRect()
+      const button = control instanceof HTMLButtonElement
+      return {
+        name: control.getAttribute('aria-label') || control.textContent?.trim(),
+        inside: rect.x >= 0 && rect.right <= innerWidth && rect.y >= 0 && rect.bottom <= innerHeight,
+        touchSize: !button || (rect.width >= 44 && rect.height >= 44),
+        reachable: !button || control.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
+      }
+    }))
+    await expect.poll(measure, { message: `Commands fit and can be hit at ${viewport.width}x${viewport.height}` })
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'Undo', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Redo', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Save annotations', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Open annotations', inside: true, touchSize: true, reachable: true }),
+        expect.objectContaining({ name: 'Open annotation inspector', inside: true, touchSize: true, reachable: true }),
+      ]))
+    await expect.poll(async () => (await measure()).every((control) => control.inside && control.touchSize && control.reachable))
+      .toBe(true)
+    const inspectorToggle = page.getByRole('button', { name: 'Open annotation inspector', exact: true })
+    await inspectorToggle.click()
+    await expect(page.getByLabel('Annotation inspector', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Close annotation inspector', exact: true }).last().click()
+    await expect(inspectorToggle).toBeFocused()
+    await expect.poll(measure).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Open annotation inspector', inside: true, reachable: true }),
+    ]))
+    await page.getByRole('button', { name: 'Open annotations', exact: true }).click()
+    const list = page.getByLabel('Annotation list', { exact: true })
+    await expect(list).toBeVisible()
+    const separated = await list.evaluate((panel) => {
+      const commands = document.querySelector('.annotation-commandbar')!.getBoundingClientRect()
+      const bounds = panel.getBoundingClientRect()
+      return commands.right <= bounds.x || bounds.right <= commands.x
+        || commands.bottom <= bounds.y || bounds.bottom <= commands.y
+    })
+    expect(separated, `List does not cover commands at ${viewport.width}x${viewport.height}`).toBe(true)
+    await page.getByRole('button', { name: 'Close annotations', exact: true }).click()
+  }
+})

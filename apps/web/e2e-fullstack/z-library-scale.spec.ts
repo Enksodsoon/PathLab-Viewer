@@ -1,5 +1,6 @@
 import { expect, test } from './qa-test'
 import { execFileSync } from 'node:child_process'
+import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { signIn } from '../e2e-live/capacity-helpers'
 
@@ -18,6 +19,16 @@ test('large synthetic library paginates, survives offline recovery and isolates 
     if (size === 1000) {
       const explorer = await context.newPage()
       const menuEvidence: Array<{ label: string; items: string[] }> = []
+      const menuStarted = Date.now()
+      const retainProgress = async (phase: string) => {
+        const directory = process.env.PATHLAB_E2E_REPORT_DIR
+        if (!directory) return
+        await writeFile(path.join(directory, 'library-scale-progress.json'), JSON.stringify({
+          fixture: 'Frontend QA metadata-only', phase, expectedMenus: 1000,
+          checkedMenus: menuEvidence.length, elapsedMs: Date.now() - menuStarted,
+          lastCheckedMenu: menuEvidence.at(-1)?.label ?? null,
+        }, null, 2))
+      }
       try {
         await explorer.goto('/admin?q=Frontend%20QA&sort=name_asc')
         await expect(explorer.getByRole('heading', { name: 'Frontend QA 0000', exact: true })).toBeVisible()
@@ -25,6 +36,7 @@ test('large synthetic library paginates, survives offline recovery and isolates 
           const actions = explorer.locator('button[aria-label^="More actions for Frontend QA"]')
           const count = await actions.count()
           expect(count).toBeGreaterThan(0)
+          await retainProgress('checking page')
           for (let index = 0; index < count; index += 1) {
             const trigger = actions.nth(index)
             const label = await trigger.getAttribute('aria-label')
@@ -41,6 +53,7 @@ test('large synthetic library paginates, survives offline recovery and isolates 
             await expect(menu).toBeHidden()
             menuEvidence.push({ label, items })
           }
+          await retainProgress('page checked')
           const next = explorer.getByRole('button', { name: 'Next page', exact: true })
           if (!(await next.count()) || !(await next.isEnabled())) break
           const responsePromise = explorer.waitForResponse((response) => {
@@ -56,6 +69,7 @@ test('large synthetic library paginates, survives offline recovery and isolates 
         }
       } finally { await explorer.close() }
       expect(menuEvidence).toHaveLength(1000)
+      await retainProgress('all1000 menus checked')
       await testInfo.attach('all-synthetic-slide-menus.json', {
         body: JSON.stringify({ fixture: 'Frontend QA metadata-only', count: menuEvidence.length, menus: menuEvidence }, null, 2),
         contentType: 'application/json',

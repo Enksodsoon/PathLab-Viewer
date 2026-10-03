@@ -12872,23 +12872,37 @@
     {
       "key": "campaign-folder-drag-layout-shift",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "merged",
       "evidence": "Native full-stack drag stalled without PATCH on68e0a038; conditional top-level target insertion shifts folder rows during dragstart. Minimal native stable-row drag succeeds; equivalent row insertion stalls. Out-of-flow top-level target yields intended native drop event, real200 folder PATCH and persisted parent after reload. Final Chromium scenario also verifies native top-level drop, descendant-cycle prevention and accessible Move persistence.",
-      "qualification": "Local Windows native Chromium/Firefox/WebKit and mobile Move pass. Retained Linux CI37097769206 at f8bf0bb fails first native move: no dragstart; source input(206,9), target(206,360) with intervening drawer scroll. Corrected native gesture test requires fresh Linux full gates and protected delivery; no new product defect inferred. Populated root-return helper y=-159 reproduced independently and corrected locally."
+      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038."
     },
     {
       "key": "campaign-folder-modal-escape-conflict",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "merged",
       "evidence": "After successful native folder move, Escape left Move dialog open: navigator document handler prevented native dialog cancel and closed navigation instead. Yielding default-prevented and open-dialog key events lets native cancellation close Move while preserving navigator. Chromium real-backend regression passes.",
-      "qualification": "Local Windows native Chromium/Firefox/WebKit and mobile Move pass. Retained Linux CI37097769206 at f8bf0bb fails first native move: no dragstart; source input(206,9), target(206,360) with intervening drawer scroll. Corrected native gesture test requires fresh Linux full gates and protected delivery; no new product defect inferred. Populated root-return helper y=-159 reproduced independently and corrected locally."
+      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038."
     },
     {
       "key": "campaign-folder-native-custom-data-loss",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "merged",
       "evidence": "Native WebKit minimal fixture retains text/plain but discards custom folder MIME at dragover/drop; application consequently refuses the drop. Active local gesture identity supplies a bounded fallback, cleared on drop/dragend. Real-backend native nesting/top-level return and reload now pass. External text and ended-gesture drops remain rejected by focused tests.",
-      "qualification": "Local Windows native Chromium/Firefox/WebKit and mobile Move pass. Retained Linux CI37097769206 at f8bf0bb fails first native move: no dragstart; source input(206,9), target(206,360) with intervening drawer scroll. Corrected native gesture test requires fresh Linux full gates and protected delivery; no new product defect inferred. Populated root-return helper y=-159 reproduced independently and corrected locally."
+      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038."
+    },
+    {
+      "key": "campaign-annotation-mobile-command-clipping",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "Released68e0a03 at320x568: command bar width208 at x56; Inspector button x345.625,width44, no scrollable overflow. Local native browser regression fails the same hit/viewport checks before repair. Desktop max-width and max-content rules survive the mobile breakpoint; small save cluster also exceeds available width. Mobile resets desktop sizing and uses a two-row grid preserving44px controls and visible save status. List offset accounts for the second row.",
+      "qualification": "All60 annotation-responsive browser checks pass across Chromium/Firefox/WebKit/mobile Chromium, including320/390/760/844/1584 widths. Real-backend320px point creation,title edit,acknowledgment and reload pass all four targets. Build/TypeScript,changed-file lint,security baseline and both inventory validators pass. Protected release and live repair verification remain pending. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure."
+    },
+    {
+      "key": "campaign-annotation-desktop-inspector-focus",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "After mobile layout repair, regression reaches844x390 and closing Inspector leaves its trigger inactive. Existing focus cleanup returns early for non-mobile panels. Return focus to the trigger on desktop inspector closure while retaining the mobile modal focus trap. Corrected Chromium regression passes all five viewport widths.",
+      "qualification": "All60 focused browser matrix checks pass, including desktop/mobile Inspector closure restoring trigger focus. Four real-backend320px cases pass. Protected release remains pending; desktop stays non-modal. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure."
     }
   ],
   "currentClosureBranch": "main",
