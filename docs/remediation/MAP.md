@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Browser CI runtime budget](tickets/browser-ci-runtime-budget.md): repeated 15-minute job cancellation near the end of the complete matrix; preserve assertions and bound test execution separately from diagnostic cleanup.
+
 - [Native folder moves and modal Escape](tickets/folder-drag-qualification.md): qualify actual drag/drop with the backend and retain stationary targets during native gestures.
 
 - [Combined follow-up release](tickets/remaining-release-integration.md): preserve individual review history, qualify the four remaining batches together, and verify the protected production release.

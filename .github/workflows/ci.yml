@@ -303,7 +303,8 @@ jobs:
 
   browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The complete 240-case matrix takes about 13 minutes before setup/cleanup.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -318,6 +319,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium firefox webkit
       - name: Run authentication, library, Classroom and viewer browser matrix
+        timeout-minutes: 16
         env:
           PLAYWRIGHT_PORT: "5217"
         run: >-
@@ -339,7 +341,7 @@ jobs:
           e2e/study-download-audit.spec.ts
           --workers=2
       - name: Retain browser failure diagnostics
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-failure-diagnostics
