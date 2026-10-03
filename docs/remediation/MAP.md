@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Assessment import save boundary](tickets/assessment-import-save-boundary.md): prevent importing persisted questions from replacing edits that have not been acknowledged.
+
 - [Assessment local recovery after failed saves](tickets/assessment-local-recovery.md): restore divergent equal-revision edits after reload; contain reproduced local write failures and preserve newer server revisions.
 
 - [Assessment save acknowledgments and optional recovery storage](tickets/assessment-save-acknowledgments.md): reproduce competing revision saves and storage-denied loading; qualify serialization across draft changes.
