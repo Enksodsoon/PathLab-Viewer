@@ -308,7 +308,8 @@ export function AdminPage() {
 
     navigatorCloseRef.current?.focus()
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented
+        || (event.target instanceof Element && event.target.closest('dialog[open]'))) return
       event.preventDefault()
       closeNavigator()
     }
