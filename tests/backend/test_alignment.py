@@ -98,6 +98,30 @@ def test_native_patch_rejects_invalid_sampling_ratio(ratio) -> None:
         register_pair(_tissue(), _tissue(), feature_only=True, sampling_ratio=ratio)
 
 
+def test_native_cells_survive_different_pyramid_and_internal_resize_scales() -> None:
+    import cv2
+
+    tissue = _tissue()
+    width, height = tissue.size
+    warp = cv2.getRotationMatrix2D(((width - 1) / 2, (height - 1) / 2), 8, 1)
+    moving = Image.fromarray(cv2.warpAffine(
+        np.asarray(tissue), warp, tissue.size, borderValue=(255, 255, 255)
+    ))
+    reference = tissue.resize((width * 4, height * 4), Image.Resampling.LANCZOS)
+    result = register_pair(
+        reference, moving, max_dimension=1024, feature_only=True, sampling_ratio=4
+    )
+    assert result.status == "ready"
+    assert result.triangles
+    # Internal bounding changes the detector scale again. Returned coordinates
+    # must still use the original crop pixels, including resize pixel centers.
+    for x, y in ((230, 180), (350, 260), (470, 330)):
+        transformed = warp @ np.asarray([x, y, 1])
+        assert map_point(result.moving_to_reference, *transformed) == pytest.approx(
+            ((x + 0.5) * 4 - 0.5, (y + 0.5) * 4 - 0.5), abs=8
+        )
+
+
 def test_thin_tissue_mask_retains_walls_without_retaining_scanner_strip():
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)
