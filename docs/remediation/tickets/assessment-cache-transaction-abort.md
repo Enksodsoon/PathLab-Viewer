@@ -15,3 +15,5 @@ No blocked-upgrade, complete offline, cross-write ordering, production transacti
 Independent old-source Chromium read-abort red returns resolved instead of AbortError after request success; candidate restored in finally. Affected52tests6files pass40.24seconds. Read red receipt: var/cache-transaction-read-red.log. Final correction review pending.
 
 Renewed independent review clears the corrected test and reports no remaining Critical, Important or Minor findings. Fresh hosted gates and protected delivery required.
+
+Complete first frontend run544pass/1Classroom polling failure retained. Isolated Classroom3pass; final two-worker complete suite545tests85files282.53seconds passes. Failure cause remains unproven; no Classroom product change. Fresh hosted gates and protected delivery remain required.
