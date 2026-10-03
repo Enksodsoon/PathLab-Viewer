@@ -14,10 +14,14 @@ Signed-in Edge created independent synthetic draft `Codex QA assessment ae9b1ac`
 
 ## Repair
 
-Apply the existing score precision and maximum to v2 compilation. Bound the quantized raw total and the sum of separately rounded item maxima, and translate decimal failures to ASSESSMENT_POINTS_INVALID. Section information stays unscored. Preflight reports null points metrics when compilation fails rather than parsing an invalid draft again; the existing frontend contract already permits null metrics.
+Apply the existing score precision and maximum to v2 compilation. Bound the quantized raw total and the sum of separately rounded item maxima, and translate decimal failures to ASSESSMENT_POINTS_INVALID. Section information stays unscored. Preflight reports null points metrics when compilation fails rather than parsing an invalid draft again; valid metrics use Decimal consistently with compilation and scoring. The existing frontend contract already permits string/null metrics.
 
 Preserve valid half-up scoring, editable invalid drafts, revision checks, section routing, invitation formats and release policy. No migration, existing learner record rewrite or feature activation.
 
 ## Verification
 
 The four directly affected v1/v2 compiler and HTTP modules pass67 cases. The broader local assessment suite passes211 cases with9 skips;220 selected cases were independently collected. Ruff and mypy pass for changed sources. Boundary/half-up positive controls preserve valid maximum and information with unused invalid points. HTTP cases reject preview/publication, retain the original draft/revision, then publish a corrected document as version1. Protected PostgreSQL, browser/fullstack and release checks remain pending.
+
+Review identified accepted Decimal spelling `1__0` crashing float metrics. An actual HTTP regression fails before the follow-up and now returns valid preflight with10 points, successful preview/publication. The four affected modules now pass68 cases. Four PostgreSQL cases use temporary tables with actual ORM score-column types to test the valid maximum, half-up persistence and SQLSTATE22003 overflow; they are explicitly skipped without the isolated database and added to the hosted postgres gate.
+
+Disposable real-backend assessment selection passes5 cases, zero skips/unexpected/flaky outcomes; receipt var/qa296/fullstack.json. This run predates the Decimal-metrics follow-up, which requires refreshed applicable checks. Existing published definitions were not rewritten or independently audited for historical oversized scores; that qualification remains open. No activated Study or physical-device claim.

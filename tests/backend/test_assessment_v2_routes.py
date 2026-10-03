@@ -146,3 +146,18 @@ def test_v2_question_library_imports_into_first_section_without_routes(tmp_path:
     item = imported.json()["document"]["sections"][0]["items"][0]
     assert item["id"] != "item-pattern"
     assert "routing" not in item
+def test_v2_preflight_supports_the_same_decimal_spelling_as_scoring(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    document = v2_document()
+    document["sections"][0]["items"][0]["points"] = "1__0"  # type: ignore[index]
+    draft = client.post(
+        "/api/v2/admin/assessment/drafts", json={"title": "Synthetic decimal", "document": document}
+    ).json()
+    path = f"/api/v2/admin/assessment/drafts/{draft['id']}"
+    preflight = client.post(f"{path}/preflight")
+    assert preflight.status_code == 200
+    assert preflight.json()["valid"] is True
+    assert preflight.json()["metrics"]["points"] == "10"
+    assert client.post(f"{path}/preview").status_code == 200
+    assert client.post(f"{path}/publish").status_code == 201
+

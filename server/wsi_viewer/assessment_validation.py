@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from .assessment_contract import AssessmentContractError
@@ -89,7 +90,7 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
             "items": len(items),
             "points": str(
                 sum(
-                    float(item.get("points", 0) or 0)
+                    Decimal(str(item.get("points", 0) or 0))
                     for item in items
                     if item.get("type") != "section-information"
                 )
