@@ -782,7 +782,7 @@ test('keeps micron scale and rotation controls clear of annotation chrome', asyn
   for (const viewport of [{ width: 1584, height: 992 }, { width: 320, height: 568 }, { width: 760, height: 650 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(viewport)
     await page.goto('/admin/preview/private-1')
-    await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible()
+    await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).toBeVisible({ timeout: 15_000 })
     await expect(page.locator('.scale-bar')).toBeVisible()
     const rotation = page.getByRole('button', { name: /Open rotation controls/ })
     const box = (await rotation.boundingBox())!

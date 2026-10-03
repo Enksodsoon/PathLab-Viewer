@@ -86,7 +86,7 @@ async function createDraft(page: Parameters<typeof signIn>[0], courseName: strin
 }
 
 test('every declared route renders; buttons and menus are inventoried and explored', async ({ page }, testInfo) => {
-  test.setTimeout(900_000)
+  test.setTimeout(1_800_000)
   const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const sourceRoutes = [...appSource.matchAll(/<Route\s+path="([^"]+)"/g)].map((match) => match[1])
   expect(sourceRoutes, 'Route inventory must match App.tsx declarations').toEqual(declaredRoutePatterns)

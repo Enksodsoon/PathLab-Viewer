@@ -1220,20 +1220,25 @@ export function AnnotationWorkspace({
   const reload = async (
     generation = workspaceGenerationRef.current,
     localStore = storeRef.current,
+    skipLayerQueue = false,
   ) => {
     if (!localStore) return
-    setOperationStatus('Reloading annotations…')
-    try {
-      const version = await loadRemote(localStore, generation)
-      requireCurrentWorkspace(generation, localStore)
-      autosaveRef.current?.reset(version)
-      await discardPersistedDraft()
-      requireCurrentWorkspace(generation, localStore)
-      setOperationStatus('Annotations reloaded from server')
-    } catch (caught) {
-      if (caught instanceof StaleWorkspaceOperationError) return
-      setError(caught instanceof Error ? caught.message : 'Reload failed')
+    const run = async () => {
+      setOperationStatus('Reloading annotations…')
+      try {
+        const version = await loadRemote(localStore, generation)
+        requireCurrentWorkspace(generation, localStore)
+        autosaveRef.current?.reset(version)
+        await discardPersistedDraft()
+        requireCurrentWorkspace(generation, localStore)
+        setOperationStatus('Annotations reloaded from server')
+      } catch (caught) {
+        if (caught instanceof StaleWorkspaceOperationError) return
+        setError(caught instanceof Error ? caught.message : 'Reload failed')
+      }
     }
+    if (skipLayerQueue) await run()
+    else await serializeLayerMutation(generation, run)
   }
 
   const resolveConflict = async (choice: ConflictChoice) => {
@@ -1344,7 +1349,7 @@ export function AnnotationWorkspace({
       } catch (caught) {
         if (caught instanceof StaleWorkspaceOperationError) return
         setError(caught instanceof Error ? caught.message : 'Layer update failed')
-        await reload(generation, expectedStore)
+        await reload(generation, expectedStore, true)
       }
     })
   }
@@ -1384,7 +1389,7 @@ export function AnnotationWorkspace({
       } catch (caught) {
         if (caught instanceof StaleWorkspaceOperationError) return
         setError(caught instanceof Error ? caught.message : 'Layer reorder failed')
-        await reload(generation, expectedStore)
+        await reload(generation, expectedStore, true)
       }
     })
   }

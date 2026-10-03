@@ -499,4 +499,53 @@ or deployment was performed.
 
 The synthetic account workflow passed again on the updated source: invalid-input validation, password change, sign-out, and fresh sign-in with the changed password. The six-question-type assessment workflow also passed through authoring, publication, learner save, and submission. Both ran in Chromium 151.0.7922.34 against the disposable SQLite backend with zero retries and zero errors. Receipt: `CODEX_HOME/qa/frontend-20260928/mapped-workflows-v1/fullstack.json`; environment and source-diff hash: `CODEX_HOME/qa/frontend-20260928/mapped-workflows-v1/run-environment.json`.
 
-The refreshed ledger contains 193 rows: 183 PASS, 6 PASS_MOCKED, and 4 BLOCKED. The blockers remain browser-chrome zoom, physical iOS/Android devices, authenticated production credentials, and pathology color comparison with a nonzero real-tissue fixture.
+The refreshed ledger contains 193 rows: 183 PASS, 6 PASS_MOCKED, and 4 BLOCKED. The later release evidence below supersedes this paragraph's earlier statement that production authentication was wholly blocked.
+
+## Final continuation — reload race, current release evidence, and stress (2026-09-28)
+
+The production app remains deployed at `3cb26bc14ec64bc3dad85a29a6da823082615d6c` from protected run [36381707062](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/36381707062). `/livez` and `/readyz` returned HTTP 200. PRs [#274](https://github.com/Enksodsoon/PathLab-Viewer/pull/274) and [#275](https://github.com/Enksodsoon/PathLab-Viewer/pull/275) advanced `main` to `004fc7923f6887ef894055a7c318e3248e2397ad`; they changed QA tests and release records, not the deployed application source. The deployment kept Classroom enabled, general annotation writes disabled, and the authenticated admin annotation canary enabled. The current in-app browser remains signed out; no credentials were entered during this follow-up.
+
+The authenticated production sample was later recorded in `docs/remediation/PRODUCTION_CLOSURE_QA.md`. It covers synthetic Library/search/folder persistence, upload completion and pause/resume, viewer tiles, annotation save/reload, Classroom teacher actions, one synthetic learner question, and learner reconnect. No real learners or production load were used. Production paths still unverified are separate identities joining concurrently, a specifically selected invite expiry, and automatic stale-release-chunk recovery.
+
+A controlled annotation test reproduced a race between manual reload and an unfinished layer mutation. User-triggered reload now waits in the same serialized layer pipeline; error recovery inside that pipeline can reload inline without waiting on itself. The regression holds a synthetic reorder response, queues another reorder and an opacity change, then requests reload. It confirms no manifest request starts while the write is pending and checks the final layer state after reload. This passed in Chromium, Firefox, WebKit, and Pixel 5 Chromium emulation with zero skips or flakes. The mobile lifecycle test also closes the annotation inspector before activating the global Retry control it covers.
+
+The updated route explorer passed on `004fc79`: 29 declared route patterns, 312 route/menu outcomes, and 35 dialog states with 99 action outcomes; no unexplored controls or unexpected application errors were recorded. Chromium was 151.0.7922.34 with Playwright 1.62.1. The latest standalone route receipt is `CODEX_HOME/qa/frontend-20260928/route-explorer-current-main/fullstack.json`; the four annotation receipts are under `CODEX_HOME/qa/frontend-20260928/annotation-reload-queue-*`. The CPU saturation stop-gate regression added on `main` passed separately.
+
+A fresh 50-minute synthetic library campaign ran on commit `4341b4406ad4d1add17004e27c4ebb51155675b7` against disposable SQLite. Metadata library sizes 0, 1, 100, and 1,000 passed; tiers were five minutes each, followed by a 30-minute soak at 20 sessions. It completed 15,699 actions with zero errors, reached the planned 20-session tier, retained all 1,000 fixture records, and recovered healthy. No production request was generated. Results:
+
+| Sessions | Duration | Actions | Errors | p50 / p95 / p99 |
+|---|---:|---:|---:|---|
+| 1 | 5 minutes | 129 | 0 | 317 / 338 / 379 ms |
+| 5 | 5 minutes | 630 | 0 | 351 / 390 / 451 ms |
+| 10 | 5 minutes | 1,220 | 0 | 419 / 497 / 604 ms |
+| 20 | 5 minutes | 2,220 | 0 | 619 / 777 / 876 ms |
+| 20 | 30-minute soak | 11,500 | 0 | 920 / 1,356 / 1,704 ms |
+
+Peak host CPU was 55.2%; minimum free memory was 5.38 GiB. The run predates the CPU gate added in PR #275, but the observed CPU stayed below its 85% stop threshold; that gate's dedicated regression passes. Full receipts are in `CODEX_HOME/qa/frontend-20260928/final-followup-stress-4341b44/`.
+
+`pnpm lint`, the production web build, and Vitest passed; Vitest reported 81 files and 484 tests. A combined run that included the 50-minute campaign hit the runner's 70-minute outer limit at 18 of 24 browser tests, so that combined run is not counted as a suite pass. The stress campaign, route explorer, and changed annotation workflow were rerun separately and passed. The current-main follow-up branch still needs protected CI.
+
+The final ledger has 197 rows: 187 PASS, 6 PASS_MOCKED, and 4 BLOCKED. Remaining blocks are native browser-chrome 200% zoom, physical iOS/Android devices, the production edge paths named above, and a numeric H&E/IHC color comparison against a non-PHI source fixture. The available OME test fixture is zero-filled; production's patterned synthetic slide was visually rendered but has no source-to-screen RGB receipt. Responsive emulation, CSS zoom, and successful synthetic tile delivery remain separate evidence and do not close those blocks.
+
+## PR #277 follow-up — annotation readiness timing (2026-10-03)
+
+The initial protected browser run ([36408690799](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/36408690799)) captured mobile Chromium timing out at Playwright's default five-second visibility wait while the lazy annotation workspace was still opening. The trace shows the workspace module loading just after the assertion expired. The readiness assertion now allows 15 seconds. The focused mocked workflow passed in Chromium, Firefox, WebKit, and Pixel 5 Chromium emulation (4/4); receipt: `CODEX_HOME/qa/frontend-20261003/pr277-annotation-readiness-cross-browser/playwright.json`. Final protected CI state is tracked on [PR #277](https://github.com/Enksodsoon/PathLab-Viewer/pull/277).
+
+## PR #277 follow-up — dependency audit remediation (2026-10-03)
+
+The first current-head Security run found 14 advisories in the unchanged dependency graph: five high advisories across transitive `undici` and `brace-expansion`, plus lower-severity findings. The workspace overrides now pin `undici` to 8.10.2 and `brace-expansion` to 5.0.12, the patched versions identified by the [undici advisory](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5) and [brace-expansion advisory](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr). `pnpm audit --audit-level low` now reports no known vulnerabilities. After the lockfile update, lint passed, Vitest passed 81 files / 486 tests, the production build passed, and the focused annotation readiness workflow passed across all four browser projects. The new pushed head still needs protected CI.
+
+## PR #277 follow-up — supply-chain receipt repair (2026-10-03)
+
+The refreshed backend workflow caught that the checked-in dependency inventory still listed the
+previous `undici` and `brace-expansion` versions. Their exact registry archives now have verified
+integrity values and captured MIT license text. The dependency inventory reconciles all 582
+lockfile and external-input records and validates against subject
+`6a0211b8c8995427313d7a155ddf68909aed2f01`; its current fail-closed count is 119. The dependent
+SPDX, CycloneDX, and third-party-notice outputs were regenerated against subject
+`4d5f531144b743e72da8dca5b254e11de6be86dd`. Their validator passes for 612 source components;
+release admission remains explicitly `BLOCKED` by unresolved records in the broader inventory.
+
+The dependency-inventory and combine-errors regression tests passed, the asset-rights ledger
+validated 16 records, and the targeted Ruff checks passed. The regenerated software inventory and
+this evidence update still require the current-head protected CI run.
