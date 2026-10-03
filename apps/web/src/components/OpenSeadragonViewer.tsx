@@ -32,6 +32,7 @@ export interface ImageViewport {
   imageZoom: number
   rotation: number
   visibleRadiusPixels?: number
+  visibleBounds?: [number, number, number, number]
 }
 
 export type ViewerAttachmentCallback = (
@@ -376,9 +377,11 @@ export function OpenSeadragonViewer({
         getImageViewport: () => {
           if (!hasOpenImage()) return { centerX: 0, centerY: 0, imageZoom: 1, rotation: 0 }
           const center = readyViewer.viewport.viewportToImageCoordinates(readyViewer.viewport.getCenter(true))
+          const imageBounds = readyViewer.viewport.viewportToImageRectangle(readyViewer.viewport.getBounds(true))
           return {
             centerX: center.x,
             centerY: center.y,
+            visibleBounds: [imageBounds.x, imageBounds.y, imageBounds.width, imageBounds.height],
             imageZoom: readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true)),
           visibleRadiusPixels: Math.min(readyViewer.container.clientWidth, readyViewer.container.clientHeight)
             / (2 * readyViewer.viewport.viewportToImageZoom(readyViewer.viewport.getZoom(true))),

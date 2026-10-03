@@ -23,6 +23,8 @@ const osdMock = vi.hoisted(() => {
       getRotation: vi.fn(() => 0),
       setRotation: vi.fn(),
       getCenter: vi.fn(() => ({ x: 0, y: 0 })),
+      getBounds: vi.fn(() => ({ x: -200, y: -150, width: 400, height: 300 })),
+      viewportToImageRectangle: vi.fn((bounds: unknown) => bounds),
       viewportToImageCoordinates: vi.fn((point: { x: number, y: number }) => point),
       imageToViewportCoordinates: vi.fn((x: number, y: number) => ({ x, y })),
       imageToViewportZoom: vi.fn((zoom: number) => zoom),
