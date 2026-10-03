@@ -1100,7 +1100,7 @@ def refine_supported_patches(
                         seed.get("anchorVersion"),
                         seed.get("anchorSlideId"),
                         cv2.__version__,
-                        "patch-v8-spatial-orb",
+                        "patch-v9-sampling-aware-orb",
                     )
                 ).encode()
             ).hexdigest()
@@ -1125,7 +1125,10 @@ def refine_supported_patches(
                 cells: list[dict[str, Any]] = []
                 points: list[dict[str, Any]] = []
                 try:
-                    patch = register_pair(reference, moving, max_dimension=1024, feature_only=True)
+                    patch = register_pair(
+                        reference, moving, max_dimension=1024, feature_only=True,
+                        sampling_ratio=ms / rs,
+                    )
                     if patch.status == "ready" and patch.triangles:
                         patch = rescale_registration(
                             patch,
@@ -1528,6 +1531,7 @@ def register_components(
                             reference.size,
                             moving.size,
                             cv2.__version__,
+                            "native-sampling-aware-scale-v1",
                         )
                     ).encode()
                 ).hexdigest()
@@ -1544,7 +1548,8 @@ def register_components(
                     record = None
                     try:
                         result = register_pair(
-                            reference, moving, max_dimension=4096, feature_only=True
+                            reference, moving, max_dimension=4096, feature_only=True,
+                            sampling_ratio=moving_frame[2] / reference_frame[2],
                         )
                         record = asdict(result)
                     except AlignmentRejected as error:

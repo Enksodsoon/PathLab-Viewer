@@ -61,6 +61,42 @@ def test_register_pair_rejects_blank_slide() -> None:
         register_pair(_tissue(), Image.new("RGB", (720, 520), "white"))
 
 
+def test_native_patch_scale_gate_accounts_for_pyramid_sampling() -> None:
+    import cv2
+
+    tissue = _tissue()
+    width, height = tissue.size
+    warp = cv2.getRotationMatrix2D(((width - 1) / 2, (height - 1) / 2), -9.4, 1.03)
+    moving = Image.fromarray(cv2.warpAffine(
+        np.asarray(tissue), warp, tissue.size, borderValue=(255, 255, 255)
+    ))
+    reference = tissue.resize((width // 2, height // 2), Image.Resampling.LANCZOS)
+    # The same anatomy has a pixel-space scale near 0.485 because the reference
+    # pyramid is sampled twice as coarsely. Its actual deformation is near one.
+    with pytest.raises(AlignmentRejected):
+        register_pair(reference, moving, max_dimension=1024, feature_only=True)
+    with pytest.raises(AlignmentRejected):
+        register_pair(
+            reference, moving, max_dimension=1024, feature_only=True, sampling_ratio=0.125
+        )
+    result = register_pair(
+        reference, moving, max_dimension=1024, feature_only=True, sampling_ratio=0.5
+    )
+    assert result.status == "ready"
+    assert result.inlier_count >= 10
+    # These points were not provided to feature matching or transform fitting.
+    for x, y in ((230, 180), (350, 260), (470, 330)):
+        transformed = warp @ np.asarray([x, y, 1])
+        mapped = map_point(result.moving_to_reference, *transformed)
+        assert mapped == pytest.approx(((x + 0.5) / 2 - 0.5, (y + 0.5) / 2 - 0.5), abs=2)
+
+
+@pytest.mark.parametrize("ratio", [0, -1, float("nan"), float("inf")])
+def test_native_patch_rejects_invalid_sampling_ratio(ratio) -> None:
+    with pytest.raises(ValueError, match="sampling_ratio"):
+        register_pair(_tissue(), _tissue(), feature_only=True, sampling_ratio=ratio)
+
+
 def test_thin_tissue_mask_retains_walls_without_retaining_scanner_strip():
     image = Image.new("RGB", (640, 480), "white")
     draw = ImageDraw.Draw(image)

@@ -886,9 +886,14 @@ def register_pair(
     *,
     max_dimension: int = 2048,
     feature_only: bool = False,
+    sampling_ratio: float | None = None,
 ) -> RegistrationResult:
     if max_dimension < 256 or max_dimension > 4096:
         raise ValueError("max_dimension must be between 256 and 4096")
+    if sampling_ratio is not None and (
+        not np.isfinite(sampling_ratio) or sampling_ratio <= 0
+    ):
+        raise ValueError("sampling_ratio must be finite and positive")
     reference_rgb, reference_scale = _bounded_rgb(reference, max_dimension)
     moving_rgb, moving_scale = _bounded_rgb(moving, max_dimension)
     reference_structure, reference_mask = _structure(reference_rgb, cropped=feature_only)
@@ -936,6 +941,14 @@ def register_pair(
     ratio = inlier_count / len(matches)
     linear = transform[:, :2]
     scale = float(np.sqrt(abs(np.linalg.det(linear))))
+    # Patch crops can come from different native pyramid levels. Apply the
+    # deformation gate in slide coordinates rather than comparing their pixel
+    # sampling intervals. Keep the legacy gate when no sampling frame is known.
+    geometric_scale = (
+        scale / (sampling_ratio * reference_scale / moving_scale)
+        if sampling_ratio is not None
+        else scale
+    )
     projected = cv2.transform(moving_points[inliers, None, :], transform)[:, 0, :]
     errors = np.linalg.norm(projected - reference_points[inliers], axis=1)
     median_error = float(np.median(errors)) if errors.size else float("inf")
@@ -952,7 +965,7 @@ def register_pair(
     if (
         inlier_count < 10
         or ratio < 0.28
-        or not 0.5 <= scale <= 2.0
+        or not 0.5 <= geometric_scale <= 2.0
         or median_error > 4.0
         or coverage < 0.01
         or confidence < 0.55

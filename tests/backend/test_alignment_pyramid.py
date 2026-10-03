@@ -902,7 +902,7 @@ def test_guided_patches_preserve_seed_and_resume_without_decoding(tmp_path, monk
         return Image.new("RGB", (bounds[2] - bounds[0], bounds[3] - bounds[1])), (*bounds[:2], 1)
 
     def register(reference, moving, **kwargs):
-        assert kwargs == {"max_dimension": 1024, "feature_only": True}
+        assert kwargs == {"max_dimension": 1024, "feature_only": True, "sampling_ratio": 1.0}
         if mode == "reject":
             raise AlignmentRejected("no correspondence")
         rx, ry = reads[-2][1][:2]
