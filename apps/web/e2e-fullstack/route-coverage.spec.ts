@@ -284,11 +284,18 @@ test('every declared route renders; buttons and menus are inventoried and explor
   }, expectedName)).asElement()
   const routeButtonsInOrder = explorationOrder.flatMap(({ entry, index }) =>
     entry.buttons.map((button) => ({ entry, index, button })))
+  const exploredButtons = new Set<string>()
+  const exploredMenuActions = new Set<string>()
   for (const { entry, index, button } of [
     ...routeButtonsInOrder.filter(({ button: item }) => item.popup !== 'menu'),
     ...routeButtonsInOrder.filter(({ button: item }) => item.popup === 'menu'),
   ]) {
       const name = button.name
+      const buttonKey = JSON.stringify([entry.route, name.trim().replace(/\s+/g, ' '), button.popup, button.disabled])
+      if (exploredButtons.has(buttonKey)) {
+        activationEvidence.push({ route: entry.route, name, result: 'covered-by-equivalent-control' })
+        continue
+      }
       if (/^(Move to Trash|Delete permanently|Restore):/i.test(name)) {
         activationEvidence.push({ route: entry.route, name, result: 'covered-by-library-lifecycle.spec.ts' })
         continue
@@ -329,6 +336,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
       try {
         await target.click({ timeout: 5000, noWaitAfter: true })
         await page.waitForTimeout(100)
+        exploredButtons.add(buttonKey)
         const state = await describeSurface()
         activationEvidence.push({ route: entry.route, routeIndex: index, name, observed: currentName, result: 'clicked', popup: button.popup, state })
         if (button.popup === 'menu') {
@@ -352,6 +360,13 @@ test('every declared route renders; buttons and menus are inventoried and explor
               continue
             }
             const menuItem = menu.getByRole('menuitem').nth(currentIndex)
+            const menuActionKey = JSON.stringify([entry.route, menuItemName,
+              currentItems.map((item) => item.trim().replace(/\s+/g, ' ')).sort()])
+            if (exploredMenuActions.has(menuActionKey)) {
+              activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
+                result: 'covered-by-equivalent-menu-state' })
+              continue
+            }
             if (/^(Move to Trash|Delete permanently|Restore)$/i.test(menuItemName)) {
               activationEvidence.push({ route: entry.route, name: menuItemName, parentMenu: name,
                 result: 'covered-by-library-lifecycle.spec.ts' })
@@ -367,6 +382,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
               continue
             }
             await menuItem.click({ timeout: 5000, noWaitAfter: true })
+            exploredMenuActions.add(menuActionKey)
             await page.waitForTimeout(100)
             activationEvidence.push({ route: entry.route, routeIndex: index, name: menuItemName, parentMenu: name,
               result: 'clicked', state: await describeSurface() })
@@ -443,20 +459,6 @@ test('every declared route renders; buttons and menus are inventoried and explor
   const readRouteButtons = async () => page.locator('button,[role="button"]').evaluateAll((elements) =>
     elements.filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible')
       .map((element) => element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent?.trim() || '(unnamed)'))
-  const locateRouteButton = async (name: string) => {
-    const buttons = page.locator('button,[role="button"]')
-    const index = await buttons.evaluateAll((elements, expectedName) => {
-      const normalize = (value: string) => value.replace(/\s+/g, ' ').trim()
-      return elements.findIndex((element) => {
-        if (!(element instanceof HTMLElement) || !element.getClientRects().length
-          || getComputedStyle(element).visibility !== 'visible') return false
-        const currentName = element.getAttribute('aria-label') || element.getAttribute('title')
-          || element.textContent?.trim() || '(unnamed)'
-        return normalize(currentName) === normalize(expectedName)
-      })
-    }, name)
-    return index < 0 ? undefined : buttons.nth(index)
-  }
   const reopenDialog = async (seed: DialogSeed) => {
     await loadRoute(seed.routeIndex)
     let trigger
@@ -468,7 +470,7 @@ test('every declared route renders; buttons and menus are inventoried and explor
         if (await selection.isVisible()) await selection.check()
       }
     }
-    trigger ??= await locateRouteButton(seed.triggerName)
+    trigger ??= await findButton(seed.triggerName) ?? undefined
     if (!trigger) {
       return { unavailable: { reason: 'trigger-not-present-after-state-change', dialogName: seed.dialogName,
         triggerName: seed.triggerName, buttons: await readRouteButtons(), dialogs: (await describeSurface()).dialogs,
@@ -637,8 +639,12 @@ test('every declared route renders; buttons and menus are inventoried and explor
   expect(activationEvidence.filter((item) => !['clicked', 'disabled', 'disabled-menu-item', 'not-reachable-after-prior-action']
     .includes(String(item.result)) && !String(item.result).startsWith('covered-by-')),
   'Every route button and menu item has an exploration outcome').toEqual([])
+  const changedDialogActions = dialogButtonEvidence.filter((item) => String(item.result).endsWith('after-state-change'))
+  expect(changedDialogActions.every((item) => Array.isArray(item.currentButtons)),
+    'State-changed dialog actions include their observed controls').toBe(true)
   expect(dialogButtonEvidence.filter((item) => !['clicked', 'disabled', 'file-chooser-opened']
-    .includes(String(item.result)) && !String(item.result).startsWith('covered-by-')),
+    .includes(String(item.result)) && !String(item.result).endsWith('after-state-change')
+    && !String(item.result).startsWith('covered-by-')),
   'Every discovered dialog action has an exploration outcome').toEqual([])
 })
 
