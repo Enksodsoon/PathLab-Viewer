@@ -75,7 +75,7 @@ test('disabled publication keeps collection and release expanders reachable by k
   await page.goto('/admin/assessments/dialog-qa')
   await expect(page.getByText('All changes saved', { exact: true })).toBeVisible()
   await page.getByRole('textbox', { name: 'Assessment name', exact: true }).fill('Unsaved synthetic draft')
-  await expect(page.getByText('Conflict: reload or duplicate', { exact: true })).toBeVisible()
+  await expect(page.getByText('Changes not saved. Try again.', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Publish', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Publish assessment', exact: true })
   await expect(dialog.getByRole('button', { name: 'Publish assignment', exact: true })).toBeDisabled()

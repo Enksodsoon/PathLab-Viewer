@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { AssessmentDraft } from '../assessment/types'
+import { AssessmentHttpError } from '../assessment/api'
 import { AssessmentBuilderPage } from '../pages/AssessmentBuilderPage'
 
 const mocks = vi.hoisted(() => ({
@@ -107,4 +108,49 @@ it('retains the load failure when the server draft is unavailable', async () => 
   expect(await screen.findByText('Unable to open draft')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible()
   expect(mocks.save).not.toHaveBeenCalled()
+})
+
+it('retries a temporary server failure without changing the retained draft or revision', async () => {
+  mocks.save.mockRejectedValueOnce(new AssessmentHttpError(503, {}))
+  view(); await screen.findByText('All changes saved'); vi.useFakeTimers()
+  edit('Retained after temporary failure'); await advance()
+  expect(screen.getByText('Changes not saved. Try again.')).toBeVisible()
+  expect(screen.queryByText('Conflict: reload or duplicate')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry save' }))
+  expect(screen.queryByRole('button', { name: 'Retry save' })).not.toBeInTheDocument()
+  await advance()
+  expect(mocks.save).toHaveBeenLastCalledWith('save-qa', 1, expect.objectContaining({ title: 'Retained after temporary failure' }))
+  expect(screen.getByText('All changes saved')).toBeVisible()
+})
+
+it.each([
+  [401, 'Changes not saved. Sign in again to save.', false],
+  [403, 'Changes not saved. You do not have permission to save this draft.', false],
+  [404, 'This draft is unavailable. Your changes remain in this tab.', false],
+  [409, 'Conflict: reload or duplicate', false],
+  [422, 'Changes not saved. Check the questions and settings.', false],
+  [429, 'Save paused. Wait a moment, then retry.', true],
+] as const)('preserves edits and reports HTTP%s without bypassing the failed boundary', async (status, message, retryable) => {
+  mocks.save.mockRejectedValueOnce(new AssessmentHttpError(status, {}))
+  view(); await screen.findByText('All changes saved'); vi.useFakeTimers()
+  edit('Retained unsaved edit'); await advance()
+  expect(screen.getByText(message)).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Assessment name' })).toHaveValue('Retained unsaved edit')
+  expect(Boolean(screen.queryByRole('button', { name: 'Retry save' }))).toBe(retryable)
+  await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+  expect(mocks.save).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('All changes saved')).not.toBeInTheDocument()
+})
+
+it('clears retry from a failed draft when another draft loads', async () => {
+  mocks.save.mockRejectedValueOnce(new TypeError('Synthetic network loss'))
+  mocks.get.mockImplementation(async (id: string) => ({ ...initial, id }))
+  view(); await screen.findByText('All changes saved'); vi.useFakeTimers()
+  edit('Retained first draft edit'); await advance()
+  expect(screen.getByRole('button', { name: 'Retry save' })).toBeVisible()
+  await act(async () => { fireEvent.click(screen.getByRole('link', { name: 'Open second draft' })) })
+  expect(screen.queryByRole('button', { name: 'Retry save' })).not.toBeInTheDocument()
+  expect(screen.getByText('All changes saved')).toBeVisible()
+  edit('Second draft edit'); await advance()
+  expect(mocks.save).toHaveBeenLastCalledWith('second-qa', 1, expect.objectContaining({ title: 'Second draft edit' }))
 })

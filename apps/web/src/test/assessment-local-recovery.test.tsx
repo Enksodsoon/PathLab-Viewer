@@ -43,7 +43,7 @@ it('recovers locally cached edits after failed save and reload at the unchanged 
   const first = view(); await screen.findByText('All changes saved'); vi.useFakeTimers()
   fireEvent.change(screen.getByRole('textbox', { name: 'Assessment name' }), { target: { value: 'Locally retained edit' } })
   await act(async () => { await vi.advanceTimersByTimeAsync(750) })
-  expect(screen.getByText('Conflict: reload or duplicate')).toBeVisible()
+  expect(screen.getByText('Changes not saved. Try again.')).toBeVisible()
   expect(mocks.cache.mock.calls[0][0].revision).toBe(initial.revision)
   first.unmount(); vi.useRealTimers(); view()
   await screen.findByRole('textbox', { name: 'Assessment name' })

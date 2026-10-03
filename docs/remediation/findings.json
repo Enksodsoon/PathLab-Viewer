@@ -13083,6 +13083,17 @@
         "AssessmentBuilderPage local draft caching and recovery reads"
       ],
       "ticket": "docs/remediation/tickets/assessment-cache-transaction-abort.md"
+    },
+    {
+      "key": "campaign-assessment-save-failure-feedback",
+      "status": "confirmed; locally qualified, complete suite and hosted delivery pending",
+      "evidence": "At a6b5054, AssessmentBuilderPage catches every save error and reports Conflict: reload or duplicate. Independent503 component red1fail6pass proves temporary error misclassification and absent manual retry. Existing native-browser503 fixtures agree. Historical production failure HTTP cause remains unclassified.",
+      "repair": "Classify existing typed HTTP status; manually retry transport/429/5xx failures through the existing serialized optimistic-revision save path. Keep local document, separate conflict/access/validation messages, reset retry on new load/edit. Focus persistent status before removing Retry so keyboard focus survives. No API/storage/permission changes.",
+      "qualification": "60affected tests6files47.35seconds pass before final focus-only correction. Final72zero-retry browser cases across4projects1.6minutes pass, including held acknowledgment/reload,403/409/no retry, enabled retry320px, focus retention and dialog keyboard controls. Initial focus diagnostic red shows BODY; corrected status focus is independently reviewed clear. Lint/build30.80seconds pass. Final complete suite, fresh exact-head gates and production delivery remain pending.",
+      "callers": [
+        "AssessmentBuilderPage autosave and manual recovery action"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-save-failure-feedback.md"
     }
   ],
   "currentClosureBranch": "main",
