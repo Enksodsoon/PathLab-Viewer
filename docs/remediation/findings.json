@@ -12699,7 +12699,7 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "in progress; protected production 68e0a038 deployed; folder drag layout and navigator/modal Escape follow-up locally qualified in Chromium, remaining matrix and release pending; external security facts and live Cancel confirmation remain open",
+  "campaignStatus": "in progress; protected production68e0a038 deployed; three folder/modal candidates pass four local Windows browser targets, but Linux fullstack native folder move lacks PATCH acknowledgment; diagnostic collection added before further repair. External security facts and live Cancel confirmation remain open.",
   "verification": "Production 68e0a038f75c26fbc7162c7f1c92c5c18770607f: all nine required exact-main checks successful; original WebKit navigator failure retained, 10 local repeats and CI rerun passed without source changes. Protected deploy37093695257 completed; restore drill69tables106325files/schema20260907_0037; public readiness/liveness200. Fresh signed-in Edge Library/QuickLook/private viewer and synthetic annotation autosave/reload persistence passed. At preceding0d11, selected native Classroom expiry persisted and revocation rejected the correct code. Source aliases remain954; current campaign is not closed.",
   "campaignFindings": [
     {
@@ -12874,21 +12874,21 @@
       "status": "confirmed",
       "repairState": "candidate",
       "evidence": "Native full-stack drag stalled without PATCH on68e0a038; conditional top-level target insertion shifts folder rows during dragstart. Minimal native stable-row drag succeeds; equivalent row insertion stalls. Out-of-flow top-level target yields intended native drop event, real200 folder PATCH and persisted parent after reload. Final Chromium scenario also verifies native top-level drop, descendant-cycle prevention and accessible Move persistence.",
-      "qualification": "Local Chromium, Firefox and WebKit native gestures plus mobile Chromium accessible Move pass against disposable backend stacks, including server acknowledgment and reload.49 focused tests, TypeScript and build pass. Fresh review, CI and protected deployment pending."
+      "qualification": "Local Windows Chromium/Firefox/WebKit native and mobile Move cases pass; Linux fullstack37096356564 at a4dc5b3 fails first native move without PATCH acknowledgment. Eight other delivery checks pass; diagnosis, fresh full gates and protected delivery remain pending."
     },
     {
       "key": "campaign-folder-modal-escape-conflict",
       "status": "confirmed",
       "repairState": "candidate",
       "evidence": "After successful native folder move, Escape left Move dialog open: navigator document handler prevented native dialog cancel and closed navigation instead. Yielding default-prevented and open-dialog key events lets native cancellation close Move while preserving navigator. Chromium real-backend regression passes.",
-      "qualification": "Local Chromium, Firefox and WebKit native gestures plus mobile Chromium accessible Move pass against disposable backend stacks, including server acknowledgment and reload.49 focused tests, TypeScript and build pass. Fresh review, CI and protected deployment pending."
+      "qualification": "Local Windows Chromium/Firefox/WebKit native and mobile Move cases pass; Linux fullstack37096356564 at a4dc5b3 fails first native move without PATCH acknowledgment. Eight other delivery checks pass; diagnosis, fresh full gates and protected delivery remain pending."
     },
     {
       "key": "campaign-folder-native-custom-data-loss",
       "status": "confirmed",
       "repairState": "candidate",
       "evidence": "Native WebKit minimal fixture retains text/plain but discards custom folder MIME at dragover/drop; application consequently refuses the drop. Active local gesture identity supplies a bounded fallback, cleared on drop/dragend. Real-backend native nesting/top-level return and reload now pass. External text and ended-gesture drops remain rejected by focused tests.",
-      "qualification": "Final native desktop three-engine and mobile Move matrix passes; protected release and live qualification pending."
+      "qualification": "Local Windows Chromium/Firefox/WebKit native and mobile Move cases pass; Linux fullstack37096356564 at a4dc5b3 fails first native move without PATCH acknowledgment. Eight other delivery checks pass; diagnosis, fresh full gates and protected delivery remain pending."
     }
   ],
   "currentClosureBranch": "main",

@@ -372,7 +372,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
       - name: Run disposable real imaging journey
-        run: python scripts/run_fullstack_tests.py
+        run: python scripts/run_fullstack_tests.py --report-dir "${RUNNER_TEMP}/fullstack-evidence"
+      - name: Retain synthetic full-stack diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fullstack-synthetic-diagnostics
+          path: ${{ runner.temp }}/fullstack-evidence/
+          if-no-files-found: warn
+          retention-days: 7
 
   containers:
     runs-on: ubuntu-24.04

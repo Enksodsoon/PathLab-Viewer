@@ -68,6 +68,8 @@ test('folder drag and accessible Move persist without a descendant cycle', async
   } finally {
     const dragEvents = await page.evaluate(() => (window as unknown as { __folderDragEvidence: unknown[] }).__folderDragEvidence)
     await info.attach('native-drag-events.json', { body: JSON.stringify(dragEvents), contentType: 'application/json' })
+    // Also retain the bounded synthetic gesture evidence in CI's diagnostic tail.
+    console.info('Native folder drag events:', JSON.stringify(dragEvents))
   }
   const response = await moved
   if (!response) throw new Error('Folder gesture did not receive a server move acknowledgment')
