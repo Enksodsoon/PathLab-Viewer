@@ -5,6 +5,53 @@ from test_assessment_admin import _client, _document
 from test_assessment_contract_v2 import v2_document
 
 
+@pytest.mark.parametrize(
+    ("shape", "code"),
+    [
+        ("sections-null", "ASSESSMENT_SECTIONS_REQUIRED"),
+        ("section-null", "ASSESSMENT_INVALID_SECTION"),
+        ("items-null", "ASSESSMENT_ITEMS_REQUIRED"),
+        ("item-null", "ASSESSMENT_INVALID_ITEM"),
+        ("options-null", "ASSESSMENT_OPTIONS_INVALID"),
+        ("release-null", None),
+    ],
+)
+def test_v2_preflight_handles_saved_incomplete_shapes_without_crashing(
+    tmp_path: Path, shape: str, code: str | None
+) -> None:
+    client, _ = _client(tmp_path)
+    document = v2_document()
+    if shape == "sections-null":
+        document["sections"] = None
+    elif shape == "section-null":
+        document["sections"][0] = None  # type: ignore[index]
+    elif shape == "items-null":
+        document["sections"][0]["items"] = None  # type: ignore[index]
+    elif shape == "item-null":
+        document["sections"][0]["items"][0] = None  # type: ignore[index]
+    elif shape == "options-null":
+        document["sections"][0]["items"][0]["options"] = None  # type: ignore[index]
+    else:
+        document["release"] = None
+    created = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Synthetic incomplete", "document": document},
+    )
+    assert created.status_code == 201
+    path = f"/api/v2/admin/assessment/drafts/{created.json()['id']}"
+    preflight = client.post(f"{path}/preflight")
+    assert preflight.status_code == 200
+    assert preflight.json()["valid"] is (code is None)
+    if code:
+        assert preflight.json()["errors"][0]["code"] == code
+    else:
+        assert preflight.json()["errors"] == []
+    assert preflight.json()["effectiveRelease"] == "manual"
+    retained = client.get(path).json()
+    assert retained["document"] == document
+    assert retained["revision"] == 1
+
+
 @pytest.mark.parametrize("points", ["invalid", "NaN", "Infinity", "1e999999999", "1000000000"])
 def test_v2_invalid_points_preflight_and_publication_preserve_editable_draft(
     tmp_path: Path, points: str
