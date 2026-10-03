@@ -196,3 +196,85 @@ def test_bounded_nonlinear_inverse_rejects_fold_and_sample_budget():
         invert_coordinate_pull(lambda points: points * [-1, 1], np.asarray([[10.0, 20.0]]))
     with pytest.raises(AlignmentRejected, match="sample budget"):
         invert_coordinate_pull(lambda points: points, np.zeros((2402, 2)))
+
+
+@pytest.mark.parametrize("residual_fails", [False, True])
+def test_initializer_provenance_survives_temporary_cleanup_and_residual_failure(
+    tmp_path, monkeypatch, residual_fails
+):
+    import hashlib
+    import json
+
+    from wsi_viewer.alignment_recipes import RecipeEngine
+
+    workspaces = []
+    calls = []
+    seed = {
+        "status": "approximate",
+        "movingToReference": [[1, 0, 0], [0, 1, 0]],
+        "overviewTriangles": [
+            {"moving": [[0, 0], [5, 0], [0, 5]], "reference": [[0, 0], [5, 0], [0, 5]]}
+        ],
+    }
+
+    class Stage:
+        def register(self, inputs, progress):
+            workspaces.append(inputs.workspace)
+            calls.append(True)
+            if len(calls) == 2:
+                # Already durable before residual execution, including a hard
+                # timeout/termination that cannot run Python finally blocks.
+                assert (artifact_dir / "initializer-coordinate-map.json").is_file()
+            if len(calls) == 2 and residual_fails:
+                raise AlignmentRejected("residual failed")
+            return engines.EngineRun(seed, None, None, 0.1)
+
+    monkeypatch.setattr(
+        engines,
+        "get_engine",
+        lambda name: RecipeEngine(name) if name == "native-wsireg" else Stage(),
+    )
+    image = Image.new("RGB", (10, 10))
+    artifact_dir = tmp_path / "private-artifacts"
+    kwargs = dict(
+        reference=image,
+        moving=image,
+        reference_full_size=image.size,
+        moving_full_size=image.size,
+        workspace_root=tmp_path,
+        artifact_dir=artifact_dir,
+    )
+    if residual_fails:
+        with pytest.raises(AlignmentRejected, match="residual failed"):
+            engines.run_engine("native-wsireg", **kwargs)
+    else:
+        result = engines.run_engine("native-wsireg", **kwargs)
+        descriptor = result.registration["initializerArtifact"]
+        assert set(descriptor) == {"name", "sha256"}
+        assert descriptor["name"] == "initializer-coordinate-map.json"
+        assert (
+            descriptor["sha256"]
+            == hashlib.sha256((artifact_dir / descriptor["name"]).read_bytes()).hexdigest()
+        )
+        assert result.registration["recipeFrames"]["initializerSupportAppliedToWarp"] is False
+    assert json.loads((artifact_dir / "initializer-coordinate-map.json").read_text()) == seed
+    assert all(not path.exists() for path in workspaces)
+
+
+def test_initializer_provenance_copy_rejects_unsafe_name_digest_and_size(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "initializer-coordinate-map.json").write_text('{"status":"approximate"}')
+    destination = tmp_path / "output"
+    with pytest.raises(AlignmentRejected, match="basename"):
+        engines._copy_initializer_provenance(
+            workspace, destination, {"name": "../secret", "sha256": "bad"}
+        )
+    with pytest.raises(AlignmentRejected, match="digest"):
+        engines._copy_initializer_provenance(
+            workspace, destination, {"name": "initializer-coordinate-map.json", "sha256": "bad"}
+        )
+    monkeypatch.setattr(engines, "MAX_INITIALIZER_ARTIFACT_BYTES", 8)
+    with pytest.raises(AlignmentRejected, match="size ceiling"):
+        engines._copy_initializer_provenance(workspace, destination, None)
+    assert not destination.exists()

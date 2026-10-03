@@ -94,6 +94,21 @@ class RecipeEngine:
             or seed.get("status") not in ("ready", "approximate")
         ):
             raise AlignmentRejected("recipe initializer has no invertible coordinate map")
+        initializer_bytes = json.dumps(seed, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        if len(initializer_bytes) > engines.MAX_INITIALIZER_ARTIFACT_BYTES:
+            raise AlignmentRejected("initializer provenance exceeds its size ceiling")
+        initializer_artifact = inputs.workspace / engines.INITIALIZER_ARTIFACT_NAME
+        initializer_artifact.write_bytes(initializer_bytes)
+        initializer_descriptor = {
+            "name": engines.INITIALIZER_ARTIFACT_NAME,
+            "sha256": engines._hash_file(initializer_artifact),
+        }
+        if inputs.artifact_dir is not None:
+            # Persist before the residual runs: hard supervisor termination
+            # cannot execute this process's finally/temporary cleanup blocks.
+            engines._copy_initializer_provenance(
+                inputs.workspace, inputs.artifact_dir, initializer_descriptor
+            )
         reference = inputs.reference.copy()
         reference.thumbnail((2048, 2048))
         # Convert level-zero initializer into input-image -> bounded reference-image pixels.
@@ -176,6 +191,7 @@ class RecipeEngine:
                 "reference": [c["reference"] for c in local],
             },
             "recipeStages": receipts,
+            "initializerArtifact": initializer_descriptor,
             "recipeFrames": {
                 "initialMovingToReference": initial.tolist(),
                 "residualFrame": "warped-moving-in-reference-level-zero",
@@ -191,6 +207,7 @@ class RecipeEngine:
                 "maximumDimension": 2048,
                 "pairCalibration": calibration,
                 "initializerKind": "affine-overview-in-level-zero-frame",
+                "initializerSupportAppliedToWarp": False,
             },
         }
         if not local:

@@ -72,6 +72,86 @@ def test_manual_only_positive_retains_automatic_denominator_and_separate_score()
     assert report["readyQualified"] is False
 
 
+def test_manual_effort_aggregates_only_reviewed_assisted_measurements():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    measured = _scored_row(manual=True)
+    measured["manualCorrectionEffort"] = {
+        "pointPairs": 2,
+        "elapsedSeconds": 14.5,
+        "reviewConfirmed": True,
+    }
+    missing = _scored_row(manual=True)
+    result = aggregate_results([measured, missing, _scored_row(), _scored_row("negative")])
+    report = result["recipes"]["native"]
+    assert report["eligibleLandmarks"] == 3
+    assert report["calibratedCoverage"] == pytest.approx(1 / 3)
+    assert report["manualCorrectionEffort"] == {
+        "measuredPairs": 1,
+        "missingPairs": 1,
+        "pointPairsTotal": 2,
+        "elapsedSecondsTotal": 14.5,
+        "elapsedSecondsMedian": 14.5,
+        "elapsedSecondsP95": 14.5,
+    }
+    unmeasured = aggregate_results([missing])["recipes"]["native"]["manualCorrectionEffort"]
+    assert unmeasured["measuredPairs"] == 0
+    assert unmeasured["missingPairs"] == 1
+    assert unmeasured["pointPairsTotal"] is None
+    assert unmeasured["elapsedSecondsTotal"] is None
+    automatic = aggregate_results([_scored_row()])["recipes"]["native"]["manualCorrectionEffort"]
+    assert automatic["measuredPairs"] == automatic["missingPairs"] == 0
+    assert automatic["elapsedSecondsTotal"] is None
+
+
+def test_manual_effort_sanitizer_drops_freeform_private_details():
+    from wsi_viewer.alignment_benchmark import _manual_effort
+
+    assert _manual_effort(
+        {
+            "pointPairs": 1,
+            "elapsedSeconds": 0,
+            "reviewConfirmed": True,
+            "privateReviewerName": "private identity",
+        }
+    ) == {
+        "pointPairs": 1,
+        "elapsedSeconds": 0.0,
+        "reviewConfirmed": True,
+    }
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("pointPairs", 0),
+        ("pointPairs", 4),
+        ("pointPairs", True),
+        ("elapsedSeconds", -1),
+        ("elapsedSeconds", float("nan")),
+        ("elapsedSeconds", float("inf")),
+        ("elapsedSeconds", True),
+        ("reviewConfirmed", False),
+    ],
+)
+def test_manifest_rejects_invalid_manual_effort(tmp_path, field, value):
+    from wsi_viewer.alignment_benchmark import validate_manifest
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+    effort = {"pointPairs": 1, "elapsedSeconds": 0, "reviewConfirmed": True, field: value}
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        "manualAssistance": True,
+        "manualCorrectionEffort": effort,
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    with pytest.raises(ValueError, match="manual correction effort"):
+        validate_manifest({"pairs": [pair]})
+
+
 def test_pair_settings_and_calibration_reach_child_and_invalidate_digest(tmp_path, monkeypatch):
     from wsi_viewer import alignment_benchmark as bench
 

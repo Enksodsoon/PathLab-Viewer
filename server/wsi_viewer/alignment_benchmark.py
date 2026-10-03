@@ -84,6 +84,30 @@ def _visual_qa_pair(pair: dict[str, Any], registration: dict[str, Any], output: 
         return False
 
 
+def _manual_effort(value: Any) -> dict[str, Any] | None:
+    """Accept independently confirmed measurements; discard all freeform fields."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("manual correction effort must be a reviewed measurement object")
+    points = value.get("pointPairs")
+    elapsed = value.get("elapsedSeconds")
+    if (
+        type(points) is not int
+        or not 1 <= points <= 3
+        or not isinstance(elapsed, (int, float))
+        or isinstance(elapsed, bool)
+        or not np.isfinite(elapsed)
+        or elapsed < 0
+        or value.get("reviewConfirmed") is not True
+    ):
+        raise ValueError(
+            "manual correction effort requires 1-3 point pairs, finite nonnegative seconds, "
+            "and confirmed review"
+        )
+    return {"pointPairs": points, "elapsedSeconds": float(elapsed), "reviewConfirmed": True}
+
+
 def validate_manifest(manifest: dict[str, Any], *, screening: bool = False) -> None:
     pairs = manifest.get("pairs")
     if not isinstance(pairs, list):
@@ -93,6 +117,7 @@ def validate_manifest(manifest: dict[str, Any], *, screening: bool = False) -> N
         raise ValueError("screening requires exactly 12 positive and 4 negative pairs")
     seen = set()
     for pair in pairs:
+        _manual_effort(pair.get("manualCorrectionEffort"))
         if pair.get("kind") not in {"positive", "negative"}:
             raise ValueError("pair kind must be positive or negative")
         ordered = []
@@ -290,6 +315,13 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
             if row.get("manualAssistance") and row["kind"] == "positive"
             for p in row["landmarks"]
         ]
+        assisted = [row for row in selected if row.get("manualAssistance")]
+        efforts = [
+            effort
+            for row in assisted
+            if (effort := _manual_effort(row.get("manualCorrectionEffort"))) is not None
+        ]
+        effort_seconds = [effort["elapsedSeconds"] for effort in efforts]
         report.update(
             qualified=bool(gate),
             readyQualified=bool(ready_gate),
@@ -315,6 +347,16 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
             foregroundP95Seconds=float(np.percentile(frontend, 95)) if frontend else None,
             foregroundEvidenceComplete=len(frontend) == len(automatic) and bool(automatic),
             manualAssistance=evaluate_landmarks(manual_records, measure_approximate=True),
+            manualCorrectionEffort={
+                "measuredPairs": len(efforts),
+                "missingPairs": len(assisted) - len(efforts),
+                "pointPairsTotal": sum(effort["pointPairs"] for effort in efforts)
+                if efforts
+                else None,
+                "elapsedSecondsTotal": sum(effort_seconds) if efforts else None,
+                "elapsedSecondsMedian": float(np.median(effort_seconds)) if efforts else None,
+                "elapsedSecondsP95": float(np.percentile(effort_seconds, 95)) if efforts else None,
+            },
         )
         reports[recipe] = report
     qualified = [(name, report) for name, report in reports.items() if report["qualified"]]
@@ -565,6 +607,9 @@ def run_benchmark(
                     for landmark in pair.get("landmarks", [])
                 ],
                 "manualAssistance": pair.get("manualAssistance") is True,
+                "manualCorrectionEffort": _manual_effort(pair.get("manualCorrectionEffort"))
+                if pair.get("manualAssistance") is True
+                else None,
                 "independentlyReviewed": pair.get("independentlyReviewed") is True,
                 "landmarksFitFree": pair.get("landmarksFitFree") is True,
                 "wrongStructure": review.get("wrongStructure"),

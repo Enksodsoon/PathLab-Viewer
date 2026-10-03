@@ -42,6 +42,8 @@ ENGINE_VALIS = "valis-1.2.0"
 ENGINE_WSIREG = "wsireg-0.3.10"
 ENGINE_DHR_CLASSICAL = "deeperhistreg-classical"
 ENGINE_DHR_LEARNED = "deeperhistreg-learned"
+INITIALIZER_ARTIFACT_NAME = "initializer-coordinate-map.json"
+MAX_INITIALIZER_ARTIFACT_BYTES = 16 * 1024**2
 RECIPE_STAGES = {
     "native-wsireg": (ENGINE_NATIVE, ENGINE_WSIREG),
     "valis-rigid-wsireg": (ENGINE_VALIS, ENGINE_WSIREG),
@@ -71,7 +73,7 @@ ADAPTER_VERSIONS = {
 }
 for _recipe, _stages in RECIPE_STAGES.items():
     ENGINE_VERSIONS[_recipe] = "+".join(ENGINE_VERSIONS[stage] for stage in _stages)
-    ADAPTER_VERSIONS[_recipe] = "pathlab-recipe-v3-calibrated-original-support:" + "+".join(
+    ADAPTER_VERSIONS[_recipe] = "pathlab-recipe-v4-initializer-provenance:" + "+".join(
         ADAPTER_VERSIONS[stage] for stage in _stages
     )
 SUPPORTED_ENGINES = frozenset(ENGINE_VERSIONS)
@@ -89,6 +91,7 @@ class EngineInput:
     moving_full_size: tuple[int, int]
     workspace: Path
     settings: dict[str, Any] | None = None
+    artifact_dir: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -1114,6 +1117,36 @@ def get_engine(name: str) -> RegistrationEngine:
     raise ValueError(f"Unsupported registration engine: {name}")
 
 
+def _copy_initializer_provenance(
+    workspace: Path, destination: Path, descriptor: dict[str, Any] | None
+) -> None:
+    if descriptor is not None and descriptor.get("name") != INITIALIZER_ARTIFACT_NAME:
+        raise AlignmentRejected("initializer provenance requires its fixed safe basename")
+    source = workspace / INITIALIZER_ARTIFACT_NAME
+    if not source.is_file():
+        if descriptor is not None:
+            raise AlignmentRejected("initializer provenance artifact is missing")
+        return
+    if source.is_symlink() or source.stat().st_size > MAX_INITIALIZER_ARTIFACT_BYTES:
+        raise AlignmentRejected("initializer provenance exceeds its size ceiling")
+    with source.open("rb") as stream:
+        content = stream.read(MAX_INITIALIZER_ARTIFACT_BYTES + 1)
+    if len(content) > MAX_INITIALIZER_ARTIFACT_BYTES:
+        raise AlignmentRejected("initializer provenance exceeds its size ceiling")
+    digest = hashlib.sha256(content).hexdigest()
+    if descriptor is not None and descriptor.get("sha256") != digest:
+        raise AlignmentRejected("initializer provenance digest does not match its receipt")
+    try:
+        if not isinstance(json.loads(content), dict):
+            raise ValueError("initializer map is not an object")
+    except (ValueError, UnicodeError) as error:
+        raise AlignmentRejected("initializer provenance is not a JSON map") from error
+    destination.mkdir(parents=True, exist_ok=True)
+    temporary = destination / f".{INITIALIZER_ARTIFACT_NAME}.tmp"
+    temporary.write_bytes(content)
+    temporary.replace(destination / INITIALIZER_ARTIFACT_NAME)
+
+
 def run_engine(
     name: str,
     *,
@@ -1128,17 +1161,27 @@ def run_engine(
 ) -> EngineRun:
     root = workspace_root or Path(tempfile.gettempdir())
     with tempfile.TemporaryDirectory(prefix=f"pathlab-{name}-", dir=root) as temporary:
-        run = get_engine(name).register(
-            EngineInput(
-                reference=reference,
-                moving=moving,
-                reference_full_size=reference_full_size,
-                moving_full_size=moving_full_size,
-                workspace=Path(temporary),
-                settings=settings,
-            ),
-            progress,
-        )
+        run: EngineRun | None = None
+        try:
+            run = get_engine(name).register(
+                EngineInput(
+                    reference=reference,
+                    moving=moving,
+                    reference_full_size=reference_full_size,
+                    moving_full_size=moving_full_size,
+                    workspace=Path(temporary),
+                    settings=settings,
+                    artifact_dir=artifact_dir,
+                ),
+                progress,
+            )
+        finally:
+            if name in RECIPE_STAGES and artifact_dir is not None:
+                _copy_initializer_provenance(
+                    Path(temporary),
+                    artifact_dir,
+                    run.registration.get("initializerArtifact") if run is not None else None,
+                )
         if run.artifact_path is None or artifact_dir is None:
             return run
         artifact_dir.mkdir(parents=True, exist_ok=True)

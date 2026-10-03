@@ -28,6 +28,15 @@ warped reference frame into the original reference. Final triangles and controls
 are composed back into original moving coordinates. Stage receipts include
 versions, settings digests, timing, image scales, crop origins and calibration.
 Moving calibration becomes reference calibration for the residual stage.
+Hybrid adapter v4 preserves one private original-frame initializer map sidecar,
+`initializer-coordinate-map.json`, capped at 16 MiB. Final receipts expose its
+fixed basename and SHA256 only. The sidecar is copied before temporary workspace
+cleanup, including when a later residual stage rejects. Initializer engine-output
+support can therefore be scored separately on frozen original-frame landmarks.
+The warp applies the initializer's affine projection, not its whole piecewise
+support mesh; stage reports must distinguish engine-output accuracy from this
+actually applied affine projection. Residual-frame maps are never directly
+scored as original-frame maps.
 VALIS rigid initialization disables its nonrigid registrar. Pinned VALIS's
 rigid-only constructor omits `non_rigid_reg_kwargs`, although successful
 `register()` cleanup accesses it unconditionally. Adapter v15 initializes an
@@ -94,6 +103,13 @@ overrides cohort options, reaches both registration and uncalibrated landmark
 records, and is included in the receipt digest. Explicit landmark calibration
 remains authoritative for evaluation. Manual-assisted positive landmarks stay
 in the automatic denominator as unsupported; assisted scores are separate.
+Assisted pairs may additionally declare reviewed human correction effort as
+`manualCorrectionEffort: {"pointPairs": 2, "elapsedSeconds": 14.5,
+"reviewConfirmed": true}`. Point-pair counts must be integers from one to three;
+seconds must be finite and nonnegative. Only these fields appear in report rows.
+Aggregates report measured/missing assisted-pair counts and point/time totals and
+time percentiles. Unmeasured totals and percentiles stay null, including an
+automatic-only cohort. Browser automation timings are never human-effort data.
 Reviews can be added after a run; a different registration digest invalidates
 negative and latency reviews. Resume preserves actual cold timing.
 
