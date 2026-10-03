@@ -1,0 +1,70 @@
+.comparison-shell { position: relative; }
+.comparison-shell :is(button, select, summary) { min-height: 44px; }
+.comparison-shell :is(button, select, summary, input):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.comparison-header { min-height: 76px; }
+.comparison-view-controls { align-items: center; }
+.comparison-heading strong { font-size: 16px; }
+.comparison-setup-menu > summary { gap: 7px; }
+.comparison-setup-menu > div { position: fixed; inset: 86px 16px 16px auto; width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 102px); overflow-y: auto; padding: 20px; gap: 12px; box-shadow: none; border-radius: 8px; background: var(--surface-elevated); }
+.comparison-setup-menu .comparison-toolbar-field { font-size: 11px; gap: 6px; }
+.comparison-setup-menu .comparison-toolbar-field select { max-width: none; width: 100%; }
+.comparison-inspector { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+.comparison-inspector :is(.comparison-display, .comparison-quality) { position: static; width: auto; background: var(--surface); color: var(--ink); border-color: var(--border); }
+.comparison-inspector :is(summary, label, dl, p) { font-size: 12px; }
+.comparison-inspector :is(dt, dd) { color: var(--ink); }
+.comparison-inspector .comparison-display label { grid-template-columns: 90px 1fr; padding: 8px 12px; }
+.comparison-inspector .comparison-display button { color: var(--ink); background: var(--surface-elevated); border-color: var(--border); }
+.comparison-inspector input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary); }
+.comparison-engine-candidates > div { display: grid; grid-template-columns: 1fr; }
+.comparison-candidate-receipt { border-top: 1px solid var(--border); font-size: 12px; }
+.comparison-candidate-receipt summary { display: flex; align-items: center; cursor: pointer; }
+.comparison-candidate-receipt ol { padding-left: 20px; }
+.comparison-candidate-receipt li { margin-block: 10px; }
+.comparison-candidate-receipt li :is(strong, span, small) { display: block; overflow-wrap: anywhere; }
+.comparison-candidate-receipt dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.comparison-candidate-receipt dd { margin: 0; text-align: right; }
+.comparison-progress-disclosure { border-bottom: 1px solid var(--border); background: var(--surface-elevated); }
+.comparison-progress-disclosure > summary { display: flex; align-items: center; gap: 12px; padding: 8px 16px; font: 650 12px/1.4 var(--font-ui); cursor: pointer; }
+.comparison-progress-disclosure > summary span { margin-left: auto; color: var(--muted); }
+.comparison-alignment-context { border-bottom: 1px solid var(--border); background: var(--surface-elevated); font-size: 12px; }
+.comparison-alignment-context summary { display: flex; align-items: center; gap: 12px; padding: 8px 16px; cursor: pointer; }
+.comparison-alignment-context summary span { margin-left: auto; color: var(--muted); }
+.comparison-alignment-context p { margin: 0; padding: 0 16px 12px; color: var(--muted); line-height: 1.5; }
+.comparison-action-notice { color: var(--ink); background: var(--surface); border-bottom: 1px solid var(--border); font-size: 12px; }
+.comparison-registration-progress { background: var(--surface); color: var(--ink); border-color: var(--border); }
+.comparison-registration-progress :is(p, small), .comparison-registration-progress > div span { color: var(--muted); }
+.comparison-registration-progress li { background: var(--surface-elevated); border-color: var(--border); }
+.comparison-correction { background: var(--surface-elevated); color: var(--ink); border-bottom: 1px solid var(--border); padding: 16px; gap: 10px; }
+.comparison-correction strong { font-size: 16px; }
+.comparison-correction :is(button, select) { background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.comparison-correction label { display: grid; gap: 4px; font-size: 12px; }
+.comparison-region-bounds { font-size: 12px; color: var(--muted); }
+.comparison-tray { background: var(--surface-elevated); color: var(--ink); border-color: var(--border); }
+.comparison-tray .comparison-toolbar-field { margin-bottom: 18px; }
+.comparison-tray .comparison-toolbar-field select { width: 100%; max-width: none; }
+.comparison-tray button { background: var(--surface); color: var(--ink); border-color: var(--border); min-height: 64px; }
+.comparison-tray small { color: var(--muted); }
+.comparison-tray > strong span { color: var(--muted); background: var(--surface); }
+.comparison-add-pane { box-shadow: none; }
+.comparison-pane > header button { flex-basis: 44px; width: 44px; height: 44px; }
+.comparison-pane-select { position: relative; flex: 1 1 auto; min-width: 0; max-width: 320px; }
+.comparison-pane-select > svg { position: absolute; right: 10px; top: 50%; translate: 0 -50%; width: 14px; height: 14px; pointer-events: none; color: #fff; }
+.comparison-pane > header select { width: 100%; min-height: 44px; appearance: none; color: #fff; background-color: #2d2b27; }
+.comparison-pane .viewer-loading-mode { top: 76px; }
+@media (max-width: 900px) {
+  .comparison-view-controls { order: initial; flex: 1 1 auto; }
+  .comparison-tray { align-items: center; }
+  .comparison-tray .comparison-toolbar-field { min-width: 120px; margin: 0; }
+  .comparison-heading { flex: 1 1 calc(100% - 120px); }
+}
+@media (max-width: 600px) {
+  .comparison-view-controls { display: flex; flex-wrap: wrap; width: auto; }
+  .comparison-view-controls button { width: auto; flex: 1 1 auto; }
+  .comparison-setup-menu > div { inset: 138px 10px 10px; top: 138px; width: auto; max-height: calc(100dvh - 148px); }
+  .comparison-correction { padding: 12px; }
+  .comparison-correction button { flex: 1 1 130px; }
+  .comparison-pane > header > .alignment-approximate { position: absolute; top: 60px; left: 5px; padding: 4px 7px; border-radius: 4px; background: rgb(20 20 20 / 92%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comparison-shell *, .comparison-shell *::before, .comparison-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

@@ -72,6 +72,7 @@ for (const chain of [false, true]) test(`real OSD automatically positions and na
   await expect.poll(async () => (await applications()).at(-1)?.viewport.rotation).toBe(90)
   await verify()
   const beforeReset = (await applications()).length
+  await page.getByText('Advanced', { exact: true }).click()
   await page.getByRole('button', { name: /Reset view/ }).click()
   await expect.poll(async () => (await applications()).length).toBeGreaterThan(beforeReset)
   await verify()

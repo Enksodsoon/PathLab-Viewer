@@ -5,14 +5,14 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { ComparisonPage } from '../pages/ComparisonPage'
 
-const viewportHarness = vi.hoisted(() => ({ enabled: false, applied: vi.fn(), fitted: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
+const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
   OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
     onClick={() => {
-      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: vi.fn() })
+      if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: vi.fn() })
       onOpen?.()
       onViewportChange?.(viewportHarness.enabled ? { ...viewportHarness.current } : { centerX: 10, centerY: 10, imageZoom: 1, rotation: 0 })
     }}
@@ -21,6 +21,7 @@ vi.mock('../components/OpenSeadragonViewer', () => ({
 
 beforeEach(() => {
   viewportHarness.enabled = false
+  viewportHarness.bounds = null
   viewportHarness.current = { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 }
   viewportHarness.applied.mockClear()
   viewportHarness.fitted.mockClear()
@@ -41,10 +42,161 @@ beforeEach(() => {
 
 afterEach(() => cleanup())
 
+it('focuses tissue for approximate siblings when the primary reference is hidden', async () => {
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-2', 'slide-3']))
+  viewportHarness.enabled = true
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const response = await originalFetch(input, init)
+    const value = await response.json()
+    if (value.members) for (const member of value.members) if (member.registration?.status === 'ready') {
+      member.registration.status = 'approximate'
+      member.registration.overviewTriangles = member.registration.triangles
+      member.registration.triangles = []
+    }
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalled())
+})
+
+it('allows bounded region adjustment during refinement and keeps the displayed pair', async () => {
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-2', 'slide-3']))
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const response = await originalFetch(input, init)
+    const value = await response.json()
+    if (value.members) value.status = 'running'
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  expect(screen.getByLabelText('Viewer /tiles/2.dzi')).toBeVisible()
+  expect(screen.getByLabelText('Viewer /tiles/3.dzi')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Record point pair' }))
+  expect(screen.getByRole('button', { name: 'Preview correction' })).toBeEnabled()
+  viewportHarness.current = { ...viewportHarness.current, centerX: 250, centerY: 350 }
+  await user.click(screen.getByRole('button', { name: 'Record point pair' }))
+  expect(screen.getByRole('button', { name: 'Record point pair' })).toBeDisabled()
+  expect(screen.getByText('2 point pairs')).toBeVisible()
+})
+
+it('freezes the region preview through polling and saves using its returned version and identity', async () => {
+  viewportHarness.bounds = [10, 20, 800, 500]
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  const posted: Array<Record<string, unknown>> = []
+  let reads = 0
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const response = await originalFetch(input, init)
+    const value = await response.json()
+    if (String(input).endsWith('/region-corrections')) {
+      const payload = JSON.parse(String(init?.body)); posted.push(payload)
+      value.version = payload.operation === 'preview' ? 7 : 8
+      value.regionalCorrections = [{ id: 'revision', regionId: 'captured-region', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', sourceSlideId: payload.sourceSlideId, targetSlideId: payload.targetSlideId, sourceBounds: payload.sourceBounds, registration: { status: 'approximate', provenance: 'manual-region', movingToReference: [[1, 0, 0], [0, 1, 0]], triangles: value.members[1].registration.triangles } }]
+      value.regionalCorrections.push({ ...value.regionalCorrections[0], id: 'old-revision', regionId: 'old-region' })
+      value.status = payload.operation === 'preview' ? 'running' : 'ready'
+      value.name = payload.operation === 'preview' ? 'Preview field' : 'Saved field'
+    } else if (value.members) {
+      value.status = 'running'
+      if (++reads > 1) value.name = 'Background replacement'
+    }
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  await user.click(screen.getByRole('button', { name: 'Record point pair' }))
+  await user.click(screen.getByRole('button', { name: 'Preview correction' }))
+  expect(await screen.findByText('Preview field')).toBeVisible()
+  await new Promise(resolve => setTimeout(resolve, 2200))
+  expect(screen.getByText('Preview field')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Preview correction' }))
+  await user.click(screen.getByRole('button', { name: 'Save correction' }))
+  expect(await screen.findByText('Saved field')).toBeVisible()
+  expect(posted).toHaveLength(3)
+  expect(posted[0].sourceBounds).toEqual([10, 20, 800, 500])
+  expect(posted[0].sourceVersion).toBeUndefined()
+  expect(posted[1]).toMatchObject({ operation: 'preview', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest' })
+  expect(posted[2]).toMatchObject({ operation: 'save', version: 7, regionId: 'captured-region', sourceVersion: 'updated:source-snapshot', targetVersion: 'target-digest', sourceSlideId: 'slide-2', targetSlideId: 'slide-1', movingPoints: [[210, 330]], referencePoints: [[210, 330]] })
+})
+
+it.each([{ scale: 1, zoomMode: 'physical', zoom: 2 }, { scale: 2, zoomMode: 'physical', zoom: 2 }, { scale: 2, zoomMode: 'tissue', zoom: 4 }])('links a supported saved region with scale $scale and $zoomMode zoom when automatic registration rejected that slide', async ({ scale, zoomMode, zoom }) => {
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1:preferences', JSON.stringify({ zoomMode, alignmentMode: 'matched' }))
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const response = await originalFetch(input, init)
+    const value = await response.json()
+    if (value.members) {
+      value.members[1].registration = { status: 'rejected', provenance: 'automatic' }
+      value.regionalCorrections = [{ id: 'revision', regionId: 'region', sourceSlideId: 'slide-2', targetSlideId: 'slide-1', sourceBounds: [0, 0, 1000, 800], registration: { status: 'approximate', provenance: 'manual-region', movingToReference: [[scale, 0, 50], [0, scale, 0]], triangles: [{ moving: [[0, 0], [1000, 0], [0, 800]], reference: [[50, 0], [1000 * scale + 50, 0], [50, 800 * scale]] }] } }]
+    }
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  viewportHarness.applied.mockClear()
+  await user.click(screen.getByLabelText('Viewer /tiles/1.dzi'))
+  await waitFor(() => expect(viewportHarness.applied).toHaveBeenCalledWith('/tiles/2.dzi', expect.objectContaining({ centerX: 160 / scale, centerY: 330 / scale, imageZoom: zoom })))
+})
+
+it('initializes and resets a region-only displayed pair inside supported tissue', async () => {
+  sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-2', 'slide-3']))
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const value = await (await originalFetch(input, init)).json()
+    if (value.members) {
+      for (const member of value.members) member.registration = null
+      value.regionalCorrections = [{ id: 'revision', regionId: 'region', sourceSlideId: 'slide-2', targetSlideId: 'slide-3', sourceBounds: [600, 500, 300, 200], registration: { status: 'approximate', provenance: 'manual-region', triangles: [{ moving: [[600, 500], [900, 500], [600, 700]], reference: [[600, 500], [900, 500], [600, 700]] }] } }]
+    }
+    return new Response(JSON.stringify(value), { status: 200 })
+  })
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalled())
+  const bounds = viewportHarness.fitted.mock.calls.at(-1)![1]
+  expect((bounds[0] + bounds[2]) / 2).toBeCloseTo(700)
+  expect((bounds[1] + bounds[3]) / 2).toBeCloseTo(1700 / 3)
+  viewportHarness.fitted.mockClear()
+  await user.click(screen.getByText('Advanced', { exact: true }))
+  await user.click(screen.getByRole('button', { name: 'Reset view' }))
+  await waitFor(() => expect(viewportHarness.fitted).toHaveBeenCalled())
+})
+
+it('keeps the durable four-pane preference while a temporary correction pair is displayed', async () => {
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  await user.click(screen.getByRole('button', { name: 'Add pane' }))
+  await user.click(screen.getByRole('button', { name: 'Add pane' }))
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  const saved = sessionStorage.getItem('pathlab-comparison-view:admin:set-1')
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
+  expect(sessionStorage.getItem('pathlab-comparison-view:admin:set-1')).toBe(saved)
+})
+
 it('mounts two panes by default and caps visible panes at four', async () => {
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Multi-stain set')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Slides' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
   await user.click(screen.getByRole('button', { name: 'Add pane' }))
   await user.click(screen.getByRole('button', { name: 'Add pane' }))
@@ -84,6 +236,7 @@ it('shows durable automatic alignment progress for every stack member', async ()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
 
   expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('1 of 3 slides complete · 43%')
+  await userEvent.click(screen.getByText(/Alignment in progress · 43%/))
   expect(screen.getByText(/high resolution components · 4\/4 regions · 0\/2 patches/)).toBeVisible()
   expect(screen.getByText(/Worker active · 1m \d+s elapsed/)).toBeVisible()
   expect(screen.getByText('Waiting for worker')).toBeVisible()
@@ -111,6 +264,7 @@ it('keeps the current map usable while a replacement registration runs', async (
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
 
   expect(await screen.findByRole('region', { name: 'Automatic alignment progress' })).toHaveTextContent('0 of 1 slides complete · 30%')
+  await userEvent.click(screen.getByText(/Alignment in progress · 30%/))
   expect(screen.getByText(/Worker active/)).toBeVisible()
   expect(screen.getByRole('combobox', { name: 'Alignment mode' })).toBeEnabled()
 })
@@ -130,9 +284,24 @@ it('does not offer promotion for a locally unqualified engine map', async () => 
   })
   const user = userEvent.setup()
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await user.click(await screen.findByText('Advanced'))
   await user.click(await screen.findByText('Registration engine candidates'))
   expect(screen.getByText(/local map unqualified/)).toBeVisible()
   expect(screen.getByRole('button', { name: 'Promote hisalign-0.2.1 for P40' })).toBeDisabled()
+})
+
+it('blocks promotion after independent benchmark qualification fails while allowing inspection', async () => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => String(input).endsWith('/candidates')
+    ? new Response(JSON.stringify({ candidates: [{ id: 'failed-gates', slideId: 'slide-2', setVersion: 1, engine: 'native-v12', status: 'ready', validationState: 'engineering_passed', registration: { status: 'ready', provenance: 'automatic-candidate' }, benchmarkMeasurements: { qualified: false } }] }), { status: 200 })
+    : originalFetch(input, init))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  expect(screen.getByRole('button', { name: 'Preview native-v12 for Slide 2' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Promote native-v12 for Slide 2' })).toBeDisabled()
 })
 
 it.each([{ status: 'partial', currentSettings: true }, { status: 'running', currentSettings: true }, { status: 'partial', currentSettings: false }])('handles candidate freshness and $status refreshes with currentSettings=$currentSettings', async ({ status, currentSettings }) => {
@@ -160,6 +329,7 @@ it.each([{ status: 'partial', currentSettings: true }, { status: 'running', curr
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
 
   expect(await screen.findByText('Candidate preview set')).toBeVisible()
+  await user.click(screen.getByText('Advanced'))
   await user.click(await screen.findByText('Registration engine candidates'))
   if (!currentSettings) {
     expect(screen.getByRole('button', { name: 'Preview hisalign-0.2.1 for P40' })).toBeDisabled()
@@ -236,8 +406,10 @@ it('can hide the case slide tray without changing the open panes', async () => {
   render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
   expect(await screen.findByText('Multi-stain set')).toBeVisible()
 
-  await user.click(screen.getByRole('button', { name: 'Hide slides' }))
-  expect(screen.getByRole('button', { name: 'Show slides' })).toHaveAttribute('aria-expanded', 'false')
+  await user.click(screen.getByRole('button', { name: 'Slides' }))
+  expect(screen.getByRole('button', { name: 'Slides' })).toHaveAttribute('aria-expanded', 'true')
+  await user.click(screen.getByRole('button', { name: 'Slides' }))
+  expect(screen.getByRole('button', { name: 'Slides' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
 })
 
@@ -275,7 +447,6 @@ it('labels short overview gaps approximate instead of freezing the linked pane',
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
 
   expect(screen.getByText('Approximate sync')).toBeVisible()
-  expect(screen.getByRole('status')).toHaveTextContent('Using approximate overview synchronization for Silver')
   expect(screen.queryByText('Unavailable')).not.toBeInTheDocument()
 })
 
@@ -342,7 +513,7 @@ it('opens a rejected slide independently instead of attempting synchronization',
   expect(screen.getByRole('status')).toHaveTextContent('Slide 5 has no reliable counterpart and is opened independently.')
 
   await user.click(screen.getByRole('button', { name: 'Viewer /tiles/1.dzi' }))
-  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('Slide 5 has no reliable counterpart and is opened independently.')
   expect(screen.getAllByText('Independent')).toHaveLength(2)
 
   first.unmount()
@@ -370,6 +541,19 @@ it('tolerates invalid persisted pane data', async () => {
   expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(2)
 })
 
+
+it('restores a maximized pane after cancelling a region correction', async () => {
+  viewportHarness.enabled = true
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) await user.click(viewer)
+  await user.click(screen.getByRole('button', { name: 'Maximize Slide 2 pane' }))
+  await user.click(screen.getByRole('button', { name: 'Adjust region' }))
+  await user.click(screen.getByRole('button', { name: 'Cancel correction' }))
+  expect(screen.getByRole('button', { name: 'Restore Slide 2 pane' })).toBeVisible()
+  expect(screen.getAllByLabelText(/^Viewer /)).toHaveLength(1)
+})
 
 it('unmounts hidden viewers when maximizing and restores them afterwards', async () => {
   const user = userEvent.setup()
@@ -535,6 +719,31 @@ it('lets an administrator save a direct serial-section anchor and queue registra
   expect(await screen.findByText('Registration queued with the updated reference groups.')).toBeVisible()
 })
 
+
+it.each(['slide-2', 'slide-3'])('reroots the reference graph when selecting descendant %s as primary', async (referenceId) => {
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  await user.click(screen.getByText('Advanced', { exact: true }))
+  await user.click(screen.getByRole('button', { name: 'Groups' }))
+  await user.selectOptions(screen.getByLabelText('Anchor for Slide 3'), 'slide-2')
+  await user.selectOptions(screen.getByLabelText('Primary reference'), referenceId)
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  let posted: { referenceSlideId: string; anchors: Record<string, string> } | undefined
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    if (init?.method === 'PATCH') posted = JSON.parse(String(init.body))
+    return originalFetch(input, init)
+  })
+  await user.click(screen.getByRole('button', { name: 'Save and register' }))
+  await waitFor(() => expect(posted).toBeDefined())
+  expect(posted!.referenceSlideId).toBe(referenceId)
+  expect(posted!.anchors[referenceId]).toBeUndefined()
+  for (const member of ['slide-1', 'slide-2', 'slide-3', 'slide-4', 'slide-5']) {
+    const visited = new Set<string>(); let current = member
+    while (current !== referenceId && !visited.has(current)) { visited.add(current); current = posted!.anchors[current] }
+    expect(current).toBe(referenceId)
+  }
+})
 
 it.each([false, true])('requeues obsolete maps on admin opening only (public: %s)', async (shared) => {
   const queued: string[] = []

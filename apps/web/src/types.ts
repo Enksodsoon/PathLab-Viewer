@@ -230,7 +230,7 @@ export interface SharedManifest {
 export interface SlideRegistration {
   overviewFallback?: SlideRegistration
   status: 'ready' | 'approximate' | 'rejected' | 'needs_refinement' | 'stale'
-  provenance: 'automatic' | 'automatic-candidate' | 'manual'
+  provenance: 'automatic' | 'automatic-candidate' | 'manual' | 'manual-region'
   engine?: string
   engineVersion?: string
   anchorSlideId?: string
@@ -309,6 +309,17 @@ export interface ComparisonSet {
   referenceSlideId: string
   status: 'draft' | 'queued' | 'running' | 'ready' | 'partial' | 'failed' | 'cancelled'
   version: number
+  regionalCorrections?: Array<{
+    id: string
+    regionId: string
+    sourceSlideId: string
+    targetSlideId: string
+    sourceVersion: string
+    targetVersion: string
+    sourceBounds: [number, number, number, number]
+    registration: SlideRegistration
+    createdAt: string
+  }>
   alignmentConfig?: {
     anchors?: Record<string, string>
     enginePolicy?: 'benchmark' | 'selected'
@@ -342,6 +353,9 @@ export interface ComparisonRegistrationJob {
 }
 
 export interface RegistrationCandidate {
+  recipeIdentity?: string
+  stageProvenance?: RegistrationStageReceipt[]
+  benchmarkMeasurements?: RegistrationBenchmarkMeasurements
   id: string
   slideId: string
   setVersion: number
@@ -357,6 +371,24 @@ export interface RegistrationCandidate {
   artifactSha256: string | null
   failureReason: string | null
   createdAt: string
+}
+
+export interface RegistrationStageReceipt {
+  engine: string
+  buildVersion: string
+  settingsDigest: string
+  runtimeSeconds: number
+  status: string
+  coordinateFrame: 'level-zero-reference'
+}
+
+export interface RegistrationBenchmarkMeasurements {
+  medianErrorUm?: number | null
+  p95ErrorUm?: number | null
+  coverage?: number
+  peakMemoryBytes?: number
+  runtimeSeconds?: number
+  qualified?: boolean
 }
 
 export interface RegistrationCandidateManifest {

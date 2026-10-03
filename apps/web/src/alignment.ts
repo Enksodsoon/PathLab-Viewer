@@ -100,13 +100,66 @@ type StackRegistration = LocalRegistration & {
   anchorSlideId?: string | null
 }
 
+export interface RegionalMap {
+  sourceSlideId: string
+  targetSlideId: string
+  sourceBounds: [number, number, number, number]
+  registration: StackRegistration
+}
+
 /** Traverse direct maps without flattening non-rigid geometry across anchor cells. */
 export function mapStackPoint(
   point: Point, sourceId: string, targetId: string, referenceId: string,
   members: Array<{ slideId: string; registration?: StackRegistration | null }>,
   mode: 'best' | 'strict' | 'overview' = 'best',
   visibleRadiusPixels = 0,
-): { point: Point; rotation: number; zoomScale: number; approximate: boolean } | null {
+  regionalCorrections: RegionalMap[] = [],
+): { point: Point; rotation: number; zoomScale: number; approximate: boolean; regional?: boolean } | null {
+  if (!point.every(Number.isFinite)) return null
+  if (sourceId === targetId) return { point, rotation: 0, zoomScale: 1, approximate: false }
+  if (regionalCorrections.length) {
+    type Mapped = { point: Point; rotation: number; zoomScale: number; approximate: boolean; regional?: boolean }
+    const visit = (id: string, current: Mapped, seen: Set<string>): Mapped | null => {
+      if (id === targetId) return current
+      if (seen.has(id) || seen.size > members.length) return null
+      const visited = new Set([...seen, id])
+      const hops: Array<{ id: string; mapped: Mapped }> = []
+      // API revisions are newest first. A supported correction takes precedence
+      // over every canonical route, without extending beyond its tissue cells.
+      for (const region of regionalCorrections) {
+        const backwards = id === region.targetSlideId
+        if (!backwards && id !== region.sourceSlideId) continue
+        if (!['ready', 'approximate'].includes(region.registration.status) || (mode === 'strict' && region.registration.status !== 'ready')) continue
+        try {
+          const mapped = mapRegistrationPoint(current.point, region.registration, backwards)
+            ?? (mode !== 'strict' ? mapRegistrationPointUsing(current.point, region.registration, region.registration.overviewTriangles, backwards) : null)
+          if (!mapped || !mapped.point.every(Number.isFinite)) continue
+          const [x, y, width, height] = region.sourceBounds
+          if (!withinSupport(backwards ? mapped.point : current.point, [x, y, x + width, y + height])) continue
+          const view = linearView(mapped.linear)
+          hops.push({ id: backwards ? region.sourceSlideId : region.targetSlideId,
+            mapped: { point: mapped.point, rotation: -view.rotation, zoomScale: 1 / view.scale, approximate: region.registration.status !== 'ready', regional: true } })
+        } catch { /* Invalid revisions never become navigation paths. */ }
+      }
+      const parent = (member: typeof members[number]) => member.slideId === referenceId ? null
+        : member.registration?.coordinateReferenceId ?? member.registration?.anchorSlideId ?? referenceId
+      const member = members.find(member => member.slideId === id)
+      const neighbors = members.filter(candidate => candidate.slideId !== id && (parent(candidate) === id || (member && parent(member) === candidate.slideId)))
+      for (const neighbor of neighbors) {
+        if (visited.has(neighbor.slideId)) continue
+        const mapped = mapStackPoint(current.point, id, neighbor.slideId, referenceId, members, mode, visibleRadiusPixels / current.zoomScale)
+        if (mapped) hops.push({ id: neighbor.slideId, mapped })
+      }
+      for (const hop of hops) {
+        const mapped = visit(hop.id, { point: hop.mapped.point, rotation: current.rotation + hop.mapped.rotation,
+          zoomScale: current.zoomScale * hop.mapped.zoomScale, approximate: current.approximate || hop.mapped.approximate,
+          regional: current.regional || hop.mapped.regional }, visited)
+        if (mapped) return mapped
+      }
+      return null
+    }
+    return visit(sourceId, { point, rotation: 0, zoomScale: 1, approximate: false }, new Set())
+  }
   const byId = new Map(members.map(member => [member.slideId, member]))
   const chain = (id: string) => {
     const nodes: string[] = []
@@ -158,7 +211,7 @@ export function mapStackPoint(
   try {
     for (const id of source.slice(0, source.indexOf(common))) if (!step(id, false)) return null
     for (const id of target.slice(0, target.indexOf(common)).reverse()) if (!step(id, true)) return null
-    return result
+    return result.point.every(Number.isFinite) && Number.isFinite(result.rotation) && Number.isFinite(result.zoomScale) ? result : null
   } catch { return null }
 }
 

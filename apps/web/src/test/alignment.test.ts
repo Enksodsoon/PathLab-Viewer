@@ -4,6 +4,22 @@ import { mapStackPoint } from '../alignment'
 import { alignmentViewDelta, continuousAlignmentViewDelta, hasLocalEvidence, intersectSupport, mapComparisonBounds, mapComparisonPoint, mapContinuousComparisonPoint, mapLocalComparisonPoint, mapOverviewComparisonPoint, overviewAlignmentViewDelta, mapSupportBounds, normalizeRotation, withinSupport } from '../alignment'
 
 describe('comparison coordinate mapping', () => {
+  it('prefers bounded regional corrections for displayed siblings without changing their overview maps', () => {
+    const cell = { moving: [[100, 100], [300, 100], [100, 300]] as [[number, number], [number, number], [number, number]], reference: [[140, 120], [340, 120], [140, 320]] as [[number, number], [number, number], [number, number]] }
+    const members = ['a', 'b'].map(slideId => ({ slideId, registration: { status: 'approximate', anchorSlideId: 'root', movingToReference: [[1, 0, 0], [0, 1, 0]], overviewTriangles: [{ moving: [[0, 0], [1000, 0], [0, 1000]] as typeof cell.moving, reference: [[0, 0], [1000, 0], [0, 1000]] as typeof cell.reference }] } }))
+    members.push({ slideId: 'root', registration: null as never })
+    const overlays = [{ sourceSlideId: 'a', targetSlideId: 'b', sourceBounds: [100, 100, 200, 200] as [number, number, number, number], registration: { status: 'approximate', movingToReference: [[1, 0, 40], [0, 1, 20]], overviewTriangles: [cell] } }]
+    expect(mapStackPoint([150, 150], 'a', 'b', 'root', members, 'best', 0, overlays)?.point).toEqual([190, 170])
+    expect(mapStackPoint([190, 170], 'b', 'a', 'root', members, 'best', 0, overlays)?.point).toEqual([150, 150])
+    members.push({ ...members[1], slideId: 'c' })
+    const composed = mapStackPoint([150, 150], 'a', 'c', 'root', members, 'best', 0, overlays)?.point
+    expect(composed?.[0]).toBeCloseTo(190)
+    expect(composed?.[1]).toBeCloseTo(170)
+    const outside = mapStackPoint([500, 100], 'a', 'b', 'root', members, 'best', 0, overlays)?.point
+    expect(outside?.[0]).toBeCloseTo(500)
+    expect(outside?.[1]).toBeCloseTo(100)
+    expect(mapStackPoint([Number.NaN, 0], 'a', 'b', 'root', members)).toBeNull()
+  })
   it('keeps short glass gaps linked as approximate without expanding local support', () => {
     const cell = {
       moving: [[0, 0], [100, 0], [0, 100]] as [[number, number], [number, number], [number, number]],

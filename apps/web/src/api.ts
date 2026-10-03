@@ -790,3 +790,20 @@ export async function correctComparisonSet(id: string, slideId: string, payload:
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   }))
 }
+
+export async function correctComparisonRegion(id: string, payload: {
+  version: number
+  operation: 'preview' | 'save' | 'clear'
+  sourceSlideId: string
+  targetSlideId: string
+  sourceBounds?: [number, number, number, number]
+  movingPoints?: [number, number][]
+  referencePoints?: [number, number][]
+  regionId?: string
+  sourceVersion?: string
+  targetVersion?: string
+}): Promise<ComparisonSet> {
+  return json<ComparisonSet>(await csrfFetch(`/api/v1/admin/comparison-sets/${encodeURIComponent(id)}/region-corrections`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }))
+}
