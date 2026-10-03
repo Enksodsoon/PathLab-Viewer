@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "b734820f80e7bd9e92ec9a5c2c9184b4a48374c80cb46990c165e74bad1d401b",
+      "sha256": "f8d2f99835f552338d41eee3b7e816b70d253319864da0892ae6d4051eda6e2c",
       "sizeBytes": 730611
     },
     {
       "path": "build.spdx.json",
-      "sha256": "99a688d95e84d1a24c2d04b0906143448348a57ed7c05746f9acbc37241c4ea4",
+      "sha256": "fabbe0d5f765b7e82a10072ec73e7f8300dfe8b1bbaf70edda5f8bb9d37e9528",
       "sizeBytes": 590197
     },
     {
       "path": "source.cdx.json",
-      "sha256": "9f73c4b3dd3db110ff08bd06ed7cc8b5bada90afcf45c0766ffe1fae4bda1f79",
+      "sha256": "29fc14aa3bdf514cf6fef76ffdc292eeb0a54dfd4ca0626c83aa66d94d95cd22",
       "sizeBytes": 773165
     },
     {
       "path": "source.spdx.json",
-      "sha256": "a2d45109972462c7acb79ed2f1fffe1685231dff3b29717a45f989b615ea0c88",
+      "sha256": "da7dfea42b78175bd03172741c847ae59037d91252795c8b5f8d6e9077527121",
       "sizeBytes": 623847
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-03T16:15:27Z",
+  "generatedAt": "2026-10-03T16:59:45Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -153,9 +153,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "b67b318af69337f58e6b2082988cd7715315fda7",
+      "gitBlob": "2e86280fb3e7a0c6e8364f8fe54a7709ea623563",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "62f00aa5774bac6fde04a3e2066021dafd9703c519f51b3373778f73f3d4bbe5",
+      "sha256": "b6d2b3f9246d5445743ad604d6c6070ef832fe73c22f7588af0c31cb8e86b6aa",
       "sizeBytes": 41635
     },
     {
@@ -1454,6 +1454,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "db28e6cf5e90c60e226a9e770d49a6b917cebfd3",
-  "subjectTree": "1e1b8843f39c708e62a8117ad415662fc92be223"
+  "subjectCommit": "420c0c7d1080523ec0c5208ef1ae4d969e2bf756",
+  "subjectTree": "bbfec1e29e7da24d11ee995a9576aab32a79d77c"
 }
