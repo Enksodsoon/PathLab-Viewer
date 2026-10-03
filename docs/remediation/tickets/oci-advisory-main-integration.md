@@ -5,3 +5,5 @@ Current main 0d11f2d already fixes the reported npm advisories through PR #277. 
 The complete hashed OCI lock now has its own strict security workflow audit. A fresh installed-environment audit reports no known vulnerabilities; pip check passes and OCI CLI reports 3.92.0. Synthetic PyJWT checks cover option isolation, expiry rejection, and rejecting an RSA public key as an HMAC secret.
 
 Dependency receipts bind to implementation commit 3598ea7359bdbe57c57c9e59f945d233aa12145a. Regenerated software inventories retain unresolved license admission decisions; security audit success does not establish license admission. Fresh protected CI and production deployment remain required.
+
+GitHub open alerts checked on 2026-10-03 all refer to this deployment lock. GHSA-gvp8-978c-rx2q has no patched-version metadata there; the upstream 2.15.0 implementation copies options before merging, and the synthetic isolation regression passes. Do not treat version selection as automatic alert dismissal.

@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [OCI advisory reconciliation](tickets/oci-advisory-main-integration.md): retain current upstream JavaScript fixes, audit the complete deployment lock, and regenerate subject-bound inventories.
+
 - [Remaining campaign closure](tickets/remaining-campaign-closure.md): authenticated production checks, fresh hardening review, inventory notices and actual Forge runtime qualification.
 
 - [Establish current-code scope](tickets/current-code-scope.md): upstream base, report contradictions, selected design and delivery defaults.
