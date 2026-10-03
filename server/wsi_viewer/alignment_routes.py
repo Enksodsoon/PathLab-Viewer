@@ -1000,7 +1000,10 @@ def register_alignment_routes(
             raise _error("ALIGNMENT_CANDIDATE_NOT_FOUND", 404)
         if item.version != payload.version or candidate.set_version != item.version:
             raise _error("COMPARISON_STALE_WRITE", 409)
-        if candidate.status != "ready" or candidate.validation_state != "engineering_passed":
+        required_validation = (
+            "landmark_passed" if candidate.engine in RECIPE_STAGES else "engineering_passed"
+        )
+        if candidate.status != "ready" or candidate.validation_state != required_validation:
             raise _error("ALIGNMENT_CANDIDATE_NOT_PROMOTABLE", 409)
         source = database.get(Slide, candidate.slide_id)
         anchor = database.get(Slide, candidate.anchor_slide_id)
@@ -1023,6 +1026,15 @@ def register_alignment_routes(
             candidate.engine, candidate.registration.get("engineSettings") or {}
         ):
             raise _error("ALIGNMENT_CANDIDATE_SETTINGS_STALE", 409)
+        if candidate.engine in RECIPE_STAGES:
+            measurements = candidate.evidence.get("benchmarkMeasurements")
+            if (
+                not isinstance(measurements, dict)
+                or measurements.get("qualified") is not True
+                or measurements.get("improvesOnIndividualStages") is not True
+                or measurements.get("settingsDigest") != candidate.settings_digest
+            ):
+                raise _error("ALIGNMENT_CANDIDATE_NOT_PROMOTABLE", 409)
         registration = {
             **candidate.registration,
             "provenance": "automatic",
