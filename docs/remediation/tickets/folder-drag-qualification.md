@@ -1,7 +1,7 @@
 # Native folder moves and dialog Escape
 
 Labels: wayfinder:decision
-Status: local candidate
+Status: merged; protected release pending
 
 ## Evidence and repair
 
@@ -32,3 +32,7 @@ A separate populated-drawer probe with12 preceding root folders reproduced the t
 Independent authenticated production68e0a03 failure-path check: the disposable B slide retained an unsaved title after offline Save reported Failed to fetch, displayed SAVED after reconnection, and preserved the title after full reload. Tab networking was restored and the separate paused upload tab was untouched. Receipt: production-68e0a03-offline-save-recovery.json in the release evidence directory.
 
 The corrected canonical populated-drawer scenario now passes all four local targets: native Chromium, Firefox, WebKit and mobile Chromium accessible Move. Changed-file ESLint and security baseline validator pass. These local receipts do not replace the new Linux CI gate.
+
+## Verified Linux result and merge
+
+Corrected head b9f40bd passed all nine delivery checks. Retained Linux fullstack37099639768 passed27 cases,skipped1,and reported no failures. PR288 merged as c1ab7f7ad414325f298193d5411a8d747b929f43. The earlier first-move failure is historical evidence; the corrected native gesture succeeds on Linux. Exact-main CI37100724086/Security37100724053 are running; production remains68e0a038 until protected deployment and live verification.

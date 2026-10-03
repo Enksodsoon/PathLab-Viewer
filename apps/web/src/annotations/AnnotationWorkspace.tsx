@@ -968,8 +968,10 @@ export function AnnotationWorkspace({
 
   useEffect(() => {
     const inspector = inspectorRef.current
-    if (!isMobile || !inspectorOpen || !inspector) return
+    if (!inspectorOpen || !inspector) return
     const trigger = inspectorTriggerRef.current
+    // Desktop uses a non-modal panel, but closing it must still return focus.
+    if (!isMobile) return () => trigger?.focus()
     const focusable = focusableElements(inspector)
     focusable[0]?.focus()
     const trap = (event: KeyboardEvent) => {

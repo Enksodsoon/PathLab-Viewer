@@ -26,6 +26,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 - [Classroom dispatch boundary](tickets/classroom-dispatch-boundary.md): merged-main browser evidence found queued local traffic crossing a control snapshot boundary.
 
+- [Annotation command reachability](tickets/annotation-mobile-commands.md): verified320px clipping and desktop Inspector focus repair; four-engine UI and real-backend save/reload evidence.
+
 ## Not yet specified
 
 Evidence-backed remaining repairs; interface changes only after reproductions require them. Operational release blockers must be recorded independently of implementation progress.
