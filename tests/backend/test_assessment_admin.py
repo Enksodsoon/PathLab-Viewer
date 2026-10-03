@@ -120,6 +120,11 @@ def test_draft_autosave_conflict_preview_and_immutable_publish(tmp_path: Path) -
     [
         ("options", ["Option A", "Option B"], "ASSESSMENT_OPTIONS_INVALID"),
         ("answerKey", ["Option A"], "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("points", "invalid", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "NaN", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "Infinity", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "1e999999999", "ASSESSMENT_POINTS_INVALID"),
+        ("points", "1000000000", "ASSESSMENT_POINTS_INVALID"),
     ],
 )
 def test_invalid_publish_preserves_editable_draft_and_creates_no_version(
