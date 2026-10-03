@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from .assessment_contract import AssessmentContractError
-from .assessment_contract_v2 import compile_assessment_v2, flatten_v2_items
+from .assessment_contract_v2 import compile_assessment_v2
 
 
 def _issue(code: str, path: str, message: str, *, level: str = "error") -> dict[str, str]:
@@ -15,9 +16,10 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
     warnings: list[dict[str, str]] = []
     raw_sections = document.get("sections")
     sections: list[Any] = raw_sections if isinstance(raw_sections, list) else []
-    items = flatten_v2_items(document)
+    items: list[dict[str, Any]] = []
     for section_index, section in enumerate(sections):
         section_items = section.get("items", []) if isinstance(section, dict) else []
+        section_items = section_items if isinstance(section_items, list) else []
         if len(section_items) > 25:
             warnings.append(
                 _issue(
@@ -31,8 +33,14 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
             path = f"/sections/{section_index}/items/{item_index}"
             if not isinstance(item, dict):
                 continue
+            items.append(item)
             options = item.get("options", [])
-            if item.get("type") in {"multiple-choice", "checkboxes", "dropdown"}:
+            options = options if isinstance(options, list) else []
+            if isinstance(item.get("type"), str) and item.get("type") in {
+                "multiple-choice",
+                "checkboxes",
+                "dropdown",
+            }:
                 normalized = [
                     " ".join(str(option.get("label", "")).split()).casefold()
                     for option in options
@@ -69,6 +77,7 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
         item for item in items if item.get("manual") is True or item.get("type") == "paragraph"
     ]
     release = document.get("release", {})
+    release = release if isinstance(release, dict) else {}
     effective_release = "immediate" if release.get("timing") == "immediate" else "manual"
     if manual_items and effective_release == "immediate":
         effective_release = "manual"
@@ -89,11 +98,13 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
             "items": len(items),
             "points": str(
                 sum(
-                    float(item.get("points", 0) or 0)
+                    Decimal(str(item.get("points", 0) or 0))
                     for item in items
                     if item.get("type") != "section-information"
                 )
-            ),
+            )
+            if compiled
+            else None,
             "manualItems": len(manual_items),
             "encodedBytes": len(repr(compiled.definition).encode()) if compiled else None,
         },

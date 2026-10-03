@@ -12699,7 +12699,7 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "in progress; protected production ae9b1ac verified; candidate PR295 Inspector dismissal repair passes local checks and prior-head nine delivery gates. Native production drag, desktop DOM focus, specific assessment workflows and external security facts remain open.",
+  "campaignStatus": "in progress; production ae9b1ac verified. PR295 Inspector repair merged at af2c33f after review and nine exact-head gates; not yet deployed. V2 assessment storage/metrics repair is a reviewed-follow-up candidate requiring fresh checks. Native drag/focus, historical published score audit and external security facts remain open.",
   "verification": "Latest verified production ae9b1ac: all nine exact-main delivery checks passed; protected deployment37116218798 succeeded with actual restore69tables/106325files/schema20260907_0037. Public health200, anonymous checked admin denials401; signed-in synthetic tiles/annotation persistence, accessible folder move persistence, descendant omission and modal Escape passed. Native drag remains unverified. Historical verification statements retained in verificationHistory;954 source entries and29 aggregate subclaims preserved.",
   "campaignFindings": [
     {
@@ -12936,16 +12936,34 @@
     {
       "key": "campaign-annotation-inspector-save-reopen",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "merged",
       "evidence": "At production bd69848 a dismissed Inspector reopens after history/save. At ae9b1ac AnnotationStore snapshots clone the selection Set on every emit; the workspace opens the Inspector on reference changes with unchanged nonempty selected IDs. Desktop/mobile selected-annotation Save regressions fail at the unintended reopen. Earlier fixture setup failures are retained separately.",
       "repair": "Depend on ordered selected IDs rather than cloned Set identity; preserve primary selection order and existing opening on a different selection.",
-      "qualification": "69 affected annotation tests and all four browser targets pass. Frontend lint/build pass. All494 frontend tests pass. All64 annotation responsive browser matrix checks pass across four engines/targets with zero retries. Protected CI and released verification pending. Repository/security/software inventory validation pass; strict releaseAdmission remainsBLOCKED. No data-loss, physical-device or keyboard-focus claim follows from these checks. Review found no Critical/Important issue; selected-record history coverage improved before merge. All496 frontend tests now pass, including Undo/Redo retaining the same selected record at320/1200. Prior exact-head cafd1c1 passed all nine delivery gates (CI37117465927/Security37117465862); test/docs follow-up requires fresh exact-head gates. Real backend short-path annotation suite5passed, paired initial long-path run4passed/1failed retained; no broad Windows path root-cause claim. Candidate remains not deployed.",
+      "qualification": "69 affected annotation tests and all four browser targets pass. Frontend lint/build pass. All494 frontend tests pass. All64 annotation responsive browser matrix checks pass across four engines/targets with zero retries. Protected CI and released verification pending. Repository/security/software inventory validation pass; strict releaseAdmission remainsBLOCKED. No data-loss, physical-device or keyboard-focus claim follows from these checks. Review found no Critical/Important issue; selected-record history coverage improved before merge. All496 frontend tests now pass, including Undo/Redo retaining the same selected record at320/1200. Prior exact-head cafd1c1 passed all nine delivery gates (CI37117465927/Security37117465862); test/docs follow-up requires fresh exact-head gates. Real backend short-path annotation suite5passed, paired initial long-path run4passed/1failed retained; no broad Windows path root-cause claim. Candidate remains not deployed. Latest delivery: PR295 merged normally at af2c33f96f87839a322bf02bf33bcd111b3490c3 after review and all nine exact-head checks succeeded at c72a642 (CI37119420441/Security37119420428). Exact-main checks and protected deployment remain pending; production remains ae9b1ac.",
       "callers": [
         "AnnotationStore.makeSnapshot and emit",
         "AnnotationStore.setAutosaveStatus and acknowledge",
         "AnnotationWorkspace Inspector selection effect"
       ],
       "ticket": "docs/remediation/tickets/annotation-inspector-selection-stability.md"
+    },
+    {
+      "key": "campaign-assessment-v2-score-preflight-validation",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "At ae9b1ac v2 compilation accepts finite scores beyond existing Numeric(12,3) storage and exponent values not quantizable by shared scoring. Five compiler regressions fail for item/raw/rounded totals. Five actual HTTP regressions reproduce accepted oversized preflight and malformed points metrics outcomes, including invalid-string ValueError. Review adds an eleventh red HTTP case: Decimal accepts 1__0 as10 but float metrics raises ValueError. Six more actual HTTP regressions reproduce null sections/section/items/item/options/optional-release traversal crashes before the shape follow-up; 17 red cases total across this repair batch. A follow-up actual saved-draft probe confirms unhashable question types crash. Twenty actual HTTP and two compiler regressions fail at a5ee292 for list/object enum, routing, answer-key and media fields:39 red regressions across this batch. Additional-media fixtures include a valid primary image to reach the affected validator. API schema-selection boundaries still escaped contract handlers at4615c0b. Corrected baseline18HTTPcases yields9actual crashes (preflight/duplicate/migrate across list/object/unknown schemas) and9existing structured rejection controls, including unchanged import404. Proven failing regressions total48; no import crash is claimed.",
+      "repair": "Use existing MAX_STORED_SCORE/PRECISION to bound v2 raw and separately rounded totals, translating decimal failures to ASSESSMENT_POINTS_INVALID. Keep section information unscored. Failed compilation returns null points metrics; valid metrics use Decimal consistently with shared scoring. Preserve editable drafts/revisions, valid half-up grading and publication release policy. Guard warning/metric traversal with list/dict checks while passing the untouched original draft to compilation. Preserve manual defaults for null optional release. Require strings before hashing schema/type/style/media/region/routing values and answer-key IDs; preserve existing structured contract error codes instead of TypeError. Move preflight schema selection inside its existing contract handler; translate invalid schemas to existing422codes in duplicate/migration. Preserve import item-not-found404 and all source/destination revisions.",
+      "qualification": "Expanded local assessment selection258passed13explicit skips1248deselected33.90seconds, Ruff/mypy/diff checks pass. All nine exact-head checks passed at prior4615c0b (CI37122576036/Security37122576032) before schema-route follow-up; its independent review and real-backend5pass are historical. Renewed latest-head review and delivery gates required. Stress begun at4615c0b completes1/5/10/20-session5minute phases with0errors;30minute soak still running. Latest route follow-up does not modify stressed Library paths. No data rewrite/activation or historical published-definition qualification.",
+      "callers": [
+        "compile_assessment_v2: server preflight, preview and publication",
+        "preflight_v2 points metrics",
+        "finalize_attempt: shared score_item and AssessmentScoreVersion Numeric(12,3)",
+        "manual grading: quantized score persistence",
+        "preflight_draft schema selection",
+        "duplicate_draft and migrate_draft_v2 schema rejection",
+        "import_questions existing item-not-found contract control"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-v2-score-storage-bounds.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13007,11 +13025,12 @@
     "remaining": [
       "Assessment-specific authenticated live qualification",
       "Native production folder drag and desktop Inspector DOM focus",
-      "Inspector selection-stability candidate PR295: not deployed",
+      "Inspector selection-stability PR295 merged: not deployed",
       "Action-time confirmation for specific synthetic upload cancellation",
       "External application-secret rotation and OneDrive sync/sharing facts",
       "Physical devices, bounded sustained soak and requirement-by-requirement campaign closure",
-      "Strict software admission remains BLOCKED; accountable licensing receipts required"
+      "Strict software admission remains BLOCKED; accountable licensing receipts required",
+      "V2 assessment score/preflight repair candidate and historical published-definition qualification"
     ],
     "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
   },
