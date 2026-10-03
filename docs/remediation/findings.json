@@ -12918,6 +12918,20 @@
         "assessment_contract.score_item"
       ],
       "ticket": "docs/remediation/tickets/assessment-v1-publish-validation.md"
+    },
+    {
+      "key": "campaign-assessment-v1-points-publication-validation",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "At13948ba the compiler raises uncaught decimal.InvalidOperation for invalid/NaN points, accepts Infinity and1e999999999 that fail scoring, and accepts totals outside existing Numeric(12,3) score columns. Information items skip compilation point checks but score_item still parses their unused points. Twelve new compiler/actual HTTP regressions fail before repair; valid boundary, prior shapes and negative Infinity already reject/pass as appropriate.",
+      "repair": "Translate decimal parsing/quantization failures to the existing ASSESSMENT_POINTS_INVALID contract error; require finite nonnegative scored points and totals representable by existing score storage. Validate raw maximum and separately rounded item sums; preserve valid ROUND_HALF_UP scoring. Return zero for information before parsing unused points. Editable draft and revision/first publication behavior retained.",
+      "qualification": "77 affected assessment backend cases pass after repair; complete local backend1356 passed/100 skipped/0 failures/errors in648.968s; fresh protected gates remain pending. No migration, stored learner mutation, scoring/release policy or activation change.",
+      "callers": [
+        "assessment_routes.compile_owned: preview and publish",
+        "assessment_routes.preflight_draft",
+        "assessment_routes finalize attempt: score_item and Numeric(12,3) persistence"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-v1-points-publication-validation.md"
     }
   ],
   "currentClosureBranch": "main",
