@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Assessment save failure feedback](tickets/assessment-save-failure-feedback.md): distinguish failed save boundaries and retry temporary failures while retaining edits.
+
 - [Assessment cache transaction abort](tickets/assessment-cache-transaction-abort.md): settle rolled-back recovery operations and report local recovery failures.
 
 - [Assessment import save boundary](tickets/assessment-import-save-boundary.md): prevent importing persisted questions from replacing edits that have not been acknowledged.

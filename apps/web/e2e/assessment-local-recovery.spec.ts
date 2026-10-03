@@ -53,7 +53,7 @@ test('failed save retains equal-revision local edits across reload and resaves w
   await expect(page.getByText('All changes saved', { exact: true })).toBeVisible({ timeout: 45_000 })
   const name = page.getByRole('textbox', { name: 'Assessment name', exact: true })
   await name.fill('Locally retained edit')
-  await expect(page.getByText('Conflict: reload or duplicate', { exact: true })).toBeVisible()
+  await expect(page.getByText('Changes not saved. Try again.', { exact: true })).toBeVisible()
   await expect.poll(() => page.evaluate(() => new Promise<string | null>((resolve, reject) => {
     const open = indexedDB.open('pathlab-assessment', 1)
     open.onerror = () => reject(open.error)

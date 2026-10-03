@@ -30,7 +30,7 @@ const api = vi.hoisted(() => ({
   setAssessmentAdministrationStatus: vi.fn(),
 }))
 
-vi.mock('../assessment/api', () => api)
+vi.mock('../assessment/api', async original => ({ ...await original<typeof import('../assessment/api')>(), ...api }))
 vi.mock('../theme/ThemeControl', () => ({
   ThemeControl: () => <div aria-label="Theme preference" />,
 }))
@@ -388,7 +388,7 @@ it('adds accessible question cards and exposes publish presets', async () => {
   api.previewAssessmentDraft.mockRejectedValueOnce(new Error('Draft validation failed'))
   await userEvent.click(screen.getByRole('button', { name: 'Assignment preview' }))
   expect(await screen.findByRole('dialog', { name: 'Learner preview' })).toBeVisible()
-  expect(screen.getByRole('status')).toHaveTextContent('Previewing the current draft')
+  expect(within(screen.getByRole('dialog', { name: 'Learner preview' })).getByRole('status')).toHaveTextContent('Previewing the current draft')
   await userEvent.click(screen.getByRole('button', { name: 'Close preview' }))
   await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
   expect(screen.getByRole('radio', { name: /Practice/i })).toBeVisible()

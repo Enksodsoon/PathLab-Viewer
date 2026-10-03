@@ -2,8 +2,10 @@ import { ArrowCounterClockwise, Check, Desktop, DeviceMobile, DeviceTablet, Eye,
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
+import { ApiError } from '../api'
 
 import {
+  AssessmentHttpError,
   createAssessmentDraft,
   getAssessmentDraft,
   importAssessmentQuestions,
@@ -38,6 +40,7 @@ export function AssessmentBuilderPage() {
   const requestedTab = searchParams.get('tab')
   const tab: 'questions' | 'settings' | 'responses' = requestedTab === 'responses' || requestedTab === 'settings' ? requestedTab : 'questions'
   const [saveState, setSaveState] = useState('Loading…')
+  const [retrySaveAvailable, setRetrySaveAvailable] = useState(false)
   const [recoveryUnavailable, setRecoveryUnavailable] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
   const [mode, setMode] = useState<'practice' | 'formative' | 'quiz'>('formative')
@@ -77,6 +80,7 @@ export function AssessmentBuilderPage() {
   const loadGenerationRef = useRef(0)
   const latestDocumentRef = useRef<AssessmentDocument | null>(null)
   const acknowledgedDocumentRef = useRef<AssessmentDocument | null>(null)
+  const saveStatusRef = useRef<HTMLSpanElement>(null)
   const items = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
   const questions = useMemo(() => items.filter((item) => item.type !== 'section-information'), [items])
   const totalPoints = useMemo(() => items.reduce((total, item) => total + (questionTypesByType[item.type].supportsScoring ? Number(item.points || 0) || 0 : 0), 0), [items])
@@ -85,6 +89,7 @@ export function AssessmentBuilderPage() {
     let cancelled = false
     const generation = ++loadGenerationRef.current
     setSaveState('Loading…')
+    setRetrySaveAvailable(false)
     setRecoveryUnavailable(false)
     setImportSubmitting(false)
     setImportOpen(false)
@@ -128,6 +133,7 @@ export function AssessmentBuilderPage() {
       return
     }
     setSaveState('Saving…')
+    setRetrySaveAvailable(false)
     const cacheLocalDraft = (value: AssessmentDraft) => {
       void cacheAssessmentDraft(value).catch(() => {
         if (generation === loadGenerationRef.current) setRecoveryUnavailable(true)
@@ -153,10 +159,23 @@ export function AssessmentBuilderPage() {
           cacheLocalDraft(saved)
           setSaveState(latestDocumentRef.current === submittedDocument ? 'All changes saved' : 'Saving…')
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (generation !== loadGenerationRef.current) return
           savePendingRef.current = null
-          setSaveState('Conflict: reload or duplicate')
+          const status = error instanceof AssessmentHttpError || error instanceof ApiError ? error.status : undefined
+          const messages: Record<number, string> = {
+            400: 'Changes not saved. Check the questions and settings.',
+            401: 'Changes not saved. Sign in again to save.',
+            403: 'Changes not saved. You do not have permission to save this draft.',
+            404: 'This draft is unavailable. Your changes remain in this tab.',
+            409: 'Conflict: reload or duplicate',
+            422: 'Changes not saved. Check the questions and settings.',
+            429: 'Save paused. Wait a moment, then retry.',
+          }
+          const retryable = status === undefined || status === 429 || status >= 500
+          setSaveState(status !== undefined && messages[status] ? messages[status]
+            : retryable ? 'Changes not saved. Try again.' : 'Changes not saved. Check the questions and settings.')
+          setRetrySaveAvailable(retryable)
         })
     }, 750)
     return () => window.clearTimeout(timer)
@@ -369,9 +388,15 @@ export function AssessmentBuilderPage() {
       <div className="assessment-studio-meta">
         <span><strong>{questions.length}</strong> {questions.length === 1 ? 'question' : 'questions'}</span>
         <span><strong>{totalPoints}</strong> {totalPoints === 1 ? 'point' : 'points'}</span>
-        <span className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
+        <span ref={saveStatusRef} role="status" tabIndex={-1} className="assessment-save-state" data-state={saveState === 'All changes saved' ? 'saved' : 'pending'} aria-live="polite"><Check aria-hidden="true" /> {saveState}</span>
       </div>
       <div className="assessment-studio-actions">
+        {retrySaveAvailable && draft.id === draftId ? <button type="button" onClick={() => {
+          saveStatusRef.current?.focus()
+          setRetrySaveAvailable(false)
+          setSaveState('Saving…')
+          setDraft((current) => current?.id === draftId ? { ...current } : current)
+        }}>Retry save</button> : null}
         {!isAssessmentV2(draft.document) ? <button type="button" disabled={migrationBusy} onClick={() => void migrateToV2()}>{migrationBusy ? 'Upgrading…' : 'Upgrade to sections'}</button> : null}
         <button className="assessment-primary" type="button" onClick={(event) => { event.currentTarget.focus(); openPublish() }}><PaperPlaneTilt aria-hidden="true" />Publish</button>
       </div>
