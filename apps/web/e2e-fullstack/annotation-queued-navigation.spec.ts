@@ -42,6 +42,9 @@ for (const action of ['reload', 'layer patch']) {
       }
       await page.getByRole('link', { name: 'Library', exact: true }).click()
       await expect(page).toHaveURL(/\/admin$/)
+      // History changes before React finishes the route transition in WebKit.
+      // Keep the response held until the old workspace has actually left the UI.
+      await expect(page.getByRole('toolbar', { name: 'Annotation tools' })).not.toBeVisible()
     } finally { release() }
     // Let the released response and its queued continuation settle. qa-test
     // rejects any unhandled page errors, including after workspace unmount.
