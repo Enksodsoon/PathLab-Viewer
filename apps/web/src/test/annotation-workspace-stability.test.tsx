@@ -790,6 +790,40 @@ it('ignores a slide A layer completion after slide B has replaced the workspace'
   expect(slideB.getManifest).toHaveBeenCalledOnce()
 })
 
+it.each(['reload', 'layer patch'])('cancels queued %s when the slide changes', async (action) => {
+  const slideALayer = { ...layerA, name: 'Slide A layer' }
+  const slideBLayer = { ...layerA, id: layerB.id, name: 'Slide B layer' }
+  const update = deferred<Awaited<ReturnType<AnnotationWorkspaceServices['updateLayer']>>>()
+  const slideA = services({ updateLayer: vi.fn(() => update.promise) }, [], [slideALayer])
+  const slideB = services({}, [], [slideBLayer])
+  const view = render(
+    <AnnotationWorkspace slideId="slide-a" slideName="Slide A" services={slideA}
+      onAttachmentChange={vi.fn()} />,
+  )
+  await openInspector(true)
+  const visible = await screen.findByRole('checkbox', { name: 'Show Slide A layer' })
+  fireEvent.click(visible)
+  await waitFor(() => expect(slideA.updateLayer).toHaveBeenCalledOnce())
+  if (action === 'reload') fireEvent.click(screen.getByRole('button', { name: 'Reload annotations' }))
+  else fireEvent.click(visible)
+
+  view.rerender(
+    <AnnotationWorkspace slideId="slide-b" slideName="Slide B" services={slideB}
+      onAttachmentChange={vi.fn()} />,
+  )
+  await openInspector(true)
+  await screen.findByRole('button', { name: 'Slide B layer' })
+  await act(async () => {
+    update.resolve({ version: 2, layer: { ...slideALayer, visible: false } })
+    await update.promise
+    await Promise.resolve()
+  })
+  expect(screen.getByRole('button', { name: 'Slide B layer' })).toBeVisible()
+  expect(slideA.updateLayer).toHaveBeenCalledOnce()
+  expect(slideA.getManifest).toHaveBeenCalledOnce()
+  expect(slideB.getManifest).toHaveBeenCalledOnce()
+})
+
 it('clears slide-bound import and revision work and ignores stale completions', async () => {
   const source = record(1)
   const importResult = deferred<AnnotationBatchResult>()

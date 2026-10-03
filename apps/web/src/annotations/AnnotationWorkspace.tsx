@@ -625,12 +625,12 @@ export function AnnotationWorkspace({
     const result = pipeline.promise
       .catch(() => undefined)
       .then(() => {
-        requireCurrentWorkspace(generation)
+        if (!isCurrentWorkspace(generation)) return
         return operation()
       })
     pipeline.promise = result.catch(() => undefined)
     return result
-  }, [requireCurrentWorkspace])
+  }, [isCurrentWorkspace])
 
   const loadRemote = useCallback(async (
     store: AnnotationStore,
