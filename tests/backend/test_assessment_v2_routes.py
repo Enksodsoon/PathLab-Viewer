@@ -275,3 +275,61 @@ def test_v2_validation_rejects_unhashable_contract_fields(
     retained = client.get(path).json()
     assert retained["document"] == document
     assert retained["revision"] == 1
+
+
+@pytest.mark.parametrize("schema", [[], {}, "unsupported"], ids=["list", "object", "unknown"])
+@pytest.mark.parametrize(
+    "action", ["preflight", "preview", "publish", "duplicate", "migrate-v2", "import-questions"]
+)
+def test_saved_invalid_schema_returns_structured_errors_without_mutation(
+    tmp_path: Path, schema: object, action: str
+) -> None:
+    client, _ = _client(tmp_path)
+    document = v2_document()
+    document["schema"] = schema
+    created = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Synthetic invalid schema", "document": document},
+    )
+    assert created.status_code == 201
+    source = created.json()
+    path = f"/api/v2/admin/assessment/drafts/{source['id']}"
+    if action == "import-questions":
+        destination = client.post(
+            "/api/v2/admin/assessment/drafts",
+            json={"title": "Synthetic destination", "document": v2_document()},
+        ).json()
+        destination_path = f"/api/v2/admin/assessment/drafts/{destination['id']}"
+        response = client.post(
+            f"{destination_path}/import-questions",
+            json={
+                "sourceDraftId": source["id"],
+                "itemIds": ["item-pattern"],
+                "expectedRevision": 1,
+            },
+        )
+        retained_destination = client.get(destination_path).json()
+        assert retained_destination["document"] == destination["document"]
+        assert retained_destination["revision"] == 1
+    elif action == "duplicate":
+        response = client.post(f"{path}/{action}", json={"title": "Synthetic copy"})
+    elif action == "migrate-v2":
+        response = client.post(f"{path}/{action}", json={"expectedRevision": 1})
+    else:
+        response = client.post(f"{path}/{action}")
+    if action == "preflight":
+        assert response.status_code == 200
+        assert response.json()["valid"] is False
+        assert response.json()["errors"][0]["code"] == "ASSESSMENT_SCHEMA_INVALID"
+    elif action == "import-questions":
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "ASSESSMENT_ITEM_NOT_FOUND"
+    else:
+        assert response.status_code == 422
+        assert response.json()["detail"]["code"] == "ASSESSMENT_SCHEMA_INVALID"
+    retained = client.get(path).json()
+    assert retained["document"] == document
+    assert retained["revision"] == 1
+    assert len(client.get("/api/v2/admin/assessment/drafts").json()["items"]) == (
+        2 if action == "import-questions" else 1
+    )
