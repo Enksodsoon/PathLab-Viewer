@@ -943,3 +943,19 @@ test('keeps every annotation command reachable at narrow widths and after closin
     await page.getByRole('button', { name: 'Close annotations', exact: true }).click()
   }
 })
+
+
+test('keeps browser refresh chords out of annotation tool selection', async ({ page }) => {
+  await page.goto('/admin/preview/private-1')
+  const pan = page.getByRole('button', { name: 'Pan', exact: true })
+  const ruler = page.getByRole('button', { name: 'Ruler', exact: true })
+  await expect(page.getByText('Annotations ready', { exact: true })).toBeVisible()
+  await expect(pan).toHaveAttribute('aria-pressed', 'true')
+  for (const chord of ['Control+r', 'Meta+r']) {
+    await page.keyboard.press(chord)
+    await expect(pan).toHaveAttribute('aria-pressed', 'true')
+    await expect(ruler).toHaveAttribute('aria-pressed', 'false')
+  }
+  await page.keyboard.press('r')
+  await expect(ruler).toHaveAttribute('aria-pressed', 'true')
+})

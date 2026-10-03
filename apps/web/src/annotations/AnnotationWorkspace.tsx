@@ -1183,6 +1183,7 @@ export function AnnotationWorkspace({
         localStore.paste()
         return
       }
+      if (event.ctrlKey || event.metaKey || event.altKey) return
       const shortcutTool = SHORTCUT_TO_TOOL.get(event.key.toLowerCase())
       if (shortcutTool) {
         event.preventDefault()

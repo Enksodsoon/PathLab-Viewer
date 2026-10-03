@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Preserve browser shortcuts](tickets/annotation-browser-shortcuts.md): native Ctrl+R wrongly selects Ruler; guard unhandled modifiers after explicit annotation commands.
+
 - [Annotation Inspector selection stability](tickets/annotation-inspector-selection-stability.md): preserve dismissal across save snapshots; open automatically only when the selected IDs change.
 
 - [Assessment v2 score storage bounds](tickets/assessment-v2-score-storage-bounds.md): enforce existing persisted score limits and keep malformed draft preflight from reparsing invalid metrics.
