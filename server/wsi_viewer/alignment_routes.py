@@ -97,6 +97,12 @@ class RegionCorrectionRequest(BaseModel):
     operation: Literal["preview", "save", "clear"]
     source_slide_id: str = Field(alias="sourceSlideId", min_length=1, max_length=64)
     target_slide_id: str = Field(alias="targetSlideId", min_length=1, max_length=64)
+    source_version: str | None = Field(
+        default=None, alias="sourceVersion", min_length=1, max_length=128
+    )
+    target_version: str | None = Field(
+        default=None, alias="targetVersion", min_length=1, max_length=128
+    )
     region_id: str | None = Field(default=None, alias="regionId", min_length=1, max_length=36)
     source_bounds: list[float] | None = Field(
         default=None, alias="sourceBounds", min_length=4, max_length=4
@@ -907,7 +913,8 @@ def register_alignment_routes(
         if deeperhistreg_enabled:
             enabled_engines.update({ENGINE_DHR_CLASSICAL, ENGINE_DHR_LEARNED})
         enabled_engines.update(
-            recipe for recipe, stages in RECIPE_STAGES.items()
+            recipe
+            for recipe, stages in RECIPE_STAGES.items()
             if all(stage in enabled_engines for stage in stages)
         )
         if any(engine not in enabled_engines for engine in requested):
@@ -1181,6 +1188,14 @@ def register_alignment_routes(
                 raise _error("COMPARISON_SOURCE_CHANGED", 409)
             if case_ids_conflict(source.case_id, target.case_id):
                 raise _error("REGION_CASE_MISMATCH")
+            if payload.operation == "save" and (
+                payload.source_version is None or payload.target_version is None
+            ):
+                raise _error("REGION_SOURCE_VERSIONS_REQUIRED")
+            if (payload.source_version is not None and payload.source_version != source_digest) or (
+                payload.target_version is not None and payload.target_version != target_digest
+            ):
+                raise _error("COMPARISON_SOURCE_CHANGED", 409)
             if payload.source_bounds is None:
                 raise _error("REGION_BOUNDS_REQUIRED")
             if storage is None:

@@ -35,6 +35,11 @@ def _request(version, **overrides):
         "sourceBounds": [100, 100, 200, 200],
         "movingPoints": [[150, 150]],
         "referencePoints": [[170, 180]],
+        **(
+            {"sourceVersion": "sha-2", "targetVersion": "sha-1"}
+            if overrides.get("operation") == "save"
+            else {}
+        ),
         **overrides,
     }
 
@@ -249,10 +254,18 @@ def test_saved_region_is_hidden_after_source_replacement(tmp_path: Path, missing
                 database.commit()
         headers = _headers(client)
         stack, url = _stack(client, headers)
+        preview = client.post(
+            url + "/region-corrections", headers=headers, json=_request(stack["version"])
+        ).json()["regionalCorrections"][0]
         response = client.post(
             url + "/region-corrections",
             headers=headers,
-            json=_request(stack["version"], operation="save"),
+            json=_request(
+                stack["version"],
+                operation="save",
+                sourceVersion=preview["sourceVersion"],
+                targetVersion=preview["targetVersion"],
+            ),
         )
         assert response.status_code == 200, response.text
         assert response.json()["regionalCorrections"][0]["sourceVersion"]
@@ -263,6 +276,63 @@ def test_saved_region_is_hidden_after_source_replacement(tmp_path: Path, missing
             else:
                 slide.sha256 = "replacement-sha"
             database.commit()
+        assert client.get(url).json()["regionalCorrections"] == []
+
+
+@pytest.mark.parametrize("operation", ["preview", "save"])
+@pytest.mark.parametrize(
+    "slide_id,version_key", [("slide-2", "sourceVersion"), ("slide-1", "targetVersion")]
+)
+def test_region_rejects_preview_snapshot_after_digestless_source_changes(
+    tmp_path: Path, operation, slide_id, version_key
+):
+    _correction_tiles(tmp_path)
+    with _client(tmp_path, enabled=True) as client:
+        factory = session_factory(client.app.state.settings)
+        with factory() as database:
+            database.get(Slide, slide_id).sha256 = None
+            database.commit()
+        headers = _headers(client)
+        stack, url = _stack(client, headers)
+        preview = client.post(
+            url + "/region-corrections", headers=headers, json=_request(stack["version"])
+        ).json()["regionalCorrections"][0]
+        assert preview[version_key].startswith("updated:")
+        with factory() as database:
+            database.get(Slide, slide_id).display_name = "Source replaced after preview"
+            database.commit()
+        response = client.post(
+            url + "/region-corrections",
+            headers=headers,
+            json=_request(
+                stack["version"],
+                operation=operation,
+                regionId=preview["regionId"],
+                sourceVersion=preview["sourceVersion"],
+                targetVersion=preview["targetVersion"],
+            ),
+        )
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["code"] == "COMPARISON_SOURCE_CHANGED"
+        assert client.get(url).json()["version"] == stack["version"]
+        assert client.get(url).json()["regionalCorrections"] == []
+        with factory() as database:
+            assert database.query(ComparisonRegionCorrection).count() == 0
+
+
+@pytest.mark.parametrize("missing", ["sourceVersion", "targetVersion", "both"])
+def test_region_save_requires_explicit_source_snapshots(tmp_path: Path, missing):
+    _correction_tiles(tmp_path)
+    with _client(tmp_path, enabled=True) as client:
+        headers = _headers(client)
+        stack, url = _stack(client, headers)
+        payload = _request(stack["version"], operation="save")
+        for key in ("sourceVersion", "targetVersion"):
+            if missing in (key, "both"):
+                payload.pop(key)
+        response = client.post(url + "/region-corrections", headers=headers, json=payload)
+        assert response.status_code == 422, response.text
+        assert response.json()["detail"]["code"] == "REGION_SOURCE_VERSIONS_REQUIRED"
         assert client.get(url).json()["regionalCorrections"] == []
 
 
