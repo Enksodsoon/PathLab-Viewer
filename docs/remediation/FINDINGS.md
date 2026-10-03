@@ -1,6 +1,6 @@
 # Findings register
 
-Current checkpoint: production9ea88b9 is verified; atomic assessment revision PR305 merged6331154 after all nine head gates. Lost acknowledgment PR304 is rebased for fresh checks. Combined43campaign findings retain all954source entries and29security subclaims. Delivery, specific live checks and external security/licensing facts remain open. See [requirement-level completion audit](CAMPAIGN_COMPLETION_AUDIT.md); historical release statements below retain their original scope.
+Current checkpoint: production c570116 is verified. Atomic revision admission PR305 and acknowledgment recovery PR304 are delivered together after all nine fresh main gates, protected restore and native save/reload/viewer checks. All 43 campaign findings, 954 source entries and 29 aggregate subclaims are retained. Specific remaining production observations/confirmations, external security facts and strict accountable software admission keep the campaign open. See [requirement-level completion audit](CAMPAIGN_COMPLETION_AUDIT.md); earlier release statements below are historical.
 
 954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Reviewed PRs 267–270 and 272 are deployed at `3cb26bc`; remaining production checks and two external security facts keep the campaign open. The 29 separate security subclaims retain their individual dispositions.
 
