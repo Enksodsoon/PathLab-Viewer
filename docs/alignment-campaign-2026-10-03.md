@@ -91,6 +91,8 @@ group. Private bounded access receipts retain URLs, byte ceilings, redirects,
 HTTP status, body hashes and ZIP64 offsets. No bulk image download or dataset
 admission occurred. Final held-out qualification still requires admitted,
 calibrated, disjoint image pairs with complete independent ground truth.
+The [bounded access receipt](alignment-results/public-screening-2026-10-03/dataset-access.json)
+records the official URLs, response ceilings and hashes without response bodies.
 
 ## Frozen public screening results
 
