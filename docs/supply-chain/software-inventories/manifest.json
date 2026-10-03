@@ -2,27 +2,27 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "281798df10aff2c8b6c577fe55c295113a90cd57ebd9bc4249fa894c8dd1f46e",
+      "sha256": "509c53f07f3128e20b223a33f0b2bfa178fb42ebdc25c9c30282819585a75d2a",
       "sizeBytes": 1627548
     },
     {
       "path": "build.cdx.json",
-      "sha256": "38396fe1d158da8963af7382c6a3878f4fab3170d0d40925a2b00c56cbffc87c",
+      "sha256": "b734820f80e7bd9e92ec9a5c2c9184b4a48374c80cb46990c165e74bad1d401b",
       "sizeBytes": 730611
     },
     {
       "path": "build.spdx.json",
-      "sha256": "d1248cfd214646cd2500410fe064bd296447bdbdafe5787e0d0aca70a52e4fc8",
+      "sha256": "99a688d95e84d1a24c2d04b0906143448348a57ed7c05746f9acbc37241c4ea4",
       "sizeBytes": 590197
     },
     {
       "path": "source.cdx.json",
-      "sha256": "d4c6c6390e2fa99c841b30ba1ae216c95ea11f8d02891a0c612133623704e983",
+      "sha256": "9f73c4b3dd3db110ff08bd06ed7cc8b5bada90afcf45c0766ffe1fae4bda1f79",
       "sizeBytes": 773165
     },
     {
       "path": "source.spdx.json",
-      "sha256": "d8b57d7f69d210fc3183281faca11475865c54b9deef66ac0d58526923b1f7f9",
+      "sha256": "a2d45109972462c7acb79ed2f1fffe1685231dff3b29717a45f989b615ea0c88",
       "sizeBytes": 623847
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-03T03:07:32Z",
+  "generatedAt": "2026-10-03T16:15:27Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -153,10 +153,10 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "0a32f438c8ac51bb9600fe9956df7c22e017bce0",
+      "gitBlob": "b67b318af69337f58e6b2082988cd7715315fda7",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "f0aed6f635d30d5b5893c444f0688aed73bc2f25f4f9ca95b4c8bf9cc169ce0e",
-      "sizeBytes": 41188
+      "sha256": "62f00aa5774bac6fde04a3e2066021dafd9703c519f51b3373778f73f3d4bbe5",
+      "sizeBytes": 41635
     },
     {
       "gitBlob": "ce6986e98ed5ed8d8dcfd1aaad0ba40135c4826a",
@@ -1454,6 +1454,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "42c360682477e4baada74684732520b90921c1f0",
-  "subjectTree": "67994ee3666e38051b217e914d12234c484d7156"
+  "subjectCommit": "db28e6cf5e90c60e226a9e770d49a6b917cebfd3",
+  "subjectTree": "1e1b8843f39c708e62a8117ad415662fc92be223"
 }

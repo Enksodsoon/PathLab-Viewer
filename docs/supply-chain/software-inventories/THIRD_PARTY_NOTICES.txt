@@ -33930,7 +33930,7 @@ Notice files: NONE RECORDED
 
 ID: asset:package-icon-set:npm:@phosphor-icons/react@2.1.10#imported-svg-icons
 Name: npm:@phosphor-icons/react@2.1.10#imported-svg-icons
-Version: be92069fbdd8567c
+Version: 23004817896d854a
 License: MIT
 Admission: ADMITTED
 Source: Exact @phosphor-icons/react package bound by the dependency inventory; only statically imported glyph definitions are shipped.
