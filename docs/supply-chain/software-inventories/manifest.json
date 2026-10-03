@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "54b8f961bafb22325f562630d48cd27f7c1fb5391adcd827ed5079982ed7bd40",
+      "sha256": "a08d29032d3d994152358bb1fbc6bad0f8b782df24dc3ba47a54ca7d50783fb6",
       "sizeBytes": 727763
     },
     {
       "path": "build.spdx.json",
-      "sha256": "6d0edf670902b3c2fe29b2f8b2cd93179f2b49d8459d5cc070be19c8934ca2fa",
+      "sha256": "208a8aeef88689692fb552cb5be6c4d676587bc5590a5ef8adb25321d26f5d4c",
       "sizeBytes": 587873
     },
     {
       "path": "source.cdx.json",
-      "sha256": "c0bb65824fa77c3b06d094448cf6aa672d1faf230cf58ab1f7959fc4c10ae833",
+      "sha256": "84ad33ededcfecc43ed2d3181fb55cc311ec46c1f1d6d311ca43606702d1f782",
       "sizeBytes": 770317
     },
     {
       "path": "source.spdx.json",
-      "sha256": "5cf41e25f455b5ed26167febd25688d57b569fa66304634eb6848f3b30d456f0",
+      "sha256": "990c6daf6ca2e594b8b4e25e9295e897d67aeb85cb4fc941ce59b7aa6f57b5d2",
       "sizeBytes": 621523
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-03T02:02:21Z",
+  "generatedAt": "2026-10-03T10:42:16Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -1399,6 +1399,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "caeb2f90ca701ea042ae6dce1b1f52f84f786ebd",
-  "subjectTree": "0d085d5619d494c13a891b10c6033775b59766f1"
+  "subjectCommit": "9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9",
+  "subjectTree": "213e70cdba36c134f61c61e6135925f107af0f37"
 }

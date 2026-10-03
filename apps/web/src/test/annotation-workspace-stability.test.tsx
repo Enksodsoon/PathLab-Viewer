@@ -358,8 +358,98 @@ async function openAnnotationList() {
   if (trigger) fireEvent.click(trigger)
 }
 
+it.each([320, 1200])('keeps a dismissed inspector closed through save acknowledgements at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  const pending = deferred<AnnotationBatchResult>()
+  const workflow = services({ batch: vi.fn(() => pending.promise) })
+  const onAttachmentChange = vi.fn()
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={workflow}
+      onAttachmentChange={onAttachmentChange}
+    />,
+  )
+  await attachAndDrawPoint(onAttachmentChange)
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /point annotation/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Save annotations' }))
+  await waitFor(() => expect(workflow.batch).toHaveBeenCalledOnce())
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  await act(async () => {
+    pending.resolve(successfulBatch(vi.mocked(workflow.batch).mock.calls[0][0]))
+    await pending.promise
+  })
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+})
+
+it.each([320, 1200])('keeps a dismissed inspector closed while undoing and redoing a selected annotation edit at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({}, [record(101)])}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /Finding 101/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.change(within(inspector).getByRole('textbox', { name: 'Title' }), {
+    target: { value: 'Edited selected annotation' },
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: /Edited selected annotation/ })).toHaveClass('is-selected')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  expect(screen.getByRole('button', { name: /Finding 101/ })).toHaveClass('is-selected')
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+  expect(screen.getByRole('button', { name: /Edited selected annotation/ })).toHaveClass('is-selected')
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+})
+
 beforeEach(() => {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
+})
+
+it.each([320, 1200])('opens the inspector for a different annotation at width %s', async (width) => {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+  render(
+    <AnnotationWorkspace
+      slideId="slide-1"
+      slideName="Private slide"
+      services={services({}, [record(101), record(102)])}
+      onAttachmentChange={vi.fn()}
+    />,
+  )
+  await openAnnotationList()
+  fireEvent.click(await screen.findByRole('button', { name: /Finding 101/ }))
+  const inspector = await screen.findByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })
+  fireEvent.click(within(inspector).getByRole('button', { name: 'Close annotation inspector' }))
+  expect(screen.getByRole('button', { name: 'Open annotation inspector' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: /Finding 102/ }))
+  expect(screen.getByRole(width === 320 ? 'dialog' : 'region', {
+    name: 'Annotation inspector',
+  })).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Finding 102')
 })
 
 afterEach(() => {

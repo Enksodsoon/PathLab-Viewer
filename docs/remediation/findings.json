@@ -12699,8 +12699,8 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "in progress; protected production68e0a038 deployed; three folder/modal candidates pass four local Windows browser targets, but Linux fullstack native folder move lacks PATCH acknowledgment; diagnostic collection added before further repair. External security facts and live Cancel confirmation remain open.",
-  "verification": "Production 68e0a038f75c26fbc7162c7f1c92c5c18770607f: all nine required exact-main checks successful; original WebKit navigator failure retained, 10 local repeats and CI rerun passed without source changes. Protected deploy37093695257 completed; restore drill69tables106325files/schema20260907_0037; public readiness/liveness200. Fresh signed-in Edge Library/QuickLook/private viewer and synthetic annotation autosave/reload persistence passed. At preceding0d11, selected native Classroom expiry persisted and revocation rejected the correct code. Source aliases remain954; current campaign is not closed.",
+  "campaignStatus": "in progress; protected production ae9b1ac verified; candidate PR295 Inspector dismissal repair passes local checks and prior-head nine delivery gates. Native production drag, desktop DOM focus, specific assessment workflows and external security facts remain open.",
+  "verification": "Latest verified production ae9b1ac: all nine exact-main delivery checks passed; protected deployment37116218798 succeeded with actual restore69tables/106325files/schema20260907_0037. Public health200, anonymous checked admin denials401; signed-in synthetic tiles/annotation persistence, accessible folder move persistence, descendant omission and modal Escape passed. Native drag remains unverified. Historical verification statements retained in verificationHistory;954 source entries and29 aggregate subclaims preserved.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
@@ -12872,16 +12872,16 @@
     {
       "key": "campaign-folder-drag-layout-shift",
       "status": "confirmed",
-      "repairState": "merged",
+      "repairState": "deployed; live qualification pending",
       "evidence": "Native full-stack drag stalled without PATCH on68e0a038; conditional top-level target insertion shifts folder rows during dragstart. Minimal native stable-row drag succeeds; equivalent row insertion stalls. Out-of-flow top-level target yields intended native drop event, real200 folder PATCH and persisted parent after reload. Final Chromium scenario also verifies native top-level drop, descendant-cycle prevention and accessible Move persistence.",
-      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038."
+      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038. Latest release update: included in protected ae9b1ac, deployment37116218798 succeeded after all nine exact-main gates. Native Edge new-folder and Move dialog Escape close only the modal and retain the navigator. Accessible Move persisted after reload and parent destination excluded its descendant. A single native drag gesture produced no hierarchy change without dragstart/network evidence; native production drag remains unverified."
     },
     {
       "key": "campaign-folder-modal-escape-conflict",
       "status": "confirmed",
-      "repairState": "merged",
+      "repairState": "deployed",
       "evidence": "After successful native folder move, Escape left Move dialog open: navigator document handler prevented native dialog cancel and closed navigation instead. Yielding default-prevented and open-dialog key events lets native cancellation close Move while preserving navigator. Chromium real-backend regression passes.",
-      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038."
+      "qualification": "PR288 merged at c1ab7f7ad414325f298193d5411a8d747b929f43 after all nine exact-head delivery checks passed at b9f40bd. Retained Linux fullstack37099639768 passed27 cases with1 skip and no failures; prior failure traces remain historical evidence. Exact-main CI37100724086/Security37100724053 and protected delivery/live qualification remain pending. Production remains68e0a038. Latest release update: included in protected ae9b1ac, deployment37116218798 succeeded after all nine exact-main gates. Native Edge new-folder and Move dialog Escape close only the modal and retain the navigator. Accessible Move persisted after reload and parent destination excluded its descendant. A single native drag gesture produced no hierarchy change without dragstart/network evidence; native production drag remains unverified."
     },
     {
       "key": "campaign-folder-native-custom-data-loss",
@@ -12893,9 +12893,9 @@
     {
       "key": "campaign-annotation-mobile-command-clipping",
       "status": "confirmed",
-      "repairState": "deployed; live qualification pending",
+      "repairState": "deployed",
       "evidence": "Released68e0a03 at320x568: command bar width208 at x56; Inspector button x345.625,width44, no scrollable overflow. Local native browser regression fails the same hit/viewport checks before repair. Desktop max-width and max-content rules survive the mobile breakpoint; small save cluster also exceeds available width. Mobile resets desktop sizing and uses a two-row grid preserving44px controls and visible save status. List offset accounts for the second row.",
-      "qualification": "All60 annotation-responsive browser checks pass across Chromium/Firefox/WebKit/mobile Chromium, including320/390/760/844/1584 widths. Real-backend320px point creation,title edit,acknowledgment and reload pass all four targets. Build/TypeScript,changed-file lint,security baseline and both inventory validators pass. Protected release and live repair verification remain pending. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only."
+      "qualification": "All60 annotation-responsive browser checks pass across Chromium/Firefox/WebKit/mobile Chromium, including320/390/760/844/1584 widths. Real-backend320px point creation,title edit,acknowledgment and reload pass all four targets. Build/TypeScript,changed-file lint,security baseline and both inventory validators pass. Protected release and live repair verification remain pending. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only. Native Edge at320x568 on bd69848 showed all five controls, selected annotation edit, Undo/Redo, offline Save retention and explicit retry acknowledgement. Saved title and rectangle survived reload; fresh ae9b1ac reload retained both. This qualifies these selected paths, not physical devices or all annotation states."
     },
     {
       "key": "campaign-annotation-desktop-inspector-focus",
@@ -12907,10 +12907,10 @@
     {
       "key": "campaign-assessment-v1-publish-shape-validation",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "deployed",
       "evidence": "At released-code f96ead4/bd69848, compile_assessment accepts options as strings and answerKey as an array. Learner rendering expects id/label objects; score_item raises AttributeError on the accepted array answer key. Signed-in synthetic API regression also proves preflight incorrectly marks these draft shapes publishable. Seven compiler and two API regressions fail before repair.",
       "repair": "Validate option objects with nonempty string id/label, answer-key object shape and choice optionIds string-array shape at the existing v1 compilation boundary. Draft create/save remains available for incomplete documents; no migration, learner-data mutation, route or scoring-policy change.",
-      "qualification": "All nine new regressions and the 63-test affected assessment backend set pass. The API rejects invalid preview/publication with422, preserves the draft and revision, then publishes a corrected draft as version1. Frontend authoring/runtime22tests pass with a contract-valid100-question fixture and no missing-key warning. Ruff,mypy,changed-file ESLint,repository and security baseline pass. Protected delivery and applicable released verification remain pending.",
+      "qualification": "All nine new regressions and the 63-test affected assessment backend set pass. The API rejects invalid preview/publication with422, preserves the draft and revision, then publishes a corrected draft as version1. Frontend authoring/runtime22tests pass with a contract-valid100-question fixture and no missing-key warning. Ruff,mypy,changed-file ESLint,repository and security baseline pass. Protected delivery and applicable released verification remain pending. Delivery update 2026-10-03: PR292/294 merged after all nine exact-head gates; main ae9b1ac passed all nine required gates. Normally approved deployment37116218798 is in progress; released verification remains pending. Earlier candidate statements preserve historical evidence. Deployment update:37116218798 completed successfully at2026-10-03T10:38:42Z for exact ae9b1ac with actual restore schema20260907_0037,69tables,106325files,3286131731bytes. Health200 and checked anonymous admin denials401 pass. Signed-in synthetic tiles and saved annotation persist after a fresh released reload. Assessment-specific live verification remains open.",
       "callers": [
         "assessment_routes.compile_owned: preview and publish",
         "assessment_routes.preflight_draft",
@@ -12922,16 +12922,30 @@
     {
       "key": "campaign-assessment-v1-points-publication-validation",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "deployed",
       "evidence": "At13948ba the compiler raises uncaught decimal.InvalidOperation for invalid/NaN points, accepts Infinity and1e999999999 that fail scoring, and accepts totals outside existing Numeric(12,3) score columns. Information items skip compilation point checks but score_item still parses their unused points. Twelve new compiler/actual HTTP regressions fail before repair; valid boundary, prior shapes and negative Infinity already reject/pass as appropriate.",
       "repair": "Translate decimal parsing/quantization failures to the existing ASSESSMENT_POINTS_INVALID contract error; require finite nonnegative scored points and totals representable by existing score storage. Validate raw maximum and separately rounded item sums; preserve valid ROUND_HALF_UP scoring. Return zero for information before parsing unused points. Editable draft and revision/first publication behavior retained.",
-      "qualification": "77 affected assessment backend cases pass after repair; complete local backend1356 passed/100 skipped/0 failures/errors in648.968s; fresh protected gates remain pending. No migration, stored learner mutation, scoring/release policy or activation change.",
+      "qualification": "77 affected assessment backend cases pass after repair; complete local backend1356 passed/100 skipped/0 failures/errors in648.968s; fresh protected gates remain pending. No migration, stored learner mutation, scoring/release policy or activation change. Delivery update 2026-10-03: PR292/294 merged after all nine exact-head gates; main ae9b1ac passed all nine required gates. Normally approved deployment37116218798 is in progress; released verification remains pending. Earlier candidate statements preserve historical evidence. Deployment update:37116218798 completed successfully at2026-10-03T10:38:42Z for exact ae9b1ac with actual restore schema20260907_0037,69tables,106325files,3286131731bytes. Health200 and checked anonymous admin denials401 pass. Signed-in synthetic tiles and saved annotation persist after a fresh released reload. Assessment-specific live verification remains open.",
       "callers": [
         "assessment_routes.compile_owned: preview and publish",
         "assessment_routes.preflight_draft",
         "assessment_routes finalize attempt: score_item and Numeric(12,3) persistence"
       ],
       "ticket": "docs/remediation/tickets/assessment-v1-points-publication-validation.md"
+    },
+    {
+      "key": "campaign-annotation-inspector-save-reopen",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "At production bd69848 a dismissed Inspector reopens after history/save. At ae9b1ac AnnotationStore snapshots clone the selection Set on every emit; the workspace opens the Inspector on reference changes with unchanged nonempty selected IDs. Desktop/mobile selected-annotation Save regressions fail at the unintended reopen. Earlier fixture setup failures are retained separately.",
+      "repair": "Depend on ordered selected IDs rather than cloned Set identity; preserve primary selection order and existing opening on a different selection.",
+      "qualification": "69 affected annotation tests and all four browser targets pass. Frontend lint/build pass. All494 frontend tests pass. All64 annotation responsive browser matrix checks pass across four engines/targets with zero retries. Protected CI and released verification pending. Repository/security/software inventory validation pass; strict releaseAdmission remainsBLOCKED. No data-loss, physical-device or keyboard-focus claim follows from these checks. Review found no Critical/Important issue; selected-record history coverage improved before merge. All496 frontend tests now pass, including Undo/Redo retaining the same selected record at320/1200. Prior exact-head cafd1c1 passed all nine delivery gates (CI37117465927/Security37117465862); test/docs follow-up requires fresh exact-head gates. Real backend short-path annotation suite5passed, paired initial long-path run4passed/1failed retained; no broad Windows path root-cause claim. Candidate remains not deployed.",
+      "callers": [
+        "AnnotationStore.makeSnapshot and emit",
+        "AnnotationStore.setAutosaveStatus and acknowledge",
+        "AnnotationWorkspace Inspector selection effect"
+      ],
+      "ticket": "docs/remediation/tickets/annotation-inspector-selection-stability.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -12968,12 +12982,12 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "bd6984878bdc21719c5d890784369466b612d064",
-    "ciRun": 37106540538,
-    "securityRun": 37106540515,
-    "deploymentRun": 37107676115,
+    "sha": "ae9b1ac624c44388866e36e7be4759609f3dcb9b",
+    "ciRun": 37114671905,
+    "securityRun": 37114671870,
+    "deploymentRun": 37116218798,
     "deploymentConclusion": "success",
-    "completedAt": "2026-10-03T08:03:18Z",
+    "completedAt": "2026-10-03T10:38:42Z",
     "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
     "restore": {
       "schemaRevision": "20260907_0037",
@@ -12989,14 +13003,56 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "Fresh readyz and livez returned HTTP200. Existing synthetic B tiles and saved offline-recovery annotation rendered after reload in signed-in Edge.",
+    "liveEvidence": "Fresh readyz/livez200 and anonymous admin slides/assessment drafts401. Signed-in synthetic B tiles and the saved rectangle/title survived released reload at320x568. Accessible synthetic folder Move persisted after reload; parent destination omits its descendant. New-folder and Move dialog Escape preserve the Library navigator.",
     "remaining": [
-      "Released native folder moves and modal Escape",
-      "Released 320px annotation controls, acknowledgment and reload",
+      "Assessment-specific authenticated live qualification",
+      "Native production folder drag and desktop Inspector DOM focus",
+      "Inspector selection-stability candidate PR295: not deployed",
       "Action-time confirmation for specific synthetic upload cancellation",
       "External application-secret rotation and OneDrive sync/sharing facts",
-      "Final requirement-by-requirement campaign closure audit"
+      "Physical devices, bounded sustained soak and requirement-by-requirement campaign closure",
+      "Strict software admission remains BLOCKED; accountable licensing receipts required"
     ],
     "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
-  }
+  },
+  "previousProductionReleases": [
+    {
+      "sha": "bd6984878bdc21719c5d890784369466b612d064",
+      "ciRun": 37106540538,
+      "securityRun": 37106540515,
+      "deploymentRun": 37107676115,
+      "deploymentConclusion": "success",
+      "completedAt": "2026-10-03T08:03:18Z",
+      "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+      "restore": {
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69,
+        "fileCount": 106325,
+        "fileBytes": 3286131731,
+        "databaseIntegrity": "restored",
+        "filesIntegrity": "restored"
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "liveEvidence": "Fresh readyz and livez returned HTTP200. Existing synthetic B tiles and saved offline-recovery annotation rendered after reload in signed-in Edge.",
+      "remaining": [
+        "Released native folder moves and modal Escape",
+        "Released 320px annotation controls, acknowledgment and reload",
+        "Action-time confirmation for specific synthetic upload cancellation",
+        "External application-secret rotation and OneDrive sync/sharing facts",
+        "Final requirement-by-requirement campaign closure audit"
+      ],
+      "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
+    }
+  ],
+  "verificationHistory": [
+    {
+      "campaignStatus": "in progress; protected production68e0a038 deployed; three folder/modal candidates pass four local Windows browser targets, but Linux fullstack native folder move lacks PATCH acknowledgment; diagnostic collection added before further repair. External security facts and live Cancel confirmation remain open.",
+      "verification": "Production 68e0a038f75c26fbc7162c7f1c92c5c18770607f: all nine required exact-main checks successful; original WebKit navigator failure retained, 10 local repeats and CI rerun passed without source changes. Protected deploy37093695257 completed; restore drill69tables106325files/schema20260907_0037; public readiness/liveness200. Fresh signed-in Edge Library/QuickLook/private viewer and synthetic annotation autosave/reload persistence passed. At preceding0d11, selected native Classroom expiry persisted and revocation rejected the correct code. Source aliases remain954; current campaign is not closed."
+    }
+  ]
 }
