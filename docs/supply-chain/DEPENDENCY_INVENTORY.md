@@ -11,7 +11,7 @@ ratified architecture or authorizes deployment, qualification, or activation wor
 On 2026-10-03, the inventory was refreshed for the patched transitive `undici` and
 `brace-expansion` versions. Their registry artifact checksums and exact license text were verified;
 the current receipt is bound to implementation commit
-`6a0211b8c8995427313d7a155ddf68909aed2f01`.
+`3598ea7359bdbe57c57c9e59f945d233aa12145a`.
 
 The authoritative machine-readable record is
 [`dependency-inventory.json`](dependency-inventory.json). It contains 582 unique records:
@@ -74,13 +74,13 @@ patched tus snapshot and patch digest.
 Regenerate only when network retrieval is intentionally allowed:
 
 ```text
-python scripts/generate_dependency_inventory.py --subject 6a0211b8c8995427313d7a155ddf68909aed2f01
+python scripts/generate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
 ```
 
 Validate offline on every candidate head:
 
 ```text
-python scripts/validate_dependency_inventory.py --subject 6a0211b8c8995427313d7a155ddf68909aed2f01
+python scripts/validate_dependency_inventory.py --subject 3598ea7359bdbe57c57c9e59f945d233aa12145a
 python scripts/validate_combine_errors_removal.py
 python -m pytest -q tests/backend/test_dependency_inventory.py tests/backend/test_combine_errors_removal.py
 ```

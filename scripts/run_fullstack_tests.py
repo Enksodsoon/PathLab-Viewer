@@ -350,7 +350,8 @@ class ProcessManager:
         for name, log in self.logs.items():
             if not log.closed:
                 log.flush()
-            content = (self.directory / f"{name}.log").read_text(errors="replace")[-3000:]
+            limit = 65536 if name == "browser" else 3000
+            content = (self.directory / f"{name}.log").read_text(errors="replace")[-limit:]
             for key in ("PATHLAB_SECRET_KEY", "PATHLAB_E2E_PASSWORD"):
                 if self.env.get(key):
                     content = content.replace(self.env[key], "[redacted]")

@@ -28037,15 +28037,15 @@ SOFTWARE.
 
 END NOTICE pydantic-2.13.5/LICENSE
 
-ID: pypi:pyjwt@2.13.0
+ID: pypi:pyjwt@2.15.0
 Name: pyjwt
-Version: 2.13.0
+Version: 2.15.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/pyjwt/2.13.0/json
+Source: https://pypi.org/pypi/pyjwt/2.15.0/json
 Blockers: NONE
 Notice files:
-  - pyjwt-2.13.0/LICENSE sha256:797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5
+  - pyjwt-2.15.0/LICENSE sha256:797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5
 
 ID: pypi:pyopenssl@26.4.0
 Name: pyopenssl
@@ -28224,16 +28224,16 @@ SOFTWARE.
 
 END NOTICE pyyaml-6.0.3/LICENSE
 
-ID: pypi:setuptools@80.10.2
+ID: pypi:setuptools@83.0.0
 Name: setuptools
-Version: 80.10.2
+Version: 83.0.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/setuptools/80.10.2/json
+Source: https://pypi.org/pypi/setuptools/83.0.0/json
 Blockers: NONE
 Notice files:
-  - setuptools-80.10.2/LICENSE sha256:86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741
-  - setuptools-80.10.2/setuptools/config/NOTICE sha256:2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8
+  - setuptools-83.0.0/LICENSE sha256:86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741
+  - setuptools-83.0.0/setuptools/config/NOTICE sha256:2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8
 
 ID: pypi:six@1.17.0
 Name: six
@@ -28990,15 +28990,15 @@ Notice files:
   - tzdata-2026.3/LICENSE sha256:df58f69ea88683035d720b5375bcef0cf5aeaa98a1d098d572e0992c378deb46
   - tzdata-2026.3/licenses/LICENSE_APACHE sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
 
-ID: pypi:urllib3@2.7.0
+ID: pypi:urllib3@2.8.0
 Name: urllib3
-Version: 2.7.0
+Version: 2.8.0
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://pypi.org/pypi/urllib3/2.7.0/json
+Source: https://pypi.org/pypi/urllib3/2.8.0/json
 Blockers: NONE
 Notice files:
-  - urllib3-2.7.0/LICENSE.txt sha256:130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686
+  - urllib3-2.8.0/LICENSE.txt sha256:130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686
 
 ID: pypi:uvicorn@0.52.4
 Name: uvicorn

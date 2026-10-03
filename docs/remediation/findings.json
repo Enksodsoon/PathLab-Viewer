@@ -12699,7 +12699,7 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "in progress; PRs 267-270 and 272 deployed at 3cb26bc; remaining production checks and two external security facts remain open",
+  "campaignStatus": "in progress; production remains 3cb26bc; PR276 merged, PR277 merged; combined follow-up candidate awaits fresh checks, protected deployment, authenticated qualification and two external security facts",
   "verification": "Nine exact-main checks passed for 3cb26bc14ec64bc3dad85a29a6da823082615d6c, including fullstack rerun attempt 2 after one route-coverage failure. Protected deploy 36381707062 succeeded with restore drill and health checks. Signed-in Edge rendered synthetic Library and Quick Look tiles, adjacent navigation and command search; a 12 MiB synthetic upload reached Ready private and its viewer persisted after reload. A private annotation persisted after Save and reload. Disposable Classrooms rendered slide B, switched guide mode, collapsed the activity tray and acknowledged a rectangle mark without resetting to A; their new invitations were revoked. Public Study entry returned STUDY_MODE_DISABLED to a format-valid synthetic code. Teacher question acknowledgment, concurrent learner interaction and external security facts remain open.",
   "campaignFindings": [
     {
@@ -12833,6 +12833,41 @@
       "repairState": "deployed",
       "evidence": "Study delivered a slide after owner trash withdrew publication grants; shared lifecycle predicate now rejects trashed content while preserving pack/course/learner history and allowing owner restore. Native HTTP regression passes.",
       "qualification": "Released at 3cb26bc; applicable authenticated production behavior remains unverified"
+    },
+    {
+      "key": "campaign-upload-cancel-reservation",
+      "status": "confirmed",
+      "repairState": "merged-not-deployed",
+      "evidence": "At deployed 3cb26bc, paused Remove discarded the browser entry without a server DELETE; synthetic Codex QA cancel 004fc79 remained Uploading. PR 276 merged at 54f7c40f44115d498c27db3fe67ec2d08c21543c. Shared queue/backend admission lock regressions pass.",
+      "qualification": "Live cancellation/released reservation retest awaits deployment. Existing incomplete synthetic reservation remains in recoverable Trash pending specific permanent-deletion authorization."
+    },
+    {
+      "key": "campaign-deployment-closed-output-recovery",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "A real Bash closed-output reproduction kills recovery while its Docker output is written; PIPE interruption handling and detached recovery output pass pre/post-swap regressions. The failed remote deployment signal was not captured; this is consistent with the outage, not proof of its full cause.",
+      "qualification": "Existing 3cb26bc containers were restored healthy without release swap; new recovery code requires protected checks and deployment."
+    },
+    {
+      "key": "campaign-oci-lock-advisories",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "Current main OCI lock is affected by PyJWT/urllib3/setuptools advisories. Candidate pins 2.15.0/2.8.0/83.0.0, preserves OCI CLI 3.92.0 and upstream npm fixes, adds full hashed-lock audit. Local audit/pip check, 28 inventory regressions, and exact candidate security CI pass.",
+      "qualification": "Fresh combined functional checks and protected deployment pending; license admission stays fail closed."
+    },
+    {
+      "key": "campaign-annotation-queued-navigation-rejection",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "Held layer PATCH, queued reload or second PATCH, then slide replacement reproduced unhandled StaleWorkspaceOperationError on PR277 head 824ab69360f4d19435ac62014aeb5b2360f25941. Shared queue now skips obsolete operations. Unit checks and two real-backend navigation scenarios pass in Chromium, Firefox, WebKit and mobile Chromium.",
+      "qualification": "No stale-write/data-loss claim. Combined protected CI and production navigation qualification remain pending."
+    },
+    {
+      "key": "campaign-annotation-late-old-slide-error",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "Rejecting a held old-slide request after slide replacement reproduced an old-slide error banner and extra old-slide manifest request. Three layer failure handlers and reload entry now check captured workspace/store identity; 29 focused annotation tests pass.",
+      "qualification": "Active workspace failures retain error/recovery behavior. Protected CI and production qualification pending."
     }
   ],
   "currentClosureBranch": "main",
@@ -12854,5 +12889,18 @@
     },
     "evidence": "hardening-review.json",
     "originalSourceCountsPreserved": true
+  },
+  "followupRelease": {
+    "branch": "codex/remaining-release-integration",
+    "baseCommit": "0d11f2d7bfb8cd6a3c05f185bc3dd43ac8db8295",
+    "integratedPrs": [
+      281,
+      282,
+      283,
+      284
+    ],
+    "implementationCommit": "c16e4d787e1fcb14c847f1b6ca0fa0aaa2ff9892",
+    "qualification": "not deployed; fresh combined CI pending",
+    "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   }
 }

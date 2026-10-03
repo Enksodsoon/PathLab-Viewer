@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T01:18:24.842132Z",
+  "generatedAt": "2026-10-03T01:57:11.238261Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -13825,7 +13825,7 @@
         "deploy/backend-requirements.txt",
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "02bbd8a2728dac94f7d6a4a3d5de523afdadc90ca5b1476845ad3f505861ea63",
+      "metadataSha256": "6173d893ced0fe6e155dcbc85531df981c7412d4bead511f8eeaad0e667f31c9",
       "name": "cryptography",
       "noticeFiles": [
         {
@@ -13864,7 +13864,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b639cb5e4795c51f8be7b4834e190e05f5f6824679d090ee496f46d855c69566",
+      "metadataSha256": "5e02eb25b092ccba150d087ba1044d95833e390c6a83cbf49b5911e1be20682a",
       "name": "fastapi",
       "noticeFiles": [
         {
@@ -14771,7 +14771,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "20faf559f1a150d84e7b0e7567b933fb3d383e6ba82179a1caa32a44cdc96085",
+      "metadataSha256": "0de4f18187d0fc2318de8504c4178f2297bc7cfa7a55adfb6d013190aff8cff4",
       "name": "markupsafe",
       "noticeFiles": [
         {
@@ -15096,7 +15096,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "cc2fbd70696393eecd911a885495b4136c29f5ab1318b375a95ec2056d7dbdce",
+      "metadataSha256": "522bc00328e8fbeb1c70b0100411d50e102e008522eb09682091c67df9d0dd87",
       "name": "oci-cli",
       "noticeFiles": [
         {
@@ -15127,7 +15127,7 @@
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "462c351628cb46a9bd5608f508df518dba0322fd120f01c086279c73213cdda5",
+      "metadataSha256": "5f0896a661696bd546200d003ade29695f371b969b0491d16e37fcd4cd9406f3",
       "name": "oci",
       "noticeFiles": [
         {
@@ -15780,33 +15780,33 @@
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
-        "41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423",
-        "66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728"
+        "7a3742debf6b879e912dbb9819ceec1594be812452b78c5f2e2dfc56564954f8",
+        "b11c5f9791d7bf51c2b39a81ed669f6b2dbbd669df2942f6c60167e9e3d1abe4"
       ],
-      "artifact": "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz",
+      "artifact": "https://files.pythonhosted.org/packages/02/a5/5197bfd06417837ac079921c66fa6393f1dea3557272a263cebfef69e432/pyjwt-2.15.0.tar.gz",
       "blockers": [],
-      "checksum": "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423",
+      "checksum": "sha256:b11c5f9791d7bf51c2b39a81ed669f6b2dbbd669df2942f6c60167e9e3d1abe4",
       "checksumVerified": true,
       "distribution": "operator-tooling",
       "ecosystem": "pypi",
-      "id": "pypi:pyjwt@2.13.0",
+      "id": "pypi:pyjwt@2.15.0",
       "license": "MIT",
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "f696500a789add7ff2d4bf000bd7f32cf97bd24f962ba36c6b6f3580354f8175",
+      "metadataSha256": "d7d239d115c9442eed19860676c23a4132a38a3880d5722da57fe2e0bd80f570",
       "name": "pyjwt",
       "noticeFiles": [
         {
-          "path": "pyjwt-2.13.0/LICENSE",
+          "path": "pyjwt-2.15.0/LICENSE",
           "sha256": "797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5"
         }
       ],
       "optional": false,
       "purpose": "OCI deployment tooling dependency",
       "role": "deployment-only",
-      "source": "https://pypi.org/pypi/pyjwt/2.13.0/json",
-      "version": "2.13.0"
+      "source": "https://pypi.org/pypi/pyjwt/2.15.0/json",
+      "version": "2.15.0"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -15887,7 +15887,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "3bbfaba3c2f97623da2a353067b509c493110ae3be1fbddcb2eae593e294dfc2",
+      "metadataSha256": "5bbd730075bcfd67860e03d3bf67e844824e1b6e3df94c9b39c6556cff2ae193",
       "name": "python-dotenv",
       "noticeFiles": [
         {
@@ -16153,37 +16153,37 @@
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
-        "8b0e9d10c784bf7d262c4e5ec5d4ec94127ce206e8738f29a437945fbc219b70",
-        "95b30ddfb717250edb492926c92b5221f7ef3fbcc2b07579bcd4a27da21d0173"
+        "025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef",
+        "29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3"
       ],
-      "artifact": "https://files.pythonhosted.org/packages/76/95/faf61eb8363f26aa7e1d762267a8d602a1b26d4f3a1e758e92cb3cb8b054/setuptools-80.10.2.tar.gz",
+      "artifact": "https://files.pythonhosted.org/packages/34/26/f5d29e25ffdb535afef2d35cdb55b325298f96debd670da4c325e08d70f4/setuptools-83.0.0.tar.gz",
       "blockers": [],
-      "checksum": "sha256:8b0e9d10c784bf7d262c4e5ec5d4ec94127ce206e8738f29a437945fbc219b70",
+      "checksum": "sha256:025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef",
       "checksumVerified": true,
       "distribution": "operator-tooling",
       "ecosystem": "pypi",
-      "id": "pypi:setuptools@80.10.2",
+      "id": "pypi:setuptools@83.0.0",
       "license": "MIT",
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "9369a7d952eb4d60b1e1e925cea063a0d00226449f8aa346159d10314098042c",
+      "metadataSha256": "ec6fb3ae8cd5054d89efca6fce7d2e88f58c8b61236bee0bac429fcb79de38fe",
       "name": "setuptools",
       "noticeFiles": [
         {
-          "path": "setuptools-80.10.2/LICENSE",
+          "path": "setuptools-83.0.0/LICENSE",
           "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
         },
         {
-          "path": "setuptools-80.10.2/setuptools/config/NOTICE",
+          "path": "setuptools-83.0.0/setuptools/config/NOTICE",
           "sha256": "2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8"
         }
       ],
       "optional": false,
       "purpose": "OCI deployment tooling dependency",
       "role": "deployment-only",
-      "source": "https://pypi.org/pypi/setuptools/80.10.2/json",
-      "version": "80.10.2"
+      "source": "https://pypi.org/pypi/setuptools/83.0.0/json",
+      "version": "83.0.0"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -16283,7 +16283,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "b61576e60291d87c730a9c652a957e491421e6012a23129422ea2e3272260725",
+      "metadataSha256": "bcb5f777ca2aa3dbcc328ecf98b132a1c064cc79d605505ff1ab810ac8db5fe8",
       "name": "sqlalchemy",
       "noticeFiles": [
         {
@@ -16499,33 +16499,33 @@
     {
       "admission": "RECORDED_UNREVIEWED",
       "allLockedSha256": [
-        "231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c",
-        "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+        "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
+        "63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63"
       ],
-      "artifact": "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz",
+      "artifact": "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz",
       "blockers": [],
-      "checksum": "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c",
+      "checksum": "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63",
       "checksumVerified": true,
       "distribution": "operator-tooling",
       "ecosystem": "pypi",
-      "id": "pypi:urllib3@2.7.0",
+      "id": "pypi:urllib3@2.8.0",
       "license": "MIT",
       "manifestRefs": [
         "deploy/oci-cli-requirements.txt"
       ],
-      "metadataSha256": "75b89d3859397532f4af5efb511f8defa0d3000921a03c49eb64994a81ea812f",
+      "metadataSha256": "5315e7401db3cacccd0c2ce5daf81f752a9cc3614b18c37f2b79930b7159ce2f",
       "name": "urllib3",
       "noticeFiles": [
         {
-          "path": "urllib3-2.7.0/LICENSE.txt",
+          "path": "urllib3-2.8.0/LICENSE.txt",
           "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
         }
       ],
       "optional": false,
       "purpose": "OCI deployment tooling dependency",
       "role": "deployment-only",
-      "source": "https://pypi.org/pypi/urllib3/2.7.0/json",
-      "version": "2.7.0"
+      "source": "https://pypi.org/pypi/urllib3/2.8.0/json",
+      "version": "2.8.0"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -16622,7 +16622,7 @@
       "manifestRefs": [
         "deploy/backend-requirements.txt"
       ],
-      "metadataSha256": "99758eca11304f49d64748cd227c05aff7ece13a2bfc0b4c4b3d739018fe1382",
+      "metadataSha256": "44ab0a28235cdf56de2375f92e81e7b491e5a3de114fa04538bee949e98e9051",
       "name": "uvloop",
       "noticeFiles": [
         {
@@ -17976,9 +17976,9 @@
       "sha256": "a7ffa0db664ba783105e140c9a7459526369867a2a6481653e8f83c8f73faba6"
     },
     {
-      "gitBlob": "3c21421766a6526f8b82bd519c23a70050fc64e4",
+      "gitBlob": "81ff038fd1f2e3a0c144f64b40a126b716b22e02",
       "path": "deploy/oci-cli-requirements.txt",
-      "sha256": "8ae56866d9ef2d4b26ee6081ca5df481be8a750cb42189dfc7b41e3062b6e63e"
+      "sha256": "91465ba4b792c73057900edf45e3fe2c95d36b6e7772a2edc148d7d8af3644f7"
     },
     {
       "gitBlob": "dbc9ff22999a29b6582644621119d31b8c6b3c46",
@@ -17991,9 +17991,9 @@
       "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
     },
     {
-      "gitBlob": "11bf642d08f36a3a844c13410b289e03c0a420e4",
+      "gitBlob": "951a7179c0c92de913480a0d4c97fd044ed98020",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "1982f56dc0d2dad1ff94a688ba8c7f9222b3e3d861abaa0eb494d3b32fe6133d"
+      "sha256": "84b3b42b3d9b4028d8cfa014b6cfde8219e2677cfecf1db9aa4ce58f7fb85007"
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -18069,6 +18069,11 @@
       "gitBlob": "778edb20730ef48c01002248f4d51e7752c13487",
       "path": "docs/supply-chain/notice-material/sha256/11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b",
       "sha256": "11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b"
+    },
+    {
+      "gitBlob": "e6183d0276b26c5b87aecccf8d0d5bcd7b1148d4",
+      "path": "docs/supply-chain/notice-material/sha256/130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+      "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
     },
     {
       "gitBlob": "e4bf1d69b1bb0df5acf1278e583264acdc1eefc5",
@@ -18159,6 +18164,11 @@
       "gitBlob": "c7e27478a3eff8862ca150f10d1b93a5ac866af2",
       "path": "docs/supply-chain/notice-material/sha256/2dc0465729366c3a7890dfa9e972a1ba7048a26c02116fb8b419a6a1ac110149",
       "sha256": "2dc0465729366c3a7890dfa9e972a1ba7048a26c02116fb8b419a6a1ac110149"
+    },
+    {
+      "gitBlob": "01864511b0f52a6bf944f70b5e15b75364791935",
+      "path": "docs/supply-chain/notice-material/sha256/2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8",
+      "sha256": "2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8"
     },
     {
       "gitBlob": "b98294335901b5c1c52d02d653c316393d666175",
@@ -18406,6 +18416,11 @@
       "sha256": "77c9ee6a9c5d5782fb0c50b50d101189116314c14f7df0a1b0d385fc96a7ba49"
     },
     {
+      "gitBlob": "fd0ecbc889c067a562b3a745c9d2d7934f87d64b",
+      "path": "docs/supply-chain/notice-material/sha256/797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5",
+      "sha256": "797a7a20231d4c433e9f1911db1731d06b5828b98f499819a034f7c0f56f5ce5"
+    },
+    {
       "gitBlob": "56420a6a06bd156003ce69970b50c67176f2afe5",
       "path": "docs/supply-chain/notice-material/sha256/79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231",
       "sha256": "79bad9f51738814f83251ae89460326b2ff2ea19ff5f71ab8f7636b2e17bb231"
@@ -18434,6 +18449,11 @@
       "gitBlob": "0c7f4283a4131ec69d72bc35121dde223e5e9992",
       "path": "docs/supply-chain/notice-material/sha256/864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0",
       "sha256": "864ae9e4ed75e1571a3bcf5dc9070264213445b32e7e2af5bf60eba46fb656d0"
+    },
+    {
+      "gitBlob": "1bb5a44356f00884a71ceeefd24ded6caaba2418",
+      "path": "docs/supply-chain/notice-material/sha256/86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741",
+      "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
     },
     {
       "gitBlob": "b24e6350cafa3bc6f5731153aa5672a1ab477aa4",
@@ -18831,6 +18851,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "6a0211b8c8995427313d7a155ddf68909aed2f01",
-  "subjectTree": "36f570e97eea6f56b24261905481afc04620a358"
+  "subjectCommit": "3598ea7359bdbe57c57c9e59f945d233aa12145a",
+  "subjectTree": "becf24b03c1013a71a3873b983c552c9c87e9f8f"
 }

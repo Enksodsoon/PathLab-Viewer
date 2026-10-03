@@ -22728,21 +22728,21 @@
       "version": "2.13.5"
     },
     {
-      "bom-ref": "dependency:pypi:pyjwt@2.13.0",
+      "bom-ref": "dependency:pypi:pyjwt@2.15.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/02/a5/5197bfd06417837ac079921c66fa6393f1dea3557272a263cebfef69e432/pyjwt-2.15.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/pyjwt/2.13.0/json"
+          "url": "https://pypi.org/pypi/pyjwt/2.15.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423"
+          "content": "b11c5f9791d7bf51c2b39a81ed669f6b2dbbd669df2942f6c60167e9e3d1abe4"
         }
       ],
       "licenses": [
@@ -22754,7 +22754,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:pyjwt@2.13.0"
+          "value": "pypi:pyjwt@2.15.0"
         },
         {
           "name": "pathlab:role",
@@ -22773,9 +22773,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/pyjwt@2.13.0",
+      "purl": "pkg:pypi/pyjwt@2.15.0",
       "type": "library",
-      "version": "2.13.0"
+      "version": "2.15.0"
     },
     {
       "bom-ref": "dependency:pypi:pyopenssl@26.4.0",
@@ -23130,21 +23130,21 @@
       "version": "6.0.3"
     },
     {
-      "bom-ref": "dependency:pypi:setuptools@80.10.2",
+      "bom-ref": "dependency:pypi:setuptools@83.0.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/76/95/faf61eb8363f26aa7e1d762267a8d602a1b26d4f3a1e758e92cb3cb8b054/setuptools-80.10.2.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/34/26/f5d29e25ffdb535afef2d35cdb55b325298f96debd670da4c325e08d70f4/setuptools-83.0.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/setuptools/80.10.2/json"
+          "url": "https://pypi.org/pypi/setuptools/83.0.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "8b0e9d10c784bf7d262c4e5ec5d4ec94127ce206e8738f29a437945fbc219b70"
+          "content": "025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef"
         }
       ],
       "licenses": [
@@ -23156,7 +23156,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:setuptools@80.10.2"
+          "value": "pypi:setuptools@83.0.0"
         },
         {
           "name": "pathlab:role",
@@ -23175,9 +23175,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/setuptools@80.10.2",
+      "purl": "pkg:pypi/setuptools@83.0.0",
       "type": "library",
-      "version": "80.10.2"
+      "version": "83.0.0"
     },
     {
       "bom-ref": "dependency:pypi:six@1.17.0",
@@ -23580,21 +23580,21 @@
       "version": "2026.3"
     },
     {
-      "bom-ref": "dependency:pypi:urllib3@2.7.0",
+      "bom-ref": "dependency:pypi:urllib3@2.8.0",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz"
+          "url": "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz"
         },
         {
           "type": "vcs",
-          "url": "https://pypi.org/pypi/urllib3/2.7.0/json"
+          "url": "https://pypi.org/pypi/urllib3/2.8.0/json"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"
+          "content": "63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63"
         }
       ],
       "licenses": [
@@ -23606,7 +23606,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "pypi:urllib3@2.7.0"
+          "value": "pypi:urllib3@2.8.0"
         },
         {
           "name": "pathlab:role",
@@ -23625,9 +23625,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:pypi/urllib3@2.7.0",
+      "purl": "pkg:pypi/urllib3@2.8.0",
       "type": "library",
-      "version": "2.7.0"
+      "version": "2.8.0"
     },
     {
       "bom-ref": "dependency:pypi:uvicorn@0.52.4",
@@ -26162,7 +26162,7 @@
         "dependency:pypi:pydantic-extra-types@2.11.1",
         "dependency:pypi:pydantic-settings@2.15.0",
         "dependency:pypi:pydantic@2.13.5",
-        "dependency:pypi:pyjwt@2.13.0",
+        "dependency:pypi:pyjwt@2.15.0",
         "dependency:pypi:pyopenssl@26.4.0",
         "dependency:pypi:python-dateutil@2.9.0.post0",
         "dependency:pypi:python-dotenv@1.2.3",
@@ -26170,7 +26170,7 @@
         "dependency:pypi:pyvips@3.2.0",
         "dependency:pypi:pyyaml@6.0.2",
         "dependency:pypi:pyyaml@6.0.3",
-        "dependency:pypi:setuptools@80.10.2",
+        "dependency:pypi:setuptools@83.0.0",
         "dependency:pypi:six@1.17.0",
         "dependency:pypi:sqlalchemy@2.0.52",
         "dependency:pypi:starlette@1.6.0",
@@ -26179,7 +26179,7 @@
         "dependency:pypi:typing-extensions@4.16.0",
         "dependency:pypi:typing-inspection@0.4.4",
         "dependency:pypi:tzdata@2026.3",
-        "dependency:pypi:urllib3@2.7.0",
+        "dependency:pypi:urllib3@2.8.0",
         "dependency:pypi:uvicorn@0.52.4",
         "dependency:pypi:uvloop@0.22.1",
         "dependency:pypi:watchfiles@1.2.0",
@@ -26227,7 +26227,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:4d5f531144b743e72da8dca5b254e11de6be86dd"
+      "ref": "pathlab:build:caeb2f90ca701ea042ae6dce1b1f52f84f786ebd"
     },
     {
       "dependsOn": [],
@@ -28271,7 +28271,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:pyjwt@2.13.0"
+      "ref": "dependency:pypi:pyjwt@2.15.0"
     },
     {
       "dependsOn": [],
@@ -28303,7 +28303,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:setuptools@80.10.2"
+      "ref": "dependency:pypi:setuptools@83.0.0"
     },
     {
       "dependsOn": [],
@@ -28339,7 +28339,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:pypi:urllib3@2.7.0"
+      "ref": "dependency:pypi:urllib3@2.8.0"
     },
     {
       "dependsOn": [],
@@ -28528,15 +28528,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:4d5f531144b743e72da8dca5b254e11de6be86dd",
+      "bom-ref": "pathlab:build:caeb2f90ca701ea042ae6dce1b1f52f84f786ebd",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/4d5f531144b743e72da8dca5b254e11de6be86dd"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/caeb2f90ca701ea042ae6dce1b1f52f84f786ebd"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/4d5f531144b743e72da8dca5b254e11de6be86dd"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/caeb2f90ca701ea042ae6dce1b1f52f84f786ebd"
         }
       ],
       "licenses": [
@@ -28567,13 +28567,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@4d5f531144b743e72da8dca5b254e11de6be86dd",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@caeb2f90ca701ea042ae6dce1b1f52f84f786ebd",
       "type": "application",
-      "version": "4d5f531144b743e72da8dca5b254e11de6be86dd"
+      "version": "caeb2f90ca701ea042ae6dce1b1f52f84f786ebd"
     },
-    "timestamp": "2026-10-03T01:20:50Z"
+    "timestamp": "2026-10-03T02:02:21Z"
   },
-  "serialNumber": "urn:uuid:4d5f5311-44b7-43e7-ada8-dca5b254e11d",
+  "serialNumber": "urn:uuid:caeb2f90-ca70-4ea0-a2ae-6dce1b1f52f8",
   "specVersion": "1.6",
   "version": 1
 }
