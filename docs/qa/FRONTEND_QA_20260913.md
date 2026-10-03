@@ -534,3 +534,18 @@ The initial protected browser run ([36408690799](https://github.com/Enksodsoon/P
 ## PR #277 follow-up — dependency audit remediation (2026-10-03)
 
 The first current-head Security run found 14 advisories in the unchanged dependency graph: five high advisories across transitive `undici` and `brace-expansion`, plus lower-severity findings. The workspace overrides now pin `undici` to 8.10.2 and `brace-expansion` to 5.0.12, the patched versions identified by the [undici advisory](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5) and [brace-expansion advisory](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr). `pnpm audit --audit-level low` now reports no known vulnerabilities. After the lockfile update, lint passed, Vitest passed 81 files / 486 tests, the production build passed, and the focused annotation readiness workflow passed across all four browser projects. The new pushed head still needs protected CI.
+
+## PR #277 follow-up — supply-chain receipt repair (2026-10-03)
+
+The refreshed backend workflow caught that the checked-in dependency inventory still listed the
+previous `undici` and `brace-expansion` versions. Their exact registry archives now have verified
+integrity values and captured MIT license text. The dependency inventory reconciles all 582
+lockfile and external-input records and validates against subject
+`6a0211b8c8995427313d7a155ddf68909aed2f01`; its current fail-closed count is 119. The dependent
+SPDX, CycloneDX, and third-party-notice outputs were regenerated against subject
+`4d5f531144b743e72da8dca5b254e11de6be86dd`. Their validator passes for 612 source components;
+release admission remains explicitly `BLOCKED` by unresolved records in the broader inventory.
+
+The dependency-inventory and combine-errors regression tests passed, the asset-rights ledger
+validated 16 records, and the targeted Ruff checks passed. The regenerated software inventory and
+this evidence update still require the current-head protected CI run.
