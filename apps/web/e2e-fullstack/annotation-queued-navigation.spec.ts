@@ -12,8 +12,10 @@ for (const action of ['reload', 'layer patch']) {
     if (await open.isVisible()) await open.click()
     await page.getByRole('button', { name: 'Show advanced annotation details', exact: true }).click()
     await page.getByRole('button', { name: 'Add annotation layer', exact: true }).click()
-    await expect(page.getByText('Layer 1 created', { exact: true })).toBeVisible()
-    const visible = page.getByRole('checkbox', { name: 'Show Layer 1', exact: true })
+    const created = page.getByText(/^Layer \d+ created$/)
+    await expect(created).toBeVisible()
+    const name = (await created.innerText()).replace(/ created$/, '')
+    const visible = page.getByRole('checkbox', { name: `Show ${name}`, exact: true })
     let release!: () => void
     const gate = new Promise<void>((resolve) => { release = resolve })
     let started!: () => void
