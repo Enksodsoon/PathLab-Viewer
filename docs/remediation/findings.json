@@ -13050,6 +13050,28 @@
         "AssessmentBuilderPage question import for legacy and sectioned drafts"
       ],
       "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
+    },
+    {
+      "key": "campaign-assessment-import-inflight-edits",
+      "status": "confirmed; extended PR301 locally qualified, delivery pending",
+      "evidence": "At073c0c3, hold import, dismiss modal, edit title and expire debounce. Import acknowledgment replaces Edit during import with Original title. Corrected independent red1failed1passed; first cache-mock reset failure retained separately.",
+      "repair": "Serialize import and autosave per active load; retain latest local edits and append fresh server-created imported items, then drain at acknowledged revision. Release rejected imports and reschedule retained edits at original revision.",
+      "qualification": "50affected tests95.55seconds and12zero-retry browser cases50.2seconds pass; lint/build9.68seconds pass. Independent review no Critical/Important; its failed-import drain Minor is covered by six passing component/helper tests32.74seconds. Complete frontend and renewed correction review pending; fresh exact-head gates required. Failed-import drain review correction clear. Deleted-context fallback red found old slide/description/viewport restored; retain only server section identity, new Imported questions title and imported items. Seven exact-source controls pass23.22seconds. Final545frontend tests85files294.44seconds,12zero-retry browser cases54.6seconds, build12.51seconds and lint pass. Incremental fallback review clear. Asset16ADMITTED and deterministic software612BLOCKED validators pass; fresh hosted gates and protected delivery remain required.",
+      "callers": [
+        "AssessmentBuilderPage legacy/sectioned import and autosave"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
+    },
+    {
+      "key": "campaign-assessment-import-stale-route",
+      "status": "confirmed; extended PR301 locally qualified, delivery pending",
+      "evidence": "At073c0c3, hold draft A import, navigate to draft B, acknowledge A. Independent old-source red replaces Second draft title with Original title. Candidate restored after the red run.",
+      "repair": "Ignore stale-generation import completions and submission-state cleanup; reset modal/submission state on a new draft load.",
+      "qualification": "50affected tests95.55seconds and12zero-retry browser cases50.2seconds pass; lint/build9.68seconds pass. Independent review no Critical/Important; its failed-import drain Minor is covered by six passing component/helper tests32.74seconds. Complete frontend and renewed correction review pending; fresh exact-head gates required. Failed-import drain review correction clear. Deleted-context fallback red found old slide/description/viewport restored; retain only server section identity, new Imported questions title and imported items. Seven exact-source controls pass23.22seconds. Final545frontend tests85files294.44seconds,12zero-retry browser cases54.6seconds, build12.51seconds and lint pass. Incremental fallback review clear. Asset16ADMITTED and deterministic software612BLOCKED validators pass; fresh hosted gates and protected delivery remain required.",
+      "callers": [
+        "AssessmentBuilderPage shared-instance route navigation"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
     }
   ],
   "currentClosureBranch": "main",

@@ -16,6 +16,7 @@ import {
   setAssessmentAdministrationStatus,
 } from '../assessment/api'
 import { cacheAssessmentDraft, readCachedAssessmentDraft } from '../assessment/draftCache'
+import { retainEditsAfterImport } from '../assessment/importRecovery'
 import { AssessmentDialog } from '../components/assessment/AssessmentDialog'
 import { AssessmentToolbar } from '../components/assessment/AssessmentChrome'
 import { AssessmentQuestionCanvas } from '../components/assessment/AssessmentQuestionCanvas'
@@ -85,6 +86,8 @@ export function AssessmentBuilderPage() {
     const generation = ++loadGenerationRef.current
     setSaveState('Loading…')
     setRecoveryUnavailable(false)
+    setImportSubmitting(false)
+    setImportOpen(false)
     void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId).catch(() => {
       if (!cancelled) setRecoveryUnavailable(true)
       return null
@@ -296,20 +299,35 @@ export function AssessmentBuilderPage() {
 
   async function importQuestions() {
     if (!draft || !sourceId || importIds.size === 0 || importSubmitting || saveState !== 'All changes saved') return
+    const generation = loadGenerationRef.current
+    if (savePendingRef.current === generation) return
+    const submittedDocument = draft.document
+    savePendingRef.current = generation
     setImportSubmitting(true)
     setImportMessage('')
     try {
       const saved = await importAssessmentQuestions(draft.id, sourceId, [...importIds], revisionRef.current)
+      if (generation !== loadGenerationRef.current) return
+      savePendingRef.current = null
       revisionRef.current = saved.revision
-      acknowledgedDocumentRef.current = saved.document
-      setDraft(saved)
+      const changed = latestDocumentRef.current !== submittedDocument
+      setDraft(current => {
+        if (current && current.document !== submittedDocument) {
+          return { ...saved, document: retainEditsAfterImport(current.document, submittedDocument, saved.document) }
+        }
+        acknowledgedDocumentRef.current = saved.document
+        return saved
+      })
       setImportOpen(false)
       setImportIds(new Set())
-      setSaveState('All changes saved')
+      setSaveState(changed ? 'Saving…' : 'All changes saved')
     } catch {
+      if (generation !== loadGenerationRef.current) return
+      savePendingRef.current = null
       setImportMessage('Questions could not be imported. Refresh the source and try again.')
+      if (latestDocumentRef.current !== submittedDocument) setDraft(current => current ? { ...current } : current)
     } finally {
-      setImportSubmitting(false)
+      if (generation === loadGenerationRef.current) setImportSubmitting(false)
     }
   }
 
