@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Assessment cache transaction abort](tickets/assessment-cache-transaction-abort.md): settle rolled-back recovery operations and report local recovery failures.
+
 - [Assessment import save boundary](tickets/assessment-import-save-boundary.md): prevent importing persisted questions from replacing edits that have not been acknowledged.
 
 - [Assessment local recovery after failed saves](tickets/assessment-local-recovery.md): restore divergent equal-revision edits after reload; contain reproduced local write failures and preserve newer server revisions.
