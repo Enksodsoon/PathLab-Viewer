@@ -70,6 +70,26 @@ const privateSlide = {
   createdAt: '2026-07-26T00:00:00Z',
 }
 
+test('keeps held canvas arrows in the current shared slide', async ({ page }) => {
+  const canvas = page.locator('.openseadragon-canvas[tabindex="0"]')
+  await expect(canvas).toHaveCount(1)
+  await canvas.focus()
+  await page.keyboard.down('ArrowRight')
+  await page.keyboard.down('ArrowRight')
+  await page.keyboard.up('ArrowRight')
+  await expect(page.getByRole('heading', { name: 'Colon adenocarcinoma' })).toBeVisible()
+  await page.getByRole('heading', { name: 'Colon adenocarcinoma' }).click()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByRole('heading', { name: 'Normal colon' })).toBeVisible()
+  await canvas.focus()
+  await page.keyboard.down('ArrowLeft')
+  await page.keyboard.down('ArrowLeft')
+  await page.keyboard.up('ArrowLeft')
+  await expect(page.getByRole('heading', { name: 'Normal colon' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Normal colon' })).toBeVisible()
+})
+
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/v2/public/folders/share-public', (route) => route.fulfill({
     contentType: 'application/json',

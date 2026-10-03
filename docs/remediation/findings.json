@@ -12699,8 +12699,8 @@
       "evidence": "study_routes ALLOWED_AI_ACTIONS finite allowlist; periodicreview recommendation not a current bug."
     }
   ],
-  "campaignStatus": "Production c570116 verified after all nine exact-main gates, protected restore and fresh health/native save-reload/viewer checks. All 43 campaign findings and 954 source entries/29 aggregate subclaims retained. External security facts, accountable software admission and specific remaining production observations/confirmations keep the full campaign open.",
-  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments.",
+  "campaignStatus": "Production c570116 remains verified; PR306 evidence merged a90759d. All44 campaign findings, original954 entries/29 subclaims and11 additional aliases retained. New canvas keyboard repair is local, independently reviewed before protected release. External security facts, accountable software admission and specific production observations/confirmations keep the campaign open.",
+  "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments. Additional original-source canvas regression fails three desktop engines; fixed four-engine held-arrow/navigation/reload regression passes and complete shared-viewer32-case matrix passes. Build passes8.94s. Default frontend570pass1timeout retained; bounded rerun pending. Bounded full frontend571pass85files189.25s; independent review clear. Final strengthened Left-at1 four-browser regression4pass16.9s. PR306 normal squash merged a90759d; new-main checks are separate.",
   "campaignFindings": [
     {
       "key": "campaign-ci-inventory-subject",
@@ -13119,6 +13119,18 @@
         "Frontend autosave, retry and import revision consumers"
       ],
       "ticket": "docs/remediation/tickets/assessment-revision-admission.md"
+    },
+    {
+      "key": "campaign-shared-viewer-canvas-keyboard",
+      "status": "confirmed; locally repaired and independently reviewed, protected release pending",
+      "evidence": "Actual repeated ArrowRight on focused OpenSeadragon canvas changes shared slide at c570116. Original-source regression fails Chromium, Firefox and WebKit; initial two-canvas selector failure is setup history.",
+      "repair": "Keep Left/Right events originating inside .openseadragon-canvas out of the window adjacent-slide handler. Preserve outside navigation and existing viewer handling.",
+      "qualification": "Original-source focused browser regression fails Chromium/Firefox/WebKit; fixed four-engine held Right at0/Left at1, outside navigation and reload passes4/4. Full affected browser32/32passes1.5minutes. Changed-file ESLint and production build8.94s pass. Default frontend570pass1existing auth-performance30s timeout retained; bounded four-worker fullsuite571pass85files189.25s. Independent review clear after strengthening Left test and correcting factual source wording. Protected CI/merge/deployment pending; production c570116 remains unchanged.",
+      "callers": [
+        "Public shared folder viewer",
+        "Public shared collection viewer"
+      ],
+      "ticket": "docs/remediation/tickets/shared-viewer-canvas-keyboard.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13537,6 +13549,10 @@
     {
       "campaignStatus": "Production9ea88b9 verified;43 separately tracked campaign findings. Atomic revision admission PR305 merged6331154 after nine exact-head gates; rebased lost-acknowledgment PR304 awaits fresh head/main checks and combined protected delivery. External facts, strict rights admission and specific synthetic action confirmations remain open.",
       "verification": "Historical verified production ae9b1ac: all nine exact-main delivery checks passed; protected deployment37116218798 succeeded with actual restore69tables/106325files/schema20260907_0037. Public health200, anonymous checked admin denials401; signed-in synthetic tiles/annotation persistence, accessible folder move persistence, descendant omission and modal Escape passed. Native drag remains unverified. Historical verification statements retained in verificationHistory;954 source entries and29 aggregate subclaims preserved."
+    },
+    {
+      "campaignStatus": "Production c570116 verified after all nine exact-main gates, protected restore and fresh health/native save-reload/viewer checks. All 43 campaign findings and 954 source entries/29 aggregate subclaims retained. External security facts, accountable software admission and specific remaining production observations/confirmations keep the full campaign open.",
+      "verification": "Latest verified production c570116: CI37157146069 and Security37157146107 passed all nine latest exact-main contexts. Protected deployment37158209056 succeeded; actual restore69tables/106325files/3286131731bytes/schema20260907_0037. Fresh livez/readyz200 and anonymous actual drafts401; native synthetic save acknowledgment/reload and patterned viewer tiles/saved rectangles pass. Failure/concurrency proofs remain separately scoped to disposable local/hosted environments."
     }
   ],
   "productionReleaseHistory": [
@@ -13574,6 +13590,146 @@
         "V2 assessment score/preflight repair candidate and historical published-definition qualification"
       ],
       "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
+    }
+  ],
+  "additionalHandoffSources": [
+    {
+      "path": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "sha256": "b117c3a9596e188d2d424c95596c792015088e04feded3ffbc38fc54f02b10e6",
+      "lines": 479,
+      "disposition": "eleven claims reconciled individually"
+    },
+    {
+      "path": "docs/reports/FRONTEND_UX_UI_REVAMP_REPORT.md",
+      "sha256": "d87e977faeafed9e7d413cff3b4e77a7ecfe1ea0c6da8209c55543e419efb5f5",
+      "lines": 259,
+      "disposition": "approved four-journey plan source; qualification tracked in completion audit"
+    },
+    {
+      "path": "docs/reports/MASTER_TESTING_AND_BENCHMARK_REPORT.md",
+      "sha256": "7714ca35e133b0c812e2e9ce698bb4bec995388b05513b7e1e1fec1533330967",
+      "lines": 85,
+      "disposition": "historical testing claim; superseded for current qualification by exact-SHA campaign receipts"
+    },
+    {
+      "path": "docs/reports/STRESS_AND_BENCHMARK_REPORT.md",
+      "sha256": "1cb310401a49dab17f3b0464ef09a4188e2ca922e2269ee8d22c32cfc03b7198",
+      "lines": 78,
+      "disposition": "historical testing claim; superseded for current qualification by exact-SHA campaign receipts"
+    },
+    {
+      "path": "docs/reports/FRONTEND_UNIT_TEST_REPORT.md",
+      "sha256": "76eddb4a7cf0c4530898ef199e2c812f3ed90726c0cead32d515f48c7f303312",
+      "lines": 45,
+      "disposition": "historical testing claim; superseded for current qualification by exact-SHA campaign receipts"
+    },
+    {
+      "path": "docs/reports/E2E_BROWSER_TEST_REPORT.md",
+      "sha256": "5c2c276d0036015eff9c9315ff721d5b0ba47062e9b3517343290cf55a19d494",
+      "lines": 41,
+      "disposition": "historical testing claim; superseded for current qualification by exact-SHA campaign receipts"
+    },
+    {
+      "path": "docs/reports/BACKEND_UNIT_TEST_REPORT.md",
+      "sha256": "cc06d9719031a2de6de512aaa21021a465e62c822a124f71f3e3a1665930dec8",
+      "lines": 57,
+      "disposition": "historical testing claim; superseded for current qualification by exact-SHA campaign receipts"
+    },
+    {
+      "path": "docs/reports/COMPLETE_SYSTEM_AUDIT.md",
+      "sha256": "7238ab1e500569927c92784b5590fb302cff8b0bd0efc94f9ccb764d22b98663",
+      "lines": 66,
+      "disposition": "historical testing/microservice claim; blanket operational sign-off unsupported for current release, superseded by scoped exact-SHA receipts and open closure requirements"
+    }
+  ],
+  "additionalHandoffClaims": [
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-01",
+      "line": 65,
+      "disposition": "hardening",
+      "canonicalKey": "delivery.shared-boundary",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-02",
+      "line": 109,
+      "disposition": "hardening",
+      "canonicalKey": "worker.single-converter-stale-recovery",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-03",
+      "line": 163,
+      "disposition": "hardening",
+      "canonicalKey": "worker.stale-job-selection",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-04",
+      "line": 332,
+      "disposition": "hardening",
+      "canonicalKey": "classroom.teacher-stream-error-ui",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-05",
+      "line": 375,
+      "disposition": "confirmed; locally repaired, release pending",
+      "canonicalKey": "campaign-shared-viewer-canvas-keyboard",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-06",
+      "line": 204,
+      "disposition": "fixed upstream",
+      "canonicalKey": "library.folder-trash-children",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-07",
+      "line": 267,
+      "disposition": "confirmed; existing repair delivered",
+      "canonicalKey": "library.folder-restore-collision",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-08",
+      "line": 355,
+      "disposition": "confirmed; existing repair delivered",
+      "canonicalKey": "classroom.presenter-shutdown-flush",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-09",
+      "line": 288,
+      "disposition": "hardening",
+      "canonicalKey": "annotation.tombstone-retention",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-10",
+      "line": 313,
+      "disposition": "hardening",
+      "canonicalKey": "annotation.trash-contract",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
+    },
+    {
+      "source": "docs/reports/CODEX_FULL_HANDOFF_REPORT.md",
+      "alias": "BUG-11",
+      "line": 411,
+      "disposition": "hardening; model semantic qualification unresolved",
+      "canonicalKey": "study.feature-schema-qualification",
+      "evidence": "docs/remediation/ADDITIONAL_HANDOFF_RECONCILIATION.md"
     }
   ]
 }
