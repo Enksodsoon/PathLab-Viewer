@@ -54,6 +54,10 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 - [Assessment dialog keyboard](tickets/assessment-dialog-keyboard.md): Escape dismissal, native modal focus and Tab containment across preview, publish and import.
 
+## Live tickets
+
+- [Assessment revision admission](tickets/assessment-revision-admission.md): current-code interleavings prove competing saves/imports and a late save after archive; atomically admit one writer before lost acknowledgment recovery delivery.
+
 ## Not yet specified
 
 Evidence-backed remaining repairs; interface changes only after reproductions require them. Operational release blockers must be recorded independently of implementation progress.

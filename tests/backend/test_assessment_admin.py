@@ -11,13 +11,13 @@ from wsi_viewer.main import create_app
 from wsi_viewer.models import Organization, OrganizationMembership, Session, User
 
 
-def _client(tmp_path: Path) -> tuple[TestClient, str]:
+def _client(tmp_path: Path, *, database_url: str | None = None) -> tuple[TestClient, str]:
     settings = Settings(
         _env_file=None,
         service_role="assessment",
         assessment_enabled=True,
         identity_governance_enabled=True,
-        database_url=f"sqlite:///{tmp_path / 'assessment-admin.sqlite3'}",
+        database_url=database_url or f"sqlite:///{tmp_path / 'assessment-admin.sqlite3'}",
         data_root=tmp_path / "data",
         secret_key="assessment-test-secret-that-is-long-enough",
         secure_cookies=False,
