@@ -17,3 +17,7 @@ Keep all240matrix cases, all browser projects, existing per-test limits, zero te
 ## Verification and delivery
 
 Focused deployment-contract tests and static workflow validation precede PR review. Fresh exact-head and exact-main gates, protected production release retaining feature settings, and authenticated workflow checks remain required. Source report aliases and private source data remain unchanged. The full campaign remains open for live qualification and pending operator facts.
+
+## Protected delivery update - 2026-10-03
+
+This repair is included in production `bd69848` after all nine exact-main checks passed and protected deployment 37107676115 succeeded. See [release evidence and open checks](remaining-campaign-closure.md#protected-delivery-update---2026-10-03). Relevant signed-in repair verification remains open; earlier pending statements retain historical states.

@@ -36,3 +36,7 @@ The corrected canonical populated-drawer scenario now passes all four local targ
 ## Verified Linux result and merge
 
 Corrected head b9f40bd passed all nine delivery checks. Retained Linux fullstack37099639768 passed27 cases,skipped1,and reported no failures. PR288 merged as c1ab7f7ad414325f298193d5411a8d747b929f43. The earlier first-move failure is historical evidence; the corrected native gesture succeeds on Linux. Exact-main CI37100724086/Security37100724053 are running; production remains68e0a038 until protected deployment and live verification.
+
+## Protected delivery update - 2026-10-03
+
+This repair is included in production `bd69848` after all nine exact-main checks passed and protected deployment 37107676115 succeeded. See [release evidence and open checks](remaining-campaign-closure.md#protected-delivery-update---2026-10-03). Relevant signed-in repair verification remains open; earlier pending statements retain historical states.
