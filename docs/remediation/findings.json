@@ -13042,10 +13042,10 @@
     },
     {
       "key": "campaign-assessment-import-unsaved-overwrite",
-      "status": "confirmed; separate local candidate under qualification",
+      "status": "confirmed; local candidate qualified, protected delivery pending",
       "evidence": "At33a4462, edit title and import before750ms autosave; independent component red receives Original title instead of Unsaved local title. Backend imports from persisted destination at expected revision, then builder replaces local draft.",
       "repair": "Require All changes saved in import action and submit control; show save-first hint and import using acknowledged revision.",
-      "qualification": "Independent red retained. Initial37affected and four zero-retry browser cases17.7seconds pass across four projects, including held acknowledgment, revision2 import and title/question reload. Final extended affected suite and independent review pending; lint and build7.32seconds pass. Final46affected tests79.56seconds pass. Review minor required proving PATCH handler entry before gate release; corrected four-browser matrix passes17.1seconds with zero retries. No product Critical/Important findings; renewed correction review pending. Complete frontend running separately.",
+      "qualification": "Independent red retained. Initial37affected and four zero-retry browser cases17.7seconds pass across four projects, including held acknowledgment, revision2 import and title/question reload. Final extended affected suite and independent review pending; lint and build7.32seconds pass. Final46affected tests79.56seconds pass. Review minor required proving PATCH handler entry before gate release; corrected four-browser matrix passes17.1seconds with zero retries. No product Critical/Important findings; renewed correction review pending. Complete frontend running separately. Renewed correction review clear; complete final-source frontend539passed84files297.96seconds. Parent delivery and fresh hosted exact-head gates remain required.",
       "callers": [
         "AssessmentBuilderPage question import for legacy and sectioned drafts"
       ],
@@ -13107,10 +13107,10 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "After terminal deployment success, fresh livez/readyz200. Signed-in native Edge assessment loaded one question and persisted1.251points with All changes saved. Learner preview Escape restored its opener, confirmed by Return reopening. Publish settings ShiftTab/Tab wrapped at both boundaries and Escape returned visible focus to Publish. Import Escape returned visible focus to persistent Templates & import. No publication/import actions submitted. Fresh CtrlR private viewer displayed Opening private preview, then patterned tiles, saved rectangle/title, Pan selected and NO CHANGES.",
+    "liveEvidence": "After terminal deployment success, fresh livez/readyz200. Signed-in native Edge assessment loaded one question and persisted1.251points with All changes saved. Learner preview Escape restored its opener, confirmed by Return reopening. Publish settings ShiftTab/Tab wrapped at both boundaries and Escape returned visible focus to Publish. Import Escape returned visible focus to persistent Templates & import. No publication/import actions submitted. Fresh CtrlR private viewer displayed Opening private preview, then patterned tiles, saved rectangle/title, Pan selected and NO CHANGES. Native320x568 synthetic title appended mobile ack a549b52: initialbatch403, session200, retrybatch200 and SAVED. Inspector remained dismissed with same record selected. Actual CtrlR reloaded tiles/items200, NO CHANGES; reselected title field retains marker. Desktop viewport restored and responsive tools closed; no physical-device or different-record claim.",
     "remaining": [
       "Assessment save/recovery candidates require complete exact-head checks and protected delivery; specific synthetic publication approval remains pending",
-      "Native production folder drag and mobile Inspector dismissal qualification",
+      "Native production folder drag and different-record Inspector qualification",
       "Specific synthetic upload cancellation action-time confirmation",
       "External application-secret rotation and actual OneDrive sync/sharing facts",
       "Strict accountable software admission and two immutable notice gaps",
