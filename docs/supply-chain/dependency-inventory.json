@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T10:37:38.452127Z",
+  "generatedAt": "2026-10-03T01:11:34.934747Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -5426,18 +5426,18 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz",
+      "artifact": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.12.tgz",
       "blockers": [],
-      "checksum": "sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==",
+      "checksum": "sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==",
       "checksumVerified": true,
       "distribution": "bundled",
       "ecosystem": "npm",
-      "id": "npm:brace-expansion@5.0.9",
+      "id": "npm:brace-expansion@5.0.12",
       "license": "MIT",
       "manifestRefs": [
         "pnpm-lock.yaml"
       ],
-      "metadataSha256": "5dbfb4eb48a8cff23652095d546fa9cc9b1805cb71bea0391c726d6e9d746b3b",
+      "metadataSha256": "5421e68ea58a0286041e3f11998da4fa44055026b11c527cc14ec74895b58929",
       "name": "brace-expansion",
       "noticeFiles": [
         {
@@ -5448,8 +5448,8 @@
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "runtime-mandatory",
-      "source": "https://registry.npmjs.org/brace-expansion/5.0.9",
-      "version": "5.0.9"
+      "source": "https://registry.npmjs.org/brace-expansion/5.0.12",
+      "version": "5.0.12"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -12012,18 +12012,18 @@
     },
     {
       "admission": "RECORDED_UNREVIEWED",
-      "artifact": "https://registry.npmjs.org/undici/-/undici-8.10.0.tgz",
+      "artifact": "https://registry.npmjs.org/undici/-/undici-8.10.2.tgz",
       "blockers": [],
-      "checksum": "sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ==",
+      "checksum": "sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==",
       "checksumVerified": true,
       "distribution": "not-bundled-tooling",
       "ecosystem": "npm",
-      "id": "npm:undici@8.10.0",
+      "id": "npm:undici@8.10.2",
       "license": "MIT",
       "manifestRefs": [
         "pnpm-lock.yaml"
       ],
-      "metadataSha256": "78800cebfe338a222f9082dcc0acc24572c630ca88479453d3da61a861e24ed0",
+      "metadataSha256": "68f678fba4a4798b33e994b01744b53f843228367f441135c795ea48b87b2a1a",
       "name": "undici",
       "noticeFiles": [
         {
@@ -12034,8 +12034,8 @@
       "optional": false,
       "purpose": "web dependency resolved from pnpm-lock.yaml",
       "role": "test-only",
-      "source": "https://registry.npmjs.org/undici/8.10.0",
-      "version": "8.10.0"
+      "source": "https://registry.npmjs.org/undici/8.10.2",
+      "version": "8.10.2"
     },
     {
       "admission": "RECORDED_UNREVIEWED",
@@ -17966,9 +17966,9 @@
   "schema": "pathlab.dependency-inventory/1",
   "sources": [
     {
-      "gitBlob": "60def65c6c6dc1cefc5fbdab721af0e7cbb79e3e",
+      "gitBlob": "58a780cce56476840fa7e0b76379d7f4d1aca146",
       "path": "pnpm-lock.yaml",
-      "sha256": "f22645c3007bed6ffae98a2b5a174fa5d02f4256ff3e9420b102eed28418a027"
+      "sha256": "0ef2042017000189d5c68b74458f39ebee36184e1dfe89180802646c2a44f17e"
     },
     {
       "gitBlob": "0467e61da46d6fa98b94edf7234630e8851d062f",
@@ -18831,6 +18831,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "fa0d3283cf04f3396ac2a8146b683ac5232761e3",
-  "subjectTree": "807631c7428a95d42638bed1d82acd96fe4167e4"
+  "subjectCommit": "6b983441101d009133d901f8a44a8e14bcf99f9e",
+  "subjectTree": "e156082852667b421bdb4e38604c1f882d3323a7"
 }
