@@ -71,3 +71,17 @@ Browser237passed/3skipped; backend1350passed/83skipped with Ruff/mypy; PostgreSQ
 The release verified actual database/file restoration: schema20260907_0037,69tables,106325files,3286131731bytes, both integrity results restored. Classroom=true, general annotations=false and admin annotation canary=true were preserved; Study remains gated. Fresh public readyz/livez returned200. Signed-in synthetic B tiles and the existing saved annotation rendered after reload.
 
 Released native folder moves/modal Escape and320px annotation controls/save/reload remain unverified. Browser inputs were paused while the desktop was being used for another task. Specific upload Cancel approval and external secret rotation/OneDrive facts remain unanswered. The campaign remains open; these release receipts do not prove all workflows, physical devices, sustained soak or clinical safety.
+
+## Signed-in mobile annotation follow-up — 2026-10-03
+
+Native Edge responsive emulation at320x568 on bd69848 displayed all five annotation commands, the Inspector and annotation list. The existing synthetic B rectangle was edited, Undo/Redo were acknowledged, and an explicit offline Save retained1UNSAVED. Restoring No throttling and explicitly retrying changed the status toSAVED. A final distinct title, `Codex QA offline recovery 68e0a03 · mobile verified bd69848`, was saved and remained in the annotation list after a full browser reload withNO CHANGES and one rectangle. This supersedes the earlier unverified320px save/reload status for these exercised paths only.
+
+One transient POST403 appeared before a later successful acknowledgement; no response body was retained, so its cause is unproved. Inspector unexpectedly reopened after history/save updates. The current-code regression and candidate repair are tracked in the selection stability ticket. UI Automation's focus field did not prove browser DOM keyboard focus. Desktop closure focus and native folder drag qualification remain open. Emulation does not qualify physical devices.
+
+Assessment PRs292 and294 and Classroom fixture PR293 have merged. All nine exact-main gates passed at ae9b1ac, including28 real fullstack cases,1skip,0unexpected and0flaky. Deployment37116218798 was normally approved and is in progress; these facts do not yet prove a deployed ae9b1ac release.
+
+## Production ae9b1ac delivery verification — 2026-10-03
+
+[Deployment37116218798](https://github.com/Enksodsoon/PathLab-Viewer/actions/runs/37116218798) completed successfully at10:38:42Z and its authenticated deployment log confirms exact `ae9b1ac624c44388866e36e7be4759609f3dcb9b`. Actual restoration again verified schema20260907_0037,69tables,106325files and3286131731bytes, with database/files integrity restored. Classroom=true, general annotations=false and admin annotation canary=true were preserved.
+
+Fresh readyz/livez returned200; anonymous admin slides and assessment drafts returned401. Native Edge Refresh reached a fresh signed-in synthetic B viewer at320x568: patterned tiles, the saved rectangle, all five command controls andNO CHANGES rendered. Opening the list retained the complete `mobile verified bd69848` title. These checks qualify existing data persistence across this deployment. Assessment-specific live qualification, native folder/desktop focus checks and the separately tested Inspector candidate remain open. The prior in-progress statement above is historical.

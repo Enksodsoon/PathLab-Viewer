@@ -173,6 +173,55 @@ test.beforeEach(async ({ page }) => {
   await mockSlides(page)
 })
 
+test('keeps the mobile inspector dismissed while a selected annotation saves', async ({ page }) => {
+  let releaseBatch!: () => void
+  const gate = new Promise<void>((resolve) => { releaseBatch = resolve })
+  await page.route('**/api/v2/admin/annotations/slides/private-1/batch', async (route) => {
+    const request = route.request().postDataJSON() as {
+      mutationId: string
+      baseVersion: number
+      operations: Array<{ type: string; id: string }>
+    }
+    await gate
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        mutationId: request.mutationId,
+        version: request.baseVersion + 1,
+        results: request.operations.map((operation) => ({
+          id: operation.id, operation: operation.type,
+          version: request.baseVersion + 1, deleted: false,
+        })),
+        purged: 0,
+      }),
+    })
+  })
+  try {
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.goto('/admin/preview/private-1')
+    await page.getByRole('button', { name: 'Open annotations' }).click()
+    await page.locator('[data-annotation-row]').filter({ hasText: 'Touch polygon' }).click()
+    const inspector = page.getByRole('dialog', { name: 'Annotation inspector' })
+    await expect(inspector).toBeVisible()
+    const saving = page.waitForRequest((request) => (
+      request.method() === 'POST' && request.url().endsWith('/private-1/batch')
+    ))
+    await inspector.getByRole('textbox', { name: 'Title' }).fill('Saved mobile polygon')
+    await inspector.getByRole('button', { name: 'Close annotation inspector' }).click()
+    await page.getByRole('button', { name: 'Save annotations' }).click()
+    await saving
+    await expect(inspector).toHaveCount(0)
+    releaseBatch()
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+    await expect(inspector).toHaveCount(0)
+    await expect(page.locator('[data-annotation-row]').filter({
+      hasText: 'Saved mobile polygon',
+    })).toHaveClass(/is-selected/)
+  } finally {
+    releaseBatch()
+  }
+})
+
 test('draws immediately on a virtual Layer 1 and saves layer plus annotation together', async ({
   page,
 }) => {

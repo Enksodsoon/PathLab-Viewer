@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Annotation Inspector selection stability](tickets/annotation-inspector-selection-stability.md): preserve dismissal across save snapshots; open automatically only when the selected IDs change.
+
 - [Assessment v1 points publication validation](tickets/assessment-v1-points-publication-validation.md): reject decimal failures and values outside existing score storage before publication; keep information unscored.
 
 - [Assessment v1 publication validation](tickets/assessment-v1-publish-validation.md): reject compiler-accepted shapes that cannot render or score while preserving editable drafts.

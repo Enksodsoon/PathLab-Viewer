@@ -1107,9 +1107,12 @@ export function AnnotationWorkspace({
     setMoreToolsOpen(false)
   }, [])
 
+  // Store snapshots clone selection even when only save status or geometry changes.
+  // Preserve order because the first selected annotation is the primary selection.
+  const inspectorSelectionKey = JSON.stringify([...(storeState?.selection ?? [])])
   useEffect(() => {
-    if ((storeState?.selection.size ?? 0) > 0) setInspectorOpen(true)
-  }, [storeState?.selection])
+    if (inspectorSelectionKey !== '[]') setInspectorOpen(true)
+  }, [inspectorSelectionKey])
 
   const flush = useCallback(async (
     generation = workspaceGenerationRef.current,
