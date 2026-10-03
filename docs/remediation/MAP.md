@@ -42,6 +42,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 - [Annotation command reachability](tickets/annotation-mobile-commands.md): verified320px clipping and desktop Inspector focus repair; four-engine UI and real-backend save/reload evidence.
 
+- [Assessment dialog keyboard](tickets/assessment-dialog-keyboard.md): Escape dismissal, native modal focus and Tab containment across preview, publish and import.
+
 ## Not yet specified
 
 Evidence-backed remaining repairs; interface changes only after reproductions require them. Operational release blockers must be recorded independently of implementation progress.

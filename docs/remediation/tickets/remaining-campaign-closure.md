@@ -70,3 +70,6 @@ Signed-in Edge loaded the Library and synthetic B patterned tiles and saved rect
 Assessment-specific released qualification, native folder drag, mobile Inspector dismissal, specific Cancel approval and external security/licensing facts remain open. The campaign is not complete.
 
 The shortcut candidate now passes full frontend510tests and all68annotation browser checks with zero retries; lint/build pass. Fresh browser-control Refresh on released `daa101e` retained the synthetic title and rectangle with NO CHANGES. Shortcut delivery and remaining live workflows remain open.
+
+
+Assessment native refresh verified acknowledged200 save and persisted1.251points in the synthetic draft. First generic save failure remains unclassified. Native preview Escape and subsequent browser focus-boundary defects are tracked in [assessment dialog keyboard](assessment-dialog-keyboard.md). PR297 merged58d7066 after all nine head checks and renewed independent review; merged-main qualification/deployment remain pending. Synthetic Practice publication requires the pending specific approval; no real learner records are used.
