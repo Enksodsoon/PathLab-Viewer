@@ -2,6 +2,7 @@ import { ArrowCounterClockwise, Check, Desktop, DeviceMobile, DeviceTablet, Eye,
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
+import { ApiError } from '../api'
 
 import {
   AssessmentHttpError,
@@ -161,7 +162,7 @@ export function AssessmentBuilderPage() {
         .catch((error: unknown) => {
           if (generation !== loadGenerationRef.current) return
           savePendingRef.current = null
-          const status = error instanceof AssessmentHttpError ? error.status : undefined
+          const status = error instanceof AssessmentHttpError || error instanceof ApiError ? error.status : undefined
           const messages: Record<number, string> = {
             400: 'Changes not saved. Check the questions and settings.',
             401: 'Changes not saved. Sign in again to save.',

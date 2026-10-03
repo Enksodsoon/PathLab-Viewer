@@ -52,7 +52,7 @@ it('saves the next draft while a previous draft save remains pending', async () 
   edit('Next second draft edit'); await advance()
   expect(mocks.save).toHaveBeenLastCalledWith('second-qa', 2, expect.objectContaining({ title: 'Next second draft edit' }))
 })
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.resetAllMocks() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.resetAllMocks(); vi.unstubAllGlobals() })
 
 it('serializes edits behind the pending server revision acknowledgment', async () => {
   let acknowledge!: (draft: AssessmentDraft) => void
@@ -153,4 +153,19 @@ it('clears retry from a failed draft when another draft loads', async () => {
   expect(screen.getByText('All changes saved')).toBeVisible()
   edit('Second draft edit'); await advance()
   expect(mocks.save).toHaveBeenLastCalledWith('second-qa', 1, expect.objectContaining({ title: 'Second draft edit' }))
+})
+
+it('reports an expired session raised by the actual CSRF refresh path', async () => {
+  const actual = await vi.importActual<typeof import('../assessment/api')>('../assessment/api')
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ detail: { code: 'CSRF_INVALID' } }), { status: 403 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ detail: { code: 'AUTH_REQUIRED' } }), { status: 401 }))
+  vi.stubGlobal('fetch', fetchMock)
+  mocks.save.mockImplementation(actual.saveAssessmentDraft)
+  view(); await screen.findByText('All changes saved'); vi.useFakeTimers()
+  edit('Retained expired-session edit'); await advance()
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(screen.getByText('Changes not saved. Sign in again to save.')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Retry save' })).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Assessment name' })).toHaveValue('Retained expired-session edit')
 })
