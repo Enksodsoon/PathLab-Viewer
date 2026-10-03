@@ -12993,6 +12993,29 @@
         "AssessmentBuilderPage question import"
       ],
       "ticket": "docs/remediation/tickets/assessment-dialog-keyboard.md"
+    },
+    {
+      "key": "campaign-assessment-save-revision-serialization",
+      "status": "confirmed; local candidate qualified, delivery pending",
+      "evidence": "Base2289b45 deferred PATCH plus two debounce expirations sends two saves at the same revision; independent red expects one and observes two. Subsequent browser cases expose a brief All changes saved message while only the first revision has been submitted.",
+      "repair": "Serialize pending saves per draft load generation; drain newer edits at acknowledged revision; ignore stale-generation timers/completions. Keep Saving while the acknowledged document differs from the latest edit.",
+      "qualification": "Initial40affected pass; independent review exposes cross-draft guard regression and deferred navigation red reproduces it. Scoped generation fix passes42affected, lint and build12.75s; renewed review finds no actionable issues. First generation run failed because save fixture returned wrong draft ID, corrected to echo requested ID. Complete/frontend/browser qualification pending. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending.",
+      "callers": [
+        "AssessmentBuilderPage autosave",
+        "Upgrade to sections route navigation"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
+    },
+    {
+      "key": "campaign-assessment-optional-recovery-read",
+      "status": "confirmed; local candidate qualified, delivery pending",
+      "evidence": "Successful server GET plus SecurityError from local recovery read renders Unable to open draft; independent red reproduced.",
+      "repair": "Treat rejected local-cache read as absent while preserving actual server-load failures and Retry.",
+      "qualification": "Storage-denial and server-unavailable controls pass in42affected suite; complete browser/frontend qualification pending. No server acknowledgment or local dirty-copy recovery inferred. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending.",
+      "callers": [
+        "AssessmentBuilderPage initial/retry draft load"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-save-acknowledgments.md"
     }
   ],
   "currentClosureBranch": "main",

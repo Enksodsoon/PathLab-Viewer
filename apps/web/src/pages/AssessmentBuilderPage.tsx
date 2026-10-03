@@ -71,6 +71,9 @@ export function AssessmentBuilderPage() {
   const [importQuery, setImportQuery] = useState('')
   const [migrationBusy, setMigrationBusy] = useState(false)
   const revisionRef = useRef(0)
+  const savePendingRef = useRef<number | null>(null)
+  const loadGenerationRef = useRef(0)
+  const latestDocumentRef = useRef<AssessmentDocument | null>(null)
   const acknowledgedDocumentRef = useRef<AssessmentDocument | null>(null)
   const items = useMemo(() => draft ? assessmentItems(draft.document) : [], [draft])
   const questions = useMemo(() => items.filter((item) => item.type !== 'section-information'), [items])
@@ -78,8 +81,9 @@ export function AssessmentBuilderPage() {
 
   useEffect(() => {
     let cancelled = false
+    const generation = ++loadGenerationRef.current
     setSaveState('Loading…')
-    void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId)])
+    void Promise.all([getAssessmentDraft(draftId), readCachedAssessmentDraft(draftId).catch(() => null)])
       .then(([server, cached]) => {
         if (cancelled) return
         const recovered = cached && cached.revision > server.revision
@@ -103,11 +107,13 @@ export function AssessmentBuilderPage() {
           : 'All changes saved')
       })
       .catch(() => { if (!cancelled) setSaveState('Unable to open draft') })
-    return () => { cancelled = true }
+    return () => { cancelled = true; loadGenerationRef.current = generation + 1 }
   }, [draftId, loadRevision])
 
   useEffect(() => {
-    if (!draft) return
+    if (!draft || draft.id !== draftId) return
+    latestDocumentRef.current = draft.document
+    const generation = loadGenerationRef.current
     if (acknowledgedDocumentRef.current === draft.document) {
       acknowledgedDocumentRef.current = null
       return
@@ -115,9 +121,13 @@ export function AssessmentBuilderPage() {
     setSaveState('Saving…')
     void cacheAssessmentDraft(draft)
     const timer = window.setTimeout(() => {
+      if (generation !== loadGenerationRef.current || savePendingRef.current === generation) return
+      savePendingRef.current = generation
       const submittedDocument = draft.document
       void saveAssessmentDraft(draft.id, revisionRef.current, submittedDocument)
         .then((saved) => {
+          if (generation !== loadGenerationRef.current) return
+          savePendingRef.current = null
           revisionRef.current = saved.revision
           setDraft((current) => {
             if (current && current.document !== submittedDocument) {
@@ -127,12 +137,16 @@ export function AssessmentBuilderPage() {
             return saved
           })
           void cacheAssessmentDraft(saved)
-          setSaveState('All changes saved')
+          setSaveState(latestDocumentRef.current === submittedDocument ? 'All changes saved' : 'Saving…')
         })
-        .catch(() => setSaveState('Conflict: reload or duplicate'))
+        .catch(() => {
+          if (generation !== loadGenerationRef.current) return
+          savePendingRef.current = null
+          setSaveState('Conflict: reload or duplicate')
+        })
     }, 750)
     return () => window.clearTimeout(timer)
-  }, [draft])
+  }, [draft, draftId])
 
   function updateDocument(update: (document: AssessmentDocument) => AssessmentDocument) {
     setDraft((current) => current ? { ...current, document: update(current.document) } : current)
