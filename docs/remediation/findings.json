@@ -13072,6 +13072,17 @@
         "AssessmentBuilderPage shared-instance route navigation"
       ],
       "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
+    },
+    {
+      "key": "campaign-assessment-cache-transaction-abort",
+      "status": "confirmed; locally qualified, fresh hosted gates and delivery pending",
+      "evidence": "At7db6f4b, actual Chromium/Firefox/WebKit successful put followed by transaction.abort rolls back the record while cacheAssessmentDraft stays pending beyond1000ms. var/cache-abort-probe-red.log records request success, transaction abort and null persisted record in all three engines. Independent old-source Chromium read-abort red returns resolved rather than AbortError after request success; candidate restored in finally.",
+      "repair": "Reject aborted read/write transactions, wait for read transaction completion and close opened database connections in finally. Preserve storage schema and server acknowledgment behavior.",
+      "qualification": "Three-engine write probe now rejects AbortError. Twelve zero-retry browser cases pass15.5seconds across four projects: read/write abort after successful request, committed control retained, connection closed and visible recovery warning with successful server save. First UI fixture wrongly expected a write warning before any edit; corrected to trigger a write first. Build6.36seconds and changed-file lint pass. Affected suite and renewed review pending; no hosted or production qualification yet. Affected52tests across6files pass40.24seconds. Independent read-abort red exit1 retained; final correction review pending. Renewed independent review clears corrected test and reports no remaining Critical, Important or Minor findings.",
+      "callers": [
+        "AssessmentBuilderPage local draft caching and recovery reads"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-cache-transaction-abort.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13129,17 +13140,29 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "Protected deployment37141936233 completed successfully at exact746df1a. Actual restore verified69tables,106325files,3286131731bytes and schema20260907_0037; database/files integrity restored. Fresh livez/readyz200 at18:05:45Z. Both in-flight health probes timed out before terminal success and remain scoped deployment history. Authenticated save-specific released verification is pending. Prior signed-in dialog and mobile annotation evidence belongs to a549b52 and is preserved in history.",
+    "liveEvidence": "Protected deployment37141936233 completed successfully at exact746df1a. Actual restore verified69tables,106325files,3286131731bytes and schema20260907_0037; database/files integrity restored. Fresh livez/readyz200 at18:05:45Z. Both in-flight health probes timed out before terminal success and remain scoped deployment history. Authenticated save-specific released verification is pending. Prior signed-in dialog and mobile annotation evidence belongs to a549b52 and is preserved in history. Native Edge basic save check: synthetic description edit shows Saving then All changes saved; explicit browser Refresh displays Opening Assessment and reload retains the description with All changes saved. No production fault injection or competing-save claim.",
     "remaining": [
       "RecoveryPR300 merged43044d5: merged-main checks/protected delivery pending; extended importPR301 needs fresh rebased exact-head gates; specific synthetic publication remains pending",
-      "Authenticated save-specific verification at released746df1a",
       "Native production folder drag and different-record Inspector qualification",
       "Specific synthetic upload cancellation action-time confirmation",
       "External application-secret rotation and actual OneDrive sync/sharing facts",
       "Strict accountable software admission and two immutable notice gaps",
       "Requirement-by-requirement campaign closure; no physical-device or clinical qualification claim"
     ],
-    "limitations": "Local20-session Library soak passed separately; it does not establish production capacity. No global zero-bug, physical-device or clinical-safety claim. Study gate retained."
+    "limitations": "Local20-session Library soak passed separately; it does not establish production capacity. No global zero-bug, physical-device or clinical-safety claim. Study gate retained.",
+    "nativeSaveCheck": {
+      "scope": "Native Edge authenticated synthetic assessment, basic positive save and browser reload",
+      "draftId": "54f31d9c-8b79-4ad7-b75b-9efbdac4817b",
+      "description": "Synthetic QA: save acknowledgment verified at 746df1a.",
+      "observed": [
+        "Fresh document load",
+        "Description edit displayed Saving...",
+        "All changes saved",
+        "Browser Refresh displayed Opening Assessment...",
+        "Reloaded description retained with All changes saved"
+      ],
+      "limits": "No production network fault injection, competing saves, publication or learner submission."
+    }
   },
   "previousProductionReleases": [
     {
