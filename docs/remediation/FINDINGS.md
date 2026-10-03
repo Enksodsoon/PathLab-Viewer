@@ -1,5 +1,7 @@
 # Findings register
 
+Current checkpoint: production9ea88b9 is verified; atomic assessment revision PR305 merged6331154 after all nine head gates. Lost acknowledgment PR304 is rebased for fresh checks. Combined43campaign findings retain all954source entries and29security subclaims. Delivery, specific live checks and external security/licensing facts remain open. See [requirement-level completion audit](CAMPAIGN_COMPLETION_AUDIT.md); historical release statements below retain their original scope.
+
 954 report sections retain aliases and source hashes. Counts describe sections, not distinct bugs. Reviewed PRs 267–270 and 272 are deployed at `3cb26bc`; remaining production checks and two external security facts keep the campaign open. The 29 separate security subclaims retain their individual dispositions.
 
 [findings.json](findings.json) records evidence and canonical groups. [REPAIR_COVERAGE.md](REPAIR_COVERAGE.md) tracks repair coverage. [Remaining closure](tickets/remaining-campaign-closure.md) tracks release evidence and open qualification. The latest release passed signed-in synthetic Library, upload, annotation persistence, Classroom presenter mark and learner question checks; public Study remains gated. Concurrent learner behavior remains open.

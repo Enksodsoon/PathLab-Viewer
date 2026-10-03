@@ -19,3 +19,5 @@ Real-backend loopback qualification:actual PATCH commits revision2; route.fetch 
 Asset-rights validation passes16records/ADMITTED. Deterministic software validation passes612components with strict releaseAdmissionBLOCKED unchanged. No dependency/license/admission decision changed.
 
 Independent final review of real-backend scenario and corrected denial fixture reports no actionable findings. Final source is ready for fresh protected checks; no production qualification claim for this candidate.
+
+First exact0ba75bd candidate passed all nine hosted gates in CI37152804010/Security37152804049. Independent actual HTTP concurrency proof required backend prerequisite PR305: atomically admit one document mutation at the expected revision/draft status. That repair passed all nine head gates and merged6331154. Rebase onto actual6331154 leaves all frontend application/test blobs identical to qualified0ba75bd. Resolve the findings-register append conflict preserving both new keys and all954source entries/29subclaims; correct prior encoding artifacts. Fresh rebased gates, merged-main qualification and combined protected delivery remain required.
