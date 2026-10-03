@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T01:11:34.934747Z",
+  "generatedAt": "2026-10-03T01:18:24.842132Z",
   "records": [
     {
       "admission": "BLOCKED",
@@ -17991,9 +17991,9 @@
       "sha256": "9d56e8be817e701443642941fd2daf8519828b3c49f9b06148ffe4a4809de960"
     },
     {
-      "gitBlob": "1b31ebf587e594dd23d9a74500200221ce72042b",
+      "gitBlob": "11bf642d08f36a3a844c13410b289e03c0a420e4",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "3d99811303ac06cf4230df7752292305fe7dc17295e828a81e8d7d57ee917812"
+      "sha256": "1982f56dc0d2dad1ff94a688ba8c7f9222b3e3d861abaa0eb494d3b32fe6133d"
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -18831,6 +18831,6 @@
       "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
     }
   ],
-  "subjectCommit": "6b983441101d009133d901f8a44a8e14bcf99f9e",
-  "subjectTree": "e156082852667b421bdb4e38604c1f882d3323a7"
+  "subjectCommit": "6a0211b8c8995427313d7a155ddf68909aed2f01",
+  "subjectTree": "36f570e97eea6f56b24261905481afc04620a358"
 }
