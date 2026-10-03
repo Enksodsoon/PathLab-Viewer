@@ -62,9 +62,9 @@ ENGINE_VERSIONS = {
     ENGINE_DHR_LEARNED: "42e7c9ddedb5932fbcbdf598fbc9b3a47baa47b6-superpoint-superglue",
 }
 ADAPTER_VERSIONS = {
-    ENGINE_NATIVE: "pathlab-adapter-v3-partial-overview-components",
+    ENGINE_NATIVE: "pathlab-adapter-v2-high-resolution-components",
     ENGINE_HISALIGN: "pathlab-adapter-v4-overview-support",
-    ENGINE_VALIS: "pathlab-adapter-v14-feature-residual-gate",
+    ENGINE_VALIS: "pathlab-adapter-v15-rigid-only-upstream-cleanup",
     ENGINE_WSIREG: "pathlab-adapter-v2-wsireg-single-elastix-chain-physical",
     ENGINE_DHR_CLASSICAL: "pathlab-adapter-v1-dhr-normalized-pull-affine",
     ENGINE_DHR_LEARNED: "pathlab-adapter-v1-dhr-normalized-pull-affine",
@@ -760,8 +760,14 @@ def merge_component_maps(
     return result
 
 
-def _register_valis_bounded(registrar: Any, maximum_dimension: int) -> Any:
+def _register_valis_bounded(
+    registrar: Any, maximum_dimension: int, *, rigid_only: bool = False
+) -> Any:
     """Bound rematching tensors as well as the initial reader images."""
+    # Pinned VALIS 325828c1 creates this only for a nonrigid registrar, but
+    # register() unconditionally clears its class key after error measurement.
+    if rigid_only and not hasattr(registrar, "non_rigid_reg_kwargs"):
+        registrar.non_rigid_reg_kwargs = {}
     oversized = False
     with ExitStack() as cleanup:
         detectors = {
@@ -872,7 +878,9 @@ class ValisEngine:
             max_processed_image_dim_px=maximum_dimension,
             max_non_rigid_registration_dim_px=1024,
         )
-        _, _, error_df = _register_valis_bounded(registrar, maximum_dimension)
+        _, _, error_df = _register_valis_bounded(
+            registrar, maximum_dimension, rigid_only=bool((inputs.settings or {}).get("rigidOnly"))
+        )
         if error_df is None:
             if blur == 0 and rigid_matcher == "default":
                 # Retry only this failed fragment, never discard an accepted raw map.

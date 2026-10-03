@@ -3,6 +3,146 @@ import json
 import pytest
 
 
+def _scored_row(kind="positive", *, manual=False):
+    return {
+        "recipe": "native",
+        "kind": kind,
+        "outcome": "ok",
+        "registration": {
+            "status": "ready",
+            "triangles": [
+                {
+                    "moving": [[0, 0], [10, 0], [0, 10]],
+                    "reference": [[0, 0], [10, 0], [0, 10]],
+                }
+            ],
+        },
+        "landmarks": [
+            {
+                "eligible": True,
+                "movingPoint": [1, 1],
+                "referencePoint": [1, 1],
+                "referenceMicronsPerPixel": [1, 1],
+                "wrongStructure": False,
+            }
+        ]
+        if kind == "positive"
+        else [],
+        "wrongStructure": False,
+        "independentlyReviewed": True,
+        "landmarksFitFree": True,
+        "manualAssistance": manual,
+        "coldRuntimeSeconds": 1,
+    }
+
+
+def test_positive_only_recipe_cannot_advance_to_finalists():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    result = aggregate_results([_scored_row()])
+    assert result["finalists"] == []
+
+
+def test_reviewed_all_rejected_recipe_with_ground_truth_can_advance_unqualified():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    rows = [_scored_row(), _scored_row("negative")]
+    for row in rows:
+        row.update(outcome="rejected", registration={})
+    result = aggregate_results(rows)
+    assert result["finalists"] == ["native"]
+    assert result["recipes"]["native"]["observedCoverage"] == 0
+    assert result["winners"] == {"fast": None, "accurate": None}
+    rows[1].pop("wrongStructure")
+    assert aggregate_results(rows)["finalists"] == []
+
+
+def test_manual_only_positive_retains_automatic_denominator_and_separate_score():
+    from wsi_viewer.alignment_benchmark import aggregate_results
+
+    result = aggregate_results([_scored_row(), _scored_row(manual=True), _scored_row("negative")])
+    report = result["recipes"]["native"]
+    assert report["plannedPairs"] == 3
+    assert report["positivePairs"] == 2
+    assert report["eligibleLandmarks"] == 2
+    assert report["calibratedCoverage"] == 0.5
+    assert report["unsupportedLandmarks"] == 1
+    assert report["manualAssistance"]["calibratedCoverage"] == 1
+    assert report["benchmarkQualified"] is False
+    assert report["readyQualified"] is False
+
+
+def test_pair_settings_and_calibration_reach_child_and_invalidate_digest(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_benchmark as bench
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        "reference": {
+            "path": str(tmp_path / "reference"),
+            "size": [10, 10],
+            "micronsPerPixel": [0.25, 0.5],
+        },
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10], "micronsPerPixel": [0.5, 1]},
+        "settings": {"native": {"iterations": 2}},
+    }
+    original = bench.pair_digest(pair, "native", {})
+    calls = []
+    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+    monkeypatch.setattr(
+        bench,
+        "_run_alignment_bounded",
+        lambda *_a, **kw: calls.append(kw["engine_settings"]) or {"status": "rejected"},
+    )
+    bench.run_benchmark(
+        {"pairs": [pair], "settings": {"native": {"iterations": 1, "globalOption": True}}},
+        tmp_path / "out",
+        ["native"],
+    )
+    assert calls[0]["iterations"] == 2
+    assert calls[0]["globalOption"] is True
+    assert calls[0]["referenceMicronsPerPixel"] == [0.25, 0.5]
+    assert calls[0]["movingMicronsPerPixel"] == [0.5, 1]
+    pair["moving"]["micronsPerPixel"] = [0.75, 1]
+    assert bench.pair_digest(pair, "native", {}) != original
+    changed = bench.pair_digest(pair, "native", {})
+    pair["settings"]["native"]["iterations"] = 3
+    assert bench.pair_digest(pair, "native", {}) != changed
+    pair["reference"]["micronsPerPixel"] = [0, 1]
+    with pytest.raises(ValueError, match="calibration"):
+        bench.pair_digest(pair, "native", {})
+
+
+def test_rejection_diagnostic_is_private_and_report_remains_sanitized(tmp_path, monkeypatch):
+    from wsi_viewer import alignment_benchmark as bench
+    from wsi_viewer.alignment import AlignmentRejected
+
+    for side in ("reference", "moving"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "thumbnail.jpg").write_bytes(b"pixels")
+    pair = {
+        "kind": "positive",
+        "landmarks": [],
+        "reference": {"path": str(tmp_path / "reference"), "size": [10, 10]},
+        "moving": {"path": str(tmp_path / "moving"), "size": [10, 10]},
+    }
+    monkeypatch.setattr(bench, "engine_availability", lambda: {"native-v12": {"available": True}})
+
+    def fail(*_a, **_kw):
+        raise AlignmentRejected(f"upstream registration failed on {tmp_path}")
+
+    monkeypatch.setattr(bench, "_run_alignment_bounded", fail)
+    result = bench.run_benchmark({"pairs": [pair]}, tmp_path / "out", ["native"])
+    assert str(tmp_path) not in json.dumps(result)
+    key = result["rows"][0]["digest"]
+    diagnostic = json.loads((tmp_path / "out" / "diagnostics" / f"{key}.json").read_text())
+    assert diagnostic["exceptionType"] == "AlignmentRejected"
+    assert str(tmp_path) in diagnostic["message"]
+
+
 def test_manifest_screening_requires_frozen_positive_negative_counts(tmp_path):
     from wsi_viewer.alignment_benchmark import validate_manifest
 
@@ -110,6 +250,9 @@ def test_cached_run_does_not_replace_cold_timing_and_report_omits_private_paths(
     second = bench.run_benchmark(manifest, out, ["native"], repeat_runs=1)
     assert first["rows"][0]["coldRuntimeSeconds"] == second["rows"][0]["coldRuntimeSeconds"]
     assert second["rows"][0]["cached"] is True
+    assert second["rows"][0]["pairIndex"] == 0
+    assert second["rows"][0]["landmarkMetrics"]["eligibleLandmarks"] == 1
+    assert second["rows"][0]["landmarkMetrics"]["unsupportedLandmarks"] == 1
     assert calls == [True]
     assert len(second["rows"][0]["repeatComputeReceipts"]) == 1
     assert second["rows"][0]["repeatComputeReceipts"][0]["peakMemoryBytes"] == 1234

@@ -344,6 +344,27 @@ def test_valis_artifact_preserves_final_approximate_qualification(
     assert json.loads(run.artifact_path.read_text()) == run.registration
 
 
+def test_valis_rigid_only_shim_allows_pinned_upstream_cleanup() -> None:
+    detector = SimpleNamespace(detect_and_compute=lambda image: None)
+    registrar = SimpleNamespace(
+        rigid_reg_kwargs={"matcher": SimpleNamespace(feature_detector=detector)},
+    )
+
+    def register():
+        # Pinned Valis.register's cleanup accesses this even when its rigid-only
+        # constructor skipped initializing it, after successful error measurement.
+        registrar.non_rigid_reg_kwargs["non_rigid_registrar_cls"] = None
+        return None, None, "measured-error-evidence"
+
+    registrar.register = register
+    result = alignment_engines._register_valis_bounded(registrar, 896, rigid_only=True)
+    assert result[2] == "measured-error-evidence"
+    existing = {"keep": "existing nonrigid options"}
+    registrar.non_rigid_reg_kwargs = existing
+    alignment_engines._register_valis_bounded(registrar, 896, rigid_only=True)
+    assert registrar.non_rigid_reg_kwargs is existing
+
+
 def test_valis_rejects_expanded_feature_canvas_and_restores_detector() -> None:
     calls = []
     detector = SimpleNamespace(detect_and_compute=lambda image: calls.append(image.shape))

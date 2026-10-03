@@ -154,17 +154,69 @@ def _runtime_versions() -> dict[str, str]:
     return result
 
 
+def _pair_settings(pair: dict[str, Any], recipe: str, settings: dict[str, Any]) -> dict[str, Any]:
+    """Pair options override cohort options; declared image calibration is authoritative."""
+    canonical = ENGINE_ALIASES.get(recipe, recipe)
+    overrides = pair.get("settings", {})
+    aliases = [name for name, value in ENGINE_ALIASES.items() if value == canonical]
+    selected = overrides.get(canonical)
+    if selected is None:
+        selected = next((overrides[name] for name in aliases if name in overrides), {})
+    if not isinstance(selected, dict):
+        raise ValueError("pair recipe settings must be an object")
+    result = {**settings, **selected}
+    for side in ("reference", "moving"):
+        key = f"{side}MicronsPerPixel"
+        value = pair.get(key, pair[side].get("micronsPerPixel", result.get(key)))
+        if value is not None:
+            calibration = np.asarray(value, dtype=float)
+            if (
+                calibration.shape != (2,)
+                or not np.isfinite(calibration).all()
+                or np.any(calibration <= 0)
+            ):
+                raise ValueError(
+                    "pair calibration requires two finite positive microns-per-pixel values"
+                )
+            result[key] = calibration.tolist()
+    return result
+
+
+def _private_diagnostic(
+    output: Path, key: str, exception_type: str, message: str, *, attempt: str = "cold"
+) -> None:
+    """Retain failure details only in the explicitly private benchmark directory."""
+    path = output / "diagnostics" / f"{key}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    value: dict[str, Any] = {"digest": key, "exceptionType": exception_type, "message": message}
+    previous = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    value["attempts"] = [
+        *previous.get("attempts", []),
+        {
+            "attempt": attempt,
+            "exceptionType": exception_type,
+            "message": message,
+        },
+    ]
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
+    temporary.replace(path)
+
+
 def pair_digest(
     pair: dict[str, Any],
     recipe: str,
     settings: dict[str, Any],
     *,
     input_digests: list[str] | None = None,
+    settings_are_effective: bool = False,
 ) -> str:
     value = {
         "benchmark": BENCHMARK_VERSION,
         "recipe": ENGINE_ALIASES.get(recipe, recipe),
-        "settingsDigest": settings_digest(recipe, settings),
+        "settingsDigest": settings_digest(
+            recipe, settings if settings_are_effective else _pair_settings(pair, recipe, settings)
+        ),
         "runtime": _runtime_versions(),
         "inputs": input_digests or [_input_digest(pair[s]) for s in ("reference", "moving")],
     }
@@ -175,7 +227,13 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
     reports = {}
     for recipe in sorted({row["recipe"] for row in rows}):
         selected = [row for row in rows if row["recipe"] == recipe]
-        automatic = [row for row in selected if not row.get("manualAssistance")]
+        # Manual maps cannot remove planned positives from automatic coverage.
+        automatic = [
+            {**row, "registration": {}, "wrongStructure": None}
+            if row.get("manualAssistance")
+            else row
+            for row in selected
+        ]
         positive = [row for row in automatic if row["kind"] == "positive"]
         records = [
             {**landmark, "registration": row.get("registration", {})}
@@ -211,15 +269,18 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
         timings = [
             row["coldRuntimeSeconds"]
             for row in automatic
-            if row.get("coldRuntimeSeconds") is not None
+            if not row.get("manualAssistance") and row.get("coldRuntimeSeconds") is not None
         ]
         memory = [
-            row["peakMemoryBytes"] for row in automatic if row.get("peakMemoryBytes") is not None
+            row["peakMemoryBytes"]
+            for row in automatic
+            if not row.get("manualAssistance") and row.get("peakMemoryBytes") is not None
         ]
         frontend = [
             row["frontendLatencySeconds"]
             for row in automatic
-            if row.get("frontendLatencyScope") == "foreground-open-to-sync"
+            if not row.get("manualAssistance")
+            and row.get("frontendLatencyScope") == "foreground-open-to-sync"
             and row.get("frontendLatencyReviewed") is True
             and row.get("frontendLatencySeconds") is not None
         ]
@@ -238,6 +299,7 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
             if any(p.get("referenceMicronsPerPixel") is not None for p in records)
             else "relative",
             plannedPairs=len(automatic),
+            manualOnlyPairs=sum(bool(row.get("manualAssistance")) for row in selected),
             positivePairs=len(positive),
             missingGroundTruthPairs=sum(not row["landmarks"] for row in positive),
             peakMemoryMedianBytes=float(np.median(memory)) if memory else None,
@@ -275,11 +337,11 @@ def aggregate_results(rows: list[dict[str, Any]]) -> dict[str, Any]:
     candidates = [
         (name, report)
         for name, report in reports.items()
-        if report["observedLandmarks"] > 0
+        if report["eligibleLandmarks"] > 0
         and report["positivePairs"] > 0
+        and report["negativePairs"] > 0
         and report["missingNegativeReviews"] == 0
-        and report["outcomes"].get("error", 0) == 0
-        and report["outcomes"].get("unavailable", 0) == 0
+        and all(outcome in {"ok", "rejected"} for outcome in report["outcomes"])
     ]
     candidates.sort(
         key=lambda x: (
@@ -330,7 +392,7 @@ def run_benchmark(
     cache_dir.mkdir(exist_ok=True)
     availability = engine_availability()
     rows = []
-    for pair in manifest["pairs"]:
+    for pair_index, pair in enumerate(manifest["pairs"]):
         inputs = [_input_digest(pair[side]) for side in ("reference", "moving")]
         for requested in recipes:
             recipe = ENGINE_ALIASES.get(requested, requested)
@@ -339,9 +401,14 @@ def run_benchmark(
             settings = manifest.get("settings", {}).get(
                 requested, manifest.get("settings", {}).get(recipe, {})
             )
-            settings = {**settings, "timeoutSeconds": min(600, timeout_seconds)}
+            settings = {
+                **_pair_settings(pair, recipe, settings),
+                "timeoutSeconds": min(600, timeout_seconds),
+            }
             resources_available, resource_reason = engine_resource_availability(recipe, settings)
-            key = pair_digest(pair, recipe, settings, input_digests=inputs)
+            key = pair_digest(
+                pair, recipe, settings, input_digests=inputs, settings_are_effective=True
+            )
             cache = cache_dir / f"{key}.json"
             cached = resume and cache.is_file()
             if cached:
@@ -373,12 +440,23 @@ def run_benchmark(
                         )
                         if registration.get("status") not in {"ready", "approximate"}:
                             outcome = "rejected"
-                    except AlignmentRejected:
+                            _private_diagnostic(
+                                output,
+                                key,
+                                "RejectedRegistration",
+                                str(
+                                    registration.get("reason")
+                                    or "registration returned unsupported status"
+                                ),
+                            )
+                    except AlignmentRejected as error:
                         outcome = "rejected"
                         reason_code = "registration-or-resource-gate-rejected"
+                        _private_diagnostic(output, key, type(error).__name__, str(error))
                     except Exception as error:
                         outcome = "error"
                         reason_code = type(error).__name__
+                        _private_diagnostic(output, key, type(error).__name__, str(error))
                 # Paths and upstream error messages can contain private slide identities.
                 registration = {
                     k: v
@@ -427,10 +505,26 @@ def run_benchmark(
                     )
                     if repeat_payload.get("status") not in {"ready", "approximate"}:
                         repeat_outcome = "rejected"
-                except AlignmentRejected:
+                        _private_diagnostic(
+                            output,
+                            key,
+                            "RejectedRegistration",
+                            str(
+                                repeat_payload.get("reason")
+                                or "registration returned unsupported status"
+                            ),
+                            attempt=f"repeat-{_repeat}",
+                        )
+                except AlignmentRejected as error:
                     repeat_outcome = "rejected"
-                except Exception:
+                    _private_diagnostic(
+                        output, key, type(error).__name__, str(error), attempt=f"repeat-{_repeat}"
+                    )
+                except Exception as error:
                     repeat_outcome = "error"
+                    _private_diagnostic(
+                        output, key, type(error).__name__, str(error), attempt=f"repeat-{_repeat}"
+                    )
                 repeats.append(
                     {
                         "runtimeSeconds": time.monotonic() - repeat_started,
@@ -456,8 +550,20 @@ def run_benchmark(
                 **receipt,
                 "peakMemoryBytes": receipt.get("registration", {}).get("peakMemoryBytes"),
                 "cached": cached,
+                "pairIndex": pair_index,
                 "kind": pair["kind"],
-                "landmarks": pair.get("landmarks", []),
+                "landmarks": [
+                    {
+                        "referenceSize": pair["reference"]["size"],
+                        **(
+                            {"referenceMicronsPerPixel": settings["referenceMicronsPerPixel"]}
+                            if "referenceMicronsPerPixel" in settings
+                            else {}
+                        ),
+                        **landmark,
+                    }
+                    for landmark in pair.get("landmarks", [])
+                ],
                 "manualAssistance": pair.get("manualAssistance") is True,
                 "independentlyReviewed": pair.get("independentlyReviewed") is True,
                 "landmarksFitFree": pair.get("landmarksFitFree") is True,
@@ -466,6 +572,13 @@ def run_benchmark(
                 "frontendLatencyScope": review.get("frontendLatencyScope"),
                 "frontendLatencyReviewed": review.get("frontendLatencyReviewed") is True,
             }
+            row["landmarkMetrics"] = evaluate_landmarks(
+                [
+                    {**landmark, "registration": row["registration"]}
+                    for landmark in row["landmarks"]
+                ],
+                measure_approximate=True,
+            )
             rows.append(row)
     report = {
         "schema": BENCHMARK_VERSION,

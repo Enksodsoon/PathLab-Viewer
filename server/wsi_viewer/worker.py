@@ -1197,6 +1197,9 @@ def _preview_alignment(
                 )
             )
         key = hashlib.sha256(f"{job.id}:refinement".encode()).hexdigest()
+        checkpoint["computeSecondsUsed"] = float(checkpoint.get("computeSecondsUsed", 0)) + max(
+            0.0, time.monotonic() - started
+        )
         if database.scalar(select(Job.id).where(Job.idempotency_key_hash == key)) is None:
             database.add(
                 Job(

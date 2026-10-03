@@ -93,3 +93,65 @@ def test_pair_timeout_cap_and_inherited_compute_budget():
     assert _alignment_remaining_budget({}, {"timeoutSeconds": 2700}) == 600
     assert _alignment_remaining_budget({"computeSecondsUsed": 590}, {"timeoutSeconds": 2700}) == 10
     assert _alignment_remaining_budget({"computeSecondsUsed": 601}, {}) == 0
+
+
+def test_preview_carries_preparation_and_compute_into_total_refinement_budget(monkeypatch):
+    from collections import OrderedDict
+    from datetime import UTC, datetime, timedelta
+    from pathlib import Path
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from wsi_viewer import worker
+
+    elapsed = [100.0]
+    database = MagicMock()
+    database.scalar.return_value = None
+    comparison = ComparisonSet(
+        id="set",
+        name="Set",
+        version=1,
+        reference_slide_id="r",
+        member_slide_ids=["r", "m"],
+        source_versions={"r": "r", "m": "m"},
+        registrations={},
+    )
+    slides = [
+        Slide(id=s, sha256=s, case_id=None, slide_metadata={"width": 100, "height": 100})
+        for s in ("r", "m")
+    ]
+    job = Job(
+        id="preview",
+        checkpoint={
+            "comparisonSetId": "set",
+            "setVersion": 1,
+            "phase": "preview",
+            "computeSecondsUsed": 3,
+            "foregroundDeadlineAt": (datetime.now(UTC) + timedelta(seconds=10)).isoformat(),
+        },
+    )
+
+    def prepare(*_args, **_kwargs):
+        elapsed[0] += 2
+        return object(), False
+
+    def register(*_args):
+        elapsed[0] += 2
+        return SimpleNamespace(as_json=lambda: {"status": "approximate", "overviewTriangles": []})
+
+    monkeypatch.setattr(worker.time, "monotonic", lambda: elapsed[0])
+    monkeypatch.setattr(worker, "_preparation_cache", SimpleNamespace(prepare=prepare))
+    monkeypatch.setattr(worker, "register_prepared", register)
+    monkeypatch.setattr(worker, "_preview_maps", OrderedDict())
+    monkeypatch.setattr(worker, "_preview_map_bytes", 0)
+    monkeypatch.setattr(worker, "_best_compatible_registration", lambda *_a, **_kw: None)
+    monkeypatch.setattr(worker, "_process_rss_bytes", lambda *_a, **_kw: 0)
+    worker._preview_alignment(database, StorageLayout(Path("private")), job, comparison, *slides)
+    refinement = next(
+        call.args[0] for call in database.add.call_args_list if isinstance(call.args[0], Job)
+    )
+    assert job.checkpoint["runtimeSeconds"] == 6
+    assert refinement.checkpoint["computeSecondsUsed"] == 9
+    assert (
+        worker._alignment_remaining_budget(refinement.checkpoint, refinement.resource_limits) == 591
+    )

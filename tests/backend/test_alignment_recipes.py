@@ -5,6 +5,15 @@ from wsi_viewer import alignment_engines as engines
 from wsi_viewer.alignment import AlignmentRejected, map_registration_point
 
 
+def test_native_adapter_retains_accepted_map_compatibility_version():
+    from wsi_viewer.alignment_fast import PREPARATION_VERSION
+
+    assert engines.ADAPTER_VERSIONS[engines.ENGINE_NATIVE] == (
+        "pathlab-adapter-v2-high-resolution-components"
+    )
+    assert PREPARATION_VERSION == "overview-orb1536-v6-component-fallback"
+
+
 def test_recipe_registry_exposes_real_engines_and_hybrids():
     for recipe in (
         "native",
