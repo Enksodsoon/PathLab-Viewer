@@ -52,7 +52,7 @@ Qualified Fast/Accurate presets remain unavailable without qualifying evidence.
 - The earlier full backend run had 1669 passes, 106 skips and one outdated
   icon-count receipt failure. The expected glyph count was corrected to 156 and
   its regression passed; refreshed asset/security/inventory tests passed 35/35
-  before the later overview repair. Subsequent receipts are recorded separately.
+  again after the overview repair (`var/alignment-overview-inventories.xml`).
 - Capacity contracts: 492 passed, 12 skipped. These are contract tests, not an
   actual concurrent production load qualification.
 
