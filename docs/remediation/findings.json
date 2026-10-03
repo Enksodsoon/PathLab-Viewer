@@ -12874,21 +12874,21 @@
       "status": "confirmed",
       "repairState": "candidate",
       "evidence": "Native full-stack drag stalled without PATCH on68e0a038; conditional top-level target insertion shifts folder rows during dragstart. Minimal native stable-row drag succeeds; equivalent row insertion stalls. Out-of-flow top-level target yields intended native drop event, real200 folder PATCH and persisted parent after reload. Final Chromium scenario also verifies native top-level drop, descendant-cycle prevention and accessible Move persistence.",
-      "qualification": "Local Windows Chromium/Firefox/WebKit native and mobile Move cases pass; Linux fullstack37096356564 at a4dc5b3 fails first native move without PATCH acknowledgment. Eight other delivery checks pass; diagnosis, fresh full gates and protected delivery remain pending."
+      "qualification": "Local Windows native Chromium/Firefox/WebKit and mobile Move pass. Retained Linux CI37097769206 at f8bf0bb fails first native move: no dragstart; source input(206,9), target(206,360) with intervening drawer scroll. Corrected native gesture test requires fresh Linux full gates and protected delivery; no new product defect inferred. Populated root-return helper y=-159 reproduced independently and corrected locally."
     },
     {
       "key": "campaign-folder-modal-escape-conflict",
       "status": "confirmed",
       "repairState": "candidate",
       "evidence": "After successful native folder move, Escape left Move dialog open: navigator document handler prevented native dialog cancel and closed navigation instead. Yielding default-prevented and open-dialog key events lets native cancellation close Move while preserving navigator. Chromium real-backend regression passes.",
-      "qualification": "Local Windows Chromium/Firefox/WebKit native and mobile Move cases pass; Linux fullstack37096356564 at a4dc5b3 fails first native move without PATCH acknowledgment. Eight other delivery checks pass; diagnosis, fresh full gates and protected delivery remain pending."
+      "qualification": "Local Windows native Chromium/Firefox/WebKit and mobile Move pass. Retained Linux CI37097769206 at f8bf0bb fails first native move: no dragstart; source input(206,9), target(206,360) with intervening drawer scroll. Corrected native gesture test requires fresh Linux full gates and protected delivery; no new product defect inferred. Populated root-return helper y=-159 reproduced independently and corrected locally."
     },
     {
       "key": "campaign-folder-native-custom-data-loss",
       "status": "confirmed",
       "repairState": "candidate",
       "evidence": "Native WebKit minimal fixture retains text/plain but discards custom folder MIME at dragover/drop; application consequently refuses the drop. Active local gesture identity supplies a bounded fallback, cleared on drop/dragend. Real-backend native nesting/top-level return and reload now pass. External text and ended-gesture drops remain rejected by focused tests.",
-      "qualification": "Local Windows Chromium/Firefox/WebKit native and mobile Move cases pass; Linux fullstack37096356564 at a4dc5b3 fails first native move without PATCH acknowledgment. Eight other delivery checks pass; diagnosis, fresh full gates and protected delivery remain pending."
+      "qualification": "Local Windows native Chromium/Firefox/WebKit and mobile Move pass. Retained Linux CI37097769206 at f8bf0bb fails first native move: no dragstart; source input(206,9), target(206,360) with intervening drawer scroll. Corrected native gesture test requires fresh Linux full gates and protected delivery; no new product defect inferred. Populated root-return helper y=-159 reproduced independently and corrected locally."
     }
   ],
   "currentClosureBranch": "main",

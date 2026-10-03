@@ -5,6 +5,14 @@ test.use({ trace: 'retain-on-failure' })
 
 test('folder drag and accessible Move persist without a descendant cycle', async ({ page, isMobile }, info) => {
   await signIn(page, process.env.PATHLAB_E2E_USERNAME!, process.env.PATHLAB_E2E_PASSWORD!)
+  for (let index = 0; index < 12; index += 1) {
+    await page.getByLabel('Library command bar', { exact: true }).getByRole('button', { name: 'Create', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'New folder', exact: true }).click()
+    const prior = page.getByRole('dialog', { name: 'New folder', exact: true })
+    await prior.getByRole('textbox', { name: 'Name', exact: true }).fill(`A prior folder ${index}`)
+    await prior.getByRole('button', { name: 'Create', exact: true }).click()
+    await expect(prior).toBeHidden()
+  }
   const names = [`QA drag source ${info.project.name}`, `QA drag parent ${info.project.name}`]
   const ids: string[] = []
   for (const name of names) {
@@ -42,7 +50,12 @@ test('folder drag and accessible Move persist without a descendant cycle', async
     const from = tree.getByRole('treeitem', { name: fromName, exact: true }).locator('.folder-name')
     const to = tree.getByRole('treeitem', { name: toName, exact: true }).locator('.folder-name')
     await from.hover()
+    const start = await from.boundingBox()
+    if (!start) throw new Error('Folder has no native drag target')
     await page.mouse.down()
+    // Start the native gesture before target actionability can scroll the drawer.
+    // Otherwise the source can disappear underneath a stationary held pointer.
+    await page.mouse.move(start.x + start.width / 2 + 12, start.y + start.height / 2, { steps: 4 })
     // Some engines emit dragover only after a second move onto the target.
     await to.hover()
     await to.hover()
@@ -102,6 +115,7 @@ test('folder drag and accessible Move persist without a descendant cycle', async
   if (!isMobile) {
     const returned = page.waitForResponse((result) => result.request().method() === 'PATCH'
       && new URL(result.url()).pathname === `/api/v2/admin/folders/${ids[0]}`)
+    await source.locator('.folder-name').hover()
     const from = await source.locator('.folder-name').boundingBox()
     if (!from) throw new Error('Nested folder has no native drag target')
     await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
@@ -109,10 +123,14 @@ test('folder drag and accessible Move persist without a descendant cycle', async
     await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2, { steps: 4 })
     const topLevel = tree.getByText('Move to top level', { exact: true })
     await expect(topLevel).toBeVisible()
+    // Scroll the native target into view while holding the actual drag.
+    await topLevel.hover()
+    await topLevel.hover()
     const to = await topLevel.boundingBox()
-    if (!to) throw new Error('Top-level drop zone has no native target')
-    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 4 })
-    await page.mouse.move(to.x + to.width / 2 + 1, to.y + to.height / 2)
+    const viewport = page.viewportSize()
+    if (!to || !viewport || to.y < 0 || to.y + to.height > viewport.height) {
+      throw new Error('Top-level native target is outside the viewport')
+    }
     await page.mouse.up()
     const acknowledgment = await returned
     expect(acknowledgment.status()).toBe(200)
