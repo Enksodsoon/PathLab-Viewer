@@ -48,6 +48,7 @@ interface Props {
   onViewerAttach?: ViewerAttachmentCallback
   networkProfile?: ViewerNetworkProfile
   showLoadingMode?: boolean
+  loadingMode?: ViewerLoadingMode
   onViewportChange?: (snapshot: ImageViewport, transactionId?: string) => void
   onOpen?: () => void
   onDispose?: () => void
@@ -82,6 +83,7 @@ export function OpenSeadragonViewer({
   onViewerAttach,
   networkProfile,
   showLoadingMode = true,
+  loadingMode,
   onViewportChange,
   onOpen,
   onDispose,
@@ -111,7 +113,8 @@ export function OpenSeadragonViewer({
   const errorTimer = useRef<number | null>(null)
   const reconnectTimer = useRef<number | null>(null)
   const reconnectAttempt = useRef(0)
-  const [mode, setMode] = useState<ViewerLoadingMode>(savedLoadingMode)
+  const [internalMode, setMode] = useState<ViewerLoadingMode>(savedLoadingMode)
+  const mode = loadingMode ?? internalMode
   const [posterVisible, setPosterVisible] = useState(Boolean(posterUrl))
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null)
   const [loadingError, setLoadingError] = useState(false)
@@ -238,7 +241,7 @@ export function OpenSeadragonViewer({
     modeRef.current = mode
     networkProfileRef.current = networkProfile
     try {
-      localStorage.setItem(NETWORK_MODE_KEY, mode)
+      if (loadingMode === undefined) localStorage.setItem(NETWORK_MODE_KEY, mode)
     } catch {
       // Storage restrictions must not prevent changing the current loading mode.
     }
@@ -250,7 +253,7 @@ export function OpenSeadragonViewer({
     )
     networkState.current = next
     if (viewerRef.current) viewerRef.current.imageLoader.jobLimit = next.jobLimit
-  }, [mode, narrowViewport, networkProfile])
+  }, [loadingMode, mode, narrowViewport, networkProfile])
   useEffect(() => {
     if (!element.current) return
     let viewer: OpenSeadragon.Viewer | null = null

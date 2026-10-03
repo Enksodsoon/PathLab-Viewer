@@ -15,6 +15,7 @@
 .comparison-inspector .comparison-display label { grid-template-columns: 90px 1fr; padding: 8px 12px; }
 .comparison-inspector .comparison-display button { color: var(--ink); background: var(--surface-elevated); border-color: var(--border); }
 .comparison-inspector input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary); }
+.comparison-inspector select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--ink); background: var(--surface-elevated); font: inherit; }
 .comparison-engine-candidates > div { display: grid; grid-template-columns: 1fr; }
 .comparison-candidate-receipt { border-top: 1px solid var(--border); font-size: 12px; }
 .comparison-candidate-receipt summary { display: flex; align-items: center; cursor: pointer; }

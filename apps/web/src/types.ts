@@ -383,6 +383,8 @@ export interface RegistrationStageReceipt {
 }
 
 export interface RegistrationBenchmarkMeasurements {
+  improvesOnIndividualStages?: boolean
+  settingsDigest?: string
   medianErrorUm?: number | null
   p95ErrorUm?: number | null
   coverage?: number

@@ -8,9 +8,11 @@ import { ComparisonPage } from '../pages/ComparisonPage'
 const viewportHarness = vi.hoisted(() => ({ enabled: false, bounds: null as [number, number, number, number] | null, applied: vi.fn(), fitted: vi.fn(), current: { centerX: 210, centerY: 330, imageZoom: 2, rotation: 12 } }))
 
 vi.mock('../components/OpenSeadragonViewer', () => ({
-  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void }) => <button
+  OpenSeadragonViewer: ({ tileSource, onReady, onOpen, onViewportChange, loadingMode, showLoadingMode }: { tileSource: string, onReady?: (handle: unknown) => void, onOpen?: () => void, onViewportChange?: (snapshot: { centerX: number, centerY: number, imageZoom: number, rotation: number }) => void, loadingMode?: string, showLoadingMode?: boolean }) => <button
     type="button"
     aria-label={`Viewer ${tileSource}`}
+    data-loading-mode={loadingMode}
+    data-loading-control={showLoadingMode === false ? 'hidden' : 'shown'}
     onClick={() => {
       if (viewportHarness.enabled) onReady?.({ getImageViewport: () => ({ ...viewportHarness.current, ...(viewportHarness.bounds ? { visibleBounds: viewportHarness.bounds } : {}) }), setImageViewport: (snapshot: unknown) => viewportHarness.applied(tileSource, snapshot), fitImageBounds: (bounds: unknown) => viewportHarness.fitted(tileSource, bounds), home: vi.fn() })
       onOpen?.()
@@ -40,7 +42,28 @@ beforeEach(() => {
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
 })
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  localStorage.removeItem('pathlab-viewer-loading-mode:v1')
+})
+
+it('controls tile detail for the active pane from Display and preserves the saved preference', async () => {
+  localStorage.setItem('pathlab-viewer-loading-mode:v1', 'full')
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  for (const viewer of screen.getAllByLabelText(/^Viewer /)) expect(viewer).toHaveAttribute('data-loading-control', 'hidden')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Display', { exact: true }))
+  expect(screen.getByLabelText('Tile detail')).toHaveValue('full')
+  await user.selectOptions(screen.getByLabelText('Tile detail'), 'data-saver')
+  expect(localStorage.getItem('pathlab-viewer-loading-mode:v1')).toBe('data-saver')
+  expect(screen.getByLabelText('Viewer /tiles/1.dzi')).toHaveAttribute('data-loading-mode', 'data-saver')
+  expect(screen.getByLabelText('Viewer /tiles/2.dzi')).toHaveAttribute('data-loading-mode', 'full')
+  await user.click(screen.getByLabelText('Viewer /tiles/2.dzi'))
+  expect(screen.getByLabelText('Tile detail')).toHaveValue('full')
+  localStorage.removeItem('pathlab-viewer-loading-mode:v1')
+})
 
 it('focuses tissue for approximate siblings when the primary reference is hidden', async () => {
   sessionStorage.setItem('pathlab-comparison-view:admin:set-1', JSON.stringify(['slide-2', 'slide-3']))
@@ -302,6 +325,27 @@ it('blocks promotion after independent benchmark qualification fails while allow
   await user.click(screen.getByText('Registration engine candidates'))
   expect(screen.getByRole('button', { name: 'Preview native-v12 for Slide 2' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Promote native-v12 for Slide 2' })).toBeDisabled()
+})
+
+it.each(['native-wsireg', 'valis-rigid-wsireg', 'native-valis'].flatMap(engine => [
+  { engine, validationState: 'engineering_passed', qualified: true, improvesOnIndividualStages: true, digest: 'current', enabled: false },
+  { engine, validationState: 'landmark_passed', qualified: true, improvesOnIndividualStages: false, digest: 'current', enabled: false },
+  { engine, validationState: 'landmark_passed', qualified: true, improvesOnIndividualStages: true, digest: 'old', enabled: false },
+  { engine, validationState: 'landmark_passed', qualified: false, improvesOnIndividualStages: true, digest: 'current', enabled: false },
+  { engine, validationState: 'landmark_passed', qualified: true, improvesOnIndividualStages: true, digest: 'current', enabled: true },
+]))('requires independently qualified improvement before promoting $engine ($validationState/$qualified/$improvesOnIndividualStages/$digest)', async ({ engine, validationState, qualified, improvesOnIndividualStages, digest, enabled }) => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation(async (input, init) => String(input).endsWith('/candidates')
+    ? new Response(JSON.stringify({ candidates: [{ id: 'hybrid', slideId: 'slide-2', setVersion: 1, engine, status: 'ready', currentSettings: true, settingsDigest: 'current', validationState, registration: { status: 'ready', provenance: 'automatic-candidate', evidence: { valisLocalEvidenceQualified: true } }, benchmarkMeasurements: { qualified, improvesOnIndividualStages, settingsDigest: digest } }] }), { status: 200 })
+    : originalFetch(input, init))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/admin/comparisons/set-1']}><Routes><Route path="/admin/comparisons/:comparisonId" element={<ComparisonPage />} /></Routes></MemoryRouter>)
+  await screen.findByText('Multi-stain set')
+  await user.click(screen.getByText('Advanced'))
+  await user.click(screen.getByText('Registration engine candidates'))
+  expect(screen.getByRole('button', { name: `Preview ${engine} for Slide 2` })).toBeEnabled()
+  if (enabled) expect(screen.getByRole('button', { name: `Promote ${engine} for Slide 2` })).toBeEnabled()
+  else expect(screen.getByRole('button', { name: `Promote ${engine} for Slide 2` })).toBeDisabled()
 })
 
 it.each([{ status: 'partial', currentSettings: true }, { status: 'running', currentSettings: true }, { status: 'partial', currentSettings: false }])('handles candidate freshness and $status refreshes with currentSettings=$currentSettings', async ({ status, currentSettings }) => {

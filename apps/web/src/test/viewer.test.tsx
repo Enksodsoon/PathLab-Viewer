@@ -249,6 +249,23 @@ it('lets viewers choose and persist a bounded loading mode', () => {
   expect(osdMock.viewer.imageLoader.jobLimit).toBe(12)
 })
 
+it('applies externally controlled detail modes within the network profile without reopening the viewer', () => {
+  localStorage.setItem('pathlab-viewer-loading-mode:v1', 'data-saver')
+  const onReady = vi.fn()
+  const profile = { maximumJobLimit: 4 }
+  const view = render(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} showLoadingMode={false} loadingMode="full" networkProfile={profile} />)
+  expect(screen.queryByRole('combobox', { name: 'Loading mode' })).not.toBeInTheDocument()
+  expect(latestViewerOptions().imageLoaderLimit).toBe(4)
+  osdMock.viewer.open.mockClear()
+  view.rerender(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} showLoadingMode={false} loadingMode="data-saver" networkProfile={profile} />)
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
+  expect(localStorage.getItem('pathlab-viewer-loading-mode:v1')).toBe('data-saver')
+  view.rerender(<OpenSeadragonViewer tileSource="/tiles/public-1/slide.dzi" onReady={onReady} showLoadingMode={false} loadingMode="full" networkProfile={{ initialJobLimit: 2, maximumJobLimit: 4 }} />)
+  expect(osdMock.viewer.imageLoader.jobLimit).toBe(2)
+  expect(osdMock.viewer.open).not.toHaveBeenCalled()
+  expect(osdMock.viewer.destroy).not.toHaveBeenCalled()
+})
+
 it('keeps the loaded canvas mounted and reports an offline connection', () => {
   renderViewer()
   act(() => window.dispatchEvent(new Event('offline')))
