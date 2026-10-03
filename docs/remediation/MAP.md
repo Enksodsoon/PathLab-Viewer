@@ -12,7 +12,7 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
-- [Shared viewer canvas keyboard ownership](tickets/shared-viewer-canvas-keyboard.md): repeated canvas arrows stay with image panning; navigation elsewhere remains available. [Additional handoff source coverage](ADDITIONAL_HANDOFF_RECONCILIATION.md) records seven additional source hashes and eleven aliases without altering the original register.
+- [Shared viewer canvas keyboard ownership](tickets/shared-viewer-canvas-keyboard.md): repeated canvas arrows stay with image panning; navigation elsewhere remains available. [Additional handoff source coverage](ADDITIONAL_HANDOFF_RECONCILIATION.md) records eight additional source hashes and eleven aliases without altering the original register.
 
 - [Assessment save failure feedback](tickets/assessment-save-failure-feedback.md): distinguish failed save boundaries and retry temporary failures while retaining edits.
 

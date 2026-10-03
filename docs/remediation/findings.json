@@ -13634,6 +13634,12 @@
       "sha256": "cc06d9719031a2de6de512aaa21021a465e62c822a124f71f3e3a1665930dec8",
       "lines": 57,
       "disposition": "historical testing claim; superseded for current qualification by exact-SHA campaign receipts"
+    },
+    {
+      "path": "docs/reports/COMPLETE_SYSTEM_AUDIT.md",
+      "sha256": "7238ab1e500569927c92784b5590fb302cff8b0bd0efc94f9ccb764d22b98663",
+      "lines": 66,
+      "disposition": "historical testing/microservice claim; blanket operational sign-off unsupported for current release, superseded by scoped exact-SHA receipts and open closure requirements"
     }
   ],
   "additionalHandoffClaims": [
