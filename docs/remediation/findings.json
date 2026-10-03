@@ -12999,7 +12999,7 @@
       "status": "confirmed; local candidate qualified, delivery pending",
       "evidence": "Base2289b45 deferred PATCH plus two debounce expirations sends two saves at the same revision; independent red expects one and observes two. Subsequent browser cases expose a brief All changes saved message while only the first revision has been submitted.",
       "repair": "Serialize pending saves per draft load generation; drain newer edits at acknowledged revision; ignore stale-generation timers/completions. Keep Saving while the acknowledged document differs from the latest edit.",
-      "qualification": "Initial40affected pass; independent review exposes cross-draft guard regression and deferred navigation red reproduces it. Scoped generation fix passes42affected, lint and build12.75s; renewed review finds no actionable issues. First generation run failed because save fixture returned wrong draft ID, corrected to echo requested ID. Complete/frontend/browser qualification pending. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending.",
+      "qualification": "Initial40affected pass; independent review exposes cross-draft guard regression and deferred navigation red reproduces it. Scoped generation fix passes42affected, lint and build12.75s; renewed review finds no actionable issues. First generation run failed because save fixture returned wrong draft ID, corrected to echo requested ID. Complete/frontend/browser qualification pending. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending. PR299 passed all nine exact-head7677cdc contexts after fixture option-boundary repair and merged746df1a. All nine exact-main gates passed; protected deployment37141936233 succeeded, actualrestore and fresh health200 verified. Authenticated save-specific checks remain pending.",
       "callers": [
         "AssessmentBuilderPage autosave",
         "Upgrade to sections route navigation"
@@ -13011,7 +13011,7 @@
       "status": "confirmed; local candidate qualified, delivery pending",
       "evidence": "Successful server GET plus SecurityError from local recovery read renders Unable to open draft; independent red reproduced.",
       "repair": "Treat rejected local-cache read as absent while preserving actual server-load failures and Retry.",
-      "qualification": "Storage-denial and server-unavailable controls pass in42affected suite; complete browser/frontend qualification pending. No server acknowledgment or local dirty-copy recovery inferred. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending.",
+      "qualification": "Storage-denial and server-unavailable controls pass in42affected suite; complete browser/frontend qualification pending. No server acknowledgment or local dirty-copy recovery inferred. Final affected42tests pass after status change. Eight browser cases pass with zero retries across four projects, including held-save drain, revision1/2, reload persistence and storage denial. Renewed review clear; final complete checks and protected release pending. PR299 passed all nine exact-head7677cdc contexts after fixture option-boundary repair and merged746df1a. All nine exact-main gates passed; protected deployment37141936233 succeeded, actualrestore and fresh health200 verified. Authenticated save-specific checks remain pending.",
       "callers": [
         "AssessmentBuilderPage initial/retry draft load"
       ],
@@ -13039,6 +13039,39 @@
         "AssessmentBuilderPage acknowledged-draft cache"
       ],
       "ticket": "docs/remediation/tickets/assessment-local-recovery.md"
+    },
+    {
+      "key": "campaign-assessment-import-unsaved-overwrite",
+      "status": "confirmed; local candidate qualified, protected delivery pending",
+      "evidence": "At33a4462, edit title and import before750ms autosave; independent component red receives Original title instead of Unsaved local title. Backend imports from persisted destination at expected revision, then builder replaces local draft.",
+      "repair": "Require All changes saved in import action and submit control; show save-first hint and import using acknowledged revision.",
+      "qualification": "Independent red retained. Initial37affected and four zero-retry browser cases17.7seconds pass across four projects, including held acknowledgment, revision2 import and title/question reload. Final extended affected suite and independent review pending; lint and build7.32seconds pass. Final46affected tests79.56seconds pass. Review minor required proving PATCH handler entry before gate release; corrected four-browser matrix passes17.1seconds with zero retries. No product Critical/Important findings; renewed correction review pending. Complete frontend running separately. Renewed correction review clear; complete final-source frontend539passed84files297.96seconds. Parent delivery and fresh hosted exact-head gates remain required.",
+      "callers": [
+        "AssessmentBuilderPage question import for legacy and sectioned drafts"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
+    },
+    {
+      "key": "campaign-assessment-import-inflight-edits",
+      "status": "confirmed; extended PR301 locally qualified, delivery pending",
+      "evidence": "At073c0c3, hold import, dismiss modal, edit title and expire debounce. Import acknowledgment replaces Edit during import with Original title. Corrected independent red1failed1passed; first cache-mock reset failure retained separately.",
+      "repair": "Serialize import and autosave per active load; retain latest local edits and append fresh server-created imported items, then drain at acknowledged revision. Release rejected imports and reschedule retained edits at original revision.",
+      "qualification": "50affected tests95.55seconds and12zero-retry browser cases50.2seconds pass; lint/build9.68seconds pass. Independent review no Critical/Important; its failed-import drain Minor is covered by six passing component/helper tests32.74seconds. Complete frontend and renewed correction review pending; fresh exact-head gates required. Failed-import drain review correction clear. Deleted-context fallback red found old slide/description/viewport restored; retain only server section identity, new Imported questions title and imported items. Seven exact-source controls pass23.22seconds. Final545frontend tests85files294.44seconds,12zero-retry browser cases54.6seconds, build12.51seconds and lint pass. Incremental fallback review clear. Asset16ADMITTED and deterministic software612BLOCKED validators pass; fresh hosted gates and protected delivery remain required.",
+      "callers": [
+        "AssessmentBuilderPage legacy/sectioned import and autosave"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
+    },
+    {
+      "key": "campaign-assessment-import-stale-route",
+      "status": "confirmed; extended PR301 locally qualified, delivery pending",
+      "evidence": "At073c0c3, hold draft A import, navigate to draft B, acknowledge A. Independent old-source red replaces Second draft title with Original title. Candidate restored after the red run.",
+      "repair": "Ignore stale-generation import completions and submission-state cleanup; reset modal/submission state on a new draft load.",
+      "qualification": "50affected tests95.55seconds and12zero-retry browser cases50.2seconds pass; lint/build9.68seconds pass. Independent review no Critical/Important; its failed-import drain Minor is covered by six passing component/helper tests32.74seconds. Complete frontend and renewed correction review pending; fresh exact-head gates required. Failed-import drain review correction clear. Deleted-context fallback red found old slide/description/viewport restored; retain only server section identity, new Imported questions title and imported items. Seven exact-source controls pass23.22seconds. Final545frontend tests85files294.44seconds,12zero-retry browser cases54.6seconds, build12.51seconds and lint pass. Incremental fallback review clear. Asset16ADMITTED and deterministic software612BLOCKED validators pass; fresh hosted gates and protected delivery remain required.",
+      "callers": [
+        "AssessmentBuilderPage shared-instance route navigation"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-import-save-boundary.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13075,12 +13108,12 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "a549b52058c70255c6dfc71e4ef7c5a85314a231",
-    "ciRun": 37136381960,
-    "securityRun": 37136381971,
-    "deploymentRun": 37137671921,
+    "sha": "746df1a194558581699adfeaf45b3861897ab9af",
+    "ciRun": 37140696542,
+    "securityRun": 37140696530,
+    "deploymentRun": 37141936233,
     "deploymentConclusion": "success",
-    "completedAt": "2026-10-03T16:55:04Z",
+    "completedAt": "2026-10-03T18:04:35Z",
     "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
     "restore": {
       "schemaRevision": "20260907_0037",
@@ -13096,10 +13129,11 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "After terminal deployment success, fresh livez/readyz200. Signed-in native Edge assessment loaded one question and persisted1.251points with All changes saved. Learner preview Escape restored its opener, confirmed by Return reopening. Publish settings ShiftTab/Tab wrapped at both boundaries and Escape returned visible focus to Publish. Import Escape returned visible focus to persistent Templates & import. No publication/import actions submitted. Fresh CtrlR private viewer displayed Opening private preview, then patterned tiles, saved rectangle/title, Pan selected and NO CHANGES.",
+    "liveEvidence": "Protected deployment37141936233 completed successfully at exact746df1a. Actual restore verified69tables,106325files,3286131731bytes and schema20260907_0037; database/files integrity restored. Fresh livez/readyz200 at18:05:45Z. Both in-flight health probes timed out before terminal success and remain scoped deployment history. Authenticated save-specific released verification is pending. Prior signed-in dialog and mobile annotation evidence belongs to a549b52 and is preserved in history.",
     "remaining": [
-      "Assessment save/recovery candidates require complete exact-head checks and protected delivery; specific synthetic publication approval remains pending",
-      "Native production folder drag and mobile Inspector dismissal qualification",
+      "RecoveryPR300 merged43044d5: merged-main checks/protected delivery pending; extended importPR301 needs fresh rebased exact-head gates; specific synthetic publication remains pending",
+      "Authenticated save-specific verification at released746df1a",
+      "Native production folder drag and different-record Inspector qualification",
       "Specific synthetic upload cancellation action-time confirmation",
       "External application-secret rotation and actual OneDrive sync/sharing facts",
       "Strict accountable software admission and two immutable notice gaps",
@@ -13201,6 +13235,39 @@
         "Released assessment-specific authenticated qualification",
         "Native production folder drag and mobile Inspector dismissal qualification",
         "Released browser-shortcut native qualification; assessment-dialog PR298 exact-head gates, deployment and authenticated checks",
+        "Specific synthetic upload cancellation action-time confirmation",
+        "External application-secret rotation and actual OneDrive sync/sharing facts",
+        "Strict accountable software admission and two immutable notice gaps",
+        "Requirement-by-requirement campaign closure; no physical-device or clinical qualification claim"
+      ],
+      "limitations": "Local20-session Library soak passed separately; it does not establish production capacity. No global zero-bug, physical-device or clinical-safety claim. Study gate retained."
+    },
+    {
+      "sha": "a549b52058c70255c6dfc71e4ef7c5a85314a231",
+      "ciRun": 37136381960,
+      "securityRun": 37136381971,
+      "deploymentRun": 37137671921,
+      "deploymentConclusion": "success",
+      "completedAt": "2026-10-03T16:55:04Z",
+      "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+      "restore": {
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69,
+        "fileCount": 106325,
+        "fileBytes": 3286131731,
+        "databaseIntegrity": "restored",
+        "filesIntegrity": "restored"
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "liveEvidence": "After terminal deployment success, fresh livez/readyz200. Signed-in native Edge assessment loaded one question and persisted1.251points with All changes saved. Learner preview Escape restored its opener, confirmed by Return reopening. Publish settings ShiftTab/Tab wrapped at both boundaries and Escape returned visible focus to Publish. Import Escape returned visible focus to persistent Templates & import. No publication/import actions submitted. Fresh CtrlR private viewer displayed Opening private preview, then patterned tiles, saved rectangle/title, Pan selected and NO CHANGES. Native320x568 synthetic title appended mobile ack a549b52: initialbatch403, session200, retrybatch200 and SAVED. Inspector remained dismissed with same record selected. Actual CtrlR reloaded tiles/items200, NO CHANGES; reselected title field retains marker. Desktop viewport restored and responsive tools closed; no physical-device or different-record claim.",
+      "remaining": [
+        "Assessment save/recovery candidates require complete exact-head checks and protected delivery; specific synthetic publication approval remains pending",
+        "Native production folder drag and different-record Inspector qualification",
         "Specific synthetic upload cancellation action-time confirmation",
         "External application-secret rotation and actual OneDrive sync/sharing facts",
         "Strict accountable software admission and two immutable notice gaps",
