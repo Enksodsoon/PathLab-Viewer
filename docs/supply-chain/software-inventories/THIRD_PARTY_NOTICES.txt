@@ -4405,12 +4405,12 @@ THE SOFTWARE.
 
 END NOTICE package/LICENSE
 
-ID: npm:brace-expansion@5.0.9
+ID: npm:brace-expansion@5.0.12
 Name: brace-expansion
-Version: 5.0.9
+Version: 5.0.12
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/brace-expansion/5.0.9
+Source: https://registry.npmjs.org/brace-expansion/5.0.12
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:9c63a23124d68cd30cd316a94a1a0bca34f032786df6df69fc4b5f136bac8d2e
@@ -23425,12 +23425,12 @@ SOFTWARE.
 
 END NOTICE package/LICENSE
 
-ID: npm:undici@8.10.0
+ID: npm:undici@8.10.2
 Name: undici
-Version: 8.10.0
+Version: 8.10.2
 License: MIT
 Admission: RECORDED_UNREVIEWED
-Source: https://registry.npmjs.org/undici/8.10.0
+Source: https://registry.npmjs.org/undici/8.10.2
 Blockers: NONE
 Notice files:
   - package/LICENSE sha256:a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27

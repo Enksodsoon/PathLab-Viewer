@@ -2,28 +2,28 @@
   "artifacts": [
     {
       "path": "THIRD_PARTY_NOTICES.txt",
-      "sha256": "e351e93db4abdcde50e39e13adc6e877b903b501fb536e56bb70132ac83ef861",
-      "sizeBytes": 1449831
+      "sha256": "10e78ebb15f9315ab900b67e4ee96251ce2263ba4fdd0c0c13d90c3007f58041",
+      "sizeBytes": 1449834
     },
     {
       "path": "build.cdx.json",
-      "sha256": "522189bde03265ce93f4989d5ab7d5927a464e70ab183e2cd1c7f8207e1a6eef",
-      "sizeBytes": 727763
+      "sha256": "2b1fc02c68eeec820c0d6d9be0cb2eb7edde175ebdd378bb90942abd50bbb9a2",
+      "sizeBytes": 727771
     },
     {
       "path": "build.spdx.json",
-      "sha256": "545f46e61e92cc0184d7e4a9774763e9927bf004e74a5437b3da0fdd3f9c5c4b",
-      "sizeBytes": 587873
+      "sha256": "a56e4a3545fd81b70946b39c21f27da10005b1bba96c4f831ebce20a9746b3c4",
+      "sizeBytes": 587877
     },
     {
       "path": "source.cdx.json",
-      "sha256": "b5aecd86423f92c9c6b8242273e06ee62d1867030d6afd85aab47d3694436d77",
-      "sizeBytes": 770317
+      "sha256": "36ed97578b1e806782389e5293312beb0f34da9ba4fee1641b9b744c9a244814",
+      "sizeBytes": 770325
     },
     {
       "path": "source.spdx.json",
-      "sha256": "beaab2c7611fdd68bb52f9de2dcab1012edb0168734a82ebd173877fedcc4bbd",
-      "sizeBytes": 621523
+      "sha256": "e05995526debfcadced8aefd06244e2b2a53ee06dd50bd21b822a4b39cade095",
+      "sizeBytes": 621527
     }
   ],
   "coverage": {
@@ -31,7 +31,7 @@
     "assetRecords": 16,
     "buildComponents": 574,
     "currentShippedInputs": 178,
-    "dependencyRecordIdsSha256": "aa2dff8c3e2f0ca7713f282b3312c775fce708bcfa62709b1e7f86d699ef4d76",
+    "dependencyRecordIdsSha256": "1c9b9dbf704b2d51e099ca0b0e72ae1e580f4a9f4ec0ba8cb54f956868127d67",
     "dependencyRecords": 582,
     "sourceComponents": 612,
     "toolchainRecordIdsSha256": "5cce6b78b836238e735be6b1b5ba1ebec4ca04bafa21fed01f7e11d33aa585c1",
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-09-27T10:40:30Z",
+  "generatedAt": "2026-10-03T01:20:50Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -63,10 +63,10 @@
       "sizeBytes": 485
     },
     {
-      "gitBlob": "60def65c6c6dc1cefc5fbdab721af0e7cbb79e3e",
+      "gitBlob": "58a780cce56476840fa7e0b76379d7f4d1aca146",
       "path": "pnpm-lock.yaml",
-      "sha256": "f22645c3007bed6ffae98a2b5a174fa5d02f4256ff3e9420b102eed28418a027",
-      "sizeBytes": 134356
+      "sha256": "0ef2042017000189d5c68b74458f39ebee36184e1dfe89180802646c2a44f17e",
+      "sizeBytes": 134380
     },
     {
       "gitBlob": "defc1d26ffdff4ab9e42d04415fdcd01c4f4d7f8",
@@ -117,10 +117,10 @@
       "sizeBytes": 2498
     },
     {
-      "gitBlob": "ea600081580e87c4c9e9181a7f96709274f4e812",
+      "gitBlob": "3232fc22e5bd4629024d9e22856254b1958fe728",
       "path": "docs/supply-chain/dependency-inventory.json",
-      "sha256": "aa3a7c2debde3f9a1592e0b0cd7a862e51c3c5c4fcdad92256be01ceb0a6f58b",
-      "sizeBytes": 811984
+      "sha256": "347f00c3b703e9921b3655fce9be43199f5203b60166e50410764a419b8e1a2d",
+      "sizeBytes": 811988
     },
     {
       "gitBlob": "1e8376b3b0892f411914bdab374712f616e6f020",
@@ -177,10 +177,10 @@
       "sizeBytes": 27
     },
     {
-      "gitBlob": "1b31ebf587e594dd23d9a74500200221ce72042b",
+      "gitBlob": "11bf642d08f36a3a844c13410b289e03c0a420e4",
       "path": "docs/supply-chain/notice-material/archive-notices.json",
-      "sha256": "3d99811303ac06cf4230df7752292305fe7dc17295e828a81e8d7d57ee917812",
-      "sizeBytes": 107661
+      "sha256": "1982f56dc0d2dad1ff94a688ba8c7f9222b3e3d861abaa0eb494d3b32fe6133d",
+      "sizeBytes": 108764
     },
     {
       "gitBlob": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
@@ -1229,7 +1229,7 @@
     "RECORDED_UNREVIEWED:npm:bare-url@2.5.4",
     "RECORDED_UNREVIEWED:npm:base64-js@1.5.1",
     "RECORDED_UNREVIEWED:npm:bluebird@3.7.2",
-    "RECORDED_UNREVIEWED:npm:brace-expansion@5.0.9",
+    "RECORDED_UNREVIEWED:npm:brace-expansion@5.0.12",
     "RECORDED_UNREVIEWED:npm:buffer-crc32@1.0.0",
     "RECORDED_UNREVIEWED:npm:buffer-from@1.1.2",
     "RECORDED_UNREVIEWED:npm:buffer@6.0.3",
@@ -1375,6 +1375,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "17a79955374f0d97fddeefb9e5d3c68e43e10fc9",
-  "subjectTree": "92d399dee02d0f6a6156859382343eb912fbc569"
+  "subjectCommit": "4d5f531144b743e72da8dca5b254e11de6be86dd",
+  "subjectTree": "1414fa740229ba120f03d5cbde4b5f4ffc060d91"
 }

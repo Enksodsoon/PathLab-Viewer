@@ -8792,15 +8792,15 @@
       "version": "3.7.2"
     },
     {
-      "bom-ref": "dependency:npm:brace-expansion@5.0.9",
+      "bom-ref": "dependency:npm:brace-expansion@5.0.12",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.9.tgz"
+          "url": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.12.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/brace-expansion/5.0.9"
+          "url": "https://registry.npmjs.org/brace-expansion/5.0.12"
         }
       ],
       "licenses": [
@@ -8812,7 +8812,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:brace-expansion@5.0.9"
+          "value": "npm:brace-expansion@5.0.12"
         },
         {
           "name": "pathlab:role",
@@ -8831,9 +8831,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/brace-expansion@5.0.9",
+      "purl": "pkg:npm/brace-expansion@5.0.12",
       "type": "library",
-      "version": "5.0.9"
+      "version": "5.0.12"
     },
     {
       "bom-ref": "dependency:npm:browserslist@4.28.8",
@@ -19268,15 +19268,15 @@
       "version": "8.3.0"
     },
     {
-      "bom-ref": "dependency:npm:undici@8.10.0",
+      "bom-ref": "dependency:npm:undici@8.10.2",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/undici/-/undici-8.10.0.tgz"
+          "url": "https://registry.npmjs.org/undici/-/undici-8.10.2.tgz"
         },
         {
           "type": "vcs",
-          "url": "https://registry.npmjs.org/undici/8.10.0"
+          "url": "https://registry.npmjs.org/undici/8.10.2"
         }
       ],
       "licenses": [
@@ -19288,7 +19288,7 @@
       "properties": [
         {
           "name": "pathlab:id",
-          "value": "npm:undici@8.10.0"
+          "value": "npm:undici@8.10.2"
         },
         {
           "name": "pathlab:role",
@@ -19307,9 +19307,9 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:npm/undici@8.10.0",
+      "purl": "pkg:npm/undici@8.10.2",
       "type": "library",
-      "version": "8.10.0"
+      "version": "8.10.2"
     },
     {
       "bom-ref": "dependency:npm:universalify@2.0.1",
@@ -25852,7 +25852,7 @@
         "dependency:npm:baseline-browser-mapping@2.11.14",
         "dependency:npm:bidi-js@1.0.3",
         "dependency:npm:bluebird@3.7.2",
-        "dependency:npm:brace-expansion@5.0.9",
+        "dependency:npm:brace-expansion@5.0.12",
         "dependency:npm:browserslist@4.28.8",
         "dependency:npm:buffer-crc32@1.0.0",
         "dependency:npm:buffer-from@1.1.2",
@@ -26090,7 +26090,7 @@
         "dependency:npm:typescript-eslint@8.69.0",
         "dependency:npm:typescript@5.9.3",
         "dependency:npm:undici-types@8.3.0",
-        "dependency:npm:undici@8.10.0",
+        "dependency:npm:undici@8.10.2",
         "dependency:npm:universalify@2.0.1",
         "dependency:npm:unzipper@0.12.5",
         "dependency:npm:update-browserslist-db@1.3.1",
@@ -26227,7 +26227,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:build:17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
+      "ref": "pathlab:build:4d5f531144b743e72da8dca5b254e11de6be86dd"
     },
     {
       "dependsOn": [],
@@ -27031,7 +27031,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:brace-expansion@5.0.9"
+      "ref": "dependency:npm:brace-expansion@5.0.12"
     },
     {
       "dependsOn": [],
@@ -27983,7 +27983,7 @@
     },
     {
       "dependsOn": [],
-      "ref": "dependency:npm:undici@8.10.0"
+      "ref": "dependency:npm:undici@8.10.2"
     },
     {
       "dependsOn": [],
@@ -28528,15 +28528,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:build:17a79955374f0d97fddeefb9e5d3c68e43e10fc9",
+      "bom-ref": "pathlab:build:4d5f531144b743e72da8dca5b254e11de6be86dd",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/4d5f531144b743e72da8dca5b254e11de6be86dd"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/4d5f531144b743e72da8dca5b254e11de6be86dd"
         }
       ],
       "licenses": [
@@ -28567,13 +28567,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@17a79955374f0d97fddeefb9e5d3c68e43e10fc9",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@4d5f531144b743e72da8dca5b254e11de6be86dd",
       "type": "application",
-      "version": "17a79955374f0d97fddeefb9e5d3c68e43e10fc9"
+      "version": "4d5f531144b743e72da8dca5b254e11de6be86dd"
     },
-    "timestamp": "2026-09-27T10:40:30Z"
+    "timestamp": "2026-10-03T01:20:50Z"
   },
-  "serialNumber": "urn:uuid:17a79955-374f-4d97-adde-efb9e5d3c68e",
+  "serialNumber": "urn:uuid:4d5f5311-44b7-43e7-ada8-dca5b254e11d",
   "specVersion": "1.6",
   "version": 1
 }
