@@ -12900,9 +12900,9 @@
     {
       "key": "campaign-annotation-desktop-inspector-focus",
       "status": "confirmed",
-      "repairState": "deployed; live qualification pending",
+      "repairState": "deployed; functional desktop keyboard return qualified",
       "evidence": "After mobile layout repair, regression reaches844x390 and closing Inspector leaves its trigger inactive. Existing focus cleanup returns early for non-mobile panels. Return focus to the trigger on desktop inspector closure while retaining the mobile modal focus trap. Corrected Chromium regression passes all five viewport widths.",
-      "qualification": "All60 focused browser matrix checks pass, including desktop/mobile Inspector closure restoring trigger focus. Four real-backend320px cases pass. Protected release remains pending; desktop stays non-modal. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only."
+      "qualification": "All60 focused browser matrix checks pass, including desktop/mobile Inspector closure restoring trigger focus. Four real-backend320px cases pass. Protected release remains pending; desktop stays non-modal. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only. At verified daa101e, closing Inspector and pressing Return reopens it from the trigger. This qualifies functional keyboard return; UI Automation is not asserted as DOM activeElement."
     },
     {
       "key": "campaign-assessment-v1-publish-shape-validation",
@@ -12936,10 +12936,10 @@
     {
       "key": "campaign-annotation-inspector-save-reopen",
       "status": "confirmed",
-      "repairState": "merged",
+      "repairState": "deployed; desktop history/save qualified, remaining live checks open",
       "evidence": "At production bd69848 a dismissed Inspector reopens after history/save. At ae9b1ac AnnotationStore snapshots clone the selection Set on every emit; the workspace opens the Inspector on reference changes with unchanged nonempty selected IDs. Desktop/mobile selected-annotation Save regressions fail at the unintended reopen. Earlier fixture setup failures are retained separately.",
       "repair": "Depend on ordered selected IDs rather than cloned Set identity; preserve primary selection order and existing opening on a different selection.",
-      "qualification": "69 affected annotation tests and all four browser targets pass. Frontend lint/build pass. All494 frontend tests pass. All64 annotation responsive browser matrix checks pass across four engines/targets with zero retries. Protected CI and released verification pending. Repository/security/software inventory validation pass; strict releaseAdmission remainsBLOCKED. No data-loss, physical-device or keyboard-focus claim follows from these checks. Review found no Critical/Important issue; selected-record history coverage improved before merge. All496 frontend tests now pass, including Undo/Redo retaining the same selected record at320/1200. Prior exact-head cafd1c1 passed all nine delivery gates (CI37117465927/Security37117465862); test/docs follow-up requires fresh exact-head gates. Real backend short-path annotation suite5passed, paired initial long-path run4passed/1failed retained; no broad Windows path root-cause claim. Candidate remains not deployed. Latest delivery: PR295 merged normally at af2c33f96f87839a322bf02bf33bcd111b3490c3 after review and all nine exact-head checks succeeded at c72a642 (CI37119420441/Security37119420428). Exact-main checks and protected deployment remain pending; production remains ae9b1ac.",
+      "qualification": "69 affected annotation tests and all four browser targets pass. Frontend lint/build pass. All494 frontend tests pass. All64 annotation responsive browser matrix checks pass across four engines/targets with zero retries. Protected CI and released verification pending. Repository/security/software inventory validation pass; strict releaseAdmission remainsBLOCKED. No data-loss, physical-device or keyboard-focus claim follows from these checks. Review found no Critical/Important issue; selected-record history coverage improved before merge. All496 frontend tests now pass, including Undo/Redo retaining the same selected record at320/1200. Prior exact-head cafd1c1 passed all nine delivery gates (CI37117465927/Security37117465862); test/docs follow-up requires fresh exact-head gates. Real backend short-path annotation suite5passed, paired initial long-path run4passed/1failed retained; no broad Windows path root-cause claim. Candidate remains not deployed. Latest delivery: PR295 merged normally at af2c33f96f87839a322bf02bf33bcd111b3490c3 after review and all nine exact-head checks succeeded at c72a642 (CI37119420441/Security37119420428). Exact-main checks and protected deployment remain pending; production remains ae9b1ac. Current release: included in daa101e after PR296; all nine merged-main gates passed at CI37125275731/Security37125275710. Protected deployment37126402648 is normally approved and running. Do not treat this as released authenticated Inspector qualification. Deployment37126402648 completed successfully at daa101e with actual restore verification and preserved feature settings. Native Edge desktop selected-record edit, dismissal, Undo/save and Redo/save retain the closed Inspector; Return after closure reopens its trigger. Post-edit reload and mobile dismissal remain open. New Ctrl+R modifier conflict is tracked separately. Latest native browser-control Refresh completed and retained the saved title/rectangle with NO CHANGES; post-edit reload is now qualified. Mobile dismissal and different-record selection remain open.",
       "callers": [
         "AnnotationStore.makeSnapshot and emit",
         "AnnotationStore.setAutosaveStatus and acknowledge",
@@ -12950,10 +12950,10 @@
     {
       "key": "campaign-assessment-v2-score-preflight-validation",
       "status": "confirmed",
-      "repairState": "candidate",
+      "repairState": "deployed; authenticated assessment qualification pending",
       "evidence": "At ae9b1ac v2 compilation accepts finite scores beyond existing Numeric(12,3) storage and exponent values not quantizable by shared scoring. Five compiler regressions fail for item/raw/rounded totals. Five actual HTTP regressions reproduce accepted oversized preflight and malformed points metrics outcomes, including invalid-string ValueError. Review adds an eleventh red HTTP case: Decimal accepts 1__0 as10 but float metrics raises ValueError. Six more actual HTTP regressions reproduce null sections/section/items/item/options/optional-release traversal crashes before the shape follow-up; 17 red cases total across this repair batch. A follow-up actual saved-draft probe confirms unhashable question types crash. Twenty actual HTTP and two compiler regressions fail at a5ee292 for list/object enum, routing, answer-key and media fields:39 red regressions across this batch. Additional-media fixtures include a valid primary image to reach the affected validator. API schema-selection boundaries still escaped contract handlers at4615c0b. Corrected baseline18HTTPcases yields9actual crashes (preflight/duplicate/migrate across list/object/unknown schemas) and9existing structured rejection controls, including unchanged import404. Proven failing regressions total48; no import crash is claimed.",
       "repair": "Use existing MAX_STORED_SCORE/PRECISION to bound v2 raw and separately rounded totals, translating decimal failures to ASSESSMENT_POINTS_INVALID. Keep section information unscored. Failed compilation returns null points metrics; valid metrics use Decimal consistently with shared scoring. Preserve editable drafts/revisions, valid half-up grading and publication release policy. Guard warning/metric traversal with list/dict checks while passing the untouched original draft to compilation. Preserve manual defaults for null optional release. Require strings before hashing schema/type/style/media/region/routing values and answer-key IDs; preserve existing structured contract error codes instead of TypeError. Move preflight schema selection inside its existing contract handler; translate invalid schemas to existing422codes in duplicate/migration. Preserve import item-not-found404 and all source/destination revisions.",
-      "qualification": "Expanded local assessment selection258passed13explicit skips1248deselected33.90seconds, Ruff/mypy/diff checks pass. All nine exact-head checks passed at prior4615c0b (CI37122576036/Security37122576032) before schema-route follow-up; its independent review and real-backend5pass are historical. Renewed latest-head review and delivery gates required. Stress begun at4615c0b completes1/5/10/20-session5minute phases with0errors;30minute soak still running. Latest route follow-up does not modify stressed Library paths. No data rewrite/activation or historical published-definition qualification.",
+      "qualification": "Expanded local assessment selection258passed13explicit skips1248deselected33.90seconds, Ruff/mypy/diff checks pass. All nine exact-head checks passed at prior4615c0b (CI37122576036/Security37122576032) before schema-route follow-up; its independent review and real-backend5pass are historical. Renewed latest-head review and delivery gates required. Stress begun at4615c0b completes1/5/10/20-session5minute phases with0errors;30minute soak still running. Latest route follow-up does not modify stressed Library paths. No data rewrite/activation or historical published-definition qualification. Current delivery: PR296 merged normally as daa101e7d1e14cb49849a9ba973816810bcf96ac after independent review and all nine exact-head checks at95baae6. All nine fresh merged-main checks then passed: CI37125275731/Security37125275710; backend1432passed/87skipped, PostgreSQL148passed/1skipped, browser241passed, frontend496passed, real fullstack28passed/1skipped/0unexpected/0flaky. Protected deployment37126402648 is normally approved and running; production/live qualification is not yet established. The local Library stress campaign at4615c0b completed1/5/10/20-session five-minute phases and a30-minute20-session soak,12080soak actions with0errors, recovery healthy with1000metadata fixtures, no CPU/RAM stop; launcher terminalpassed andproductionTouchedfalse. Assessment route followup does not change the stressed Library paths. Strict admission remainsBLOCKED. Protected deployment37126402648 completed successfully at daa101e after all nine exact-main gates. Actual database/file restoration and fresh public health passed; authenticated assessment-specific qualification remains open.",
       "callers": [
         "compile_assessment_v2: server preflight, preview and publication",
         "preflight_v2 points metrics",
@@ -12964,6 +12964,21 @@
         "import_questions existing item-not-found contract control"
       ],
       "ticket": "docs/remediation/tickets/assessment-v2-score-storage-bounds.md"
+    },
+    {
+      "key": "campaign-annotation-modified-browser-shortcuts",
+      "status": "confirmed",
+      "repairState": "local workspace and overlay candidate qualified; renewed review and delivery pending",
+      "evidence": "On released daa101e, native Edge Ctrl+R changes Pan to Ruler instead of refreshing. AnnotationWorkspace handles explicit Ctrl/Cmd S/Z/C/V, then looks up tool keys and prevents default without guarding remaining Ctrl/Meta/Alt modifiers. Six real component keyboard events fail because their default actions are cancelled: Ctrl+R, Cmd+R, Ctrl+B, Alt+G, Alt+Left and Ctrl+Backspace. These are regression cases for one root cause, not six independent bugs. Eight unmodified/explicit-command controls already pass. Initial14fixture errors from an omitted required attachment callback are retained as setup history, not product defects. Independent review found the earlier overlay capture listener intercepts modified drawing keys before the workspace handler. Twelve independent cases fail with an attached viewer and unfinished polygon: Ctrl/Meta/Alt times Backspace/Enter/Escape/Space. A plain Backspace completion control passes. This is additional caller coverage for the same modifier root cause.",
+      "repair": "After supported annotation commands, return for remaining Ctrl/Meta/Alt combinations before tool, deletion and movement handlers. Plain tools, Shift movement and explicit Save/Undo/Copy/Paste remain supported. No API, calibration, data or feature activation changes. Apply the same modifier return to the earlier overlay capture keydown listener, preserving plain drawing commands and unconditionally releasing temporary Space pan on keyup.",
+      "qualification": "Six failing component regressions became green; complete affected workspace file23passed. Changed-file ESLint and production build passed. Default full run508passed/2failed: auth chunk-build30second timeout and filtered-upload initial-render wait; both original suites pass48focused tests. Same-scope full four-worker run510passed across81files. All four browser projects reproduce Pan changing to Ruler with the guard demonstrably removed; the first browser probe accidentally retained the guard because of CRLF and is not red evidence. Complete68-case browser matrix passed across four projects, zero retries. Native browser Refresh now completed on released daa101e and reloaded the saved synthetic title and rectangle with NO CHANGES. The local shortcut guard remains undeployed. No timeout change or global keyboard qualification claim. Overlay follow-up passes54tests across both affected files, including plain/modified Space-release cleanup. Complete frontend523passed81files and production build10.70s passed before three added keyup controls; full final scope pending. All72 annotation browser cases pass across four projects with zero retries; drawing regression uses actual pointer clicks and key combinations. PR297 exists at prior754f4b6 and requires a new head with the overlay repair, renewed review and all exact-head gates. Final complete same-scope frontend run526passed across81files,202.08seconds; all54affected tests pass. Changed-file ESLint and diff checks pass. Build10.70seconds reflects the final product source; subsequent changes add keyup controls only.",
+      "callers": [
+        "AnnotationWorkspace window keydown handler",
+        "Native Edge browser refresh and reserved key combinations",
+        "Existing explicit annotation Save/Undo/Copy/Paste commands",
+        "AnnotationOverlay capture keydown and temporary-pan keyup cleanup"
+      ],
+      "ticket": "docs/remediation/tickets/annotation-browser-shortcuts.md"
     }
   ],
   "currentClosureBranch": "main",
@@ -13000,12 +13015,12 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "ae9b1ac624c44388866e36e7be4759609f3dcb9b",
-    "ciRun": 37114671905,
-    "securityRun": 37114671870,
-    "deploymentRun": 37116218798,
+    "sha": "daa101e7d1e14cb49849a9ba973816810bcf96ac",
+    "ciRun": 37125275731,
+    "securityRun": 37125275710,
+    "deploymentRun": 37126402648,
     "deploymentConclusion": "success",
-    "completedAt": "2026-10-03T10:38:42Z",
+    "completedAt": "2026-10-03T13:46:19Z",
     "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
     "restore": {
       "schemaRevision": "20260907_0037",
@@ -13021,18 +13036,17 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "Fresh readyz/livez200 and anonymous admin slides/assessment drafts401. Signed-in synthetic B tiles and the saved rectangle/title survived released reload at320x568. Accessible synthetic folder Move persisted after reload; parent destination omits its descendant. New-folder and Move dialog Escape preserve the Library navigator.",
+    "liveEvidence": "Fresh readyz/livez returned200. Actual /api/v1/admin/slides and /api/v2/admin/assessment/drafts returned401 anonymously; /api/v2/admin/slides is a404 wrong-route control, not an authorization result. Signed-in Library and synthetic B patterned tiles rendered. Existing saved rectangle/title loaded. A new synthetic title edit was acknowledged SAVED. Closing desktop Inspector then pressing Return reopened its trigger; closing again and Undo/Redo retained the selected rectangle and dismissed Inspector through both SAVED acknowledgments. Post-edit full reload remains unverified; Computer Use stopped during a Refresh, then a fresh Ctrl+R selected Ruler instead of refreshing, exposing a separate modifier-shortcut defect. Later browser-control Refresh completed and a new viewer instance reloaded the saved desktop-verified title and rectangle with NO CHANGES; prior stopped/timed-out attempts remain history. Released synthetic assessment builder loaded1.25points; learner preview rendered and accepted a synthetic answer at desktop/mobile preview widths without a fallback notice. Editing points to1.251 showed a generic save conflict; reload restored1.25. Its failed request cause is unresolved, and successful save is not claimed.",
     "remaining": [
-      "Assessment-specific authenticated live qualification",
-      "Native production folder drag and desktop Inspector DOM focus",
-      "Inspector selection-stability PR295 merged: not deployed",
-      "Action-time confirmation for specific synthetic upload cancellation",
-      "External application-secret rotation and OneDrive sync/sharing facts",
-      "Physical devices, bounded sustained soak and requirement-by-requirement campaign closure",
-      "Strict software admission remains BLOCKED; accountable licensing receipts required",
-      "V2 assessment score/preflight repair candidate and historical published-definition qualification"
+      "Released assessment-specific authenticated qualification",
+      "Native production folder drag and mobile Inspector dismissal qualification",
+      "Newly reproduced browser-shortcut repair delivery and released qualification",
+      "Specific synthetic upload cancellation action-time confirmation",
+      "External application-secret rotation and actual OneDrive sync/sharing facts",
+      "Strict accountable software admission and two immutable notice gaps",
+      "Requirement-by-requirement campaign closure; no physical-device or clinical qualification claim"
     ],
-    "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
+    "limitations": "Local20-session Library soak passed separately; it does not establish production capacity. No global zero-bug, physical-device or clinical-safety claim. Study gate retained."
   },
   "previousProductionReleases": [
     {
@@ -13072,6 +13086,43 @@
     {
       "campaignStatus": "in progress; protected production68e0a038 deployed; three folder/modal candidates pass four local Windows browser targets, but Linux fullstack native folder move lacks PATCH acknowledgment; diagnostic collection added before further repair. External security facts and live Cancel confirmation remain open.",
       "verification": "Production 68e0a038f75c26fbc7162c7f1c92c5c18770607f: all nine required exact-main checks successful; original WebKit navigator failure retained, 10 local repeats and CI rerun passed without source changes. Protected deploy37093695257 completed; restore drill69tables106325files/schema20260907_0037; public readiness/liveness200. Fresh signed-in Edge Library/QuickLook/private viewer and synthetic annotation autosave/reload persistence passed. At preceding0d11, selected native Classroom expiry persisted and revocation rejected the correct code. Source aliases remain954; current campaign is not closed."
+    }
+  ],
+  "productionReleaseHistory": [
+    {
+      "sha": "ae9b1ac624c44388866e36e7be4759609f3dcb9b",
+      "ciRun": 37114671905,
+      "securityRun": 37114671870,
+      "deploymentRun": 37116218798,
+      "deploymentConclusion": "success",
+      "completedAt": "2026-10-03T10:38:42Z",
+      "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+      "restore": {
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69,
+        "fileCount": 106325,
+        "fileBytes": 3286131731,
+        "databaseIntegrity": "restored",
+        "filesIntegrity": "restored"
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "liveEvidence": "Fresh readyz/livez200 and anonymous admin slides/assessment drafts401. Signed-in synthetic B tiles and the saved rectangle/title survived released reload at320x568. Accessible synthetic folder Move persisted after reload; parent destination omits its descendant. New-folder and Move dialog Escape preserve the Library navigator.",
+      "remaining": [
+        "Assessment-specific authenticated live qualification",
+        "Native production folder drag and desktop Inspector DOM focus",
+        "Inspector selection-stability PR295 merged: not deployed",
+        "Action-time confirmation for specific synthetic upload cancellation",
+        "External application-secret rotation and OneDrive sync/sharing facts",
+        "Physical devices, bounded sustained soak and requirement-by-requirement campaign closure",
+        "Strict software admission remains BLOCKED; accountable licensing receipts required",
+        "V2 assessment score/preflight repair candidate and historical published-definition qualification"
+      ],
+      "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
     }
   ]
 }
