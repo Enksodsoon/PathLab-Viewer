@@ -240,7 +240,11 @@ test('every declared route renders; buttons and menus are inventoried and explor
       ? page.getByText(item.marker, { exact: true }).first()
       : page.getByRole('heading', { name: item?.marker ?? 'All slides', exact: true }).first()
     await expect(marker, `Could not restore route ${target}`).toBeVisible()
-    if (target === '/admin') await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+    // The unmatched route redirects to Library too. Its heading appears before
+    // data settles, which can shift button positions during exploration.
+    if (target === '/admin' || !item) {
+      await expect(page.getByRole('article', { name: routeSlideName, exact: true })).toBeVisible()
+    }
     if (item?.redirect) {
       await expect(page.getByRole('navigation', { name: 'Response views', exact: true })).toBeVisible()
     }
@@ -321,7 +325,9 @@ test('every declared route renders; buttons and menus are inventoried and explor
       }
       const target = buttonLocator.nth(targetIndex)
       if (!(await target.isEnabled())) {
-        activationEvidence.push({ route: entry.route, name, result: 'disabled-after-state-change' })
+        const observed = await target.evaluate((element) => element.getAttribute('aria-label')
+          || element.getAttribute('title') || element.textContent?.trim() || '(unnamed)')
+        activationEvidence.push({ route: entry.route, name, observed, result: 'disabled-after-state-change' })
         continue
       }
       const currentName = await target.evaluate((element) => element.getAttribute('aria-label')
