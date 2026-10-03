@@ -28,7 +28,11 @@ warped reference frame into the original reference. Final triangles and controls
 are composed back into original moving coordinates. Stage receipts include
 versions, settings digests, timing, image scales, crop origins and calibration.
 Moving calibration becomes reference calibration for the residual stage.
-VALIS rigid initialization disables its nonrigid registrar. Every recipe shares
+VALIS rigid initialization disables its nonrigid registrar. Pinned VALIS's
+rigid-only constructor omits `non_rigid_reg_kwargs`, although successful
+`register()` cleanup accesses it unconditionally. Adapter v15 initializes an
+empty dict only for rigid-only registration when the attribute is absent,
+preserving existing options and measured error evidence. Every recipe shares
 one 600-second process-tree deadline, one CPU thread and the existing 7-GiB
 ceiling. New analysis images are bounded to 2048 pixels. Adaptive worker retries,
 preemption and automatic fallback persist compute already spent.
@@ -82,6 +86,14 @@ fit-free independently reviewed pairs. Outside screening, `landmarks: []` is
 allowed for unscored development probes; no observations means no finalist or
 qualified winner. Inputs are hashed from actual derivative bytes and geometry.
 Cache keys include engine/adapter versions, settings and runtime packages.
+Each pair can override cohort options with `settings: {"wsireg": {...}}` (or its
+versioned engine name). Pair `referenceMicronsPerPixel` and
+`movingMicronsPerPixel`, or each slide's `micronsPerPixel`, accept two positive
+finite values for the declared full-size coordinate frame. Pair calibration
+overrides cohort options, reaches both registration and uncalibrated landmark
+records, and is included in the receipt digest. Explicit landmark calibration
+remains authoritative for evaluation. Manual-assisted positive landmarks stay
+in the automatic denominator as unsupported; assisted scores are separate.
 Reviews can be added after a run; a different registration digest invalidates
 negative and latency reviews. Resume preserves actual cold timing.
 
@@ -96,7 +108,17 @@ status; the legacy ready-map evaluator retains its ready-only qualification.
 Both gates retain median 50 micrometers, p95 100 micrometers, coverage 80 percent
 and zero independently reviewed confident wrong-structure matches.
 
+Public report rows include zero-based `pairIndex` in frozen manifest order and
+per-pair landmark metrics without coordinates or maps. Advancement ranks up to
+four strongest tested recipes, including zero-coverage rejected recipes when
+scored ground truth and fresh negative reviews exist; advancement alone never
+qualifies a recipe. Cohorts without negative pairs cannot advance.
+
 Aggregate JSON/Markdown omit identities, paths and landmark coordinates. Private
 caches and map artifacts stay in the explicitly chosen output directory, which
 must be outside version-controlled files. Production merge, deployment and
 clinical qualification are separate operations.
+Private `diagnostics/<receipt-digest>.json` files retain upstream exception types
+and messages for cold/repeat failures. Cached failures recorded before this
+feature cannot recover discarded messages; rerun them with `--no-resume` to
+obtain diagnostics. Public reports retain sanitized reason categories only.
