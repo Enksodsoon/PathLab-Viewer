@@ -3,10 +3,15 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 from typing import Any, cast
 
-from .assessment_contract import AssessmentContractError, CompiledAssessment
+from .assessment_contract import (
+    MAX_STORED_SCORE,
+    PRECISION,
+    AssessmentContractError,
+    CompiledAssessment,
+)
 
 V1_SCHEMA = "pathlab.assessment/1"
 V2_SCHEMA = "pathlab.assessment/2"
@@ -515,6 +520,8 @@ def compile_assessment_v2(draft: dict[str, Any]) -> CompiledAssessment:
     slide_ids: set[str] = set()
     normalized_sections: list[dict[str, Any]] = []
     position = 0
+    total_points = Decimal("0")
+    total_rounded_points = Decimal("0")
     for section_position, raw in enumerate(sections):
         _require(isinstance(raw, dict), "ASSESSMENT_INVALID_SECTION")
         section = deepcopy(cast(dict[str, Any], raw))
@@ -537,15 +544,26 @@ def compile_assessment_v2(draft: dict[str, Any]) -> CompiledAssessment:
         items = cast(list[Any], items)
         normalized_items: list[dict[str, Any]] = []
         for raw_item in items:
-            normalized_items.append(
-                _validate_item(
-                    raw_item,
-                    section_ids=section_ids,
-                    all_ids=all_ids,
-                    slide_ids=slide_ids,
-                    position=position,
-                )
+            item = _validate_item(
+                raw_item,
+                section_ids=section_ids,
+                all_ids=all_ids,
+                slide_ids=slide_ids,
+                position=position,
             )
+            if item["type"] != "section-information":
+                try:
+                    points = Decimal(str(item.get("points", "0")))
+                    total_points += points
+                    total_rounded_points += points.quantize(PRECISION, rounding=ROUND_HALF_UP)
+                    _require(
+                        total_points.quantize(PRECISION, rounding=ROUND_HALF_UP) <= MAX_STORED_SCORE
+                        and total_rounded_points <= MAX_STORED_SCORE,
+                        "ASSESSMENT_POINTS_INVALID",
+                    )
+                except DecimalException as error:
+                    raise AssessmentContractError("ASSESSMENT_POINTS_INVALID") from error
+            normalized_items.append(item)
             position += 1
         section["position"] = section_position
         section["items"] = normalized_items

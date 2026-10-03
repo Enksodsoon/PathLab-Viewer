@@ -1,4 +1,5 @@
 from copy import deepcopy
+from decimal import Decimal
 
 import pytest
 from wsi_viewer.assessment_branching import (
@@ -6,7 +7,7 @@ from wsi_viewer.assessment_branching import (
     deterministic_order,
     reachable_section_ids,
 )
-from wsi_viewer.assessment_contract import AssessmentContractError
+from wsi_viewer.assessment_contract import AssessmentContractError, score_item
 from wsi_viewer.assessment_contract_v2 import (
     V2_SCHEMA,
     compile_assessment_v2,
@@ -94,6 +95,39 @@ def test_schema_detection_never_infers_v2_from_sections() -> None:
     assert document_schema({"title": "Legacy", "items": []}) == "pathlab.assessment/1"
     assert document_schema({"title": "Ambiguous", "sections": []}) == "pathlab.assessment/1"
     assert document_schema(v2_document()) == V2_SCHEMA
+
+
+@pytest.mark.parametrize("points", ["1000000000", "999999999.9995", "1e999999999"])
+def test_v2_rejects_points_that_cannot_be_scored_or_stored(points: str) -> None:
+    document = v2_document()
+    document["sections"][0]["items"][0]["points"] = points  # type: ignore[index]
+    with pytest.raises(AssessmentContractError, match="ASSESSMENT_POINTS_INVALID"):
+        compile_assessment_v2(document)
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [("999999999.999", "0.001"), ("499999999.9995", "499999999.9995")],
+)
+def test_v2_rejects_raw_and_separately_rounded_totals_across_sections(
+    first: str, second: str
+) -> None:
+    document = v2_document()
+    document["sections"][0]["items"][0]["points"] = first  # type: ignore[index]
+    document["sections"][2]["items"][0]["points"] = second  # type: ignore[index]
+    with pytest.raises(AssessmentContractError, match="ASSESSMENT_POINTS_INVALID"):
+        compile_assessment_v2(document)
+
+
+@pytest.mark.parametrize("points", ["999999999.999", "1.0055"])
+def test_v2_preserves_valid_score_boundary_and_half_up_rounding(points: str) -> None:
+    document = v2_document()
+    document["sections"][0]["items"][0]["points"] = points  # type: ignore[index]
+    document["sections"][1]["items"][0]["points"] = "unused-invalid"  # type: ignore[index]
+    compiled = compile_assessment_v2(document)
+    item = flatten_v2_items(compiled.definition)[0]
+    expected = Decimal("999999999.999" if points.startswith("999") else "1.006")
+    assert score_item(item, {"optionId": "option-lepidic"}) == expected
 
 
 def test_v2_compile_is_deterministic_bounded_and_privacy_stripped() -> None:

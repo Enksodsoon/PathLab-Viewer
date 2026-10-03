@@ -1,7 +1,41 @@
 from pathlib import Path
 
+import pytest
 from test_assessment_admin import _client, _document
 from test_assessment_contract_v2 import v2_document
+
+
+@pytest.mark.parametrize("points", ["invalid", "NaN", "Infinity", "1e999999999", "1000000000"])
+def test_v2_invalid_points_preflight_and_publication_preserve_editable_draft(
+    tmp_path: Path, points: str
+) -> None:
+    client, _ = _client(tmp_path)
+    document = v2_document()
+    document["sections"][0]["items"][0]["points"] = points  # type: ignore[index]
+    created = client.post(
+        "/api/v2/admin/assessment/drafts", json={"title": "Synthetic invalid", "document": document}
+    )
+    assert created.status_code == 201
+    path = f"/api/v2/admin/assessment/drafts/{created.json()['id']}"
+    preflight = client.post(f"{path}/preflight")
+    assert preflight.status_code == 200
+    assert preflight.json()["valid"] is False
+    assert preflight.json()["errors"][0]["code"] == "ASSESSMENT_POINTS_INVALID"
+    assert preflight.json()["metrics"]["points"] is None
+    for action in ("preview", "publish"):
+        rejected = client.post(f"{path}/{action}")
+        assert rejected.status_code == 422
+        assert rejected.json()["detail"]["code"] == "ASSESSMENT_POINTS_INVALID"
+    retained = client.get(path).json()
+    assert retained["document"] == document
+    assert retained["revision"] == 1
+    assert (
+        client.patch(path, headers={"If-Match": "1"}, json={"document": v2_document()}).status_code
+        == 200
+    )
+    published = client.post(f"{path}/publish")
+    assert published.status_code == 201
+    assert published.json()["version"] == 1
 
 
 def test_explicit_v1_migration_clones_source_and_preserves_item_identity(tmp_path: Path) -> None:

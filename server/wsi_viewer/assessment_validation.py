@@ -93,7 +93,9 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
                     for item in items
                     if item.get("type") != "section-information"
                 )
-            ),
+            )
+            if compiled
+            else None,
             "manualItems": len(manual_items),
             "encodedBytes": len(repr(compiled.definition).encode()) if compiled else None,
         },
