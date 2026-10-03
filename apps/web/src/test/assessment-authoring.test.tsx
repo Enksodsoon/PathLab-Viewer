@@ -443,9 +443,9 @@ it('keeps a 100-question assessment focused on one editable card at a time', asy
     prompt: `Question ${index + 1}`,
     points: '1',
     required: false,
-    options: ['Option A', 'Option B'],
-    answerKey: ['Option A'],
-    feedback: '',
+    options: [{ id: 'a', label: 'Option A' }, { id: 'b', label: 'Option B' }],
+    answerKey: { optionIds: ['a'] },
+    feedback: {},
   }))
   api.getAssessmentDraft.mockResolvedValue({
     id: 'draft-1', title: 'Large assessment', status: 'draft', revision: 1,

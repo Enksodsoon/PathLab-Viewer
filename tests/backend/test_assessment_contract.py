@@ -69,6 +69,27 @@ def test_compile_rejects_limits_duplicate_ids_and_incomplete_publish_data() -> N
         compile_assessment(duplicate)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "code"),
+    [
+        ("options", ["Option A", "Option B"], "ASSESSMENT_OPTIONS_INVALID"),
+        ("options", [{"label": "Option A"}], "ASSESSMENT_OPTION_ID_REQUIRED"),
+        ("options", [{"id": 1, "label": "Option A"}], "ASSESSMENT_OPTION_ID_REQUIRED"),
+        ("options", [{"id": "a"}], "ASSESSMENT_OPTION_LABEL_REQUIRED"),
+        ("answerKey", ["option-a"], "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("answerKey", {"optionIds": "option-a"}, "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("answerKey", {"optionIds": [[]]}, "ASSESSMENT_ANSWER_KEY_INVALID"),
+    ],
+)
+def test_publish_rejects_shapes_that_cannot_render_or_score(
+    field: str, value: object, code: str
+) -> None:
+    draft = _draft()
+    draft["items"][0][field] = value  # type: ignore[index]
+    with pytest.raises(AssessmentContractError, match=code):
+        compile_assessment(draft)
+
+
 def test_short_answer_normalization_is_unicode_and_whitespace_stable() -> None:
     assert normalize_short_answer("  ADENO\u212aARCINOMA\n  NOS ") == "adenokarcinoma nos"
 

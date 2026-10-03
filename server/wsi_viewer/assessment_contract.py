@@ -88,10 +88,29 @@ def compile_assessment(draft: dict[str, Any]) -> CompiledAssessment:
             item_type == "short-answer" and not item.get("manual", False)
         ):
             _require("answerKey" in item, "ASSESSMENT_ANSWER_KEY_REQUIRED")
+        answer_key = item.get("answerKey", {})
+        _require(isinstance(answer_key, dict), "ASSESSMENT_ANSWER_KEY_INVALID")
+        if item_type in {"multiple-choice", "checkboxes"}:
+            keys = answer_key.get("optionIds", [])
+            _require(
+                isinstance(keys, list) and all(isinstance(key, str) for key in keys),
+                "ASSESSMENT_ANSWER_KEY_INVALID",
+            )
         options = item.get("options", [])
         _require(isinstance(options, list), "ASSESSMENT_OPTIONS_INVALID")
         _require(len(options) <= MAX_OPTIONS, "ASSESSMENT_OPTION_LIMIT")
-        option_ids = [option.get("id") for option in options if isinstance(option, dict)]
+        option_ids: list[str] = []
+        for option in options:
+            _require(isinstance(option, dict), "ASSESSMENT_OPTIONS_INVALID")
+            option_id = option.get("id")
+            _require(
+                isinstance(option_id, str) and bool(option_id), "ASSESSMENT_OPTION_ID_REQUIRED"
+            )
+            label = option.get("label")
+            _require(
+                isinstance(label, str) and bool(label.strip()), "ASSESSMENT_OPTION_LABEL_REQUIRED"
+            )
+            option_ids.append(option_id)
         _require(len(option_ids) == len(set(option_ids)), "ASSESSMENT_DUPLICATE_ID")
         slide_id = item.get("slideId")
         if slide_id is not None:

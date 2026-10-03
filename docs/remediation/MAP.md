@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Assessment v1 publication validation](tickets/assessment-v1-publish-validation.md): reject compiler-accepted shapes that cannot render or score while preserving editable drafts.
+
 - [Browser CI runtime budget](tickets/browser-ci-runtime-budget.md): repeated 15-minute job cancellation near the end of the complete matrix; preserve assertions and bound test execution separately from diagnostic cleanup.
 
 - [Native folder moves and modal Escape](tickets/folder-drag-qualification.md): qualify actual drag/drop with the backend and retain stationary targets during native gestures.

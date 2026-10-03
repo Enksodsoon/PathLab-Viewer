@@ -12903,6 +12903,21 @@
       "repairState": "deployed; live qualification pending",
       "evidence": "After mobile layout repair, regression reaches844x390 and closing Inspector leaves its trigger inactive. Existing focus cleanup returns early for non-mobile panels. Return focus to the trigger on desktop inspector closure while retaining the mobile modal focus trap. Corrected Chromium regression passes all five viewport widths.",
       "qualification": "All60 focused browser matrix checks pass, including desktop/mobile Inspector closure restoring trigger focus. Four real-backend320px cases pass. Protected release remains pending; desktop stays non-modal. Head5d60ce1 passed eight delivery gates,but the browser suite was terminated by its900second launcher envelope before final reporting. Corrected bounded1200second envelope and page progress receipt require fresh Linux gates; the session-closed error is not a proved product menu failure. Delivery update 2026-10-03: PRs288 and289 are included in protected production bd69848 after PR290 repaired the bounded browser CI runtime envelope. All nine exact-main gates passed; deployment37107676115 succeeded with actual restore validation. Relevant signed-in repair checks remain open. Earlier pending/failure statements above retain historical evidence only."
+    },
+    {
+      "key": "campaign-assessment-v1-publish-shape-validation",
+      "status": "confirmed",
+      "repairState": "candidate",
+      "evidence": "At released-code f96ead4/bd69848, compile_assessment accepts options as strings and answerKey as an array. Learner rendering expects id/label objects; score_item raises AttributeError on the accepted array answer key. Signed-in synthetic API regression also proves preflight incorrectly marks these draft shapes publishable. Seven compiler and two API regressions fail before repair.",
+      "repair": "Validate option objects with nonempty string id/label, answer-key object shape and choice optionIds string-array shape at the existing v1 compilation boundary. Draft create/save remains available for incomplete documents; no migration, learner-data mutation, route or scoring-policy change.",
+      "qualification": "All nine new regressions and the 63-test affected assessment backend set pass. The API rejects invalid preview/publication with422, preserves the draft and revision, then publishes a corrected draft as version1. Frontend authoring/runtime22tests pass with a contract-valid100-question fixture and no missing-key warning. Ruff,mypy,changed-file ESLint,repository and security baseline pass. Protected delivery and applicable released verification remain pending.",
+      "callers": [
+        "assessment_routes.compile_owned: preview and publish",
+        "assessment_routes.preflight_draft",
+        "AssessmentLearnerQuestion",
+        "assessment_contract.score_item"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-v1-publish-validation.md"
     }
   ],
   "currentClosureBranch": "main",
