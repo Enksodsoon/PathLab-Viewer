@@ -1222,7 +1222,7 @@ export function AnnotationWorkspace({
     localStore = storeRef.current,
     skipLayerQueue = false,
   ) => {
-    if (!localStore) return
+    if (!localStore || !isCurrentWorkspace(generation, localStore)) return
     const run = async () => {
       setOperationStatus('Reloading annotations…')
       try {
@@ -1319,7 +1319,8 @@ export function AnnotationWorkspace({
         }
         setOperationStatus(`${layer.name} created`)
       } catch (caught) {
-        if (caught instanceof StaleWorkspaceOperationError) return
+        if (caught instanceof StaleWorkspaceOperationError
+          || !isCurrentWorkspace(generation, expectedStore)) return
         setError(caught instanceof Error ? caught.message : 'Layer could not be created')
       }
     })
@@ -1347,7 +1348,8 @@ export function AnnotationWorkspace({
         requireCurrentWorkspace(generation, expectedStore)
         autosaveRef.current?.reset(version)
       } catch (caught) {
-        if (caught instanceof StaleWorkspaceOperationError) return
+        if (caught instanceof StaleWorkspaceOperationError
+          || !isCurrentWorkspace(generation, expectedStore)) return
         setError(caught instanceof Error ? caught.message : 'Layer update failed')
         await reload(generation, expectedStore, true)
       }
@@ -1387,7 +1389,8 @@ export function AnnotationWorkspace({
         requireCurrentWorkspace(generation, expectedStore)
         autosaveRef.current?.reset(loadedVersion)
       } catch (caught) {
-        if (caught instanceof StaleWorkspaceOperationError) return
+        if (caught instanceof StaleWorkspaceOperationError
+          || !isCurrentWorkspace(generation, expectedStore)) return
         setError(caught instanceof Error ? caught.message : 'Layer reorder failed')
         await reload(generation, expectedStore, true)
       }

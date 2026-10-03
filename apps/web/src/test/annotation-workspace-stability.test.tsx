@@ -744,7 +744,7 @@ it('does not rerender or clone/filter 25,000 records for pointer coordinate upda
   ).length).toBeLessThanOrEqual(200)
 }, 30_000)
 
-it('ignores a slide A layer completion after slide B has replaced the workspace', async () => {
+it.each([false, true])('ignores a slide A layer completion after slide B replaces it; rejection=%s', async (reject) => {
   const slideALayer = { ...layerA, name: 'Slide A layer' }
   const slideBLayer = { ...layerA, id: layerB.id, name: 'Slide B layer' }
   const update = deferred<Awaited<ReturnType<AnnotationWorkspaceServices['updateLayer']>>>()
@@ -775,17 +775,17 @@ it('ignores a slide A layer completion after slide B has replaced the workspace'
   )
   await openInspector(true)
   await screen.findByRole('button', { name: 'Slide B layer' })
-  update.resolve({
-    version: 2,
-    layer: { ...slideALayer, visible: false },
-  })
   await act(async () => {
-    await update.promise
+    if (reject) update.reject(new Error('Old slide request failed'))
+    else update.resolve({ version: 2, layer: { ...slideALayer, visible: false } })
+    await update.promise.catch(() => undefined)
     await Promise.resolve()
   })
 
   expect(screen.getByRole('button', { name: 'Slide B layer' })).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Slide A layer' })).toBeNull()
+  expect(screen.queryByText(/Old slide request failed/)).not.toBeInTheDocument()
+  expect(screen.queryByText('Reloading annotations…')).not.toBeInTheDocument()
   expect(slideA.getManifest).toHaveBeenCalledOnce()
   expect(slideB.getManifest).toHaveBeenCalledOnce()
 })

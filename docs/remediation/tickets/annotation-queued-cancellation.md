@@ -14,6 +14,11 @@ response. Both cases produce an unhandled `StaleWorkspaceOperationError` on
 the reviewed PR 277 head `824ab69360f4d19435ac62014aeb5b2360f25941`.
 The guard prevented stale writes, so this is not evidence of data loss.
 
+A separate held-request rejection after slide B replaces slide A reproduces
+an old-slide failure banner and an unnecessary old-slide manifest request.
+Bind all three layer failure handlers to their captured generation/store and
+check the reload identity before setting status or starting recovery.
+
 Skip an obsolete operation in the shared queue before starting it. Keep the
 existing generation/store checks for in-flight operations and all active
 workspace error handling. The regression verifies that no second old-slide

@@ -11,8 +11,9 @@ for (const action of ['reload', 'layer patch']) {
     const open = page.getByRole('button', { name: 'Open annotation inspector', exact: true })
     if (await open.isVisible()) await open.click()
     await page.getByRole('button', { name: 'Show advanced annotation details', exact: true }).click()
-    const manifest = await (await page.request.get(`/api/v2/admin/annotations/slides/${id}/manifest`)).json()
-    const visible = page.getByRole('checkbox', { name: `Show ${manifest.layers[0].name}`, exact: true })
+    await page.getByRole('button', { name: 'Add annotation layer', exact: true }).click()
+    await expect(page.getByText('Layer 1 created', { exact: true })).toBeVisible()
+    const visible = page.getByRole('checkbox', { name: 'Show Layer 1', exact: true })
     let release!: () => void
     const gate = new Promise<void>((resolve) => { release = resolve })
     let started!: () => void
