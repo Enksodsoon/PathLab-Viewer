@@ -13094,6 +13094,19 @@
         "AssessmentBuilderPage autosave and manual recovery action"
       ],
       "ticket": "docs/remediation/tickets/assessment-save-failure-feedback.md"
+    },
+    {
+      "key": "campaign-assessment-revision-admission",
+      "status": "confirmed; SQLite regression qualified, full backend and hosted PostgreSQL gates pending",
+      "evidence": "At main9ea88b9 actual HTTP save/save, save/import and import/import each read revision1 then both return200/revision2, losing one accepted document. Save paused after editable read returns200 after archive. Four original-source failures retained in var/assessment-draft-concurrency-red.log.",
+      "repair": "Conditional database UPDATE matches id, organization, expected revision and draft status; increment once and commit the accepted document. Roll back rejected admission before current ownership/status conflict handling. Preserve own acknowledged snapshot and capture immutable identity before rollback.",
+      "qualification": "Four SQLite interleaving regressions pass; focused22pass4PostgreSQL skips locally. Ruff and mypy pass. Hosted PostgreSQL uses generated disposable schemas and CI explicitly includes all four PostgreSQL cases; execution and complete backend review/checks pending. No production injection or delivery claim.",
+      "callers": [
+        "PATCH assessment draft authoring and rename",
+        "POST import-questions destination mutation",
+        "Frontend autosave, retry and import revision consumers"
+      ],
+      "ticket": "docs/remediation/tickets/assessment-revision-admission.md"
     }
   ],
   "currentClosureBranch": "main",
