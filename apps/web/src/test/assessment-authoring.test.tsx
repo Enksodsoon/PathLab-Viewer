@@ -637,3 +637,22 @@ it('keeps created links pending until responses open and allows retry without re
   expect(await screen.findByText('Accepting responses. You can share this link.')).toBeVisible()
   expect(api.publishAssessmentDraft).toHaveBeenCalledTimes(1)
 })
+
+it.each([
+  { trigger: 'Assignment preview', dialog: 'Learner preview' },
+  { trigger: 'Publish', dialog: 'Publish assessment' },
+  { trigger: 'Import questions', dialog: 'Import assessment' },
+])('dismisses $dialog with Escape and returns focus to its trigger', async ({ trigger, dialog }) => {
+  render(<MemoryRouter initialEntries={['/admin/assessments/draft-1']}><Routes>
+    <Route path="/admin/assessments/:draftId" element={<AssessmentBuilderPage />} />
+  </Routes></MemoryRouter>)
+  await screen.findByText('All changes saved')
+  const opener = screen.getByRole('button', { name: trigger })
+  await userEvent.click(opener)
+  expect(await screen.findByRole('dialog', { name: dialog })).toBeVisible()
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog', { name: dialog })).not.toBeInTheDocument()
+  expect(opener).toHaveFocus()
+  expect(api.publishAssessmentDraft).not.toHaveBeenCalled()
+  expect(api.importAssessmentQuestions).not.toHaveBeenCalled()
+})

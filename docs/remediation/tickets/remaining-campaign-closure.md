@@ -70,3 +70,13 @@ Signed-in Edge loaded the Library and synthetic B patterned tiles and saved rect
 Assessment-specific released qualification, native folder drag, mobile Inspector dismissal, specific Cancel approval and external security/licensing facts remain open. The campaign is not complete.
 
 The shortcut candidate now passes full frontend510tests and all68annotation browser checks with zero retries; lint/build pass. Fresh browser-control Refresh on released `daa101e` retained the synthetic title and rectangle with NO CHANGES. Shortcut delivery and remaining live workflows remain open.
+
+
+Assessment native refresh verified acknowledged200 save and persisted1.251points in the synthetic draft. First generic save failure remains unclassified. Native preview Escape and subsequent browser focus-boundary defects are tracked in [assessment dialog keyboard](assessment-dialog-keyboard.md). PR297 merged58d7066 after all nine head checks and renewed independent review; merged-main qualification/deployment remain pending. Synthetic Practice publication requires the pending specific approval; no real learner records are used.
+
+
+## Production58d7066 and dialog delivery
+
+Shortcut PR297 deployed through protected run37133510913 after all nine exact merged-main gates passed. Terminal success restored69tables,106325files and3286131731bytes at schema20260907_0037 with database/files integrity restored. Existing feature settings are preserved. Fresh livez/readyz200; a new signed-in native Edge tab rendered synthetic B tiles and its saved rectangle/title with NO CHANGES. Native CtrlR retest remains pending. The prepared unpublished Practice assessment stays in its original tab, awaiting specific approval.
+
+Dialog PR298 has60passing scoped browser cases and36affected component tests, build/lint success and clear independent source review. First backend failure required refreshing asset-ledger subject; the second required its dependent software inventories. All16asset records, rights fields and admission/blockers are identical; software coverage612and strict BLOCKED admission are identical. Validations pass. New exact-head CI is required; no stale or failed head qualifies delivery. Original954report findings and29aggregate subclaims remain unchanged. The full campaign remains open.

@@ -7,22 +7,22 @@
     },
     {
       "path": "build.cdx.json",
-      "sha256": "a08d29032d3d994152358bb1fbc6bad0f8b782df24dc3ba47a54ca7d50783fb6",
+      "sha256": "e5d5df3708192cc730eaeff4e2b7af9e568d926f480b73c86687126755d89614",
       "sizeBytes": 727763
     },
     {
       "path": "build.spdx.json",
-      "sha256": "208a8aeef88689692fb552cb5be6c4d676587bc5590a5ef8adb25321d26f5d4c",
+      "sha256": "00bcacfd9893aa62a4389a2988013665690db20a6ad78047b58b66e17b7a9986",
       "sizeBytes": 587873
     },
     {
       "path": "source.cdx.json",
-      "sha256": "84ad33ededcfecc43ed2d3181fb55cc311ec46c1f1d6d311ca43606702d1f782",
+      "sha256": "d20225dddc3480b1a617c28de01af476d426c30f7e5ce8a74becdb576da4887a",
       "sizeBytes": 770317
     },
     {
       "path": "source.spdx.json",
-      "sha256": "990c6daf6ca2e594b8b4e25e9295e897d67aeb85cb4fc941ce59b7aa6f57b5d2",
+      "sha256": "f320f6c96112d955625126d4254fd77eb8132819386fc4af85463cf949932977",
       "sizeBytes": 621523
     }
   ],
@@ -41,7 +41,7 @@
     "cyclonedx": "1.6",
     "spdx": "SPDX-2.3"
   },
-  "generatedAt": "2026-10-03T10:42:16Z",
+  "generatedAt": "2026-10-03T15:45:55Z",
   "generator": "scripts/generate_software_inventories.py",
   "inputs": [
     {
@@ -141,9 +141,9 @@
       "sizeBytes": 27183
     },
     {
-      "gitBlob": "2cd6c0a5e87b4dae3c32ea085971a4ae945d7226",
+      "gitBlob": "b51f4c971202d3003d8b76b4a6e20c110a4878d5",
       "path": "docs/supply-chain/ASSET_RIGHTS_LEDGER.json",
-      "sha256": "9d487edaac5455ce609b674f850ac2c90b9b644d2e55fa904ce133f0db18dd8c",
+      "sha256": "fe933f8488653517232e4af63b59c3c1c210777725bf02e7c749e04ced1854a9",
       "sizeBytes": 39897
     },
     {
@@ -1399,6 +1399,6 @@
     "RECORDED_UNREVIEWED:pypi:xsdata@26.2"
   ],
   "schema": "pathlab.software-inventory-manifest/1",
-  "subjectCommit": "9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9",
-  "subjectTree": "213e70cdba36c134f61c61e6135925f107af0f37"
+  "subjectCommit": "32657ec7dfd24261e0341762565bc2f855e3f492",
+  "subjectTree": "e9809a4774d8a6741b1ac670f781fb0de263f408"
 }

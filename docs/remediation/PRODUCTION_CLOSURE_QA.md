@@ -119,3 +119,13 @@ Assessment-specific released qualification, native folder drag, mobile Inspector
 ## Shortcut candidate and native reload verification
 
 The released synthetic annotation title and rectangle survived a fresh browser-control Refresh on `daa101e`, with NO CHANGES. The separate Ctrl+R interception remains a confirmed production defect until the local guard is delivered. Candidate qualification: six component regressions reproduced cancellation, affected file23passed, full frontend510passed across81files with four workers, changed-file lint and production build passed, and the complete68-case annotation browser matrix passed across four projects with zero retries. Retain the initial default-run two timing failures, focused48pass, omitted-callback setup errors and initial CRLF no-op browser probe as qualification history. See [shortcut ticket](tickets/annotation-browser-shortcuts.md).
+
+
+Assessment native refresh verified acknowledged200 save and persisted1.251points in the synthetic draft. First generic save failure remains unclassified. Native preview Escape and subsequent browser focus-boundary defects are tracked in [assessment dialog keyboard](tickets/assessment-dialog-keyboard.md). PR297 merged58d7066 after all nine head checks and renewed independent review; merged-main qualification/deployment remain pending. Synthetic Practice publication requires the pending specific approval; no real learner records are used.
+
+
+## Production58d7066 and dialog delivery
+
+Shortcut PR297 deployed through protected run37133510913 after all nine exact merged-main gates passed. Terminal success restored69tables,106325files and3286131731bytes at schema20260907_0037 with database/files integrity restored. Existing feature settings are preserved. Fresh livez/readyz200; a new signed-in native Edge tab rendered synthetic B tiles and its saved rectangle/title with NO CHANGES. Native CtrlR retest remains pending. The prepared unpublished Practice assessment stays in its original tab, awaiting specific approval.
+
+Dialog PR298 has60passing scoped browser cases and36affected component tests, build/lint success and clear independent source review. First backend failure required refreshing asset-ledger subject; the second required its dependent software inventories. All16asset records, rights fields and admission/blockers are identical; software coverage612and strict BLOCKED admission are identical. Validations pass. New exact-head CI is required; no stale or failed head qualifies delivery. Original954report findings and29aggregate subclaims remain unchanged. The full campaign remains open.
