@@ -193,6 +193,8 @@ def test_v2_question_library_imports_into_first_section_without_routes(tmp_path:
     item = imported.json()["document"]["sections"][0]["items"][0]
     assert item["id"] != "item-pattern"
     assert "routing" not in item
+
+
 def test_v2_preflight_supports_the_same_decimal_spelling_as_scoring(tmp_path: Path) -> None:
     client, _ = _client(tmp_path)
     document = v2_document()
@@ -208,3 +210,68 @@ def test_v2_preflight_supports_the_same_decimal_spelling_as_scoring(tmp_path: Pa
     assert client.post(f"{path}/preview").status_code == 200
     assert client.post(f"{path}/publish").status_code == 201
 
+
+@pytest.mark.parametrize("invalid", [[], {}], ids=["list", "object"])
+@pytest.mark.parametrize(
+    ("field", "code"),
+    [
+        ("item-type", "ASSESSMENT_ITEM_TYPE_INVALID"),
+        ("rating-style", "ASSESSMENT_RATING_INVALID"),
+        ("route-option", "ASSESSMENT_ROUTE_INVALID"),
+        ("route-target", "ASSESSMENT_ROUTE_INVALID"),
+        ("answer-key", "ASSESSMENT_ANSWER_KEY_INVALID"),
+        ("media-kind", "ASSESSMENT_MEDIA_INVALID"),
+        ("additional-media-kind", "ASSESSMENT_MEDIA_INVALID"),
+        ("option-media-kind", "ASSESSMENT_MEDIA_INVALID"),
+        ("media-mark-kind", "ASSESSMENT_MEDIA_INVALID"),
+        ("additional-media-mark-kind", "ASSESSMENT_MEDIA_INVALID"),
+    ],
+)
+def test_v2_validation_rejects_unhashable_contract_fields(
+    tmp_path: Path, field: str, code: str, invalid: object
+) -> None:
+    client, _ = _client(tmp_path)
+    document = v2_document()
+    item = document["sections"][0]["items"][0]  # type: ignore[index]
+    if field == "item-type":
+        item["type"] = invalid
+    elif field == "rating-style":
+        document["sections"][2]["items"][0]["rating"]["style"] = invalid  # type: ignore[index]
+    elif field == "route-option":
+        item["routing"]["rules"][0]["when"]["optionId"] = invalid
+    elif field == "route-target":
+        item["routing"]["defaultSectionId"] = invalid
+    elif field == "answer-key":
+        item["answerKey"]["optionIds"] = [invalid]
+    elif field == "option-media-kind":
+        item["options"][0]["media"] = {"kind": invalid}
+    else:
+        media = {"kind": invalid}
+        if "mark" in field:
+            media = {
+                "kind": "slide-thumbnail",
+                "slideId": "synthetic",
+                "marks": [{"kind": invalid}],
+            }
+        if field.startswith("additional"):
+            item["media"] = {"kind": "slide-thumbnail", "slideId": "synthetic"}
+            item["mediaItems"] = [media]
+        else:
+            item["media"] = media
+    created = client.post(
+        "/api/v2/admin/assessment/drafts",
+        json={"title": "Synthetic malformed field", "document": document},
+    )
+    assert created.status_code == 201
+    path = f"/api/v2/admin/assessment/drafts/{created.json()['id']}"
+    preflight = client.post(f"{path}/preflight")
+    assert preflight.status_code == 200
+    assert preflight.json()["valid"] is False
+    assert preflight.json()["errors"][0]["code"] == code
+    for action in ("preview", "publish"):
+        rejected = client.post(f"{path}/{action}")
+        assert rejected.status_code == 422
+        assert rejected.json()["detail"]["code"] == code
+    retained = client.get(path).json()
+    assert retained["document"] == document
+    assert retained["revision"] == 1

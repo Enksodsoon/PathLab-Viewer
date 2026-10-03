@@ -76,7 +76,9 @@ def document_schema(document: dict[str, Any]) -> str:
     schema = document.get("schema")
     if schema is None:
         return V1_SCHEMA
-    _require(schema in {V1_SCHEMA, V2_SCHEMA}, "ASSESSMENT_SCHEMA_INVALID")
+    _require(
+        isinstance(schema, str) and schema in {V1_SCHEMA, V2_SCHEMA}, "ASSESSMENT_SCHEMA_INVALID"
+    )
     return str(schema)
 
 
@@ -114,17 +116,22 @@ def _validate_route(route: object, section_ids: set[str], option_ids: set[str]) 
         _require(isinstance(condition, dict), "ASSESSMENT_ROUTE_INVALID")
         option_id = cast(dict[str, Any], condition).get("optionId")
         if option_id is not None:
-            _require(option_id in option_ids, "ASSESSMENT_ROUTE_INVALID")
+            _require(
+                isinstance(option_id, str) and option_id in option_ids, "ASSESSMENT_ROUTE_INVALID"
+            )
     for target in targets:
         if target is not None:
-            _require(target in section_ids, "ASSESSMENT_ROUTE_INVALID")
+            _require(isinstance(target, str) and target in section_ids, "ASSESSMENT_ROUTE_INVALID")
 
 
 def _validate_question_media(media: object, slide_ids: set[str]) -> None:
     _require(isinstance(media, dict), "ASSESSMENT_MEDIA_INVALID")
     media_data = cast(dict[str, Any], media)
     media_kind = media_data.get("kind")
-    _require(media_kind in {"slide-thumbnail", "uploaded-image"}, "ASSESSMENT_MEDIA_INVALID")
+    _require(
+        isinstance(media_kind, str) and media_kind in {"slide-thumbnail", "uploaded-image"},
+        "ASSESSMENT_MEDIA_INVALID",
+    )
     asset_path = media_data.get("assetPath")
     if media_kind == "slide-thumbnail":
         media_slide = media_data.get("slideId")
@@ -192,7 +199,10 @@ def _validate_question_media(media: object, slide_ids: set[str]) -> None:
     ):
         _require(isinstance(region, dict), "ASSESSMENT_MEDIA_INVALID")
         region_kind = region.get("kind")
-        _require(region_kind in {"point", "rectangle", "freehand"}, "ASSESSMENT_MEDIA_INVALID")
+        _require(
+            isinstance(region_kind, str) and region_kind in {"point", "rectangle", "freehand"},
+            "ASSESSMENT_MEDIA_INVALID",
+        )
         if region_kind == "freehand":
             points = region.get("points")
             _require(
@@ -247,7 +257,9 @@ def _validate_item(
     _require(item_id not in all_ids, "ASSESSMENT_DUPLICATE_ID")
     all_ids.add(item_id)
     item_type = item.get("type")
-    _require(item_type in V2_ITEM_TYPES, "ASSESSMENT_ITEM_TYPE_INVALID")
+    _require(
+        isinstance(item_type, str) and item_type in V2_ITEM_TYPES, "ASSESSMENT_ITEM_TYPE_INVALID"
+    )
     _bounded_text(item.get("prompt"), MAX_DESCRIPTION, "ASSESSMENT_PROMPT_REQUIRED", required=True)
     if "helpText" in item:
         _bounded_text(item["helpText"], MAX_HELP_TEXT, "ASSESSMENT_HELP_TEXT_LIMIT")
@@ -306,7 +318,7 @@ def _validate_item(
             _require(isinstance(option_media, dict), "ASSESSMENT_MEDIA_INVALID")
             media_kind = option_media.get("kind")
             _require(
-                media_kind in {"slide-thumbnail", "uploaded-image"},
+                isinstance(media_kind, str) and media_kind in {"slide-thumbnail", "uploaded-image"},
                 "ASSESSMENT_MEDIA_INVALID",
             )
             asset_path = option_media.get("assetPath")
@@ -345,7 +357,10 @@ def _validate_item(
         _require(isinstance(answer_key, dict), "ASSESSMENT_ANSWER_KEY_REQUIRED")
         keys = cast(dict[str, Any], answer_key).get("optionIds", [])
         _require(isinstance(keys, list) and bool(keys), "ASSESSMENT_ANSWER_KEY_REQUIRED")
-        _require(set(keys) <= option_ids, "ASSESSMENT_ANSWER_KEY_INVALID")
+        _require(
+            all(isinstance(key, str) for key in keys) and set(keys) <= option_ids,
+            "ASSESSMENT_ANSWER_KEY_INVALID",
+        )
 
     if item_type == "rating":
         rating = item.get("rating")
@@ -354,7 +369,8 @@ def _validate_item(
         _require(rating_data.get("min") == 1, "ASSESSMENT_RATING_INVALID")
         maximum = rating_data.get("max")
         _require(isinstance(maximum, int) and 3 <= maximum <= 10, "ASSESSMENT_RATING_INVALID")
-        _require(rating_data.get("style") in RATING_STYLES, "ASSESSMENT_RATING_INVALID")
+        style = rating_data.get("style")
+        _require(isinstance(style, str) and style in RATING_STYLES, "ASSESSMENT_RATING_INVALID")
 
     slide_id = item.get("slideId")
     if slide_id is not None:
@@ -364,7 +380,10 @@ def _validate_item(
     if media is not None:
         _require(isinstance(media, dict), "ASSESSMENT_MEDIA_INVALID")
         media_kind = media.get("kind")
-        _require(media_kind in {"slide-thumbnail", "uploaded-image"}, "ASSESSMENT_MEDIA_INVALID")
+        _require(
+            isinstance(media_kind, str) and media_kind in {"slide-thumbnail", "uploaded-image"},
+            "ASSESSMENT_MEDIA_INVALID",
+        )
         asset_path = media.get("assetPath")
         if media_kind == "slide-thumbnail":
             media_slide = media.get("slideId")
@@ -437,7 +456,10 @@ def _validate_item(
         ):
             _require(isinstance(region, dict), "ASSESSMENT_MEDIA_INVALID")
             region_kind = region.get("kind")
-            _require(region_kind in {"point", "rectangle", "freehand"}, "ASSESSMENT_MEDIA_INVALID")
+            _require(
+                isinstance(region_kind, str) and region_kind in {"point", "rectangle", "freehand"},
+                "ASSESSMENT_MEDIA_INVALID",
+            )
             if region_kind == "freehand":
                 points = region.get("points")
                 _require(

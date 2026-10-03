@@ -361,3 +361,11 @@ def test_branching_and_order_are_stable_and_remove_unreachable_responses() -> No
     assert deterministic_order(["b", "a", "c"], "stable-seed") == deterministic_order(
         ["c", "b", "a"], "stable-seed"
     )
+
+
+@pytest.mark.parametrize("schema", [[], {}], ids=["list", "object"])
+def test_v2_compiler_rejects_unhashable_schema(schema: object) -> None:
+    document = v2_document()
+    document["schema"] = schema
+    with pytest.raises(AssessmentContractError, match="ASSESSMENT_SCHEMA_INVALID"):
+        compile_assessment_v2(document)

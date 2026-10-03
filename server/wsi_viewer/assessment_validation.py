@@ -36,7 +36,11 @@ def preflight_v2(document: dict[str, Any]) -> dict[str, Any]:
             items.append(item)
             options = item.get("options", [])
             options = options if isinstance(options, list) else []
-            if item.get("type") in {"multiple-choice", "checkboxes", "dropdown"}:
+            if isinstance(item.get("type"), str) and item.get("type") in {
+                "multiple-choice",
+                "checkboxes",
+                "dropdown",
+            }:
                 normalized = [
                     " ".join(str(option.get("label", "")).split()).casefold()
                     for option in options
