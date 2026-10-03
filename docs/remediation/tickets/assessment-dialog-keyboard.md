@@ -33,3 +33,5 @@ The final52case matrix passes across Chromium, Firefox, WebKit and mobile Chromi
 
 
 The eight sectioned preview/import browser checks passed across all four projects with zero retries, bringing scoped browser qualification to60passed. Renewed independent review of58d7066->4fdb7c1 found no Critical, Important or Minor issues, subject to fresh full exact-head gates. PR298 is created and attached. First backend CI gate failed because the asset-rights ledger referenced older governed source inputs. Regeneration at4fdb7c1 preserves every one of16asset records, rights fields, admissions and blockers byte-for-value; only subjectCommit changes. The ledger validator passes. This mechanical asset ledger update does not resolve strict software admission or grant new rights.
+
+Second backend failure was deterministic dependent software-inventory drift after the asset-ledger subject change. Regenerate five inventory outputs at32657ec and validate; all612component coverage fields and strict BLOCKED admission/blockers remain equal. Preserve both failed heads as evidence. New exact-head CI remains required.

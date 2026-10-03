@@ -12968,10 +12968,10 @@
     {
       "key": "campaign-annotation-modified-browser-shortcuts",
       "status": "confirmed",
-      "repairState": "PR297 independently reviewed and normally merged58d7066; exact merged-main checks and deployment pending",
+      "repairState": "normally deployed58d7066 after nine merged-main gates; native CtrlR qualification pending",
       "evidence": "On released daa101e, native Edge Ctrl+R changes Pan to Ruler instead of refreshing. AnnotationWorkspace handles explicit Ctrl/Cmd S/Z/C/V, then looks up tool keys and prevents default without guarding remaining Ctrl/Meta/Alt modifiers. Six real component keyboard events fail because their default actions are cancelled: Ctrl+R, Cmd+R, Ctrl+B, Alt+G, Alt+Left and Ctrl+Backspace. These are regression cases for one root cause, not six independent bugs. Eight unmodified/explicit-command controls already pass. Initial14fixture errors from an omitted required attachment callback are retained as setup history, not product defects. Independent review found the earlier overlay capture listener intercepts modified drawing keys before the workspace handler. Twelve independent cases fail with an attached viewer and unfinished polygon: Ctrl/Meta/Alt times Backspace/Enter/Escape/Space. A plain Backspace completion control passes. This is additional caller coverage for the same modifier root cause.",
       "repair": "After supported annotation commands, return for remaining Ctrl/Meta/Alt combinations before tool, deletion and movement handlers. Plain tools, Shift movement and explicit Save/Undo/Copy/Paste remain supported. No API, calibration, data or feature activation changes. Apply the same modifier return to the earlier overlay capture keydown listener, preserving plain drawing commands and unconditionally releasing temporary Space pan on keyup.",
-      "qualification": "Six failing component regressions became green; complete affected workspace file23passed. Changed-file ESLint and production build passed. Default full run508passed/2failed: auth chunk-build30second timeout and filtered-upload initial-render wait; both original suites pass48focused tests. Same-scope full four-worker run510passed across81files. All four browser projects reproduce Pan changing to Ruler with the guard demonstrably removed; the first browser probe accidentally retained the guard because of CRLF and is not red evidence. Complete68-case browser matrix passed across four projects, zero retries. Native browser Refresh now completed on released daa101e and reloaded the saved synthetic title and rectangle with NO CHANGES. The local shortcut guard remains undeployed. No timeout change or global keyboard qualification claim. Overlay follow-up passes54tests across both affected files, including plain/modified Space-release cleanup. Complete frontend523passed81files and production build10.70s passed before three added keyup controls; full final scope pending. All72 annotation browser cases pass across four projects with zero retries; drawing regression uses actual pointer clicks and key combinations. PR297 exists at prior754f4b6 and requires a new head with the overlay repair, renewed review and all exact-head gates. Final complete same-scope frontend run526passed across81files,202.08seconds; all54affected tests pass. Changed-file ESLint and diff checks pass. Build10.70seconds reflects the final product source; subsequent changes add keyup controls only. Exact9f79f56 head passed all nine release contexts. Renewed independent review found no actionable issues. Normal protected squash merge produced58d706607f31badcf4344446088dbbc64c9c2ba7; main CI37132398920 is running and Security37132398928 passed. External optional TestSprite status says No tests detected despite actual successful test suites; it is not a required release context and remains visible.",
+      "qualification": "Six failing component regressions became green; complete affected workspace file23passed. Changed-file ESLint and production build passed. Default full run508passed/2failed: auth chunk-build30second timeout and filtered-upload initial-render wait; both original suites pass48focused tests. Same-scope full four-worker run510passed across81files. All four browser projects reproduce Pan changing to Ruler with the guard demonstrably removed; the first browser probe accidentally retained the guard because of CRLF and is not red evidence. Complete68-case browser matrix passed across four projects, zero retries. Native browser Refresh now completed on released daa101e and reloaded the saved synthetic title and rectangle with NO CHANGES. The local shortcut guard remains undeployed. No timeout change or global keyboard qualification claim. Overlay follow-up passes54tests across both affected files, including plain/modified Space-release cleanup. Complete frontend523passed81files and production build10.70s passed before three added keyup controls; full final scope pending. All72 annotation browser cases pass across four projects with zero retries; drawing regression uses actual pointer clicks and key combinations. PR297 exists at prior754f4b6 and requires a new head with the overlay repair, renewed review and all exact-head gates. Final complete same-scope frontend run526passed across81files,202.08seconds; all54affected tests pass. Changed-file ESLint and diff checks pass. Build10.70seconds reflects the final product source; subsequent changes add keyup controls only. Exact9f79f56 head passed all nine release contexts. Renewed independent review found no actionable issues. Normal protected squash merge produced58d706607f31badcf4344446088dbbc64c9c2ba7; main CI37132398920 is running and Security37132398928 passed. External optional TestSprite status says No tests detected despite actual successful test suites; it is not a required release context and remains visible. Protected deployment37133510913 succeeded with exact58d7066 and actual database/files restoration. Fresh public livez/readyz200; native signed-in synthetic B tiles and saved annotation render in a fresh separate tab. Browser CtrlR retest pending.",
       "callers": [
         "AnnotationWorkspace window keydown handler",
         "Native Edge browser refresh and reserved key combinations",
@@ -12986,7 +12986,7 @@
       "repairState": "PR298 independently reviewed;60browser and36authoring checks pass; fresh exact-head CI and protected delivery pending",
       "evidence": "Native released daa101e preview ignores Escape. Three independent authoring component tests reproduce all three overlays remaining open. Initial real browser cases expose Tab containment failure in Chromium/WebKit after native dialog conversion.",
       "repair": "Shared native dialog shell for preview, publish and import; initial focus after showModal, native cancel dismissal and opener restoration, explicit Tab boundary wrapping among visible enabled controls. Preserve existing drawers and publication callbacks. Use actual browser visibility rather than layout rectangles for closed details. Explicit launch focus and connected opener restoration cover WebKit; sectioned Import returns to its persistent Templates & import trigger.",
-      "qualification": "Three red Escape cases; initial focus restoration failures retained;21authoring tests pass after focus fix. Initial browser9fail3pass at Tab; next4pass8startup/budget failures retained. Final isolated viewport matrix/full suite/build pending. Full frontend529passed81files411.60seconds and build12.21seconds before final summary-selector change. Independent review found collapsed summary controls skipped when Publish is disabled; corrected PATCH503 fixture reproduces focus failure in Chromium. Include summaries, preserve modified browser Tab chords, and run52independent browser cases. Final qualification and renewed review pending. Intermediate52run35passed17failed (four summary focus,12WebKit opener focus,oneFirefoxstartup). Diagnostics reject default-tabIndex hypothesis; checkVisibility excludes hidden closed-details controls. Final52passedzero-retryfour-engines;36authoringpassed; build11.42s and changed-file lint pass. Full529qualification predates final visibility/opener changes; fresh exact-head complete CI required. Eight sectioned preview/import controls pending. Eight sectioned browser checks passed zero-retryfour-projects; total60scoped browser cases. Renewed independent review finds no actionable issues. First backend gate failed stale asset-rights subject; regenerate at4fdb7c1 and assert all16asset records, rights, admissions and blockers unchanged. Validator passes; strict software admission remains separately blocked.",
+      "qualification": "Three red Escape cases; initial focus restoration failures retained;21authoring tests pass after focus fix. Initial browser9fail3pass at Tab; next4pass8startup/budget failures retained. Final isolated viewport matrix/full suite/build pending. Full frontend529passed81files411.60seconds and build12.21seconds before final summary-selector change. Independent review found collapsed summary controls skipped when Publish is disabled; corrected PATCH503 fixture reproduces focus failure in Chromium. Include summaries, preserve modified browser Tab chords, and run52independent browser cases. Final qualification and renewed review pending. Intermediate52run35passed17failed (four summary focus,12WebKit opener focus,oneFirefoxstartup). Diagnostics reject default-tabIndex hypothesis; checkVisibility excludes hidden closed-details controls. Final52passedzero-retryfour-engines;36authoringpassed; build11.42s and changed-file lint pass. Full529qualification predates final visibility/opener changes; fresh exact-head complete CI required. Eight sectioned preview/import controls pending. Eight sectioned browser checks passed zero-retryfour-projects; total60scoped browser cases. Renewed independent review finds no actionable issues. First backend gate failed stale asset-rights subject; regenerate at4fdb7c1 and assert all16asset records, rights, admissions and blockers unchanged. Validator passes; strict software admission remains separately blocked. Second backend gate exposed dependent software inventory drift after asset-ledger update. Regenerate five SPDX/CycloneDX/manifest outputs at32657ec. Validation passes612components and BLOCKED admission; coverage and releaseBlockers remain exactly equal. Asset, UI-boundary, security-baseline and repository-history checks pass. No software admission granted.",
       "callers": [
         "AssessmentBuilderPage learner preview",
         "AssessmentBuilderPage publish settings",
@@ -13029,12 +13029,12 @@
     "ticket": "docs/remediation/tickets/remaining-release-integration.md"
   },
   "currentProductionRelease": {
-    "sha": "daa101e7d1e14cb49849a9ba973816810bcf96ac",
-    "ciRun": 37125275731,
-    "securityRun": 37125275710,
-    "deploymentRun": 37126402648,
+    "sha": "58d706607f31badcf4344446088dbbc64c9c2ba7",
+    "ciRun": 37132398920,
+    "securityRun": 37132398928,
+    "deploymentRun": 37133510913,
     "deploymentConclusion": "success",
-    "completedAt": "2026-10-03T13:46:19Z",
+    "completedAt": "2026-10-03T15:45:38Z",
     "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
     "restore": {
       "schemaRevision": "20260907_0037",
@@ -13050,11 +13050,11 @@
       "adminAnnotationCanary": true,
       "study": "existing gate retained"
     },
-    "liveEvidence": "Fresh readyz/livez returned200. Actual /api/v1/admin/slides and /api/v2/admin/assessment/drafts returned401 anonymously; /api/v2/admin/slides is a404 wrong-route control, not an authorization result. Signed-in Library and synthetic B patterned tiles rendered. Existing saved rectangle/title loaded. A new synthetic title edit was acknowledged SAVED. Closing desktop Inspector then pressing Return reopened its trigger; closing again and Undo/Redo retained the selected rectangle and dismissed Inspector through both SAVED acknowledgments. Post-edit full reload remains unverified; Computer Use stopped during a Refresh, then a fresh Ctrl+R selected Ruler instead of refreshing, exposing a separate modifier-shortcut defect. Later browser-control Refresh completed and a new viewer instance reloaded the saved desktop-verified title and rectangle with NO CHANGES; prior stopped/timed-out attempts remain history. Released synthetic assessment builder loaded1.25points; learner preview rendered and accepted a synthetic answer at desktop/mobile preview widths without a fallback notice. Editing points to1.251 showed a generic save conflict; reload restored1.25. Its failed request cause is unresolved, and successful save is not claimed.",
+    "liveEvidence": "Fresh public livez/readyz200 after terminal deployment success. Authenticated synthetic B viewer opened in a separate native Edge tab, rendered patterned tiles and persisted rectangle/title with NO CHANGES. Actual restoration verified69tables,106325files,3286131731bytes and schema20260907_0037 with database/files integrity restored. Native CtrlR released qualification is pending. Prior daa101e native assessment edit to1.251 was acknowledged200 and retained after browser-control Refresh; first generic save failure remains unclassified. Prepared one-response Practice publication is preserved in its separate tab and awaits specific user approval. No real learners used.",
     "remaining": [
       "Released assessment-specific authenticated qualification",
       "Native production folder drag and mobile Inspector dismissal qualification",
-      "Newly reproduced browser-shortcut repair delivery and released qualification",
+      "Released browser-shortcut native qualification; assessment-dialog PR298 exact-head gates, deployment and authenticated checks",
       "Specific synthetic upload cancellation action-time confirmation",
       "External application-secret rotation and actual OneDrive sync/sharing facts",
       "Strict accountable software admission and two immutable notice gaps",
@@ -13094,6 +13094,40 @@
         "Final requirement-by-requirement campaign closure audit"
       ],
       "limitations": "No broad live-workflow, physical-device, sustained-soak, zero-bug or clinical qualification claim."
+    },
+    {
+      "sha": "daa101e7d1e14cb49849a9ba973816810bcf96ac",
+      "ciRun": 37125275731,
+      "securityRun": 37125275710,
+      "deploymentRun": 37126402648,
+      "deploymentConclusion": "success",
+      "completedAt": "2026-10-03T13:46:19Z",
+      "requiredContexts": "All nine exact-main contexts passed before normal protected production approval.",
+      "restore": {
+        "schemaRevision": "20260907_0037",
+        "tableCount": 69,
+        "fileCount": 106325,
+        "fileBytes": 3286131731,
+        "databaseIntegrity": "restored",
+        "filesIntegrity": "restored"
+      },
+      "featureSettings": {
+        "classroom": true,
+        "annotations": false,
+        "adminAnnotationCanary": true,
+        "study": "existing gate retained"
+      },
+      "liveEvidence": "Fresh readyz/livez returned200. Actual /api/v1/admin/slides and /api/v2/admin/assessment/drafts returned401 anonymously; /api/v2/admin/slides is a404 wrong-route control, not an authorization result. Signed-in Library and synthetic B patterned tiles rendered. Existing saved rectangle/title loaded. A new synthetic title edit was acknowledged SAVED. Closing desktop Inspector then pressing Return reopened its trigger; closing again and Undo/Redo retained the selected rectangle and dismissed Inspector through both SAVED acknowledgments. Post-edit full reload remains unverified; Computer Use stopped during a Refresh, then a fresh Ctrl+R selected Ruler instead of refreshing, exposing a separate modifier-shortcut defect. Later browser-control Refresh completed and a new viewer instance reloaded the saved desktop-verified title and rectangle with NO CHANGES; prior stopped/timed-out attempts remain history. Released synthetic assessment builder loaded1.25points; learner preview rendered and accepted a synthetic answer at desktop/mobile preview widths without a fallback notice. Editing points to1.251 showed a generic save conflict; reload restored1.25. Its failed request cause is unresolved, and successful save is not claimed.",
+      "remaining": [
+        "Released assessment-specific authenticated qualification",
+        "Native production folder drag and mobile Inspector dismissal qualification",
+        "Newly reproduced browser-shortcut repair delivery and released qualification",
+        "Specific synthetic upload cancellation action-time confirmation",
+        "External application-secret rotation and actual OneDrive sync/sharing facts",
+        "Strict accountable software admission and two immutable notice gaps",
+        "Requirement-by-requirement campaign closure; no physical-device or clinical qualification claim"
+      ],
+      "limitations": "Local20-session Library soak passed separately; it does not establish production capacity. No global zero-bug, physical-device or clinical-safety claim. Study gate retained."
     }
   ],
   "verificationHistory": [

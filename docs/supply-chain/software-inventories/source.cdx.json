@@ -27732,7 +27732,7 @@
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-dark.webp",
         "asset:asset:repository-file:apps/web/src/assets/auth-histology-solace-light.webp"
       ],
-      "ref": "pathlab:source:9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9"
+      "ref": "pathlab:source:32657ec7dfd24261e0341762565bc2f855e3f492"
     },
     {
       "dependsOn": [],
@@ -30185,15 +30185,15 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pathlab:source:9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9",
+      "bom-ref": "pathlab:source:32657ec7dfd24261e0341762565bc2f855e3f492",
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/32657ec7dfd24261e0341762565bc2f855e3f492"
         },
         {
           "type": "vcs",
-          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9"
+          "url": "https://github.com/Enksodsoon/PathLab-Viewer/tree/32657ec7dfd24261e0341762565bc2f855e3f492"
         }
       ],
       "licenses": [
@@ -30224,13 +30224,13 @@
           "value": "[]"
         }
       ],
-      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9",
+      "purl": "pkg:github/Enksodsoon/PathLab-Viewer@32657ec7dfd24261e0341762565bc2f855e3f492",
       "type": "application",
-      "version": "9d13b8281fe5b30e00f5e8a667b7df7ffb4428e9"
+      "version": "32657ec7dfd24261e0341762565bc2f855e3f492"
     },
-    "timestamp": "2026-10-03T10:42:16Z"
+    "timestamp": "2026-10-03T15:45:55Z"
   },
-  "serialNumber": "urn:uuid:9d13b828-1fe5-430e-a0f5-e8a667b7df7f",
+  "serialNumber": "urn:uuid:32657ec7-dfd2-4261-a034-1762565bc2f8",
   "specVersion": "1.6",
   "version": 1
 }
