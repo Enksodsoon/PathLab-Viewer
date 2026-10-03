@@ -12,6 +12,8 @@ Execution explicitly authorized by the approved plan. Preserve original checkout
 
 ## Decisions so far
 
+- [Assessment save acknowledgments and optional recovery storage](tickets/assessment-save-acknowledgments.md): reproduce competing revision saves and storage-denied loading; qualify serialization across draft changes.
+
 - [Preserve browser shortcuts](tickets/annotation-browser-shortcuts.md): native Ctrl+R wrongly selects Ruler; guard unhandled modifiers after explicit annotation commands.
 
 - [Annotation Inspector selection stability](tickets/annotation-inspector-selection-stability.md): preserve dismissal across save snapshots; open automatically only when the selected IDs change.
